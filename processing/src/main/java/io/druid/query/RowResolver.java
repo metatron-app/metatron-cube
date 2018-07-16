@@ -35,11 +35,17 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Expression;
+import io.druid.math.expr.Expressions;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.select.Schema;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
@@ -465,8 +471,47 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       }
       return true;
     }
+    if (filter instanceof MathExprFilter) {
+      Expr root = Parser.parse(((MathExprFilter) filter).getExpression());
+      return supportsBitmap(Expressions.convertToCNF(root, Parser.EXPR_FACTORY), using);
+    }
     Set<String> dependents = Filters.getDependents(filter);
-    return dependents.size() == 1 && supportsBitmap(Iterables.getOnlyElement(dependents), using);
+    if (dependents.size() != 1 || !supportsBitmap(Iterables.getOnlyElement(dependents), using)) {
+      return false;
+    }
+    return true;
+  }
+
+  private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between");
+
+  private boolean supportsBitmap(Expr expr, EnumSet<BitmapType> using)
+  {
+    if (expr instanceof Expression.BooleanExpression) {
+      for (Expr child : GuavaUtils.<Expression, Expr>cast(((Expression.BooleanExpression) expr).getChildren())) {
+        if (!supportsBitmap(child, using)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (expr instanceof Expression.FuncExpression) {
+      Expression.FuncExpression function = (Expression.FuncExpression) expr;
+      List<Expression> children = function.getChildren();
+      if (!BINARY_OPS.contains(function.op()) || children.isEmpty()) {
+        return false;
+      }
+      final Expr arg = (Expr) children.get(0);
+      if (!Evals.isIdentifier(arg) || !supportsBitmap(arg.toString(), using)) {
+        return false;
+      }
+      for (int i = 1; i < children.size(); i++) {
+        if (!Evals.isConstant((Expr) children.get(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   private boolean supportsBitmap(String column, EnumSet<BitmapType> using)

@@ -33,6 +33,7 @@ import java.util.TreeSet;
 
 /**
  */
+@SuppressWarnings("unchecked")
 public class Ranges
 {
   public static final Predicate<Range> VALID = new Predicate<Range>()
@@ -126,7 +127,6 @@ public class Ranges
                            && range2.lowerBoundType() == BoundType.CLOSED);
   }
 
-  @SuppressWarnings("unchecked")
   public static boolean isPoint(Range range)
   {
     if (!range.hasLowerBound() || !range.hasUpperBound()) {
@@ -149,6 +149,8 @@ public class Ranges
         return Range.lessThan(value);
       case "<=":
         return Range.atMost(value);
+      case "==":
+        return Range.closed(value, value);
     }
     throw new IllegalArgumentException(op);
   }

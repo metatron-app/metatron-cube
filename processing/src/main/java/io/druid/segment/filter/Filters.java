@@ -72,9 +72,9 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.SecondaryIndex;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -515,7 +515,13 @@ public class Filters
 
     public BitmapHolder createBitmap(DimFilter filter, EnumSet<BitmapType> include)
     {
-      return _toBitmapHolder(filter, this, include);
+      long start = System.currentTimeMillis();
+      BitmapHolder holder = _toBitmapHolder(filter, this, include);
+      if (holder != null) {
+        long elapsed = System.currentTimeMillis() - start;
+        logger.debug("%s : %,d / %,d (%,d msec)", filter, holder.bitmap().size(), getNumRows(), elapsed);
+      }
+      return holder;
     }
 
     public BitmapFactory bitmapFactory()
@@ -536,6 +542,11 @@ public class Filters
     public void setBaseBitmap(ImmutableBitmap baseBitmap)
     {
       this.baseBitmap = baseBitmap;
+    }
+
+    public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
+    {
+      baseBitmap = baseBitmap == null ? newBaseBitmap : factory.intersection(Arrays.asList(baseBitmap, newBaseBitmap));
     }
 
     public int getNumRows()
@@ -568,16 +579,15 @@ public class Filters
   {
     long start = System.currentTimeMillis();
     BitmapHolder baseBitmap = null;
-    if (dimFilter instanceof Expression.AndExpression) {
+    if (dimFilter instanceof AndDimFilter) {
       boolean exact = true;
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
-        DimFilter filter = (DimFilter) child;
-        BitmapHolder bitmap = context.createBitmap(filter, include);
-        if (bitmap != null) {
-          logger.debug("%s : %,d / %,d", filter, bitmap.rhs.size(), context.getNumRows());
-          bitmaps.add(bitmap.rhs);
-          exact &= bitmap.lhs;
+      for (DimFilter child : ((AndDimFilter) dimFilter).getChildren()) {
+        BitmapHolder holder = context.createBitmap(child, include);
+        if (holder != null) {
+          exact &= holder.exact();
+          bitmaps.add(holder.bitmap());
+          context.andBaseBitmap(holder.bitmap());
         } else {
           exact = false;
         }
@@ -609,10 +619,7 @@ public class Filters
       String dimension = Iterables.getOnlyElement(dependents);
       ColumnCapabilities capabilities = selector.getCapabilities(dimension);
       if (capabilities != null && capabilities.hasBitmapIndexes()) {
-        if (context.baseBitmap == null ||
-            selector.getBitmapIndex(dimension).getCardinality() < context.baseBitmap.size()) {
-          return BitmapHolder.exact(dimFilter.toFilter().getBitmapIndex(selector, using, context.baseBitmap));
-        }
+        return BitmapHolder.exact(dimFilter.toFilter().getBitmapIndex(selector, using, context.baseBitmap));
       }
     }
     BitmapHolder bitmap = toExternalBitmap(dimFilter, context, using);
@@ -637,7 +644,7 @@ public class Filters
       if (metricBitmap instanceof HistogramBitmap || metricBitmap instanceof BitSlicedBitmap) {
         List<ImmutableBitmap> bitmaps = Lists.newArrayList();
         for (String value : inFilter.getValues()) {
-          ImmutableBitmap bitmap = metricBitmap.filterFor(Range.closed(value, value));
+          ImmutableBitmap bitmap = metricBitmap.filterFor(Range.closed(value, value), context.baseBitmap);
           if (bitmap == null) {
             return null;
           }
@@ -649,12 +656,12 @@ public class Filters
         for (String value : inFilter.getValues()) {
           terms.add(new Term(inFilter.getDimension(), value));
         }
-        return BitmapHolder.exact(metricBitmap.filterFor(new TermsQuery(terms)));
+        return BitmapHolder.exact(metricBitmap.filterFor(new TermsQuery(terms), null));
       }
     } else if (filter instanceof MathExprFilter) {
       Expr expr = Parser.parse(((MathExprFilter) filter).getExpression());
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
-      ImmutableBitmap bitmap = toExprBitmap(cnf, selector, using, false);
+      ImmutableBitmap bitmap = toExprBitmap(cnf, context, using, false);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     } else if (filter instanceof DimFilter.LuceneFilter) {
       return BitmapHolder.exact(filter.toFilter().getBitmapIndex(selector, using, context.baseBitmap));
@@ -664,48 +671,49 @@ public class Filters
 
   private static ImmutableBitmap toExprBitmap(
       Expression tree,
-      BitmapIndexSelector bitmapSelector,
+      FilterContext context,
       EnumSet<BitmapType> using,
       boolean withNot
   )
   {
-    BitmapFactory factory = bitmapSelector.getBitmapFactory();
     if (tree instanceof FuncExpression) {
       List<String> required = Parser.findRequiredBindings((Expr) tree);
       if (required.size() != 1) {
         return null;
       }
       String column = required.get(0);
-      SecondaryIndex metric = getWhatever(bitmapSelector, column, using);
+      SecondaryIndex metric = getWhatever(context.selector, column, using);
       if (metric == null) {
         return null;
       }
-      ImmutableBitmap bitmap = leafToRanges(column, (FuncExpression) tree, factory, metric, withNot);
+      long start = System.currentTimeMillis();
+      ImmutableBitmap bitmap = leafToRanges(column, (FuncExpression) tree, context, metric, withNot);
       if (bitmap != null) {
-        logger.debug("%s%s : %,d / %,d", withNot ? "!" : "", tree, bitmap.size(), metric.rows());
+        long elapsed = System.currentTimeMillis() - start;
+        logger.debug("%s%s : %,d / %,d (%,d msec)", withNot ? "!" : "", tree, bitmap.size(), metric.rows(), elapsed);
       }
       return bitmap;
     } else if (tree instanceof AndExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.BooleanExpression) tree).getChildren()) {
-        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, using, withNot);
+        ImmutableBitmap extracted = toExprBitmap(child, context, using, withNot);
         if (extracted != null) {
           bitmaps.add(extracted);
         }
       }
-      return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
+      return bitmaps.isEmpty() ? null : context.factory.intersection(bitmaps);
     } else if (tree instanceof OrExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.BooleanExpression) tree).getChildren()) {
-        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, using, withNot);
+        ImmutableBitmap extracted = toExprBitmap(child, context, using, withNot);
         if (extracted == null) {
           return null;
         }
         bitmaps.add(extracted);
       }
-      return bitmaps.isEmpty() ? null : factory.union(bitmaps);
+      return bitmaps.isEmpty() ? null : context.factory.union(bitmaps);
     } else if (tree instanceof NotExpression) {
-      return toExprBitmap(((NotExpression) tree).getChild(), bitmapSelector, using, !withNot);
+      return toExprBitmap(((NotExpression) tree).getChild(), context, using, !withNot);
     }
     return null;
   }
@@ -730,13 +738,15 @@ public class Filters
   private static ImmutableBitmap leafToRanges(
       String column,
       FuncExpression expression,
-      BitmapFactory factory,
+      FilterContext context,
       SecondaryIndex metric,
       boolean withNot
   )
   {
     final ValueType type = ValueDesc.assertPrimitive(metric.type()).type();
 
+    final BitmapFactory factory = context.factory;
+    final ImmutableBitmap baseBitmap = context.baseBitmap;
     if (Expressions.isCompare(expression.op())) {
       final Comparable constant = getOnlyConstant(expression.getChildren(), type);
       if (constant == null) {
@@ -745,48 +755,48 @@ public class Filters
       switch (expression.op()) {
         case "<":
           return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
-                     withNot ? Range.atLeast(constant) : Range.lessThan(constant)
-                 ) :
+                     withNot ? Range.atLeast(constant) : Range.lessThan(constant), baseBitmap ) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant)
-                 ) : null;
+                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant), baseBitmap
+                 ) :
+                 null;
         case ">":
           return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
-                     withNot ? Range.atMost(constant) : Range.greaterThan(constant)
-                 ) :
+                     withNot ? Range.atMost(constant) : Range.greaterThan(constant), baseBitmap ) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant)
-                 ) : null;
+                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant), baseBitmap
+                 ) :
+                 null;
         case "<=":
           return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
-                     withNot ? Range.greaterThan(constant) : Range.atMost(constant)
-                 ) :
+                     withNot ? Range.greaterThan(constant) : Range.atMost(constant), baseBitmap ) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant)
-                 ) : null;
+                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant), baseBitmap
+                 ) :
+                 null;
         case ">=":
           return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
-                     withNot ? Range.lessThan(constant) : Range.atLeast(constant)
-                 ) :
+                     withNot ? Range.lessThan(constant) : Range.atLeast(constant), baseBitmap ) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant)
-                 ) : null;
+                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant), baseBitmap
+                 ) :
+                 null;
         case "==":
           if (withNot) {
             return factory.union(
                 Arrays.asList(
                     metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-                    metric.filterFor(Range.lessThan(constant)) :
-                    metric.filterFor(Lucenes.lessThan(column, constant)),
+                    metric.filterFor(Range.lessThan(constant), baseBitmap) :
+                    metric.filterFor(Lucenes.lessThan(column, constant), baseBitmap),
                     metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-                    metric.filterFor(Range.greaterThan(constant)) :
-                    metric.filterFor(Lucenes.greaterThan(column, constant))
+                    metric.filterFor(Range.greaterThan(constant), baseBitmap) :
+                    metric.filterFor(Lucenes.greaterThan(column, constant), baseBitmap)
                 )
             );
           }
           return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-                 metric.filterFor(Range.closed(constant, constant)) :
-                 metric.filterFor(Lucenes.point(column, constant));
+                 metric.filterFor(Range.closed(constant, constant), baseBitmap) :
+                 metric.filterFor(Lucenes.point(column, constant), baseBitmap);
       }
     }
 
@@ -810,17 +820,17 @@ public class Filters
           return factory.union(
               Arrays.asList(
                   metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-                  metric.filterFor(Range.lessThan(value1)) :
-                  metric.filterFor(Lucenes.lessThan(column, value1)),
+                  metric.filterFor(Range.lessThan(value1), baseBitmap) :
+                  metric.filterFor(Lucenes.lessThan(column, value1), baseBitmap),
                   metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-                  metric.filterFor(Range.greaterThan(value2)) :
-                  metric.filterFor(Lucenes.greaterThan(column, value2))
+                  metric.filterFor(Range.greaterThan(value2), baseBitmap) :
+                  metric.filterFor(Lucenes.greaterThan(column, value2), baseBitmap)
               )
           );
         }
         return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-               metric.filterFor(Range.closed(value1, value2)) :
-               metric.filterFor(Lucenes.closed(column, value1, value2));
+               metric.filterFor(Range.closed(value1, value2), baseBitmap) :
+               metric.filterFor(Lucenes.closed(column, value1, value2), baseBitmap);
       case "in":
         if (withNot) {
           return null;  // hard to be expressed with bitmap
@@ -829,8 +839,8 @@ public class Filters
         for (Comparable value : getConstants(expression.getChildren(), type)) {
           bitmaps.add(
               metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
-              metric.filterFor(Range.closed(value, value)) :
-              metric.filterFor(Lucenes.point(column, value))
+              metric.filterFor(Range.closed(value, value), baseBitmap) :
+              metric.filterFor(Lucenes.point(column, value), baseBitmap)
           );
         }
         return bitmaps.isEmpty() ? null : factory.union(bitmaps);
@@ -873,7 +883,7 @@ public class Filters
 
     traverse(current, predicate, bitmapIndexSupported, bitmapIndexNotSupported);
 
-    return new DimFilter[]{andFilter(bitmapIndexSupported), andFilter(bitmapIndexNotSupported)};
+    return new DimFilter[]{DimFilters.and(bitmapIndexSupported), DimFilters.and(bitmapIndexNotSupported)};
   }
 
   private static void traverse(
@@ -894,11 +904,6 @@ public class Filters
         notSupport.add(current);
       }
     }
-  }
-
-  private static DimFilter andFilter(List<DimFilter> filters)
-  {
-    return filters.isEmpty() ? null : filters.size() == 1 ? filters.get(0) : new AndDimFilter(filters);
   }
 
   public static DimFilter convertToCNF(DimFilter current)

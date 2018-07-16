@@ -29,6 +29,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProviders;
@@ -178,14 +179,24 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Float> query)
+    public final ImmutableBitmap filterFor(Range<Float> query, ImmutableBitmap baseBitmap)
     {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      if (query.isEmpty() ||
+          query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
+          query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
+        return factory.makeEmptyImmutableBitmap();
+      }
+      if (Ranges.isPoint(query)) {
+        return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
+      }
+      final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       if (query.hasLowerBound()) {
-        bitmaps.add(_gt(BitSlicer.normalize(query.lowerEndpoint()), query.lowerBoundType() == BoundType.CLOSED));
+        final int normalized = BitSlicer.normalize(query.lowerEndpoint());
+        bitmaps.add(_gt(normalized, query.lowerBoundType() == BoundType.CLOSED, baseBitmap));
       }
       if (query.hasUpperBound()) {
-        bitmaps.add(_lt(BitSlicer.normalize(query.upperEndpoint()), query.upperBoundType() == BoundType.CLOSED));
+        final int normalized = BitSlicer.normalize(query.upperEndpoint());
+        bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
       return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
     }
@@ -199,14 +210,24 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Double> query)
+    public final ImmutableBitmap filterFor(Range<Double> query, ImmutableBitmap baseBitmap)
     {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      if (query.isEmpty() ||
+          query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
+          query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
+        return factory.makeEmptyImmutableBitmap();
+      }
+      if (Ranges.isPoint(query)) {
+        return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
+      }
+      final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       if (query.hasLowerBound()) {
-        bitmaps.add(_gt(BitSlicer.normalize(query.lowerEndpoint()), query.lowerBoundType() == BoundType.CLOSED));
+        final long normalized = BitSlicer.normalize(query.lowerEndpoint());
+        bitmaps.add(_gt(normalized, query.lowerBoundType() == BoundType.CLOSED, baseBitmap));
       }
       if (query.hasUpperBound()) {
-        bitmaps.add(_lt(BitSlicer.normalize(query.upperEndpoint()), query.upperBoundType() == BoundType.CLOSED));
+        final long normalized = BitSlicer.normalize(query.upperEndpoint());
+        bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
       return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
     }
@@ -220,14 +241,22 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Long> query)
+    public final ImmutableBitmap filterFor(Range<Long> query, ImmutableBitmap baseBitmap)
     {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      if (query.isEmpty()) {
+        return factory.makeEmptyImmutableBitmap();
+      }
+      if (Ranges.isPoint(query)) {
+        return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
+      }
+      final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       if (query.hasLowerBound()) {
-        bitmaps.add(_gt(BitSlicer.normalize(query.lowerEndpoint()), query.lowerBoundType() == BoundType.CLOSED));
+        final long normalized = BitSlicer.normalize(query.lowerEndpoint());
+        bitmaps.add(_gt(normalized, query.lowerBoundType() == BoundType.CLOSED, baseBitmap));
       }
       if (query.hasUpperBound()) {
-        bitmaps.add(_lt(BitSlicer.normalize(query.upperEndpoint()), query.upperBoundType() == BoundType.CLOSED));
+        final long normalized = BitSlicer.normalize(query.upperEndpoint());
+        bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
       return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
     }

@@ -291,7 +291,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
                     }
 
                     @Override
-                    public ImmutableBitmap filterFor(Query query)
+                    public ImmutableBitmap filterFor(Query query, ImmutableBitmap baseBitmap)
                     {
                       return Lucenes.toBitmap(factory, query(query));
                     }

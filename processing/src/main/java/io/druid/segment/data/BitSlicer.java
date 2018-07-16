@@ -66,7 +66,7 @@ public abstract class BitSlicer<T extends Comparable>
 
   protected ImmutableBitmap[] toFinalized()
   {
-    boolean hasNan = nans != null && nans.isEmpty();
+    boolean hasNan = !nans.isEmpty();
     ImmutableBitmap[] immutable = new ImmutableBitmap[hasNan ? bitmaps.length + 1: bitmaps.length];
 
     int i = 0;

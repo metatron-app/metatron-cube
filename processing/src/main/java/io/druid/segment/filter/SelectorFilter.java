@@ -86,11 +86,11 @@ public class SelectorFilter implements Filter
     if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
       return selector.getBitmapIndex(dimension, value);
     } else if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
-      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value));
+      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), baseBitmap);
     } else if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
-      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value));
+      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
     } else if (using.contains(BitmapType.BSB) && capabilities.hasBitSlicedBitmap()) {
-      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value));
+      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
     }
     throw new IllegalArgumentException("column " + dimension + " is not indexed with " + using);
   }

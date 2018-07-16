@@ -93,7 +93,7 @@ public class ComplexColumnSerializerTest
 
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query);
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query, null);
 
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));

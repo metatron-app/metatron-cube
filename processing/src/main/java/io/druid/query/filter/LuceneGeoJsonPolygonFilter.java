@@ -126,7 +126,7 @@ public class LuceneGeoJsonPolygonFilter implements DimFilter.LuceneFilter
         );
         try {
           Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
-          return lucene.filterFor(query);
+          return lucene.filterFor(query, baseBitmap);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

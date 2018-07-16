@@ -21,7 +21,6 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -169,7 +168,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
           SpatialArgs args = new SpatialArgs(operation.op(), shapeFormat.newReader(ctx).read(shapeString));
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);
           SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
-          return lucene.filterFor(strategy.makeQuery(args));
+          return lucene.filterFor(strategy.makeQuery(args), baseBitmap);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

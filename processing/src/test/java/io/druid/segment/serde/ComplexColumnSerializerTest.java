@@ -91,7 +91,7 @@ public class ComplexColumnSerializerTest
 
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query);
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query, null);
 
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
@@ -172,24 +172,24 @@ public class ComplexColumnSerializerTest
 
     QueryParser parser = new QueryParser("address", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"school\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query);
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(1, bitmap.size());
     Assert.assertEquals(true, bitmap.get(1));
 
     // from home
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 10);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(1, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 100);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(2));
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 600);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(4, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(1));
@@ -197,12 +197,12 @@ public class ComplexColumnSerializerTest
     Assert.assertEquals(true, bitmap.get(3));
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 800);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(5, bitmap.size());
 
     // 래미안 ~ 우성
     query = LatLonPoint.newBoxQuery("coord", 37.490215, 37.493298, 127.019866, 127.028222);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(3, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(1));
@@ -215,7 +215,7 @@ public class ComplexColumnSerializerTest
         new double[] {127.019841, 127.021931, 127.021177, 127.019841}
     );
     query = LatLonPoint.newPolygonQuery("coord", polygon);
-    bitmap = luceneIndex.filterFor(query);
+    bitmap = luceneIndex.filterFor(query, null);
     Assert.assertEquals(1, bitmap.size());
     Assert.assertEquals(true, bitmap.get(2));
   }

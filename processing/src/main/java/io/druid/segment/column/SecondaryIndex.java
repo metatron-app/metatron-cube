@@ -30,7 +30,7 @@ public interface SecondaryIndex<T> extends Closeable
 {
   ValueDesc type();
 
-  ImmutableBitmap filterFor(T query);
+  ImmutableBitmap filterFor(T query, ImmutableBitmap baseBitmap);
 
   int rows();
 }

@@ -175,7 +175,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
             "no lucene index for " + columnName
         );
         Query query = type.toQuery(fieldName, latitudes, longitudes, radiusMeters);
-        return lucene.filterFor(query);
+        return lucene.filterFor(query, baseBitmap);
       }
 
       @Override

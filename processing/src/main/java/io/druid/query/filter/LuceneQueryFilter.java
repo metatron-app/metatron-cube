@@ -139,7 +139,7 @@ public class LuceneQueryFilter implements DimFilter.LuceneFilter
           QueryParser parser = new QueryParser(fieldName, Lucenes.createAnalyzer(analyzer));
           Query query = parser.parse(expression);
 
-          return index.filterFor(query);
+          return index.filterFor(query, null);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

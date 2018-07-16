@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitSetBitmapFactory;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -36,6 +37,7 @@ import org.roaringbitmap.IntIterator;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.List;
 
 /**
  */
@@ -93,38 +95,52 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
   // todo
   public int zeroRows()
   {
-    if (bitmaps.length == 32) {
-      return _eq(Integer.MIN_VALUE).size();
-    } else if (bitmaps.length == 64) {
-      return _eq(Long.MIN_VALUE).size();
+    if (bitmaps.length == Float.SIZE) {
+      return _eq(Integer.MIN_VALUE, null).size();
+    } else if (bitmaps.length == Double.SIZE) {
+      return _eq(Long.MIN_VALUE, null).size();
     }
     return -1;
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
+    Arrays.fill(bitmaps, null);
   }
 
-  protected final ImmutableBitmap _gt(int x, boolean eq)
+  protected final ImmutableBitmap _gt(int x, boolean eq, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
     final MutableBitmap result = factory.makeEmptyMutableBitmap();
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Integer.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
         }
-        if (!a) {
+        if (b) {
           result.add(index);
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     if (eq) {
@@ -133,25 +149,38 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
     return factory.makeImmutableBitmap(result);
   }
 
-  protected final ImmutableBitmap _gt(long x, boolean eq)
+  protected final ImmutableBitmap _gt(long x, boolean eq, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
     final MutableBitmap result = factory.makeEmptyMutableBitmap();
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Long.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
         }
-        if (!a) {
+        if (b) {
           result.add(index);
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     if (eq) {
@@ -160,16 +189,25 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
     return factory.makeImmutableBitmap(result);
   }
 
-  protected final ImmutableBitmap _lt(int x, boolean eq)
+  protected final ImmutableBitmap _lt(int x, boolean eq, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
     final MutableBitmap result = factory.makeEmptyMutableBitmap();
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Integer.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
@@ -177,8 +215,12 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
         if (a) {
           result.add(index);
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     if (eq) {
@@ -187,16 +229,25 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
     return factory.makeImmutableBitmap(result);
   }
 
-  protected final ImmutableBitmap _lt(long x, boolean eq)
+  protected final ImmutableBitmap _lt(long x, boolean eq, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
     final MutableBitmap result = factory.makeEmptyMutableBitmap();
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Long.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
@@ -204,8 +255,12 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
         if (a) {
           result.add(index);
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     if (eq) {
@@ -214,50 +269,76 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
     return factory.makeImmutableBitmap(result);
   }
 
-  protected final ImmutableBitmap _eq(int x)
+  protected final ImmutableBitmap _eq(int x, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Integer.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     return factory.makeImmutableBitmap(runner);
   }
 
-  protected final ImmutableBitmap _eq(long x)
+  protected final ImmutableBitmap _eq(long x, ImmutableBitmap baseBitmap)
   {
-    final MutableBitmap runner = makeRunner(factory);
+    final MutableBitmap runner = makeRunner(factory, baseBitmap);
 
-    for (ImmutableBitmap bitmap : bitmaps) {
+    final List<Integer> removing = Lists.newArrayList();
+    for (final ImmutableBitmap bitmap : bitmaps) {
+      final int size = bitmap.size();
       final boolean a = (x & Long.MIN_VALUE) != 0;
-      IntIterator iterator = runner.iterator();
+      if (!a && size == 0 || a && size == rowCount) {
+        x <<= 1;
+        continue;
+      }
+      final IntIterator iterator = runner.iterator();
       while (iterator.hasNext()) {
-        int index = iterator.next();
+        final int index = iterator.next();
+        if (index >= rowCount) {
+          break;  // fucking concise..
+        }
         final boolean b = bitmap.get(index);
         if (a == b) {
           continue;
         }
-        runner.remove(index);
+        removing.add(index);
       }
+      for (int remove : removing) {
+        runner.remove(remove);
+      }
+      removing.clear();
       x <<= 1;
     }
     return factory.makeImmutableBitmap(runner);
   }
 
-  private MutableBitmap makeRunner(BitmapFactory factory)
+  private MutableBitmap makeRunner(BitmapFactory factory, ImmutableBitmap baseBitmap)
   {
     final boolean noNan = nans.isEmpty();
-    if (noNan) {
+    if (noNan && baseBitmap == null) {
       if (factory instanceof ConciseBitmapFactory) {
         ConciseSet conciseSet = new ConciseSet();
         conciseSet.fill(0, rowCount);
@@ -268,8 +349,11 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
         return new WrappedBitSetBitmap(bitset);
       }
     }
-    MutableBitmap mutable = factory.makeEmptyMutableBitmap();
+    final MutableBitmap mutable = factory.makeEmptyMutableBitmap();
     for (int i = 0; i < rowCount; i++) {
+      if (baseBitmap != null && !baseBitmap.get(i)) {
+        continue;
+      }
       if (noNan || !nans.get(i)) {
         mutable.add(i);
       }

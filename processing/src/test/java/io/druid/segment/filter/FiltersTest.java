@@ -68,7 +68,47 @@ public class FiltersTest
   {
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
-    DimFilter dim2 = new MathExprFilter("market == \"spot\" && quality == \"business\"");
+    DimFilter dim2 = new MathExprFilter("market == 'spot' && quality == 'business'");
+
+    DimFilter dim3 = DimFilters.and(dim1, dim2);
+
+    DimFilter dim4 = DimFilters.or(dim1, dim2);
+
+    // DIM1 AND !(DIM1 OR DIM2) -> DIM1 AND !DIM1 AND !DIM2
+    DimFilter dim5 = DimFilters.and(dim1, NotDimFilter.of(dim4));
+
+    DimFilter[] filters;
+
+    filters = Filters.partitionWithBitmapSupport(null, resolver);
+    Assert.assertNull(filters);
+
+    filters = Filters.partitionWithBitmapSupport(dim1, resolver);
+    assertEquals(dim1, filters[0]);
+    Assert.assertNull(filters[1]);
+
+    filters = Filters.partitionWithBitmapSupport(dim2, resolver);
+    assertEquals(dim2, filters[0]);
+    Assert.assertNull(filters[1]);
+
+    filters = Filters.partitionWithBitmapSupport(dim3, resolver);
+    assertEquals(dim3, filters[0]);
+    Assert.assertNull(filters[1]);
+
+    filters = Filters.partitionWithBitmapSupport(dim4, resolver);
+    Assert.assertNull(filters[0]);
+    assertEquals(dim4, filters[1]);
+
+    filters = Filters.partitionWithBitmapSupport(dim5, resolver);
+    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
+    assertEquals(NotDimFilter.of(dim2), filters[1]);
+  }
+
+  @Test
+  public void testPartitionWithBitmapSupport2() throws Exception
+  {
+    DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
+
+    DimFilter dim2 = new MathExprFilter("cast(market, 'string') == 'spot' && quality == 'business'");
 
     DimFilter dim3 = DimFilters.and(dim1, dim2);
 
