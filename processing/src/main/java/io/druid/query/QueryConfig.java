@@ -28,8 +28,6 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
-import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamRawQuery;
 import io.druid.query.topn.TopNQueryConfig;
 
 import javax.validation.constraints.NotNull;
@@ -78,8 +76,8 @@ public class QueryConfig
     if (!useCustomSerdeForDateTime || query.getContextBoolean(Query.DATETIME_STRING_SERDE, false) ) {
       return false;
     }
-    // events containing DateTime in Map
-    if (query instanceof SelectQuery || query instanceof StreamQuery || query instanceof StreamRawQuery) {
+    if (query instanceof SelectQuery) {
+      // events containing DateTime in Map (which means no type information)
       return !getSelect().get().isUseDateTime();
     }
     return true;

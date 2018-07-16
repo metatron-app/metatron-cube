@@ -79,6 +79,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
+  private final ObjectMapper customDateTimeMapper;
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final String host;
@@ -104,6 +105,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
     this.objectMapper = objectMapper;
+    this.customDateTimeMapper = JodaStuff.overrideForInternal(objectMapper);
     this.httpClient = httpClient;
     this.host = host;
     this.type = type;
@@ -215,7 +217,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     final ObjectMapper mapper = query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
-                                ? JodaStuff.overrideForInternal(objectMapper)
+                                ? customDateTimeMapper
                                 : objectMapper;
 
     final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
