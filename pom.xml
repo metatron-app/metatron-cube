@@ -125,6 +125,7 @@
         <module>extensions-contrib/orc-extensions</module>
         <module>extensions-contrib/uri-firehose</module>
         <module>extensions-contrib/oauth</module>
+        <module>extensions-contrib/kafka-emitter</module>
         <!-- build failure for dependency com.yahoo.egads:egads -->
         <!--<module>extensions-contrib/egads-extensions</module>-->
 
