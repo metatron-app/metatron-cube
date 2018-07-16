@@ -113,5 +113,6 @@ public class EsriFunctionsTest
     testLong("ST_Within(ST_Point(8, 8), ST_Polygon(1,1, 1,4, 4,4, 4,1))", 0, b);
 
     testDouble("ST_Length(ST_Linestring(0.0,0.0, 3.0,4.0))", 5.0, b);
+    testDouble("ST_Distance(ST_Point(0.0,0.0), ST_Point(3.0,4.0))", 5.0, b);
   }
 }

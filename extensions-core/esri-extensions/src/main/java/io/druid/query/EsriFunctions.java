@@ -446,7 +446,7 @@ public interface EsriFunctions extends Function.Library
         @Override
         public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
-          return ValueDesc.DOUBLE;
+          return ValueDesc.LONG;
         }
 
         @Override
@@ -547,6 +547,38 @@ public interface EsriFunctions extends Function.Library
     protected OperatorSimpleRelation getRelationOperator()
     {
       return OperatorDisjoint.local();
+    }
+  }
+
+  @Function.Named("ST_Distance")
+  class ST_Distance extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        {
+          return ValueDesc.DOUBLE;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          OGCGeometry ogcGeom1 = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          OGCGeometry ogcGeom2 = EsriUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          if (ogcGeom1 == null || ogcGeom2 == null) {
+            return ExprEval.of(-1D);
+          }
+          return ExprEval.of(ogcGeom1.distance(ogcGeom2));
+        }
+      };
     }
   }
 }
