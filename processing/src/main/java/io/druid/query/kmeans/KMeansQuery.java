@@ -369,7 +369,7 @@ public class KMeansQuery
       double[] prevCoords = prev.getCentroid();
       double[] currCoords = current.getCentroid();
       double d = range.upperEndpoint() - range.lowerEndpoint();
-      if (d == 0 && prevCoords[i] == currCoords[i]) {
+      if (d == 0 || prevCoords[i] == currCoords[i]) {
         continue;
       }
       if (Math.abs(prevCoords[i] - currCoords[i]) / d > deltaThreshold) {
