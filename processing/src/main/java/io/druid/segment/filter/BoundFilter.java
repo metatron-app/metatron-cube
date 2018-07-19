@@ -22,11 +22,11 @@ package io.druid.segment.filter;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
@@ -153,16 +153,21 @@ public class BoundFilter implements Filter
     if (bitmapIndex == null || bitmapIndex.getCardinality() == 0) {
       return toPredicate(ValueType.STRING, boundDimFilter.getExtractionFn()).apply(null) ? ALL : NONE;
     }
+    final String lower = Strings.emptyToNull(boundDimFilter.getLower());
+    final String upper = Strings.emptyToNull(boundDimFilter.getUpper());
 
+    if (lower == null && upper == null) {
+      return Strings.isNullOrEmpty(bitmapIndex.getValue(0)) ? new int[] {0, 1} : NONE;
+    }
     // search for start, end indexes in the bitmaps; then include all bitmaps between those points
 
     final int startIndex; // inclusive
     final int endIndex; // exclusive
 
-    if (!boundDimFilter.hasLowerBound()) {
-      startIndex = 0;
+    if (lower == null) {
+      startIndex = boundDimFilter.isLowerStrict() ? 1 : 0;
     } else {
-      final int found = bitmapIndex.getIndex(boundDimFilter.getLower());
+      final int found = bitmapIndex.getIndex(lower);
       if (found >= 0) {
         startIndex = boundDimFilter.isLowerStrict() ? found + 1 : found;
       } else {
@@ -170,10 +175,10 @@ public class BoundFilter implements Filter
       }
     }
 
-    if (!boundDimFilter.hasUpperBound()) {
+    if (upper == null) {
       endIndex = bitmapIndex.getCardinality();
     } else {
-      final int found = bitmapIndex.getIndex(boundDimFilter.getUpper());
+      final int found = bitmapIndex.getIndex(upper);
       if (found >= 0) {
         endIndex = boundDimFilter.isUpperStrict() ? found : found + 1;
       } else {
@@ -201,11 +206,14 @@ public class BoundFilter implements Filter
     if (extractionFn == null) {
       extractionFn = type == ValueType.STRING ? GuavaUtils.NULLABLE_TO_STRING_FUNC : Functions.identity();
     }
-    Comparable lower = boundDimFilter.hasLowerBound() ? type.cast(boundDimFilter.getLower()) : null;
-    Comparable upper = boundDimFilter.hasUpperBound() ? type.cast(boundDimFilter.getUpper()) : null;
+    String lower = Strings.emptyToNull(boundDimFilter.getLower());
+    String upper = Strings.emptyToNull(boundDimFilter.getUpper());
+
+    Comparable lowerLimit = lower != null ? type.cast(boundDimFilter.getLower()) : null;
+    Comparable upperLimit = upper != null ? type.cast(boundDimFilter.getUpper()) : null;
 
     Comparator comparator = type == ValueType.STRING ? boundDimFilter.getComparator() : type.comparator();
-    return asPredicate(lower, upper, extractionFn, comparator);
+    return asPredicate(lowerLimit, upperLimit, extractionFn, comparator);
   }
 
   private Predicate asPredicate(
@@ -215,17 +223,15 @@ public class BoundFilter implements Filter
       final Comparator comparator
   )
   {
-    final boolean hasLowerBound = boundDimFilter.hasLowerBound();
+    final boolean hasLowerBound = lower != null;
     final boolean lowerStrict = boundDimFilter.isLowerStrict();
 
-    final boolean hasUpperBound = boundDimFilter.hasUpperBound();
+    final boolean hasUpperBound = upper != null;
     final boolean upperStrict = boundDimFilter.isUpperStrict();
 
-    final boolean lowerNull = StringUtils.isNullOrEmpty(lower);
-    final boolean upperNull = StringUtils.isNullOrEmpty(upper);
-
     // lower bound allows null && upper bound allows null
-    final boolean allowNull = boundDimFilter.allowNull(lower, upper);
+    final boolean allowNull = lower == null && !lowerStrict || upper == null && !upperStrict;
+    final boolean allowOnlyNull = allowNull && lower == null && upper == null;
 
     return new Predicate()
     {
@@ -233,10 +239,11 @@ public class BoundFilter implements Filter
       @SuppressWarnings("unchecked")
       public boolean apply(final Object input)
       {
-        System.out.println("[BoundFilter/apply] " + input);
         Object value = extractionFn.apply(input);
         if (value == null) {
           return allowNull;
+        } else if (allowOnlyNull) {
+          return false;
         }
         int lowerComparing = 1;
         int upperComparing = 1;

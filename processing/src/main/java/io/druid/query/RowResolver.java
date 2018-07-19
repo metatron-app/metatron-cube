@@ -507,7 +507,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     }
     if (using.contains(BitmapType.HISTOGRAM_BITMAP) && supportsBitmap(column, BitmapType.HISTOGRAM_BITMAP) ||
         using.contains(BitmapType.BSB) && supportsBitmap(column, BitmapType.BSB)) {
-      return filter instanceof DimFilter.RangeFilter && ((DimFilter.RangeFilter)filter).toRanges() != null;
+      return filter instanceof DimFilter.RangeFilter && ((DimFilter.RangeFilter)filter).possible(this);
     }
     return false;
   }

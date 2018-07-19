@@ -32,6 +32,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
 import io.druid.common.utils.Ranges;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
@@ -199,11 +200,15 @@ public class InDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public List<Range> toRanges()
+  public boolean possible(TypeResolver resolver)
   {
-    if (extractionFn != null) {
-      return null;
-    }
+    return extractionFn == null;
+  }
+
+  @Override
+  public List<Range> toRanges(TypeResolver resolver)
+  {
+    Preconditions.checkArgument(extractionFn == null, "extractionFn");
     final List<Range> ranges = Lists.newArrayList();
     for (String value : values) {
       ranges.add(Ranges.of(value, "=="));

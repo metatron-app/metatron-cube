@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.Range;
 import io.druid.common.Cacheable;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
 
 import java.util.List;
@@ -112,6 +113,8 @@ public interface DimFilter extends Expression, Cacheable
 
   interface RangeFilter extends DimFilter
   {
-    List<Range> toRanges();
+    boolean possible(TypeResolver resolver);
+
+    List<Range> toRanges(TypeResolver resolver);
   }
 }

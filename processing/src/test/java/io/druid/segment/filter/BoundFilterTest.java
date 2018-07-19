@@ -117,35 +117,6 @@ public class BoundFilterTest extends BaseFilterTest
   }
 
   @Test
-  public void testLexicographicMatchMissingColumn()
-  {
-    assertFilterMatches(
-        new BoundDimFilter("dim3", "", "", false, false, false, null),
-        ImmutableList.of("0", "1", "2", "3", "4", "5")
-    );
-    assertFilterMatches(
-        new BoundDimFilter("dim3", "", "", true, false, false, null),
-        ImmutableList.<String>of()
-    );
-    assertFilterMatches(
-        new BoundDimFilter("dim3", "", "", false, true, false, null),
-        ImmutableList.<String>of()
-    );
-    assertFilterMatches(
-        new BoundDimFilter("dim3", "", null, false, true, false, null),
-        ImmutableList.of("0", "1", "2", "3", "4", "5")
-    );
-    assertFilterMatches(
-        new BoundDimFilter("dim3", null, "", false, false, false, null),
-        ImmutableList.of("0", "1", "2", "3", "4", "5")
-    );
-    assertFilterMatches(
-        new BoundDimFilter("dim3", null, "", false, true, false, null),
-        ImmutableList.<String>of()
-    );
-  }
-
-  @Test
   public void testLexicographicMatchTooStrict()
   {
     assertFilterMatches(
@@ -194,6 +165,10 @@ public class BoundFilterTest extends BaseFilterTest
   {
     assertFilterMatches(
         new BoundDimFilter("dim1", null, "abd", true, true, false, null),
+        ImmutableList.of("1", "2", "3", "5")
+    );
+    assertFilterMatches(
+        new BoundDimFilter("dim1", null, "abd", false, true, false, null),
         ImmutableList.of("0", "1", "2", "3", "5")
     );
   }
@@ -281,6 +256,10 @@ public class BoundFilterTest extends BaseFilterTest
   {
     assertFilterMatches(
         new BoundDimFilter("dim1", null, "2", true, true, true, null),
+        ImmutableList.of("3")
+    );
+    assertFilterMatches(
+        new BoundDimFilter("dim1", null, "2", false, true, true, null),
         ImmutableList.of("0", "3")
     );
   }

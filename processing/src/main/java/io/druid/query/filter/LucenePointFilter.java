@@ -52,6 +52,11 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     return new LucenePointFilter(field, PointQueryType.DISTANCE, latitude, longitude, null, null, radiusMeters);
   }
 
+  public static LucenePointFilter polygon(String field, double[] latitudes, double[] longitudes)
+  {
+    return new LucenePointFilter(field, PointQueryType.POLYGON, null, null, latitudes, longitudes, -1d);
+  }
+
   private final String field;
   private final PointQueryType type;
   private final double[] latitudes;

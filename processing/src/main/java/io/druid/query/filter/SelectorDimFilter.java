@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
 import io.druid.common.utils.Ranges;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
@@ -141,9 +142,16 @@ public class SelectorDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public List<Range> toRanges()
+  public boolean possible(TypeResolver resolver)
   {
-    return extractionFn != null ? null : Arrays.<Range>asList(Ranges.of(value, "=="));
+    return extractionFn == null;
+  }
+
+  @Override
+  public List<Range> toRanges(TypeResolver resolver)
+  {
+    Preconditions.checkArgument(extractionFn == null, "extractionFn");
+    return Arrays.<Range>asList(Ranges.of(value, "=="));
   }
 
   @Override

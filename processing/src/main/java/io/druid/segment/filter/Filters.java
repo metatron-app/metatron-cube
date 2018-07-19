@@ -701,7 +701,7 @@ public class Filters
     }
     if (filter instanceof DimFilter.RangeFilter) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Range range : ((DimFilter.RangeFilter)filter).toRanges()) {
+      for (Range range : ((DimFilter.RangeFilter)filter).toRanges(asTypeResolver(context.selector))) {
         bitmaps.add(index.filterFor(range, context.baseBitmap));
       }
       ImmutableBitmap bitmap = context.union(bitmaps);

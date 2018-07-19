@@ -455,4 +455,9 @@ public class ValueDesc implements Serializable
   {
     return typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
+
+  public Comparable cast(Object value)
+  {
+    return type.cast(value);
+  }
 }

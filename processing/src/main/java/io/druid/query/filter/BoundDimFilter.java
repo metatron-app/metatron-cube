@@ -20,11 +20,11 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import io.druid.common.utils.Ranges;
@@ -74,7 +74,9 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     this.comparatorType = comparatorType;
     this.extractionFn = extractionFn;
 
-    Preconditions.checkArgument(lower != null || upper != null, "lower and upper can not be null at the same time");
+    if (Strings.isNullOrEmpty(lower) && Strings.isNullOrEmpty(upper) && (lowerStrict || upperStrict)) {
+      throw new IllegalArgumentException("empty bound");
+    }
     Preconditions.checkArgument(
         comparatorType == null || Comparators.createGeneric(comparatorType, null) != null,
         "invalid comparator type " + comparatorType
@@ -138,22 +140,34 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public List<Range> toRanges()
+  public boolean possible(TypeResolver resolver)
   {
     if (extractionFn != null) {
-      return null;
+      return false;
     }
-    return toRanges(false);
+    return !StringUtils.isNullOrEmpty(lower)
+           || !StringUtils.isNullOrEmpty(upper)
+           || typeOfBound(resolver) == ValueType.STRING;
+  }
+
+  @Override
+  public List<Range> toRanges(TypeResolver resolver)
+  {
+    return toRanges(typeOfBound(resolver), false);
   }
 
   // used in geo-server adapter
-  public List<Range> toRanges(boolean withNot)
+  public List<Range> toRanges(ValueType type, boolean withNot)
   {
-    if (extractionFn != null) {
-      throw new IllegalStateException();
+    Preconditions.checkArgument(extractionFn == null, "extractionFn");
+    if (StringUtils.isNullOrEmpty(lower) && StringUtils.isNullOrEmpty(upper)) {
+      if (!type.isNumeric()) {
+        return Arrays.<Range>asList(Range.closed("", ""));
+      }
+      throw new IllegalStateException("cannot handle null for numeric types");
     }
-    final Comparable lower = getLowerWithCast();
-    final Comparable upper = getUpperWithCast();
+    final Comparable lower = hasLowerBound() ? type.cast(getLower()) : null;
+    final Comparable upper = hasUpperBound() ? type.cast(getUpper()) : null;
     if (lower != null && upper != null) {
       if (withNot) {
         return Arrays.<Range>asList(
@@ -201,32 +215,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     return lower;
   }
 
-  @JsonIgnore
-  public Comparable getUpperWithCast()
-  {
-    if (upper == null || comparatorType == null || extractionFn != null) {
-      return upper;
-    }
-    ValueType type = ValueType.of(comparatorType);
-    if (type.isPrimitive()) {
-      return type.cast(upper);
-    }
-    return upper;
-  }
-
-  @JsonIgnore
-  public Comparable getLowerWithCast()
-  {
-    if (lower == null || comparatorType == null || extractionFn != null) {
-      return lower;
-    }
-    ValueType type = ValueType.of(comparatorType);
-    if (type.isPrimitive()) {
-      return type.cast(lower);
-    }
-    return lower;
-  }
-
   @JsonProperty
   public boolean isLowerStrict()
   {
@@ -237,14 +225,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   public boolean isUpperStrict()
   {
     return upperStrict;
-  }
-
-  // fucking hate this
-  public boolean allowNull(Object lower, Object upper)
-  {
-    // lower bound allows null && upper bound allows null
-    return (!hasLowerBound() || (lower == null && !lowerStrict))
-           && (!hasUpperBound() || upper != null || !upperStrict);
   }
 
   public ValueType typeOfBound(TypeResolver resolver)
