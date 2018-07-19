@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,7 +29,9 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
-import io.druid.math.expr.Parser;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
@@ -45,7 +48,6 @@ import java.util.Set;
 public class BoundDimFilter implements DimFilter.RangeFilter
 {
   private final String dimension;
-  private final String expression;
   private final String upper;
   private final String lower;
   private final boolean lowerStrict;
@@ -56,38 +58,32 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   @JsonCreator
   public BoundDimFilter(
       @JsonProperty("dimension") String dimension,
-      @JsonProperty("expression") String expression,
       @JsonProperty("lower") String lower,
       @JsonProperty("upper") String upper,
       @JsonProperty("lowerStrict") boolean lowerStrict,
       @JsonProperty("upperStrict") boolean upperStrict,
-      @JsonProperty("alphaNumeric") boolean alphaNumeric,
       @JsonProperty("comparatorType") String comparatorType,
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
-    Preconditions.checkArgument(
-        dimension == null ^ expression == null,
-        "Must have a valid, non-null dimension or expression"
-    );
-    Preconditions.checkArgument(
-        expression == null ||
-        Parser.findRequiredBindings(expression).size() == 1, "expression should contain only one dimension"
-    );
-    Preconditions.checkState(lower != null || upper != null, "lower and upper can not be null at the same time");
-    this.dimension = dimension;
-    this.expression = expression;
+    this.dimension = Preconditions.checkNotNull(dimension, "Must have a valid, non-null dimension or expression");
     this.upper = upper;
     this.lower = lower;
     this.lowerStrict = lowerStrict;
     this.upperStrict = upperStrict;
+    this.comparatorType = comparatorType;
+    this.extractionFn = extractionFn;
+
+    Preconditions.checkArgument(lower != null || upper != null, "lower and upper can not be null at the same time");
     Preconditions.checkArgument(
-        StringUtils.isNullOrEmpty(comparatorType) || alphaNumeric ||
-        Comparators.createGeneric(comparatorType, null) != null,
+        comparatorType == null || Comparators.createGeneric(comparatorType, null) != null,
         "invalid comparator type " + comparatorType
     );
-    this.comparatorType = alphaNumeric ? StringComparators.ALPHANUMERIC_NAME : comparatorType;
-    this.extractionFn = extractionFn;
+    ValueType valueType = ValueType.of(comparatorType, ValueType.STRING);
+    Preconditions.checkArgument(
+        extractionFn == null || valueType == ValueType.STRING,
+        "invalid combination of comparator " + comparatorType + " and extract function"
+    );
   }
 
   public BoundDimFilter(
@@ -100,51 +96,45 @@ public class BoundDimFilter implements DimFilter.RangeFilter
       ExtractionFn extractionFn
   )
   {
-    this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, null, extractionFn);
-  }
-
-  public BoundDimFilter(
-      String dimension,
-      String lower,
-      String upper,
-      boolean lowerStrict,
-      boolean upperStrict,
-      boolean alphaNumeric,
-      ExtractionFn extractionFn,
-      String comparatorType
-  )
-  {
-    this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, comparatorType, extractionFn);
+    this(
+        dimension,
+        lower,
+        upper,
+        lowerStrict,
+        upperStrict,
+        alphaNumeric ? StringComparators.ALPHANUMERIC_NAME : null,
+        extractionFn
+    );
   }
 
   public static BoundDimFilter between(String dimension, Object lower, Object upper)
   {
-    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, true, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, true, null, null);
   }
 
   public static BoundDimFilter betweenStrict(String dimension, Object lower, Object upper)
   {
-    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, false, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, false, null, null);
   }
 
   public static BoundDimFilter gt(String dimension, Object lower)
   {
-    return new BoundDimFilter(dimension, String.valueOf(lower), null, true, false, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), null, true, false, null, null);
   }
 
   public static BoundDimFilter gte(String dimension, Object lower)
   {
-    return new BoundDimFilter(dimension, String.valueOf(lower), null, false, false, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), null, false, false, null, null);
   }
 
   public static BoundDimFilter lt(String dimension, Object upper)
   {
-    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, true, false, null);
+    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, true, null, null);
   }
 
   public static BoundDimFilter lte(String dimension, Object upper)
   {
-    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, false, false, null);
+    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, false, null, null);
   }
 
   @Override
@@ -156,11 +146,14 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     return toRanges(false);
   }
 
+  // used in geo-server adapter
   public List<Range> toRanges(boolean withNot)
   {
-    if (extractionFn != null || (lower == null && upper == null)) {
+    if (extractionFn != null) {
       throw new IllegalStateException();
     }
+    final Comparable lower = getLowerWithCast();
+    final Comparable upper = getUpperWithCast();
     if (lower != null && upper != null) {
       if (withNot) {
         return Arrays.<Range>asList(
@@ -196,13 +189,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
 
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
-  public String getExpression()
-  {
-    return expression;
-  }
-
-  @JsonProperty
-  @JsonInclude(Include.NON_NULL)
   public String getUpper()
   {
     return upper;
@@ -212,6 +198,32 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   @JsonInclude(Include.NON_NULL)
   public String getLower()
   {
+    return lower;
+  }
+
+  @JsonIgnore
+  public Comparable getUpperWithCast()
+  {
+    if (upper == null || comparatorType == null || extractionFn != null) {
+      return upper;
+    }
+    ValueType type = ValueType.of(comparatorType);
+    if (type.isPrimitive()) {
+      return type.cast(upper);
+    }
+    return upper;
+  }
+
+  @JsonIgnore
+  public Comparable getLowerWithCast()
+  {
+    if (lower == null || comparatorType == null || extractionFn != null) {
+      return lower;
+    }
+    ValueType type = ValueType.of(comparatorType);
+    if (type.isPrimitive()) {
+      return type.cast(lower);
+    }
     return lower;
   }
 
@@ -225,6 +237,25 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   public boolean isUpperStrict()
   {
     return upperStrict;
+  }
+
+  // fucking hate this
+  public boolean allowNull(Object lower, Object upper)
+  {
+    // lower bound allows null && upper bound allows null
+    return (!hasLowerBound() || (lower == null && !lowerStrict))
+           && (!hasUpperBound() || upper != null || !upperStrict);
+  }
+
+  public ValueType typeOfBound(TypeResolver resolver)
+  {
+    if (extractionFn == null) {
+      ValueDesc desc = comparatorType == null ? resolver.resolveColumn(dimension) : ValueDesc.of(comparatorType);
+      if (desc != null && desc.isPrimitive()) {
+        return desc.type();
+      }
+    }
+    return ValueType.STRING;
   }
 
   @JsonProperty
@@ -265,7 +296,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8WithNullToEmpty(dimension);
-    byte[] expressionBytes = StringUtils.toUtf8WithNullToEmpty(expression);
     byte[] lowerBytes = StringUtils.toUtf8WithNullToEmpty(getLower());
     byte[] upperBytes = StringUtils.toUtf8WithNullToEmpty(getUpper());
     byte boundType = 0x1;
@@ -284,7 +314,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     ByteBuffer boundCacheBuffer = ByteBuffer.allocate(
         9
         + dimensionBytes.length
-        + expressionBytes.length
         + upperBytes.length
         + lowerBytes.length
         + comparatorBytes.length
@@ -296,7 +325,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
                     .put(lowerStrictByte)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(dimensionBytes)
-                    .put(expressionBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(upperBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
@@ -315,7 +343,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
+  public BoundDimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
     if (replaced == null || replaced.equals(dimension)) {
@@ -323,13 +351,24 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     }
     return new BoundDimFilter(
         replaced,
-        expression,
         lower,
         upper,
         lowerStrict,
         upperStrict,
-        false,
         comparatorType,
+        extractionFn
+    );
+  }
+
+  public BoundDimFilter withType(ValueDesc type)
+  {
+    return new BoundDimFilter(
+        dimension,
+        lower,
+        upper,
+        lowerStrict,
+        upperStrict,
+        type.typeName(),
         extractionFn
     );
   }
@@ -361,7 +400,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     if (extractionFn != null) {
       builder.append(extractionFn.getClass().getSimpleName()).append('(');
     }
-    builder.append(dimension != null ? dimension : expression);
+    builder.append(dimension);
     if (extractionFn != null) {
       builder.append(')');
     }
@@ -378,12 +417,10 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   {
     return new BoundDimFilter(
         dimension,
-        expression,
         lower,
         upper,
         lowerStrict,
         upperStrict,
-        false,
         Preconditions.checkNotNull(comparatorType),
         extractionFn
     );
@@ -413,9 +450,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     if (!Objects.equals(dimension, that.dimension)) {
       return false;
     }
-    if (!Objects.equals(expression, that.expression)) {
-      return false;
-    }
     if (!Objects.equals(upper, that.upper)) {
       return false;
     }
@@ -431,7 +465,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   @Override
   public int hashCode()
   {
-    int result = Objects.hash(dimension, expression, lower, upper);
+    int result = Objects.hash(dimension, lower, upper);
     result = 31 * result + (isLowerStrict() ? 1 : 0);
     result = 31 * result + (isUpperStrict() ? 1 : 0);
     result = 31 * result + Objects.hashCode(comparatorType);

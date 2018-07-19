@@ -55,6 +55,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
@@ -69,6 +70,12 @@ public class GuavaUtils
   {
     return NULL_FIRST_NATURAL;
   }
+
+  public static Function<Object, String> NULLABLE_TO_STRING_FUNC = new Function<Object, String>()
+  {
+    @Override
+    public String apply(Object input) { return Objects.toString(input, null);}
+  };
 
   public static Function<String, String> formatFunction(final String formatString)
   {

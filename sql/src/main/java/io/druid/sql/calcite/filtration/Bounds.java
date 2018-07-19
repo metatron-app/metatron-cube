@@ -52,9 +52,8 @@ public class Bounds
           null,
           !bound.isUpperStrict(),
           false,
-          false,
-          bound.getExtractionFn(),
-          bound.getComparatorType()
+          bound.getComparatorType(),
+          bound.getExtractionFn()
       );
     } else {
       // bound.getLower() != null
@@ -64,9 +63,8 @@ public class Bounds
           bound.getLower(),
           false,
           !bound.isLowerStrict(),
-          false,
-          bound.getExtractionFn(),
-          bound.getComparatorType()
+          bound.getComparatorType(),
+          bound.getExtractionFn()
       );
     }
   }
@@ -115,9 +113,8 @@ public class Bounds
         range.hasUpperBound() ? range.upperEndpoint().getValue() : null,
         range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN,
         range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -129,9 +126,8 @@ public class Bounds
         value,
         false,
         false,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -143,9 +139,8 @@ public class Bounds
         null,
         true,
         false,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -157,9 +152,8 @@ public class Bounds
         null,
         false,
         false,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -171,9 +165,8 @@ public class Bounds
         value,
         false,
         true,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -185,9 +178,8 @@ public class Bounds
         value,
         false,
         false,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 
@@ -204,9 +196,8 @@ public class Bounds
         String.valueOf(interval.getEndMillis()),
         false,
         true,
-        false,
-        boundRefKey.getExtractionFn(),
-        boundRefKey.getComparator()
+        boundRefKey.getComparator(),
+        boundRefKey.getExtractionFn()
     );
   }
 }

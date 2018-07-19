@@ -46,6 +46,7 @@ import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Expr;
@@ -1188,5 +1189,18 @@ public class Filters
           }
         }
     );
+  }
+
+  public static TypeResolver asTypeResolver(final BitmapIndexSelector selector)
+  {
+    return new TypeResolver.Abstract()
+    {
+      @Override
+      public ValueDesc resolveColumn(String column)
+      {
+        final ColumnCapabilities capabilities = selector.getCapabilities(column);
+        return capabilities == null ? null : ValueDesc.of(capabilities.getType());
+      }
+    };
   }
 }

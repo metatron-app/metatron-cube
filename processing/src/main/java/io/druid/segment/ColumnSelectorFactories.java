@@ -29,6 +29,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.Sequences;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
@@ -60,6 +61,18 @@ import java.util.function.Function;
  */
 public class ColumnSelectorFactories
 {
+  public static TypeResolver asTypeResolver(final ColumnSelectorFactory factory)
+  {
+    return new TypeResolver.Abstract()
+    {
+      @Override
+      public ValueDesc resolveColumn(String column)
+      {
+        return factory.getColumnType(column);
+      }
+    };
+  }
+
   public static class NotSupports extends ColumnSelectorFactory.ExprUnSupport
   {
     @Override
