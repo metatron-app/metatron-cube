@@ -21,6 +21,7 @@ package io.druid.common.utils;
 
 import io.druid.math.expr.Expression;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -82,6 +83,12 @@ public class ExprHolder<T> implements Expression
     public ExprHolder getChild()
     {
       return child;
+    }
+
+    @Override
+    public List<ExprHolder> getChildren()
+    {
+      return Arrays.asList(child);
     }
   }
 

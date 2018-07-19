@@ -27,19 +27,23 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
+import io.druid.common.utils.Ranges;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  */
-public class SelectorDimFilter implements DimFilter
+public class SelectorDimFilter implements DimFilter.RangeFilter
 {
   private final String dimension;
   private final String value;
@@ -134,6 +138,12 @@ public class SelectorDimFilter implements DimFilter
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;
+  }
+
+  @Override
+  public List<Range> toRanges()
+  {
+    return extractionFn != null ? null : Arrays.<Range>asList(Ranges.of(value, "=="));
   }
 
   @Override

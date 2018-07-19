@@ -41,10 +41,17 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
     this.fieldName = Preconditions.checkNotNull(fieldName);
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public String getFieldDescriptor()
+  {
+    return "text";
   }
 
   @Override
@@ -95,5 +102,11 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   public int hashCode()
   {
     return fieldName.hashCode();
+  }
+
+  @Override
+  public String toString()
+  {
+    return getFieldDescriptor();
   }
 }

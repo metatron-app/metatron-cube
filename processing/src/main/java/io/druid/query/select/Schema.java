@@ -50,26 +50,30 @@ public class Schema implements TypeResolver, RowSignature
       Collections.<String>emptyList(),
       Collections.<String>emptyList(),
       Collections.<ValueDesc>emptyList(),
-      Collections.<AggregatorFactory>emptyList()
+      Collections.<AggregatorFactory>emptyList(),
+      Collections.<String, Map<String, String>>emptyMap()
   );
 
   private final List<String> dimensionNames;
   private final List<String> metricNames;
   private final List<ValueDesc> columnTypes;
   private final List<AggregatorFactory> aggregators;
+  private final Map<String, Map<String, String>> descriptors;
 
   @JsonCreator
   public Schema(
       @JsonProperty("dimensionNames") List<String> dimensionNames,
       @JsonProperty("metricNames") List<String> metricNames,
       @JsonProperty("columnTypes") List<ValueDesc> columnTypes,
-      @JsonProperty("aggregators") List<AggregatorFactory> aggregators
+      @JsonProperty("aggregators") List<AggregatorFactory> aggregators,
+      @JsonProperty("descriptors") Map<String, Map<String, String>> descriptors
   )
   {
     this.dimensionNames = Preconditions.checkNotNull(dimensionNames);
     this.metricNames = Preconditions.checkNotNull(metricNames);
     this.columnTypes = Preconditions.checkNotNull(columnTypes);
     this.aggregators = Preconditions.checkNotNull(aggregators);
+    this.descriptors = Preconditions.checkNotNull(descriptors);
     Preconditions.checkArgument(dimensionNames.size() == Sets.newHashSet(dimensionNames).size());
     Preconditions.checkArgument(metricNames.size() == Sets.newHashSet(metricNames).size());
     Preconditions.checkArgument(dimensionNames.size() + metricNames.size() == columnTypes.size());
@@ -115,6 +119,12 @@ public class Schema implements TypeResolver, RowSignature
   public List<AggregatorFactory> getAggregators()
   {
     return aggregators;
+  }
+
+  @JsonProperty
+  public Map<String, Map<String, String>> getDescriptors()
+  {
+    return descriptors;
   }
 
   public int size()
@@ -173,7 +183,8 @@ public class Schema implements TypeResolver, RowSignature
         Lists.newArrayList(dimensionNames),
         GuavaUtils.concat(metricNames, Column.TIME_COLUMN_NAME),
         GuavaUtils.concat(columnTypes, ValueDesc.LONG),
-        GuavaUtils.concat(aggregators, RelayAggregatorFactory.ofTime())
+        GuavaUtils.concat(aggregators, RelayAggregatorFactory.ofTime()),
+        descriptors
     );
   }
 
@@ -223,8 +234,21 @@ public class Schema implements TypeResolver, RowSignature
         mergedTypes.add(type1);
       }
     }
+    Map<String, Map<String, String>> mergedDescs = Maps.newLinkedHashMap();
+    for (String columnName : GuavaUtils.concat(mergedDimensions, mergedMetrics)) {
+      Map<String, String> desc1 = descriptors.get(columnName);
+      Map<String, String> desc2 = other.descriptors.get(columnName);
+      if (desc1 == null && desc2 == null) {
+        continue;
+      }
+      if (desc1 == null) {
+        mergedDescs.put(columnName, desc2);
+      } else if (desc2 == null || desc1.equals(desc2)) {
+        mergedDescs.put(columnName, desc1);
+      }
+    }
 
-    return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators);
+    return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators, mergedDescs);
   }
 
   @Override
@@ -273,6 +297,7 @@ public class Schema implements TypeResolver, RowSignature
            ", metricNames=" + metricNames +
            ", columnTypes=" + columnTypes +
            ", aggregators=" + aggregators +
+           ", descriptors=" + descriptors +
            '}';
   }
 
@@ -291,6 +316,6 @@ public class Schema implements TypeResolver, RowSignature
       columnTypes.add(resolver.resolveColumn(metric));
       aggregators.add(resolver.getAggregators().get(metric));
     }
-    return new Schema(dimensionNames, metricNames, columnTypes, aggregators);
+    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, resolver.getDescriptors());
   }
 }

@@ -70,6 +70,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   private final IOPeon ioPeon;
   private final String columnName;
   private final ComplexMetricSerde serde;
+  private final LuceneIndexingSpec indexingSpec;
 
   private String minValue;
   private String maxValue;
@@ -90,6 +91,8 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
     this.ioPeon = ioPeon;
     this.columnName = columnName;
     this.serde = serde;
+    this.indexingSpec = indexingSpec;
+
     ValueDesc type = ValueDesc.of(serde.getTypeName());
     if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies(columnName, type))) {
       fieldGenerators = Lists.newArrayList(
@@ -118,7 +121,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   {
     writer.write(obj);
     if (luceneIndexer != null) {
-      Document doc = new Document();
+      final Document doc = new Document();
       for (Function<Object, Field[]> generator : fieldGenerators) {
         Field[] fields = generator.apply(obj);
         if (fields != null) {
@@ -139,22 +142,18 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   }
 
   @Override
-  public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+  public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
     if (ValueDesc.isString(desc)) {
       builder.setValueType(ValueDesc.STRING);
       builder.addSerde(new StringGenericColumnPartSerde(this));
     } else {
       builder.setValueType(ValueDesc.of(desc.typeName()));
-      builder.addSerde(
-          ComplexColumnPartSerde.serializerBuilder()
-                                .withTypeName(desc.typeName())
-                                .withDelegate(this)
-                                .build()
-      );
+      builder.addSerde(new ComplexColumnPartSerde(desc.typeName(), this));
     }
     if (luceneIndexer != null && luceneIndexer.numDocs() > 0) {
       builder.addSerde(new LuceneIndexPartSerDe(luceneIndexer));
+      builder.addDescriptor(indexingSpec.getFieldDescriptors());
     }
     return builder;
   }
@@ -169,7 +168,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return writer.getSerializedSize();
   }
@@ -241,11 +240,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
       return new Deserializer()
       {
         @Override
-        public void read(
-            ByteBuffer buffer,
-            ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory
-        ) throws IOException
+        public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
         {
           final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
           final int length = bufferToUse.remaining();

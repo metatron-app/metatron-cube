@@ -21,6 +21,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -370,15 +371,16 @@ public class IndexViewer implements CommonShell
       } else {
         desc = ValueDesc.of(type);
       }
-      Map<String, Object> columnStats = column.getColumnStats();
       writer.print(
           format("  type : %s, hasMultiValue = %s, (%,d bytes)", desc, capabilities.hasMultipleValues(), columnSize)
       );
-      if (columnStats != null && !columnStats.isEmpty()) {
+      Map<String, Object> columnStats = column.getColumnStats();
+      if (!GuavaUtils.isNullOrEmpty(columnStats)) {
         writer.println(format(", stats %s", columnStats));
       } else {
         writer.println();
       }
+
       StringBuilder builder = new StringBuilder().append("  ");
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
@@ -436,6 +438,10 @@ public class IndexViewer implements CommonShell
           builder.append(", ");
         }
         builder.append(format("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX)));
+        Map<String, String> columnDescs = column.getColumnDescs();
+        if (!GuavaUtils.isNullOrEmpty(columnDescs)) {
+          builder.append(format(", descs %s", columnDescs));
+        }
       }
       if (builder.length() > 2) {
         writer.println(builder.toString());

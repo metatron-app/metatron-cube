@@ -1,21 +1,21 @@
 /*
-* Licensed to Metamarkets Group Inc. (Metamarkets) under one
-* or more contributor license agreements. See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership. Metamarkets licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing,
-* software distributed under the License is distributed on an
-* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-* KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations
-* under the License.
-*/
+ * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. Metamarkets licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
 package io.druid.query.filter;
 
@@ -28,7 +28,6 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.Rows;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.ordering.Comparators;
@@ -43,7 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class BoundDimFilter implements DimFilter
+public class BoundDimFilter implements DimFilter.RangeFilter
 {
   private final String dimension;
   private final String expression;
@@ -113,7 +112,7 @@ public class BoundDimFilter implements DimFilter
       boolean alphaNumeric,
       ExtractionFn extractionFn,
       String comparatorType
-      )
+  )
   {
     this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, comparatorType, extractionFn);
   }
@@ -148,42 +147,44 @@ public class BoundDimFilter implements DimFilter
     return new BoundDimFilter(dimension, null, String.valueOf(upper), false, false, false, null);
   }
 
-  public List<Range> toTimeRanges(boolean withNot)
+  @Override
+  public List<Range> toRanges()
   {
     if (extractionFn != null) {
-      throw new IllegalStateException();
+      return null;
     }
-    if (lower == null && upper == null) {
+    return toRanges(false);
+  }
+
+  public List<Range> toRanges(boolean withNot)
+  {
+    if (extractionFn != null || (lower == null && upper == null)) {
       throw new IllegalStateException();
     }
     if (lower != null && upper != null) {
-      long lowerTime = Rows.parseLong(lower);
-      long upperTime = Rows.parseLong(upper);
       if (withNot) {
         return Arrays.<Range>asList(
-            Ranges.of(lowerTime, lowerStrict ? "<=" : "<"),
-            Ranges.of(upperTime, upperStrict ? ">=" : ">")
+            Ranges.of(lower, lowerStrict ? "<=" : "<"),
+            Ranges.of(upper, upperStrict ? ">=" : ">")
         );
       }
       return Arrays.<Range>asList(
-          lowerStrict && upperStrict ? Range.open(lowerTime, upperTime) :
-          lowerStrict ? Range.openClosed(lowerTime, upperTime) :
-          upperStrict ? Range.closedOpen(lowerTime, upperTime) :
-          Range.closed(lowerTime, upperTime)
+          lowerStrict && upperStrict ? Range.open(lower, upper) :
+          lowerStrict ? Range.openClosed(lower, upper) :
+          upperStrict ? Range.closedOpen(lower, upper) :
+          Range.closed(lower, upper)
       );
     }
     if (lower != null) {
-      long lowerTime = Rows.parseLong(lower);
       if (withNot) {
-        return Arrays.<Range>asList(Ranges.of(lowerTime, lowerStrict ? "<=" : "<"));
+        return Arrays.<Range>asList(Ranges.of(lower, lowerStrict ? "<=" : "<"));
       }
-      return Arrays.<Range>asList(Ranges.of(lowerTime, lowerStrict ? ">" : ">="));
+      return Arrays.<Range>asList(Ranges.of(lower, lowerStrict ? ">" : ">="));
     }
-    long upperTime = Rows.parseLong(upper);
     if (withNot) {
-      return Arrays.<Range>asList(Ranges.of(upperTime, upperStrict ? ">=" : ">"));
+      return Arrays.<Range>asList(Ranges.of(upper, upperStrict ? ">=" : ">"));
     }
-    return Arrays.<Range>asList(Ranges.of(upperTime, upperStrict ? "<" : "<="));
+    return Arrays.<Range>asList(Ranges.of(upper, upperStrict ? "<" : "<="));
   }
 
   @JsonProperty

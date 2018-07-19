@@ -49,6 +49,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
     this.longitude = Preconditions.checkNotNull(longitude);
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -65,6 +66,12 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   public String getLongitude()
   {
     return longitude;
+  }
+
+  @Override
+  public String getFieldDescriptor()
+  {
+    return "point(latitude=" + latitude + ",longitude=" + longitude + ")";
   }
 
   @Override
@@ -135,5 +142,11 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
     result = 31 * result + latitude.hashCode();
     result = 31 * result + longitude.hashCode();
     return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return getFieldDescriptor();
   }
 }

@@ -22,9 +22,9 @@ package io.druid.math.expr;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression.AndExpression;
-import io.druid.math.expr.Expression.BooleanExpression;
 import io.druid.math.expr.Expression.NotExpression;
 import io.druid.math.expr.Expression.OrExpression;
+import io.druid.math.expr.Expression.RelationExpression;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,9 +111,7 @@ public class Expressions
           andList.add(child);
         } else if (child instanceof OrExpression) {
           // pull apart the kids of the OR expression
-          for (T grandChild : ((OrExpression) child).<T>getChildren()) {
-            nonAndList.add(grandChild);
-          }
+          nonAndList.addAll(((OrExpression) child).<T>getChildren());
         } else {
           nonAndList.add(child);
         }
@@ -131,18 +129,20 @@ public class Expressions
   // https://github.com/apache/hive/blob/branch-2.0/storage-api/src/java/org/apache/hadoop/hive/ql/io/sarg/SearchArgumentImpl.java
   private static <T extends Expression> T flatten(T root, Expression.Factory<T> factory)
   {
-    if (root instanceof BooleanExpression) {
-      BooleanExpression parent = (BooleanExpression) root;
-      List<T> children = new ArrayList<>();
-      children.addAll(parent.<T>getChildren());
+    if (root instanceof RelationExpression) {
+      RelationExpression parent = (RelationExpression) root;
+      List<T> children = new ArrayList<>(parent.<T>getChildren());
       // iterate through the index, so that if we add more children,
       // they don't get re-visited
       for (int i = 0; i < children.size(); ++i) {
         T child = flatten(children.get(i), factory);
+        if (child == null) {
+          throw new IllegalStateException("null child from " + children.get(i));
+        }
         // do we need to flatten?
         if (child.getClass() == root.getClass() && !(child instanceof NotExpression)) {
           boolean first = true;
-          List<T> grandKids = ((BooleanExpression) child).getChildren();
+          List<T> grandKids = ((RelationExpression) child).getChildren();
           for (T grandkid : grandKids) {
             // for the first grandkid replace the original parent
             if (first) {
@@ -157,14 +157,12 @@ public class Expressions
         }
       }
       // if we have a singleton AND or OR, just return the child
-      if (children.size() == 1) {
-        return children.get(0);
-      }
-
       if (root instanceof AndExpression) {
         return factory.and(children);
       } else if (root instanceof OrExpression) {
         return factory.or(children);
+      } else if (root instanceof NotExpression && children.size() == 1) {
+        return factory.not(children.get(0));
       }
     }
     return root;
@@ -226,9 +224,9 @@ public class Expressions
   {
     if (expression instanceof NotExpression) {
       return traverse(((NotExpression) expression).getChild(), visitor);
-    } else if (expression instanceof BooleanExpression) {
+    } else if (expression instanceof RelationExpression) {
       boolean result = true;
-      for (Expression child : ((BooleanExpression) expression).getChildren()) {
+      for (Expression child : ((RelationExpression) expression).getChildren()) {
         result &= traverse(child, visitor);
       }
       return result;

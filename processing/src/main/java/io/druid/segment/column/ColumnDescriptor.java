@@ -50,19 +50,22 @@ public class ColumnDescriptor
   private final boolean hasMultipleValues;
   private final List<ColumnPartSerde> parts;
 
-  private Map<String, Object> stats;
+  private final Map<String, String> descs;
+  private final Map<String, Object> stats;
 
   @JsonCreator
   public ColumnDescriptor(
       @JsonProperty("valueType") ValueDesc valueType,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("parts") List<ColumnPartSerde> parts,
+      @JsonProperty("descs") Map<String, String> descs,
       @JsonProperty("stats") Map<String, Object> stats
   )
   {
     this.valueType = Preconditions.checkNotNull(valueType);
     this.hasMultipleValues = hasMultipleValues;
     this.parts = Preconditions.checkNotNull(parts);
+    this.descs = descs;
     this.stats = stats;
   }
 
@@ -85,27 +88,15 @@ public class ColumnDescriptor
   }
 
   @JsonProperty
+  public Map<String, String> getDescs()
+  {
+    return descs;
+  }
+
+  @JsonProperty
   public Map<String, Object> getStats()
   {
     return stats;
-  }
-
-  public void finalizeSerialization()
-  {
-    Set<String> conflicts = Sets.newHashSet();
-    Map<String, Object> merged = Maps.newHashMap();
-    for (ColumnPartSerde part : parts) {
-      Map<String, Object> stat = part.getSerializer().getSerializeStats();
-      if (stat == null) {
-        continue;
-      }
-      conflicts.addAll(Sets.intersection(merged.keySet(), stat.keySet()));
-      merged.putAll(stat);
-    }
-    for (String conflict : conflicts) {
-      merged.remove(conflict);
-    }
-    this.stats = merged;
   }
 
   public long numBytes() throws IOException
@@ -132,6 +123,7 @@ public class ColumnDescriptor
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)
         .setColumnStats(stats)
+        .setColumnDescs(descs)
         .setHasMultipleValues(hasMultipleValues);
 
     for (ColumnPartSerde part : parts) {
@@ -143,10 +135,11 @@ public class ColumnDescriptor
 
   public static class Builder
   {
-    private ValueDesc valueType = null;
-    private Boolean hasMultipleValues = null;
+    private ValueDesc valueType;
+    private Boolean hasMultipleValues;
 
     private final List<ColumnPartSerde> parts = Lists.newArrayList();
+    private final Map<String, String> descs = Maps.newLinkedHashMap();
 
     public Builder setValueType(ValueDesc valueType)
     {
@@ -174,10 +167,32 @@ public class ColumnDescriptor
       return this;
     }
 
+    public Builder addDescriptor(Map<String, String> descriptor)
+    {
+      if (descriptor != null) {
+        descs.putAll(descriptor);
+      }
+      return this;
+    }
+
     public ColumnDescriptor build()
     {
       Preconditions.checkNotNull(valueType, "must specify a valueType");
-      return new ColumnDescriptor(valueType, hasMultipleValues == null ? false : hasMultipleValues, parts, null);
+      Set<String> statConflicts = Sets.newHashSet();
+      Map<String, Object> stats = Maps.newHashMap();
+      for (ColumnPartSerde part : parts) {
+        final ColumnPartSerde.Serializer serializer = part.getSerializer();
+        Map<String, Object> stat = serializer.getSerializeStats();
+        if (stat == null) {
+          continue;
+        }
+        statConflicts.addAll(Sets.intersection(stats.keySet(), stat.keySet()));
+        stats.putAll(stat);
+      }
+      for (String conflict : statConflicts) {
+        stats.remove(conflict);
+      }
+      return new ColumnDescriptor(valueType, hasMultipleValues == null ? false : hasMultipleValues, parts, descs, stats);
     }
   }
 }

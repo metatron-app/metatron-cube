@@ -41,8 +41,8 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -73,8 +73,9 @@ public class SelectMetaQueryEngine
     final String segmentId = segment.getIdentifier();
     final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
 
-    final RowResolver resolver = Segments.getResolver(segment, query);
-    final Schema schema = makeSchema(query, resolver);    // todo fix this
+    // use segment resolver
+    final RowResolver resolver = RowResolver.of(segment, VirtualColumns.valueOf(query.getVirtualColumns()));
+    final Schema schema = makeSchema(query, resolver);
 
     if (query.isSchemaOnly()) {
       return Sequences.simple(
@@ -178,6 +179,6 @@ public class SelectMetaQueryEngine
       aggregators.add(factoryMap.get(metric));
     }
 
-    return new Schema(dimensions, metrics, columnTypes, aggregators);
+    return new Schema(dimensions, metrics, columnTypes, aggregators, resolver.getDescriptors());
   }
 }

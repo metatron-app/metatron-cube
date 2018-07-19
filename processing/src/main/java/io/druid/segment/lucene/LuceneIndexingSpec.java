@@ -22,11 +22,13 @@ package io.druid.segment.lucene;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.segment.SecondaryIndexingSpec;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -73,6 +75,18 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
       return Arrays.<LuceneIndexingStrategy>asList(new TextIndexingStrategy(fieldName));
     }
     return strategies;
+  }
+
+  public Map<String, String> getFieldDescriptors()
+  {
+    Map<String, String> descriptors = Maps.newLinkedHashMap();
+    for (LuceneIndexingStrategy strategy : strategies) {
+      String desc = strategy.getFieldDescriptor();
+      if (desc != null) {
+        descriptors.put(strategy.getFieldName(), desc);
+      }
+    }
+    return descriptors;
   }
 
   @Override

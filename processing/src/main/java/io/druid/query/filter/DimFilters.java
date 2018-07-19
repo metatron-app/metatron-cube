@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.filter.Filters;
 
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -49,7 +50,7 @@ public class DimFilters
 
   public static DimFilter and(List<DimFilter> filters)
   {
-    List<DimFilter> list = filterNull(filters);
+    List<DimFilter> list = Filters.filterNull(filters);
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
@@ -60,13 +61,8 @@ public class DimFilters
 
   public static DimFilter or(List<DimFilter> filters)
   {
-    List<DimFilter> list = filterNull(filters);
+    List<DimFilter> list = Filters.filterNull(filters);
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrDimFilter(list);
-  }
-
-  private static List<DimFilter> filterNull(List<DimFilter> filters)
-  {
-    return Lists.newArrayList(Iterables.filter(filters, Predicates.notNull()));
   }
 
   public static NotDimFilter not(DimFilter filter)

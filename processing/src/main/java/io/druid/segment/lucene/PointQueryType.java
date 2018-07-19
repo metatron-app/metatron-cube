@@ -38,7 +38,7 @@ public enum PointQueryType
       return LatLonPoint.newDistanceQuery(fieldName, latitudes[0], longitudes[0], radiusMeters);
     }
   },
-  BOX {
+  BBOX {
     @Override
     public Query toQuery(String fieldName, double[] latitudes, double[] longitudes, double radiusMeters)
     {

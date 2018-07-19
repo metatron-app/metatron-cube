@@ -42,14 +42,14 @@ import java.util.Set;
  */
 public class LucenePointFilter implements DimFilter.LuceneFilter
 {
-  public static LucenePointFilter bound(String field, double[] latitudes, double[] longitudes)
+  public static LucenePointFilter bbox(String field, double[] latitudes, double[] longitudes)
   {
-    return new LucenePointFilter(field, PointQueryType.BOX, null, null, latitudes, longitudes, -1d);
+    return new LucenePointFilter(field, PointQueryType.BBOX, null, null, latitudes, longitudes, -1d);
   }
 
-  public static LucenePointFilter distance(String field, double radiusMeters)
+  public static LucenePointFilter distance(String field, double latitude, double longitude, double radiusMeters)
   {
-    return new LucenePointFilter(field, PointQueryType.DISTANCE, null, null, null, null, radiusMeters);
+    return new LucenePointFilter(field, PointQueryType.DISTANCE, latitude, longitude, null, null, radiusMeters);
   }
 
   private final String field;
@@ -200,7 +200,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
            ", type='" + type + '\'' +
            ", latitudes=" + Arrays.toString(latitudes) +
            ", longitudes=" + Arrays.toString(longitudes) +
-           ", radiusMeters=" + radiusMeters +
+           (type == PointQueryType.DISTANCE ? ", radiusMeters=" + radiusMeters : "") +
            '}';
   }
 

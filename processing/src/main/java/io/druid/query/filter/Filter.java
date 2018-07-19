@@ -23,6 +23,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.AndFilter;
+import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.NotFilter;
 import io.druid.segment.filter.OrFilter;
 
@@ -48,13 +49,13 @@ public interface Filter extends Expression
     @Override
     public Filter or(List<Filter> children)
     {
-      return new OrFilter(children);
+      return Filters.or(children);
     }
 
     @Override
     public Filter and(List<Filter> children)
     {
-      return new AndFilter(children);
+      return Filters.and(children);
     }
 
     @Override

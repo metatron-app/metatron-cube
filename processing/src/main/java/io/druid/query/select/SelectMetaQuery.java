@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.granularity.Granularity;
@@ -55,14 +54,19 @@ import java.util.Objects;
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   implements Query.MetricSupport<Result<SelectMetaResultValue>>
 {
+  public static SelectMetaQuery forQuery(Query source)
+  {
+    return forQuery(source, false, false);
+  }
+
   @SuppressWarnings("unchecked")
-  public static SelectMetaQuery forQuery(Query source, boolean bySegment)
+  public static SelectMetaQuery forQuery(Query source, boolean bySegment, boolean schemaOnly)
   {
     Builder builder = new Builder()
         .setDataSource(source.getDataSource())
         .setQuerySegmentSpec(source.getQuerySegmentSpec())
         .setGranularity(QueryGranularities.ALL)
-        .setContext(BaseQuery.copyContext(source))
+        .setContext(BaseQuery.copyContextForMeta(source.getContext()))
         .addContext(BaseQuery.BY_SEGMENT, bySegment);
 
     if (source instanceof VCSupport) {
@@ -74,7 +78,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (source instanceof MetricSupport) {
       builder.setMetrics(((MetricSupport) source).getMetrics());
     }
-    return builder.build(true);
+    return builder.build(schemaOnly);
   }
 
   public static SelectMetaQuery forSchema(DataSource dataSource, QuerySegmentSpec querySegmentSpec, String queryId)

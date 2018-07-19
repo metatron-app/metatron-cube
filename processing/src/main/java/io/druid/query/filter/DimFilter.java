@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.Range;
 import io.druid.common.Cacheable;
 import io.druid.math.expr.Expression;
 
@@ -89,13 +90,13 @@ public interface DimFilter extends Expression, Cacheable
     @Override
     public DimFilter or(List<DimFilter> children)
     {
-      return new OrDimFilter(children);
+      return DimFilters.or(children);
     }
 
     @Override
     public DimFilter and(List<DimFilter> children)
     {
-      return new AndDimFilter(children);
+      return DimFilters.and(children);
     }
 
     @Override
@@ -107,5 +108,10 @@ public interface DimFilter extends Expression, Cacheable
 
   // uses lucene index
   interface LuceneFilter extends DimFilter {
+  }
+
+  interface RangeFilter extends DimFilter
+  {
+    List<Range> toRanges();
   }
 }

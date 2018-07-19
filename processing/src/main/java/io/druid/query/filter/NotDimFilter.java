@@ -27,6 +27,8 @@ import io.druid.query.Druids;
 import io.druid.segment.filter.NotFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -85,9 +87,17 @@ public class NotDimFilter implements DimFilter, NotExpression
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public DimFilter getChild()
   {
     return field;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<DimFilter> getChildren()
+  {
+    return Arrays.asList(field);
   }
 
   @Override

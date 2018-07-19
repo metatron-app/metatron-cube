@@ -41,6 +41,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap;
   private final ColumnPartProvider<LuceneIndex> luceneIndex;
   private final Map<String, Object> stats;
+  private final Map<String, String> descs;
 
   SimpleColumn(
       ColumnCapabilities capabilities,
@@ -53,7 +54,8 @@ class SimpleColumn implements Column
       ColumnPartProvider<HistogramBitmap> metricBitmap,
       ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap,
       ColumnPartProvider<LuceneIndex> luceneIndex,
-      Map<String, Object> stats
+      Map<String, Object> stats,
+      Map<String, String> descs
   )
   {
     this.capabilities = capabilities;
@@ -67,6 +69,7 @@ class SimpleColumn implements Column
     this.bitSlicedBitmap = bitSlicedBitmap;
     this.luceneIndex = luceneIndex;
     this.stats = stats;
+    this.descs = descs;
   }
 
   @Override
@@ -254,5 +257,11 @@ class SimpleColumn implements Column
   public Map<String, Object> getColumnStats()
   {
     return stats;
+  }
+
+  @Override
+  public Map<String, String> getColumnDescs()
+  {
+    return descs;
   }
 }

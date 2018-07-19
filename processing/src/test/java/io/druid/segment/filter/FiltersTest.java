@@ -32,6 +32,7 @@ import io.druid.query.RowResolver;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.LucenePointFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
@@ -53,7 +54,7 @@ public class FiltersTest
   );
 
   @Test
-  public void testCNF() throws Exception
+  public void testCNF()
   {
     DimFilter dim1 = BoundDimFilter.gt("market", "a");
     DimFilter dim2 = BoundDimFilter.lt("market", "b");
@@ -64,7 +65,20 @@ public class FiltersTest
   }
 
   @Test
-  public void testPartitionWithBitmapSupport() throws Exception
+  public void testCNFComplex()
+  {
+    DimFilter dim1 = BoundDimFilter.gt("market", "a");
+    DimFilter dim2 = BoundDimFilter.lt("market", "b");
+    DimFilter dim3 = LucenePointFilter.bbox("l.c", new double[] {1, 2}, new double[] {3, 4});
+    DimFilter dim4 = LucenePointFilter.bbox("l.c", new double[] {1.1, 1.2}, new double[] {3.1, 4.1});
+    DimFilter complex = DimFilters.and(dim1, DimFilters.and(dim2, DimFilters.or(dim3, dim4)));
+
+    DimFilter expected = DimFilters.and(dim1, dim2, DimFilters.or(dim3, dim4));
+    Assert.assertEquals(expected, Filters.convertToCNF(complex));
+  }
+
+  @Test
+  public void testPartitionWithBitmapSupport()
   {
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
@@ -83,28 +97,33 @@ public class FiltersTest
     Assert.assertNull(filters);
 
     filters = Filters.partitionWithBitmapSupport(dim1, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     Assert.assertNull(filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim2, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(dim2, filters[0]);
     Assert.assertNull(filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim3, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(dim3, filters[0]);
     Assert.assertNull(filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim4, resolver);
-    Assert.assertNull(filters[0]);
-    assertEquals(dim4, filters[1]);
+    Assert.assertNotNull(filters);
+    assertEquals(dim4, filters[0]);
+    Assert.assertNull(filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim5, resolver);
-    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
-    assertEquals(NotDimFilter.of(dim2), filters[1]);
+    Assert.assertNotNull(filters);
+    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1), NotDimFilter.of(dim2)), filters[0]);
+    Assert.assertNull(filters[1]);
   }
 
   @Test
-  public void testPartitionWithBitmapSupport2() throws Exception
+  public void testPartitionWithBitmapSupport2()
   {
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
@@ -123,22 +142,27 @@ public class FiltersTest
     Assert.assertNull(filters);
 
     filters = Filters.partitionWithBitmapSupport(dim1, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     Assert.assertNull(filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim2, resolver);
+    Assert.assertNotNull(filters);
     Assert.assertNull(filters[0]);
     assertEquals(dim2, filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim3, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     assertEquals(dim2, filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim4, resolver);
+    Assert.assertNotNull(filters);
     Assert.assertNull(filters[0]);
     assertEquals(dim4, filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim5, resolver);
+    Assert.assertNotNull(filters);
     assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
     assertEquals(NotDimFilter.of(dim2), filters[1]);
   }

@@ -59,4 +59,5 @@ public interface Column
   public BitSlicedBitmap getBitSlicedBitmap();
   public LuceneIndex getLuceneIndex();
   public Map<String, Object> getColumnStats();
+  public Map<String, String> getColumnDescs();
 }

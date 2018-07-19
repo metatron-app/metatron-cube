@@ -33,7 +33,9 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.select.Schema;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -142,7 +144,10 @@ public class IncrementalIndexSchema
     for (AggregatorFactory aggregatorFactory : metrics) {
       types.add(ValueDesc.of(aggregatorFactory.getTypeName()));
     }
-    return new Schema(dimensionsSpec.getDimensionNames(), getMetricNames(), types, Arrays.asList(metrics));
+    return new Schema(
+        dimensionsSpec.getDimensionNames(), getMetricNames(), types, Arrays.asList(metrics),
+        Collections.<String, Map<String, String>>emptyMap()
+    );
   }
 
   public IncrementalIndexSchema withRollup(boolean rollup)

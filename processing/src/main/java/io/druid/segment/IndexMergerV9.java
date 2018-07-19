@@ -382,10 +382,10 @@ public class IndexMergerV9 extends IndexMerger
           .withBitmapIndex(bitmapIndexWriters.get(i))
           .withSpatialIndex(spatialIndexWriters.get(i))
           .withByteOrder(IndexIO.BYTE_ORDER);
-      final ColumnDescriptor serdeficator = builder
-          .addSerde(partBuilder.build())
-          .build();
-      makeColumn(v9Smoosher, dim, serdeficator);
+
+      builder.addSerde(partBuilder.build());
+
+      makeColumn(v9Smoosher, dim, builder.build());
       log.info("Completed dimension column[%s] in %,d millis.", dim, System.currentTimeMillis() - dimStartTime);
     }
     log.info("Completed dimension columns in %,d millis.", System.currentTimeMillis() - startTime);
@@ -410,8 +410,9 @@ public class IndexMergerV9 extends IndexMerger
       GenericColumnSerializer writer = metWriters.get(i);
       writer.close();
 
-      final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
+      ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
       writer.buildDescriptor(metricTypeNames.get(metric), builder);
+
       makeColumn(v9Smoosher, metric, builder.build());
       log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
     }
@@ -423,7 +424,7 @@ public class IndexMergerV9 extends IndexMerger
   private void makeTimeColumn(
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
-      final LongColumnSerializer timeWriter
+      final GenericColumnSerializer timeWriter
   ) throws IOException
   {
     final String section = "make time column";
@@ -432,8 +433,9 @@ public class IndexMergerV9 extends IndexMerger
 
     timeWriter.close();
 
-    final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
+    ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
     timeWriter.buildDescriptor(ValueDesc.LONG, builder);
+
     makeColumn(v9Smoosher, Column.TIME_COLUMN_NAME, builder.build());
     log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
@@ -445,10 +447,9 @@ public class IndexMergerV9 extends IndexMerger
       final ColumnDescriptor serdeficator
   ) throws IOException
   {
-    serdeficator.finalizeSerialization();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     String descriptor = mapper.writeValueAsString(serdeficator);
-    log.info("%s : %s", columnName, descriptor);
+    log.debug("> %s : %s", columnName, descriptor);
     serializerUtils.writeString(baos, descriptor);
     byte[] specBytes = baos.toByteArray();
 

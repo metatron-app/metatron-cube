@@ -45,6 +45,7 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
+  public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
   public ValueMatcher makePredicateMatcher(DimFilter filter);
   public ValueDesc getColumnType(String columnName);
 
@@ -60,10 +61,15 @@ public interface ColumnSelectorFactory
   abstract class ExprSupport extends Predicate
   {
     @Override
-    @SuppressWarnings("unchecked")
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    public ExprEvalColumnSelector makeMathExpressionSelector(final String expression)
     {
-      final Expr parsed = Parser.parse(expression);
+      return makeMathExpressionSelector(Parser.parse(expression));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public ExprEvalColumnSelector makeMathExpressionSelector(final Expr parsed)
+    {
       final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
@@ -97,6 +103,12 @@ public interface ColumnSelectorFactory
   {
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      throw new UnsupportedOperationException("makeMathExpressionSelector");
+    }
+
+    @Override
+    public ExprEvalColumnSelector makeMathExpressionSelector(Expr parsed)
     {
       throw new UnsupportedOperationException("makeMathExpressionSelector");
     }

@@ -397,6 +397,13 @@ class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   {
     return expr;
   }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(expr);
+  }
 }
 
 abstract class BinaryOp implements Expr

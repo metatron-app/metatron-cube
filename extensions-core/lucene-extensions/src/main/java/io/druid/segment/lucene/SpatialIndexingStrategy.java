@@ -56,7 +56,8 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
       @JsonProperty("maxLevels") int maxLevels
-  ) {
+  )
+  {
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName cannot be null");
     this.shapeFormat = Preconditions.checkNotNull(shapeFormat, "shapeFormat cannot be null");
     this.maxLevels = maxLevels <= 0 ? DEFAULT_PRECISION : maxLevels;
@@ -65,6 +66,7 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
     );
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -81,6 +83,12 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
   public int getMaxLevels()
   {
     return maxLevels;
+  }
+
+  @Override
+  public String getFieldDescriptor()
+  {
+    return "shape(format=" + shapeFormat + ")";
   }
 
   @Override
@@ -107,7 +115,7 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
       public Field[] apply(Object input)
       {
         if (wktIndex >= 0) {
-          input = ((Object[])input)[wktIndex];
+          input = ((Object[]) input)[wktIndex];
         }
         try {
           return strategy.createIndexableFields(reader.read(Objects.toString(input, null)));
@@ -117,5 +125,45 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
         }
       }
     };
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    SpatialIndexingStrategy that = (SpatialIndexingStrategy) o;
+
+    if (!fieldName.equals(that.fieldName)) {
+      return false;
+    }
+    if (shapeFormat != that.shapeFormat) {
+      return false;
+    }
+    if (maxLevels != that.maxLevels) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = fieldName.hashCode();
+    result = 31 * result + shapeFormat.hashCode();
+    result = 31 * result + maxLevels;
+    return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return getFieldDescriptor();
   }
 }

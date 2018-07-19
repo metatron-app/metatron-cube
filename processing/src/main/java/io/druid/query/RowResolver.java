@@ -38,11 +38,11 @@ import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Expression;
+import io.druid.math.expr.Expression.RelationExpression;
 import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
@@ -132,6 +132,10 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
           resolver.columnTypes.put(entry.getKey(), resolved);
         }
       }
+      MapDifference<String, Map<String, String>> difference = Maps.difference(
+          resolver.columnDescriptors,
+          other.columnDescriptors
+      );
     }
     virtualColumns.addImplicitVCs(resolver);
     return resolver;
@@ -254,6 +258,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
   private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
+  private final Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
   private RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
@@ -283,10 +288,14 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     this.virtualColumns = virtualColumns;
     this.aggregators = AggregatorFactory.getAggregatorsFromMeta(index.getMetadata());
 
-    for (String dimension : index.getColumnNames()) {
-      Column column = index.getColumn(dimension);
-      columnTypes.put(dimension, index.getColumnType(dimension));
-      columnCapabilities.put(dimension, column.getCapabilities());
+    for (String columnName : index.getColumnNames()) {
+      Column column = index.getColumn(columnName);
+      columnTypes.put(columnName, index.getColumnType(columnName));
+      columnCapabilities.put(columnName, column.getCapabilities());
+      Map<String, String> descs = column.getColumnDescs();
+      if (!GuavaUtils.isNullOrEmpty(descs)) {
+        columnDescriptors.put(columnName, descs);
+      }
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
     columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
@@ -403,6 +412,16 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return columnCapabilities.get(column);
   }
 
+  public Map<String, Map<String, String>> getDescriptors()
+  {
+    return columnDescriptors;
+  }
+
+  public Map<String, String> getDescriptor(String column)
+  {
+    return columnDescriptors.get(column);
+  }
+
   public VirtualColumn getVirtualColumn(String columnName)
   {
     return virtualColumns.getVirtualColumn(columnName);
@@ -463,9 +482,9 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   public boolean supportsBitmap(DimFilter filter, EnumSet<BitmapType> using)
   {
-    if (filter instanceof AndDimFilter) {
-      for (DimFilter child : ((AndDimFilter) filter).getChildren()) {
-        if (!supportsBitmap(child, using)) {
+    if (filter instanceof RelationExpression) {
+      for (Expression child : ((RelationExpression) filter).getChildren()) {
+        if (!supportsBitmap((DimFilter) child, using)) {
           return false;
         }
       }
@@ -476,19 +495,30 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       return supportsBitmap(Expressions.convertToCNF(root, Parser.EXPR_FACTORY), using);
     }
     Set<String> dependents = Filters.getDependents(filter);
-    if (dependents.size() != 1 || !supportsBitmap(Iterables.getOnlyElement(dependents), using)) {
+    if (dependents.size() != 1) {
       return false;
     }
-    return true;
+    final String column = Iterables.getOnlyElement(dependents);
+    if (using.contains(BitmapType.DIMENSIONAL) && supportsBitmap(column, BitmapType.DIMENSIONAL)) {
+      return true;
+    }
+    if (using.contains(BitmapType.LUCENE_INDEX) && supportsBitmap(column, BitmapType.LUCENE_INDEX)) {
+      return filter instanceof DimFilter.LuceneFilter;
+    }
+    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && supportsBitmap(column, BitmapType.HISTOGRAM_BITMAP) ||
+        using.contains(BitmapType.BSB) && supportsBitmap(column, BitmapType.BSB)) {
+      return filter instanceof DimFilter.RangeFilter && ((DimFilter.RangeFilter)filter).toRanges() != null;
+    }
+    return false;
   }
 
   private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between");
 
   private boolean supportsBitmap(Expr expr, EnumSet<BitmapType> using)
   {
-    if (expr instanceof Expression.BooleanExpression) {
-      for (Expr child : GuavaUtils.<Expression, Expr>cast(((Expression.BooleanExpression) expr).getChildren())) {
-        if (!supportsBitmap(child, using)) {
+    if (expr instanceof RelationExpression) {
+      for (Expression child : ((RelationExpression) expr).getChildren()) {
+        if (!supportsBitmap((Expr) child, using)) {
           return false;
         }
       }
@@ -514,12 +544,21 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return false;
   }
 
+  private boolean supportsBitmap(String column, BitmapType type, BitmapType... types)
+  {
+    return supportsBitmap(column, EnumSet.of(type, types));
+  }
+
   private boolean supportsBitmap(String column, EnumSet<BitmapType> using)
   {
+    String field = null;
     ColumnCapabilities capabilities = columnCapabilities.get(column);
-    if (capabilities == null && column.contains(".")) {
+    if (capabilities == null && column.indexOf('.') > 0) {
       // struct type (mostly for lucene)
-      capabilities = columnCapabilities.get(column.substring(0, column.indexOf('.')));
+      int index = column.indexOf('.');
+      field = column.substring(index + 1);
+      column = column.substring(0, index);
+      capabilities = columnCapabilities.get(column);
     }
     if (capabilities == null) {
       return false;   // dimension type does not asserts existence of bitmap (incremental index, for example)
@@ -528,7 +567,8 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       return true;
     }
     if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
-      return true;
+      final Map<String, String> descriptor = getDescriptor(column);
+      return descriptor != null && descriptor.get(field != null ? field : column) != null;
     }
     if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
       return true;
@@ -567,7 +607,13 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
         aggregators.add(getAggregators().get(column));  // can be null
       }
     }
-    return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes), aggregators);
+    return new Schema(
+        dimensions,
+        metrics,
+        GuavaUtils.concat(dimensionTypes, metricTypes),
+        aggregators,
+        columnDescriptors
+    );
   }
 
 

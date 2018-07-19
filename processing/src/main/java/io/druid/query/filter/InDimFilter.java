@@ -29,7 +29,9 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
+import io.druid.common.utils.Ranges;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
@@ -42,7 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class InDimFilter implements DimFilter
+public class InDimFilter implements DimFilter.RangeFilter
 {
   private final ImmutableSortedSet<String> values;
   private final String dimension;
@@ -194,6 +196,19 @@ public class InDimFilter implements DimFilter
   public Filter toFilter()
   {
     return new InFilter(dimension, values, extractionFn);
+  }
+
+  @Override
+  public List<Range> toRanges()
+  {
+    if (extractionFn != null) {
+      return null;
+    }
+    final List<Range> ranges = Lists.newArrayList();
+    for (String value : values) {
+      ranges.add(Ranges.of(value, "=="));
+    }
+    return ranges;
   }
 
   @Override

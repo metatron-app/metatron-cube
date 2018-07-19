@@ -25,21 +25,21 @@ import java.util.List;
  */
 public interface Expression
 {
-  interface BooleanExpression extends Expression
+  interface RelationExpression extends Expression
   {
     <T extends Expression> List<T> getChildren();
   }
 
-  interface NotExpression extends Expression
+  interface NotExpression extends RelationExpression
   {
     <T extends Expression> T getChild();
   }
 
-  interface AndExpression extends BooleanExpression
+  interface AndExpression extends RelationExpression
   {
   }
 
-  interface OrExpression extends BooleanExpression
+  interface OrExpression extends RelationExpression
   {
   }
 

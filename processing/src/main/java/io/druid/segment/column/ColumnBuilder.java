@@ -45,6 +45,7 @@ public class ColumnBuilder
   private ColumnPartProvider<LuceneIndex> luceneIndex = null;
 
   private Map<String, Object> stats;
+  private Map<String, String> descs;
 
   public ColumnBuilder setType(ValueDesc type)
   {
@@ -131,6 +132,12 @@ public class ColumnBuilder
     return this;
   }
 
+  public ColumnBuilder setColumnDescs(Map<String, String> descs)
+  {
+    this.descs = descs;
+    return this;
+  }
+
   public ValueDesc getType()
   {
     return type;
@@ -167,7 +174,8 @@ public class ColumnBuilder
         metricBitmap,
         bitSlicedBitmap,
         luceneIndex,
-        stats
+        stats,
+        descs
     );
   }
 }

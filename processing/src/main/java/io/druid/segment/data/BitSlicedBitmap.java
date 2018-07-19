@@ -34,7 +34,6 @@ import io.druid.segment.column.SecondaryIndex;
 import it.uniroma3.mat.extendedset.intset.ConciseSet;
 import org.roaringbitmap.IntIterator;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;

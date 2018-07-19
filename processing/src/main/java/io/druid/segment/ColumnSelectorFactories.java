@@ -31,6 +31,7 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.math.expr.Expr;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -145,6 +146,12 @@ public class ColumnSelectorFactories
 
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      return delegate.makeMathExpressionSelector(expression);
+    }
+
+    @Override
+    public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression)
     {
       return delegate.makeMathExpressionSelector(expression);
     }
@@ -909,6 +916,12 @@ public class ColumnSelectorFactories
 
       @Override
       public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+      {
+        return factory.makeMathExpressionSelector(expression);
+      }
+
+      @Override
+      public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression)
       {
         return factory.makeMathExpressionSelector(expression);
       }

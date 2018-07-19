@@ -27,7 +27,9 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 
 /**
  */
@@ -57,7 +59,7 @@ public class NotFilter implements Filter, Expression.NotExpression
   {
     ImmutableBitmap valueMap = baseFilter.getValueBitmap(selector);
     if (valueMap != null) {
-      return selector.getBitmapFactory().complement(valueMap);
+      return selector.getBitmapFactory().complement(valueMap, selector.getNumRows());
     }
     return null;
   }
@@ -70,7 +72,7 @@ public class NotFilter implements Filter, Expression.NotExpression
   )
   {
     return selector.getBitmapFactory().complement(
-        this.baseFilter.getBitmapIndex(selector, using, baseBitmap),
+        baseFilter.getBitmapIndex(selector, using, baseBitmap),
         selector.getNumRows()
     );
   }
@@ -101,5 +103,12 @@ public class NotFilter implements Filter, Expression.NotExpression
   public Filter getChild()
   {
     return baseFilter;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<Filter> getChildren()
+  {
+    return Arrays.asList(baseFilter);
   }
 }

@@ -34,5 +34,9 @@ import org.apache.lucene.document.Field;
 })
 public interface LuceneIndexingStrategy
 {
+  String getFieldName();
+
+  String getFieldDescriptor();
+
   Function<Object, Field[]> createIndexableField(ValueDesc type);
 }

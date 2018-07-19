@@ -1061,7 +1061,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
           new Closeable()
           {
             @Override
-            public void close() throws IOException
+            public void close()
             {
               CloseQuietly.close(timestamps);
               for (DictionaryEncodedColumn column : dictionaryColumnCache.values()) {

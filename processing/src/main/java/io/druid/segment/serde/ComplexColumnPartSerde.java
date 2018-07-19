@@ -20,13 +20,14 @@
 package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 
 /**
  */
@@ -44,7 +45,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
   private final ComplexMetricSerde serde;
   private final Serializer serializer;
 
-  private ComplexColumnPartSerde(String typeName, Serializer serializer)
+  public ComplexColumnPartSerde(String typeName, Serializer serializer)
   {
     this.typeName = typeName;
     this.serde = ComplexMetrics.getSerdeForType(typeName);
@@ -57,69 +58,8 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
     return typeName;
   }
 
-  public static SerializerBuilder serializerBuilder()
-  {
-    return new SerializerBuilder();
-  }
-
-  public static class SerializerBuilder
-  {
-    private String typeName = null;
-    private ComplexColumnSerializer delegate = null;
-
-    public SerializerBuilder withTypeName(final String typeName)
-    {
-      this.typeName = typeName;
-      return this;
-    }
-
-    public SerializerBuilder withDelegate(final ComplexColumnSerializer delegate)
-    {
-      this.delegate = delegate;
-      return this;
-    }
-
-    public ComplexColumnPartSerde build()
-    {
-      return new ComplexColumnPartSerde(
-          typeName, delegate
-      );
-    }
-  }
-
-  @Deprecated
-  public static LegacySerializerBuilder legacySerializerBuilder()
-  {
-    return new LegacySerializerBuilder();
-  }
-
-  @Deprecated
-  public static class LegacySerializerBuilder
-  {
-    private String typeName = null;
-    private GenericIndexed delegate = null;
-
-    public LegacySerializerBuilder withTypeName(final String typeName)
-    {
-      this.typeName = typeName;
-      return this;
-    }
-
-    public LegacySerializerBuilder withDelegate(final GenericIndexed delegate)
-    {
-      this.delegate = delegate;
-      return this;
-    }
-
-    public ComplexColumnPartSerde build()
-    {
-      return new ComplexColumnPartSerde(
-          typeName, delegate
-      );
-    }
-  }
-
   @Override
+  @JsonIgnore
   public Serializer getSerializer()
   {
     return serializer;

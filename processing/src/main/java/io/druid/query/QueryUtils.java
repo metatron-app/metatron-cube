@@ -169,7 +169,7 @@ public class QueryUtils
   @SuppressWarnings("unchecked")
   public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
   {
-    SelectMetaQuery metaQuery = SelectMetaQuery.forQuery(query, true);
+    SelectMetaQuery metaQuery = SelectMetaQuery.forQuery(query, true, false);
 
     Sequence sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
     final Map<String, Map<ValueDesc, MutableInt>> results = Maps.newHashMap();

@@ -728,22 +728,10 @@ public class IndexIO
           } else {
             columnPartBuilder.withMultiValuedColumn(multiValCol);
           }
+          builder.addSerde(columnPartBuilder.build());
 
-          final ColumnDescriptor serdeficator = builder
-              .addSerde(columnPartBuilder.build())
-              .build();
+          makeColumn(v9Smoosher, dimension, builder.build());
 
-          serdeficator.finalizeSerialization();
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
-          byte[] specBytes = baos.toByteArray();
-
-          final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
-              dimension, serdeficator.numBytes() + specBytes.length
-          );
-          channel.write(ByteBuffer.wrap(specBytes));
-          serdeficator.write(channel);
-          channel.close();
         } else if (filename.startsWith("met_")) {
           if (!filename.endsWith(String.format("%s.drd", BYTE_ORDER))) {
             skippedFiles.add(filename);
@@ -790,29 +778,14 @@ public class IndexIO
               final GenericIndexed column = (GenericIndexed) holder.complexType;
               final String complexType = holder.getTypeName();
               builder.setValueType(ValueDesc.of(complexType));
-              builder.addSerde(
-                  ComplexColumnPartSerde.legacySerializerBuilder()
-                                        .withTypeName(complexType)
-                                        .withDelegate(column).build()
-              );
+              builder.addSerde(new ComplexColumnPartSerde(complexType, column));
               break;
             default:
               throw new ISE("Unknown type[%s]", holder.getType());
           }
 
-          final ColumnDescriptor serdeficator = builder.build();
+          makeColumn(v9Smoosher, metric, builder.build());
 
-          serdeficator.finalizeSerialization();
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
-          byte[] specBytes = baos.toByteArray();
-
-          final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
-              metric, serdeficator.numBytes() + specBytes.length
-          );
-          channel.write(ByteBuffer.wrap(specBytes));
-          serdeficator.write(channel);
-          channel.close();
         } else if (String.format("time_%s.drd", BYTE_ORDER).equals(filename)) {
           CompressedLongsIndexedSupplier timestamps = CompressedLongsIndexedSupplier.fromByteBuffer(
               v8SmooshedFiles.mapFile(filename), BYTE_ORDER
@@ -826,19 +799,9 @@ public class IndexIO
                                         .withDelegate(timestamps)
                                         .build()
           );
-          final ColumnDescriptor serdeficator = builder.build();
 
-          serdeficator.finalizeSerialization();
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
-          byte[] specBytes = baos.toByteArray();
+          makeColumn(v9Smoosher, Column.TIME_COLUMN_NAME, builder.build());
 
-          final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
-              "__time", serdeficator.numBytes() + specBytes.length
-          );
-          channel.write(ByteBuffer.wrap(specBytes));
-          serdeficator.write(channel);
-          channel.close();
         } else {
           skippedFiles.add(filename);
         }
@@ -897,6 +860,30 @@ public class IndexIO
       log.info("Skipped files[%s]", skippedFiles);
 
       v9Smoosher.close();
+    }
+
+    protected final void makeColumn(
+        final FileSmoosher v9Smoosher,
+        final String columnName,
+        final ColumnDescriptor serdeficator
+    ) throws IOException
+    {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      String descriptor = mapper.writeValueAsString(serdeficator);
+      log.debug("> %s : %s", columnName, descriptor);
+      serializerUtils.writeString(baos, descriptor);
+      byte[] specBytes = baos.toByteArray();
+
+      final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
+          columnName, serdeficator.numBytes() + specBytes.length
+      );
+      try {
+        channel.write(ByteBuffer.wrap(specBytes));
+        serdeficator.write(channel);
+      }
+      finally {
+        channel.close();
+      }
     }
   }
 
