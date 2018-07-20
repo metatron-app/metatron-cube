@@ -19,17 +19,11 @@
 
 package io.druid.indexer;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
@@ -43,20 +37,18 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<Object, Object, KEYOUT, VALUEOUT>
 {
   private static final Logger log = new Logger(HadoopDruidIndexerMapper.class);
 
-  private static final int INVALID_LOG_THRESHOLD = 30;
+  private static final int INVALID_LOG_THRESHOLD = 10;
 
   protected HadoopDruidIndexerConfig config;
   private InputRowParser parser;
   protected GranularitySpec granularitySpec;
 
-  private Function<InputRow, Iterable<InputRow>> generator;
   private Counter indexedRows;
   private Counter invalidRows;
   private Counter oobRows;
@@ -71,60 +63,6 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
     parser = config.getParser();
     granularitySpec = config.getGranularitySpec();
-    final String nameField = config.getSchema().getTuningConfig().getJobProperties().get("hynix.columns.param");
-    final String valueField = config.getSchema().getTuningConfig().getJobProperties().get("hynix.columns.value");
-
-    if (nameField != null && valueField != null) {
-      generator = new Function<InputRow, Iterable<InputRow>>()
-      {
-        @Override
-        public Iterable<InputRow> apply(final InputRow input)
-        {
-          final Map<String, Object> mapRow = ((MapBasedInputRow)input).getEvent();
-
-          Object nameObject = mapRow.get(nameField);
-          Object valueObject = mapRow.get(valueField);
-          Preconditions.checkArgument((nameObject instanceof List) && (valueObject instanceof List),
-              "param and value columns specified in hynix.columns should contain array data");
-          final List names = (List)nameObject;
-          final List values = (List)valueObject;
-          Preconditions.checkArgument(names.size() == values.size(),
-              "number of elements in param and value array should be the same");
-
-          List<Pair<String, String>> validPairs = Lists.newArrayList();
-          for (int idx = 0; idx < names.size(); idx++)
-          {
-            String name = (String)names.get(idx);
-            String value = (String)values.get(idx);
-            if (isNumeric(value)) {
-              validPairs.add(Pair.of(name, value));
-            }
-          }
-
-          return Iterables.transform(
-              validPairs, new Function<Pair<String,String>, InputRow>()
-              {
-                @Override
-                public InputRow apply(Pair<String, String> pair)
-                {
-                  mapRow.put(nameField, pair.lhs);
-                  mapRow.put(valueField, pair.rhs);
-                  return input;
-                }
-              }
-          );
-        }
-      };
-    } else {
-      generator = new Function<InputRow, Iterable<InputRow>>()
-      {
-        @Override
-        public Iterable<InputRow> apply(InputRow input)
-        {
-          return ImmutableList.of(input);
-        }
-      };
-    }
 
     indexedRows = context.getCounter("navis", "indexed-row-num");
     invalidRows = context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
@@ -142,20 +80,6 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     if (parser instanceof InputRowParser.Delegated) {
       setupHadoopAwareParser(((InputRowParser.Delegated) parser).getDelegate(), context);
     }
-  }
-
-  private boolean isNumeric(String str)
-  {
-    try {
-      Float.parseFloat(str);
-      if ("NaN".equals(str)) {
-        throw new NumberFormatException();
-      }
-    }
-    catch (NumberFormatException e) {
-      return false;
-    }
-    return true;
   }
 
   public HadoopDruidIndexerConfig getConfig()
@@ -182,9 +106,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
           || granularitySpec.bucketInterval(new DateTime(inputRow.getTimestampFromEpoch()))
                             .isPresent()) {
         indexedRows.increment(1);
-        for (InputRow row : generator.apply(inputRow)) {
-          innerMap(row, value, context);
-        }
+        innerMap(inputRow, value, context);
       } else {
         oobRows.increment(1);
         if (!oobLogged) {
@@ -198,6 +120,11 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
       if (config.isIgnoreInvalidRows()) {
         handelInvalidRow(value, e);
         return; // we're ignoring this invalid row
+      }
+      if (e instanceof ParsingFail) {
+        Object target = ((ParsingFail) e).getInput();
+        e = e.getCause() == null ? e : e.getCause();
+        log.info(e, "Ignoring invalid row due to parsing fail of %s", target == null ? value : target);
       }
       if (e instanceof IOException) {
         throw (IOException) e;
@@ -213,7 +140,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   {
     invalidRows.increment(1);
     if (invalidRows.getValue() <= INVALID_LOG_THRESHOLD) {
-      log.debug(
+      log.warn(
           e,
           "Ignoring invalid row [%s] due to parsing error.. %s", value,
           invalidRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
@@ -224,7 +151,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     }
   }
 
-  private InputRow parseInputRow(Object value) throws IOException
+  private InputRow parseInputRow(Object value)
   {
     InputRow inputRow = parseInputRow(value, parser);
     Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
@@ -239,7 +166,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   }
 
   @SuppressWarnings("unchecked")
-  private InputRow parseInputRow(Object value, InputRowParser parser) throws IOException
+  private InputRow parseInputRow(Object value, InputRowParser parser)
   {
     if (value instanceof InputRow) {
       return (InputRow) value;
@@ -254,5 +181,4 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
 
   protected abstract void innerMap(InputRow inputRow, Object value, Context context)
       throws IOException, InterruptedException;
-
 }

@@ -150,7 +150,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private HadoopTuningConfig tuningConfig;
 
     private IndexMerger merger;
-    private List<String> metricNames = Lists.newArrayList();
 
     private AggregatorFactory[] aggregators;
     private Counter flushedIndex;
@@ -201,9 +200,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       tuningConfig = config.getSchema().getTuningConfig();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
-      for (AggregatorFactory aggregator : aggregators) {
-        metricNames.add(aggregator.getName());
-      }
+
       dynamicDataSource = config.getSchema().getIOConfig().getPathSpec().get("type").equals("hynix");
       if (!dynamicDataSource) {
         currentDataSource = config.getSchema().getDataSchema().getDataSource();
@@ -531,8 +528,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private long startTime;
 
     @Override
-    protected void setup(final Context context)
-        throws IOException, InterruptedException
+    protected void setup(final Context context) throws IOException
     {
       config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
 
@@ -574,8 +570,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
 
     @Override
-    protected void reduce(Text key, Iterable<Text> values, Context context)
-        throws IOException, InterruptedException
+    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException
     {
       log.info("reduce key [%s]", key);
       String[] split = key.toString().split(":");

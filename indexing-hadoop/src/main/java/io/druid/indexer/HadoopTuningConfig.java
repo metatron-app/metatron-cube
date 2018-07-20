@@ -129,7 +129,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
     this.rowFlushBoundary = maxRowsInMemory == null ? maxRowsInMemoryCOMPAT == null ?  DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemoryCOMPAT : maxRowsInMemory;
     this.maxOccupationInMemory = maxOccupationInMemory == null ? -1 : maxOccupationInMemory;
-    this.maxShardLength = maxShardLength == null ? 2 << 30L : maxShardLength;
+    this.maxShardLength = maxShardLength == null ? 1L << 31 : maxShardLength;
     this.leaveIntermediate = leaveIntermediate;
     this.cleanupOnFailure = cleanupOnFailure == null ? true : cleanupOnFailure;
     this.overwriteFiles = overwriteFiles;

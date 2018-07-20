@@ -39,6 +39,11 @@ public class TimestampSpecTest
         new DateTime("2014-03-01"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03-01"))
     );
+    spec = new DefaultTimestampSpec("ts", "yyyy/MM/dd HH:mm:ss.SSS", null);
+    Assert.assertEquals(
+        new DateTime("2002-01-01T03:44:14.50"),
+        spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "2002/01/01 03:44:14.50"))
+    );
   }
 
   @Test
