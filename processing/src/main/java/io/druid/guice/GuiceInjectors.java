@@ -43,7 +43,7 @@ public class GuiceInjectors
 {
   private static final Logger log = new Logger(GuiceInjectors.class);
 
-  public static Collection<Module> makeDefaultStartupModules(String... propertiesLocations)
+  private static Collection<Module> makeDefaultStartupModules(String... propertiesLocations)
   {
     return ImmutableList.<Module>of(
         new DruidGuiceExtensions(),

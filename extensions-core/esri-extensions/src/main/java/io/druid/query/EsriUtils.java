@@ -83,6 +83,7 @@ public class EsriUtils
 
   static OGCGeometry toPolygon(double[] xyPairs)
   {
+    Preconditions.checkArgument(xyPairs.length >= 2);
     double xStart = xyPairs[0], yStart = xyPairs[1];
     String wkt = "polygon((" + xStart + " " + yStart;
 

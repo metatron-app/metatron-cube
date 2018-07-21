@@ -75,6 +75,40 @@ public interface EsriFunctions extends Function.Library
     }
   }
 
+  @Function.Named("ST_Buffer")
+  class ST_Buffer extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() < 2) {
+        throw new IAE("Function[%s] must have at least 2 arguments", name());
+      }
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        {
+          return OGC_GEOMETRY_TYPE;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          OGCGeometry geometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, OGC_GEOMETRY_TYPE);
+          }
+          double distance = Evals.evalDouble(args.get(1), bindings);
+          if (args.size() > 2) {
+            geometry.setSpatialReference(SpatialReference.create(Evals.evalInt(args.get(2), bindings)));
+          }
+          return ExprEval.of(geometry.buffer(distance), OGC_GEOMETRY_TYPE);
+        }
+      };
+    }
+  }
+
   @Function.Named("ST_GeomFromText")
   class ST_GeomFromText extends Function.AbstractFactory
   {

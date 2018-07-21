@@ -67,7 +67,12 @@ public class EsriFunctionsTest
 
   private void testGeom(String x, Geometry value, Expr.NumericBinding bindings)
   {
-    Assert.assertEquals(value, ((OGCGeometry)_eval(x, bindings).value()).getEsriGeometry());
+    Assert.assertEquals(value, evalGeometry(x, bindings).getEsriGeometry());
+  }
+
+  private OGCGeometry evalGeometry(String x, Expr.NumericBinding bindings)
+  {
+    return ((OGCGeometry)_eval(x, bindings).value());
   }
 
   @Test
