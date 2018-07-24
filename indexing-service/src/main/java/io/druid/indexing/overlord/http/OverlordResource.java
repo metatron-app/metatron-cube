@@ -214,7 +214,6 @@ public class OverlordResource
 
   @GET
   @Path("/tasks")
-  @ResourceFilters(TaskResourceFilter.class)
   @Produces(MediaType.APPLICATION_JSON)
   public Response getTasks(
       @QueryParam("full") String full,
@@ -234,8 +233,24 @@ public class OverlordResource
         return Response.ok(finished).build();
       }
     }
+    List<Task> activeTasks = taskStorageQueryAdapter.getActiveTasks();
+    if (authConfig.isEnabled()) {
+      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
+      List<Task> filtered = Lists.newArrayList();
+      for (Task task : activeTasks) {
+        Access authResult = authorization.isAuthorized(
+            new Resource(task.getDataSource(), ResourceType.DATASOURCE),
+            Action.READ
+        );
+        if (authResult.isAllowed()) {
+          filtered.add(task);
+        }
+      }
+      activeTasks = filtered;
+    }
     List<String> tasks = Lists.transform(
-        taskStorageQueryAdapter.getActiveTasks(), new Function<Task, String>()
+        activeTasks, new Function<Task, String>()
         {
           @Override
           public String apply(Task input)

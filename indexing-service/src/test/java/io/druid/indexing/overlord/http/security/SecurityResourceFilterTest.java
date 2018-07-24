@@ -105,7 +105,7 @@ public class SecurityResourceFilterTest extends ResourceFilterTestHelper
     EasyMock.expect(request.getMethod()).andReturn(requestMethod).anyTimes();
     EasyMock.replay(req, request, authorizationInfo);
     resourceFilter.getRequestFilter().filter(request);
-    Assert.assertTrue(((AbstractResourceFilter) resourceFilter.getRequestFilter()).isApplicable(requestPath));
+    Assert.assertTrue(requestPath, ((AbstractResourceFilter) resourceFilter.getRequestFilter()).isApplicable(requestPath));
   }
 
   @Test(expected = WebApplicationException.class)
@@ -115,7 +115,7 @@ public class SecurityResourceFilterTest extends ResourceFilterTestHelper
     EasyMock.expect(request.getEntity(Task.class)).andReturn(noopTask).anyTimes();
     EasyMock.expect(request.getMethod()).andReturn(requestMethod).anyTimes();
     EasyMock.replay(req, request, authorizationInfo);
-    Assert.assertTrue(((AbstractResourceFilter) resourceFilter.getRequestFilter()).isApplicable(requestPath));
+    Assert.assertTrue(requestPath, ((AbstractResourceFilter) resourceFilter.getRequestFilter()).isApplicable(requestPath));
     try {
       resourceFilter.getRequestFilter().filter(request);
     }
