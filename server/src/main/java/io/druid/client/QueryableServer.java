@@ -17,21 +17,9 @@
  * under the License.
  */
 
-package io.druid.client.indexing;
+package io.druid.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.server.ServiceTypes;
-
-/**
- */
-public class IndexingServiceSelectorConfig
+public interface QueryableServer
 {
-
-  @JsonProperty
-  private String serviceName = ServiceTypes.OVERLORD;
-
-  public String getServiceName()
-  {
-    return serviceName;
-  }
+  DruidServer getServer();
 }

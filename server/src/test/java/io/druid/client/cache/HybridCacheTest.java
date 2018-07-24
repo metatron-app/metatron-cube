@@ -58,7 +58,7 @@ public class HybridCacheTest
               @Override
               public void configure(Binder binder)
               {
-                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("hybridTest");
+                binder.bindConstant().annotatedWith(Names.named("type")).to("hybridTest");
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
 
                 binder.install(new CacheModule(prefix));

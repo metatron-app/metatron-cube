@@ -36,13 +36,13 @@ public class CuratorServiceAnnouncer implements ServiceAnnouncer
 {
   private static final EmittingLogger log = new EmittingLogger(CuratorServiceAnnouncer.class);
 
-  private final ServiceDiscovery<Void> discovery;
-  private final Map<String, ServiceInstance<Void>> instanceMap = Maps.newHashMap();
+  private final ServiceDiscovery<String> discovery;
+  private final Map<String, ServiceInstance<String>> instanceMap = Maps.newHashMap();
   private final Object monitor = new Object();
 
   @Inject
   public CuratorServiceAnnouncer(
-      ServiceDiscovery<Void> discovery
+      ServiceDiscovery<String> discovery
   )
   {
     this.discovery = discovery;
@@ -53,17 +53,18 @@ public class CuratorServiceAnnouncer implements ServiceAnnouncer
   {
     final String serviceName = CuratorServiceUtils.makeCanonicalServiceName(service.getServiceName());
 
-    final ServiceInstance<Void> instance;
+    final ServiceInstance<String> instance;
     synchronized (monitor) {
       if (instanceMap.containsKey(serviceName)) {
         log.warn("Ignoring request to announce service[%s]", service);
         return;
       } else {
         try {
-          instance = ServiceInstance.<Void>builder()
+          instance = ServiceInstance.<String>builder()
                                     .name(serviceName)
                                     .address(service.getHost())
                                     .port(service.getPort())
+                                    .payload(service.getType())
                                     .build();
         }
         catch (Exception e) {
@@ -90,7 +91,7 @@ public class CuratorServiceAnnouncer implements ServiceAnnouncer
   public void unannounce(DruidNode service)
   {
     final String serviceName = CuratorServiceUtils.makeCanonicalServiceName(service.getServiceName());
-    final ServiceInstance<Void> instance;
+    final ServiceInstance<String> instance;
 
     synchronized (monitor) {
       instance = instanceMap.get(serviceName);

@@ -69,7 +69,7 @@ public class HadoopURISettlingConfigTest
               @Override
               public void configure(Binder binder)
               {
-                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("test");
+                binder.bindConstant().annotatedWith(Names.named("type")).to("test");
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
               }
             }

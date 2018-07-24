@@ -49,9 +49,10 @@ import io.druid.metadata.MetadataSegmentManagerConfig;
 import io.druid.metadata.MetadataSegmentManagerProvider;
 import io.druid.metadata.MetadataStorage;
 import io.druid.metadata.MetadataStorageProvider;
+import io.druid.server.ServiceTypes;
 import io.druid.server.audit.AuditManagerProvider;
-import io.druid.server.coordinator.CoordinatorDynamicConfig;
 import io.druid.server.coordinator.BalancerStrategyFactory;
+import io.druid.server.coordinator.CoordinatorDynamicConfig;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.coordinator.LoadQueueTaskMaster;
@@ -75,7 +76,6 @@ import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.listener.announcer.ListenerDiscoverer;
 import io.druid.server.lookup.cache.LookupCoordinatorManager;
 import io.druid.server.lookup.cache.LookupCoordinatorManagerConfig;
-import io.druid.server.router.TieredBrokerConfig;
 import org.apache.curator.framework.CuratorFramework;
 import org.eclipse.jetty.server.Server;
 
@@ -116,8 +116,7 @@ public class CliCoordinator extends ServerRunnable
           public void configure(Binder binder)
           {
             binder.bindConstant()
-                  .annotatedWith(Names.named("serviceName"))
-                  .to(TieredBrokerConfig.DEFAULT_COORDINATOR_SERVICE_NAME);
+                  .annotatedWith(Names.named("type")).to(ServiceTypes.COORDINATOR);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8081);
 
             ConfigProvider.bind(binder, DruidCoordinatorConfig.class);

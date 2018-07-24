@@ -19,7 +19,7 @@
 
 package io.druid.query;
 
-import io.druid.client.selector.QueryableDruidServer;
+import io.druid.client.DruidServer;
 
 import java.util.List;
 
@@ -27,5 +27,5 @@ import java.util.List;
  */
 public interface FilterableManagementQuery extends Query.ManagementQuery
 {
-  List<QueryableDruidServer> filter(List<QueryableDruidServer> servers);
+  List<DruidServer> filter(List<DruidServer> servers);
 }

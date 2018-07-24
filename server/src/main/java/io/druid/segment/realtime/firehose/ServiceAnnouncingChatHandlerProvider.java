@@ -101,6 +101,6 @@ public class ServiceAnnouncingChatHandlerProvider implements ChatHandlerProvider
 
   private DruidNode makeDruidNode(String key)
   {
-    return new DruidNode(key, node.getHost(), node.getPort());
+    return new DruidNode(key, node.getType(), node.getHost(), node.getPort());
   }
 }

@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
+import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.http.security.StateResourceFilter;
@@ -36,6 +37,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Map;
 
 /**
  */
@@ -163,5 +165,14 @@ public class CoordinatorResource
             }
         )
     ).build();
+  }
+
+  @GET
+  @Path("/jmx")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response handleJMX(@QueryParam("dumpLongestStack") boolean dumpLongestStack)
+  {
+    Map<String, Object> results = JMXQueryRunnerFactory.queryJMX(coordinator.getSelf(), null, dumpLongestStack);
+    return Response.ok(results).build();
   }
 }

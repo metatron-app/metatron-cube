@@ -52,11 +52,11 @@ import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.BrokerQueryResource;
 import io.druid.server.ClientInfoResource;
 import io.druid.server.ClientQuerySegmentWalker;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.broker.DruidBroker;
 import io.druid.server.http.BrokerResource;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
-import io.druid.server.router.TieredBrokerConfig;
 import io.druid.sql.guice.SqlModule;
 import org.eclipse.jetty.server.Server;
 
@@ -86,9 +86,8 @@ public class CliBroker extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to(
-                TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME
-            );
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.BROKER);
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.BROKER);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8082);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);

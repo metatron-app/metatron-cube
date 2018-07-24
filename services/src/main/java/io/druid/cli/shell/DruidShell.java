@@ -78,7 +78,7 @@ public class DruidShell implements CommonShell
 
   private final IndexerZkConfig zkPaths;
   private final CuratorFramework curator;
-  private final ServiceDiscovery<Void> discovery;
+  private final ServiceDiscovery<String> discovery;
   private final HttpClient httpClient;
   private final ObjectMapper jsonMapper;
 
@@ -86,7 +86,7 @@ public class DruidShell implements CommonShell
   public DruidShell(
       IndexerZkConfig zkPaths,
       CuratorFramework curator,
-      ServiceDiscovery<Void> discovery,
+      ServiceDiscovery<String> discovery,
       @Global HttpClient httpClient,
       @JacksonInject ObjectMapper jsonMapper
   )
@@ -134,10 +134,10 @@ public class DruidShell implements CommonShell
     return Lists.newArrayList(
         Iterables.transform(
             discovery.queryForInstances(service),
-            new Function<ServiceInstance<Void>, URL>()
+            new Function<ServiceInstance<String>, URL>()
             {
               @Override
-              public URL apply(ServiceInstance<Void> input)
+              public URL apply(ServiceInstance<String> input)
               {
                 try {
                   return new URL("http://" + input.getAddress() + ":" + input.getPort());

@@ -59,6 +59,7 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.server.DruidNode;
+import io.druid.server.ServiceTypes;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.ShardSpecLookup;
@@ -110,7 +111,7 @@ public class HadoopDruidIndexerConfig
                 JsonConfigProvider.bindInstance(
                     binder, Key.get(DruidNode.class, Self.class), new DruidNode("hadoop-indexer", null, null)
                 );
-                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/hadoop-indexing");
+                binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.HADOOP_INDEXING);
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
               }
             },

@@ -194,7 +194,7 @@ public class DiscoveryModule implements Module
 
   @Provides
   @LazySingleton
-  public ServiceDiscovery<Void> getServiceDiscovery(
+  public ServiceDiscovery<String> getServiceDiscovery(
       CuratorFramework curator,
       CuratorDiscoveryConfig config,
       Lifecycle lifecycle
@@ -204,8 +204,8 @@ public class DiscoveryModule implements Module
       return new NoopServiceDiscovery<>();
     }
 
-    final ServiceDiscovery<Void> serviceDiscovery =
-        ServiceDiscoveryBuilder.builder(Void.class)
+    final ServiceDiscovery<String> serviceDiscovery =
+        ServiceDiscoveryBuilder.builder(String.class)
                                .basePath(config.getPath())
                                .client(curator)
                                .build();
@@ -238,7 +238,7 @@ public class DiscoveryModule implements Module
   @Provides
   @LazySingleton
   public ServerDiscoveryFactory getServerDiscoveryFactory(
-      ServiceDiscovery<Void> serviceDiscovery
+      ServiceDiscovery<String> serviceDiscovery
   )
   {
     return new ServerDiscoveryFactory(serviceDiscovery);

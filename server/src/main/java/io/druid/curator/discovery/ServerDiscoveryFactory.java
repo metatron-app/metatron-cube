@@ -31,11 +31,11 @@ import java.util.Collection;
  */
 public class ServerDiscoveryFactory
 {
-  private final ServiceDiscovery<Void> serviceDiscovery;
+  private final ServiceDiscovery<String> serviceDiscovery;
 
   @Inject
   public ServerDiscoveryFactory(
-      ServiceDiscovery<Void> serviceDiscovery
+      ServiceDiscovery<String> serviceDiscovery
   )
   {
     this.serviceDiscovery = serviceDiscovery;

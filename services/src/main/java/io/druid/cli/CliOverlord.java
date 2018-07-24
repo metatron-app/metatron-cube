@@ -32,7 +32,6 @@ import com.google.inject.util.Providers;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.audit.AuditManager;
-import io.druid.client.indexing.IndexingServiceSelectorConfig;
 import io.druid.guice.IndexingServiceFirehoseModule;
 import io.druid.guice.IndexingServiceModuleHelper;
 import io.druid.guice.IndexingServiceTaskLogsModule;
@@ -74,6 +73,7 @@ import io.druid.indexing.overlord.supervisor.SupervisorResource;
 import io.druid.indexing.worker.config.WorkerConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.server.GuiceServletConfig;
+import io.druid.server.ServiceTypes;
 import io.druid.server.audit.AuditManagerProvider;
 import io.druid.server.http.RedirectFilter;
 import io.druid.server.http.RedirectInfo;
@@ -117,8 +117,7 @@ public class CliOverlord extends ServerRunnable
           public void configure(Binder binder)
           {
             binder.bindConstant()
-                  .annotatedWith(Names.named("serviceName"))
-                  .to(IndexingServiceSelectorConfig.DEFAULT_SERVICE_NAME);
+                  .annotatedWith(Names.named("type")).to(ServiceTypes.OVERLORD);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8090);
 
             JsonConfigProvider.bind(binder, "druid.indexer.queue", TaskQueueConfig.class);

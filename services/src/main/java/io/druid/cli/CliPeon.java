@@ -91,6 +91,7 @@ import io.druid.segment.realtime.plumber.CoordinatorBasedSegmentHandoffNotifierF
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.server.PeonResource;
 import io.druid.server.QueryResource;
+import io.druid.server.ServiceTypes;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.DataSourceTaskIdHolder;
@@ -137,7 +138,7 @@ public class CliPeon extends GuiceRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/peon");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.PEON);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);

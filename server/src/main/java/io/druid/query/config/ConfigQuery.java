@@ -21,7 +21,8 @@ package io.druid.query.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.client.selector.QueryableDruidServer;
+import com.google.common.collect.ImmutableSet;
+import io.druid.client.DruidServer;
 import io.druid.common.Intervals;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -33,6 +34,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -115,7 +117,7 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
   }
 
   @Override
-  public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
+  public List<DruidServer> filter(List<DruidServer> servers)
   {
     return JMXQuery.filterServers(expression, servers);
   }
@@ -127,5 +129,11 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
            "expression='" + expression + '\'' +
            ", config=" + config +
            '}';
+  }
+
+  @Override
+  public Set<String> supports()
+  {
+    return ImmutableSet.of();
   }
 }

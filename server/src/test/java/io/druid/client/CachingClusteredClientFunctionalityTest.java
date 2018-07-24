@@ -200,9 +200,9 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
-          public <T> QueryRunner<T> getQueryRunner(DruidServer server)
+          public <T> QueryRunner<T> getQueryRunner(Query<T> query, DruidServer server)
           {
-            return serverView.getQueryRunner(server);
+            return serverView.getQueryRunner(query, server);
           }
 
           @Override

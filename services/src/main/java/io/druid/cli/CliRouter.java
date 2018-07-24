@@ -39,6 +39,7 @@ import io.druid.guice.http.JettyHttpClientModule;
 import io.druid.jackson.FunctionModule;
 import io.druid.query.ManagementQueryModule;
 import io.druid.query.lookup.LookupModule;
+import io.druid.server.ServiceTypes;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.router.CoordinatorRuleManager;
 import io.druid.server.router.QueryHostFinder;
@@ -76,7 +77,7 @@ public class CliRouter extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/router");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.ROUTER);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8888);
 
             JsonConfigProvider.bind(binder, "druid.router", TieredBrokerConfig.class);

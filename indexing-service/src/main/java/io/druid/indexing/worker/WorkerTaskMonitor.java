@@ -31,11 +31,14 @@ import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;
+import io.druid.curator.discovery.ServiceAnnouncer;
+import io.druid.guice.annotations.Self;
 import io.druid.indexing.common.TaskLocation;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerListener;
+import io.druid.server.DruidNode;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
@@ -60,9 +63,11 @@ public class WorkerTaskMonitor
   private static final EmittingLogger log = new EmittingLogger(WorkerTaskMonitor.class);
   private static final int STOP_WARNING_SECONDS = 10;
 
+  private final DruidNode node;
   private final ObjectMapper jsonMapper;
   private final PathChildrenCache pathChildrenCache;
   private final CuratorFramework cf;
+  private final ServiceAnnouncer serviceAnnouncer;
   private final WorkerCuratorCoordinator workerCuratorCoordinator;
   private final TaskRunner taskRunner;
   private final ExecutorService exec;
@@ -76,17 +81,21 @@ public class WorkerTaskMonitor
 
   @Inject
   public WorkerTaskMonitor(
+      @Self DruidNode node,
+      ServiceAnnouncer serviceAnnouncer,
       ObjectMapper jsonMapper,
       CuratorFramework cf,
       WorkerCuratorCoordinator workerCuratorCoordinator,
       TaskRunner taskRunner
   )
   {
+    this.node = node;
     this.jsonMapper = jsonMapper;
     this.pathChildrenCache = new PathChildrenCache(
         cf, workerCuratorCoordinator.getTaskPathForWorker(), false, true, Execs.makeThreadFactory("TaskMonitorCache-%s")
     );
     this.cf = cf;
+    this.serviceAnnouncer = serviceAnnouncer;
     this.workerCuratorCoordinator = workerCuratorCoordinator;
     this.taskRunner = taskRunner;
     this.exec = Execs.singleThreaded("WorkerTaskMonitor");
@@ -121,6 +130,7 @@ public class WorkerTaskMonitor
             }
         );
 
+        serviceAnnouncer.announce(node);
         log.info("Started WorkerTaskMonitor.");
         started = true;
       }
@@ -271,6 +281,7 @@ public class WorkerTaskMonitor
       try {
         started = false;
         taskRunner.unregisterListener("WorkerTaskMonitor");
+        serviceAnnouncer.unannounce(node);
         exec.shutdownNow();
         pathChildrenCache.close();
         taskRunner.stop();

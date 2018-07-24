@@ -35,6 +35,7 @@ import io.druid.jackson.FunctionModule;
 import io.druid.query.ManagementQueryModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 import io.druid.timeline.DataSegment;
@@ -73,7 +74,7 @@ public class CliRealtimeExample extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/realtime");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.REALTIME);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8084);
 
             binder.bind(DataSegmentPusher.class).to(NoopDataSegmentPusher.class).in(LazySingleton.class);
@@ -91,6 +92,7 @@ public class CliRealtimeExample extends ServerRunnable
 
   private static class NoopServerView implements ServerView
   {
+
     @Override
     public void registerServerCallback(Executor exec, ServerCallback callback)
     {

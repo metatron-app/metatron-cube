@@ -96,7 +96,7 @@ public class DruidJsonValidator extends GuiceRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/validator");
+            binder.bindConstant().annotatedWith(Names.named("type")).to("druid/validator");
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
           }
         }

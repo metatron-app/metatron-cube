@@ -53,6 +53,7 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "queryType")
 @JsonSubTypes(value = {
@@ -209,6 +210,8 @@ public interface Query<T> extends QueryContextKeys
   }
 
   // marker.. broadcasts query to all known servers (see CCC)
-  interface ManagementQuery {
+  interface ManagementQuery
+  {
+    Set<String> supports();
   }
 }

@@ -25,6 +25,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
+import io.druid.curator.discovery.NoopServiceAnnouncer;
 import io.druid.indexing.common.IndexingServiceCondition;
 import io.druid.indexing.common.SegmentLoaderFactory;
 import io.druid.indexing.common.TaskStatus;
@@ -163,6 +164,8 @@ public class WorkerTaskMonitorTest
     SegmentHandoffNotifierFactory notifierFactory = EasyMock.createNiceMock(SegmentHandoffNotifierFactory.class);
     EasyMock.replay(taskActionClientFactory, taskActionClient, notifierFactory);
     return new WorkerTaskMonitor(
+        new DruidNode("hey", "what", 1234),
+        new NoopServiceAnnouncer(),
         jsonMapper,
         cf,
         workerCuratorCoordinator,

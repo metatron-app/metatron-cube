@@ -226,6 +226,11 @@ public class DruidCoordinator
     return leader;
   }
 
+  public DruidNode getSelf()
+  {
+    return self;
+  }
+
   public Map<String, LoadQueuePeon> getLoadManagementPeons()
   {
     return loadManagementPeons;

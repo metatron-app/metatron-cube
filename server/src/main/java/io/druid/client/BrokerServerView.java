@@ -19,9 +19,10 @@
 
 package io.druid.client;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -31,15 +32,20 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import com.metamx.http.client.HttpClient;
+import com.metamx.http.client.Request;
+import com.metamx.http.client.response.StatusResponseHandler;
+import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Client;
 import io.druid.guice.annotations.Processing;
@@ -55,6 +61,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
@@ -68,15 +75,19 @@ import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -131,7 +142,7 @@ public class BrokerServerView implements TimelineServerView
       @Processing ExecutorService backgroundExecutorService
   )
   {
-    this.node = node == null ? null : new DruidServer(node, new DruidServerConfig(), "broker");
+    this.node = DruidServer.of(node, "broker");
     this.conglomerate = conglomerate;
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
@@ -449,30 +460,65 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  public <T> QueryRunner<T> getQueryRunner(DruidServer server)
+  @SuppressWarnings("unchecked")
+  public <T> QueryRunner<T> getQueryRunner(Query<T> query, final DruidServer server)
   {
-    final QueryableDruidServer queryableDruidServer;
+    final QueryableDruidServer queryableServer;
     synchronized (lock) {
-      queryableDruidServer = clients.get(server.getName());
-      if (queryableDruidServer == null) {
-        log.error("WTF?! No QueryableDruidServer found for %s", server.getName());
-        return new NoopQueryRunner<T>();
+      queryableServer = clients.get(server.getName());
+    }
+    if (queryableServer != null && queryableServer.getClient() != null) {
+      return queryableServer.getClient();  // remote queryable nodes
+    }
+    if (query instanceof Query.ManagementQuery) {
+      if (server.equals(node)) {
+        return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, smileMapper);
       }
+      final TypeReference<T> reference = conglomerate.findFactory(query).getToolchest().getResultTypeReference();
+      final String prefix = ServiceTypes.TYPE_TO_RESOURCE.getOrDefault(server.getType(), server.getType());
+      final String resource = String.format("druid/%s/v1/%s", prefix, query.getType());
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          try {
+            return Sequences.simple(Arrays.asList(execute(server, resource, reference)));
+          }
+          catch (Exception e) {
+            return Sequences.empty();
+          }
+        }
+      };
     }
-    DirectDruidClient client = queryableDruidServer.getClient();
-    if (client != null) {
-      return client;
+    // try query from local segments
+    if (queryableServer == null || !server.equals(node)) {
+      return null;
     }
-    // query from local segments
-    Preconditions.checkArgument(node.equals(queryableDruidServer.getServer()));
     return new QueryRunner<T>()
     {
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        return toRunner(query, queryableDruidServer.getLocalTimelineView()).run(query, responseContext);
+        return toRunner(query, queryableServer.getLocalTimelineView()).run(query, responseContext);
       }
     };
+  }
+
+  private <T> T execute(DruidServer server, String resource, TypeReference<T> resultType) throws Exception
+  {
+    URL url = new URL(String.format("http://%s/%s", server.getHost(), resource));
+    Request request = new Request(HttpMethod.GET, url);
+    StatusResponseHolder response = httpClient.go(request, new StatusResponseHandler(Charsets.UTF_8)).get();
+    if (!response.getStatus().equals(HttpResponseStatus.OK)) {
+      throw new ISE(
+          "Error while query on [%s] status[%s] content[%s]",
+          url,
+          response.getStatus(),
+          response.getContent()
+      );
+    }
+    return smileMapper.readValue(response.getContent(), resultType);
   }
 
   private <T> QueryRunner<T> toRunner(

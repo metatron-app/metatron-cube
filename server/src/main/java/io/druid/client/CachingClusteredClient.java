@@ -46,11 +46,10 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.common.Intervals;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
-import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
@@ -60,7 +59,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactoryConglomerate;
-import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
@@ -70,14 +68,13 @@ import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
-import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
-import io.druid.timeline.partition.LinearPartitionChunk;
 import io.druid.timeline.partition.PartitionChunk;
-import io.druid.timeline.partition.PartitionHolder;
+import org.apache.curator.x.discovery.ServiceDiscovery;
+import org.apache.curator.x.discovery.ServiceInstance;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -100,7 +97,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CachingClusteredClient<T> implements QueryRunner<T>
 {
   private static final EmittingLogger log = new EmittingLogger(CachingClusteredClient.class);
-  private final DruidNode node;
+
+  private final ServiceDiscovery<String> discovery;
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
@@ -112,7 +110,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
   @Inject
   public CachingClusteredClient(
-      @Self DruidNode node,
+      ServiceDiscovery<String> discovery,
       QueryRunnerFactoryConglomerate conglomerate,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
@@ -123,7 +121,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       CacheConfig cacheConfig
   )
   {
-    this.node = node;
+    this.discovery = discovery;
     this.conglomerate = conglomerate;
     this.warehouse = warehouse;
     this.serverView = serverView;
@@ -157,26 +155,38 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       query = baseQuery;
     }
     final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
-    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
 
+    if (query instanceof Query.ManagementQuery) {
+      try {
+        List<Sequence<T>> sequences = Lists.newArrayList();
+        for (DruidServer server : getManagementTargets(query)) {
+          QueryRunner<T> runner = serverView.getQueryRunner(query, server);
+          if (runner != null) {
+            sequences.add(runner.run(query, responseContext));
+          }
+        }
+        return toolChest.mergeSequences(query, sequences);
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
     final Map<DruidServer, List<SegmentDescriptor>> serverSegments = Maps.newTreeMap();
 
     final List<Pair<Interval, byte[]>> cachedResults = Lists.newArrayList();
     final Map<String, CachePopulator> cachePopulatorMap = Maps.newHashMap();
 
-    final boolean managementQuery = query instanceof Query.ManagementQuery;
-
-    final boolean useCache = !managementQuery
-                             && BaseQuery.getContextUseCache(query, true)
+    final boolean useCache = BaseQuery.getContextUseCache(query, true)
                              && strategy != null
                              && cacheConfig.isUseCache()
                              && cacheConfig.isQueryCacheable(query);
-    final boolean populateCache = !managementQuery
-                                  && BaseQuery.getContextPopulateCache(query, true)
+    final boolean populateCache = BaseQuery.getContextPopulateCache(query, true)
                                   && strategy != null
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
-    final boolean isBySegment = !managementQuery && BaseQuery.getContextBySegment(query, false);
+    final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
 
 
     final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
@@ -190,36 +200,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       contextBuilder.put(Query.BY_SEGMENT, true);
     }
 
-    TimelineLookup<String, ServerSelector> timeline;
-    if (managementQuery) {
-      final List<QueryableDruidServer> servers;
-      if (query instanceof FilterableManagementQuery) {
-        servers = ((FilterableManagementQuery)query).filter(serverView.getServers());
-      } else {
-        servers = serverView.getServers();
-      }
-      timeline = new TimelineLookup.NotSupport<String, ServerSelector>()
-      {
-        @Override
-        public Iterable<TimelineObjectHolder<String, ServerSelector>> lookup(Interval interval)
-        {
-          List<TimelineObjectHolder<String, ServerSelector>> holders = Lists.newArrayList();
-          for (int i = 0 ; i < servers.size(); i++) {
-            holders.add(
-                new TimelineObjectHolder<String, ServerSelector>(
-                    Intervals.ETERNITY, "0",
-                    new PartitionHolder<ServerSelector>(
-                        LinearPartitionChunk.make(i, ServerSelector.dummy(servers.get(i)))
-                    )
-                )
-            );
-          }
-          return holders;
-        }
-      };
-    } else {
-      timeline = serverView.getTimeline(query.getDataSource());
-    }
+    TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(query.getDataSource());
 
     if (timeline == null) {
       return Sequences.empty();
@@ -234,7 +215,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // and might blow up in some cases https://github.com/druid-io/druid/issues/2108
     int uncoveredIntervalsLimit = BaseQuery.getContextUncoveredIntervalsLimit(query, 0);
 
-    if (!managementQuery && uncoveredIntervalsLimit > 0) {
+    if (uncoveredIntervalsLimit > 0) {
       List<Interval> uncoveredIntervals = Lists.newArrayListWithCapacity(uncoveredIntervalsLimit);
       boolean uncoveredIntervalsOverflowed = false;
 
@@ -416,12 +397,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             }
             addSequencesFromServer(sequencesByInterval);
 
-            if (managementQuery && includeSelf()) {
-              // add self
-              QueryRunner<T> runner = QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
-              sequencesByInterval.add(runner.run(query, responseContext));
-            }
-
             return mergeCachedAndUncachedSequences(
                 query,
                 toolChest,
@@ -429,15 +404,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                 cachedResults.size(),
                 cacheAccessTime
             );
-          }
-
-          private boolean includeSelf()
-          {
-            if (query instanceof FilterableManagementQuery) {
-              FilterableManagementQuery filterable = (FilterableManagementQuery) query;
-              return !filterable.filter(Arrays.asList(QueryableDruidServer.broker(node))).isEmpty();
-            }
-            return true;
           }
 
           private void addSequencesFromCache(
@@ -495,10 +461,10 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
               final DruidServer server = entry.getKey();
               final List<SegmentDescriptor> descriptors = entry.getValue();
 
-              final QueryRunner clientQueryable = serverView.getQueryRunner(server);
+              final QueryRunner clientQueryable = serverView.getQueryRunner(query, server);
 
               if (clientQueryable == null) {
-                log.error("WTF!? server[%s] doesn't have a client Queryable?", server);
+                log.error("server [%s] has disappeared.. skipping", server);
                 continue;
               }
 
@@ -649,6 +615,31 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           }
         }// End of Supplier
     );
+  }
+
+  private List<DruidServer> getManagementTargets(Query<T> query) throws Exception
+  {
+    List<DruidServer> servers = Lists.newArrayList();
+    for (QueryableServer server : serverView.getServers()) {
+      servers.add(server.getServer());
+    }
+    Set<String> supports = ((Query.ManagementQuery) query).supports();
+    if (!GuavaUtils.isNullOrEmpty(supports)) {
+      // damn shity discovery..
+      for (String service : discovery.queryForNames()) {
+        for (ServiceInstance<String> instance : discovery.queryForInstances(service)) {
+          String type = instance.getPayload();
+          if (type != null && supports.contains(type)) {
+            String name = instance.getAddress() + ":" + instance.getPort();
+            servers.add(new DruidServer(name, name, -1, type, "", -1));
+          }
+        }
+      }
+    }
+    if (query instanceof FilterableManagementQuery) {
+      servers = ((FilterableManagementQuery) query).filter(servers);
+    }
+    return servers;
   }
 
   protected Sequence<T> mergeCachedAndUncachedSequences(

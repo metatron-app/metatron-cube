@@ -17,21 +17,27 @@
  * under the License.
  */
 
-package io.druid.client.indexing;
+package io.druid.server;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.server.ServiceTypes;
+import com.google.common.collect.ImmutableMap;
 
-/**
- */
-public class IndexingServiceSelectorConfig
+import java.util.Map;
+
+public interface ServiceTypes
 {
+  String COORDINATOR = "coordinator";
+  String BROKER = "broker";
+  String HISTORICAL = "historical";
+  String OVERLORD = "overlord";
+  String MIDDLE_MANAGER = "middleManager";
+  String REALTIME = "realtime";
+  String PEON = "peon";
+  String ROUTER = "router";
+  String HADOOP_INDEXING = "hadoop-indexing";
+  String INTERNAL_HADOOP_INDEXER = "internal-hadoop-indexer";
 
-  @JsonProperty
-  private String serviceName = ServiceTypes.OVERLORD;
-
-  public String getServiceName()
-  {
-    return serviceName;
-  }
+  Map<String, String> TYPE_TO_RESOURCE = ImmutableMap.<String, String>of(
+      OVERLORD, "indexer",
+      MIDDLE_MANAGER, "worker"
+  );
 }

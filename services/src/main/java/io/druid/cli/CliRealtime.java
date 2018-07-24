@@ -30,6 +30,7 @@ import io.druid.guice.RealtimeModule;
 import io.druid.jackson.FunctionModule;
 import io.druid.query.ManagementQueryModule;
 import io.druid.query.lookup.LookupModule;
+import io.druid.server.ServiceTypes;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 
 import java.util.List;
@@ -63,7 +64,7 @@ public class CliRealtime extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/realtime");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.REALTIME);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8084);
           }
         },

@@ -51,6 +51,7 @@ import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.Self;
 import io.druid.indexing.common.TaskLocation;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
@@ -71,6 +72,8 @@ import io.druid.indexing.overlord.autoscaling.ScalingStats;
 import io.druid.indexing.overlord.http.security.TaskResourceFilter;
 import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
 import io.druid.metadata.EntryExistsException;
+import io.druid.query.jmx.JMXQueryRunnerFactory;
+import io.druid.server.DruidNode;
 import io.druid.server.http.security.ConfigResourceFilter;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.server.security.Access;
@@ -124,6 +127,7 @@ public class OverlordResource
   private final AuditManager auditManager;
   private final AuthConfig authConfig;
   private final HttpClient client;
+  private final DruidNode node;
   private final ObjectMapper jsonMapper;
 
   private AtomicReference<WorkerBehaviorConfig> workerConfigRef = null;
@@ -137,8 +141,9 @@ public class OverlordResource
       AuditManager auditManager,
       AuthConfig authConfig,
       @Global HttpClient client,
+      @Self DruidNode node,
       ObjectMapper jsonMapper
-  ) throws Exception
+  )
   {
     this.taskMaster = taskMaster;
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
@@ -147,6 +152,7 @@ public class OverlordResource
     this.auditManager = auditManager;
     this.authConfig = authConfig;
     this.client = client;
+    this.node = node;
     this.jsonMapper = jsonMapper;
   }
 
@@ -811,6 +817,15 @@ public class OverlordResource
       log.warn(e, "Failed to stream log for task %s", taskid);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
+  }
+
+  @GET
+  @Path("/jmx")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response handleJMX(@QueryParam("dumpLongestStack") boolean dumpLongestStack)
+  {
+    Map<String, Object> results = JMXQueryRunnerFactory.queryJMX(node, null, dumpLongestStack);
+    return Response.ok(results).build();
   }
 
   private Response workItemsResponse(final Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>> fn)

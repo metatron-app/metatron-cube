@@ -208,6 +208,7 @@ public class OverlordTest
         null,
         new AuthConfig(),
         null,
+        null,
         null
     );
     Response response = overlordResource.getLeader();

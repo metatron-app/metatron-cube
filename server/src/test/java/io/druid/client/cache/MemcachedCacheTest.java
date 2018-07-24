@@ -151,7 +151,7 @@ public class MemcachedCacheTest
               @Override
               public void configure(Binder binder)
               {
-                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/test/memcached");
+                binder.bindConstant().annotatedWith(Names.named("type")).to("druid/test/memcached");
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
 
                 binder.bind(MemcachedCacheConfig.class).toInstance(config);
@@ -184,7 +184,7 @@ public class MemcachedCacheTest
               @Override
               public void configure(Binder binder)
               {
-                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/test/memcached");
+                binder.bindConstant().annotatedWith(Names.named("type")).to("druid/test/memcached");
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
 
                 binder.bind(Cache.class).toProvider(CacheProvider.class);

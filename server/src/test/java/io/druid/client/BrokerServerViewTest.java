@@ -39,6 +39,8 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.TableDataSource;
+import io.druid.server.DruidNode;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.server.metrics.NoopServiceEmitter;
@@ -330,7 +332,7 @@ public class BrokerServerViewTest extends CuratorTestBase
     };
 
     brokerServerView = new BrokerServerView(
-        null,
+        new DruidNode(ServiceTypes.BROKER, "localhost", 0),
         null,
         EasyMock.createMock(QueryToolChestWarehouse.class),
         EasyMock.createMock(QueryWatcher.class),

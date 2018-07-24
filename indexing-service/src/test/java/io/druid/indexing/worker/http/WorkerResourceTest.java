@@ -96,6 +96,7 @@ public class WorkerResourceTest
     workerResource = new WorkerResource(
         worker,
         curatorCoordinator,
+        null,
         null
     );
   }

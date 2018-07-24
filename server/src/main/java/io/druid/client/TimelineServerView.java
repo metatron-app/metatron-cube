@@ -22,6 +22,7 @@ package io.druid.client;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.DataSource;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -36,7 +37,7 @@ public interface TimelineServerView extends ServerView
 {
   TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource);
 
-  <T> QueryRunner<T> getQueryRunner(DruidServer server);
+  <T> QueryRunner<T> getQueryRunner(Query<T> query, DruidServer server);
 
   /**
    * Register a callback for state changes in the timeline managed by this TimelineServerView. The callback will be

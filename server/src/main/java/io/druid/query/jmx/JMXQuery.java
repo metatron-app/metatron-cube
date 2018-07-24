@@ -23,13 +23,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.net.HostAndPort;
 import io.druid.client.DruidServer;
-import io.druid.client.selector.QueryableDruidServer;
 import io.druid.common.Intervals;
+import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.BaseQuery;
@@ -41,6 +42,12 @@ import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import static io.druid.server.ServiceTypes.BROKER;
+import static io.druid.server.ServiceTypes.COORDINATOR;
+import static io.druid.server.ServiceTypes.MIDDLE_MANAGER;
+import static io.druid.server.ServiceTypes.OVERLORD;
 
 /**
  */
@@ -146,27 +153,26 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   }
 
   @Override
-  public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
+  public List<DruidServer> filter(List<DruidServer> servers)
   {
     return filterServers(expression, servers);
   }
 
-  public static List<QueryableDruidServer> filterServers(String expression, List<QueryableDruidServer> servers)
+  public static List<DruidServer> filterServers(String expression, List<DruidServer> servers)
   {
     if (expression == null) {
       return servers;
     }
     Expr expr = Parser.parse(expression);
 
-    List<QueryableDruidServer> passed = Lists.newArrayList();
-    for (QueryableDruidServer server : servers) {
-      DruidServer druidServer = server.getServer();
-      HostAndPort hostAndPort = HostAndPort.fromString(druidServer.getName());
+    List<DruidServer> passed = Lists.newArrayList();
+    for (DruidServer server : servers) {
+      HostAndPort hostAndPort = HostAndPort.fromString(server.getName());
       Expr.NumericBinding bindings = Parser.withMap(
           ImmutableMap.<String, Object>of(
-              "name", druidServer.getName(),
-              "type", druidServer.getType(),
-              "tier", druidServer.getTier(),
+              "name", server.getName(),
+              "type", server.getType(),
+              "tier", server.getTier(),
               "host", hostAndPort.getHostText(),
               "port", hostAndPort.getPort()
           )
@@ -176,5 +182,11 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
       }
     }
     return passed;
+  }
+
+  @Override
+  public Set<String> supports()
+  {
+    return ImmutableSet.of(COORDINATOR, BROKER, OVERLORD, MIDDLE_MANAGER);
   }
 }

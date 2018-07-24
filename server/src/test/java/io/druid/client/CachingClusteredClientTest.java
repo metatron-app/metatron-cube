@@ -1539,7 +1539,7 @@ public class CachingClusteredClientTest
         ServerExpectations expectations = entry.getValue();
 
 
-        EasyMock.expect(serverView.getQueryRunner(server))
+        EasyMock.expect(serverView.getQueryRunner(EasyMock.anyObject(Query.class), EasyMock.eq(server)))
                 .andReturn(expectations.getQueryRunner())
                 .once();
 
@@ -2218,9 +2218,9 @@ public class CachingClusteredClientTest
           }
 
           @Override
-          public <T> QueryRunner<T> getQueryRunner(DruidServer server)
+          public <T> QueryRunner<T> getQueryRunner(Query<T> query, DruidServer server)
           {
-            return serverView.getQueryRunner(server);
+            return serverView.getQueryRunner(query, server);
           }
 
           @Override

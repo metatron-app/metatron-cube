@@ -46,6 +46,7 @@ import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.MetadataStorageTablesConfig;
+import io.druid.server.ServiceTypes;
 
 import java.io.File;
 import java.net.URI;
@@ -82,7 +83,7 @@ public class CliInternalHadoopIndexer extends GuiceRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/internal-hadoop-indexer");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.INTERNAL_HADOOP_INDEXER);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
 
             // bind metadata storage config based on HadoopIOConfig

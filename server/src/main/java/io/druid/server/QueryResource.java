@@ -200,12 +200,16 @@ public class QueryResource
   @Produces(MediaType.APPLICATION_JSON)
   public Response getJMX(
       @QueryParam("expression") String expression,
+      @QueryParam("dumpLongestStack") boolean dumpLongestStack,
       @Context final HttpServletRequest req
   ) throws IOException
   {
     String query = "{ \"queryType\": \"jmx\"";
     if (!Strings.isNullOrEmpty(expression)) {
       query += ", \"expression\": " + expression;
+    }
+    if (dumpLongestStack) {
+      query += ", \"dumpLongestStack\": true";
     }
     query += "}";
     return doPost(new ReaderInputStream(new StringReader(query)), "pretty", req);

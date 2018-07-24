@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
+import io.druid.server.ServiceTypes;
 import org.joda.time.Period;
 
 import javax.validation.constraints.NotNull;
@@ -34,12 +35,9 @@ import java.util.List;
  */
 public class TieredBrokerConfig
 {
-  public static final String DEFAULT_COORDINATOR_SERVICE_NAME = "druid/coordinator";
-  public static final String DEFAULT_BROKER_SERVICE_NAME = "druid/broker";
-
   @JsonProperty
   @NotNull
-  private String defaultBrokerServiceName = DEFAULT_BROKER_SERVICE_NAME;
+  private String defaultBrokerServiceName = ServiceTypes.BROKER;
 
   @JsonProperty
   private LinkedHashMap<String, String> tierToBrokerMap;
@@ -54,7 +52,7 @@ public class TieredBrokerConfig
 
   @JsonProperty
   @NotNull
-  private String coordinatorServiceName = DEFAULT_COORDINATOR_SERVICE_NAME;
+  private String coordinatorServiceName = ServiceTypes.COORDINATOR;
 
   @JsonProperty
   @NotNull

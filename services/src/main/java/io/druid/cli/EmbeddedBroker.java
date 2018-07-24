@@ -63,10 +63,10 @@ import io.druid.server.ClientQuerySegmentWalker;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryResource;
+import io.druid.server.ServiceTypes;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
-import io.druid.server.router.TieredBrokerConfig;
 import org.eclipse.jetty.server.Server;
 
 import java.io.Closeable;
@@ -97,7 +97,7 @@ public class EmbeddedBroker extends ServerRunnable
           {
             JsonConfigProvider.bindInstance(
                 binder, Key.get(DruidNode.class, Self.class),
-                new DruidNode(TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME, null, null)
+                new DruidNode(ServiceTypes.BROKER, null, null)
             );
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);

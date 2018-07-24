@@ -34,6 +34,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Objects;
 
 /**
  */
@@ -41,15 +42,24 @@ public class DruidNode
 {
   @JsonProperty("service")
   @NotNull
-  private String serviceName;
+  private final String serviceName;
+
+  @JsonProperty
+  private final String type;
 
   @JsonProperty
   @NotNull
-  private String host;
+  private final String host;
 
   @JsonProperty
-  @Min(0) @Max(0xffff)
-  private int port = -1;
+  @Min(0)
+  @Max(0xffff)
+  private final int port;
+
+  public DruidNode(String serviceName, String host, Integer port)
+  {
+    this(serviceName, null, host, port);
+  }
 
   /**
    * host = null     , port = null -> host = _default_, port = -1
@@ -69,25 +79,19 @@ public class DruidNode
    */
   @JsonCreator
   public DruidNode(
-      @JacksonInject @Named("serviceName") @JsonProperty("service") String serviceName,
+      @JsonProperty("service") String serviceName,
+      @JacksonInject @Named("type") String type,
       @JsonProperty("host") String host,
       @JacksonInject @Named("servicePort") @JsonProperty("port") Integer port
   )
   {
-    init(serviceName, host, port);
-  }
+    this.serviceName = Preconditions.checkNotNull(serviceName == null ? type : serviceName);
+    this.type = type;
 
-
-  private void init(String serviceName, String host, Integer port)
-  {
-    Preconditions.checkNotNull(serviceName);
-    this.serviceName = serviceName;
-
-    if(host == null && port == null) {
+    if (host == null && port == null) {
       host = getDefaultHost();
       port = -1;
-    }
-    else {
+    } else {
       final HostAndPort hostAndPort;
       if (host != null) {
         hostAndPort = HostAndPort.fromString(host);
@@ -118,6 +122,11 @@ public class DruidNode
     return serviceName;
   }
 
+  public String getType()
+  {
+    return type;
+  }
+
   public String getHost()
   {
     return host;
@@ -136,8 +145,9 @@ public class DruidNode
   /**
    * Returns host and port together as something that can be used as part of a URI.
    */
-  public String getHostAndPort() {
-    if(port < 0) {
+  public String getHostAndPort()
+  {
+    if (port < 0) {
       return HostAndPort.fromString(host).toString();
     } else {
       return HostAndPort.fromParts(host, port).toString();
@@ -159,10 +169,12 @@ public class DruidNode
     return hostAndPort.getHostText();
   }
 
-  public static String getDefaultHost() {
+  public static String getDefaultHost()
+  {
     try {
       return InetAddress.getLocalHost().getCanonicalHostName();
-    } catch(UnknownHostException e) {
+    }
+    catch (UnknownHostException e) {
       throw new ISE(e, "Unable to determine host name");
     }
   }
@@ -172,6 +184,7 @@ public class DruidNode
   {
     return "DruidNode{" +
            "serviceName='" + serviceName + '\'' +
+           ", serviceType='" + type + '\'' +
            ", host='" + host + '\'' +
            ", port=" + port +
            '}';
@@ -195,6 +208,9 @@ public class DruidNode
     if (!serviceName.equals(node.serviceName)) {
       return false;
     }
+    if (!Objects.equals(type, node.type)) {
+      return false;
+    }
     return host.equals(node.host);
 
   }
@@ -202,9 +218,6 @@ public class DruidNode
   @Override
   public int hashCode()
   {
-    int result = serviceName.hashCode();
-    result = 31 * result + host.hashCode();
-    result = 31 * result + port;
-    return result;
+    return Objects.hash(serviceName, type, host, port);
   }
 }

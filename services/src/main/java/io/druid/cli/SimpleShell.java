@@ -67,7 +67,7 @@ public class SimpleShell extends GuiceRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/shell");
+            binder.bindConstant().annotatedWith(Names.named("type")).to("druid/shell");
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
             IndexingServiceModuleHelper.configureTaskRunnerConfigs(binder);
             binder.bind(DruidShell.class);

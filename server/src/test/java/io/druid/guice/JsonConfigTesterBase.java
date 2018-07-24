@@ -78,7 +78,7 @@ public abstract class JsonConfigTesterBase<T>
     @Override
     public void configure(Binder binder)
     {
-      binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/test");
+      binder.bindConstant().annotatedWith(Names.named("type")).to("druid/test");
       binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
       JsonConfigProvider.bind(binder, configPrefix, clazz);
     }

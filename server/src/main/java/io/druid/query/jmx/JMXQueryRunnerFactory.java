@@ -90,69 +90,78 @@ public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Obj
       {
         Map<String, Map<String, Object>> empty = ImmutableMap.<String, Map<String, Object>>of();
         Map<String, Object> previous = query.getContextValue(Query.PREVIOUS_JMX, empty).get(node.getHostAndPort());
-
-        MetricCollector detail = new MetricCollector(previous);
-        detail.put("service", node.getServiceName());
-
-        RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
-        detail.put("startTime", new DateTime(runtimeMXBean.getStartTime()).toString());
-        detail.put("inputArguments", runtimeMXBean.getInputArguments());
-
-        OperatingSystemMXBean osMXBean = ManagementFactory.getOperatingSystemMXBean();
-        detail.put("availableProcessor", osMXBean.getAvailableProcessors());
-        detail.doubleMetric("systemLoadAverage", osMXBean.getSystemLoadAverage());
-
-        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
-
-        MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
-        detail.longMetric("heap.max", heapMemoryUsage.getMax());
-        detail.longMetric("heap.used", heapMemoryUsage.getUsed());
-        detail.longMetric("heap.committed", heapMemoryUsage.getCommitted());
-
-        MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
-        detail.longMetric("non-heap.max", nonHeapMemoryUsage.getMax());
-        detail.longMetric("non-heap.used", nonHeapMemoryUsage.getUsed());
-        detail.longMetric("non-heap.committed", nonHeapMemoryUsage.getCommitted());
-
-        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-        detail.intMetric("threadCount", threadMXBean.getThreadCount());
-        detail.intMetric("peekThreadCount", threadMXBean.getPeakThreadCount());
-        detail.longMetric("totalStartedThreadCount", threadMXBean.getTotalStartedThreadCount());
-        if (((JMXQuery)query).isDumpLongestStack()) {
-          long current = Thread.currentThread().getId();
-          ThreadInfo longest = null;
-          for (long threadId : threadMXBean.getAllThreadIds()) {
-            if (threadId == current) {
-              continue;
-            }
-            ThreadInfo threadInfo = threadMXBean.getThreadInfo(threadId, 18);
-            if (longest == null || threadInfo.getStackTrace().length > longest.getStackTrace().length) {
-              longest = threadInfo;
-            }
-          }
-          if (longest != null) {
-            detail.put("longest.thread.name", longest.getThreadName());
-            detail.put(
-                "longest.thread.dump",
-                Lists.newArrayList(
-                    Iterables.transform(
-                        Arrays.asList(longest.getStackTrace()),
-                        Functions.toStringFunction()
-                    )
-                )
-            );
-          }
-        }
-
-        for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-          String prefix = "gc-" + gcMXBean.getName() + ".";
-          detail.put(prefix + "collectionCount", gcMXBean.getCollectionCount());
-          detail.put(prefix + "collectionTime", gcMXBean.getCollectionTime());
-        }
-
-        return Sequences.simple(Arrays.asList(detail.build(node)));
+        return Sequences.simple(Arrays.asList(queryJMX(node, previous, ((JMXQuery)query).isDumpLongestStack())));
       }
     };
+  }
+
+  public static Map<String, Object> queryJMX(
+      DruidNode node,
+      Map<String, Object> previous,
+      boolean dumpLongestStack
+  )
+  {
+    MetricCollector detail = new MetricCollector(previous);
+    detail.put("type", node.getType());
+    detail.put("service", node.getServiceName());
+
+    RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+    detail.put("startTime", new DateTime(runtimeMXBean.getStartTime()).toString());
+    detail.put("inputArguments", runtimeMXBean.getInputArguments());
+
+    OperatingSystemMXBean osMXBean = ManagementFactory.getOperatingSystemMXBean();
+    detail.put("availableProcessor", osMXBean.getAvailableProcessors());
+    detail.doubleMetric("systemLoadAverage", osMXBean.getSystemLoadAverage());
+
+    MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+
+    MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
+    detail.longMetric("heap.max", heapMemoryUsage.getMax());
+    detail.longMetric("heap.used", heapMemoryUsage.getUsed());
+    detail.longMetric("heap.committed", heapMemoryUsage.getCommitted());
+
+    MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
+    detail.longMetric("non-heap.max", nonHeapMemoryUsage.getMax());
+    detail.longMetric("non-heap.used", nonHeapMemoryUsage.getUsed());
+    detail.longMetric("non-heap.committed", nonHeapMemoryUsage.getCommitted());
+
+    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    detail.intMetric("threadCount", threadMXBean.getThreadCount());
+    detail.intMetric("peekThreadCount", threadMXBean.getPeakThreadCount());
+    detail.longMetric("totalStartedThreadCount", threadMXBean.getTotalStartedThreadCount());
+    if (dumpLongestStack) {
+      long current = Thread.currentThread().getId();
+      ThreadInfo longest = null;
+      for (long threadId : threadMXBean.getAllThreadIds()) {
+        if (threadId == current) {
+          continue;
+        }
+        ThreadInfo threadInfo = threadMXBean.getThreadInfo(threadId, 18);
+        if (longest == null || threadInfo.getStackTrace().length > longest.getStackTrace().length) {
+          longest = threadInfo;
+        }
+      }
+      if (longest != null) {
+        detail.put("longest.thread.name", longest.getThreadName());
+        detail.put(
+            "longest.thread.dump",
+            Lists.newArrayList(
+                Iterables.transform(
+                    Arrays.asList(longest.getStackTrace()),
+                    Functions.toStringFunction()
+                )
+            )
+        );
+      }
+    }
+
+    for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+      String prefix = "gc-" + gcMXBean.getName() + ".";
+      detail.put(prefix + "collectionCount", gcMXBean.getCollectionCount());
+      detail.put(prefix + "collectionTime", gcMXBean.getCollectionTime());
+    }
+
+    return detail.build(node);
   }
 
   private static class MetricCollector

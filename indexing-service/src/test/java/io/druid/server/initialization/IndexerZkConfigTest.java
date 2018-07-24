@@ -59,7 +59,7 @@ public class IndexerZkConfigTest
     @Override
     public void configure(Binder binder)
     {
-      binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/test");
+      binder.bindConstant().annotatedWith(Names.named("type")).to("druid/test");
       binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
       // See IndexingServiceModuleHelper
       JsonConfigProvider.bind(binder, indexerPropertyString, IndexerZkConfig.class);

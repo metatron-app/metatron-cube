@@ -44,6 +44,7 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.lookup.LookupModule;
 import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.QueryResource;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.ZkCoordinator;
 import io.druid.server.http.HistoricalResource;
@@ -77,7 +78,7 @@ public class CliHistorical extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/historical");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.HISTORICAL);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8083);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);

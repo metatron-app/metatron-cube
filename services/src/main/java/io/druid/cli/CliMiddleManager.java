@@ -46,9 +46,9 @@ import io.druid.indexing.worker.config.WorkerConfig;
 import io.druid.indexing.worker.http.WorkerResource;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.server.DruidNode;
+import io.druid.server.ServiceTypes;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import org.eclipse.jetty.server.Server;
-import org.joda.time.DateTime;
 
 import java.util.List;
 
@@ -76,7 +76,7 @@ public class CliMiddleManager extends ServerRunnable
           @Override
           public void configure(Binder binder)
           {
-            binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/middlemanager");
+            binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.MIDDLE_MANAGER);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8091);
 
             IndexingServiceModuleHelper.configureTaskRunnerConfigs(binder);

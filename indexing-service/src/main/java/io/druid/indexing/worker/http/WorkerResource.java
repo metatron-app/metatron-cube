@@ -28,10 +28,13 @@ import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
+import io.druid.guice.annotations.Self;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.worker.Worker;
 import io.druid.indexing.worker.WorkerCuratorCoordinator;
+import io.druid.query.jmx.JMXQueryRunnerFactory;
+import io.druid.server.DruidNode;
 import io.druid.server.http.security.ConfigResourceFilter;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.tasklogs.TaskLogStreamer;
@@ -46,6 +49,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  */
@@ -58,18 +62,20 @@ public class WorkerResource
   private final Worker enabledWorker;
   private final WorkerCuratorCoordinator curatorCoordinator;
   private final TaskRunner taskRunner;
+  private final DruidNode node;
 
   @Inject
   public WorkerResource(
       Worker worker,
       WorkerCuratorCoordinator curatorCoordinator,
-      TaskRunner taskRunner
-
-  ) throws Exception
+      TaskRunner taskRunner,
+      @Self DruidNode node
+  )
   {
     this.enabledWorker = worker;
     this.curatorCoordinator = curatorCoordinator;
     this.taskRunner = taskRunner;
+    this.node = node;
   }
 
 
@@ -199,5 +205,14 @@ public class WorkerResource
       log.warn(e, "Failed to read log for task: %s", taskid);
       return Response.serverError().build();
     }
+  }
+
+  @GET
+  @Path("/jmx")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response handleJMX(@QueryParam("dumpLongestStack") boolean dumpLongestStack)
+  {
+    Map<String, Object> results = JMXQueryRunnerFactory.queryJMX(node, null, dumpLongestStack);
+    return Response.ok(results).build();
   }
 }

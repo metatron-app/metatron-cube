@@ -25,6 +25,7 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.DataSource;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -88,7 +89,7 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public <T> QueryRunner<T> getQueryRunner(DruidServer server)
+  public <T> QueryRunner<T> getQueryRunner(Query<T> query, DruidServer server)
   {
     throw new UnsupportedOperationException();
   }

@@ -79,6 +79,7 @@ public class OverlordResourceTest
         null,
         new AuthConfig(true),
         null,
+        null,
         null
     );
 
