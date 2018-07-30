@@ -44,6 +44,16 @@ public class DruidServer implements Comparable
     return new DruidServer(node, new DruidServerConfig(), type);
   }
 
+  public static Function<DruidServer, ImmutableDruidServer> IMMUTABLE =
+      new Function<DruidServer, ImmutableDruidServer>()
+      {
+        @Override
+        public ImmutableDruidServer apply(DruidServer input)
+        {
+          return input.toImmutableDruidServer();
+        }
+      };
+
   public static final int DEFAULT_PRIORITY = 0;
   public static final int DEFAULT_NUM_REPLICANTS = 2;
   public static final String DEFAULT_TIER = "_default_tier";

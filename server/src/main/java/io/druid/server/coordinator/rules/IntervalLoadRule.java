@@ -64,7 +64,7 @@ public class IntervalLoadRule extends LoadRule
   }
 
   @Override
-  public int getNumReplicants(String tier)
+  public int getExpectedReplicants(String tier)
   {
     final Integer retVal = tieredReplicants.get(tier);
     return retVal == null ? 0 : retVal;

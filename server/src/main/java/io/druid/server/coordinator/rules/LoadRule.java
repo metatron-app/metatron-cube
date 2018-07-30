@@ -27,12 +27,16 @@ import com.metamx.common.StringUtils;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
+import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.ReplicationThrottler;
+import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -55,26 +59,26 @@ public abstract class LoadRule implements Rule
 
     final Map<String, Integer> loadStatus = Maps.newHashMap();
 
-    int totalReplicantsInCluster = params.getSegmentReplicantLookup().getTotalReplicants(segment.getIdentifier());
+    final DruidCluster cluster = params.getDruidCluster();
+    final SegmentReplicantLookup replicantLookup = params.getSegmentReplicantLookup();
+
+    int totalReplicantsInCluster = replicantLookup.getTotalReplicants(segment.getIdentifier());
     for (Map.Entry<String, Integer> entry : getTieredReplicants().entrySet()) {
       final String tier = entry.getKey();
       final int expectedReplicantsInTier = entry.getValue();
-      final int totalReplicantsInTier = params.getSegmentReplicantLookup()
-                                              .getTotalReplicants(segment.getIdentifier(), tier);
+      final int totalReplicantsInTier = replicantLookup.getTotalReplicants(segment.getIdentifier(), tier);
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final int loadedReplicantsInTier = params.getSegmentReplicantLookup()
-                                         .getLoadedReplicants(segment.getIdentifier(), tier);
+      final int loadedReplicantsInTier = replicantLookup.getLoadedReplicants(segment.getIdentifier(), tier);
 
-      final MinMaxPriorityQueue<ServerHolder> serverQueue = params.getDruidCluster().getServersByTier(tier);
+      final MinMaxPriorityQueue<ServerHolder> serverQueue = cluster.getServersByTier(tier);
       if (serverQueue == null) {
         log.makeAlert("Tier[%s] has no servers! Check your cluster configuration!", tier).emit();
         continue;
       }
 
       final List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
-      final BalancerStrategy strategy = params.getBalancerStrategy();
       if (availableSegments.contains(segment)) {
         CoordinatorStats assignStats = assign(
             params.getReplicationManager(),
@@ -82,7 +86,7 @@ public abstract class LoadRule implements Rule
             totalReplicantsInCluster,
             expectedReplicantsInTier,
             totalReplicantsInTier,
-            strategy,
+            params.getBalancerStrategy(),
             serverHolderList,
             segment
         );
@@ -188,7 +192,7 @@ public abstract class LoadRule implements Rule
     for (Map.Entry<String, Integer> entry : replicantsByTier.entrySet()) {
       final String tier = entry.getKey();
       int loadedNumReplicantsForTier = entry.getValue();
-      int expectedNumReplicantsForTier = getNumReplicants(tier);
+      int expectedNumReplicantsForTier = getExpectedReplicants(tier);
 
       if (loadedNumReplicantsForTier <= expectedNumReplicantsForTier) {
         continue;
@@ -268,5 +272,20 @@ public abstract class LoadRule implements Rule
 
   public abstract Map<String, Integer> getTieredReplicants();
 
-  public abstract int getNumReplicants(String tier);
+  public abstract int getExpectedReplicants(String tier);
+
+  protected abstract static class Always extends LoadRule
+  {
+    @Override
+    public final boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
+    {
+      return true;
+    }
+
+    @Override
+    public final boolean appliesTo(Interval interval, DateTime referenceTimestamp)
+    {
+      return true;
+    }
+  }
 }

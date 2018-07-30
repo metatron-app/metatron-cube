@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
@@ -36,17 +37,20 @@ import java.util.Set;
 public class TaskActionToolbox
 {
   private final TaskLockbox taskLockbox;
+  private final CoordinatorClient coordinatorClient;
   private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
   private final ServiceEmitter emitter;
 
   @Inject
   public TaskActionToolbox(
       TaskLockbox taskLockbox,
+      CoordinatorClient coordinatorClient,
       IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator,
       ServiceEmitter emitter
   )
   {
     this.taskLockbox = taskLockbox;
+    this.coordinatorClient = coordinatorClient;
     this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
     this.emitter = emitter;
   }
@@ -54,6 +58,11 @@ public class TaskActionToolbox
   public TaskLockbox getTaskLockbox()
   {
     return taskLockbox;
+  }
+
+  public CoordinatorClient getCoordinatorClient()
+  {
+    return coordinatorClient;
   }
 
   public IndexerMetadataStorageCoordinator getIndexerMetadataStorageCoordinator()

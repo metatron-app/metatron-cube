@@ -74,7 +74,7 @@ public class RemoteTaskActionClient implements TaskActionClient
   @Override
   public <RetType> RetType submit(TaskAction<RetType> taskAction) throws IOException
   {
-    log.info("Performing action for task[%s]: %s", task.getId(), taskAction);
+    log.debug("Performing action for task[%s]: %s", task.getId(), taskAction);
 
     byte[] dataToSend = jsonMapper.writeValueAsBytes(new TaskActionHolder(task, taskAction));
 
@@ -90,6 +90,7 @@ public class RemoteTaskActionClient implements TaskActionClient
         }
         catch (Exception e) {
           // Want to retry, so throw an IOException.
+          log.warn("Failed to submit task[%s]: %s", task.getId(), taskAction);
           throw new IOException("Failed to locate service uri", e);
         }
 

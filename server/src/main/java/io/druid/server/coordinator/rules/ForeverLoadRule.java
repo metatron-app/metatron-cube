@@ -23,16 +23,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
-import io.druid.timeline.DataSegment;
-import org.joda.time.DateTime;
-import org.joda.time.Interval;
 
 import java.util.Map;
 
 /**
  */
-public class ForeverLoadRule extends LoadRule
+public class ForeverLoadRule extends LoadRule.Always
 {
+  public static LoadRule of(int replicant)
+  {
+    return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant));
+  }
+
   private final Map<String, Integer> tieredReplicants;
 
   @JsonCreator
@@ -59,21 +61,8 @@ public class ForeverLoadRule extends LoadRule
   }
 
   @Override
-  public int getNumReplicants(String tier)
+  public int getExpectedReplicants(String tier)
   {
-    Integer retVal = tieredReplicants.get(tier);
-    return (retVal == null) ? 0 : retVal;
-  }
-
-  @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-  {
-    return true;
-  }
-
-  @Override
-  public boolean appliesTo(Interval interval, DateTime referenceTimestamp)
-  {
-    return true;
+    return tieredReplicants.getOrDefault(tier, 0);
   }
 }

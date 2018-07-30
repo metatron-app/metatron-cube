@@ -31,6 +31,7 @@ import com.metamx.metrics.MonitorScheduler;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.indexing.common.actions.SegmentInsertAction;
+import io.druid.indexing.common.actions.SegmentLoadAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.task.Task;
@@ -220,9 +221,12 @@ public class TaskToolbox
           }
         }
     );
-    for (final Collection<DataSegment> segmentCollection : segmentMultimap.asMap().values()) {
-      getTaskActionClient().submit(new SegmentInsertAction(ImmutableSet.copyOf(segmentCollection)));
+
+    TaskActionClient actionClient = getTaskActionClient();
+    for (Collection<DataSegment> segmentCollection : segmentMultimap.asMap().values()) {
+      actionClient.submit(new SegmentInsertAction(ImmutableSet.copyOf(segmentCollection)));
     }
+    actionClient.submit(new SegmentLoadAction(ImmutableSet.copyOf(segments)));
   }
 
   public File getTaskWorkDir()

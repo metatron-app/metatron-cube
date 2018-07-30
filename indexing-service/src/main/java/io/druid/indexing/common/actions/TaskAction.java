@@ -40,7 +40,8 @@ import java.io.IOException;
     @JsonSubTypes.Type(name = "segmentMetadataUpdate", value = SegmentMetadataUpdateAction.class),
     @JsonSubTypes.Type(name = "dataSourceMetadataUpdate", value = DataSourceMetadataUpdateAction.class),
     @JsonSubTypes.Type(name = "segmentAllocate", value = SegmentAllocateAction.class),
-    @JsonSubTypes.Type(name = "segmentAppend", value = SegmentAppendingAction.class)
+    @JsonSubTypes.Type(name = "segmentAppend", value = SegmentAppendingAction.class),
+    @JsonSubTypes.Type(name = "segmentLoad", value = SegmentLoadAction.class)
 })
 public interface TaskAction<RetType>
 {

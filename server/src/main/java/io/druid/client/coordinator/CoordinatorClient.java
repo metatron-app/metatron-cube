@@ -33,14 +33,18 @@ import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.selector.Server;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.guice.annotations.Global;
+import io.druid.timeline.DataSegment;
 import net.spy.memcached.util.StringUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Interval;
 
+import javax.ws.rs.core.MediaType;
 import java.net.URI;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class CoordinatorClient
 {
@@ -96,10 +100,23 @@ public class CoordinatorClient
     );
   }
 
+  public Map<String, Object> scheduleNow(Set<DataSegment> segments)
+  {
+    return execute(HttpMethod.POST, "/scheduleNow", segments, new TypeReference<Map<String, Object>>() {});
+  }
+
   private <T> T execute(HttpMethod method, String resource, TypeReference<T> resultType)
+  {
+    return execute(method, resource, null, resultType);
+  }
+
+  private <T> T execute(HttpMethod method, String resource, Object payload, TypeReference<T> resultType)
   {
     try {
       Request request = new Request(method, new URL(baseUrl() + resource));
+      if (payload != null) {
+        request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(payload));
+      }
       StatusResponseHolder response = client.go(request, RESPONSE_HANDLER).get();
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
         throw new ISE(
@@ -138,4 +155,5 @@ public class CoordinatorClient
       throw Throwables.propagate(e);
     }
   }
+
 }

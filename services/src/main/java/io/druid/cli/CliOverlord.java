@@ -32,6 +32,7 @@ import com.google.inject.util.Providers;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.audit.AuditManager;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.guice.IndexingServiceFirehoseModule;
 import io.druid.guice.IndexingServiceModuleHelper;
 import io.druid.guice.IndexingServiceTaskLogsModule;
@@ -141,6 +142,7 @@ public class CliOverlord extends ServerRunnable
             binder.bind(TaskActionClientFactory.class).to(LocalTaskActionClientFactory.class).in(LazySingleton.class);
             binder.bind(TaskActionToolbox.class).in(LazySingleton.class);
             binder.bind(TaskLockbox.class).in(LazySingleton.class);
+            binder.bind(CoordinatorClient.class).in(LazySingleton.class);
             binder.bind(TaskStorageQueryAdapter.class).in(LazySingleton.class);
 
             binder.bind(ChatHandlerProvider.class).toProvider(Providers.<ChatHandlerProvider>of(null));

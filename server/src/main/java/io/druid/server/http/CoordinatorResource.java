@@ -26,18 +26,25 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
+import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.timeline.DataSegment;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  */
@@ -174,5 +181,17 @@ public class CoordinatorResource
   {
     Map<String, Object> results = JMXQueryRunnerFactory.queryJMX(coordinator.getSelf(), null, dumpLongestStack);
     return Response.ok(results).build();
+  }
+
+  @POST
+  @Path("/scheduleNow")
+  @Produces({MediaType.APPLICATION_JSON})
+  @Consumes({MediaType.APPLICATION_JSON})
+  public Response loadToIndex(Set<DataSegment> segments)
+      throws InterruptedException, ExecutionException, TimeoutException
+  {
+    // seemed not very useful
+    CoordinatorStats stats = coordinator.scheduleNow(segments).get(30, TimeUnit.SECONDS);
+    return Response.ok(stats.getGlobalStats()).build();
   }
 }

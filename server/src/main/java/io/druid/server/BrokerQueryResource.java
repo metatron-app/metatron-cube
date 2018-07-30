@@ -111,6 +111,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
@@ -368,7 +369,9 @@ public class BrokerQueryResource extends QueryResource
       } else {
         log.info("Publishing index to table..");
         segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
-        indexerMetadataStorageCoordinator.announceHistoricalSegments(Sets.newHashSet(segment));
+        Set<DataSegment> segments = Sets.newHashSet(segment);
+        indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
+        coordinator.scheduleNow(segments);
         builder.put("type", "publish");
       }
       eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));

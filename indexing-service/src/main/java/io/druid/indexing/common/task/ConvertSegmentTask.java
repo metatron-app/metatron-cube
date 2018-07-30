@@ -25,14 +25,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.SegmentListUsedAction;
+import io.druid.indexing.common.actions.SegmentLoadAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexSpec;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This task takes a segment and attempts to reindex it in the latest version with the specified indexSpec.
@@ -235,7 +237,14 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
       segmentsToUpdate = Collections.singleton(segment);
     }
     // Vestigial from a past time when this task spawned subtasks.
-    for (final Task subTask : generateSubTasks(getGroupId(), segmentsToUpdate, indexSpec, force, validate, getContext())) {
+    for (final Task subTask : generateSubTasks(
+        getGroupId(),
+        segmentsToUpdate,
+        indexSpec,
+        force,
+        validate,
+        getContext()
+    )) {
       final TaskStatus status = subTask.run(toolbox);
       if (!status.isSuccess()) {
         return TaskStatus.fromCode(getId(), status.getStatusCode(), status.getReason());
@@ -392,7 +401,9 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
       DataSegment updatedSegment = segment.withVersion(String.format("%s_v%s", segment.getVersion(), outVersion));
       updatedSegment = toolbox.getSegmentPusher().push(outLocation, updatedSegment);
 
-      actionClient.submit(new SegmentInsertAction(Sets.newHashSet(updatedSegment)));
+      Set<DataSegment> segments = ImmutableSet.of(updatedSegment);
+      actionClient.submit(new SegmentInsertAction(segments));
+      actionClient.submit(new SegmentLoadAction(segments));
     } else {
       log.info("Conversion failed.");
     }

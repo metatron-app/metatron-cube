@@ -1119,6 +1119,7 @@ public class RealtimeIndexTaskTest
     taskLockbox.syncFromStorage();
     final TaskActionToolbox taskActionToolbox = new TaskActionToolbox(
         taskLockbox,
+        null,
         mdc,
         emitter
     );

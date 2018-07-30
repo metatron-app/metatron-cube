@@ -111,7 +111,7 @@ public class SegmentInsertActionTest
     actionTestKit.getTaskLockbox().lock(task, new Interval(INTERVAL));
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(CoreMatchers.startsWith("Segments not covered by locks for task"));
+    thrown.expectMessage(CoreMatchers.containsString("is not covered by locks"));
     final Set<DataSegment> segments = action.perform(task, actionTestKit.getTaskActionToolbox());
     Assert.assertEquals(ImmutableSet.of(SEGMENT3), segments);
   }

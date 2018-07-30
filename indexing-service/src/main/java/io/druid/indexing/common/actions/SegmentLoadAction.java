@@ -22,29 +22,22 @@ package io.druid.indexing.common.actions;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import io.druid.indexing.common.task.Task;
-import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.timeline.DataSegment;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
-/**
- * Insert segments into metadata storage. The segment versions must all be less than or equal to a lock held by
- * your task for the segment intervals.
- * <p/>
- * Word of warning: Very large "segments" sets can cause oversized audit log entries, which is bad because it means
- * that the task cannot actually complete. Callers should avoid this by avoiding inserting too many segments in the
- * same action.
- */
-public class SegmentInsertAction implements TaskAction<Set<DataSegment>>
+public class SegmentLoadAction implements TaskAction<Map<String, Object>>
 {
   private final Set<DataSegment> segments;
 
   @JsonCreator
-  public SegmentInsertAction(
+  public SegmentLoadAction(
       @JsonProperty("segments") Set<DataSegment> segments
   )
   {
@@ -57,22 +50,21 @@ public class SegmentInsertAction implements TaskAction<Set<DataSegment>>
     return segments;
   }
 
-  public TypeReference<Set<DataSegment>> getReturnTypeReference()
+  public TypeReference<Map<String, Object>> getReturnTypeReference()
   {
-    return new TypeReference<Set<DataSegment>>()
+    return new TypeReference<Map<String, Object>>()
     {
     };
   }
 
-  /**
-   * Behaves similarly to
-   * {@link io.druid.indexing.overlord.IndexerMetadataStorageCoordinator#announceHistoricalSegments(Set, DataSourceMetadata, DataSourceMetadata)},
-   * with startMetadata and endMetadata both null.
-   */
   @Override
-  public Set<DataSegment> perform(Task task, TaskActionToolbox toolbox) throws IOException
+  public Map<String, Object> perform(Task task, TaskActionToolbox toolbox) throws IOException
   {
-    return new SegmentTransactionalInsertAction(segments, null, null).perform(task, toolbox).getSegments();
+    // can be null in tests & hard to mock that
+    if (toolbox.getCoordinatorClient() != null) {
+      return toolbox.getCoordinatorClient().scheduleNow(segments);
+    }
+    return ImmutableMap.of();
   }
 
   @Override
@@ -84,7 +76,7 @@ public class SegmentInsertAction implements TaskAction<Set<DataSegment>>
   @Override
   public String toString()
   {
-    return "SegmentInsertAction{" +
+    return "SegmentLoadAction{" +
            "segments=" + Iterables.transform(segments, DataSegment.GET_ID) +
            '}';
   }

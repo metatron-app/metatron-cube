@@ -46,6 +46,15 @@ import java.util.Map;
  */
 public class DataSegment implements Comparable<DataSegment>
 {
+  public static Function<DataSegment, String> GET_ID = new Function<DataSegment, String>()
+  {
+    @Override
+    public String apply(DataSegment input)
+    {
+      return input.getIdentifier();
+    }
+  };
+
   public static String delimiter = "_";
   private final Integer binaryVersion;
   private static final Interner<String> interner = Interners.newWeakInterner();

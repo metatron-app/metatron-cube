@@ -138,7 +138,7 @@ public class LoadRuleTest
       }
 
       @Override
-      public int getNumReplicants(String tier)
+      public int getExpectedReplicants(String tier)
       {
         return tiers.get(tier);
       }
@@ -248,7 +248,7 @@ public class LoadRuleTest
       }
 
       @Override
-      public int getNumReplicants(String tier)
+      public int getExpectedReplicants(String tier)
       {
         return tiers.get(tier);
       }
@@ -363,7 +363,7 @@ public class LoadRuleTest
       }
 
       @Override
-      public int getNumReplicants(String tier)
+      public int getExpectedReplicants(String tier)
       {
         return tiers.get(tier);
       }
@@ -456,7 +456,7 @@ public class LoadRuleTest
       }
 
       @Override
-      public int getNumReplicants(String tier)
+      public int getExpectedReplicants(String tier)
       {
         return tiers.get(tier);
       }

@@ -21,6 +21,7 @@ package io.druid.indexing.common;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -121,6 +122,7 @@ public class TaskStatus
   }
 
   @JsonProperty("reason")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getReason()
   {
     return reason;

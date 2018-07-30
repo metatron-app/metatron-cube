@@ -201,7 +201,7 @@ public class IngestSegmentFirehoseFactoryTest
     };
     final LocalTaskActionClientFactory tac = new LocalTaskActionClientFactory(
         ts,
-        new TaskActionToolbox(tl, mdc, newMockEmitter())
+        new TaskActionToolbox(tl, null, mdc, newMockEmitter())
     );
     SegmentHandoffNotifierFactory notifierFactory = EasyMock.createNiceMock(SegmentHandoffNotifierFactory.class);
     EasyMock.replay(notifierFactory);

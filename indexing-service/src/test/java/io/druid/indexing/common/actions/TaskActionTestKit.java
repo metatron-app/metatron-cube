@@ -90,6 +90,7 @@ public class TaskActionTestKit extends ExternalResource
     );
     taskActionToolbox = new TaskActionToolbox(
         taskLockbox,
+        null,
         metadataStorageCoordinator,
         new NoopServiceEmitter()
     );
