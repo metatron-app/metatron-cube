@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Binder;
@@ -316,6 +317,17 @@ public class HadoopDruidIndexerConfig
   public boolean isIgnoreInvalidRows()
   {
     return schema.getTuningConfig().isIgnoreInvalidRows();
+  }
+
+  public int getNumReducer()
+  {
+    Optional<Iterable<Bucket>> buckets = getAllBuckets();
+    if (!buckets.isPresent()) {
+      return 0;
+    }
+    int bucketSize = Iterables.size(buckets.get());
+    HadoopTuningConfig config = schema.getTuningConfig();
+    return Math.min(Math.max(bucketSize, config.getMinReducer()), config.getMaxReducer());
   }
 
   public int getMaxReducer()

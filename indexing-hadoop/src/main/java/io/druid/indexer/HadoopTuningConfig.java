@@ -43,6 +43,7 @@ public class HadoopTuningConfig implements TuningConfig
   private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
   private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
   private static final boolean DEFAULT_USE_COMBINER = false;
+  private static final int DEFAULT_MIN_REDUCER = 1;
   private static final int DEFAULT_MAX_REDUCER = 100;
   private static final int DEFAULT_SCATTER_PARAM = -1;
   private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.FALSE;
@@ -67,6 +68,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         false,
         false,
+        DEFAULT_MIN_REDUCER,
         DEFAULT_MAX_REDUCER,
         DEFAULT_SCATTER_PARAM,
         null,
@@ -91,6 +93,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final IngestionMode ingestionMode;
   private final boolean combineText;
   private final boolean useCombiner;
+  private final int minReducer;
   private final int maxReducer;
   private final int scatterParam;
   private final Boolean buildV9Directly;
@@ -114,6 +117,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("ingestionMode") IngestionMode ingestionMode,
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
+      final @JsonProperty("minReducer") Integer minReducer,
       final @JsonProperty("maxReducer") Integer maxReducer,
       final @JsonProperty("scatterParam") Integer scatterParam,
       // See https://github.com/druid-io/druid/pull/1922
@@ -141,6 +145,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
+    this.minReducer = minReducer == null ? DEFAULT_MIN_REDUCER : minReducer;
     this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : maxReducer;
     this.scatterParam = scatterParam == null ? DEFAULT_SCATTER_PARAM : scatterParam;
     this.numBackgroundPersistThreads = numBackgroundPersistThreads == null ? DEFAULT_NUM_BACKGROUND_PERSIST_THREADS : numBackgroundPersistThreads;
@@ -187,6 +192,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         combineText,
         useCombiner,
+        null,
         null,
         null,
         maxRowsInMemoryCOMPAT,
@@ -303,6 +309,12 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  public int getMinReducer()
+  {
+    return minReducer;
+  }
+
+  @JsonProperty
   public int getMaxReducer()
   {
     return maxReducer;
@@ -333,6 +345,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        minReducer,
         maxReducer,
         scatterParam,
         null,
@@ -360,6 +373,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        minReducer,
         maxReducer,
         scatterParam,
         null,
@@ -387,6 +401,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        minReducer,
         maxReducer,
         scatterParam,
         null,
