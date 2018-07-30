@@ -367,7 +367,7 @@ public class BrokerQueryResource extends QueryResource
         builder.put("type", "localPublish");
       } else {
         log.info("Publishing index to table..");
-        pusher.push(new File(location.getPath()), segment);
+        segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
         indexerMetadataStorageCoordinator.announceHistoricalSegments(Sets.newHashSet(segment));
         builder.put("type", "publish");
       }
