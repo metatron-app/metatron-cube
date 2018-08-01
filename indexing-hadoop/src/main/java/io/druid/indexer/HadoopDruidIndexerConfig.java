@@ -125,7 +125,7 @@ public class HadoopDruidIndexerConfig
     INDEX_MERGER_V9 = injector.getInstance(IndexMergerV9.class);
   }
 
-  public static enum IndexJobCounters
+  public enum IndexJobCounters
   {
     INVALID_ROW_COUNTER
   }
@@ -392,11 +392,6 @@ public class HadoopDruidIndexerConfig
   public HadoopyShardSpec getShardSpec(Bucket bucket)
   {
     return schema.getTuningConfig().getShardSpecs().get(bucket.time.getMillis()).get(bucket.partitionNum);
-  }
-
-  public int getShardSpecCount(Bucket bucket)
-  {
-    return schema.getTuningConfig().getShardSpecs().get(bucket.time.getMillis()).size();
   }
 
   public boolean isBuildV9Directly()

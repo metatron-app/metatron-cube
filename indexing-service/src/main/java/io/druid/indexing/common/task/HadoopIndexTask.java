@@ -36,8 +36,12 @@ import io.druid.indexer.HadoopDruidDetermineConfigurationJob;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.HadoopDruidIndexerJob;
 import io.druid.indexer.HadoopIngestionSpec;
+import io.druid.indexer.HadoopTuningConfig;
+import io.druid.indexer.IngestionMode;
 import io.druid.indexer.Jobby;
 import io.druid.indexer.MetadataStorageUpdaterJobHandler;
+import io.druid.indexer.partitions.HashedPartitionsSpec;
+import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
@@ -111,20 +115,28 @@ public class HadoopIndexTask extends HadoopTask
         context
     );
 
-
-    this.spec = spec;
+    HadoopTuningConfig tuning = spec.getTuningConfig();
+    PartitionsSpec partitionsSpec = tuning.getPartitionsSpec();
+    if (tuning.getIngestionMode() == IngestionMode.REDUCE_MERGE && partitionsSpec.isDeterminingPartitions()) {
+      // REDUCE_MERGE does not use partitions spec
+      spec = spec.withTuningConfig(tuning.withPartitionsSpec(HashedPartitionsSpec.makeDefaultHashedPartitionsSpec()));
+    }
 
     // Some HadoopIngestionSpec stuff doesn't make sense in the context of the indexing service
     Preconditions.checkArgument(
-        this.spec.getIOConfig().getSegmentOutputPath() == null,
+        spec.getIOConfig().getSegmentOutputPath() == null,
         "segmentOutputPath must be absent"
     );
-    Preconditions.checkArgument(this.spec.getTuningConfig().getWorkingPath() == null, "workingPath must be absent");
     Preconditions.checkArgument(
-        this.spec.getIOConfig().getMetadataUpdateSpec() == null,
+        spec.getTuningConfig().getWorkingPath() == null,
+        "workingPath must be absent"
+    );
+    Preconditions.checkArgument(
+        spec.getIOConfig().getMetadataUpdateSpec() == null,
         "metadataUpdateSpec must be absent"
     );
 
+    this.spec = spec;
     this.classpathPrefix = classpathPrefix;
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "null ObjectMapper");
   }

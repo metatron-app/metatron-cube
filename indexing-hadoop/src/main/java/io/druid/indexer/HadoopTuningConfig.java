@@ -326,6 +326,34 @@ public class HadoopTuningConfig implements TuningConfig
     return scatterParam;
   }
 
+  public HadoopTuningConfig withPartitionsSpec(PartitionsSpec partitionsSpec)
+  {
+    return new HadoopTuningConfig(
+        workingPath,
+        version,
+        partitionsSpec,
+        shardSpecs,
+        indexSpec,
+        rowFlushBoundary,
+        maxOccupationInMemory,
+        maxShardLength,
+        leaveIntermediate,
+        cleanupOnFailure,
+        overwriteFiles,
+        ignoreInvalidRows,
+        jobProperties,
+        ingestionMode,
+        combineText,
+        useCombiner,
+        minReducer,
+        maxReducer,
+        scatterParam,
+        null,
+        buildV9Directly,
+        numBackgroundPersistThreads
+    );
+  }
+
   public HadoopTuningConfig withWorkingPath(String path)
   {
     return new HadoopTuningConfig(

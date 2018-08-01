@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
+import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
@@ -54,10 +55,11 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
 
     JobHelper.ensurePaths(config);
 
-    if (config.isDeterminingPartitions()) {
-      jobs.add(config.getPartitionsSpec().getPartitionJob(config));
+    PartitionsSpec partitionsSpec = config.getPartitionsSpec();
+    if (partitionsSpec.isDeterminingPartitions()) {
+      jobs.add(partitionsSpec.getPartitionJob(config));
     } else {
-      int shardsPerInterval = config.getPartitionsSpec().getNumShards();
+      int shardsPerInterval = partitionsSpec.getNumShards();
       Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
       int shardCount = 0;
       for (Interval segmentGranularity : config.getSegmentGranularIntervals().get()) {
@@ -70,7 +72,7 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
                     new HashBasedNumberedShardSpec(
                         i,
                         shardsPerInterval,
-                        config.getPartitionsSpec().getPartitionDimensions(),
+                        partitionsSpec.getPartitionDimensions(),
                         HadoopDruidIndexerConfig.JSON_MAPPER
                     ),
                     shardCount++
