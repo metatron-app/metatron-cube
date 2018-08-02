@@ -35,7 +35,8 @@ import io.druid.query.extraction.ExtractionFn;
     @JsonSubTypes.Type(name = "index", value = KeyIndexedVirtualColumn.class),
     @JsonSubTypes.Type(name = "lateral", value = LateralViewVirtualColumn.class),
     @JsonSubTypes.Type(name = "array", value = ArrayVirtualColumn.class),
-    @JsonSubTypes.Type(name = "struct", value = StructVirtualColumn.class)
+    @JsonSubTypes.Type(name = "struct", value = StructVirtualColumn.class),
+    @JsonSubTypes.Type(name = "dateTime", value = DateTimeVirtualColumn.class)
 })
 public interface VirtualColumn extends Cacheable
 {

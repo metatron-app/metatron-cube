@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
@@ -337,6 +338,28 @@ public class ColumnSelectors
       public String get()
       {
         return Objects.toString(selector.get(), null);
+      }
+    };
+  }
+
+  public static <I, O> ObjectColumnSelector<O> map(
+      final ObjectColumnSelector<I> selector,
+      final ValueDesc outType,
+      final Function<I, O> function
+  )
+  {
+    return new ObjectColumnSelector<O>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return outType;
+      }
+
+      @Override
+      public O get()
+      {
+        return function.apply(selector.get());
       }
     };
   }
