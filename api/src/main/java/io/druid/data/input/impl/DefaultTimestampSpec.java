@@ -34,6 +34,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -65,6 +66,7 @@ public class DefaultTimestampSpec implements TimestampSpec
   private final String missingValueString;
   private final String invalidValueString;
   private final DateTimeZone timeZone;
+  private final String locale;
 
   private final boolean removeTimestampColumn;
   private final boolean replaceWrongColumn;
@@ -84,7 +86,8 @@ public class DefaultTimestampSpec implements TimestampSpec
       @JsonProperty("invalidValue") DateTime invalidValue,
       @JsonProperty("replaceWrongColumn") boolean replaceWrongColumn,
       @JsonProperty("removeTimestampColumn") boolean removeTimestampColumn,
-      @JsonProperty("timeZone") String timeZone
+      @JsonProperty("timeZone") String timeZone,
+      @JsonProperty("locale") String locale
   )
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
@@ -99,6 +102,7 @@ public class DefaultTimestampSpec implements TimestampSpec
     this.removeTimestampColumn = removeTimestampColumn;
     this.timestampConverter = createTimestampParser(timestampFormat);
     this.timeZone = timeZone == null ? null : DateTimeZone.forID(timeZone);
+    this.locale = locale;
   }
 
   public DefaultTimestampSpec(
@@ -110,12 +114,12 @@ public class DefaultTimestampSpec implements TimestampSpec
       boolean removeTimestampColumn
   )
   {
-    this(timestampColumn, format, missingValue, invalidValue, replaceWrongColumn, removeTimestampColumn, null);
+    this(timestampColumn, format, missingValue, invalidValue, replaceWrongColumn, removeTimestampColumn, null, null);
   }
 
   public DefaultTimestampSpec(String timestampColumn, String format, DateTime missingValue)
   {
-    this(timestampColumn, format, missingValue, null, false, false, null);
+    this(timestampColumn, format, missingValue, null, false, false, null, null);
   }
 
   private <T> Function<T, DateTime> wrapInvalidHandling(final Function<T, DateTime> converter)
@@ -247,7 +251,7 @@ public class DefaultTimestampSpec implements TimestampSpec
         // ignore.. not timestamp
       }
     }
-    log.info("failed to find appropriate format in list.");
+    log.info("failed to find appropriate format for time '%s' in list.", input);
     return TimestampParser.createTimestampParser("auto");
   }
 
@@ -264,6 +268,9 @@ public class DefaultTimestampSpec implements TimestampSpec
   {
     if (timeZone != null) {
       formatter = formatter.withZone(timeZone);
+    }
+    if (locale != null) {
+      formatter = formatter.withLocale(new Locale(locale));
     }
     try {
       formatter.parseDateTime(value);
@@ -328,6 +335,12 @@ public class DefaultTimestampSpec implements TimestampSpec
     return timeZone == null ? null : timeZone.getID();
   }
 
+  @JsonProperty("locale")
+  public String getLocale()
+  {
+    return locale;
+  }
+
   @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
@@ -389,6 +402,9 @@ public class DefaultTimestampSpec implements TimestampSpec
     if (!Objects.equals(timeZone, that.timeZone)) {
       return false;
     }
+    if (!Objects.equals(locale, that.locale)) {
+      return false;
+    }
     if (!Objects.equals(replaceWrongColumn, that.replaceWrongColumn)) {
       return false;
     }
@@ -403,6 +419,7 @@ public class DefaultTimestampSpec implements TimestampSpec
     result = 31 * result + (missingValue != null ? missingValue.hashCode() : 0);
     result = 31 * result + (invalidValue != null ? invalidValue.hashCode() : 0);
     result = 31 * result + (timeZone != null ? timeZone.hashCode() : 0);
+    result = 31 * result + (locale != null ? locale.hashCode() : 0);
     result = 31 * result + (replaceWrongColumn ? 1 : 0);
     return result;
   }

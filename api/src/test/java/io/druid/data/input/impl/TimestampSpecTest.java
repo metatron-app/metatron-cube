@@ -23,10 +23,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Locale;
 import java.util.Map;
 
 public class TimestampSpecTest
@@ -44,6 +47,10 @@ public class TimestampSpecTest
         new DateTime("2002-01-01T03:44:14.50"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "2002/01/01 03:44:14.50"))
     );
+    DateTimeFormatter formatter = DateTimeFormat.forPattern("MM/dd/yyyy hh:mm:ss.SSSSSS a");
+    formatter = formatter.withLocale(new Locale("en"));
+    Assert.assertEquals("01/01/2002 11:44:14.500000 PM", formatter.print(new DateTime("2002-01-01T23:44:14.50")));
+    Assert.assertEquals(new DateTime("2012-10-01T22:31:00.881Z"), formatter.parseDateTime("10/1/2012 10:31:00.881000 PM"));
   }
 
   @Test
@@ -76,7 +83,7 @@ public class TimestampSpecTest
       Assert.assertEquals(expectedDateTime, dateTime);
     }
 
-    spec = new DefaultTimestampSpec("TIMEstamp", DATE_FORMAT, null, null, false, false, "Asia/Saigon");
+    spec = new DefaultTimestampSpec("TIMEstamp", DATE_FORMAT, null, null, false, false, "Asia/Saigon", null);
     for (int i = 0; i < dates.length; ++i) {
       String date = dates[i];
       DateTime dateTime = spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", date));
@@ -89,7 +96,7 @@ public class TimestampSpecTest
   {
     DateTime missing = new DateTime(9998);
     DateTime invalid = new DateTime(9999);
-    TimestampSpec spec = new DefaultTimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false, null);
+    TimestampSpec spec = new DefaultTimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false, null, null);
     Map<String, Object> invalidRow = Maps.newHashMap(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03-XY"));
     Map<String, Object> missingRow = Maps.newHashMap();
     Assert.assertEquals(invalid, spec.extractTimestamp(invalidRow));

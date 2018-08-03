@@ -20,10 +20,13 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.query.ResultWriter;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 
 import java.net.URI;
@@ -40,19 +43,22 @@ public class BrokerLoadSpec
   private final String inputFormat; // todo
 
   private final DataSchema schema;
+  private final BaseTuningConfig tuningConfig;
 
   @JsonCreator
   public BrokerLoadSpec(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") List<String> paths,
       @JsonProperty("inputFormat") String inputFormat,
-      @JsonProperty("schema") DataSchema schema
+      @JsonProperty("schema") DataSchema schema,
+      @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig
   )
   {
     this.basePath = basePath;
     this.paths = Preconditions.checkNotNull(paths, "paths should not be null");
     this.inputFormat = inputFormat;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
+    this.tuningConfig = tuningConfig;
     Preconditions.checkArgument(!paths.isEmpty(), "paths should not be empty");
   }
 
@@ -78,6 +84,13 @@ public class BrokerLoadSpec
   public DataSchema getSchema()
   {
     return schema;
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public BaseTuningConfig getTuningConfig()
+  {
+    return tuningConfig;
   }
 
   public List<URI> getURIs() throws URISyntaxException
@@ -132,6 +145,7 @@ public class BrokerLoadSpec
            ", elements=" + paths +
            ", inputFormat=" + inputFormat +
            ", schema=" + schema +
+           ", tuningConfig=" + tuningConfig +
            '}';
   }
 }

@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
@@ -186,6 +187,19 @@ public class IndexSpec
         dimensionCompression,
         metricCompression,
         secondaryIndexing
+    );
+  }
+
+  public IndexSpec withoutSecondaryIndexing()
+  {
+    if (GuavaUtils.isNullOrEmpty(secondaryIndexing)) {
+      return this;
+    }
+    return new IndexSpec(
+        bitmapSerdeFactory,
+        dimensionCompression,
+        metricCompression,
+        null
     );
   }
 

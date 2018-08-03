@@ -608,8 +608,9 @@ public class QueryResource
           if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
             rewritten = rewriteURI(uri, scheme, node, null);
           }
-          TabularFormat result = toTabularFormat(removeForwardContext(query), responseContext);
-          return wrapForwardResult(query, forwardContext, writer.write(rewritten, result, forwardContext));
+          final TabularFormat input = toTabularFormat(removeForwardContext(query), responseContext);
+          final Map<String, Object> result = writer.write(rewritten, input, forwardContext);
+          return wrapForwardResult(query, forwardContext, result);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

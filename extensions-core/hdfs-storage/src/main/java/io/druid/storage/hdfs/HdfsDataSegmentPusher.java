@@ -34,6 +34,7 @@ import com.metamx.common.CompressionUtils;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -52,6 +53,7 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.SegmentUtils;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
@@ -354,15 +356,15 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       throws IOException
   {
     if ("index".equals(format)) {
+      final long start = System.currentTimeMillis();
       final String timestampColumn = PropUtils.parseString(context, "timestampColumn", EventHolder.timestampKey);
       final String dataSource = PropUtils.parseString(context, "dataSource", "___temporary_" + new DateTime());
-      final long maxOccupation = PropUtils.parseLong(context, "maxOccupation", 256 << 20);
-      final int maxRowCount = PropUtils.parseInt(context, "maxRowCount", 500000);
       final IncrementalIndexSchema schema = Preconditions.checkNotNull(
           jsonMapper.convertValue(context.get("schema"), IncrementalIndexSchema.class),
           "cannot find/create index schema"
       );
       final Interval queryInterval = jsonMapper.convertValue(context.get("interval"), Interval.class);
+      final BaseTuningConfig tuning = jsonMapper.convertValue(context.get("tuningConfig"), BaseTuningConfig.class);
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
 
@@ -372,6 +374,10 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       final File temp = File.createTempFile("forward", "index");
       temp.delete();
       temp.mkdirs();
+
+      final int maxRowCount = tuning == null ? 500000 : tuning.getRowFlushBoundary();
+      final long maxOccupation = tuning == null ? 256 << 20 : tuning.getMaxOccupationInMemory();
+      final IndexSpec indexSpec = tuning == null ? new IndexSpec() : tuning.getIndexSpec();
 
       return new CountingAccumulator()
       {
@@ -416,7 +422,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
         private boolean isIndexFull()
         {
           return !index.canAppendRow() ||
-                 rowCount % OCCUPY_CHECK_INTERVAL == 0 && index.estimatedOccupation() >= maxOccupation;
+                 maxOccupation > 0
+                 && rowCount % OCCUPY_CHECK_INTERVAL == 0
+                 && index.estimatedOccupation() >= maxOccupation;
         }
 
         @Override
@@ -429,7 +437,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             return ImmutableMap.<String, Object>of("rowCount", rowCount);
           }
           File mergedBase;
-          if (files.size() == 1) {
+          if (files.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
             mergedBase = files.get(0);
           } else {
             final List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(files.size());
@@ -437,12 +445,13 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               indexes.add(merger.getIndexIO().loadIndex(file));
             }
             log.info("Merging %d indices into one", indexes.size());
+            File merge = new File(temp, "merged");
             mergedBase = merger.mergeQueryableIndexAndClose(
                 indexes,
                 schema.isRollup(),
                 schema.getMetrics(),
-                new File(temp, "merged"),
-                new IndexSpec(),
+                merge,
+                indexSpec,
                 new BaseProgressIndicator()
             );
           }
@@ -464,6 +473,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           }
           FileUtils.deleteDirectory(mergedBase);
 
+          // todo support multi-shard
           Map<String, Object> loadSpec = toLoadSpec(finalPath.toUri());
           DataSegment segment = new DataSegment(
               dataSource,
@@ -489,6 +499,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               )
           );
 
+          log.info("Took %,d msec to load %s", (System.currentTimeMillis() - start), dataSource);
           return metaData;
         }
 
@@ -535,7 +546,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               "Flushing %,d rows with estimated size %,d bytes.. Heap usage %s",
               index.size(), index.estimatedOccupation(), memoryMXBean.getHeapMemoryUsage()
           );
-          return merger.persist(index, nextFile(), new IndexSpec());
+          return merger.persist(index, nextFile(), indexSpec.withoutSecondaryIndexing());
         }
 
         private File nextFile()

@@ -49,7 +49,6 @@ import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
@@ -371,7 +370,13 @@ public class BrokerQueryResource extends QueryResource
         segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
         Set<DataSegment> segments = Sets.newHashSet(segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
-        coordinator.scheduleNow(segments);
+        try {
+          coordinator.scheduleNow(segments);
+        }
+        catch (Exception e) {
+          // ignore
+          log.info("failed to notify coordinator directly.. just wait next round of coordination");
+        }
         builder.put("type", "publish");
       }
       eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
@@ -387,8 +392,6 @@ public class BrokerQueryResource extends QueryResource
   public Response loadToIndex(
       BrokerLoadSpec loadSpec,
       @QueryParam("rollup") boolean rollup,
-      @QueryParam("maxOccupation") long maxOccupation,
-      @QueryParam("maxRowCount") long maxRowCount,
       @QueryParam("temporary") Boolean temporary,
       @QueryParam("async") Boolean async,
       @QueryParam("pretty") String pretty,
@@ -400,21 +403,19 @@ public class BrokerQueryResource extends QueryResource
 
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
-      if (!(parser instanceof StringInputRowParser)) {
-        throw new IllegalArgumentException("Currently supports StringInputRowParser only");
-      }
       ParseSpec parseSpec = parser.getParseSpec();
       final DimensionsSpec dimensionsSpec = parseSpec.getDimensionsSpec();
       final String timestampColumn = parseSpec.getTimestampSpec().getTimestampColumn();
       if (!dimensionsSpec.hasCustomDimensions()) {
         throw new IllegalArgumentException("Need to specify dimension specs, for now");
       }
-      final List<URI> locations = loadSpec.getURIs();
-      final String scheme = locations.get(0).getScheme();
-      final ResultWriter writer = writerMap.get(scheme);
+      List<URI> locations = loadSpec.getURIs();
+      String scheme = locations.get(0).getScheme();
+      ResultWriter writer = writerMap.get(scheme);
       if (writer == null) {
         throw new IAE("Unsupported scheme '%s'", scheme);
       }
+
       IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withDimensionsSpec(dimensionsSpec)
           .withMetrics(schema.getAggregators())
@@ -425,12 +426,11 @@ public class BrokerQueryResource extends QueryResource
       Map<String, Object> forwardContext = Maps.newHashMap();
       forwardContext.put("format", "index");
       forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
+      forwardContext.put("tuningConfig", jsonMapper.convertValue(loadSpec.getTuningConfig(), new TypeReference<Map<String, Object>>() { } ));
       forwardContext.put("timestampColumn", timestampColumn);
       forwardContext.put("dataSource", schema.getDataSource());
       forwardContext.put("registerTable", true);
       forwardContext.put("temporary", temporary == null || temporary);
-      forwardContext.put("maxOccupation", Math.max(maxOccupation, 256 << 20));
-      forwardContext.put("maxRowCount", Math.max(maxRowCount, 500000));
 
       File output = File.createTempFile("__druid_broker-", "-file_loader");
       output.delete();

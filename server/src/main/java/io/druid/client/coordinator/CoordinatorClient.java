@@ -132,7 +132,6 @@ public class CoordinatorClient
     }
   }
 
-
   private String baseUrl()
   {
     try {
@@ -155,5 +154,4 @@ public class CoordinatorClient
       throw Throwables.propagate(e);
     }
   }
-
 }

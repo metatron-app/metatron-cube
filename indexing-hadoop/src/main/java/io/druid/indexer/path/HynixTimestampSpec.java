@@ -39,9 +39,19 @@ public class HynixTimestampSpec extends DefaultTimestampSpec
       @JsonProperty("invalidValue") DateTime invalidValue,
       @JsonProperty("replaceWrongColumn") boolean replaceWrongColumn,
       @JsonProperty("removeTimestampColumn") boolean removeTimestampColumn,
-      @JsonProperty("timeZone") String timeZone
+      @JsonProperty("timeZone") String timeZone,
+      @JsonProperty("locale") String locale
   ) {
-    super(timestampColumn, format, missingValue, invalidValue, replaceWrongColumn, removeTimestampColumn, timeZone);
+    super(
+        timestampColumn,
+        format,
+        missingValue,
+        invalidValue,
+        replaceWrongColumn,
+        removeTimestampColumn,
+        timeZone,
+        locale
+    );
   }
 
   @Override
