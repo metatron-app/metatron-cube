@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -29,7 +30,7 @@ import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.ConciseBitmapSerdeFactory;
+import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import javax.annotation.Nullable;
@@ -105,7 +106,7 @@ public class IndexSpec
     Preconditions.checkArgument(metricCompression == null || COMPRESSION_NAMES.contains(metricCompression),
                                 "Unknown compression type[%s]", metricCompression);
 
-    this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new ConciseBitmapSerdeFactory();
+    this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new RoaringBitmapSerdeFactory();
     this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
     this.secondaryIndexing = secondaryIndexing == null
@@ -129,12 +130,14 @@ public class IndexSpec
   }
 
   @JsonProperty("dimensionCompression")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getDimensionCompression()
   {
     return dimensionCompression;
   }
 
   @JsonProperty("metricCompression")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getMetricCompression()
   {
     return metricCompression;
