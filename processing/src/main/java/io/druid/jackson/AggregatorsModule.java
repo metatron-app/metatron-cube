@@ -26,6 +26,7 @@ import com.google.common.hash.Hashing;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.CompactRow;
+import io.druid.data.input.ExpressionTimestampSpec;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.SelectEachQuery;
@@ -108,6 +109,7 @@ public class AggregatorsModule extends SimpleModule
     setMixInAnnotation(Row.class, Rows.class);
 
     // for test
+    registerSubtypes(ExpressionTimestampSpec.class);
     registerSubtypes(SelectEachQuery.class);
   }
 
