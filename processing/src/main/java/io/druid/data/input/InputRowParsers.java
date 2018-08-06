@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ParsingFail;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema;
@@ -71,7 +72,12 @@ public class InputRowParsers
           return null;
         }
         for (RowEvaluator<InputRow> evaluator : evaluators) {
-          inputRow = evaluator.evaluate(inputRow);
+          try {
+            inputRow = evaluator.evaluate(inputRow);
+          }
+          catch (Exception e) {
+            throw ParsingFail.propagate(input, e);
+          }
         }
         for (RowEvaluator<Boolean> validator : validators) {
           if (!validator.evaluate(inputRow)) {

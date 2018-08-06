@@ -17,6 +17,7 @@
 
 package io.druid.data;
 
+import com.google.common.base.Strings;
 import com.metamx.common.parsers.ParseException;
 
 /**
@@ -33,7 +34,7 @@ public class ParsingFail extends ParseException
 
   public ParsingFail(Object input, Throwable cause)
   {
-    super(cause, cause.getMessage());
+    super(cause, Strings.nullToEmpty(cause.getMessage()));
     this.input = input;
   }
 

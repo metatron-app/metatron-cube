@@ -145,7 +145,10 @@ public class Sequences extends com.metamx.common.guava.Sequences
         try {
           Object line;
           while ((line = reader.readRow()) != null) {
-            initValue = accumulator.accumulate(initValue, parser.apply(line));
+            final T parsed = parser.apply(line);
+            if (parsed != null) {
+              initValue = accumulator.accumulate(initValue, parsed);
+            }
           }
         }
         catch (Exception e) {

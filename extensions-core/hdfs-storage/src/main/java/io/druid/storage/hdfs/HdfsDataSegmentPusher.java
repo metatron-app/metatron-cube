@@ -192,6 +192,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     thresholds[locations.size()] = total;
 
     final int skipFirstN = PropUtils.parseInt(context, "skipFirstN", -1);
+    final boolean ignoreInvalidRows = PropUtils.parseBoolean(context, "ignoreInvalidRows", false);
     final Iterable<Sequences.RowReader> readers = Iterables.transform(
         locations, new Function<URI, Sequences.RowReader>()
         {
@@ -261,7 +262,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           public Object readRow() throws IOException, InterruptedException
           {
             Object row = current.readRow();
-            for (;row == null && iterator.hasNext(); row = current.readRow()) {
+            for (; row == null && iterator.hasNext(); row = current.readRow()) {
               current.close();
               current = iterator.next();
             }
@@ -278,7 +279,17 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
         {
           @Override
           @SuppressWarnings("unchecked")
-          public Row apply(Object input) { return parser.parse(input); }
+          public Row apply(Object input) {
+            try {
+              return parser.parse(input);
+            }
+            catch (Exception e) {
+              if (ignoreInvalidRows) {
+                return null;
+              }
+              throw Throwables.propagate(e);
+            }
+          }
         }
     );
   }

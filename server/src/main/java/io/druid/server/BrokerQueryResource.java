@@ -77,6 +77,7 @@ import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.IndexMergerV9;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.loading.DataSegmentPusher;
@@ -391,7 +392,7 @@ public class BrokerQueryResource extends QueryResource
   @SuppressWarnings("unchecked")
   public Response loadToIndex(
       BrokerLoadSpec loadSpec,
-      @QueryParam("rollup") boolean rollup,
+      @Deprecated @QueryParam("rollup") Boolean rollup,
       @QueryParam("temporary") Boolean temporary,
       @QueryParam("async") Boolean async,
       @QueryParam("pretty") String pretty,
@@ -416,17 +417,19 @@ public class BrokerQueryResource extends QueryResource
         throw new IAE("Unsupported scheme '%s'", scheme);
       }
 
+      final BaseTuningConfig tuningConfig = loadSpec.getTuningConfig();
+
       IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withDimensionsSpec(dimensionsSpec)
           .withMetrics(schema.getAggregators())
+          .withRollup(rollup == null ? schema.getGranularitySpec().isRollup() : rollup)
           .withFixedSchema(true)
-          .withRollup(rollup)
           .build();
 
       Map<String, Object> forwardContext = Maps.newHashMap();
       forwardContext.put("format", "index");
       forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
-      forwardContext.put("tuningConfig", jsonMapper.convertValue(loadSpec.getTuningConfig(), new TypeReference<Map<String, Object>>() { } ));
+      forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() { } ));
       forwardContext.put("timestampColumn", timestampColumn);
       forwardContext.put("dataSource", schema.getDataSource());
       forwardContext.put("registerTable", true);
@@ -445,7 +448,10 @@ public class BrokerQueryResource extends QueryResource
           )
       );
       log.info("Start loading.. %s into index", locations);
-      final Map<String, Object> loadContext = ImmutableMap.<String, Object>of("skipFirstN", loadSpec.getSkipFirstN());
+      final Map<String, Object> loadContext = ImmutableMap.<String, Object>of(
+          "skipFirstN", loadSpec.getSkipFirstN(),
+          "ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows()
+      );
       final Sequence<Row> sequence = writer.read(locations, parser, loadContext);
       final QueryRunner runner = wrapForward(
           query, new QueryRunner()

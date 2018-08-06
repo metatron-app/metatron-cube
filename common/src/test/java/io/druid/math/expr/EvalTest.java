@@ -424,6 +424,7 @@ public class EvalTest
   {
     testOptional("2018-03-05T[]08:09:24.432+0000", "yyyy-MM-dd['T[]'HH:mm:ss.SSSZZ]", "2018-03-05T08:09:24.432+0000");
     testOptional("2018-03-05", "yyyy-MM-dd['T[]'HH:mm:ss.SSSZZ]", "2018-03-05T00:00:00.000+0000");
+    testOptional("2018-08-06 01:00:34.23015", "yyyy-MM-dd HH:mm:ss[.SSSSS]", "2018-08-06T01:00:34.230+0000");
   }
 
   private void testOptional(String time, String format, String expected)
