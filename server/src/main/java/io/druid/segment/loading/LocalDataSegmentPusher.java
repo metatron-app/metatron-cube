@@ -126,7 +126,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
   }
 
   @Override
-  public Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException
+  public Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context) throws IOException
   {
     // todo
     throw new UnsupportedOperationException();

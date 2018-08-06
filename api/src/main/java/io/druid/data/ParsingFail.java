@@ -42,6 +42,12 @@ public class ParsingFail extends ParseException
     return input;
   }
 
+  @Override
+  public String getMessage()
+  {
+    return super.getMessage() + " from " + input;
+  }
+
   public static ParseException propagate(Object input, Throwable t)
   {
     if (t instanceof ParseException) {

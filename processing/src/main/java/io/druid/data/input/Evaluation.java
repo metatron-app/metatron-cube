@@ -30,6 +30,7 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -56,14 +57,19 @@ public class Evaluation
   @JsonCreator
   public Evaluation(
       @JsonProperty("outputName") String outputName,
+      @JsonProperty("expression") String expression,
       @JsonProperty("expressions") List<String> expressions
   )
   {
     this.outputName = Preconditions.checkNotNull(outputName);
-    this.expressions = Preconditions.checkNotNull(expressions);
+    Preconditions.checkArgument(
+        expression == null ^ expressions == null,
+        "Must have either expression or expressions"
+    );
+    this.expressions = expression == null ? expressions : Arrays.asList(expression);
     this.parsedExpressions = Lists.newArrayList(
         Lists.transform(
-            expressions, new Function<String, Expr>()
+            this.expressions, new Function<String, Expr>()
             {
               @Override
               public Expr apply(String input) { return Parser.parse(input); }

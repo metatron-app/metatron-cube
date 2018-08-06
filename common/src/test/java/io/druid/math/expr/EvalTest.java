@@ -695,6 +695,16 @@ public class EvalTest
   }
 
   @Test
+  public void testFormatWithDate()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("Y", "2008", "M", "1", "D", "3", "HM", "754"));
+    Assert.assertEquals(
+        DateTimes.of("2008-01-03T07:54:00.000Z"),
+        Parser.parse("datetime(format('%s/%s/%s %s',Y,M,D,lpad(HM,4,'0')), format='yyyy/MM/dd HHmm')").eval(bindings).value()
+    );
+  }
+
+  @Test
   public void testLPad()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", 7, "y", "2010"));

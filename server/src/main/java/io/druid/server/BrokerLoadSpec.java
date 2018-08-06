@@ -41,6 +41,7 @@ public class BrokerLoadSpec
 
   private final List<String> paths;
   private final String inputFormat; // todo
+  private final int skipFirstN;
 
   private final DataSchema schema;
   private final BaseTuningConfig tuningConfig;
@@ -50,6 +51,7 @@ public class BrokerLoadSpec
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") List<String> paths,
       @JsonProperty("inputFormat") String inputFormat,
+      @JsonProperty("skipFirstN") int skipFirstN,
       @JsonProperty("schema") DataSchema schema,
       @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig
   )
@@ -57,6 +59,7 @@ public class BrokerLoadSpec
     this.basePath = basePath;
     this.paths = Preconditions.checkNotNull(paths, "paths should not be null");
     this.inputFormat = inputFormat;
+    this.skipFirstN = skipFirstN;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
     this.tuningConfig = tuningConfig;
     Preconditions.checkArgument(!paths.isEmpty(), "paths should not be empty");
@@ -78,6 +81,12 @@ public class BrokerLoadSpec
   public String getInputFormat()
   {
     return inputFormat;
+  }
+
+  @JsonProperty
+  public int getSkipFirstN()
+  {
+    return skipFirstN;
   }
 
   @JsonProperty
@@ -144,6 +153,7 @@ public class BrokerLoadSpec
            "basePath=" + basePath +
            ", elements=" + paths +
            ", inputFormat=" + inputFormat +
+           ", skipFirstN=" + skipFirstN +
            ", schema=" + schema +
            ", tuningConfig=" + tuningConfig +
            '}';

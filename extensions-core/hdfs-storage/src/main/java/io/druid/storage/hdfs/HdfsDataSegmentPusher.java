@@ -178,7 +178,8 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   }
 
   @Override
-  public Sequence<Row> read(final List<URI> locations, final InputRowParser parser) throws IOException
+  public Sequence<Row> read(final List<URI> locations, final InputRowParser parser, final Map<String, Object> context)
+      throws IOException
   {
     long total = 0;
     final float[] thresholds = new float[locations.size() + 1];
@@ -190,6 +191,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     }
     thresholds[locations.size()] = total;
 
+    final int skipFirstN = PropUtils.parseInt(context, "skipFirstN", -1);
     final Iterable<Sequences.RowReader> readers = Iterables.transform(
         locations, new Function<URI, Sequences.RowReader>()
         {
@@ -211,6 +213,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             final FileSystem fileSystem = path.getFileSystem(hadoopConfig);
             final FSDataInputStream open = fileSystem.open(path);
             final BufferedReader reader = new BufferedReader(new InputStreamReader(open));
+            for (int x = 0; x < skipFirstN; x++) {
+              reader.readLine();  // skip
+            }
             return new Sequences.RowReader()
             {
               @Override

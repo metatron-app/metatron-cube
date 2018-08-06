@@ -36,14 +36,15 @@ public interface ResultWriter
 {
   String FILE_SCHEME = "file";
 
-  Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException;
+  Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context) throws IOException;
 
   Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context) throws IOException;
 
   ResultWriter NULL = new ResultWriter()
   {
     @Override
-    public Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException
+    public Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context)
+        throws IOException
     {
       throw new UnsupportedOperationException("read");
     }

@@ -445,7 +445,8 @@ public class BrokerQueryResource extends QueryResource
           )
       );
       log.info("Start loading.. %s into index", locations);
-      final Sequence<Row> sequence = writer.read(locations, parser);
+      final Map<String, Object> loadContext = ImmutableMap.<String, Object>of("skipFirstN", loadSpec.getSkipFirstN());
+      final Sequence<Row> sequence = writer.read(locations, parser, loadContext);
       final QueryRunner runner = wrapForward(
           query, new QueryRunner()
           {
