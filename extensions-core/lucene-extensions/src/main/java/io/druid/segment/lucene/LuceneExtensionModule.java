@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
+import io.druid.query.GeoHashFunctions;
 import io.druid.query.filter.LuceneSpatialFilter;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class LuceneExtensionModule implements DruidModule
         new SimpleModule("lucene-extension")
             .registerSubtypes(SpatialIndexingStrategy.class)
             .registerSubtypes(LuceneSpatialFilter.class)
+            .registerSubtypes(GeoHashFunctions.class)
     );
   }
 
