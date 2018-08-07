@@ -35,13 +35,13 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.cache.Cache;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
@@ -131,35 +131,50 @@ public class GroupByQueryEngine
   public Sequence<Row> process(final GroupByQuery query, final Segment segment, final Cache cache)
   {
     return Sequences.map(
-        takeTopN(query).apply(processInternal(query, segment, cache)),
+        takeTopN(query).apply(processInternal(query, Sequences.simple(Arrays.asList(segment)), cache)),
         converter(query)
     );
   }
 
-  public Sequence<Object[]> processInternal(final GroupByQuery query, final Segment segment, final Cache cache)
+  public Sequence<Object[]> processInternal(
+      final GroupByQuery query,
+      final Sequence<Segment> sequences,
+      final Cache cache
+  )
   {
-    final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
-    if (storageAdapter == null) {
-      throw new ISE(
-          "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
-      );
-    }
-    final RowResolver resolver = Segments.getResolver(segment, query);
+    Sequence<Cursor> cursors = Sequences.concat(
+        Sequences.map(
+            sequences, new Function<Segment, Sequence<Cursor>>()
+            {
+              @Override
+              public Sequence<Cursor> apply(Segment segment)
+              {
+                final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
+                if (storageAdapter == null) {
+                  throw new ISE(
+                      "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
+                  );
+                }
+                final RowResolver resolver = Segments.getResolver(segment, query);
 
-    final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
-    if (intervals.size() != 1) {
-      throw new IAE("Should only have one interval, got[%s]", intervals);
-    }
+                final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+                if (intervals.size() != 1) {
+                  throw new IAE("Should only have one interval, got[%s]", intervals);
+                }
 
-    DimFilter filter = Filters.convertToCNF(query.getDimFilter());
+                DimFilter filter = Filters.convertToCNF(query.getDimFilter());
 
-    final Sequence<Cursor> cursors = storageAdapter.makeCursors(
-        filter,
-        intervals.get(0),
-        resolver,
-        query.getGranularity(),
-        cache,
-        false
+                return storageAdapter.makeCursors(
+                    filter,
+                    intervals.get(0),
+                    resolver,
+                    query.getGranularity(),
+                    cache,
+                    false
+                );
+              }
+            }
+        )
     );
 
     return Sequences.concat(

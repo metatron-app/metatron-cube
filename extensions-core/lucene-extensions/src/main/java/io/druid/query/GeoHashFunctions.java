@@ -64,7 +64,7 @@ public class GeoHashFunctions implements Function.Library
   public static final ValueDesc LATLON = ValueDesc.of("struct(latitude:double,longitude:double)");
 
   @Function.Named("geohash_to_center")
-  public static class FromGeoHash extends Function.AbstractFactory
+  public static class GeoHashToCenter extends Function.AbstractFactory
   {
     @Override
     public Function create(final List<Expr> args)

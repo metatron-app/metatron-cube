@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
 import io.druid.query.GeoHashFunctions;
+import io.druid.query.H3Functions;
 import io.druid.query.filter.LuceneSpatialFilter;
 
 import java.util.List;
@@ -38,6 +39,7 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(SpatialIndexingStrategy.class)
             .registerSubtypes(LuceneSpatialFilter.class)
             .registerSubtypes(GeoHashFunctions.class)
+            .registerSubtypes(H3Functions.class)
     );
   }
 
