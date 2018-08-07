@@ -62,7 +62,7 @@ public class StructVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    final ValueDesc columnType = types.resolveColumn(columnName);
+    final ValueDesc columnType = types.resolve(columnName);
     Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
     if (column.equals(outputName)) {
       return columnType;

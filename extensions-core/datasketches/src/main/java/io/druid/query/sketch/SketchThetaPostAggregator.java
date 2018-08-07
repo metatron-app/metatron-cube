@@ -26,6 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Ordering;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -70,6 +72,12 @@ public class SketchThetaPostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return Ordering.natural().nullsFirst();
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   @Override

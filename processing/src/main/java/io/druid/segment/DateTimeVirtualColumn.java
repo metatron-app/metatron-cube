@@ -56,7 +56,7 @@ public class DateTimeVirtualColumn implements VirtualColumn
   {
     Preconditions.checkArgument(column.startsWith(outputName));
     if (column.equals(columnName)) {
-      return types.resolveColumn(columnName);
+      return types.resolve(columnName);
     }
     return ValueDesc.LONG;
   }

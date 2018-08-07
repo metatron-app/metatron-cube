@@ -26,6 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -97,6 +99,12 @@ public class CollectionCountPostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return GuavaUtils.nullFirstNatural();
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.LONG;
   }
 
   @Override

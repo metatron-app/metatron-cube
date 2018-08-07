@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -65,9 +66,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     for (AggregatorFactory aggregator : aggregators) {
       expectedTypes.put(aggregator.getName(), ValueDesc.of(aggregator.getTypeName()));
     }
-    //todo provide output type for post aggregator
+    TypeResolver resolver = new TypeResolver.WithMap(expectedTypes);
     for (PostAggregator postAggregator : postAggregators) {
-      expectedTypes.put(postAggregator.getName(), ValueDesc.DOUBLE);
+      expectedTypes.put(postAggregator.getName(), postAggregator.resolve(resolver));
     }
     expectedTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
 

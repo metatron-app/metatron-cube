@@ -234,7 +234,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   public ValueType typeOfBound(TypeResolver resolver)
   {
     if (extractionFn == null) {
-      ValueDesc desc = comparatorType == null ? resolver.resolveColumn(dimension) : ValueDesc.of(comparatorType);
+      ValueDesc desc = comparatorType == null ? resolver.resolve(dimension) : ValueDesc.of(comparatorType);
       if (desc != null && desc.isPrimitive()) {
         return desc.type();
       }

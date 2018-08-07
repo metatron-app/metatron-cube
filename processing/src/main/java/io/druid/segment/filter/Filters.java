@@ -1196,7 +1196,7 @@ public class Filters
     return new TypeResolver.Abstract()
     {
       @Override
-      public ValueDesc resolveColumn(String column)
+      public ValueDesc resolve(String column)
       {
         final ColumnCapabilities capabilities = selector.getCapabilities(column);
         return capabilities == null ? null : ValueDesc.of(capabilities.getType());

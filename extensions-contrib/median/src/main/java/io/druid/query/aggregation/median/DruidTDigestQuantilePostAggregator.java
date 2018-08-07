@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -44,7 +46,13 @@ public class DruidTDigestQuantilePostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.DOUBLE;
+  }
+
+  @Override
+  public Double compute(DateTime timestamp, Map<String, Object> values)
   {
     final DruidTDigest digest = (DruidTDigest) values.get(this.getFieldName());
     return digest.quantile(probability);

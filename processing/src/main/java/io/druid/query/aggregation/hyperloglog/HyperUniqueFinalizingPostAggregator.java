@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -70,6 +72,12 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   public Comparator<Double> getComparator()
   {
     return DOUBLE_COMPARATOR;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.DOUBLE;
   }
 
   @Override

@@ -79,15 +79,15 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public ValueDesc resolveType(final TypeResolver resolver)
+  public ValueDesc resolve(final TypeResolver resolver)
   {
-    return Parser.parse(expression).type(
-        new Expr.TypeBinding()
+    return Parser.parse(expression).resolve(
+        new TypeResolver.Abstract()
         {
           @Override
-          public ValueDesc type(String name)
+          public ValueDesc resolve(String name)
           {
-            return resolver.resolveColumn(name, ValueDesc.UNKNOWN);
+            return resolver.resolve(name, ValueDesc.UNKNOWN);
           }
         }
     );
@@ -103,11 +103,11 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public DimensionSelector decorate(final DimensionSelector selector)
   {
     final String dimension = getDimension();
-    Expr.TypeBinding bindings = Parser.withTypeMap(
+    final TypeResolver bindings = Parser.withTypeMap(
         ImmutableMap.<String, ValueDesc>of(dimension, selector.type())
     );
     final Expr expr = Parser.parse(expression);
-    final ValueDesc resultType = expr.type(bindings);
+    final ValueDesc resultType = expr.resolve(bindings);
     if (!Comparable.class.isAssignableFrom(RowResolver.toClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
     }

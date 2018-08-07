@@ -188,7 +188,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory resolve(RowResolver resolver)
   {
-    ValueDesc sourceType = resolver.resolveColumn(fieldName);
+    ValueDesc sourceType = resolver.resolve(fieldName);
     if (sourceType.isDimension()) {
       sourceType = ValueDesc.STRING;
     }

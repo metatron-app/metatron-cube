@@ -25,6 +25,7 @@ import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
@@ -161,7 +162,7 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.DATETIME;
         }
@@ -185,7 +186,7 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.DATETIME;
         }
@@ -230,7 +231,7 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.DATETIME;
         }
@@ -595,7 +596,7 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return eval(args, bindings);
         }
@@ -614,7 +615,7 @@ public interface DateTimeFunctions extends Function.Library
       };
     }
 
-    protected abstract ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings);
+    protected abstract ValueDesc eval(List<Expr> args, TypeResolver bindings);
 
     protected abstract ExprEval eval(DateTime date);
 
@@ -629,7 +630,7 @@ public interface DateTimeFunctions extends Function.Library
   class TimestampFromEpochFunc extends DateTimeInput
   {
     @Override
-    public ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc eval(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }
@@ -690,7 +691,7 @@ public interface DateTimeFunctions extends Function.Library
   class DateTimeMillisFunc extends DateTimeInput
   {
     @Override
-    public ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc eval(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }

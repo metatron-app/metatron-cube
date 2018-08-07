@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -39,6 +41,12 @@ public class DocumentsColumnPostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return COMPARATOR;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.STRING_ARRAY;
   }
 
   @Override

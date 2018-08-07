@@ -1052,7 +1052,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ValueDesc getColumnType(String columnName)
                     {
-                      return resolver.resolveColumn(columnName);
+                      return resolver.resolve(columnName);
                     }
                   };
                 }

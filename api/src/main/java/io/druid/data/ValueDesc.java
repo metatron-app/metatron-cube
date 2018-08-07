@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Comparator;
 
 /**
@@ -81,6 +82,7 @@ public class ValueDesc implements Serializable
 
   public static ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
   public static ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
+  public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
   public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
   public static ValueDesc ofArray(ValueDesc valueType)
@@ -97,6 +99,11 @@ public class ValueDesc implements Serializable
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
     return of(DIMENSION_PREFIX + valueType.getName());
+  }
+
+  public static ValueDesc ofDecimal(BigDecimal decimal)
+  {
+    return ValueDesc.of(DECIMAL_TYPE + "(" + decimal.precision() + "," + decimal.scale() + ")");
   }
 
   public static ValueDesc ofMultiValued(ValueType valueType)

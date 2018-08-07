@@ -66,7 +66,7 @@ public class ColumnSelectorFactories
     return new TypeResolver.Abstract()
     {
       @Override
-      public ValueDesc resolveColumn(String column)
+      public ValueDesc resolve(String column)
       {
         return factory.getColumnType(column);
       }
@@ -392,7 +392,7 @@ public class ColumnSelectorFactories
     @SuppressWarnings("unchecked")
     public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
     {
-      final ValueDesc resolved = resolver.resolveColumn(columnName);
+      final ValueDesc resolved = resolver.resolve(columnName);
       if (resolver.isDimension(columnName) || resolver.isMetric(columnName)) {
         return new ObjectColumnSelector()
         {
@@ -415,7 +415,7 @@ public class ColumnSelectorFactories
     @Override
     public ValueDesc getColumnType(String columnName)
     {
-      return resolver.resolveColumn(columnName);
+      return resolver.resolve(columnName);
     }
   }
 

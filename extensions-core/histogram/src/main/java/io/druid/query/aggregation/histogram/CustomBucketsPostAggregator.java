@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -51,6 +53,12 @@ public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggrega
   public Set<String> getDependentFields()
   {
     return Sets.newHashSet(fieldName);
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.UNKNOWN;   // has no complex serde
   }
 
   @Override

@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -44,7 +45,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class WindowContext implements Expr.WindowContext
+public class WindowContext extends TypeResolver.Abstract implements Expr.WindowContext
 {
   public static WindowContext newInstance(List<String> groupByColumns, Map<String, ValueDesc> expectedTypes)
   {
@@ -206,7 +207,7 @@ public class WindowContext implements Expr.WindowContext
   }
 
   @Override
-  public ValueDesc type(String name)
+  public ValueDesc resolve(String name)
   {
     if (name.equals(Column.TIME_COLUMN_NAME)) {
       return ValueDesc.LONG;

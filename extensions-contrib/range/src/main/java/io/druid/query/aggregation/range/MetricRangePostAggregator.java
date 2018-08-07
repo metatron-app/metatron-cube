@@ -3,6 +3,8 @@ package io.druid.query.aggregation.range;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -36,6 +38,12 @@ public class MetricRangePostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return MetricRangeAggregator.COMPARATOR;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.DOUBLE;
   }
 
   @Override

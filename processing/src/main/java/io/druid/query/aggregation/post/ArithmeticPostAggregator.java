@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -101,6 +103,16 @@ public class ArithmeticPostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return comparator;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    ValueDesc type = null;
+    for (PostAggregator field : fields) {
+      type = ValueDesc.toCommonType(type, field.resolve(bindings));
+    }
+    return type;
   }
 
   @Override

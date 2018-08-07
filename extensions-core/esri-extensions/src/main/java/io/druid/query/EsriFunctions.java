@@ -40,6 +40,7 @@ import com.esri.hadoop.hive.GeometryUtils;
 import com.esri.hadoop.hive.GeometryUtils.OGCType;
 import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -87,7 +88,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -121,7 +122,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -151,7 +152,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -186,7 +187,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -218,7 +219,7 @@ public interface EsriFunctions extends Function.Library
         return new Child()
         {
           @Override
-          public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
           {
             return OGC_GEOMETRY_TYPE;
           }
@@ -236,7 +237,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -266,7 +267,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -349,7 +350,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -422,7 +423,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return OGC_GEOMETRY_TYPE;
         }
@@ -498,7 +499,7 @@ public interface EsriFunctions extends Function.Library
         final OperatorSimpleRelation relation = getRelationOperator();
 
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.LONG;
         }
@@ -617,7 +618,7 @@ public interface EsriFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.DOUBLE;
         }

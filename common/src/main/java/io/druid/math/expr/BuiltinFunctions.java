@@ -34,10 +34,10 @@ import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Expr.NumericBinding;
-import io.druid.math.expr.Expr.TypeBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
 import org.apache.commons.lang.StringUtils;
@@ -86,12 +86,12 @@ public interface BuiltinFunctions extends Function.Library
   abstract class SingleParam extends Function.NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() != 1) {
         throw new RuntimeException("function '" + name() + "' needs 1 argument");
       }
-      return type(args.get(0).type(bindings));
+      return type(args.get(0).resolve(bindings));
     }
 
     @Override
@@ -112,9 +112,9 @@ public interface BuiltinFunctions extends Function.Library
   abstract class DoubleParam extends Function.NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
-      return args.size() == 2 ? type(args.get(0).type(bindings), args.get(1).type(bindings)) : ValueDesc.UNKNOWN;
+      return args.size() == 2 ? type(args.get(0).resolve(bindings), args.get(1).resolve(bindings)) : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -179,7 +179,7 @@ public interface BuiltinFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return function.apply(args, bindings);
         }
@@ -295,7 +295,7 @@ public interface BuiltinFunctions extends Function.Library
   class StringArray extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.STRING_ARRAY;
     }
@@ -315,7 +315,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LongArray extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG_ARRAY;
     }
@@ -335,7 +335,7 @@ public interface BuiltinFunctions extends Function.Library
   class DoubleArray extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE_ARRAY;
     }
@@ -1043,9 +1043,9 @@ public interface BuiltinFunctions extends Function.Library
         return new Child()
         {
           @Override
-          public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
           {
-            ValueDesc param = args.get(0).type(bindings);
+            ValueDesc param = args.get(0).resolve(bindings);
             return param.isNumeric() ? ValueDesc.LONG : param;
           }
 
@@ -1073,9 +1073,9 @@ public interface BuiltinFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
-          ValueDesc param = args.get(0).type(bindings);
+          ValueDesc param = args.get(0).resolve(bindings);
           return param.isNumeric() ? ValueDesc.DOUBLE : param;
         }
 
@@ -1423,7 +1423,7 @@ public interface BuiltinFunctions extends Function.Library
   final class IfFunc extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() < 3) {
         throw new RuntimeException("function 'if' needs at least 3 argument");
@@ -1433,12 +1433,12 @@ public interface BuiltinFunctions extends Function.Library
       }
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        prev = ValueDesc.toCommonType(prev, args.get(i).resolve(bindings));
         if (prev.equals(ValueDesc.UNKNOWN)) {
           return ValueDesc.UNKNOWN;
         }
       }
-      return ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
+      return ValueDesc.toCommonType(prev, args.get(args.size() - 1).resolve(bindings));
     }
 
     @Override
@@ -1473,7 +1473,7 @@ public interface BuiltinFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return castTo;
         }
@@ -1512,13 +1512,13 @@ public interface BuiltinFunctions extends Function.Library
   final class NvlFunc extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() != 2) {
         throw new RuntimeException("function 'nvl' needs 2 arguments");
       }
-      ValueDesc x = args.get(0).type(bindings);
-      ValueDesc y = args.get(1).type(bindings);
+      ValueDesc x = args.get(0).resolve(bindings);
+      ValueDesc y = args.get(1).resolve(bindings);
 
       // hate this..
       return ValueDesc.toCommonType(x, y);
@@ -1542,14 +1542,14 @@ public interface BuiltinFunctions extends Function.Library
   final class Coalesce extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.isEmpty()) {
         throw new RuntimeException("function 'coalesce' needs at least 1 argument");
       }
-      ValueDesc x = args.get(0).type(bindings);
+      ValueDesc x = args.get(0).resolve(bindings);
       for (int i = 1; i < args.size(); i++) {
-        x = ValueDesc.toCommonType(x, args.get(1).type(bindings));
+        x = ValueDesc.toCommonType(x, args.get(1).resolve(bindings));
       }
       return x;
     }
@@ -1572,7 +1572,7 @@ public interface BuiltinFunctions extends Function.Library
   final class DateDiffFunc extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() < 2) {
         throw new RuntimeException("function 'datediff' need at least 2 arguments");
@@ -1596,20 +1596,20 @@ public interface BuiltinFunctions extends Function.Library
   final class SwitchFunc extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() < 3) {
         throw new RuntimeException("function 'switch' needs at least 3 arguments");
       }
       ValueDesc prev = null;
       for (int i = 2; i < args.size(); i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        prev = ValueDesc.toCommonType(prev, args.get(i).resolve(bindings));
         if (prev.equals(ValueDesc.UNKNOWN)) {
           return ValueDesc.UNKNOWN;
         }
       }
       if (args.size() % 2 != 1) {
-        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).resolve(bindings));
       }
       return prev;
     }
@@ -1637,20 +1637,20 @@ public interface BuiltinFunctions extends Function.Library
   final class CaseFunc extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() < 2) {
         throw new RuntimeException("function 'case' needs at least 2 arguments");
       }
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        prev = ValueDesc.toCommonType(prev, args.get(i).resolve(bindings));
         if (prev.equals(ValueDesc.UNKNOWN)) {
           return ValueDesc.UNKNOWN;
         }
       }
       if (args.size() % 2 == 1) {
-        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).resolve(bindings));
       }
       return prev;
     }
@@ -2159,7 +2159,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Struct extends Function.NamedFunction
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.STRUCT;
     }
@@ -2199,7 +2199,7 @@ public interface BuiltinFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return type;
         }
@@ -2294,7 +2294,7 @@ public interface BuiltinFunctions extends Function.Library
     {
       if (args.size() > 0) {
         fieldName = Evals.getIdentifier(args.get(0));   // todo can be expression
-        fieldType = context.type(fieldName);
+        fieldType = context.resolve(fieldName);
         parameters = Evals.getConstants(args.subList(1, args.size()));
       } else {
         fieldName = "$$$";
@@ -2304,10 +2304,10 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       if (args.size() > 0) {
-        return bindings.type(Evals.getIdentifier(args.get(0)));
+        return bindings.resolve(Evals.getIdentifier(args.get(0)));
       }
       return ValueDesc.UNKNOWN;
     }
@@ -2550,7 +2550,7 @@ public interface BuiltinFunctions extends Function.Library
     private double doubleSum;
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       ValueDesc type = super.apply(args, bindings);
       return type.type() == ValueType.FLOAT ? ValueDesc.DOUBLE : type;
@@ -2650,7 +2650,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RowNum extends PartitionFunction implements Factory
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }
@@ -2669,7 +2669,7 @@ public interface BuiltinFunctions extends Function.Library
     private Object prev;
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }
@@ -2700,7 +2700,7 @@ public interface BuiltinFunctions extends Function.Library
     private Object prev;
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }
@@ -2730,7 +2730,7 @@ public interface BuiltinFunctions extends Function.Library
     private int count;
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE;
     }
@@ -2763,7 +2763,7 @@ public interface BuiltinFunctions extends Function.Library
     double nvariance; // sum[x-avg^2] (this is actually n times of the variance)
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE;
     }
@@ -2944,7 +2944,7 @@ public interface BuiltinFunctions extends Function.Library
     private double[] doubles;
 
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.MAP;
     }
@@ -3094,7 +3094,7 @@ public interface BuiltinFunctions extends Function.Library
   final class PartitionSize extends PartitionFunction implements Factory
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }

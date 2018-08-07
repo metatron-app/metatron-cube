@@ -27,16 +27,21 @@ import java.util.Map;
  */
 public interface TypeResolver
 {
-  ValueDesc resolveColumn(String column);
+  ValueDesc resolve(String column);
 
-  ValueDesc resolveColumn(String column, ValueDesc defaultType);
+  ValueDesc resolve(String column, ValueDesc defaultType);
+
+  interface Resolvable
+  {
+    ValueDesc resolve(TypeResolver bindings);
+  }
 
   abstract class Abstract implements TypeResolver
   {
     @Override
-    public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+    public ValueDesc resolve(String column, ValueDesc defaultType)
     {
-      return Optional.fromNullable(resolveColumn(column)).or(defaultType);
+      return Optional.fromNullable(resolve(column)).or(defaultType);
     }
   }
 
@@ -47,7 +52,7 @@ public interface TypeResolver
     public WithMap(Map<String, ValueDesc> mapping) {this.mapping = mapping;}
 
     @Override
-    public ValueDesc resolveColumn(String column)
+    public ValueDesc resolve(String column)
     {
       return mapping.get(column);
     }

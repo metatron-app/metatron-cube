@@ -23,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -65,6 +68,12 @@ public class ConstantPostAggregator implements PostAggregator
         return 0;
       }
     };
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return RowResolver.toValueType(constantValue);
   }
 
   @Override
@@ -111,7 +120,7 @@ public class ConstantPostAggregator implements PostAggregator
       if (constantValue.doubleValue() != that.constantValue.doubleValue()) {
         return false;
       }
-    } else if (constantValue != that.constantValue) {
+    } else if (!constantValue.equals(that.constantValue)) {
       return false;
     }
 
@@ -129,5 +138,4 @@ public class ConstantPostAggregator implements PostAggregator
     result = 31 * result + (constantValue != null ? constantValue.hashCode() : 0);
     return result;
   }
-
 }

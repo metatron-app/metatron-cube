@@ -159,7 +159,7 @@ public class Schema implements TypeResolver, RowSignature
   }
 
   @Override
-  public ValueDesc resolveColumn(String column)
+  public ValueDesc resolve(String column)
   {
     int index = dimensionNames.indexOf(column);
     if (index < 0) {
@@ -169,9 +169,9 @@ public class Schema implements TypeResolver, RowSignature
   }
 
   @Override
-  public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+  public ValueDesc resolve(String column, ValueDesc defaultType)
   {
-    return Optional.fromNullable(resolveColumn(column)).or(defaultType);
+    return Optional.fromNullable(resolve(column)).or(defaultType);
   }
 
   public Schema appendTime()
@@ -225,8 +225,8 @@ public class Schema implements TypeResolver, RowSignature
     }
     List<ValueDesc> mergedTypes = Lists.newArrayList();
     for (String columnName : Iterables.concat(mergedDimensions, mergedMetrics)) {
-      ValueDesc type1 = resolveColumn(columnName);
-      ValueDesc type2 = other.resolveColumn(columnName);
+      ValueDesc type1 = resolve(columnName);
+      ValueDesc type2 = other.resolve(columnName);
       if (!type1.equals(type2)) {
         ValueDesc type = merged.get(columnName);
         mergedTypes.add(type == null ? ValueDesc.UNKNOWN : type);
@@ -309,11 +309,11 @@ public class Schema implements TypeResolver, RowSignature
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     for (String dimension : resolver.getDimensionNames()) {
       dimensionNames.add(dimension);
-      columnTypes.add(resolver.resolveColumn(dimension));
+      columnTypes.add(resolver.resolve(dimension));
     }
     for (String metric : resolver.getMetricNames()) {
       metricNames.add(metric);
-      columnTypes.add(resolver.resolveColumn(metric));
+      columnTypes.add(resolver.resolve(metric));
       aggregators.add(resolver.getAggregators().get(metric));
     }
     return new Schema(dimensionNames, metricNames, columnTypes, aggregators, resolver.getDescriptors());

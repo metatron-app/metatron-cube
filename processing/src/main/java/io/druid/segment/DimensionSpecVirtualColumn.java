@@ -119,7 +119,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.equals(outputName));
-    ValueDesc valueDesc = dimensionSpec.resolveType(types);
+    ValueDesc valueDesc = dimensionSpec.resolve(types);
     if (ValueDesc.isDimension(valueDesc)) {
       return ValueDesc.ofMultiValued(valueDesc.subElement());
     }

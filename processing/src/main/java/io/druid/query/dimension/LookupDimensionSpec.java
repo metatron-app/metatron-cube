@@ -112,7 +112,7 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public ValueDesc resolveType(TypeResolver resolver)
+  public ValueDesc resolve(TypeResolver resolver)
   {
     return ValueDesc.STRING;
   }

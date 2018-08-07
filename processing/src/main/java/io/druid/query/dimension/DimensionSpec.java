@@ -39,13 +39,12 @@ import io.druid.segment.DimensionSelector;
     @JsonSubTypes.Type(name = "expression", value = ExpressionDimensionSpec.class),
     @JsonSubTypes.Type(name = "withOrdering", value = DimensionSpecWithOrdering.class)
 })
-public interface DimensionSpec extends Cacheable
+public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
 {
   String getDimension();
 
   String getOutputName();
 
-  ValueDesc resolveType(TypeResolver resolver);
   //ExtractionFn can be implemented with decorate(..) fn
   ExtractionFn getExtractionFn();
 
@@ -56,10 +55,10 @@ public interface DimensionSpec extends Cacheable
   abstract class Abstract implements DimensionSpec
   {
     @Override
-    public ValueDesc resolveType(TypeResolver resolver)
+    public ValueDesc resolve(TypeResolver resolver)
     {
       // dimension : dimensions, __time, not-existing or virtual columns
-      ValueDesc resolved = resolver.resolveColumn(getDimension(), ValueDesc.STRING);
+      ValueDesc resolved = resolver.resolve(getDimension(), ValueDesc.STRING);
       return ValueDesc.isUnknown(resolved) && getExtractionFn() != null ? ValueDesc.STRING : resolved;
     }
   }

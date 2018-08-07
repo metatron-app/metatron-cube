@@ -94,12 +94,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       return ValueDesc.STRING;
     }
     if (valueMetrics.contains(column)) {
-      return ValueDesc.elementOfArray(types.resolveColumn(column), ValueDesc.UNKNOWN);
+      return ValueDesc.elementOfArray(types.resolve(column), ValueDesc.UNKNOWN);
     }
     if (outputName.equals(column)) {
-      return ValueDesc.subElementOf(types.resolveColumn(keyDimension), ValueDesc.UNKNOWN);
+      return ValueDesc.subElementOf(types.resolve(keyDimension), ValueDesc.UNKNOWN);
     }
-    return types.resolveColumn(column);
+    return types.resolve(column);
   }
 
   @Override

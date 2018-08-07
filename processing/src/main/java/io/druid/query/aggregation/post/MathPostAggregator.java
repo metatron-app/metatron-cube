@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -95,6 +97,12 @@ public class MathPostAggregator implements DecoratingPostAggregator
   public Comparator getComparator()
   {
     return comparator;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver resolver)
+  {
+    return parsed.resolve(resolver);
   }
 
   @Override

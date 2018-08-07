@@ -404,7 +404,7 @@ public class Queries
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
       return null;
     }
-    ValueDesc type = dimensionSpec.resolveType(supplier.get());
+    ValueDesc type = dimensionSpec.resolve(supplier.get());
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }

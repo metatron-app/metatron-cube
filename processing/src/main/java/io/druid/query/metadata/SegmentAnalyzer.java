@@ -70,7 +70,7 @@ public class SegmentAnalyzer
       if (!predicate.include(columnName)) {
         continue;
       }
-      ValueDesc valueDesc = resolver.resolveColumn(columnName);
+      ValueDesc valueDesc = resolver.resolve(columnName);
       if (valueDesc == null) {
         continue;
       }

@@ -20,9 +20,9 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr.NumericBinding;
-import io.druid.math.expr.Expr.TypeBinding;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -36,7 +36,7 @@ public interface Function
 {
   String name();
 
-  ValueDesc apply(List<Expr> args, TypeBinding bindings);
+  ValueDesc apply(List<Expr> args, TypeResolver bindings);
 
   ExprEval apply(List<Expr> args, NumericBinding bindings);
 
@@ -96,7 +96,7 @@ public interface Function
     public abstract class ExternalChild extends Child implements External
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.UNKNOWN;
       }
@@ -105,7 +105,7 @@ public interface Function
     public abstract class StringChild extends Child
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.STRING;
       }
@@ -114,7 +114,7 @@ public interface Function
     public abstract class LongChild extends Child
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.LONG;
       }
@@ -123,7 +123,7 @@ public interface Function
     public abstract class DoubleChild extends Child
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.DOUBLE;
       }
@@ -132,7 +132,7 @@ public interface Function
     public abstract class IndecisiveChild extends Child
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.UNKNOWN;
       }
@@ -141,7 +141,7 @@ public interface Function
     public abstract class DateTimeChild extends Child
     {
       @Override
-      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
         return ValueDesc.DATETIME;
       }
@@ -177,7 +177,7 @@ public interface Function
   abstract class StringOut extends NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.STRING;
     }
@@ -186,7 +186,7 @@ public interface Function
   abstract class LongOut extends NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.LONG;
     }
@@ -195,7 +195,7 @@ public interface Function
   abstract class DoubleOut extends NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE;
     }
@@ -204,7 +204,7 @@ public interface Function
   abstract class DateTimeOut extends NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DATETIME;
     }
@@ -213,7 +213,7 @@ public interface Function
   abstract class IndecisiveOut extends NamedFunction
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.UNKNOWN;
     }

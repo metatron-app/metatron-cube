@@ -165,13 +165,13 @@ public class SelectMetaQueryEngine
     final List<ValueDesc> columnTypes = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       if (dimensionSpec.getExtractionFn() == null) {
-        columnTypes.add(dimensionSpec.resolveType(resolver));
+        columnTypes.add(dimensionSpec.resolve(resolver));
       } else {
         columnTypes.add(ValueDesc.STRING);
       }
     }
     for (String metric : metrics) {
-      columnTypes.add(resolver.resolveColumn(metric, ValueDesc.UNKNOWN));
+      columnTypes.add(resolver.resolve(metric, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     Map<String, AggregatorFactory> factoryMap = resolver.getAggregators();

@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.data.TypeResolver;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
@@ -28,7 +29,7 @@ import java.util.Set;
 /**
  * Functionally similar to an Aggregator. See the Aggregator interface for more comments.
  */
-public interface PostAggregator
+public interface PostAggregator extends TypeResolver.Resolvable
 {
   public Set<String> getDependentFields();
 

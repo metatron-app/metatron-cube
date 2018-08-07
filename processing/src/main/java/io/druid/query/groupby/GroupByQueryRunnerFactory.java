@@ -119,7 +119,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
   {
     List<ValueType> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      ValueDesc type = dimensionSpec.resolveType(resolver.get());
+      ValueDesc type = dimensionSpec.resolve(resolver.get());
       if (ValueDesc.isDimension(type)) {
         types.add(ValueType.of(type.subElement().typeName()));
       } else if (ValueDesc.isPrimitive(type)) {
@@ -183,7 +183,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     }
     logger.info("split on values : %s", Arrays.toString(values));
 
-    ValueDesc type = dimensionSpec.resolveType(resolver.get());
+    ValueDesc type = dimensionSpec.resolve(resolver.get());
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }

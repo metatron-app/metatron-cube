@@ -29,6 +29,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import org.apache.commons.lang.StringUtils;
@@ -305,7 +306,7 @@ public class Evals
     }
 
     @Override
-    public ValueDesc type(TypeBinding bindings)
+    public ValueDesc resolve(TypeResolver bindings)
     {
       return eval.type();
     }

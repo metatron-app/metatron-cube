@@ -350,12 +350,12 @@ public class Parser
     };
   }
 
-  public static Expr.TypeBinding withTypeMap(final Map<String, ValueDesc> bindings)
+  public static TypeResolver withTypeMap(final Map<String, ValueDesc> bindings)
   {
-    return new Expr.TypeBinding()
+    return new TypeResolver.Abstract()
     {
       @Override
-      public ValueDesc type(String name)
+      public ValueDesc resolve(String name)
       {
         ValueDesc type = bindings.get(name);
         return type == null ? ValueDesc.UNKNOWN : type;
@@ -363,12 +363,12 @@ public class Parser
     };
   }
 
-  public static Expr.TypeBinding withTypeSuppliers(final Map<String, DSuppliers.TypedSupplier> bindings)
+  public static TypeResolver withTypeSuppliers(final Map<String, DSuppliers.TypedSupplier> bindings)
   {
-    return new Expr.TypeBinding()
+    return new TypeResolver.Abstract()
     {
       @Override
-      public ValueDesc type(String name)
+      public ValueDesc resolve(String name)
       {
         DSuppliers.Typed supplier = bindings.get(name);
         return supplier == null ? ValueDesc.UNKNOWN : supplier.type();
@@ -376,14 +376,14 @@ public class Parser
     };
   }
 
-  public static Expr.TypeBinding withTypes(final TypeResolver bindings)
+  public static TypeResolver withTypes(final TypeResolver bindings)
   {
-    return new Expr.TypeBinding()
+    return new TypeResolver.Abstract()
     {
       @Override
-      public ValueDesc type(String name)
+      public ValueDesc resolve(String name)
       {
-        return bindings.resolveColumn(name, ValueDesc.UNKNOWN);
+        return bindings.resolve(name, ValueDesc.UNKNOWN);
       }
     };
   }

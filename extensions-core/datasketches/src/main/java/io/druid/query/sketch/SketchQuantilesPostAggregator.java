@@ -26,6 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Ordering;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -122,6 +124,21 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   public Comparator getComparator()
   {
     return Ordering.natural();
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    switch (op) {
+      case QUANTILES: return parameter instanceof Number ? ValueDesc.DOUBLE : ValueDesc.DOUBLE_ARRAY;
+      case CDF: return ValueDesc.DOUBLE_ARRAY;
+      case PMF: return ValueDesc.DOUBLE_ARRAY;
+      case QUANTILES_CDF: return ValueDesc.UNKNOWN;
+      case QUANTILES_PMF: return ValueDesc.UNKNOWN;
+      case IQR: return ValueDesc.DOUBLE;
+      default:
+        throw new IllegalArgumentException("invalid op " + op);
+    }
   }
 
   @Override

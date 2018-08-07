@@ -22,6 +22,8 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
@@ -39,6 +41,12 @@ public class MedianPostAggregator extends ApproximateHistogramPostAggregator
   )
   {
     super(name, fieldName);
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.FLOAT;
   }
 
   @Override

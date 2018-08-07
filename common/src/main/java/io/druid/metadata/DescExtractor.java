@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -176,7 +177,7 @@ public enum DescExtractor
             }
 
             @Override
-            public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+            public ValueDesc apply(List<Expr> args, TypeResolver bindings)
             {
               return ValueDesc.STRING;
             }
@@ -240,7 +241,7 @@ public enum DescExtractor
         }
 
         @Override
-        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           return ValueDesc.STRING;
         }

@@ -42,6 +42,7 @@ import io.druid.math.expr.Expression.RelationExpression;
 import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
@@ -169,11 +170,15 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   {
     Preconditions.checkArgument(!(query.getDataSource() instanceof ViewDataSource), "fix this");
     List<AggregatorFactory> aggregatorFactories = Lists.newArrayList();
+    List<PostAggregator> postAggregators = Lists.newArrayList();
     if (query instanceof Query.AggregationsSupport) {
       aggregatorFactories = ((Query.AggregationsSupport<?>)query).getAggregatorSpecs();
     }
+    if (query instanceof Query.AggregationsSupport) {
+      postAggregators = ((Query.AggregationsSupport<?>)query).getPostAggregatorSpecs();
+    }
     VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    return new RowResolver(query.getDimensions(), aggregatorFactories, vcs);
+    return new RowResolver(query.getDimensions(), aggregatorFactories, postAggregators, vcs);
   }
 
   public static Class<?> toClass(ValueDesc valueDesc)
@@ -231,7 +236,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     } else if (clazz == DateTime.class) {
       return ValueDesc.DATETIME;
     } else if (clazz == BigDecimal.class) {
-      return ValueDesc.DECIMAL;
+      return object == null ? ValueDesc.DECIMAL : ValueDesc.ofDecimal((BigDecimal) object);
     } else if (Map.class.isAssignableFrom(clazz)) {
       return ValueDesc.MAP;
     } else if (List.class.isAssignableFrom(clazz)) {
@@ -302,7 +307,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     virtualColumns.addImplicitVCs(this);
   }
 
-  private RowResolver(List<DimensionSpec> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
+  private RowResolver(
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> metrics,
+      List<PostAggregator> postAggregators,
+      VirtualColumns virtualColumns
+  )
   {
     this.dimensionNames = Lists.newArrayList();
     this.metricNames = Lists.newArrayList();
@@ -316,10 +326,13 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     for (AggregatorFactory metric : metrics) {
       columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
     }
+    for (PostAggregator postAggregator : postAggregators) {
+      columnTypes.put(postAggregator.getName(), postAggregator.resolve(this));
+    }
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     for (DimensionSpec dimension : dimensions) {
       if (dimension.getExtractionFn() == null) {
-        columnTypes.put(dimension.getOutputName(), dimension.resolveType(this));
+        columnTypes.put(dimension.getOutputName(), dimension.resolve(this));
       }
     }
     virtualColumns.addImplicitVCs(this);
@@ -430,17 +443,17 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   @Override
   public ValueDesc apply(String input)
   {
-    return resolveColumn(input);
+    return resolve(input);
   }
 
   @Override
-  public ValueDesc resolveColumn(String column)
+  public ValueDesc resolve(String column)
   {
-    return resolveColumn(column, null);
+    return resolve(column, null);
   }
 
   @Override
-  public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+  public ValueDesc resolve(String column, ValueDesc defaultType)
   {
     ValueDesc columnType = columnTypes.get(column);
     if (columnType != null) {
@@ -463,7 +476,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   public VirtualColumn resolveVC(String column)
   {
-    if (resolveColumn(column) == null) {
+    if (resolve(column) == null) {
       return null;
     }
     Pair<VirtualColumn, ValueDesc> resolved = virtualColumnTypes.get(column);
@@ -597,7 +610,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     final List<ValueDesc> metricTypes = Lists.newArrayList();
     final List<AggregatorFactory> aggregators = Lists.newArrayList();
     for (String column : columns) {
-      ValueDesc resolved = resolveColumn(column, ValueDesc.UNKNOWN);
+      ValueDesc resolved = resolve(column, ValueDesc.UNKNOWN);
       if (ValueDesc.isDimension(resolved)) {
         dimensions.add(column);
         dimensionTypes.add(resolved);
@@ -621,7 +634,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   {
     List<ValueDesc> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      types.add(dimensionSpec.resolveType(this));
+      types.add(dimensionSpec.resolve(this));
     }
     return types;
   }

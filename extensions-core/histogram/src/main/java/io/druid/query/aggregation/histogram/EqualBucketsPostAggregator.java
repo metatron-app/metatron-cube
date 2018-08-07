@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
 import java.util.Map;
@@ -54,6 +56,12 @@ public class EqualBucketsPostAggregator extends ApproximateHistogramPostAggregat
   public Set<String> getDependentFields()
   {
     return Sets.newHashSet(fieldName);
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.UNKNOWN;   // has no complex serde
   }
 
   @Override

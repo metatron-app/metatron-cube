@@ -26,6 +26,8 @@ import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.Util;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -77,6 +79,12 @@ public class SketchSetPostAggregator implements PostAggregator
   public Comparator<Sketch> getComparator()
   {
     return SketchAggregatorFactory.COMPARATOR;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.of(SketchModule.THETA_SKETCH);
   }
 
   @Override

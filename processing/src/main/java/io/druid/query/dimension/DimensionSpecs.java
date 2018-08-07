@@ -60,7 +60,7 @@ public class DimensionSpecs
     RowResolver resolver = RowResolver.outOf(query);
     List<ValueDesc> dimensionTypes = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      dimensionTypes.add(dimensionSpec.resolveType(resolver));
+      dimensionTypes.add(dimensionSpec.resolve(resolver));
     }
     return dimensionTypes;
   }

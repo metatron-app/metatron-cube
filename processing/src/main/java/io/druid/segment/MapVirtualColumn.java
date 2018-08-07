@@ -83,7 +83,7 @@ public class MapVirtualColumn implements VirtualColumn
     if (valueDimension != null) {
       return ValueDesc.STRING;
     }
-    return ValueDesc.elementOfArray(types.resolveColumn(valueMetric), ValueDesc.UNKNOWN);
+    return ValueDesc.elementOfArray(types.resolve(valueMetric), ValueDesc.UNKNOWN);
   }
 
   @Override

@@ -26,6 +26,8 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -78,6 +80,12 @@ public class SketchEstimatePostAggregator implements PostAggregator
         }
       };
     }
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return errorBoundsStdDev == null ? ValueDesc.DOUBLE_ARRAY : ValueDesc.UNKNOWN;
   }
 
   @Override

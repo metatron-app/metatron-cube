@@ -26,6 +26,7 @@ import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
@@ -56,6 +57,9 @@ public class ExprEval extends Pair<Object, ValueDesc>
       }
       if (val instanceof Float) {
         return ExprEval.of(((Number)val).floatValue(), ValueDesc.FLOAT);
+      }
+      if (val instanceof BigDecimal) {
+        return ExprEval.of(val, ValueDesc.ofDecimal((BigDecimal) val));
       }
       return ExprEval.of(((Number)val).doubleValue(), ValueDesc.DOUBLE);
     }

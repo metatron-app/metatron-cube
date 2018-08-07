@@ -75,7 +75,7 @@ public interface ColumnSelectorFactory
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
       }
-      final ValueDesc expected = parsed.type(Parser.withTypeSuppliers(values));
+      final ValueDesc expected = parsed.resolve(Parser.withTypeSuppliers(values));
       final Expr.NumericBinding binding = Parser.withSuppliers(
           Maps.transformValues(
               values,

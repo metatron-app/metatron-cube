@@ -61,14 +61,14 @@ public class ArrayVirtualColumn implements VirtualColumn
   {
     Preconditions.checkArgument(column.startsWith(outputName));
     if (column.equals(columnName)) {
-      return types.resolveColumn(columnName);
+      return types.resolve(columnName);
     }
     int index = column.indexOf('.', outputName.length());
     final Integer access = Ints.tryParse(column.substring(index + 1));
     if (access == null || access < 0) {
       throw new IllegalArgumentException("expects index attached in " + column);
     }
-    ValueDesc valueDesc = types.resolveColumn(columnName);
+    ValueDesc valueDesc = types.resolve(columnName);
     if (ValueDesc.isArray(valueDesc)) {
       return ValueDesc.subElementOf(valueDesc, ValueDesc.UNKNOWN);
     }

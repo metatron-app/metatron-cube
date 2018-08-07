@@ -19,9 +19,9 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 
 import java.util.Arrays;
@@ -31,10 +31,8 @@ import java.util.Objects;
 
 /**
  */
-public interface Expr extends Expression
+public interface Expr extends Expression, TypeResolver.Resolvable
 {
-  ValueDesc type(TypeBinding bindings);
-
   ExprEval eval(NumericBinding bindings);
 
   interface NumericBinding
@@ -44,12 +42,7 @@ public interface Expr extends Expression
     Object get(String name);
   }
 
-  interface TypeBinding
-  {
-    ValueDesc type(String name);
-  }
-
-  interface WindowContext extends NumericBinding, TypeBinding
+  interface WindowContext extends NumericBinding, TypeResolver
   {
     List<String> partitionColumns();
     Object get(int index, String name);
@@ -85,7 +78,7 @@ class LongExpr implements Constant
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     return ValueDesc.LONG;
   }
@@ -119,7 +112,7 @@ class StringExpr implements Constant
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     return ValueDesc.STRING;
   }
@@ -153,7 +146,7 @@ class FloatExpr implements Constant
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     return ValueDesc.FLOAT;
   }
@@ -187,7 +180,7 @@ class DoubleExpr implements Constant
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     return ValueDesc.DOUBLE;
   }
@@ -221,9 +214,9 @@ class IdentifierExpr implements Expr
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    return Optional.fromNullable(bindings.type(value)).or(ValueDesc.UNKNOWN);
+    return bindings.resolve(value, ValueDesc.UNKNOWN);
   }
 
   @Override
@@ -251,7 +244,7 @@ class AssignExpr implements Expr
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     throw new IllegalStateException("cannot evaluated directly");
   }
@@ -296,7 +289,7 @@ class FunctionExpr implements Expr, Expression.FuncExpression
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
     return function.apply(args, bindings);
   }
@@ -324,9 +317,9 @@ class UnaryMinusExpr implements UnaryOp
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc ret = expr.type(bindings);
+    ValueDesc ret = expr.resolve(bindings);
     return ret.isNumeric() ? ret : ValueDesc.UNKNOWN;
   }
 
@@ -363,9 +356,9 @@ class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc ret = expr.type(bindings);
+    ValueDesc ret = expr.resolve(bindings);
     return ret.isNumeric() ? ret : ValueDesc.UNKNOWN;
   }
 
@@ -446,10 +439,10 @@ abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.Fu
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.type(bindings);
-    ValueDesc rightType = right.type(bindings);
+    ValueDesc leftType = left.resolve(bindings);
+    ValueDesc rightType = right.resolve(bindings);
     if (leftType.isStringOrDimension() || rightType.isStringOrDimension()) {
       return ValueDesc.STRING;
     }
@@ -919,10 +912,10 @@ class BinAndExpr extends BinaryOp implements Expression.AndExpression
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.type(bindings);
-    ValueDesc rightType = right.type(bindings);
+    ValueDesc leftType = left.resolve(bindings);
+    ValueDesc rightType = right.resolve(bindings);
     return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
   }
 
@@ -949,10 +942,10 @@ class BinOrExpr extends BinaryOp implements Expression.OrExpression
   }
 
   @Override
-  public ValueDesc type(TypeBinding bindings)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.type(bindings);
-    ValueDesc rightType = right.type(bindings);
+    ValueDesc leftType = left.resolve(bindings);
+    ValueDesc rightType = right.resolve(bindings);
     return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
   }
 

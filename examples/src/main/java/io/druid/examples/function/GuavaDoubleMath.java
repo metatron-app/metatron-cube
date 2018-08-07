@@ -21,6 +21,7 @@ package io.druid.examples.function;
 
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Expr;
@@ -53,7 +54,7 @@ public class GuavaDoubleMath implements Function.Library
   public static class FuzzyCompare extends BuiltinFunctions.TripleParam
   {
     @Override
-    public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE;
     }
