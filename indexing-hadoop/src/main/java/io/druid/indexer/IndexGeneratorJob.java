@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.ThreadRenamingRunnable;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.InputRow;
@@ -645,9 +646,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
           limit << 1
       );
       try {
-        File baseFlushFile = File.createTempFile("base", "flush");
-        baseFlushFile.delete();
-        baseFlushFile.mkdirs();
+        File baseFlushFile = GuavaUtils.createTemporaryDirectory("base", "flush");
 
         Set<File> toMerge = Sets.newTreeSet();
         int indexCount = 0;

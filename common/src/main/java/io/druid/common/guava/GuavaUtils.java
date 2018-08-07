@@ -492,4 +492,12 @@ public class GuavaUtils
       return delegate instanceof Progressing ? ((Progressing) delegate).progress() : hasNext() ? 0 : 1;
     }
   }
+
+  public static File createTemporaryDirectory(String prefix, String suffix) throws IOException
+  {
+    File output = File.createTempFile(prefix, suffix);
+    output.delete();
+    output.mkdirs();
+    return output;
+  }
 }

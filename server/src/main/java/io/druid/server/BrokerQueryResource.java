@@ -435,14 +435,10 @@ public class BrokerQueryResource extends QueryResource
       forwardContext.put("registerTable", true);
       forwardContext.put("temporary", temporary == null || temporary);
 
-      File output = File.createTempFile("__druid_broker-", "-file_loader");
-      output.delete();
-      output.mkdirs();
-
       final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
           ImmutableMap.<String, Object>of(
               BaseQuery.QUERYID, UUID.randomUUID().toString(),
-              Query.FORWARD_URL, "file://" + output.getAbsolutePath(),
+              Query.FORWARD_URL, "file:///__temporary",
               Query.FORWARD_CONTEXT, forwardContext,
               QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
           )

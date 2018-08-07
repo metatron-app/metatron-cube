@@ -39,6 +39,7 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.concurrent.Execs;
@@ -93,6 +94,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -603,11 +605,16 @@ public class QueryResource
         URI rewritten = uri;
         try {
           if (PropUtils.parseBoolean(forwardContext, Query.LOCAL_POST_PROCESSING)) {
-            rewritten = rewriteURI(uri, scheme, null, uri.getPath() + "/" + node.toPathName());
+            rewritten = rewriteURI(rewritten, scheme, null, rewritten.getPath() + "/" + node.toPathName());
           }
           if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
-            rewritten = rewriteURI(uri, scheme, node, null);
+            rewritten = rewriteURI(rewritten, scheme, node, null);
           }
+          if (Formatters.isIndexFormat(forwardContext) && "/__temporary".equals(rewritten.getPath())) {
+            File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
+            rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
+          }
+
           final TabularFormat input = toTabularFormat(removeForwardContext(query), responseContext);
           final Map<String, Object> result = writer.write(rewritten, input, forwardContext);
           return wrapForwardResult(query, forwardContext, result);

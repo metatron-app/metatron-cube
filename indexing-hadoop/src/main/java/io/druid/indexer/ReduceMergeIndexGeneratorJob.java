@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.CompressionUtils;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.path.HynixCombineInputFormat;
@@ -227,9 +228,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       shufflingFS.mkdirs(shufflingPath);
 
-      baseFlushFile = File.createTempFile("base", "flush");
-      baseFlushFile.delete();
-      baseFlushFile.mkdirs();
+      baseFlushFile = GuavaUtils.createTemporaryDirectory("base", "flush");
 
       progressIndicator = new BaseProgressIndicator()
       {
@@ -550,9 +549,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       outputFS = new Path(config.getSchema().getIOConfig().getSegmentOutputPath())
           .getFileSystem(context.getConfiguration());
 
-      baseFlushFile = File.createTempFile("base", "flush");
-      baseFlushFile.delete();
-      baseFlushFile.mkdirs();
+      baseFlushFile = GuavaUtils.createTemporaryDirectory("base", "flush");
 
       shufflingFS = config.makeShuffleDir().getFileSystem(context.getConfiguration());
 

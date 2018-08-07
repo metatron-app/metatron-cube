@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -176,9 +177,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       outputFS = new Path(config.getSchema().getIOConfig().getSegmentOutputPath())
           .getFileSystem(context.getConfiguration());
 
-      baseFlushFile = File.createTempFile("base", "flush");
-      baseFlushFile.delete();
-      baseFlushFile.mkdirs();
+      baseFlushFile = GuavaUtils.createTemporaryDirectory("base", "flush");
 
       progressIndicator = new BaseProgressIndicator()
       {
