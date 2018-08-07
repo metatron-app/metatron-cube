@@ -78,6 +78,11 @@ public class Evaluation
     );
   }
 
+  public Evaluation(String outputName, String expression)
+  {
+    this(outputName, expression, null);
+  }
+
   @JsonProperty
   public String getOutputName()
   {

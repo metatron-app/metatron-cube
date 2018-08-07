@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
@@ -86,8 +87,8 @@ public class DataSchema
     } else {
       this.granularitySpec = granularitySpec;
     }
-    this.evaluations = evaluations;
-    this.validations = validations;
+    this.evaluations = evaluations == null ? ImmutableList.<Evaluation>of() : evaluations;
+    this.validations = validations == null ? ImmutableList.<Validation>of() : validations;
   }
 
   @VisibleForTesting

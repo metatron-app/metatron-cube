@@ -35,8 +35,8 @@ import java.util.Map;
  */
 public class InputRowParsers
 {
-  public static InputRowParser wrap(
-      final InputRowParser parser,
+  public static <T> InputRowParser<T> wrap(
+      final InputRowParser<T> parser,
       final AggregatorFactory[] aggregators,
       final List<Evaluation> evaluations,
       final List<Validation> validations
@@ -50,21 +50,23 @@ public class InputRowParsers
     for (DimensionSchema dimension : parser.getParseSpec().getDimensionsSpec().getDimensions()) {
       mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType()));
     }
+    for (Evaluation evaluation : evaluations) {
+      mapping.remove(evaluation.getOutputName());
+    }
     final TypeResolver resolver = new TypeResolver.WithMap(mapping);
-
     final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations, resolver);
     final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations, resolver);
 
-    return new InputRowParser.Delegated()
+    return new InputRowParser.Delegated<T>()
     {
       @Override
-      public InputRowParser getDelegate()
+      public InputRowParser<T> getDelegate()
       {
         return parser;
       }
 
       @Override
-      public InputRow parse(Object input)
+      public InputRow parse(T input)
       {
         @SuppressWarnings("unchecked")
         InputRow inputRow = parser.parse(input);

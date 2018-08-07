@@ -27,7 +27,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.parsers.ParserUtils;
-import io.druid.data.ValueType;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -42,10 +41,15 @@ public class DimensionsSpec
   private final Set<String> dimensionExclusions;
   private final Map<String, DimensionSchema> dimensionSchemaMap;
 
-  public static List<DimensionSchema> getDefaultSchemas(List<String> dimNames)
+  public static DimensionsSpec ofStringDimensions(List<String> dimensions)
+  {
+    return new DimensionsSpec(getDefaultSchemas(dimensions), null, null);
+  }
+
+  public static List<DimensionSchema> getDefaultSchemas(List<String> dimensions)
   {
     return Lists.transform(
-        dimNames,
+        dimensions,
         new Function<String, DimensionSchema>()
         {
           @Override

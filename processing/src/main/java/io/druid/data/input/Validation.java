@@ -42,11 +42,11 @@ public class Validation
     if (GuavaUtils.isNullOrEmpty(validations)) {
       return ImmutableList.of();
     }
-    List<RowEvaluator<Boolean>> evaluators = Lists.newArrayList();
+    List<RowEvaluator<Boolean>> validators = Lists.newArrayList();
     for (Validation validation : validations) {
-      evaluators.add(validation.toEvaluator(resolver));
+      validators.add(validation.toEvaluator(resolver));
     }
-    return evaluators;
+    return validators;
   }
 
   private final String columnName;
