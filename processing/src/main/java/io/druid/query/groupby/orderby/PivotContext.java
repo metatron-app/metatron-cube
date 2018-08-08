@@ -87,6 +87,7 @@ public class PivotContext
 
     final Expr.NumericBinding binding = WindowingSpec.withMap(event);
 
+    // '_' is just '_'
     for (String expression : pivotSpec.getRowExpressions()) {
       List<Integer> groupIds = Lists.newArrayList();
       Pair<Expr, Expr> assign = Evals.splitAssign(expression);

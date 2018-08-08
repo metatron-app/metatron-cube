@@ -5618,9 +5618,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     columnNames = new String[]{
         "dayOfWeek",
-        "spot", "spot-mezzanine", "spot-premium",
-        "total_market", "total_market-mezzanine", "total_market-premium",
-        "upfront", "upfront-mezzanine", "upfront-premium"
+        "spot-", "spot-mezzanine", "spot-premium",
+        "total_market-", "total_market-mezzanine", "total_market-premium",
+        "upfront-", "upfront-mezzanine", "upfront-premium"
     };
 
     expectedResults = createExpectedRows(
@@ -5666,9 +5666,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     columnNames = new String[]{
         "dayOfWeek",
-        "spot-index", "spot-mezzanine-index", "spot-premium-index",
-        "total_market-index", "total_market-mezzanine-index", "total_market-premium-index",
-        "upfront-index", "upfront-mezzanine-index", "upfront-premium-index"
+        "spot--index", "spot-mezzanine-index", "spot-premium-index",
+        "total_market--index", "total_market-mezzanine-index", "total_market-premium-index",
+        "upfront--index", "upfront-mezzanine-index", "upfront-premium-index"
     };
 
     expectedResults = createExpectedRows(
@@ -5710,9 +5710,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     columnNames = new String[]{
         "dayOfWeek",
-        "spot", "spot-mezzanine", "spot-premium",
-        "total_market", "total_market-mezzanine", "total_market-premium",
-        "upfront", "upfront-mezzanine", "upfront-premium",
+        "spot-", "spot-mezzanine", "spot-premium",
+        "total_market-", "total_market-mezzanine", "total_market-premium",
+        "upfront-", "upfront-mezzanine", "upfront-premium",
         "spot-mezzanine.percent", "spot-premium.percent",
         "total_market-mezzanine.percent", "total_market-premium.percent",
         "upfront-mezzanine.percent", "upfront-premium.percent"
@@ -5760,9 +5760,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     columnNames = new String[]{
         "dayOfWeek",
-        "spot", "spot-mezzanine", "spot-premium",
-        "total_market", "total_market-mezzanine", "total_market-premium",
-        "upfront", "upfront-mezzanine", "upfront-premium",
+        "spot-", "spot-mezzanine", "spot-premium",
+        "total_market-", "total_market-mezzanine", "total_market-premium",
+        "upfront-", "upfront-mezzanine", "upfront-premium",
         "spot-mezzanine.percent", "spot-premium.percent",
         "total_market-mezzanine.percent", "total_market-premium.percent",
         "upfront-mezzanine.percent", "upfront-premium.percent"
@@ -5815,11 +5815,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     columnNames = new String[]{
         "dayOfWeek",
-        "spot-index", "spot-rows",
+        "spot--index", "spot--rows",
         "spot-mezzanine-index", "spot-mezzanine-rows", "spot-premium-index", "spot-premium-rows",
-        "total_market-index", "total_market-rows",
+        "total_market--index", "total_market--rows",
         "total_market-mezzanine-index", "total_market-mezzanine-rows", "total_market-premium-index", "total_market-premium-rows",
-        "upfront-index", "upfront-rows",
+        "upfront--index", "upfront--rows",
         "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows",
         "spot-mezzanine-index.percent", "spot-mezzanine-rows.percent", "spot-premium-index.percent", "spot-premium-rows.percent",
         "total_market-mezzanine-index.percent", "total_market-mezzanine-rows.percent", "total_market-premium-index.percent", "total_market-premium-rows.percent",

@@ -24,17 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Frame;
@@ -324,11 +320,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
     final String[] values = valueColumns.toArray(new String[valueColumns.size()]);
-    // '_' is just '_'
-    final List<Pair<Expr, Expr>> rowExprs = Lists.newArrayList();
-    for (String expression : rowExpressions) {
-      rowExprs.add(Evals.splitAssign(expression));
-    }
+
     // when tabularFormat = true, '_' is replaced with pivot column names
     final List<Frame> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);

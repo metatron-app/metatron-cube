@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 
 import java.util.IllegalFormatException;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -155,28 +154,20 @@ public class StringUtils extends com.metamx.common.StringUtils
     return concat;
   }
 
-  public static String concat(String delimiter, List<String> strings)
-  {
-    return concat(delimiter, strings.toArray(new String[0]));
-  }
-
   public static String concat(String delimiter, String... strings)
   {
     if (strings.length == 0) {
       return "";
     }
     if (strings.length == 1) {
-      return strings[0] == null ? "" : strings[0];
+      return Strings.nullToEmpty(strings[0]);
     }
     StringBuilder builder = new StringBuilder();
-    for (String string : strings) {
-      if (Strings.isNullOrEmpty(string)) {
-        continue;
-      }
-      if (builder.length() > 0) {
+    for (int i = 0; i < strings.length; i++) {
+      if (i > 0) {
         builder.append(delimiter);
       }
-      builder.append(string);
+      builder.append(Strings.nullToEmpty(strings[i]));
     }
     return builder.toString();
   }
