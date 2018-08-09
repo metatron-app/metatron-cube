@@ -39,6 +39,7 @@ import com.esri.core.geometry.ogc.OGCGeometry;
 import com.esri.hadoop.hive.GeometryUtils;
 import com.esri.hadoop.hive.GeometryUtils.OGCType;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -56,8 +57,8 @@ import static io.druid.query.EsriUtils.OGC_GEOMETRY_TYPE;
  */
 public interface EsriFunctions extends Function.Library
 {
-  @Function.Named("ST_GeomToText")
-  class ST_GeomToText extends Function.AbstractFactory
+  @Function.Named("ST_AsText")
+  class ST_AsText extends Function.AbstractFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -632,6 +633,46 @@ public interface EsriFunctions extends Function.Library
             return ExprEval.of(-1D);
           }
           return ExprEval.of(ogcGeom1.distance(ogcGeom2));
+        }
+      };
+    }
+  }
+
+  @Function.Named("ST_ConvexHull")
+  public class ST_ConvexHull extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+        {
+          return OGC_GEOMETRY_TYPE;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          int wkid = GeometryUtils.WKID_UNKNOWN;
+          List<Geometry> geometries = Lists.newArrayList();
+          for (Expr expr : args) {
+            OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(expr, bindings));
+            if (wkid != GeometryUtils.WKID_UNKNOWN && wkid != ogcGeometry.SRID()) {
+              return ExprEval.of(null, OGC_GEOMETRY_TYPE);
+            }
+            geometries.add(ogcGeometry.getEsriGeometry());
+            wkid = ogcGeometry.SRID();
+          }
+          Geometry[] convexHull = GeometryEngine.convexHull(geometries.toArray(new Geometry[0]), true);
+  		    if (convexHull.length == 1) {
+            SpatialReference reference = wkid == GeometryUtils.WKID_UNKNOWN ? null : SpatialReference.create(wkid);
+            return ExprEval.of(
+                OGCGeometry.createFromEsriGeometry(convexHull[0], reference), OGC_GEOMETRY_TYPE
+            );
+          }
+          return ExprEval.of(null, OGC_GEOMETRY_TYPE);
         }
       };
     }

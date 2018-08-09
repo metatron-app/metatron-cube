@@ -55,6 +55,13 @@ public class EsriFunctionsTest
     return ret.doubleValue();
   }
 
+  private String evalString(String x, Expr.NumericBinding bindings)
+  {
+    ExprEval ret = _eval(x, bindings);
+    Assert.assertEquals(ValueDesc.STRING, ret.type());
+    return ret.stringValue();
+  }
+
   private void testLong(String x, long value, Expr.NumericBinding bindings)
   {
     Assert.assertEquals(value, evalLong(x, bindings));
@@ -63,6 +70,11 @@ public class EsriFunctionsTest
   private void testDouble(String x, double value, Expr.NumericBinding bindings)
   {
     Assert.assertEquals(value, evalDouble(x, bindings), 0.0001);
+  }
+
+  private void testString(String x, String value, Expr.NumericBinding bindings)
+  {
+    Assert.assertEquals(value, evalString(x, bindings));
   }
 
   private void testGeom(String x, Geometry value, Expr.NumericBinding bindings)
@@ -79,6 +91,10 @@ public class EsriFunctionsTest
   public void testFunctions()
   {
     Expr.NumericBinding b = Parser.withMap(new HashMap<String, Object>());
+
+    testString("ST_AsText(ST_Point(1, 2))", "POINT (1 2)", b);
+    testString("ST_AsText(ST_LineString(1, 1, 2, 2, 3, 3))", "LINESTRING (1 1, 2 2, 3 3)", b);
+    testString("ST_AsText(ST_Polygon(1, 1, 1, 4, 4, 4, 4, 1))", "POLYGON ((1 1, 4 1, 4 4, 1 4, 1 1))", b);
 
     testDouble("ST_Area(ST_Polygon(1,1, 1,4, 4,4, 4,1))", 9.0, b);
     testDouble("ST_Area(ST_Polygon('polygon ((0 0, 8 0, 0 8, 0 0), (1 1, 1 5, 5 1, 1 1))'))", 24.0, b);
@@ -119,5 +135,7 @@ public class EsriFunctionsTest
 
     testDouble("ST_Length(ST_Linestring(0.0,0.0, 3.0,4.0))", 5.0, b);
     testDouble("ST_Distance(ST_Point(0.0,0.0), ST_Point(3.0,4.0))", 5.0, b);
+
+    testString("ST_AsText(ST_ConvexHull(ST_Point(0, 0), ST_Point(0, 1), ST_Point(1, 1)))", "POLYGON ((0 0, 1 1, 0 1, 0 0))", b);
   }
 }
