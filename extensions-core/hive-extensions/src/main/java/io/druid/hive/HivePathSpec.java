@@ -28,8 +28,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.HadoopDruidIndexerConfig;
-import io.druid.indexer.path.HynixPathSpec;
-import io.druid.indexer.path.HynixPathSpecElement;
+import io.druid.indexer.path.HadoopPathSpec;
+import io.druid.indexer.path.PathSpecElement;
 import io.druid.indexer.path.PathSpec;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
@@ -184,11 +184,11 @@ public class HivePathSpec implements PathSpec.Resolving
         pathSpecs.add(table.getDataLocation().toString());
       }
       logger.info("Using paths.. %s", pathSpecs);
-      List<HynixPathSpecElement> elements = Lists.newArrayList();
+      List<PathSpecElement> elements = Lists.newArrayList();
       for (String element : pathSpecs) {
-        elements.add(new HynixPathSpecElement(element, null, null, null));
+        elements.add(new PathSpecElement(element, null, null, null));
       }
-      return new HynixPathSpec(
+      return new HadoopPathSpec(
           null,
           elements,
           inputFormat,

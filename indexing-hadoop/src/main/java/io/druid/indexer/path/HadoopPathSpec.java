@@ -21,6 +21,7 @@ package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
@@ -41,21 +42,22 @@ import java.util.Objects;
 
 /**
  */
-public class HynixPathSpec implements PathSpec
+@JsonTypeName("hadoop")
+public class HadoopPathSpec implements PathSpec
 {
-  public static final int DEFAULT_SPLIT_SIZE = HynixCombineInputFormat.COMBINE_PER_ELEMENT;
+  public static final int DEFAULT_SPLIT_SIZE = HadoopCombineInputFormat.COMBINE_PER_ELEMENT;
 
-  public static final String PATH_ELEMENTS_JSON = "hynix.input.path.elements";
-  public static final String INPUT_FORMAT_OLD = "hynix.input.path.specs.format.old";
-  public static final String INPUT_FORMAT_NEW = "hynix.input.path.specs.format.new";
-  public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
+  public static final String PATH_ELEMENTS_JSON = "druid.hadoop.input.path.elements";
+  public static final String INPUT_FORMAT_OLD = "druid.hadoop.input.path.specs.format.old";
+  public static final String INPUT_FORMAT_NEW = "druid.hadoop.input.path.specs.format.new";
+  public static final String SPLIT_SIZE = "druid.hadoop.input.path.specs.split.size";
 
   public static final String FIND_RECURSIVE = FileInputFormat.INPUT_DIR_RECURSIVE;
-  public static final String EXTRACT_PARTITION = "hynix.input.path.extract.partition";
+  public static final String EXTRACT_PARTITION = "druid.hadoop.input.path.extract.partition";
 
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
-  private final List<HynixPathSpecElement> elements;
+  private final List<PathSpecElement> elements;
   private final Class inputFormat;
   private final long splitSize;
   private final boolean findRecursive;
@@ -63,9 +65,9 @@ public class HynixPathSpec implements PathSpec
   private final Map<String, Object> properties;
 
   @JsonCreator
-  public HynixPathSpec(
+  public HadoopPathSpec(
       @JsonProperty("basePath") String basePath,
-      @JsonProperty("elements") List<HynixPathSpecElement> elements,
+      @JsonProperty("elements") List<PathSpecElement> elements,
       @JsonProperty("inputFormat") Class inputFormat,
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("findRecursive") boolean findRecursive,
@@ -82,7 +84,7 @@ public class HynixPathSpec implements PathSpec
     this.properties = properties;
     Preconditions.checkArgument(!elements.isEmpty());
     Preconditions.checkArgument(basePath == null || new Path(basePath).isAbsolute());
-    for (HynixPathSpecElement element : elements) {
+    for (PathSpecElement element : elements) {
       for (String path : HadoopGlobPathSplitter.splitGlob(element.getPaths())) {
         if (basePath == null) {
           Preconditions.checkArgument(new Path(path).isAbsolute());
@@ -93,7 +95,7 @@ public class HynixPathSpec implements PathSpec
     }
   }
 
-  protected HynixPathSpec(HynixPathSpec pathSpec)
+  protected HadoopPathSpec(HadoopPathSpec pathSpec)
   {
     this.basePath = pathSpec.basePath;
     this.elements = pathSpec.elements;
@@ -111,7 +113,7 @@ public class HynixPathSpec implements PathSpec
   }
 
   @JsonProperty
-  public List<HynixPathSpecElement> getElements()
+  public List<PathSpecElement> getElements()
   {
     return elements;
   }
@@ -166,7 +168,7 @@ public class HynixPathSpec implements PathSpec
           List<String> casted = GuavaUtils.cast((List<?>) value);
           job.getConfiguration().setStrings(entry.getKey(), casted.toArray(new String[casted.size()]));
         } else {
-          new Logger(HynixPathSpec.class).warn("Invalid type value %s (%s).. ignoring", value, value.getClass());
+          new Logger(HadoopPathSpec.class).warn("Invalid type value %s (%s).. ignoring", value, value.getClass());
         }
       }
     }
@@ -174,8 +176,8 @@ public class HynixPathSpec implements PathSpec
     String dataSource = config.getDataSource();
 
     List<String> paths = Lists.newArrayList();  // needed for some reason but I've forgot
-    List<HynixPathSpecElement> rewritten = Lists.newArrayList();
-    for (HynixPathSpecElement element : elements) {
+    List<PathSpecElement> rewritten = Lists.newArrayList();
+    for (PathSpecElement element : elements) {
       StringBuilder elementPaths = new StringBuilder();
       for (String path : HadoopGlobPathSplitter.splitGlob(element.getPaths())) {
         path = basePath == null ? path : basePath + "/" + path;
@@ -209,10 +211,10 @@ public class HynixPathSpec implements PathSpec
 
     // used for sized partition spec
     // path1;format1,path2;format2
-    StaticPathSpec.addInputPath(job, paths, HynixCombineInputFormat.class);
+    StaticPathSpec.addInputPath(job, paths, HadoopCombineInputFormat.class);
 
     // should overwrite (DelegatingInputFormat is set in MultipleInputs.addInputPath)
-    job.setInputFormatClass(HynixCombineInputFormat.class);
+    job.setInputFormatClass(HadoopCombineInputFormat.class);
 
     return job;
   }
@@ -227,7 +229,7 @@ public class HynixPathSpec implements PathSpec
       return false;
     }
 
-    HynixPathSpec that = (HynixPathSpec) o;
+    HadoopPathSpec that = (HadoopPathSpec) o;
 
     if (!Objects.equals(basePath, that.basePath)) {
       return false;
@@ -263,7 +265,7 @@ public class HynixPathSpec implements PathSpec
   @Override
   public String toString()
   {
-    return "HynixPathSpec{" +
+    return "HadoopPathSpec{" +
            "basePath=" + basePath +
            ", elements=" + elements +
            ", inputFormat=" + inputFormat +

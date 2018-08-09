@@ -162,8 +162,8 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         metricNames.add(aggregator.getName());
       }
 
-      flushedIndex = context.getCounter("navis", "index-flush-count");
-      outOfRangeRows = context.getCounter("navis", "out-of-range-rows");
+      flushedIndex = context.getCounter("druid.internal", "index-flush-count");
+      outOfRangeRows = context.getCounter("druid.internal", "out-of-range-rows");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
       maxShardLength = tuningConfig.getMaxShardLength();

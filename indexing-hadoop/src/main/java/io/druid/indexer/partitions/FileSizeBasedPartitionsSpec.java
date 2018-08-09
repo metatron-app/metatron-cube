@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.Jobby;
-import io.druid.indexer.path.HynixPathSpec;
+import io.druid.indexer.path.HadoopPathSpec;
 import io.druid.indexer.path.StaticPathSpec;
 
 import javax.annotation.Nullable;
@@ -49,8 +49,8 @@ public class FileSizeBasedPartitionsSpec extends AbstractPartitionsSpec
   public Jobby getPartitionJob(HadoopDruidIndexerConfig config)
   {
     Preconditions.checkArgument(
-        config.getPathSpec() instanceof StaticPathSpec || config.getPathSpec() instanceof HynixPathSpec,
-        "Only supports static/hynix spec, for now"
+        config.getPathSpec() instanceof StaticPathSpec || config.getPathSpec() instanceof HadoopPathSpec,
+        "Only supports static/hadoop spec, for now"
     );
     return new DetermineSizeBasedPartitionsJob(config);
   }

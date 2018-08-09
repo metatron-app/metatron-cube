@@ -27,8 +27,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -55,11 +57,14 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.SortedSet;
 
 public class HadoopIndexTask extends HadoopTask
@@ -76,6 +81,36 @@ public class HadoopIndexTask extends HadoopTask
     return spec.getDataSchema().getDataSource();
   }
 
+  @SuppressWarnings("unchecked")
+  private static String extractRequiredLockName(HadoopIngestionSpec spec)
+  {
+    DataSchema dataSchema = spec.getDataSchema();
+    String schemaDataSource = dataSchema.getDataSource();
+    Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
+    if ("hadoop".equals(pathSpec.get("type"))) {
+      // simple validation
+      HadoopTuningConfig tuningConfig = spec.getTuningConfig();
+      if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
+        throw new IllegalArgumentException("generic type input spec only can be used with REDUCE_MERGE mode");
+      }
+      Set<String> dataSources = Sets.newLinkedHashSet();
+      for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {
+        String dataSourceName = Objects.toString(elementSpec.get("dataSource"), schemaDataSource);
+        if (Strings.isNullOrEmpty(dataSourceName) || dataSourceName.indexOf(';') >= 0) {
+          throw new IllegalArgumentException("Datasource name should not be empty or contain ';'");
+        }
+        if (!dataSources.contains(dataSourceName)) {
+          dataSources.add(dataSourceName);
+        }
+      }
+      if (dataSchema.getGranularitySpec().isAppending()) {
+        Preconditions.checkArgument(dataSources.size() == 1, "cannot append on multi datasources, for now");
+      }
+      return StringUtils.join(dataSources, ';');
+    }
+    return schemaDataSource;
+  }
+
   @JsonIgnore
   private HadoopIngestionSpec spec;
 
@@ -84,6 +119,9 @@ public class HadoopIndexTask extends HadoopTask
 
   @JsonIgnore
   private final ObjectMapper jsonMapper;
+
+  @JsonIgnore
+  private final String requiredLockName;
 
   /**
    * @param spec is used by the HadoopDruidIndexerJob to set up the appropriate parameters
@@ -139,6 +177,13 @@ public class HadoopIndexTask extends HadoopTask
     this.spec = spec;
     this.classpathPrefix = classpathPrefix;
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "null ObjectMapper");
+    this.requiredLockName = extractRequiredLockName(spec);
+  }
+
+  @Override
+  public String getRequiredLockName()
+  {
+    return requiredLockName;
   }
 
   @Override

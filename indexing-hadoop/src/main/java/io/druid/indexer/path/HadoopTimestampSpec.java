@@ -27,11 +27,11 @@ import java.util.Map;
 
 /**
  */
-@JsonTypeName("hynix")
-public class HynixTimestampSpec extends DefaultTimestampSpec
+@JsonTypeName("hadoop")
+public class HadoopTimestampSpec extends DefaultTimestampSpec
 {
   @JsonCreator
-  public HynixTimestampSpec(
+  public HadoopTimestampSpec(
       @JsonProperty("column") String timestampColumn,
       @JsonProperty("format") String format,
       // this value should never be set for production data
@@ -58,7 +58,7 @@ public class HynixTimestampSpec extends DefaultTimestampSpec
   public DateTime parseDateTime(Object input)
   {
     if (input == null) {
-      Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
+      Map<String, String> partition = HadoopCombineInputFormat.CURRENT_PARTITION.get();
       if (partition != null) {
         input = partition.get(getTimestampColumn());
       }

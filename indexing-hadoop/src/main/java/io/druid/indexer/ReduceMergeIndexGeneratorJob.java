@@ -29,7 +29,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.CompressionUtils;
 import io.druid.data.input.InputRow;
-import io.druid.indexer.path.HynixCombineInputFormat;
+import io.druid.indexer.path.HadoopCombineInputFormat;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
@@ -202,12 +202,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
 
-      dynamicDataSource = config.getSchema().getIOConfig().getPathSpec().get("type").equals("hynix");
+      dynamicDataSource = config.getSchema().getIOConfig().getPathSpec().get("type").equals("hadoop");
       if (!dynamicDataSource) {
         currentDataSource = config.getSchema().getDataSchema().getDataSource();
       }
 
-      flushedIndex = context.getCounter("navis", "index-flush-count");
+      flushedIndex = context.getCounter("druid.internal", "index-flush-count");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
       maxRowCount = tuningConfig.getRowFlushBoundary();
@@ -247,8 +247,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     protected void innerMap(InputRow row, Object value, Context context)
         throws IOException, InterruptedException
     {
-      // not null only with HynixCombineInputFormat
-      final String dataSource = dynamicDataSource ? HynixCombineInputFormat.CURRENT_DATASOURCE.get() :currentDataSource;
+      // not null only with HadoopCombineInputFormat
+      final String dataSource = dynamicDataSource ? HadoopCombineInputFormat.CURRENT_DATASOURCE.get() : currentDataSource;
       if (!indices.isEmpty() && !Objects.equals(currentDataSource, dataSource)) {
         persistAll(context);
       }

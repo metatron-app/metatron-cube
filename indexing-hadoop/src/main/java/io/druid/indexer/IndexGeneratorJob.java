@@ -301,8 +301,8 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       }
       serde = new InputRowSerde(config.getSchema().getDataSchema().getAggregators(), exportDimensions);
 
-      keyLength = context.getCounter("navis", "mapper-key-length");
-      valLength = context.getCounter("navis", "mapper-value-length");
+      keyLength = context.getCounter("druid.internal", "mapper-key-length");
+      valLength = context.getCounter("druid.internal", "mapper-value-length");
     }
 
     @Override
@@ -618,8 +618,8 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         nameField = settlingConfig.getParamNameColumn();
         valueField = settlingConfig.getParamValueColumn();
       }
-      flushedIndex = context.getCounter("navis", "index-flush-count");
-      groupCount = context.getCounter("navis", "group-count");
+      flushedIndex = context.getCounter("druid.internal", "index-flush-count");
+      groupCount = context.getCounter("druid.internal", "group-count");
     }
 
     @Override

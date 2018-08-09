@@ -37,10 +37,10 @@ public class IndexGeneratorStats
   public void setStats(Counters counters)
   {
     this.invalidRowCount = counters.findCounter(INVALID_ROW_COUNTER).getValue();
-    this.indexedRows = counters.findCounter("navis", "indexed-row-num").getValue();
-    this.oobRows = counters.findCounter("navis", "oob-row-num").getValue();
-    this.errRows = counters.findCounter("navis", "err-row-num").getValue();
-    this.flushedIndex = counters.findCounter("navis", "index-flush-count").getValue();
+    this.indexedRows = counters.findCounter("druid.internal", "indexed-row-num").getValue();
+    this.oobRows = counters.findCounter("druid.internal", "oob-row-num").getValue();
+    this.errRows = counters.findCounter("druid.internal", "err-row-num").getValue();
+    this.flushedIndex = counters.findCounter("druid.internal", "index-flush-count").getValue();
   }
 
   @JsonProperty

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
 import io.druid.indexer.hadoop.ExcelInputRowParser;
-import io.druid.indexer.path.HynixTimestampSpec;
+import io.druid.indexer.path.HadoopTimestampSpec;
 import io.druid.initialization.DruidModule;
 
 import java.util.Arrays;
@@ -46,7 +46,7 @@ public class IndexingHadoopModule implements DruidModule
                 new NamedType(ExcelInputRowParser.class, "excel")
             )
             .registerSubtypes(
-                new NamedType(HynixTimestampSpec.class, "hynix")
+                new NamedType(HadoopTimestampSpec.class, "hadoop")
             )
     );
   }

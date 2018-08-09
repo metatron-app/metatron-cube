@@ -29,7 +29,7 @@ import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
-import io.druid.indexer.path.HynixCombineInputFormat;
+import io.druid.indexer.path.HadoopCombineInputFormat;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
@@ -64,10 +64,10 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     parser = config.getParser();
     granularitySpec = config.getGranularitySpec();
 
-    indexedRows = context.getCounter("navis", "indexed-row-num");
+    indexedRows = context.getCounter("druid.internal", "indexed-row-num");
     invalidRows = context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
-    oobRows = context.getCounter("navis", "oob-row-num");
-    errRows = context.getCounter("navis", "err-row-num");
+    oobRows = context.getCounter("druid.internal", "oob-row-num");
+    errRows = context.getCounter("druid.internal", "err-row-num");
 
     setupHadoopAwareParser(parser, context);
   }
@@ -154,7 +154,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   private InputRow parseInputRow(Object value)
   {
     InputRow inputRow = parseInputRow(value, parser);
-    Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
+    Map<String, String> partition = HadoopCombineInputFormat.CURRENT_PARTITION.get();
     if (inputRow != null && partition != null && !partition.isEmpty()) {
       Row.Updatable updatable = Rows.toUpdatable(inputRow);
       for (Map.Entry<String, String> entry : partition.entrySet()) {

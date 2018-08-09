@@ -39,7 +39,7 @@ import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.indexer.hadoop.HadoopAwareParser;
-import io.druid.indexer.path.HynixCombineInputFormat;
+import io.druid.indexer.path.HadoopCombineInputFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -190,8 +190,8 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     }
     InputSplit split = context.getInputSplit();
     Path path;
-    if (split instanceof HynixCombineInputFormat.HynixSplit) {
-      path = HynixCombineInputFormat.CURRENT_PATH.get();
+    if (split instanceof HadoopCombineInputFormat.HadoopSplit) {
+      path = HadoopCombineInputFormat.CURRENT_PATH.get();
     } else if (split instanceof FileSplit) {
       path = ((FileSplit)split).getPath();
     } else {

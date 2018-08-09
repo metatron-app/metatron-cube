@@ -37,10 +37,6 @@ import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -455,20 +451,5 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     result = 31 * result + Objects.hashCode(comparatorType);
     result = 31 * result + (getExtractionFn() != null ? getExtractionFn().hashCode() : 0);
     return result;
-  }
-
-  public static void main(String[] args) throws Exception
-  {
-    File file = new File("/Users/navis/Downloads/AL_00_D531_20180331.csv");
-    BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "euc-kr"));
-    String line = null;
-    int i = 0;
-    while ((line = reader.readLine()) != null) {
-      System.out.println(line);
-      if (i++ > 20) {
-        break;
-      }
-    }
-    reader.close();
   }
 }

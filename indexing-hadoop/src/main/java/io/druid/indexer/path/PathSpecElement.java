@@ -29,7 +29,7 @@ import java.util.Objects;
 
 /**
  */
-public class HynixPathSpecElement
+public class PathSpecElement
 {
   private final String dataSource;
   private final String paths;
@@ -39,7 +39,7 @@ public class HynixPathSpecElement
   private final Interval interval;
 
   @JsonCreator
-  public HynixPathSpecElement(
+  public PathSpecElement(
       @JsonProperty("paths") String paths,
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
@@ -76,14 +76,14 @@ public class HynixPathSpecElement
     return interval;
   }
 
-  public HynixPathSpecElement withPaths(String paths)
+  public PathSpecElement withPaths(String paths)
   {
-    return new HynixPathSpecElement(paths, dataSource, inputFormat, interval);
+    return new PathSpecElement(paths, dataSource, inputFormat, interval);
   }
 
-  public HynixPathSpecElement withDataSource(String dataSource)
+  public PathSpecElement withDataSource(String dataSource)
   {
-    return new HynixPathSpecElement(paths, dataSource, inputFormat, interval);
+    return new PathSpecElement(paths, dataSource, inputFormat, interval);
   }
 
   @Override
@@ -96,7 +96,7 @@ public class HynixPathSpecElement
       return false;
     }
 
-    HynixPathSpecElement that = (HynixPathSpecElement) o;
+    PathSpecElement that = (PathSpecElement) o;
 
     if (!Objects.equals(dataSource, that.dataSource)) {
       return false;
