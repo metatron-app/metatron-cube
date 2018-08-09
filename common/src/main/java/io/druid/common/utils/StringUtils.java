@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 
 import java.util.IllegalFormatException;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  */
@@ -103,6 +104,11 @@ public class StringUtils extends com.metamx.common.StringUtils
   public static Comparable nullToEmpty(Comparable raw)
   {
     return raw == null ? "" : raw;
+  }
+
+  public static String toString(Object value, String nullValue)
+  {
+    return isNullOrEmpty(value) ? nullValue : Objects.toString(value, nullValue);
   }
 
   public static long parseKMGT(String value)

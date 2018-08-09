@@ -32,6 +32,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -99,11 +100,11 @@ public class PivotColumnSpec extends OrderingSpec
     return columnSpecs;
   }
 
-  public static List<Function<Row, String>> toExtractors(List<PivotColumnSpec> pivotColumnSpecs)
+  public static List<Function<Row, String>> toExtractors(List<PivotColumnSpec> pivotColumnSpecs, String nullValue)
   {
     List<Function<Row, String>> extractors = Lists.newArrayList();
     for (PivotColumnSpec columnSpec : pivotColumnSpecs) {
-      extractors.add(columnSpec.toExtractor());
+      extractors.add(columnSpec.toExtractor(nullValue));
     }
     return extractors;
   }
@@ -193,7 +194,7 @@ public class PivotColumnSpec extends OrderingSpec
     return values;
   }
 
-  private Function<Row, String> toExtractor()
+  private Function<Row, String> toExtractor(final String nullValue)
   {
     if (expression == null) {
       return new Function<Row, String>()
@@ -201,7 +202,7 @@ public class PivotColumnSpec extends OrderingSpec
         @Override
         public String apply(Row input)
         {
-          return Objects.toString(input.getRaw(dimension), "");
+          return StringUtils.toString(input.getRaw(dimension), nullValue);
         }
       };
     } else {
@@ -215,7 +216,7 @@ public class PivotColumnSpec extends OrderingSpec
         {
           supplier.set(input);
           try {
-            return Objects.toString(expr.eval(binding).asString(), "");
+            return StringUtils.toString(expr.eval(binding).asString(), nullValue);
           }
           catch (Exception e) {
             LOG.info("Failed on expression %s", expression);

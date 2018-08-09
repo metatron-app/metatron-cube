@@ -481,7 +481,7 @@ public class Evals
   // alias name --> value
   public static ExprEval toAssigneeEval(final Expr assignee, final Map<String, Object> overrides)
   {
-    if (Parser.findRequiredBindings(assignee).isEmpty()) {
+    if (Evals.isConstant(assignee) || Parser.findRequiredBindings(assignee).isEmpty()) {
       return Evals.getConstantEval(assignee);
     }
 

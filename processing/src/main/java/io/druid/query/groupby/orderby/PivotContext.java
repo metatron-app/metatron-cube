@@ -60,11 +60,12 @@ public class PivotContext
 
   public Map<String, Object> evaluate(final Map<StringArray, Object> mapping)
   {
-    List<String> partitionColumns = context.partitionColumns();
+    final List<String> partitionColumns = context.partitionColumns();
     final int numPivotColumn = pivotSpec.getPivotColumns().size();
-    final String separator = pivotSpec.getSeparator();
     final boolean appendingValue = pivotSpec.isAppendValueColumn();
     final List<String> valueColumns = pivotSpec.getValueColumns();
+    final String separator = pivotSpec.getSeparator();
+    final String nullValue = pivotSpec.getNullValue();
 
     // snapshot
     final Map<String, Object> event = Maps.newLinkedHashMap();
@@ -74,21 +75,22 @@ public class PivotContext
     final Comparator<StringArray> comparator = pivotSpec.makeColumnOrdering();
     final List<Map.Entry<StringArray, Object>> entries = IncrementalIndex.sortOn(mapping, comparator, false);
     for (Map.Entry<StringArray, Object> entry : entries) {
-      String newKey = StringUtils.concat(pivotSpec.getSeparator(), entry.getKey().array());
+      String newKey = StringUtils.concat(separator, entry.getKey().array());
       Object newValue = entry.getValue();
       event.put(newKey, newValue);
       if (newValue != null) {
         context.addType(newKey, RowResolver.toValueType(newValue));
       }
     }
-    if (pivotSpec.getRowExpressions().isEmpty()) {
+    final List<String> rowExpressions = pivotSpec.getRowExpressions();
+    if (rowExpressions.isEmpty()) {
       return event;
     }
 
     final Expr.NumericBinding binding = WindowingSpec.withMap(event);
 
     // '_' is just '_'
-    for (String expression : pivotSpec.getRowExpressions()) {
+    for (String expression : rowExpressions) {
       List<Integer> groupIds = Lists.newArrayList();
       Pair<Expr, Expr> assign = Evals.splitAssign(expression);
       for (String required : Iterables.concat(
@@ -138,7 +140,7 @@ next:
             BitSet bitSet = bitSets.get(j);
             String[] keys = new String[numPivotColumn + (appendingValue ? 1 : 0)];
             for (int k = 0; k < keys.length; k++) {
-              keys[k] = bitSet.get(k) ? key.get(k) : "";  // see PivotColumnSpec.toExtractor()
+              keys[k] = bitSet.get(k) ? key.get(k) : nullValue;  // see PivotColumnSpec.toExtractor()
             }
             if (appendingValue) {
               keys[numPivotColumn] = valueColumns.get(i);
@@ -204,7 +206,7 @@ next:
   private boolean isTarget(StringArray key, BitSet bitSet, int length)
   {
     for (int i = 0; i < length; i++) {
-      if (!(bitSet.get(i) ^ StringUtils.isNullOrEmpty(key.get(i)))) {
+      if (bitSet.get(i) == StringUtils.isNullOrEmpty(key.get(i))) {
         return false;
       }
     }

@@ -4950,6 +4950,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                         ),
                         Arrays.asList("index"),
                         null,
+                        null,
                         Arrays.<String>asList("sum = Monday + Wednesday + Friday"),
                         null,
                         false,
@@ -4985,6 +4986,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                             )
                         ),
                         Arrays.asList("index"),
+                        null,
                         null,
                         Arrays.<String>asList(
                             "sum = Monday + Wednesday + Friday"
@@ -5644,6 +5646,48 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
 
+    // with nullValue 'X'
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index").withNullValue("X")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-X", "spot-mezzanine", "spot-premium",
+        "total_market-X", "total_market-mezzanine", "total_market-premium",
+        "upfront-X", "upfront-mezzanine", "upfront-premium"
+    };
+    expectedResults = createExpectedRows(
+        columnNames,
+        array("Monday",
+              null, null, null,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              27619.58477783203, 15479.327270507812, 12140.257507324219),
+        array("Tuesday",
+              2930.384750366211, 1369.873420715332, 1560.511329650879,
+              null, null, null,
+              26968.28009033203, 15147.467102050781, 11820.81298828125
+        ),
+        array(
+            "Wednesday",
+            3111.8562088012695, 1477.5527877807617, null,
+            32753.337280273438, 15749.735595703125, null,
+            28985.57501220703, 14765.832275390625, null
+        )
+    );
+
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results);
+
     // pivot + partition expression
     builder.setLimitSpec(
         new LimitSpec(
@@ -5687,6 +5731,51 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             6042.2409591674805, 2847.4262084960938, 1560.511329650879,
             63222.114013671875, 31051.463989257812, 15167.04833984375,
             83573.4398803711, 45392.62664794922, 23961.07049560547
+        )
+    );
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results);
+
+    // with nullValue 'X'
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(
+                        Arrays.<PivotColumnSpec>asList(
+                            PivotColumnSpec.ofExpression("market"),
+                            PivotColumnSpec.ofExpression("quality")
+                        ), "index"
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withAppendValueColumn(true).withNullValue("X")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-X-index", "spot-mezzanine-index", "spot-premium-index",
+        "total_market-X-index", "total_market-mezzanine-index", "total_market-premium-index",
+        "upfront-X-index", "upfront-mezzanine-index", "upfront-premium-index"
+    };
+    expectedResults = createExpectedRows(
+        columnNames,
+        array("Monday",
+              0.0, 0.0, 0.0,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              27619.58477783203, 15479.327270507812, 12140.257507324219),
+        array("Tuesday",
+              2930.384750366211, 1369.873420715332, 1560.511329650879,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              54587.86486816406, 30626.794372558594, 23961.07049560547),
+        array("Wednesday",
+              6042.2409591674805, 2847.4262084960938, 1560.511329650879,
+              63222.114013671875, 31051.463989257812, 15167.04833984375,
+              83573.4398803711, 45392.62664794922, 23961.07049560547
         )
     );
     results = runQuery(builder.build());
@@ -5797,6 +5886,61 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
 
+    // with nullValue 'X'
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index", "rows")
+                             .withRowExpressions( "concat($3, '.percent') = round(100f * $3 / $1, 3)")
+                             .withNullValue("X")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-X", "spot-mezzanine", "spot-premium",
+        "total_market-X", "total_market-mezzanine", "total_market-premium",
+        "upfront-X", "upfront-mezzanine", "upfront-premium",
+        "spot-mezzanine.percent", "spot-premium.percent",
+        "total_market-mezzanine.percent", "total_market-premium.percent",
+        "upfront-mezzanine.percent", "upfront-premium.percent"
+    };
+
+    expectedResults = createExpectedRows(
+        columnNames,
+        array(
+            "Monday",
+            null, null, null,
+            list(30468.776733398438, 26L), list(15301.728393554688, 13L), list(15167.04833984375, 13L),
+            list(27619.58477783203, 26L), list(15479.327270507812, 13L), list(12140.257507324219, 13L),
+            null, null, list(50.221, 50.0),
+            list(49.779, 50.0), list(56.045, 50.0), list(43.955, 50.0)
+        ),
+        array(
+            "Tuesday",
+            list(2930.384750366211, 26L), list(1369.873420715332, 13L), list(1560.511329650879, 13L),
+            null, null, null,
+            list(26968.28009033203, 26L), list(15147.467102050781, 13L), list(11820.81298828125, 13L),
+            list(46.747, 50.0), list(53.253, 50.0), null,
+            null, list(56.168, 50.0), list(43.832, 50.0)
+        ),
+        array(
+            "Wednesday",
+            list(3111.8562088012695, 28L), list(1477.5527877807617, 14L), null,
+            list(32753.337280273438, 28L), list(15749.735595703125, 14L), null,
+            list(28985.57501220703, 28L), list(14765.832275390625, 14L), null,
+            list(47.481, 50.0), null, list(48.086, 50.0), null, list(50.942, 50.0), null
+        )
+    );
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results);
+
     // multi-valued (appending)
     builder.setLimitSpec(
         new LimitSpec(
@@ -5820,6 +5964,75 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "total_market--index", "total_market--rows",
         "total_market-mezzanine-index", "total_market-mezzanine-rows", "total_market-premium-index", "total_market-premium-rows",
         "upfront--index", "upfront--rows",
+        "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows",
+        "spot-mezzanine-index.percent", "spot-mezzanine-rows.percent", "spot-premium-index.percent", "spot-premium-rows.percent",
+        "total_market-mezzanine-index.percent", "total_market-mezzanine-rows.percent", "total_market-premium-index.percent", "total_market-premium-rows.percent",
+        "upfront-mezzanine-index.percent", "upfront-mezzanine-rows.percent", "upfront-premium-index.percent", "upfront-premium-rows.percent",
+    };
+    expectedResults = createExpectedRows(
+        columnNames,
+        array(
+            "Monday",
+            null, null,
+            null, null, null, null,
+            30468.776733398438, 26L,
+            15301.728393554688, 13L, 15167.04833984375, 13L,
+            27619.58477783203, 26L,
+            15479.327270507812, 13L, 12140.257507324219, 13L,
+            null, null, null, null,
+            50.221, 50.0, 49.779, 50.0,
+            56.045, 50.0, 43.955, 50.0),
+        array(
+            "Tuesday",
+            2930.384750366211, 26L,
+            1369.873420715332, 13L, 1560.511329650879, 13L,
+            null, null,
+            null, null, null, null,
+            26968.28009033203, 26L,
+            15147.467102050781, 13L, 11820.81298828125, 13L,
+            46.747, 50.0, 53.253, 50.0,
+            null, null, null, null,
+              56.168, 50.0, 43.832, 50.0),
+        array(
+            "Wednesday",
+            3111.8562088012695, 28L,
+            1477.5527877807617, 14L, null, null,
+            32753.337280273438, 28L,
+            15749.735595703125, 14L, null, null,
+            28985.57501220703, 28L,
+            14765.832275390625, 14L, null, null,
+            47.481, 50.0, null, null,
+            48.086, 50.0, null, null,
+            50.942, 50.0, null, null)
+    );
+
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results);
+
+    // with nullValue 'X'
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index", "rows")
+                             .withRowExpressions( "concat($3, '.percent') = round(100f * $3 / $1, 3)")
+                             .withAppendValueColumn(true)
+                             .withNullValue("X")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-X-index", "spot-X-rows",
+        "spot-mezzanine-index", "spot-mezzanine-rows", "spot-premium-index", "spot-premium-rows",
+        "total_market-X-index", "total_market-X-rows",
+        "total_market-mezzanine-index", "total_market-mezzanine-rows", "total_market-premium-index", "total_market-premium-rows",
+        "upfront-X-index", "upfront-X-rows",
         "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows",
         "spot-mezzanine-index.percent", "spot-mezzanine-rows.percent", "spot-premium-index.percent", "spot-premium-rows.percent",
         "total_market-mezzanine-index.percent", "total_market-mezzanine-rows.percent", "total_market-premium-index.percent", "total_market-premium-rows.percent",

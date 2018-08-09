@@ -53,17 +53,18 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 {
   public static PivotSpec of(List<PivotColumnSpec> pivotColumns, String... valueColumns)
   {
-    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, false, false);
+    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, null, false, false);
   }
 
   public static PivotSpec tabular(List<PivotColumnSpec> pivotColumns, String... valueColumns)
   {
-    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, true, false);
+    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, null, true, false);
   }
 
   private final List<PivotColumnSpec> pivotColumns;
   private final List<String> valueColumns;
   private final String separator;
+  private final String nullValue;
   private final List<String> rowExpressions;
   private final List<PartitionExpression> partitionExpressions;
   private final boolean tabularFormat;  // I really fucking hate this
@@ -74,6 +75,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @JsonProperty("pivotColumns") List<PivotColumnSpec> pivotColumns,
       @JsonProperty("valueColumns") List<String> valueColumns,
       @JsonProperty("separator") String separator,
+      @JsonProperty("nullColumnName") String nullValue,
       @JsonProperty("rowExpressions") List<String> rowExpressions,
       @JsonProperty("partitionExpressions") List<PartitionExpression> partitionExpressions,
       @JsonProperty("tabularFormat") boolean tabularFormat,
@@ -84,6 +86,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     this.pivotColumns = pivotColumns == null ? ImmutableList.<PivotColumnSpec>of() : pivotColumns;
     this.valueColumns = valueColumns;
     this.separator = separator == null ? "-" : separator;
+    this.nullValue = nullValue == null ? "" : nullValue;
     this.rowExpressions = rowExpressions == null ? ImmutableList.<String>of() : rowExpressions;
     this.partitionExpressions = partitionExpressions == null
                                 ? ImmutableList.<PartitionExpression>of()
@@ -98,6 +101,21 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         pivotColumns,
         valueColumns,
         separator,
+        nullValue,
+        rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
+  }
+
+  public PivotSpec withNullValue(String nullValue)
+  {
+    return new PivotSpec(
+        pivotColumns,
+        valueColumns,
+        separator,
+        nullValue,
         rowExpressions,
         partitionExpressions,
         tabularFormat,
@@ -111,6 +129,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         pivotColumns,
         valueColumns,
         separator,
+        nullValue,
         Arrays.asList(rowExpressions),
         partitionExpressions,
         tabularFormat,
@@ -120,7 +139,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 
   public PivotSpec withPartitionExpressions(String... partitionExpressions)
   {
-    return withPartitionExpressions(PartitionExpression.from(partitionExpressions));
+    return withPartitionExpressions(PartitionExpression.from(Arrays.asList(partitionExpressions)));
   }
 
   public PivotSpec withPartitionExpressions(PartitionExpression... partitionExpressions)
@@ -134,6 +153,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         pivotColumns,
         valueColumns,
         separator,
+        nullValue,
         rowExpressions,
         partitionExpressions,
         tabularFormat,
@@ -147,6 +167,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         pivotColumns,
         valueColumns,
         separator,
+        nullValue,
         rowExpressions,
         partitionExpressions,
         tabularFormat,
@@ -170,6 +191,12 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   public String getSeparator()
   {
     return separator;
+  }
+
+  @JsonProperty
+  public String getNullValue()
+  {
+    return nullValue;
   }
 
   @JsonProperty
@@ -202,13 +229,15 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);
     byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(valueColumns);
     byte[] separatorBytes = QueryCacheHelper.computeCacheBytes(separator);
+    byte[] nullValueBytes = QueryCacheHelper.computeCacheBytes(nullValue);
     byte[] rowExpressionsBytes = QueryCacheHelper.computeCacheBytes(rowExpressions);
     byte[] partitionExpressionsBytes = QueryCacheHelper.computeAggregatorBytes(partitionExpressions);
 
-    int length = 6
+    int length = 7
                  + columnsBytes.length
                  + valuesBytes.length
                  + separatorBytes.length
+                 + nullValueBytes.length
                  + rowExpressionsBytes.length
                  + partitionExpressionsBytes.length;
 
@@ -218,6 +247,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                      .put(valuesBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(separatorBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(nullValueBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(rowExpressionsBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
@@ -246,6 +277,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     if (!Objects.equals(separator, that.separator)) {
       return false;
     }
+    if (!Objects.equals(nullValue, that.nullValue)) {
+      return false;
+    }
     if (!Objects.equals(rowExpressions, that.rowExpressions)) {
       return false;
     }
@@ -262,6 +296,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         pivotColumns,
         valueColumns,
         separator,
+        nullValue,
         rowExpressions,
         partitionExpressions,
         tabularFormat,
@@ -276,6 +311,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            "pivotColumns=" + pivotColumns +
            ", valueColumns=" + valueColumns +
            ", separator=" + separator +
+           ", nullValue=" + nullValue +
            ", rowExpressions=" + rowExpressions +
            ", partitionExpressions=" + partitionExpressions +
            ", tabularFormat=" + tabularFormat +
@@ -316,7 +352,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       };
     }
     final List<String> partitionColumns = context.partitionColumns();
-    final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns);
+    final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns, nullValue);
 
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
     final String[] values = valueColumns.toArray(new String[valueColumns.size()]);
