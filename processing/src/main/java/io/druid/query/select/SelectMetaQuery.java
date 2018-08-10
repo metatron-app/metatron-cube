@@ -72,6 +72,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (source instanceof VCSupport) {
       builder.setVirtualColumns(((VCSupport) source).getVirtualColumns());
     }
+    if (source instanceof DimFilterSupport) {
+      builder.setDimFilter(((DimFilterSupport) source).getDimFilter());
+    }
     if (source instanceof DimensionSupport) {
       builder.setDimensions(((DimensionSupport) source).getDimensions());
     }
