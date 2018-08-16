@@ -39,6 +39,7 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
@@ -77,7 +78,6 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import org.apache.commons.io.input.ReaderInputStream;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
@@ -261,8 +261,8 @@ public class QueryResource
     final RequestContext context = new RequestContext(req, pretty != null);
     final String contentType = context.getContentType();
 
-    final Thread currentThread = Thread.currentThread();
-    final String currThreadName = currentThread.getName();
+    final Thread currThread = Thread.currentThread();
+    final String currThreadName = resetThreadName(currThread);
     try {
       query = context.getInputMapper(false).readValue(in, Query.class);
 
@@ -279,7 +279,7 @@ public class QueryResource
       queryId = query.getId();
 
       log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId + ":" + query.getType());
-      currentThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
+      currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
 
       final Query prepared = prepareQuery(query);
 
@@ -342,7 +342,7 @@ public class QueryResource
 
                     requestLogger.log(
                         new RequestLogLine(
-                            new DateTime(start),
+                            DateTimes.utc(start),
                             req.getRemoteAddr(),
                             toLoggingQuery(theQuery),
                             new QueryStats(
@@ -354,6 +354,7 @@ public class QueryResource
                             )
                         )
                     );
+                    currThread.setName(currThreadName);
                   }
                 },
                 contentType
@@ -376,6 +377,7 @@ public class QueryResource
       catch (Exception e) {
         // make sure to close yielder if anything happened before starting to serialize the response.
         yielder.close();
+        currThread.setName(currThreadName);
         throw Throwables.propagate(e);
       }
       finally {
@@ -394,19 +396,15 @@ public class QueryResource
         );
         requestLogger.log(
             new RequestLogLine(
-                new DateTime(start),
+                DateTimes.utc(start),
                 req.getRemoteAddr(),
                 toLoggingQuery(query),
                 new QueryStats(
                     ImmutableMap.<String, Object>of(
-                        "query/time",
-                        queryTime,
-                        "success",
-                        false,
-                        "interrupted",
-                        true,
-                        "reason",
-                        e.toString()
+                        "query/time", queryTime,
+                        "success", false,
+                        "interrupted", true,
+                        "reason", e.toString()
                     )
                 )
             )
@@ -415,6 +413,7 @@ public class QueryResource
       catch (Exception e2) {
         log.error(e2, "Unable to log query [%s]!", query);
       }
+      currThread.setName(currThreadName);
       return context.gotError(e);
     }
     catch (Throwable e) {
@@ -435,17 +434,14 @@ public class QueryResource
         );
         requestLogger.log(
             new RequestLogLine(
-                new DateTime(start),
+                DateTimes.utc(start),
                 req.getRemoteAddr(),
                 toLoggingQuery(query),
                 new QueryStats(
                     ImmutableMap.<String, Object>of(
-                        "query/time",
-                        queryTime,
-                        "success",
-                        false,
-                        "exception",
-                        e.toString()
+                        "query/time", queryTime,
+                        "success", false,
+                        "exception", e.toString()
                     )
                 )
             )
@@ -461,11 +457,20 @@ public class QueryResource
          .addData("peer", req.getRemoteAddr())
          .emit();
 
+      currThread.setName(currThreadName);
       return context.gotError(e);
     }
-    finally {
-      currentThread.setName(currThreadName);
+  }
+
+  // clear previous query name if exists (should not)
+  private String resetThreadName(Thread thread)
+  {
+    String currThreadName = thread.getName();
+    int index = currThreadName.indexOf('[');
+    if (index > 0 && currThreadName.endsWith("]")) {
+      thread.setName(currThreadName = currThreadName.substring(0, index));
     }
+    return currThreadName;
   }
 
   // suppress excessive interval logging in historical node
