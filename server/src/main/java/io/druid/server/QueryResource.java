@@ -60,6 +60,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.ResultWriter;
@@ -78,6 +79,7 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
@@ -226,23 +228,23 @@ public class QueryResource
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    String query = "{ \"queryType\": \"config\"";
+    StringBuilder query = new StringBuilder("{ \"queryType\": \"config\"");
     if (!Strings.isNullOrEmpty(expression)) {
-      query += ", \"expression\": " + expression;
+      query.append(", \"expression\": ").append(expression);
     }
     if (!Strings.isNullOrEmpty(keys)) {
-      query += ", \"config\": {";
+      query.append(", \"config\": {");
       final String[] split = keys.split(",");
       for (int i = 0; i < split.length; i++) {
         if (i > 0) {
-          query += ", ";
+          query.append(", ");
         }
-        query += "\"" + split[i] + "\": null";
+        query.append("\"").append(split[i]).append("\": null");
       }
-      query += "}";
+      query.append("}");
     }
-    query += "}";
-    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", req);
+    query.append("}");
+    return doPost(new ReaderInputStream(new StringReader(query.toString())), "pretty", req);
   }
 
   @POST
@@ -293,17 +295,22 @@ public class QueryResource
       queryManager.registerQuery(query, future);
 
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();
-      final Sequence results = prepared.run(texasRanger, responseContext);
+      final Sequence results = Sequences.withBaggage(prepared.run(texasRanger, responseContext), future);
+
+      final QueryToolChest toolChest = warehouse.getToolChest(prepared);
+      final MutableInt counter = new MutableInt();
 
       @SuppressWarnings("unchecked")
-      final Yielder yielder = Sequences.withBaggage(results, future).toYielder(
+      final Yielder yielder = results.toYielder(
           null,
           new YieldingAccumulator()
           {
             @Override
+            @SuppressWarnings("unchecked")
             public Object accumulate(Object accumulated, Object in)
             {
               yield();
+              counter.increment();
               return in;
             }
           }
@@ -349,6 +356,7 @@ public class QueryResource
                                 ImmutableMap.<String, Object>of(
                                     "query/time", queryTime,
                                     "query/bytes", os.getCount(),
+                                    "query/rows", counter.intValue(),
                                     "success", true
                                 )
                             )
@@ -377,7 +385,6 @@ public class QueryResource
       catch (Exception e) {
         // make sure to close yielder if anything happened before starting to serialize the response.
         yielder.close();
-        currThread.setName(currThreadName);
         throw Throwables.propagate(e);
       }
       finally {
@@ -385,77 +392,44 @@ public class QueryResource
         // StreamingOutput having iterated over all the results
       }
     }
-    catch (QueryInterruptedException e) {
-      try {
-        log.info("%s [%s]", e.getMessage(), queryId);
-        final long queryTime = System.currentTimeMillis() - start;
-        emitter.emit(
-            DruidMetrics.makeQueryTimeMetric(jsonMapper, query, req.getRemoteAddr())
-                        .setDimension("success", "false")
-                        .build("query/time", queryTime)
-        );
-        requestLogger.log(
-            new RequestLogLine(
-                DateTimes.utc(start),
-                req.getRemoteAddr(),
-                toLoggingQuery(query),
-                new QueryStats(
-                    ImmutableMap.<String, Object>of(
-                        "query/time", queryTime,
-                        "success", false,
-                        "interrupted", true,
-                        "reason", e.toString()
-                    )
-                )
-            )
-        );
-      }
-      catch (Exception e2) {
-        log.error(e2, "Unable to log query [%s]!", query);
-      }
-      currThread.setName(currThreadName);
-      return context.gotError(e);
-    }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      final String queryString =
-          query == null
-          ? "unparsable query"
-          : jsonMapper.writeValueAsString(query);
-
-      log.warn(e, "Exception occurred on request [%s]", queryString);
-
-      try {
-        final long queryTime = System.currentTimeMillis() - start;
-        emitter.emit(
-            DruidMetrics.makeQueryTimeMetric(jsonMapper, query, req.getRemoteAddr())
-                        .setDimension("success", "false")
-                        .build("query/time", queryTime)
-        );
-        requestLogger.log(
-            new RequestLogLine(
-                DateTimes.utc(start),
-                req.getRemoteAddr(),
-                toLoggingQuery(query),
-                new QueryStats(
-                    ImmutableMap.<String, Object>of(
-                        "query/time", queryTime,
-                        "success", false,
-                        "exception", e.toString()
-                    )
-                )
-            )
-        );
+      if (query == null) {
+        return context.gotError(e);
       }
-      catch (Exception e2) {
-        log.error(e2, "Unable to log query [%s]!", queryString);
+      final boolean interrupted = e instanceof QueryInterruptedException;
+      if (interrupted) {
+        log.info("%s [%s]", e.getMessage(), queryId);
+      } else {
+        log.warn(e, "Exception occurred on request [%s]", query);
+        log.makeAlert(e, "Exception handling request")
+           .addData("exception", e.toString())
+           .addData("query", query)
+           .addData("peer", req.getRemoteAddr())
+           .emit();
       }
 
-      log.makeAlert(e, "Exception handling request")
-         .addData("exception", e.toString())
-         .addData("query", queryString)
-         .addData("peer", req.getRemoteAddr())
-         .emit();
+      long queryTime = System.currentTimeMillis() - start;
+      requestLogger.log(
+          new RequestLogLine(
+              DateTimes.utc(start),
+              req.getRemoteAddr(),
+              toLoggingQuery(query),
+              new QueryStats(
+                  ImmutableMap.<String, Object>of(
+                      "query/time", queryTime,
+                      "interrupted", interrupted,
+                      "exception", e.toString(),
+                      "success", false
+                  )
+              )
+          )
+      );
+      emitter.emit(
+          DruidMetrics.makeQueryTimeMetric(jsonMapper, query, req.getRemoteAddr())
+                      .setDimension("success", "false")
+                      .build("query/time", queryTime)
+      );
 
       currThread.setName(currThreadName);
       return context.gotError(e);

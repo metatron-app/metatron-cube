@@ -29,17 +29,16 @@ public class Yielders extends com.metamx.common.guava.Yielders
 {
   public static <T> Yielder<T> each(final Sequence<T> sequence)
   {
-    return sequence.toYielder(
-        null,
-        new YieldingAccumulator<T, T>()
-        {
-          @Override
-          public T accumulate(T accumulated, T in)
-          {
-            yield();
-            return in;
-          }
-        }
-    );
+    return sequence.toYielder(null, new Yielding<T>());
+  }
+
+  public static class Yielding<T> extends YieldingAccumulator<T, T>
+  {
+    @Override
+    public T accumulate(T accumulated, T in)
+    {
+      yield();
+      return in;
+    }
   }
 }
