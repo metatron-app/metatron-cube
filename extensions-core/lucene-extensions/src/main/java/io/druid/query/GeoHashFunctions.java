@@ -33,6 +33,8 @@ import org.locationtech.spatial4j.shape.Rectangle;
 
 import java.util.List;
 
+import static io.druid.data.ValueDesc.DOUBLE_ARRAY;
+
 public class GeoHashFunctions implements Function.Library
 {
   @Function.Named("to_geohash")
@@ -90,7 +92,26 @@ public class GeoHashFunctions implements Function.Library
     }
   }
 
-  public static final ValueDesc BOUNDARY = ValueDesc.of("struct(minLat:double,maxLat:double,minLon:double,maxLon:double)");
+  @Function.Named("geohash_to_center_wkt")
+  public static class GeoHashToCenterWKT extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
+          return ExprEval.of("POINT(" + point.getX() + " " + point.getY() + ")");
+        }
+      };
+    }
+  }
 
   @Function.Named("geohash_to_boundary")
   public static class GeoHashToBoundary extends Function.AbstractFactory
@@ -106,7 +127,7 @@ public class GeoHashFunctions implements Function.Library
         @Override
         public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
-          return BOUNDARY;
+          return DOUBLE_ARRAY;
         }
 
         @Override
@@ -116,12 +137,50 @@ public class GeoHashFunctions implements Function.Library
               Evals.evalString(args.get(0), bindings),
               JtsSpatialContext.GEO
           );
-          return ExprEval.of(new Object[]{
-              boundary.getMinY(),
-              boundary.getMaxY(),
-              boundary.getMinX(),
-              boundary.getMaxX()
-          }, BOUNDARY);
+          double[] result = new double[4 << 1];
+          result[0] = boundary.getMinX();
+          result[1] = boundary.getMinY();
+
+          result[2] = boundary.getMinX();
+          result[3] = boundary.getMaxY();
+
+          result[4] = boundary.getMaxX();
+          result[5] = boundary.getMaxY();
+
+          result[6] = boundary.getMaxX();
+          result[7] = boundary.getMinY();
+
+          return ExprEval.of(result, DOUBLE_ARRAY);
+        }
+      };
+    }
+  }
+
+  @Function.Named("geohash_to_boundary_wkt")
+  public static class GeoHashToBoundaryWKT extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Rectangle boundary = GeohashUtils.decodeBoundary(
+              Evals.evalString(args.get(0), bindings),
+              JtsSpatialContext.GEO
+          );
+          return ExprEval.of("POLYGON((" +
+              boundary.getMinX() + ' ' + boundary.getMinY() + ", " +
+              boundary.getMinX() + ' ' + boundary.getMaxY() + ", " +
+              boundary.getMaxX() + ' ' + boundary.getMaxY() + ", " +
+              boundary.getMaxX() + ' ' + boundary.getMinY() + ", " +
+              boundary.getMinX() + ' ' + boundary.getMinY() + "))"
+          );
         }
       };
     }

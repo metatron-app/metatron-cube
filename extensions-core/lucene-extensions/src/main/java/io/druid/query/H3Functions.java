@@ -135,6 +135,34 @@ public class H3Functions implements Function.Library
     }
   }
 
+  @Function.Named("h3_to_center_wkt")
+  public static class H3ToCenterWKT extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final H3Core instance = H3.get();
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final ExprEval eval = Evals.eval(args.get(0), bindings);
+          GeoCoord point;
+          if (eval.isLong()) {
+            point = instance.h3ToGeo(eval.asLong());
+          } else {
+            point = instance.h3ToGeo(eval.asString());
+          }
+          return ExprEval.of("POINT(" + point.lng + " " + point.lat + ")");
+        }
+      };
+    }
+  }
+
   @Function.Named("h3_to_boundary")
   public static class H3ToBoundary extends Function.AbstractFactory
   {
@@ -166,10 +194,44 @@ public class H3Functions implements Function.Library
           double[] result = new double[points.size() << 1];
           for (int i = 0; i < points.size(); i++) {
             GeoCoord point = points.get(i);
-            result[i * 2] = point.lat;
-            result[i * 2 + 1] = point.lng;
+            result[i * 2] = point.lng;
+            result[i * 2 + 1] = point.lat;
           }
           return ExprEval.of(result, ValueDesc.DOUBLE_ARRAY);
+        }
+      };
+    }
+  }
+
+  @Function.Named("h3_to_boundary_wkt")
+  public static class H3ToBoundaryWKT extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final H3Core instance = H3.get();
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final ExprEval eval = Evals.eval(args.get(0), bindings);
+          List<GeoCoord> points;
+          if (eval.isLong()) {
+            points = instance.h3ToGeoBoundary(eval.asLong());
+          } else {
+            points = instance.h3ToGeoBoundary(eval.asString());
+          }
+          StringBuilder builder = new StringBuilder("POLYGON((");
+          for (GeoCoord coord : points) {
+            builder.append(coord.lng).append(' ').append(coord.lat).append(", ");
+          }
+          builder.append(points.get(0).lng).append(' ').append(points.get(0).lat);
+          builder.append("))");
+          return ExprEval.of(builder.toString());
         }
       };
     }
