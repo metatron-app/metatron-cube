@@ -39,6 +39,7 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
+import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -256,32 +257,18 @@ public class QueryResource
       @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
   ) throws IOException
   {
-    final long start = System.currentTimeMillis();
-    Query query = null;
-    String queryId = null;
-
+    final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null);
     final String contentType = context.getContentType();
 
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
+
+    final long start = System.currentTimeMillis();
+    final Query query = readQuery(in, context);
     try {
-      query = context.getInputMapper(false).readValue(in, Query.class);
-
-      Map<String, Object> adding = Maps.newHashMap();
-      if (query.getId() == null) {
-        adding.put(Query.QUERYID, UUID.randomUUID().toString());
-      }
-      if (query.getContextInt(QueryContextKeys.TIMEOUT, -1) < 0) {
-        adding.put(Query.TIMEOUT, config.getMaxIdleTime().toStandardDuration().getMillis());
-      }
-      if (!adding.isEmpty()) {
-        query = query.withOverriddenContext(adding);
-      }
-      queryId = query.getId();
-
-      log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId + ":" + query.getType());
-      currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
+      log.info("Got query [%s]", log.isDebugEnabled() ? query : query.getId() + ":" + query.getType());
+      currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
       final Query prepared = prepareQuery(query);
 
@@ -309,131 +296,142 @@ public class QueryResource
             @SuppressWarnings("unchecked")
             public Object accumulate(Object accumulated, Object in)
             {
-              yield();
               counter.increment();
+              yield();
               return in;
             }
           }
       );
 
       final ObjectWriter jsonWriter = context.getOutputWriter(
-          query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
+          prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
       );
 
-      try {
-        final Query theQuery = query;
-        Response.ResponseBuilder builder = Response
-            .ok(
-                new StreamingOutput()
-                {
-                  @Override
-                  public void write(OutputStream outputStream) throws IOException, WebApplicationException
-                  {
-                    // json serializer will always close the yielder
-                    CountingOutputStream os = new CountingOutputStream(outputStream);
-                    jsonWriter.writeValue(os, yielder);
+      final StreamingOutput output = new StreamingOutput()
+      {
+        @Override
+        public void write(OutputStream outputStream) throws IOException, WebApplicationException
+        {
+          // json serializer will always close the yielder
+          CountingOutputStream os = new CountingOutputStream(outputStream);
+          try {
+            // it'll block for ServerConfig.maxIdleTime * 1.5 and throw exception, killing the thread
+            jsonWriter.writeValue(os, yielder);
+            os.flush(); // Some types of OutputStream suppress flush errors in the .close() method.
+            os.close();
+          }
+          catch (Throwable t) {
+            // it's not propagated to handlings below. so do it here
+            handleException(prepared, remote, start, t);
+            currThread.setName(currThreadName);
+            if (t instanceof IOException) {
+              throw (IOException) t;
+            }
+            if (t instanceof WebApplicationException) {
+              throw (WebApplicationException) t;
+            }
+            throw Throwables.propagate(t);
+          }
 
-                    os.flush(); // Some types of OutputStream suppress flush errors in the .close() method.
-                    os.close();
+          long queryTime = System.currentTimeMillis() - start;
+          ServiceMetricEvent.Builder metric = DruidMetrics.makeQueryTimeMetric(jsonMapper, prepared, remote)
+                                                          .setDimension("success", "true");
+          emitter.emit(metric.build("query/time", queryTime));
+          emitter.emit(metric.build("query/bytes", os.getCount()));
+          emitter.emit(metric.build("query/rows", counter.intValue()));
 
-                    final long queryTime = System.currentTimeMillis() - start;
-                    emitter.emit(
-                        DruidMetrics.makeQueryTimeMetric(jsonMapper, theQuery, req.getRemoteAddr())
-                                    .setDimension("success", "true")
-                                    .build("query/time", queryTime)
-                    );
-                    emitter.emit(
-                        DruidMetrics.makeQueryTimeMetric(jsonMapper, theQuery, req.getRemoteAddr())
-                                    .build("query/bytes", os.getCount())
-                    );
-
-                    requestLogger.log(
-                        new RequestLogLine(
-                            DateTimes.utc(start),
-                            req.getRemoteAddr(),
-                            toLoggingQuery(theQuery),
-                            new QueryStats(
-                                ImmutableMap.<String, Object>of(
-                                    "query/time", queryTime,
-                                    "query/bytes", os.getCount(),
-                                    "query/rows", counter.intValue(),
-                                    "success", true
-                                )
-                            )
-                        )
-                    );
-                    currThread.setName(currThreadName);
-                  }
-                },
-                contentType
-            )
-            .header("X-Druid-Query-Id", queryId);
-
-        //Limit the response-context header, see https://github.com/druid-io/druid/issues/2331
-        //Note that Response.ResponseBuilder.header(String key,Object value).build() calls value.toString()
-        //and encodes the string using ASCII, so 1 char is = 1 byte
-        String responseCtxString = jsonMapper.writeValueAsString(responseContext);
-        if (responseCtxString.length() > RESPONSE_CTX_HEADER_LEN_LIMIT) {
-          log.warn("Response Context truncated for id [%s] . Full context is [%s].", queryId, responseCtxString);
-          responseCtxString = responseCtxString.substring(0, RESPONSE_CTX_HEADER_LEN_LIMIT);
+          requestLogger.log(
+              new RequestLogLine(
+                  DateTimes.utc(start),
+                  remote,
+                  toLoggingQuery(prepared),
+                  new QueryStats(
+                      ImmutableMap.<String, Object>of(
+                          "query/time", queryTime,
+                          "query/bytes", os.getCount(),
+                          "query/rows", counter.intValue(),
+                          "success", true
+                      )
+                  )
+              )
+          );
+          currThread.setName(currThreadName);
         }
+      };
+      //Limit the response-context header, see https://github.com/druid-io/druid/issues/2331
+      //Note that Response.ResponseBuilder.header(String key,Object value).build() calls value.toString()
+      //and encodes the string using ASCII, so 1 char is = 1 byte
+      String responseCtxString = jsonMapper.writeValueAsString(responseContext);
+      if (responseCtxString.length() > RESPONSE_CTX_HEADER_LEN_LIMIT) {
+        log.warn("Response Context truncated for id [%s]. Full context is [%s].", prepared.getId(), responseCtxString);
+        responseCtxString = responseCtxString.substring(0, RESPONSE_CTX_HEADER_LEN_LIMIT);
+      }
 
-        return builder
-            .header("X-Druid-Response-Context", responseCtxString)
-            .build();
-      }
-      catch (Exception e) {
-        // make sure to close yielder if anything happened before starting to serialize the response.
-        yielder.close();
-        throw Throwables.propagate(e);
-      }
-      finally {
-        // do not close yielder here, since we do not want to close the yielder prior to
-        // StreamingOutput having iterated over all the results
-      }
+      return Response.ok(output, contentType)
+                     .header("X-Druid-Query-Id", prepared.getId())
+                     .header("X-Druid-Response-Context", responseCtxString)
+                     .build();
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      if (query == null) {
-        return context.gotError(e);
-      }
-      final boolean interrupted = e instanceof QueryInterruptedException;
-      if (interrupted) {
-        log.info("%s [%s]", e.getMessage(), queryId);
-      } else {
-        log.warn(e, "Exception occurred on request [%s]", query);
-        log.makeAlert(e, "Exception handling request")
-           .addData("exception", e.toString())
-           .addData("query", query)
-           .addData("peer", req.getRemoteAddr())
-           .emit();
-      }
-
-      long queryTime = System.currentTimeMillis() - start;
-      requestLogger.log(
-          new RequestLogLine(
-              DateTimes.utc(start),
-              req.getRemoteAddr(),
-              toLoggingQuery(query),
-              new QueryStats(
-                  ImmutableMap.<String, Object>of(
-                      "query/time", queryTime,
-                      "interrupted", interrupted,
-                      "exception", e.toString(),
-                      "success", false
-                  )
-              )
-          )
-      );
-      emitter.emit(
-          DruidMetrics.makeQueryTimeMetric(jsonMapper, query, req.getRemoteAddr())
-                      .setDimension("success", "false")
-                      .build("query/time", queryTime)
-      );
-
+      handleException(query, remote, start, e);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }
+  }
+
+  private Query readQuery(InputStream in, RequestContext context) throws IOException
+  {
+    Query query = context.getInputMapper(false).readValue(in, Query.class);
+    Map<String, Object> adding = Maps.newHashMap();
+    if (query.getId() == null) {
+      adding.put(Query.QUERYID, UUID.randomUUID().toString());
+    }
+    if (query.getContextInt(QueryContextKeys.TIMEOUT, -1) < 0) {
+      adding.put(Query.TIMEOUT, config.getMaxIdleTime().toStandardDuration().getMillis());
+    }
+    if (!adding.isEmpty()) {
+      query = query.withOverriddenContext(adding);
+    }
+    return query;
+  }
+
+  private void handleException(Query query, String remote, long start, Throwable e)
+      throws IOException
+  {
+    boolean interrupted = e instanceof QueryInterruptedException;
+    if (interrupted) {
+      log.info("%s [%s]", e.toString(), query.getId());
+    } else {
+      log.warn(e, "Exception occurred on request [%s]", query);
+      log.makeAlert(e, "Exception handling request")
+         .addData("exception", e.toString())
+         .addData("query", query)
+         .addData("peer", remote)
+         .emit();
+    }
+
+    long queryTime = System.currentTimeMillis() - start;
+    requestLogger.log(
+        new RequestLogLine(
+            DateTimes.utc(start),
+            remote,
+            toLoggingQuery(query),
+            new QueryStats(
+                ImmutableMap.<String, Object>of(
+                    "query/time", queryTime,
+                    "interrupted", interrupted,
+                    "exception", e.toString(),
+                    "success", false
+                )
+            )
+        )
+    );
+    emitter.emit(
+        DruidMetrics.makeQueryTimeMetric(jsonMapper, query, remote)
+                    .setDimension("success", "false")
+                    .build("query/time", queryTime)
+    );
   }
 
   // clear previous query name if exists (should not)
