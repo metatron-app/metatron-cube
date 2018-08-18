@@ -55,22 +55,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       List<PostAggregator> postAggregators
   )
   {
-    final Map<String, ValueDesc> expectedTypes = Maps.newHashMap();
-    // todo (now dimensions can be any comparable type)
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      expectedTypes.put(
-          dimensionSpec.getOutputName(),
-          dimensionSpec.getExtractionFn() != null ? ValueDesc.STRING : ValueDesc.UNKNOWN
-      );
-    }
-    for (AggregatorFactory aggregator : aggregators) {
-      expectedTypes.put(aggregator.getName(), ValueDesc.of(aggregator.getTypeName()));
-    }
-    TypeResolver resolver = new TypeResolver.WithMap(expectedTypes);
-    for (PostAggregator postAggregator : postAggregators) {
-      expectedTypes.put(postAggregator.getName(), postAggregator.resolve(resolver));
-    }
-    expectedTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
+    Map<String, ValueDesc> expectedTypes = AggregatorFactory.createTypeMap(
+        dimensionSpecs, aggregators, postAggregators
+    );
 
     WindowContext context = WindowContext.newInstance(DimensionSpecs.toOutputNames(dimensionSpecs), expectedTypes);
 

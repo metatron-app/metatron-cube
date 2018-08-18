@@ -191,7 +191,10 @@ public class Queries
       if (aggregators.isEmpty() && aggrSupport.allMetricsForEmpty()) {
         aggregators = supplier.get().getAggregatorsList() ;
       }
-      return builder.withMetrics(AggregatorFactory.toRelayAndMerge(aggregators, aggrSupport.getPostAggregatorSpecs()))
+      List<AggregatorFactory> metrics = AggregatorFactory.toRelayAndMerge(
+          aggrSupport.getDimensions(), aggregators, aggrSupport.getPostAggregatorSpecs()
+      );
+      return builder.withMetrics(metrics)
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {

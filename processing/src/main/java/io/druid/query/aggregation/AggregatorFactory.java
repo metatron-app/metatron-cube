@@ -28,10 +28,13 @@ import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
+import io.druid.segment.column.Column;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -300,19 +303,47 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static List<AggregatorFactory> toRelayAndMerge(
+  public static Map<String, ValueDesc> createTypeMap(
+      List<DimensionSpec> dimensionSpecs,
       List<AggregatorFactory> aggregators,
       List<PostAggregator> postAggregators
   )
   {
+    final Map<String, ValueDesc> expectedTypes = Maps.newHashMap();
+    // todo (now dimensions can be any comparable type)
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      expectedTypes.put(
+          dimensionSpec.getOutputName(),
+          dimensionSpec.getExtractionFn() != null ? ValueDesc.STRING : ValueDesc.UNKNOWN
+      );
+    }
+    for (AggregatorFactory aggregator : aggregators) {
+      expectedTypes.put(aggregator.getName(), ValueDesc.of(aggregator.getTypeName()));
+    }
+    TypeResolver resolver = new TypeResolver.WithMap(expectedTypes);
+    for (PostAggregator postAggregator : postAggregators) {
+      expectedTypes.put(postAggregator.getName(), postAggregator.resolve(resolver));
+    }
+    expectedTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
+    return expectedTypes;
+  }
+
+  public static List<AggregatorFactory> toRelayAndMerge(
+      List<DimensionSpec> dimensionSpecs,
+      List<AggregatorFactory> aggregators,
+      List<PostAggregator> postAggregators
+  )
+  {
+    List<AggregatorFactory> relay = toRelay(aggregators);
     if (GuavaUtils.isNullOrEmpty(postAggregators)) {
-      return toRelay(aggregators);
+      return relay;
     }
-    Map<String, AggregatorFactory> relay = asMap(toRelay(aggregators));
-    for (PostAggregator aggregator : postAggregators) {
-      relay.put(aggregator.getName(), new RelayAggregatorFactory(aggregator.getName(), ValueDesc.UNKNOWN_TYPE));
+    Map<String, ValueDesc> resolved = createTypeMap(dimensionSpecs, relay, postAggregators);
+    for (PostAggregator postAggregator : postAggregators) {
+      String name = postAggregator.getName();
+      relay.add(new RelayAggregatorFactory(name, resolved.get(name).typeName()));
     }
-    return Lists.newArrayList(relay.values());
+    return relay;
   }
 
   public static Function<AggregatorFactory, Pair<String, ValueDesc>> NAME_TYPE =

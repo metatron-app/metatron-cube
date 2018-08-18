@@ -38,8 +38,6 @@ import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.io.ShapeReader;
 
-import java.util.Objects;
-
 /**
  */
 @JsonTypeName("spatial")
@@ -104,10 +102,8 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
       wktIndex = serde.indexOf(fieldName);
       Preconditions.checkArgument(wktIndex >= 0, "invalid fieldName " + fieldName + " in " + type);
       Preconditions.checkArgument(serde.type(wktIndex) == ValueType.STRING, fieldName + " is not string");
-    } else if (type.isString()) {
-      wktIndex = -1;
     } else {
-      throw new IllegalArgumentException("not supported type " + type);
+      wktIndex = -1;
     }
     return new Function<Object, Field[]>()
     {
@@ -118,7 +114,7 @@ public class SpatialIndexingStrategy implements LuceneIndexingStrategy
           input = ((Object[]) input)[wktIndex];
         }
         try {
-          return strategy.createIndexableFields(reader.read(Objects.toString(input, null)));
+          return strategy.createIndexableFields(reader.read(input));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
