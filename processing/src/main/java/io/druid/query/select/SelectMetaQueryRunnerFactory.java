@@ -19,20 +19,16 @@
 
 package io.druid.query.select;
 
-import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -40,11 +36,9 @@ import java.util.concurrent.Future;
 /**
  */
 public class SelectMetaQueryRunnerFactory
-    implements QueryRunnerFactory<Result<SelectMetaResultValue>, SelectMetaQuery>
+    extends QueryRunnerFactory.Abstract<Result<SelectMetaResultValue>, SelectMetaQuery>
 {
-  private final SelectMetaQueryToolChest toolChest;
   private final SelectMetaQueryEngine engine;
-  private final QueryWatcher queryWatcher;
 
   @Inject
   public SelectMetaQueryRunnerFactory(
@@ -53,9 +47,8 @@ public class SelectMetaQueryRunnerFactory
       QueryWatcher queryWatcher
   )
   {
-    this.toolChest = toolChest;
+    super(toolChest, queryWatcher);
     this.engine = engine;
-    this.queryWatcher = queryWatcher;
   }
 
   @Override
@@ -82,22 +75,5 @@ public class SelectMetaQueryRunnerFactory
     return new ChainedExecutionQueryRunner<Result<SelectMetaResultValue>>(
         queryExecutor, queryWatcher, queryRunners
     );
-  }
-
-  @Override
-  public QueryToolChest<Result<SelectMetaResultValue>, SelectMetaQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      SelectMetaQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 }

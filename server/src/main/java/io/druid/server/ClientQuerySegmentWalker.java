@@ -76,6 +76,12 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
     return makeRunner(query, false);

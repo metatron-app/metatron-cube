@@ -140,4 +140,9 @@ public class TaskToolboxFactory
         indexMergerV9
     );
   }
+
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
 }

@@ -27,8 +27,6 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.cache.BitmapCache;
-import io.druid.cache.Cache;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -45,26 +43,15 @@ import java.util.concurrent.Future;
 /**
  */
 public class StreamQueryRunnerFactory
-    implements QueryRunnerFactory<StreamQueryRow, StreamQuery>
+    extends QueryRunnerFactory.Abstract<StreamQueryRow, StreamQuery>
 {
-  private final StreamQueryToolChest toolChest;
   private final StreamQueryEngine engine;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine)
   {
-    this(toolChest, engine, null);
-  }
-
-  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine, Cache cache)
-  {
-    this.toolChest = toolChest;
+    super(toolChest, null);
     this.engine = engine;
-    this.cache = cache;
   }
 
   @Override
@@ -127,11 +114,5 @@ public class StreamQueryRunnerFactory
         );
       }
     };
-  }
-
-  @Override
-  public QueryToolChest<StreamQueryRow, StreamQuery> getToolchest()
-  {
-    return toolChest;
   }
 }

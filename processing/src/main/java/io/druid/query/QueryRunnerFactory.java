@@ -21,6 +21,9 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
+import com.google.inject.Inject;
+import io.druid.cache.BitmapCache;
+import io.druid.cache.Cache;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -95,5 +98,38 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
         QuerySegmentWalker segmentWalker,
         ObjectMapper mapper
     );
+  }
+
+  abstract class Abstract<T, QueryType extends Query<T>> implements QueryRunnerFactory<T, QueryType>
+  {
+    protected final QueryToolChest<T, QueryType> toolChest;
+    protected final QueryWatcher queryWatcher;
+
+    @BitmapCache
+    @Inject(optional = true)
+    protected Cache cache;
+
+    protected Abstract(QueryToolChest<T, QueryType> toolChest, QueryWatcher queryWatcher)
+    {
+      this.toolChest = toolChest;
+      this.queryWatcher = queryWatcher;
+    }
+
+    @Override
+    public Future<Object> preFactoring(
+        QueryType query,
+        List<Segment> segments,
+        Supplier<RowResolver> resolver,
+        ExecutorService exec
+    )
+    {
+      return null;
+    }
+
+    @Override
+    public final QueryToolChest<T, QueryType> getToolchest()
+    {
+      return toolChest;
+    }
   }
 }

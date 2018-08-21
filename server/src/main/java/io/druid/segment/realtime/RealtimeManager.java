@@ -156,6 +156,12 @@ public class RealtimeManager implements QuerySegmentWalker
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(final Query<T> query, Iterable<Interval> intervals)
   {
     if (query instanceof Query.ManagementQuery) {

@@ -19,22 +19,18 @@
 
 package io.druid.query.timeseries;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
 import java.util.Iterator;
@@ -46,35 +42,17 @@ import java.util.concurrent.Future;
 /**
  */
 public class TimeseriesQueryRunnerFactory
-    implements QueryRunnerFactory<Result<TimeseriesResultValue>, TimeseriesQuery>
+    extends QueryRunnerFactory.Abstract<Result<TimeseriesResultValue>, TimeseriesQuery>
 {
-  private final TimeseriesQueryQueryToolChest toolChest;
   private final TimeseriesQueryEngine engine;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public TimeseriesQueryRunnerFactory(
       TimeseriesQueryQueryToolChest toolChest,
       TimeseriesQueryEngine engine,
       QueryWatcher queryWatcher) {
-    this(toolChest, engine, queryWatcher, null);
-  }
-
-  public TimeseriesQueryRunnerFactory(
-      TimeseriesQueryQueryToolChest toolChest,
-      TimeseriesQueryEngine engine,
-      QueryWatcher queryWatcher,
-      Cache cache
-  )
-  {
-    this.toolChest = toolChest;
+    super(toolChest, queryWatcher);
     this.engine = engine;
-    this.queryWatcher = queryWatcher;
-    this.cache = cache;
   }
 
   @Override
@@ -104,23 +82,6 @@ public class TimeseriesQueryRunnerFactory
         return super.toIterator(query, results);
       }
     };
-  }
-
-  @Override
-  public QueryToolChest<Result<TimeseriesResultValue>, TimeseriesQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      TimeseriesQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 
   private static class TimeseriesQueryRunner implements QueryRunner<Result<TimeseriesResultValue>>

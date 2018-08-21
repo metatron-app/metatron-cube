@@ -20,7 +20,6 @@
 package io.druid.query.metadata;
 
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -39,9 +38,7 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
@@ -64,13 +61,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<SegmentAnalysis, SegmentMetadataQuery>
+public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstract<SegmentAnalysis, SegmentMetadataQuery>
 {
   private static final Logger log = new Logger(SegmentMetadataQueryRunnerFactory.class);
-
-
-  private final SegmentMetadataQueryQueryToolChest toolChest;
-  private final QueryWatcher queryWatcher;
 
   @Inject
   public SegmentMetadataQueryRunnerFactory(
@@ -78,8 +71,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
       QueryWatcher queryWatcher
   )
   {
-    this.toolChest = toolChest;
-    this.queryWatcher = queryWatcher;
+    super(toolChest, queryWatcher);
   }
 
   @Override
@@ -230,22 +222,5 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
             }
         )
     );
-  }
-
-  @Override
-  public QueryToolChest<SegmentAnalysis, SegmentMetadataQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      SegmentMetadataQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 }

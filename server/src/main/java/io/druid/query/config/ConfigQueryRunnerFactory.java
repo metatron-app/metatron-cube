@@ -33,26 +33,21 @@ import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class ConfigQueryRunnerFactory implements QueryRunnerFactory<Map<String, Object>, ConfigQuery>
+public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>, ConfigQuery>
 {
   private final DruidNode node;
   private final Injector injector;
-  private final ConfigQueryToolChest toolChest;
-  private final QueryWatcher queryWatcher;
 
   @Inject
   public ConfigQueryRunnerFactory(
@@ -62,16 +57,9 @@ public class ConfigQueryRunnerFactory implements QueryRunnerFactory<Map<String, 
       QueryWatcher queryWatcher
   )
   {
+    super(toolChest, queryWatcher);
     this.node = node;
     this.injector = injector;
-    this.toolChest = toolChest;
-    this.queryWatcher = queryWatcher;
-  }
-
-  @Override
-  public Future<Object> preFactoring(ConfigQuery query, List<Segment> segments, Supplier<RowResolver> resolver, ExecutorService exec)
-  {
-    return null;
   }
 
   @Override
@@ -113,11 +101,5 @@ public class ConfigQueryRunnerFactory implements QueryRunnerFactory<Map<String, 
   )
   {
     return new ChainedExecutionQueryRunner<Map<String, Object>>(queryExecutor, queryWatcher, queryRunners);
-  }
-
-  @Override
-  public QueryToolChest<Map<String, Object>, ConfigQuery> getToolchest()
-  {
-    return toolChest;
   }
 }

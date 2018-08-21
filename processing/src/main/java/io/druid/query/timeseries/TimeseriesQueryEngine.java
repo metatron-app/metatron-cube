@@ -22,14 +22,15 @@ package io.druid.query.timeseries;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.query.BaseQuery;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 
 import java.util.List;
@@ -55,11 +56,12 @@ public class TimeseriesQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
+    RowResolver resolver = RowResolver.of(adapter, BaseQuery.getVirtualColumns(query));
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         query.getQuerySegmentSpec().getIntervals(),
-        Segments.getResolver(segment, query),
+        resolver,
         query.getDimFilter(),
         cache,
         query.isDescending(),

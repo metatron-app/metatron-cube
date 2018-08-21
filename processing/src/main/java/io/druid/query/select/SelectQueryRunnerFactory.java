@@ -28,7 +28,6 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
-import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -52,18 +51,12 @@ import java.util.concurrent.Future;
 /**
  */
 public class SelectQueryRunnerFactory
-    implements QueryRunnerFactory<Result<SelectResultValue>, SelectQuery>
+    extends QueryRunnerFactory.Abstract<Result<SelectResultValue>, SelectQuery>
 {
   private static final Logger LOG = new Logger(SelectQueryRunnerFactory.class);
 
-  private final SelectQueryQueryToolChest toolChest;
   private final SelectQueryEngine engine;
   private final SelectQueryConfig config;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public SelectQueryRunnerFactory(
@@ -71,22 +64,9 @@ public class SelectQueryRunnerFactory
       SelectQueryEngine engine,
       SelectQueryConfig config,
       QueryWatcher queryWatcher) {
-    this(toolChest, engine, config, queryWatcher, null);
-  }
-
-  public SelectQueryRunnerFactory(
-      SelectQueryQueryToolChest toolChest,
-      SelectQueryEngine engine,
-      SelectQueryConfig config,
-      QueryWatcher queryWatcher,
-      Cache cache
-  )
-  {
-    this.toolChest = toolChest;
+    super(toolChest, queryWatcher);
     this.engine = engine;
     this.config = config;
-    this.queryWatcher = queryWatcher;
-    this.cache = cache;
   }
 
   @Override
@@ -151,12 +131,6 @@ public class SelectQueryRunnerFactory
     return new ChainedExecutionQueryRunner<Result<SelectResultValue>>(
         queryExecutor, queryWatcher, queryRunners
     );
-  }
-
-  @Override
-  public QueryToolChest<Result<SelectResultValue>, SelectQuery> getToolchest()
-  {
-    return toolChest;
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>

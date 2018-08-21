@@ -19,6 +19,7 @@
 
 package io.druid.indexing.overlord;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -341,6 +342,12 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
   public void start()
   {
     // No state startup required
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return toolboxFactory.getObjectMapper();
   }
 
   @Override

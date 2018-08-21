@@ -19,7 +19,9 @@
 
 package io.druid.query.aggregation;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -45,9 +47,9 @@ import java.util.Set;
 
 /**
  * Processing related interface
- * 
+ * <p>
  * An AggregatorFactory is an object that knows how to generate an Aggregator using a ColumnSelectorFactory.
- * 
+ * <p>
  * This is useful as an abstraction to allow Aggregator classes to be written in terms of MetricSelector objects
  * without making any assumptions about how they are pulling values out of the base data.  That is, the data is
  * provided to the Aggregator through the MetricSelector object, so whatever creates that object gets to choose how
@@ -94,7 +96,10 @@ public abstract class AggregatorFactory implements Cacheable
    */
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    throw new UnsupportedOperationException(String.format("[%s] does not implement getMergingFactory(..)", this.getClass().getName()));
+    throw new UnsupportedOperationException(String.format(
+        "[%s] does not implement getMergingFactory(..)",
+        this.getClass().getName()
+    ));
   }
 
   @SuppressWarnings("unchecked")
@@ -102,7 +107,7 @@ public abstract class AggregatorFactory implements Cacheable
       throws AggregatorFactoryNotMergeableException
   {
     if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return (T)other;
+      return (T) other;
     }
     throw new AggregatorFactoryNotMergeableException(this, other);
   }
@@ -163,7 +168,7 @@ public abstract class AggregatorFactory implements Cacheable
   {
     public abstract boolean needResolving();
 
-    public abstract AggregatorFactory resolve(RowResolver resolver);
+    public abstract AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper);
   }
 
   /**
@@ -201,7 +206,8 @@ public abstract class AggregatorFactory implements Cacheable
           }
         }
       }
-    } catch (AggregatorFactoryNotMergeableException ex) {
+    }
+    catch (AggregatorFactoryNotMergeableException ex) {
       log.warn(ex, "failed to merge aggregator factories");
       return null;
     }

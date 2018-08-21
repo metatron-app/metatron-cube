@@ -19,7 +19,6 @@
 
 package io.druid.query.timeboundary;
 
-import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
@@ -28,16 +27,13 @@ import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -45,15 +41,12 @@ import java.util.concurrent.Future;
 /**
  */
 public class TimeBoundaryQueryRunnerFactory
-    implements QueryRunnerFactory<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
+    extends QueryRunnerFactory.Abstract<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
 {
-  private static final TimeBoundaryQueryQueryToolChest toolChest = new TimeBoundaryQueryQueryToolChest();
-  private final QueryWatcher queryWatcher;
-
   @Inject
   public TimeBoundaryQueryRunnerFactory(QueryWatcher queryWatcher)
   {
-    this.queryWatcher = queryWatcher;
+    super(new TimeBoundaryQueryQueryToolChest(), queryWatcher);
   }
 
   @Override
@@ -69,23 +62,6 @@ public class TimeBoundaryQueryRunnerFactory
   )
   {
     return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
-  }
-
-  @Override
-  public QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      TimeBoundaryQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 
   private static class TimeBoundaryQueryRunner implements QueryRunner<Result<TimeBoundaryResultValue>>

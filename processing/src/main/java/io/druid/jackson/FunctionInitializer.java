@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.jsontype.SubtypeResolver;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
@@ -35,6 +36,7 @@ import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -69,6 +71,15 @@ public class FunctionInitializer implements Module
       }
     }
     return found;
+  }
+
+  public static Map<String, Class> resolveSubtypesAsMap(ObjectMapper mapper, Class<?> clazz)
+  {
+    Map<String, Class> mapping = Maps.newHashMap();
+    for (NamedType namedType : resolveSubtypes(mapper, clazz)) {
+      mapping.put(namedType.getName(), namedType.getType());
+    }
+    return mapping;
   }
 
   @Override

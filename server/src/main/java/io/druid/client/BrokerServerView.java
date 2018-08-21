@@ -48,6 +48,7 @@ import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Client;
+import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
@@ -118,6 +119,7 @@ public class BrokerServerView implements TimelineServerView
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
   private final ObjectMapper smileMapper;
+  private final ObjectMapper jsonMapper;
   private final HttpClient httpClient;
   private final FilteredServerInventoryView baseView;
   private final TierSelectorStrategy tierSelectorStrategy;
@@ -134,6 +136,7 @@ public class BrokerServerView implements TimelineServerView
       QueryToolChestWarehouse warehouse,
       QueryWatcher queryWatcher,
       @Smile ObjectMapper smileMapper,
+      @Json ObjectMapper jsonMapper,
       @Client HttpClient httpClient,
       FilteredServerInventoryView baseView,
       TierSelectorStrategy tierSelectorStrategy,
@@ -147,6 +150,7 @@ public class BrokerServerView implements TimelineServerView
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
     this.smileMapper = smileMapper;
+    this.jsonMapper = jsonMapper;
     this.httpClient = httpClient;
     this.baseView = baseView;
     this.tierSelectorStrategy = tierSelectorStrategy;
@@ -577,7 +581,7 @@ public class BrokerServerView implements TimelineServerView
     final ExecutorService exec = Execs.singleThreaded("BrokerLocalProcessor-%s");
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, jsonMapper);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
@@ -598,7 +602,6 @@ public class BrokerServerView implements TimelineServerView
                 }
                 return Arrays.asList(
                     buildAndDecorateQueryRunner(
-                        resolver,
                         factory,
                         toolChest,
                         input.rhs,
@@ -638,7 +641,6 @@ public class BrokerServerView implements TimelineServerView
 
   // copied from server manager, except cache populator
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
-      final Supplier<RowResolver> resolver,
       final QueryRunnerFactory<T, Query<T>> factory,
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
@@ -668,7 +670,7 @@ public class BrokerServerView implements TimelineServerView
                               }
                             },
                             new ReferenceCountingSegmentQueryRunner<T>(
-                                resolver, factory, adapter, segmentDescriptor, optimizer
+                                factory, adapter, segmentDescriptor, optimizer
                             ),
                             "query/segment/time",
                             ImmutableMap.of("segment", adapter.getIdentifier())

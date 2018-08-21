@@ -231,6 +231,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
     final Query<T> prepared = prepareQuery(query);
@@ -432,7 +438,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
     final Future<Object> optimizer = factory.preFactoring(query, targets, resolver, executor);
 
     Iterable<QueryRunner<T>> queryRunners = FunctionalIterable

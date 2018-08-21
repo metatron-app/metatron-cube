@@ -26,13 +26,10 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.cache.BitmapCache;
-import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.select.Schema;
@@ -50,15 +47,9 @@ import java.util.concurrent.Future;
 /**
  */
 public class FindNearestQueryRunnerFactory
-    implements QueryRunnerFactory<CentroidDesc, FindNearestQuery>
+    extends QueryRunnerFactory.Abstract<CentroidDesc, FindNearestQuery>
 {
-  private final FindNearestQueryToolChest toolChest;
   private final StreamQueryEngine engine;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public FindNearestQueryRunnerFactory(
@@ -67,9 +58,8 @@ public class FindNearestQueryRunnerFactory
       QueryWatcher queryWatcher
   )
   {
-    this.toolChest = toolChest;
+    super(toolChest, queryWatcher);
     this.engine = engine;
-    this.queryWatcher = queryWatcher;
   }
 
   @Override
@@ -145,11 +135,5 @@ public class FindNearestQueryRunnerFactory
   )
   {
     return new ChainedExecutionQueryRunner<CentroidDesc>(queryExecutor, queryWatcher, queryRunners);
-  }
-
-  @Override
-  public QueryToolChest<CentroidDesc, FindNearestQuery> getToolchest()
-  {
-    return toolChest;
   }
 }

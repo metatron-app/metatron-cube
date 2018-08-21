@@ -19,43 +19,31 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<String, Object>>, SketchQuery>
+public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<Map<String, Object>>, SketchQuery>
 {
-  private final SketchQueryQueryToolChest toolChest;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
-
   @Inject
   public SketchQueryRunnerFactory(
       SketchQueryQueryToolChest toolChest,
       QueryWatcher queryWatcher
   )
   {
-    this.toolChest = toolChest;
-    this.queryWatcher = queryWatcher;
+    super(toolChest, queryWatcher);
   }
 
   @Override
@@ -73,22 +61,5 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
     return new ChainedExecutionQueryRunner<Result<Map<String, Object>>>(
         queryExecutor, queryWatcher, queryRunners
     );
-  }
-
-  @Override
-  public QueryToolChest<Result<Map<String, Object>>, SketchQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      SketchQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 }

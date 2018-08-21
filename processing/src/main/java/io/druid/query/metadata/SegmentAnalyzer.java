@@ -26,7 +26,6 @@ import com.metamx.common.guava.Accumulator;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.BaseQuery;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -61,7 +60,7 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final RowResolver resolver = RowResolver.of(segment, BaseQuery.getVirtualColumns(query));
+    final RowResolver resolver = RowResolver.of(segment, query);
 
     final ColumnIncluderator predicate = query.getToInclude();
 

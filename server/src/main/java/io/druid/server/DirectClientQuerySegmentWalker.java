@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.client.DirectDruidClient;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
@@ -43,6 +44,12 @@ public class DirectClientQuerySegmentWalker implements QuerySegmentWalker
   {
     this.warehouse = warehouse;
     this.baseClient = baseClient;
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return baseClient.getObjectMapper();
   }
 
   @Override

@@ -37,7 +37,6 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
@@ -109,7 +108,7 @@ public class StreamQueryEngine
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
-    final RowResolver resolver = Segments.getResolver(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query);
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);

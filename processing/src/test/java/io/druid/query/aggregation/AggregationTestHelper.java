@@ -433,7 +433,7 @@ public class AggregationTestHelper
     }
   }
 
-  public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query query)
+  public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query<Row> query)
   {
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
     final QueryRunner baseRunner = toolChest.finalizeMetrics(
@@ -470,7 +470,8 @@ public class AggregationTestHelper
         )
     );
 
-    return toolChest.finalQueryDecoration(baseRunner).run(query.resolveQuery(resolver), Maps.newHashMap());
+    Query<Row> resolved = query.resolveQuery(resolver, mapper);
+    return toolChest.finalQueryDecoration(baseRunner).run(resolved, Maps.newHashMap());
   }
 
   public QueryRunner<Row> makeStringSerdeQueryRunner(final ObjectMapper mapper, final QueryToolChest toolChest, final Query<Row> query, final QueryRunner<Row> baseRunner)

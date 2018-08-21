@@ -19,35 +19,23 @@
 
 package io.druid.query.search;
 
-import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.Segment;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<SearchResultValue>, SearchQuery>
+public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<SearchResultValue>, SearchQuery>
 {
-  private final SearchQueryQueryToolChest toolChest;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
-
   @Inject
   public SearchQueryRunnerFactory(
       SearchQueryQueryToolChest toolChest,
@@ -63,8 +51,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
       Cache cache
   )
   {
-    this.toolChest = toolChest;
-    this.queryWatcher = queryWatcher;
+    super(toolChest, queryWatcher);
     this.cache = cache;
   }
 
@@ -83,22 +70,5 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
     return new ChainedExecutionQueryRunner<Result<SearchResultValue>>(
         queryExecutor, queryWatcher, queryRunners
     );
-  }
-
-  @Override
-  public QueryToolChest<Result<SearchResultValue>, SearchQuery> getToolchest()
-  {
-    return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      SearchQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 }

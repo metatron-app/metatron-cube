@@ -41,6 +41,7 @@ import io.druid.segment.column.Column;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -299,6 +300,42 @@ public class Schema implements TypeResolver, RowSignature
            ", aggregators=" + aggregators +
            ", descriptors=" + descriptors +
            '}';
+  }
+
+  public Schema nonStringDimensionAsMetric() {
+    List<String> dimensionNames = getDimensionNames();
+    List<ValueDesc> dimensionTypes = getDimensionTypes();
+    Set<Integer> moving = Sets.newLinkedHashSet();
+    for (int i = 0; i < dimensionTypes.size(); i++) {
+      if (!dimensionTypes.get(i).isStringOrDimension()) {
+        moving.add(i);
+      }
+    }
+    if (moving.isEmpty()) {
+      return this;
+    }
+    List<String> newDimensionNames = Lists.newArrayList();
+    List<ValueDesc> newDimensionTypes = getDimensionTypes();
+    List<String> newMetricNames = Lists.newArrayList(getMetricNames());
+    List<ValueDesc> newMetricTypes = Lists.newArrayList(getMetricTypes());
+    List<AggregatorFactory> newAggregators = Lists.newArrayList(getAggregators());
+    for (int i = 0; i < dimensionNames.size(); i++) {
+      if (moving.contains(i)) {
+        newMetricNames.add(dimensionNames.get(i));
+        newMetricTypes.add(dimensionTypes.get(i));
+        newAggregators.add(RelayAggregatorFactory.of(dimensionNames.get(i), dimensionTypes.get(i)));
+      } else {
+        newDimensionNames.add(dimensionNames.get(i));
+        newDimensionTypes.add(dimensionTypes.get(i));
+      }
+    }
+    return new Schema(
+        newDimensionNames,
+        newMetricNames,
+        GuavaUtils.concat(newDimensionTypes, newMetricTypes),
+        newAggregators,
+        getDescriptors()
+    );
   }
 
   public static Schema from(RowResolver resolver)

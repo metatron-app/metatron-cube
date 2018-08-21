@@ -22,7 +22,9 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
@@ -186,9 +188,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
-  public AggregatorFactory resolve(RowResolver resolver)
+  public AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper)
   {
-    ValueDesc sourceType = resolver.resolve(fieldName);
+    ValueDesc sourceType = resolver.get().resolve(fieldName);
     if (sourceType.isDimension()) {
       sourceType = ValueDesc.STRING;
     }

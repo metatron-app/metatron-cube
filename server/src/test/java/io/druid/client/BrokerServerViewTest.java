@@ -337,6 +337,7 @@ public class BrokerServerViewTest extends CuratorTestBase
         EasyMock.createMock(QueryToolChestWarehouse.class),
         EasyMock.createMock(QueryWatcher.class),
         getSmileMapper(),
+        new DefaultObjectMapper(),
         EasyMock.createMock(HttpClient.class),
         baseView,
         new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy()),

@@ -39,6 +39,11 @@ public class RelayAggregatorFactory extends AggregatorFactory
     return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE);
   }
 
+  public static AggregatorFactory of(String name, ValueDesc type)
+  {
+    return new RelayAggregatorFactory(name, name, type.typeName());
+  }
+
   private final String name;
   private final String columnName;
   private final String typeName;

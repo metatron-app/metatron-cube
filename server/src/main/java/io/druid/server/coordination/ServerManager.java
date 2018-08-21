@@ -278,6 +278,12 @@ public class ServerManager implements QuerySegmentWalker
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
     if (query instanceof Query.ManagementQuery) {
@@ -411,7 +417,7 @@ public class ServerManager implements QuerySegmentWalker
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
@@ -434,7 +440,6 @@ public class ServerManager implements QuerySegmentWalker
                 }
                 return Arrays.asList(
                     buildAndDecorateQueryRunner(
-                        resolver,
                         factory,
                         toolChest,
                         input.rhs,
@@ -513,7 +518,6 @@ public class ServerManager implements QuerySegmentWalker
   }
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
-      final Supplier<RowResolver> resolver,
       final QueryRunnerFactory<T, Query<T>> factory,
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
@@ -549,7 +553,6 @@ public class ServerManager implements QuerySegmentWalker
                               }
                             },
                             new ReferenceCountingSegmentQueryRunner<T>(
-                                resolver,
                                 factory,
                                 adapter,
                                 segmentDescriptor,

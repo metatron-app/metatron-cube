@@ -51,7 +51,6 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -103,7 +102,7 @@ public class SearchQueryEngine
     }
     final String segmentId = segment.getIdentifier();
 
-    final RowResolver resolver = Segments.getResolver(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query);
 
     final DimFilter filter = query.getDimensionsFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();

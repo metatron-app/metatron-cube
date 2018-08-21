@@ -19,63 +19,38 @@
 
 package io.druid.query.topn;
 
-import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import io.druid.cache.BitmapCache;
-import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.guice.annotations.Global;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNResultValue>, TopNQuery>
+public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<TopNResultValue>, TopNQuery>
 {
   private final StupidPool<ByteBuffer> computationBufferPool;
-  private final TopNQueryQueryToolChest toolchest;
-  private final QueryWatcher queryWatcher;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public TopNQueryRunnerFactory(
       @Global StupidPool<ByteBuffer> computationBufferPool,
       TopNQueryQueryToolChest toolchest,
       QueryWatcher queryWatcher
-  )
-  {
-    this(computationBufferPool, toolchest, queryWatcher, null);
-  }
-
-  public TopNQueryRunnerFactory(
-      @Global StupidPool<ByteBuffer> computationBufferPool,
-      TopNQueryQueryToolChest toolchest,
-      QueryWatcher queryWatcher,
-      Cache cache
-  )
-  {
+  ) {
+    super(toolchest, queryWatcher);
     this.computationBufferPool = computationBufferPool;
-    this.toolchest = toolchest;
-    this.queryWatcher = queryWatcher;
-    this.cache = cache;
   }
 
   @Override
@@ -109,22 +84,5 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
     return new ChainedExecutionQueryRunner<>(
         queryExecutor, queryWatcher, queryRunners
     );
-  }
-
-  @Override
-  public QueryToolChest<Result<TopNResultValue>, TopNQuery> getToolchest()
-  {
-    return toolchest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(
-      TopNQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      ExecutorService exec
-  )
-  {
-    return null;
   }
 }

@@ -65,7 +65,6 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedInts;
@@ -155,7 +154,7 @@ public class GroupByQueryEngine
                       "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
                   );
                 }
-                final RowResolver resolver = Segments.getResolver(segment, query);
+                final RowResolver resolver = RowResolver.of(segment, query);
 
                 final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
                 if (intervals.size() != 1) {

@@ -35,7 +35,6 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
@@ -67,7 +66,6 @@ public class SelectQueryEngine
       final Cache cache
   )
   {
-    final RowResolver resolver = Segments.getResolver(segment, query);
     // at the point where this code is called, only one datasource should exist.
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
 
@@ -80,8 +78,8 @@ public class SelectQueryEngine
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
-        query.getQuerySegmentSpec().getIntervals(),
-        resolver,
+        intervals,
+        RowResolver.of(segment, query),
         query.getDimensionsFilter(),
         cache,
         query.isDescending(),

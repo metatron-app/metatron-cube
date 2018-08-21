@@ -105,6 +105,12 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(final Query<T> query, final Iterable<Interval> intervals)
   {
     final Iterable<SegmentDescriptor> specs = FunctionalIterable

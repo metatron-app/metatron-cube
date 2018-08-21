@@ -574,6 +574,12 @@ public class QueryRunnerTestHelper
   public static QuerySegmentWalker SCHEMA_ONLY = new QuerySegmentWalker()
   {
     @Override
+    public ObjectMapper getObjectMapper()
+    {
+      return TestHelper.JSON_MAPPER;
+    }
+
+    @Override
     public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
     {
       return new QueryRunner<T>()
@@ -812,7 +818,7 @@ public class QueryRunnerTestHelper
           {
             // this should be done at the most outer side (see server manager).. but who cares?
             final Supplier<RowResolver> resolver = RowResolver.supplier(segment, query);
-            final QueryType resolved = (QueryType) query.resolveQuery(resolver);
+            final QueryType resolved = (QueryType) query.resolveQuery(resolver, TestHelper.JSON_MAPPER);
             final Future<Object> optimizer = factory.preFactoring(
                 resolved,
                 Arrays.asList(segment),

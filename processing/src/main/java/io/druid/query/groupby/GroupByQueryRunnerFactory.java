@@ -29,7 +29,6 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
-import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.data.ValueDesc;
@@ -42,7 +41,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -66,19 +64,15 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<Row, GroupByQuery>
+public class GroupByQueryRunnerFactory
+    extends QueryRunnerFactory.Abstract<Row, GroupByQuery>
+    implements QueryRunnerFactory.Splitable<Row, GroupByQuery>
 {
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
   private final GroupByQueryEngine engine;
-  private final QueryWatcher queryWatcher;
   private final Supplier<GroupByQueryConfig> config;
-  private final GroupByQueryQueryToolChest toolChest;
   private final StupidPool<ByteBuffer> computationBufferPool;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public GroupByQueryRunnerFactory(
@@ -89,24 +83,10 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
       @Global StupidPool<ByteBuffer> computationBufferPool
   )
   {
-    this(engine, queryWatcher, config, toolChest, computationBufferPool, null);
-  }
-
-  public GroupByQueryRunnerFactory(
-      GroupByQueryEngine engine,
-      QueryWatcher queryWatcher,
-      Supplier<GroupByQueryConfig> config,
-      GroupByQueryQueryToolChest toolChest,
-      @Global StupidPool<ByteBuffer> computationBufferPool,
-      Cache cache
-  )
-  {
+    super(toolChest, queryWatcher);
     this.engine = engine;
-    this.queryWatcher = queryWatcher;
     this.config = config;
-    this.toolChest = toolChest;
     this.computationBufferPool = computationBufferPool;
-    this.cache = cache;
   }
 
   @Override
@@ -243,12 +223,6 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     return new GroupByMergedQueryRunner<Row>(
         queryExecutor, config, queryWatcher, computationBufferPool, queryRunners, optimizer
     );
-  }
-
-  @Override
-  public QueryToolChest<Row, GroupByQuery> getToolchest()
-  {
-    return toolChest;
   }
 
   private static class GroupByQueryRunner implements QueryRunner<Row>

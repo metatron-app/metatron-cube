@@ -88,6 +88,12 @@ public class QueryResourceTest
   public static final QuerySegmentWalker testSegmentWalker = new QuerySegmentWalker()
   {
     @Override
+    public ObjectMapper getObjectMapper()
+    {
+      return jsonMapper;
+    }
+
+    @Override
     public <T> QueryRunner<T> getQueryRunnerForIntervals(
         Query<T> query, Iterable<Interval> intervals
     )

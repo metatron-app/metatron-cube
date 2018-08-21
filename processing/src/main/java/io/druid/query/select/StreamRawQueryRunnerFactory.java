@@ -29,15 +29,12 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
-import io.druid.cache.BitmapCache;
-import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryUtils;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -55,28 +52,18 @@ import java.util.concurrent.Future;
 /**
  */
 public class StreamRawQueryRunnerFactory
+    extends QueryRunnerFactory.Abstract<Object[], StreamRawQuery>
     implements QueryRunnerFactory.Splitable<Object[], StreamRawQuery>
 {
   private static final Logger logger = new Logger(StreamRawQueryRunnerFactory.class);
 
-  private final StreamRawQueryToolChest toolChest;
   private final StreamQueryEngine engine;
-
-  @BitmapCache
-  @Inject(optional = true)
-  private Cache cache;
 
   @Inject
   public StreamRawQueryRunnerFactory(StreamRawQueryToolChest toolChest, StreamQueryEngine engine)
   {
-    this(toolChest, engine, null);
-  }
-
-  public StreamRawQueryRunnerFactory(StreamRawQueryToolChest toolChest, StreamQueryEngine engine, Cache cache)
-  {
-    this.toolChest = toolChest;
+    super(toolChest, null);
     this.engine = engine;
-    this.cache = cache;
   }
 
   @Override
@@ -185,11 +172,5 @@ public class StreamRawQueryRunnerFactory
         return QueryUtils.mergeSort(query, Lists.newArrayList(sequences));
       }
     };
-  }
-
-  @Override
-  public QueryToolChest<Object[], StreamRawQuery> getToolchest()
-  {
-    return toolChest;
   }
 }

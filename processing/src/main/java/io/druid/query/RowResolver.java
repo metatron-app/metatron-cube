@@ -94,7 +94,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
           @Override
           public RowResolver get()
           {
-            return RowResolver.of(segment, BaseQuery.getVirtualColumns(query));
+            return RowResolver.of(segment, query);
           }
         }
     );
@@ -139,6 +139,16 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       );
     }
     virtualColumns.addImplicitVCs(resolver);
+    return resolver;
+  }
+
+  public static RowResolver of(Segment segment, Query query)
+  {
+    VirtualColumns virtualColumns = BaseQuery.getVirtualColumns(query);
+    RowResolver resolver = of(segment.asQueryableIndex(false), virtualColumns);
+    if (resolver == null) {
+      resolver = of(segment.asStorageAdapter(false), virtualColumns);
+    }
     return resolver;
   }
 

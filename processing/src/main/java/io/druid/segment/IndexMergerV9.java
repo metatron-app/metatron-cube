@@ -46,7 +46,6 @@ import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -891,12 +890,14 @@ public class IndexMergerV9 extends IndexMerger
     final Map<String, ColumnCapabilitiesImpl> capabilitiesMap = Maps.newHashMap();
     for (IndexableAdapter adapter : adapters) {
       for (String dimension : adapter.getDimensionNames()) {
-        ColumnCapabilitiesImpl mergedCapabilities = capabilitiesMap.get(dimension);
-        if (mergedCapabilities == null) {
-          mergedCapabilities = new ColumnCapabilitiesImpl();
-          mergedCapabilities.setType(ValueType.STRING);
+        ColumnCapabilitiesImpl previous = capabilitiesMap.get(dimension);
+        ColumnCapabilitiesImpl merged;
+        if (previous == null) {
+          merged = (ColumnCapabilitiesImpl) adapter.getCapabilities(dimension);
+        } else {
+          merged = previous.merge(adapter.getCapabilities(dimension));
         }
-        capabilitiesMap.put(dimension, mergedCapabilities.merge(adapter.getCapabilities(dimension)));
+        capabilitiesMap.put(dimension, Preconditions.checkNotNull(merged));
       }
       for (String metric : adapter.getMetricNames()) {
         ColumnCapabilitiesImpl mergedCapabilities = capabilitiesMap.get(metric);

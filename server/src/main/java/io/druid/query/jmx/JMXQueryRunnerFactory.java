@@ -20,7 +20,6 @@
 package io.druid.query.jmx;
 
 import com.google.common.base.Functions;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -33,9 +32,7 @@ import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
-import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
 import org.joda.time.DateTime;
@@ -49,18 +46,15 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Object>, JMXQuery>
+public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>, JMXQuery>
 {
   private final DruidNode node;
-  private final JMXQueryToolChest toolChest;
-  private final QueryWatcher queryWatcher;
 
   @Inject
   public JMXQueryRunnerFactory(
@@ -69,15 +63,8 @@ public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Obj
       QueryWatcher queryWatcher
   )
   {
+    super(toolChest, queryWatcher);
     this.node = node;
-    this.toolChest = toolChest;
-    this.queryWatcher = queryWatcher;
-  }
-
-  @Override
-  public Future<Object> preFactoring(JMXQuery query, List<Segment> segments, Supplier<RowResolver> resolver, ExecutorService exec)
-  {
-    return null;
   }
 
   @Override
@@ -90,7 +77,7 @@ public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Obj
       {
         Map<String, Map<String, Object>> empty = ImmutableMap.<String, Map<String, Object>>of();
         Map<String, Object> previous = query.getContextValue(Query.PREVIOUS_JMX, empty).get(node.getHostAndPort());
-        return Sequences.simple(Arrays.asList(queryJMX(node, previous, ((JMXQuery)query).isDumpLongestStack())));
+        return Sequences.simple(Arrays.asList(queryJMX(node, previous, ((JMXQuery) query).isDumpLongestStack())));
       }
     };
   }
@@ -221,11 +208,5 @@ public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Obj
   )
   {
     return new ChainedExecutionQueryRunner<Map<String, Object>>(queryExecutor, queryWatcher, queryRunners);
-  }
-
-  @Override
-  public QueryToolChest<Map<String, Object>, JMXQuery> getToolchest()
-  {
-    return toolChest;
   }
 }

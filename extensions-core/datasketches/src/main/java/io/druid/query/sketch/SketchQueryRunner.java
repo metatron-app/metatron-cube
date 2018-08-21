@@ -50,7 +50,6 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -87,7 +86,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       throw new ISE("Got a [%s] which isn't a %s", baseQuery.getClass(), SketchQuery.class);
     }
     final SketchQuery query = (SketchQuery) baseQuery;
-    final RowResolver resolver = Segments.getResolver(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query);
 
     final Map<String, String> contextTypes = query.getContextValue(
         Query.MAJOR_TYPES, ImmutableMap.<String, String>of()

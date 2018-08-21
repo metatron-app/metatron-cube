@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
@@ -217,21 +218,29 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  public Query<T> resolveQuery(Supplier<RowResolver> resolver)
+  public Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
   {
     Query<T> query = ViewSupportHelper.rewrite(this, resolver);
     if (query instanceof AggregationsSupport) {
       @SuppressWarnings("unchecked")
       AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
+      boolean changed = false;
       List<AggregatorFactory> resolved = Lists.newArrayList();
       for (AggregatorFactory factory : aggregationsSupport.getAggregatorSpecs()) {
-        if (factory instanceof AggregatorFactory.TypeResolving &&
-            ((AggregatorFactory.TypeResolving)factory).needResolving()) {
-          factory = ((AggregatorFactory.TypeResolving)factory).resolve(resolver.get());
+        if (!(factory instanceof AggregatorFactory.TypeResolving)) {
+          resolved.add(factory);
+          continue;
+        }
+        AggregatorFactory.TypeResolving resolving = (AggregatorFactory.TypeResolving) factory;
+        if (resolving.needResolving()) {
+          factory = resolving.resolve(resolver, mapper);
+          changed = true;
         }
         resolved.add(factory);
       }
-      query = aggregationsSupport.withAggregatorSpecs(resolved);
+      if (changed) {
+        query = aggregationsSupport.withAggregatorSpecs(resolved);
+      }
     }
     return query;
   }

@@ -102,7 +102,7 @@ public interface Query<T> extends QueryContextKeys
 
   String getType();
 
-  Query<T> resolveQuery(Supplier<RowResolver> resolver);
+  Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper);
 
   Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
 

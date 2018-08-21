@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import org.joda.time.Interval;
 
@@ -26,6 +27,8 @@ import org.joda.time.Interval;
  */
 public interface QuerySegmentWalker
 {
+  public ObjectMapper getObjectMapper();
+
   /**
    * Gets the Queryable for a given interval, the Queryable returned can be any version(s) or partitionNumber(s)
    * such that it represents the interval.
@@ -56,6 +59,12 @@ public interface QuerySegmentWalker
     public QuerySegmentWalker getDelegate()
     {
       return delegate;
+    }
+
+    @Override
+    public ObjectMapper getObjectMapper()
+    {
+      return delegate.getObjectMapper();
     }
 
     @Override

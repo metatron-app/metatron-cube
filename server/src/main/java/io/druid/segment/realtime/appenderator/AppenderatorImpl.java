@@ -292,6 +292,12 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(final Query<T> query, final Iterable<Interval> intervals)
   {
     if (conglomerate == null) {
@@ -425,7 +431,7 @@ public class AppenderatorImpl implements Appenderator
         )
     );
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
     final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
 
     final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
