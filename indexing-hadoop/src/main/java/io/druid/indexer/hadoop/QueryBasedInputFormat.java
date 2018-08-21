@@ -733,16 +733,16 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         streamHandler = new StreamHandlerFactory(logger, mapper).create(
             query.getId(), request.getUrl(), threshold
         );
-        events = new JsonParserIterator<Map<String, Object>>(
+        events = new JsonParserIterator.FromFutureStream<Map<String, Object>>(
             mapper,
             mapper.getTypeFactory().constructType(
                 new TypeReference<Map<String, Object>>()
                 {
                 }
             ),
-            submitQuery(query, streamHandler),
             request.getUrl(),
-            null
+            "input-format",
+            submitQuery(query, streamHandler)
         );
       }
 

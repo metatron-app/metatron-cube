@@ -19,6 +19,7 @@
 
 package io.druid.client;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
@@ -34,28 +35,22 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
  */
-public class JsonParserIterator<T> implements Iterator<T>
+public abstract class JsonParserIterator<T> implements Iterator<T>
 {
-  private JsonParser jp;
-  private ObjectCodec objectCodec;
   private final ObjectMapper mapper;
   private final JavaType typeRef;
-  private final Future<InputStream> future;
-  private final URL url;
-  private final String type;
 
-  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, Future<InputStream> future, URL url, String type)
+  private JsonParser jp;
+  private ObjectCodec objectCodec;
+
+  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef)
   {
     this.mapper = mapper;
     this.typeRef = typeRef;
-    this.future = future;
-    this.url = url;
-    this.type = type;
   }
 
   @Override
@@ -84,7 +79,7 @@ public class JsonParserIterator<T> implements Iterator<T>
       return retVal;
     }
     catch (IOException e) {
-      throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), type);
+      throw handleException(e);
     }
   }
 
@@ -98,31 +93,69 @@ public class JsonParserIterator<T> implements Iterator<T>
   {
     if (jp == null) {
       try {
-        jp = mapper.getFactory().createParser(future.get());
+        jp = createParser(mapper.getFactory());
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
-          QueryInterruptedException cause = jp.getCodec().readValue(jp, QueryInterruptedException.class);
-          throw QueryInterruptedException.wrapIfNeeded(cause, url.getHost() + ":" + url.getPort(), type);
+          throw jp.getCodec().readValue(jp, QueryInterruptedException.class);
         } else if (nextToken != JsonToken.START_ARRAY) {
-          throw new IAE("Next token wasn't a START_ARRAY, was[%s] from url [%s]", jp.getCurrentToken(), url);
+          throw new IAE("Next token wasn't a START_ARRAY, was[%s]", jp.getCurrentToken());
         } else {
           jp.nextToken();
           objectCodec = jp.getCodec();
         }
       }
-      catch (IOException | InterruptedException | ExecutionException e) {
-        throw new RE(e, "Failure getting results from[%s] because of [%s]", url, e.getMessage());
-      }
-      catch (CancellationException e) {
-        throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), type);
+      catch (Exception e) {
+        throw handleException(e);
       }
     }
   }
+
+  protected abstract JsonParser createParser(JsonFactory factory) throws Exception;
+
+  protected abstract RuntimeException handleException(Exception ex);
 
   public boolean close()
   {
     boolean normalClose = jp == null || jp.isClosed();
     CloseQuietly.close(jp);
     return normalClose;
+  }
+
+  public static class FromFutureStream<T> extends JsonParserIterator<T>
+  {
+    private final URL url;
+    private final String type;
+    private final Future<InputStream> future;
+
+    public FromFutureStream(
+        ObjectMapper mapper,
+        JavaType typeRef,
+        URL url,
+        String type,
+        Future<InputStream> future
+    )
+    {
+      super(mapper, typeRef);
+      this.url = url;
+      this.type = type;
+      this.future = future;
+    }
+
+    @Override
+    protected RuntimeException handleException(Exception ex)
+    {
+      if (ex instanceof IOException ||
+          ex instanceof InterruptedException ||
+          ex instanceof QueryInterruptedException ||
+          ex instanceof CancellationException) {
+        throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
+      }
+      throw new RE(ex, "Failure getting results from[%s] because of [%s]", url, ex.getMessage());
+    }
+
+    protected JsonParser createParser(JsonFactory factory) throws Exception
+    {
+      return factory.createParser(future.get());
+    }
   }
 }
