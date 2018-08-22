@@ -192,7 +192,7 @@ public interface Query<T> extends QueryContextKeys
     boolean allMetricsForEmpty();
   }
 
-  interface ArrayOutputSupport<T>
+  interface ArrayOutputSupport<T> extends Query<T>
   {
     List<String> estimatedOutputColumns();
 

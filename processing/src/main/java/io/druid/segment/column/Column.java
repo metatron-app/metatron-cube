@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import io.druid.data.input.Row;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
 
@@ -41,7 +42,7 @@ public interface Column
     LUCENE_INDEX
   }
 
-  public static final String TIME_COLUMN_NAME = "__time";
+  public static final String TIME_COLUMN_NAME = Row.TIME_COLUMN_NAME;
   public ColumnCapabilities getCapabilities();
 
   public int getLength();

@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.post;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
@@ -125,6 +126,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
   }
 
   @JsonProperty("ordering")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getOrdering()
   {
     return ordering;
@@ -178,7 +180,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
     };
   }
 
-  public static enum NumericOrdering implements Comparator<Number>
+  public enum NumericOrdering implements Comparator<Number>
   {
     // ensures the following order: numeric > NaN > Infinite
     numericFirst {

@@ -50,6 +50,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
+import io.druid.query.RowToArray;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -208,8 +209,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
 
     String[] columnNames = {"__time", "alias", "rows"};
-    expectedResults = createExpectedRows(
-        columnNames,
+    final Object[][] objects = {
         new Object[]{"2011-04-01", "automotive", 1L},
         new Object[]{"2011-04-01", "business", 1L},
         new Object[]{"2011-04-01", "entertainment", 1L},
@@ -228,10 +228,27 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         new Object[]{"2011-04-02", "premium", 3L},
         new Object[]{"2011-04-02", "technology", 1L},
         new Object[]{"2011-04-02", "travel", 1L}
-    );
+    };
 
     results = runQuery(query);
+    expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    // to array
+    query = query.withOverriddenContext(
+        ImmutableMap.<String, Object>of(Query.POST_PROCESSING, new RowToArray(Arrays.asList(columnNames)))
+    );
+    List<Object[]> array = runRawQuery(query);
+    Assert.assertEquals(objects.length, array.size());
+    for (int i = 0; i < objects.length; i++) {
+      for (int j = 0; j < objects[i].length; j++) {
+        if (columnNames[j].equals(Row.TIME_COLUMN_NAME)) {
+          Assert.assertEquals(new DateTime(objects[i][j]).getMillis(), array.get(i)[j]);
+        } else {
+          Assert.assertEquals(objects[i][j], array.get(i)[j]);
+        }
+      }
+    }
 
     // add post processing
     query = query.withOverriddenContext(

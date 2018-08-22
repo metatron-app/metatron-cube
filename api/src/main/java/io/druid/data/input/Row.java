@@ -36,6 +36,8 @@ import java.util.List;
 })
 public interface Row extends Comparable<Row>
 {
+  String TIME_COLUMN_NAME = "__time";
+
   /**
    * Returns the timestamp from the epoch in milliseconds.  If the event happened _right now_, this would return the
    * same thing as System.currentTimeMillis();

@@ -31,6 +31,7 @@ import io.druid.query.groupby.LimitingPostProcessor;
     @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
+    @JsonSubTypes.Type(name = "rowToArray", value = RowToArray.class),
     @JsonSubTypes.Type(name = "tsToRow", value = TimeseriesToRow.class),
     @JsonSubTypes.Type(name = "selectToRow", value = SelectToRow.class),
     @JsonSubTypes.Type(name = "topNToRow", value = TopNToRow.class),
@@ -44,6 +45,7 @@ public interface PostProcessingOperator<T>
 
   public boolean supportsUnionProcessing();
 
+  // means output is Map<String, Object> (replace with Object[] ?)
   public boolean hasTabularOutput();
 
   public abstract class UnionSupport<T> implements PostProcessingOperator<T>

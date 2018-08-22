@@ -133,6 +133,12 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     );
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> runRawQuery(Query query)
+  {
+    return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+  }
+
   public static List<Row> runQuery(GroupByQuery query)
   {
     return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));

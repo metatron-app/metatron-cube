@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -104,18 +105,21 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public OrderedLimitSpec getSegmentLimit()
   {
     return segmentLimit;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public OrderedLimitSpec getNodeLimit()
   {
     return nodeLimit;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<WindowingSpec> getWindowingSpecs()
   {
     return windowingSpecs;

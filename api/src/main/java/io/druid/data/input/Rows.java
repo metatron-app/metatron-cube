@@ -29,6 +29,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,23 @@ public class Rows extends io.druid.data.Rows
         }
         event.put(timestampColumn, row.getTimestamp());
         return event;
+      }
+    };
+  }
+
+  public static Function<Row, Object[]> rowToArray(final String[] columnNames)
+  {
+    final int timeIndex = Arrays.asList(columnNames).indexOf(Row.TIME_COLUMN_NAME);
+    return new Function<Row, Object[]>()
+    {
+      @Override
+      public Object[] apply(Row row)
+      {
+        final Object[] array = new Object[columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+          array[i] = i == timeIndex ? row.getTimestampFromEpoch() : row.getRaw(columnNames[i]);
+        }
+        return array;
       }
     };
   }

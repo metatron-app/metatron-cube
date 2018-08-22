@@ -29,6 +29,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -691,6 +692,17 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     public Builder<T> overrideContext(Map<String, Object> override)
     {
       return setContext(BaseQuery.overrideContextWith(context, override));
+    }
+
+    public Builder<T> addContext(String key, Object value)
+    {
+      if (context == null) {
+        context = Maps.newHashMap();
+      } else {
+        context = Maps.newHashMap(context);
+      }
+      context.put(key, value);
+      return this;
     }
 
     public Builder<T> setHavingSpec(HavingSpec havingSpec)
