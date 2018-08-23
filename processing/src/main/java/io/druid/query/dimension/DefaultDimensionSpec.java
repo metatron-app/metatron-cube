@@ -115,6 +115,12 @@ public class DefaultDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new DefaultDimensionSpec(dimension, outputName);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8(dimension);

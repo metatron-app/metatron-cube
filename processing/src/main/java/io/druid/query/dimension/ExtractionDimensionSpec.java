@@ -95,6 +95,12 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new ExtractionDimensionSpec(dimension, outputName, extractionFn);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8(dimension);

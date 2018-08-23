@@ -148,6 +148,12 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new ExpressionDimensionSpec(expression, outputName);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] expressionBytes = StringUtils.toUtf8(expression);

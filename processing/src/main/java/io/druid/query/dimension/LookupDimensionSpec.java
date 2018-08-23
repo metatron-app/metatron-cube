@@ -158,6 +158,21 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new LookupDimensionSpec(
+        dimension,
+        outputName,
+        lookup,
+        retainMissingValue,
+        replaceMissingValueWith,
+        name,
+        lookupReferencesManager,
+        optimize
+    );
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8(dimension);

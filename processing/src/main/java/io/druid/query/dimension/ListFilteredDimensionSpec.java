@@ -105,6 +105,12 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new ListFilteredDimensionSpec(delegate.withOutputName(outputName), values, isWhitelist);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] delegateCacheKey = delegate.getCacheKey();

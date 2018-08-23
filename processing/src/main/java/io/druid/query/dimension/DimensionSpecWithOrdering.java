@@ -118,4 +118,10 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
                                           .put(comparatorNameBytes);
     return filterCacheKey.array();
   }
+
+  @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new DimensionSpecWithOrdering(delegate.withOutputName(outputName), direction, ordering);
+  }
 }

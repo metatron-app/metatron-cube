@@ -85,6 +85,12 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
   }
 
   @Override
+  public DimensionSpec withOutputName(String outputName)
+  {
+    return new RegexFilteredDimensionSpec(delegate.withOutputName(outputName), pattern);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] delegateCacheKey = delegate.getCacheKey();

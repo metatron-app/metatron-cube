@@ -50,6 +50,8 @@ public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
 
   DimensionSelector decorate(DimensionSelector selector);
 
+  DimensionSpec withOutputName(String outputName);
+
   boolean preservesOrdering();
 
   abstract class Abstract implements DimensionSpec
