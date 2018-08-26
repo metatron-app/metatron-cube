@@ -35,10 +35,10 @@ public class QueryCacheHelper
 {
   public static byte[] computeCacheKey(List<? extends Cacheable> targets)
   {
-    return computeAggregatorBytes(targets);
+    return computeCacheKeys(targets);
   }
 
-  public static byte[] computeAggregatorBytes(List<? extends Cacheable> aggregatorSpecs)
+  public static byte[] computeCacheKeys(List<? extends Cacheable> aggregatorSpecs)
   {
     if (aggregatorSpecs == null || aggregatorSpecs.isEmpty()) {
       return new byte[0];
@@ -91,13 +91,13 @@ public class QueryCacheHelper
     return buffer.array();
   }
 
-  public static byte[] toBytes(double[] longitudes, boolean writeLength)
+  public static byte[] toBytes(double[] coords, boolean writeLength)
   {
     ByteArrayDataOutput output = ByteStreams.newDataOutput();
     if (writeLength) {
-      output.write(longitudes.length);
+      output.write(coords.length);
     }
-    for (double longitude : longitudes) {
+    for (double longitude : coords) {
       output.writeDouble(longitude);
     }
     return output.toByteArray();

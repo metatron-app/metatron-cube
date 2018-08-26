@@ -189,6 +189,7 @@ public class SegmentAnalyzerTest
         null,
         null,
         null,
+        null,
         analyses,
         false,
         false

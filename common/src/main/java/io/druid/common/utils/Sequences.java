@@ -40,6 +40,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -56,6 +57,19 @@ public class Sequences extends com.metamx.common.guava.Sequences
   public static <T> List<T> toList(Sequence<T> seq)
   {
     return seq.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
+  }
+
+  // todo : limit on concat is not working.. fuck
+  public static <T> Sequence<T> concat(List<Sequence<T>> sequences)
+  {
+    return sequences.isEmpty() ? Sequences.<T>empty()
+           : sequences.size() == 1 ? sequences.get(0) : concat(simple(sequences));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T[] toArray(Sequence<T> seq, Class<T> clazz)
+  {
+    return toList(seq).toArray((T[]) Array.newInstance(clazz, 0));
   }
 
   public static <T> Function<Iterable<T>, Sequence<T>> toSequence()

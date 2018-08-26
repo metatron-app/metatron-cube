@@ -486,7 +486,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     byte[] fieldNameBytes = QueryCacheHelper.computeCacheBytes(fieldName);
     byte[] sourceTypeBytes = QueryCacheHelper.computeCacheBytes(sourceType == null  ? null : sourceType.typeName());
-    byte[] orderingSpecsBytes = QueryCacheHelper.computeAggregatorBytes(orderingSpecs);
+    byte[] orderingSpecsBytes = QueryCacheHelper.computeCacheKeys(orderingSpecs);
     int length = 7 + fieldNameBytes.length + sourceTypeBytes.length + orderingSpecsBytes.length;
 
     return ByteBuffer.allocate(length)

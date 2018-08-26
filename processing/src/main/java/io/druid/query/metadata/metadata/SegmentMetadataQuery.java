@@ -106,6 +106,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
 
   private final List<VirtualColumn> virtualColumns;
   private final ColumnIncluderator toInclude;
+  private final List<String> columns;
   private final boolean merge;
   private final boolean usingDefaultInterval;
   private final EnumSet<AnalysisType> analysisTypes;
@@ -117,6 +118,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("toInclude") ColumnIncluderator toInclude,
+      @JsonProperty("columns") List<String> columns,
       @JsonProperty("merge") Boolean merge,
       @JsonProperty("context") Map<String, Object> context,
       @JsonProperty("analysisTypes") EnumSet<AnalysisType> analysisTypes,
@@ -138,7 +140,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
       this.usingDefaultInterval = useDefaultInterval == null ? false : useDefaultInterval;
     }
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
-    this.toInclude = toInclude == null ? new AllColumnIncluderator() : toInclude;
+    this.toInclude = toInclude;
+    this.columns = columns;
     this.merge = merge == null ? false : merge;
     this.analysisTypes = (analysisTypes == null) ? DEFAULT_ANALYSIS_TYPES : analysisTypes;
     Preconditions.checkArgument(
@@ -156,9 +159,17 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ColumnIncluderator getToInclude()
   {
     return toInclude;
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public List<String> getColumns()
+  {
+    return columns;
   }
 
   @JsonProperty
@@ -263,6 +274,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         getQuerySegmentSpec(),
         virtualColumns,
         toInclude,
+        columns,
         merge,
         computeOverriddenContext(contextOverride),
         analysisTypes,
@@ -279,6 +291,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         spec,
         virtualColumns,
         toInclude,
+        columns,
         merge,
         getContext(),
         analysisTypes,
@@ -295,6 +308,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         getQuerySegmentSpec(),
         virtualColumns,
         toInclude,
+        columns,
         merge,
         getContext(),
         analysisTypes,
@@ -310,6 +324,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         getQuerySegmentSpec(),
         virtualColumns,
         includerator,
+        columns,
         merge,
         getContext(),
         analysisTypes,
@@ -326,6 +341,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         getQuerySegmentSpec(),
         virtualColumns,
         toInclude,
+        columns,
         merge,
         getContext(),
         analysisTypes,
@@ -344,6 +360,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         getQuerySegmentSpec(),
         virtualColumns,
         toInclude,
+        columns,
         merge,
         getContext(),
         added,
@@ -360,6 +377,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
            ", querySegmentSpec=" + getQuerySegmentSpec() +
            ", virtualColumns=" + virtualColumns +
            ", toInclude=" + toInclude +
+           ", columns=" + columns +
            ", merge=" + merge +
            ", usingDefaultInterval=" + usingDefaultInterval +
            ", analysisTypes=" + analysisTypes +
@@ -385,6 +403,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
            lenientAggregatorMerge == that.lenientAggregatorMerge &&
            Objects.equals(virtualColumns, that.virtualColumns) &&
            Objects.equals(toInclude, that.toInclude) &&
+           Objects.equals(columns, that.columns) &&
            Objects.equals(analysisTypes, that.analysisTypes);
   }
 
@@ -395,6 +414,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         super.hashCode(),
         virtualColumns,
         toInclude,
+        columns,
         merge,
         usingDefaultInterval,
         analysisTypes,

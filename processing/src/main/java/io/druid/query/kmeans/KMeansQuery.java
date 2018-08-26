@@ -37,7 +37,9 @@ import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.ListColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
@@ -54,14 +56,15 @@ import java.util.Random;
  */
 public class KMeansQuery
     extends BaseQuery<Centroid>
-    implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>, Query.VCSupport<Centroid>
+    implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>, Query.DimFilterSupport<Centroid>
 {
   private static final Logger LOG = new Logger(KMeansQuery.class);
 
-  private static final int DEFAULT_MAX_ITERATION = 10;
-  private static final double DEFAULT_DELTA_THRESHOLD = 0.01;
+  static final int DEFAULT_MAX_ITERATION = 10;
+  static final double DEFAULT_DELTA_THRESHOLD = 0.01;
 
   private final List<VirtualColumn> virtualColumns;
+  private final DimFilter dimFilter;
   private final List<String> metrics;
   private final int numK;
   private final int maxIteration;
@@ -69,21 +72,25 @@ public class KMeansQuery
 
   private final List<Range<Double>> ranges;
   private final List<Centroid> centroids;
+  private final String measure;
 
   public KMeansQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("numK") int numK,
       @JsonProperty("maxIteration") Integer maxIteration,
       @JsonProperty("deltaThreshold") Double deltaThreshold,
+      @JsonProperty("measure") String measure,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     this(
         dataSource,
         querySegmentSpec,
+        dimFilter,
         virtualColumns,
         metrics,
         numK,
@@ -91,6 +98,7 @@ public class KMeansQuery
         deltaThreshold,
         null,
         null,
+        measure,
         context
     );
   }
@@ -98,6 +106,7 @@ public class KMeansQuery
   public KMeansQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
+      DimFilter dimFilter,
       List<VirtualColumn> virtualColumns,
       List<String> metrics,
       int numK,
@@ -105,10 +114,12 @@ public class KMeansQuery
       Double deltaThreshold,
       List<Range<Double>> ranges,
       List<Centroid> centroids,
+      String measure,
       Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
+    this.dimFilter = dimFilter;
     this.metrics = Preconditions.checkNotNull(metrics, "metric cannot be null");
     this.numK = numK;
     Preconditions.checkArgument(maxIteration == null || maxIteration > 0);
@@ -125,12 +136,20 @@ public class KMeansQuery
         Preconditions.checkArgument(metrics.size() == centroid.getCentroid().length);
       }
     }
+    this.measure = measure;
   }
 
   @Override
   public String getType()
   {
     return "kmeans";
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
+  public DimFilter getDimFilter()
+  {
+    return dimFilter;
   }
 
   @JsonProperty
@@ -179,12 +198,20 @@ public class KMeansQuery
     return centroids;
   }
 
+  @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
+  public String getMeasure()
+  {
+    return measure;
+  }
+
   @Override
   public Query<Centroid> withDataSource(DataSource dataSource)
   {
     return new KMeansQuery(
         dataSource,
         getQuerySegmentSpec(),
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -192,6 +219,7 @@ public class KMeansQuery
         getDeltaThreshold(),
         getRanges(),
         getCentroids(),
+        getMeasure(),
         getContext()
     );
   }
@@ -202,6 +230,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         spec,
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -209,6 +238,7 @@ public class KMeansQuery
         getDeltaThreshold(),
         getRanges(),
         getCentroids(),
+        getMeasure(),
         getContext()
     );
   }
@@ -219,6 +249,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -226,6 +257,7 @@ public class KMeansQuery
         getDeltaThreshold(),
         getRanges(),
         getCentroids(),
+        getMeasure(),
         computeOverriddenContext(contextOverride)
     );
   }
@@ -236,6 +268,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        getDimFilter(),
         virtualColumns,
         getMetrics(),
         getNumK(),
@@ -243,6 +276,25 @@ public class KMeansQuery
         getDeltaThreshold(),
         getRanges(),
         getCentroids(),
+        getMeasure(),
+        getContext()
+    );
+  }
+  @Override
+  public DimFilterSupport<Centroid> withDimFilter(DimFilter filter)
+  {
+    return new KMeansQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        getVirtualColumns(),
+        getMetrics(),
+        getNumK(),
+        getMaxIteration(),
+        getDeltaThreshold(),
+        getRanges(),
+        getCentroids(),
+        getMeasure(),
         getContext()
     );
   }
@@ -250,13 +302,17 @@ public class KMeansQuery
   @Override
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
+    final Map<String, Object> context = Queries.extractContext(this, BaseQuery.QUERYID);
+    context.put(QueryContextKeys.USE_CACHE, false);
+    context.put(QueryContextKeys.POPULATE_CACHE, false);
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getVirtualColumns(),
-        new ListColumnIncluderator(getMetrics()),
+        null,
+        getMetrics(),
         true,
-        Queries.extractContext(this, BaseQuery.QUERYID),
+        context,
         EnumSet.of(SegmentMetadataQuery.AnalysisType.MINMAX),
         false,
         false
@@ -292,6 +348,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -299,6 +356,7 @@ public class KMeansQuery
         getDeltaThreshold(),
         ranges,
         centroids,
+        getMeasure(),
         getContext()
     );
   }
@@ -328,9 +386,11 @@ public class KMeansQuery
           new FindNearestQuery(
               getDataSource(),
               getQuerySegmentSpec(),
+              getDimFilter(),
               getVirtualColumns(),
               getMetrics(),
               getCentroids(),
+              getMeasure(),
               getContext()
           )
       );
@@ -354,9 +414,11 @@ public class KMeansQuery
         new FindNearestQuery(
             getDataSource(),
             getQuerySegmentSpec(),
+            getDimFilter(),
             getVirtualColumns(),
             getMetrics(),
             newCentroids,
+            getMeasure(),
             getContext()
         )
     );
@@ -389,6 +451,9 @@ public class KMeansQuery
            .append(", metrics=").append(getMetrics())
            .append(", centroids=").append(getCentroids());
 
+    if (measure != null) {
+      builder.append(", measure=").append(measure);
+    }
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);
     }

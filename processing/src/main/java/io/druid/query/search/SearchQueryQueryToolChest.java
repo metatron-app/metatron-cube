@@ -203,7 +203,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         final byte[] querySpecBytes = query.getQuery().getCacheKey();
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
 
-        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final Collection<DimensionSpec> dimensions = query.getDimensions() == null
                                                      ? ImmutableList.<DimensionSpec>of()
                                                      : query.getDimensions();

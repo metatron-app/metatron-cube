@@ -245,7 +245,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (fieldNames != null) {
       fieldBytes = QueryCacheHelper.computeCacheBytes(fieldNames);
     } else {
-      fieldBytes = QueryCacheHelper.computeAggregatorBytes(fields);
+      fieldBytes = QueryCacheHelper.computeCacheKeys(fields);
     }
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
 

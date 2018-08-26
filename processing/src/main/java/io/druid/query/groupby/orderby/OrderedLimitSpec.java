@@ -64,7 +64,7 @@ public class OrderedLimitSpec implements Cacheable
     if (columns.isEmpty() && limit == Integer.MAX_VALUE) {
       return new byte[0];
     }
-    byte[] columnBytes = QueryCacheHelper.computeAggregatorBytes(columns);
+    byte[] columnBytes = QueryCacheHelper.computeCacheKeys(columns);
     ByteBuffer buffer = ByteBuffer.allocate(columnBytes.length + Integer.BYTES);
     return buffer.put(columnBytes)
                  .putInt(limit)

@@ -35,6 +35,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.KMeansQuery;
+import io.druid.query.kmeans.KMeansTaggingQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.select.SchemaQuery;
@@ -74,6 +75,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
+    @JsonSubTypes.Type(name = "kmeans.tagging", value = KMeansTaggingQuery.class),
 })
 public interface Query<T> extends QueryContextKeys
 {

@@ -242,10 +242,10 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnBytes = QueryCacheHelper.computeAggregatorBytes(columns);
+    byte[] columnBytes = QueryCacheHelper.computeCacheKeys(columns);
     byte[] segmentLimitBytes = QueryCacheHelper.computeCacheBytes(segmentLimit);
     byte[] nodeLimitBytes = QueryCacheHelper.computeCacheBytes(nodeLimit);
-    byte[] windowingSpecBytes = QueryCacheHelper.computeAggregatorBytes(getWindowingSpecs());
+    byte[] windowingSpecBytes = QueryCacheHelper.computeCacheKeys(getWindowingSpecs());
 
     ByteBuffer buffer = ByteBuffer.allocate(
         1

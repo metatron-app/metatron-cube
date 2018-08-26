@@ -27,6 +27,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -36,24 +37,30 @@ import java.util.Map;
 
 /**
  */
-public class FindNearestQuery extends BaseQuery<CentroidDesc>
+public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.DimFilterSupport<CentroidDesc>
 {
   private final List<VirtualColumn> virtualColumns;
+  private final DimFilter dimFilter;
   private final List<String> metrics;
   private final List<Centroid> centroids;
+  private final String measure;
 
   public FindNearestQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("dimFilter") DimFilter dimFilter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("centroids") List<Centroid> centroids,
+      @JsonProperty("measure") String measure,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
     this.virtualColumns = virtualColumns;
+    this.dimFilter = dimFilter;
     this.metrics = metrics;
+    this.measure = measure;
     this.centroids = centroids;
   }
 
@@ -61,6 +68,13 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
   public String getType()
   {
     return "kmeans.nearest";
+  }
+
+  @Override
+  @JsonInclude(Include.NON_EMPTY)
+  public DimFilter getDimFilter()
+  {
+    return dimFilter;
   }
 
   @JsonProperty
@@ -84,15 +98,24 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
     return centroids;
   }
 
+  @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
+  public String getMeasure()
+  {
+    return measure;
+  }
+
   @Override
   public Query<CentroidDesc> withDataSource(DataSource dataSource)
   {
     return new FindNearestQuery(
         dataSource,
         getQuerySegmentSpec(),
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
+        getMeasure(),
         getContext()
     );
   }
@@ -103,9 +126,11 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
     return new FindNearestQuery(
         getDataSource(),
         spec,
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
+        getMeasure(),
         getContext()
     );
   }
@@ -116,10 +141,42 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
     return new FindNearestQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        getDimFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
+        getMeasure(),
         computeOverriddenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public VCSupport<CentroidDesc> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new FindNearestQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        virtualColumns,
+        getMetrics(),
+        getCentroids(),
+        getMeasure(),
+        getContext()
+    );
+  }
+
+  @Override
+  public DimFilterSupport<CentroidDesc> withDimFilter(DimFilter filter)
+  {
+    return new FindNearestQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        getVirtualColumns(),
+        getMetrics(),
+        getCentroids(),
+        getMeasure(),
+        getContext()
     );
   }
 
@@ -128,7 +185,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        null,
+        getDimFilter(),
         QueryGranularities.ALL,
         getMetrics(),
         getVirtualColumns(),
@@ -153,6 +210,9 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
     }
     if (metrics != null && !metrics.isEmpty()) {
       builder.append(", metrics=").append(metrics);
+    }
+    if (measure != null) {
+      builder.append(", measure=").append(measure);
     }
     builder.append(toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT));
     return builder.append('}').toString();

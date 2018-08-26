@@ -879,6 +879,7 @@ public class Druids
     private QuerySegmentSpec querySegmentSpec;
     private List<VirtualColumn> virtualColumns;
     private ColumnIncluderator toInclude;
+    private List<String> columns;
     private EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes;
     private Boolean merge;
     private Boolean lenientAggregatorMerge;
@@ -902,6 +903,7 @@ public class Druids
           querySegmentSpec,
           virtualColumns,
           toInclude,
+          columns,
           merge,
           context,
           analysisTypes,
@@ -965,6 +967,12 @@ public class Druids
     public SegmentMetadataQueryBuilder toInclude(ColumnIncluderator toInclude)
     {
       this.toInclude = toInclude;
+      return this;
+    }
+
+    public SegmentMetadataQueryBuilder columns(List<String> columns)
+    {
+      this.columns = columns;
       return this;
     }
 

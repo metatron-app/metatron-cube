@@ -170,10 +170,12 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
         TableDataSource.of(KMEANS_DS),
         MultipleIntervalSegmentSpec.of(Intervals.of("2018-07-09/2018-07-10")),
         null,
+        null,
         Arrays.asList("x", "y"),
         2,
         1000,
         0.0000001,
+        null,
         null
     );
     List<Centroid> centroids = runQuery(kMeans);

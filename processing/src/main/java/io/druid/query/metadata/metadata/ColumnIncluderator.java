@@ -21,6 +21,7 @@ package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 
 /**
  */
@@ -30,14 +31,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name = "all", value= AllColumnIncluderator.class),
     @JsonSubTypes.Type(name = "list", value= ListColumnIncluderator.class)
 })
-public interface ColumnIncluderator
+@Deprecated
+public interface ColumnIncluderator extends Cacheable
 {
   public static final byte[] NONE_CACHE_PREFIX = new byte[]{0x0};
   public static final byte[] ALL_CACHE_PREFIX = new byte[]{0x1};
   public static final byte[] LIST_CACHE_PREFIX = new byte[]{0x2};
 
   public boolean include(String columnName);
-  public byte[] getCacheKey();
 
   ColumnIncluderator ALL = new AllColumnIncluderator();
   ColumnIncluderator NONE = new NoneColumnIncluderator();

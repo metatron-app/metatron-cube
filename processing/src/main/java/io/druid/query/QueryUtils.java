@@ -152,6 +152,7 @@ public class QueryUtils
         query.getQuerySegmentSpec(),
         null,
         new NoneColumnIncluderator(),
+        null,
         false,
         Queries.extractContext(query, BaseQuery.QUERYID),
         EnumSet.of(SegmentMetadataQuery.AnalysisType.INTERVAL),

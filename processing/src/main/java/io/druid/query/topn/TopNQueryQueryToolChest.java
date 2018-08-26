@@ -314,13 +314,13 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       @Override
       public byte[] computeCacheKey(TopNQuery query)
       {
-        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final byte[] dimensionSpecBytes = query.getDimensionSpec().getCacheKey();
         final byte[] metricSpecBytes = query.getTopNMetricSpec().getCacheKey();
 
         final DimFilter dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
-        final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
+        final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
 

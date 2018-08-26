@@ -300,7 +300,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               );
             }
           };
-          return Sequences.concat(tapping, new LazySequence<Row>(supplier));
+          return Sequences.concat(Arrays.asList(tapping, new LazySequence<Row>(supplier)));
         } else {
           LOG.info("Not supported query type " + query.getType());
           return baseRunner.run(query, responseContext);

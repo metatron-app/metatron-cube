@@ -226,12 +226,12 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);
+    byte[] columnsBytes = QueryCacheHelper.computeCacheKeys(pivotColumns);
     byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(valueColumns);
     byte[] separatorBytes = QueryCacheHelper.computeCacheBytes(separator);
     byte[] nullValueBytes = QueryCacheHelper.computeCacheBytes(nullValue);
     byte[] rowExpressionsBytes = QueryCacheHelper.computeCacheBytes(rowExpressions);
-    byte[] partitionExpressionsBytes = QueryCacheHelper.computeAggregatorBytes(partitionExpressions);
+    byte[] partitionExpressionsBytes = QueryCacheHelper.computeCacheKeys(partitionExpressions);
 
     int length = 7
                  + columnsBytes.length

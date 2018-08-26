@@ -132,7 +132,7 @@ public class LateralViewSpec implements Cacheable, Function<Map<String, Object>,
   @Override
   public byte[] getCacheKey()
   {
-    byte[] elementsBytes = QueryCacheHelper.computeAggregatorBytes(elements);
+    byte[] elementsBytes = QueryCacheHelper.computeCacheKeys(elements);
     byte[] excludesBytes = QueryCacheHelper.computeCacheBytes(excludes);
     byte[] retainsBytes = QueryCacheHelper.computeCacheBytes(retains);
     byte[] separatorBytes = io.druid.common.utils.StringUtils.toUtf8(separator);

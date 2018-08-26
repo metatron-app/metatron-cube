@@ -471,6 +471,7 @@ public class DruidSchema extends AbstractSchema
         querySegmentSpec,
         null,
         new AllColumnIncluderator(),
+        null,
         false,
         ImmutableMap.of(),
         EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),

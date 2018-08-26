@@ -125,7 +125,7 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
       {
         final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
         final byte[] granBytes = query.getGranularity().getCacheKey();
-        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final List<DimensionSpec> dimensions = query.getDimensions();
         final List<String> metrics = query.getMetrics();
 

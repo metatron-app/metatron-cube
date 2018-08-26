@@ -253,7 +253,7 @@ public class WindowingSpec implements Cacheable
   public byte[] getCacheKey()
   {
     byte[] partitionColumnsBytes = QueryCacheHelper.computeCacheBytes(partitionColumns);
-    byte[] sortingColumnsBytes = QueryCacheHelper.computeAggregatorBytes(sortingColumns);
+    byte[] sortingColumnsBytes = QueryCacheHelper.computeCacheKeys(sortingColumns);
     byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
     byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattenSpec);
     byte[] pivotSpecBytes = QueryCacheHelper.computeCacheBytes(pivotSpec);

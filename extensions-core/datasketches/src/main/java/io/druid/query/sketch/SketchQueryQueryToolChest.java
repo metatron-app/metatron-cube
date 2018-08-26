@@ -145,7 +145,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       public byte[] computeCacheKey(SketchQuery query)
       {
         final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
-        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final List<DimensionSpec> dimensions = query.getDimensions();
         final List<String> metrics = query.getMetrics();
 

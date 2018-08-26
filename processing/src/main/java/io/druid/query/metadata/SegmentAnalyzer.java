@@ -21,8 +21,10 @@ package io.druid.query.metadata;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Accumulator;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
@@ -48,6 +50,7 @@ import org.joda.time.Interval;
 
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 public class SegmentAnalyzer
@@ -62,13 +65,25 @@ public class SegmentAnalyzer
 
     final RowResolver resolver = RowResolver.of(segment, query);
 
-    final ColumnIncluderator predicate = query.getToInclude();
-
-    final Map<String, ColumnAnalysis> columns = Maps.newTreeMap();
-    for (String columnName : resolver.getAllColumnNames()) {
-      if (!predicate.include(columnName)) {
-        continue;
+    final List<String> columns;
+    if (GuavaUtils.isNullOrEmpty(query.getColumns())) {
+      final ColumnIncluderator predicate = query.getToInclude();
+      if (predicate == null) {
+        columns = Lists.newArrayList(resolver.getAllColumnNames());
+      } else {
+        columns = Lists.newArrayList();
+        for (String columnName : resolver.getAllColumnNames()) {
+          if (predicate.include(columnName)) {
+            columns.add(columnName);
+          }
+        }
       }
+    } else {
+      columns = query.getColumns();
+    }
+
+    final Map<String, ColumnAnalysis> analysisMap = Maps.newTreeMap();
+    for (String columnName : columns) {
       ValueDesc valueDesc = resolver.resolve(columnName);
       if (valueDesc == null) {
         continue;
@@ -81,9 +96,9 @@ public class SegmentAnalyzer
       } else {
         analysis = analyzeSimpleColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
       }
-      columns.put(columnName, analysis);
+      analysisMap.put(columnName, analysis);
     }
-    return columns;
+    return analysisMap;
   }
 
   private static ColumnAnalysis analyzeSimpleColumn(

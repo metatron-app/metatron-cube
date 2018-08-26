@@ -535,9 +535,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         final byte[] granularityBytes = QueryCacheHelper.computeCacheBytes(query.getGranularity());
         final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
-        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final byte[] dimensionsBytes = QueryCacheHelper.computeCacheKey(query.getDimensions());
-        final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
+        final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
 
         return ByteBuffer
             .allocate(

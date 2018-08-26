@@ -38,6 +38,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
@@ -154,11 +155,19 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       @Override
       public byte[] computeCacheKey(SegmentMetadataQuery query)
       {
-        byte[] includerBytes = query.getToInclude().getCacheKey();
+        byte[] includeBytes = QueryCacheHelper.computeCacheBytes(query.getToInclude());
+        byte[] columnsBytes = QueryCacheHelper.computeCacheBytes(query.getColumns());
+        byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         byte[] analysisTypesBytes = query.getAnalysisTypesCacheKey();
-        return ByteBuffer.allocate(1 + includerBytes.length + analysisTypesBytes.length)
+        return ByteBuffer.allocate(1
+                                   + includeBytes.length
+                                   + columnsBytes.length
+                                   + vcBytes.length
+                                   + analysisTypesBytes.length)
                          .put(SEGMENT_METADATA_QUERY)
-                         .put(includerBytes)
+                         .put(includeBytes)
+                         .put(columnsBytes)
+                         .put(vcBytes)
                          .put(analysisTypesBytes)
                          .array();
       }
