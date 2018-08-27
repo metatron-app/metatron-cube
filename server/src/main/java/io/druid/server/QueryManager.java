@@ -38,6 +38,7 @@ import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -246,12 +247,26 @@ public class QueryManager implements QueryWatcher, Runnable
         // skip for trivial queries (meta queries, etc.)
         return;
       }
-      LOG.info(
-          "%d item(s) averaging %,d msec.. mostly from %s",
-          counter,
-          (total / counter),
-          filtered.subList(0, Math.max(1, filtered.size() / 4))
+      final long mean = total / counter;
+      final double threshold = mean * 1.2;
+
+      List<Timer> log = Lists.newArrayList(
+          Iterables.filter(
+              filtered, new Predicate<Timer>()
+              {
+                @Override
+                public boolean apply(Timer input)
+                {
+                  return input.elapsed > threshold;
+                }
+              }
+          )
       );
+      if (log.isEmpty()) {
+        log = Arrays.asList(filtered.get(0));
+      }
+
+      LOG.info("%d item(s) averaging %,d msec.. mostly from %s", counter, mean, log);
     }
   }
 
