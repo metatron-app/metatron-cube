@@ -120,6 +120,12 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
+  public String getDescription()
+  {
+    return extractionFn == null ? dimension : dimension + "(extract)";
+  }
+
+  @Override
   public String toString()
   {
     return "ExtractionDimensionSpec{" +

@@ -124,4 +124,10 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   {
     return new DimensionSpecWithOrdering(delegate.withOutputName(outputName), direction, ordering);
   }
+
+  @Override
+  public String getDescription()
+  {
+    return delegate.getDescription();
+  }
 }

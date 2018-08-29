@@ -54,6 +54,9 @@ public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
 
   boolean preservesOrdering();
 
+  // for logging
+  String getDescription();
+
   abstract class Abstract implements DimensionSpec
   {
     @Override

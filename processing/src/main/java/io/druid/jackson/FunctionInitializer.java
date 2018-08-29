@@ -82,6 +82,15 @@ public class FunctionInitializer implements Module
     return mapping;
   }
 
+  public static Map<Class, String> resolveSubtypesAsInverseMap(ObjectMapper mapper, Class<?> clazz)
+  {
+    Map<Class, String> mapping = Maps.newHashMap();
+    for (NamedType namedType : resolveSubtypes(mapper, clazz)) {
+      mapping.put(namedType.getType(), namedType.getName());
+    }
+    return mapping;
+  }
+
   @Override
   public void configure(Binder binder)
   {

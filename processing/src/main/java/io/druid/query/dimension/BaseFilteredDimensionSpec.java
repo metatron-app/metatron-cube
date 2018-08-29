@@ -75,6 +75,12 @@ public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
+  public String getDescription()
+  {
+    return delegate.getDescription();
+  }
+
+  @Override
   public DimensionSelector decorate(DimensionSelector selector)
   {
     return selector;

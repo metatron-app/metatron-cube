@@ -138,6 +138,12 @@ public class DefaultDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
+  public String getDescription()
+  {
+    return dimension;
+  }
+
+  @Override
   public String toString()
   {
     return "DefaultDimensionSpec{" +

@@ -597,12 +597,19 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     }
   }
 
+  @SuppressWarnings("unchecked")
   private TimeAndDims toTimeAndDims(Row row)
   {
     int[][] dims = new int[dimensionDescs.size()][];
     for (Map.Entry<String, DimensionDesc> entry : dimensionDescs.entrySet()) {
       DimensionDesc dimDesc = entry.getValue();
-      dims[dimDesc.index] = getDimVal(dimDesc, (Comparable) row.getRaw(entry.getKey()));
+      final Object raw = row.getRaw(entry.getKey());
+      if (raw == null || raw instanceof Comparable) {
+        dims[dimDesc.index] = getDimVal(dimDesc, (Comparable) raw);
+      } else if (raw instanceof List) {
+        dims[dimDesc.index] = getDimVals(dimDesc, (List<Comparable>) raw);
+        dimDesc.getCapabilities().setHasMultipleValues(true);
+      }
     }
     return createTimeAndDims(toIndexingTime(row.getTimestampFromEpoch()), dims);
   }

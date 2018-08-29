@@ -208,6 +208,12 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
+  public String getDescription()
+  {
+    return dimension + "(lookup)";
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

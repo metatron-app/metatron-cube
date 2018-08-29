@@ -359,7 +359,7 @@ public class GuavaUtils
     }
     List<String> retaining = Lists.newArrayList(list);
     retaining.retainAll(retain);
-    return retain;
+    return retaining;
   }
 
   public static <V> Map<String, V> retain(Map<String, V> map, List<String> retain)

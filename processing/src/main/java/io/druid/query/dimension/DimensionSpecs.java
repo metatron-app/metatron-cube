@@ -50,6 +50,11 @@ public class DimensionSpecs
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
   }
 
+  public static List<String> toDescriptions(List<DimensionSpec> dimensionSpecs)
+  {
+    return Lists.newArrayList(Iterables.transform(dimensionSpecs, DESCRIPTION));
+  }
+
   public static String[] toOutputNamesAsArray(List<DimensionSpec> dimensionSpecs)
   {
     return toOutputNames(dimensionSpecs).toArray(new String[dimensionSpecs.size()]);
@@ -143,6 +148,15 @@ public class DimensionSpecs
     public String apply(DimensionSpec input)
     {
       return input.getOutputName();
+    }
+  };
+
+  public static final Function<DimensionSpec, String> DESCRIPTION = new Function<DimensionSpec, String>()
+  {
+    @Override
+    public String apply(DimensionSpec input)
+    {
+      return input.getDescription();
     }
   };
 

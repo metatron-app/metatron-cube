@@ -28,6 +28,7 @@ import io.druid.data.ValueType;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.ExpressionTimestampSpec;
 import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.RequestLogParseSpec;
 import io.druid.data.input.Row;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -111,6 +112,7 @@ public class AggregatorsModule extends SimpleModule
     // for test
     registerSubtypes(ExpressionTimestampSpec.class);
     registerSubtypes(SelectEachQuery.class);
+    registerSubtypes(RequestLogParseSpec.class);
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

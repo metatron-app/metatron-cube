@@ -171,6 +171,12 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
+  public String getDescription()
+  {
+    return expression;
+  }
+
+  @Override
   public String toString()
   {
     return "ExpressionDimensionSpec{" +
