@@ -80,6 +80,7 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
@@ -418,11 +419,13 @@ public class BrokerQueryResource extends QueryResource
       }
 
       final BaseTuningConfig tuningConfig = loadSpec.getTuningConfig();
+      final GranularitySpec granularitySpec = schema.getGranularitySpec();
 
       IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withDimensionsSpec(dimensionsSpec)
           .withMetrics(schema.getAggregators())
-          .withRollup(rollup == null ? schema.getGranularitySpec().isRollup() : rollup)
+          .withQueryGranularity(granularitySpec.getQueryGranularity())
+          .withRollup(rollup == null ? granularitySpec.isRollup() : rollup)
           .withFixedSchema(true)
           .build();
 
@@ -434,6 +437,7 @@ public class BrokerQueryResource extends QueryResource
       forwardContext.put("dataSource", schema.getDataSource());
       forwardContext.put("registerTable", true);
       forwardContext.put("temporary", temporary == null || temporary);
+      forwardContext.put("segmentGranularity", granularitySpec.getSegmentGranularity());
 
       final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
           ImmutableMap.<String, Object>of(

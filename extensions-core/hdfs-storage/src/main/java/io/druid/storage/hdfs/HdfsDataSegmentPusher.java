@@ -379,6 +379,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           jsonMapper.convertValue(context.get("schema"), IncrementalIndexSchema.class),
           "cannot find/create index schema"
       );
+      final Granularity segmentGranularity = (Granularity) context.get("segmentGranularity");
       final Interval queryInterval = jsonMapper.convertValue(context.get("interval"), Interval.class);
       final BaseTuningConfig tuning = jsonMapper.convertValue(context.get("tuningConfig"), BaseTuningConfig.class);
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
@@ -531,7 +532,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               if (dataInterval.toPeriod().getMillis() == 0 && queryInterval != null) {
                 dataInterval = queryInterval;
               }
-              Granularity granularity = coveringGranularity(dataInterval);
+              Granularity granularity =
+                  segmentGranularity != null ? segmentGranularity : coveringGranularity(dataInterval);
+
               Interval interval = new Interval(
                   granularity.bucketStart(index.getMinTime()),
                   granularity.bucketEnd(index.getMaxTime())

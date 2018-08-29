@@ -27,6 +27,7 @@ import io.druid.data.ValueType;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -59,7 +60,7 @@ public class IncrementalIndexSchema
   )
   {
     this.minTimestamp = minTimestamp;
-    this.gran = gran == null ? QueryGranularities.NONE : gran;
+    this.gran = gran == null ? Granularities.NONE : gran;
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
