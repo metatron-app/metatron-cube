@@ -604,7 +604,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     for (Map.Entry<String, DimensionDesc> entry : dimensionDescs.entrySet()) {
       DimensionDesc dimDesc = entry.getValue();
       final Object raw = row.getRaw(entry.getKey());
-      if (raw == null || raw instanceof Comparable) {
+      if (raw instanceof Comparable) {
         dims[dimDesc.index] = getDimVal(dimDesc, (Comparable) raw);
       } else if (raw instanceof List) {
         dims[dimDesc.index] = getDimVals(dimDesc, (List<Comparable>) raw);

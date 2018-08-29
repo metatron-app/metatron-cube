@@ -727,7 +727,11 @@ public class Filters
         BitmapIndexSelector selector = context.selector;
         ColumnCapabilities capabilities = selector.getCapabilities(column);
         if (capabilities != null && capabilities.hasBitmapIndexes()) {
-          return ofExpr((Expr) expr).getBitmapIndex(selector, using, context.baseBitmap);
+          ImmutableBitmap bitmap = ofExpr((Expr) expr).getBitmapIndex(selector, using, context.baseBitmap);
+          if (bitmap != null && withNot) {
+            bitmap = context.not(bitmap);
+          }
+          return bitmap;
         }
       }
       SecondaryIndex metric = getWhatever(context.selector, column, using);
