@@ -180,7 +180,7 @@ public class MapVirtualColumn implements VirtualColumn
             return null;
           }
           final int limit = Math.min(keyIndices.size(), values.size());
-          final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
+          final Map<String, Object> map = Maps.newLinkedHashMap();
           for (int i = 0; i < limit; i++) {
             map.put(Objects.toString(keySelector.lookupName(keyIndices.get(i)), null), values.get(i));
           }

@@ -40,13 +40,20 @@ import org.joda.time.DateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @JsonTypeName("requestLog")
 public class RequestLogParseSpec implements ParseSpec
 {
-  private static final String LOG4J_PREFIX = "RequestLogger - ";
-  private static final int LOG4J_PREFIX_LEN = LOG4J_PREFIX.length();
+  private static final String REQUEST_PREFIX = "RequestLogger - ";
+  private static final int REQUEST_PREFIX_LEN = REQUEST_PREFIX.length();
 
+  private static final String MANAGER_PREFIX = "QueryManager - ";
+  private static final int MANAGER_PREFIX_LEN = MANAGER_PREFIX.length();
+
+  private static final Matcher MATCHER = Pattern.compile(
+      "(\\d+) item\\(s\\) averaging (\\d+) msec\\.\\. mostly from \\[(.+)]").matcher("");
   private final ObjectMapper mapper;
 
   @JsonCreator
@@ -72,7 +79,8 @@ public class RequestLogParseSpec implements ParseSpec
             "dimensions",
             "aggregators",
             "postAggregators",
-            "success"
+            "success",
+            "slowHosts"
         )
     );
   }
@@ -87,14 +95,21 @@ public class RequestLogParseSpec implements ParseSpec
     );
     return new Parser<String, Object>()
     {
+      private final Map<String, String> managerLog = Maps.newHashMap();
+
       @Override
       public Map<String, Object> parse(String input)
       {
-        int index = input.indexOf(LOG4J_PREFIX);
+        int index = input.indexOf(MANAGER_PREFIX);
+        if (index > 0) {
+          managerLog.put(input.substring(0, index).split(" ")[2], input.substring(index + MANAGER_PREFIX_LEN));
+          return null;
+        }
+        index = input.indexOf(REQUEST_PREFIX);
         if (index < 0) {
           return null;
         }
-        String target = input.substring(index + LOG4J_PREFIX_LEN);
+        String target = input.substring(index + REQUEST_PREFIX_LEN);
         String[] splits = target.split("\\t");
         Map<String, Object> event = Maps.newHashMap();
         event.put(Row.TIME_COLUMN_NAME, new DateTime(splits[0].trim()));
@@ -136,6 +151,28 @@ public class RequestLogParseSpec implements ParseSpec
           event.put("queryBytes", result.get("query/bytes"));
         } else {
           event.put("exception", result.get("exception"));
+        }
+        String manager = managerLog.remove(input.substring(0, index).split(" ")[2]);
+        if (manager != null && MATCHER.reset(manager).find()) {
+          List<String> slowHosts = Lists.newArrayList();
+          List<Long> slowTimes = Lists.newArrayList();
+          for (String hostTime : MATCHER.group(3).split(", ")) {
+            int x = hostTime.indexOf('=');
+            if (x < 0) {
+              continue;
+            }
+            String host = hostTime.substring(0, x).trim();
+            if (host.charAt(host.length() - 1) == ')' && host.indexOf('(') > 0) {
+              host = host.substring(0, host.indexOf('('));
+            }
+            slowHosts.add(host);
+            slowTimes.add(Long.valueOf(hostTime.substring(x + 1, hostTime.length() - 2).trim()));
+            if (slowHosts.size() >= 5) {
+              break;
+            }
+          }
+          event.put("slowHosts", slowHosts);
+          event.put("slowTimes", slowTimes);
         }
         return event;
       }

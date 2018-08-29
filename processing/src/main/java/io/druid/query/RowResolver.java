@@ -535,7 +535,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return false;
   }
 
-  private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between");
+  private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between", "isNull");
 
   private boolean supportsBitmap(Expr expr, EnumSet<BitmapType> using)
   {

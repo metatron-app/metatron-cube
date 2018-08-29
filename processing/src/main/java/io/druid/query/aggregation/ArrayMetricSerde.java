@@ -155,6 +155,9 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       @Override
       public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
+        if (numBytes == 0) {
+          return null;
+        }
         int size = buffer.getShort();
         List<Object> value = Lists.newArrayListWithCapacity(size);
         switch (element) {
@@ -192,6 +195,9 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       @Override
       public byte[] toBytes(Object val)
       {
+        if (val == null) {
+          return new byte[0];
+        }
         List<Object> value = (List<Object>) val;
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeShort(value.size());
