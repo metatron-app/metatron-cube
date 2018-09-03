@@ -344,7 +344,7 @@ public class QueryResource
               new RequestLogLine(
                   DateTimes.utc(start),
                   remote,
-                  toLoggingQuery(prepared),
+                  toLoggingQuery(query),
                   new QueryStats(
                       ImmutableMap.<String, Object>of(
                           "query/time", queryTime,

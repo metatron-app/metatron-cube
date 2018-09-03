@@ -38,6 +38,7 @@ import io.druid.query.groupby.LimitingPostProcessor;
     @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),
     @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
     @JsonSubTypes.Type(name = "postAggregations", value = PostAggregationsPostProcessor.class),
+    @JsonSubTypes.Type(name = "transform", value = TransformPostProcessor.class),
 })
 public interface PostProcessingOperator<T>
 {

@@ -21,13 +21,22 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.MultiPolygon;
+import org.apache.lucene.geo.Polygon;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.exception.InvalidShapeException;
 import org.locationtech.spatial4j.io.GeoJSONReader;
+import org.locationtech.spatial4j.io.GeoJSONWriter;
 import org.locationtech.spatial4j.io.ShapeReader;
+import org.locationtech.spatial4j.io.ShapeWriter;
 import org.locationtech.spatial4j.io.WKTReader;
+import org.locationtech.spatial4j.io.WKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
+import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -45,12 +54,24 @@ public enum ShapeFormat
     {
       return new GeoJSONReader(context, null);
     }
+
+    @Override
+    public ShapeWriter newWriter(SpatialContext context)
+    {
+      return new GeoJSONWriter(context, null);
+    }
   },
   WKT {
     @Override
     public ShapeReader newReader(SpatialContext context)
     {
       return new WKTReader(context, null);
+    }
+
+    @Override
+    public ShapeWriter newWriter(SpatialContext context)
+    {
+      return new WKTWriter();
     }
   },
   POLYGON {
@@ -81,7 +102,7 @@ public enum ShapeFormat
             for (int i = 0; i < coordinates.length; i++) {
               coordinates[i] = ((Number) list.get(i)).doubleValue();
             }
-          } else if (value.getClass().isArray()){
+          } else if (value.getClass().isArray()) {
             coordinates = new double[Array.getLength(value)];
             for (int i = 0; i < coordinates.length; i++) {
               coordinates[i] = ((Number) Array.get(value, i)).doubleValue();
@@ -116,9 +137,17 @@ public enum ShapeFormat
         }
       };
     }
+
+    @Override
+    public ShapeWriter newWriter(SpatialContext context)
+    {
+      throw new UnsupportedOperationException("newWriter");
+    }
   };
 
   public abstract ShapeReader newReader(SpatialContext context);
+
+  public abstract ShapeWriter newWriter(SpatialContext context);
 
   @JsonValue
   public String getName()
@@ -130,5 +159,60 @@ public enum ShapeFormat
   public static ShapeFormat fromString(String name)
   {
     return name == null ? WKT : valueOf(name.toUpperCase());
+  }
+
+  public static Polygon[] toLucenePolygons(SpatialContext context, ShapeFormat format, String shapeString)
+      throws IOException, ParseException
+  {
+    if (format == GEOJSON) {
+      return Polygon.fromGeoJSON(shapeString);
+    }
+    final Shape shape = WKT.newReader(context).read(shapeString);
+    if (shape instanceof JtsGeometry) {
+      Geometry geometry = ((JtsGeometry)shape).getGeom();
+      if (geometry instanceof com.vividsolutions.jts.geom.Polygon) {
+        return new Polygon[]{toLucenePolygon((com.vividsolutions.jts.geom.Polygon) geometry)};
+      }
+      if (geometry instanceof com.vividsolutions.jts.geom.MultiPolygon) {
+        MultiPolygon multiPolygon = (MultiPolygon) geometry;
+        Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
+        for (int i = 0; i < polygons.length; i++) {
+          polygons[i] = toLucenePolygon((com.vividsolutions.jts.geom.Polygon) multiPolygon.getGeometryN(i));
+        }
+        return polygons;
+      }
+      // todo box?
+      throw new IllegalArgumentException("invalid polygon");
+    }
+    // this fuck uses CRS84
+    return Polygon.fromGeoJSON(GEOJSON.newWriter(context).toString(shape));
+  }
+
+  private static Polygon toLucenePolygon(com.vividsolutions.jts.geom.Polygon polygon)
+  {
+    LineString exterior = polygon.getExteriorRing();
+    Polygon shell = toPolygon(exterior);
+
+    int numHoles = polygon.getNumInteriorRing();
+    if (numHoles == 0) {
+      return shell;
+    }
+    Polygon[] holes = new Polygon[numHoles];
+    for (int i = 0; i < numHoles; i++) {
+      holes[i] = toPolygon(polygon.getInteriorRingN(i));
+    }
+    return new Polygon(shell.getPolyLats(), shell.getPolyLons(), holes);
+  }
+
+  private static Polygon toPolygon(LineString shell)
+  {
+    double[] x = new double[shell.getNumPoints()];
+    double[] y = new double[shell.getNumPoints()];
+    for (int i = 0; i < x.length; i++) {
+      final Coordinate coordinate = shell.getCoordinateN(i);
+      x[i] = coordinate.x;
+      y[i] = coordinate.y;
+    }
+    return new Polygon(y, x);
   }
 }

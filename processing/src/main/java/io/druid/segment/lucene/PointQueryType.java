@@ -54,7 +54,7 @@ public enum PointQueryType
     @Override
     public Query toQuery(String fieldName, double[] latitudes, double[] longitudes, double radiusMeters)
     {
-      // todo support hole
+      // todo support multi-polygon & holes
       return LatLonPoint.newPolygonQuery(fieldName, new Polygon(latitudes, longitudes));
     }
   };

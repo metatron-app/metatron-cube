@@ -28,6 +28,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.lucene.PointQueryType;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.SpatialOperations;
 import org.apache.lucene.spatial.SpatialStrategy;
@@ -53,6 +54,36 @@ import java.util.Set;
 @JsonTypeName("lucene.spatial")
 public class LuceneSpatialFilter implements DimFilter.LuceneFilter
 {
+  public static LuceneSpatialFilter convert(LucenePointFilter filter, String field)
+  {
+    // todo native hand-over
+    final double[] latitudes = filter.getLatitudes();
+    final double[] longitudes = filter.getLongitudes();
+    if (filter.getType() == PointQueryType.BBOX) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("POLYGON((");
+      builder.append(longitudes[0]).append(' ').append(latitudes[0]).append(',');
+      builder.append(longitudes[0]).append(' ').append(latitudes[1]).append(',');
+      builder.append(longitudes[1]).append(' ').append(latitudes[1]).append(',');
+      builder.append(longitudes[1]).append(' ').append(latitudes[0]).append(',');
+      builder.append(longitudes[0]).append(' ').append(latitudes[0]);
+      builder.append("))");
+      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString());
+    } else if (filter.getType() != PointQueryType.POLYGON) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("POLYGON((");
+      for (int i = 0; i < latitudes.length; i++) {
+        if (i > 0) {
+          builder.append(",");
+        }
+        builder.append(longitudes[i]).append(' ').append(latitudes[i]);
+      }
+      builder.append("))");
+      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString());
+    }
+    return null;
+  }
+
   private final String field;
   private final SpatialOperations operation;
   private final ShapeFormat shapeFormat;
@@ -94,6 +125,11 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
   public String getShapeString()
   {
     return shapeString;
+  }
+
+  public LuceneSpatialFilter withShapeString(String shapeString)
+  {
+    return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
   }
 
   public Shape create(SpatialContext context) throws IOException, ParseException
