@@ -2073,6 +2073,35 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("countOf")
+  final class CountOfFunc extends Function.LongOut
+  {
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'countOf' needs 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String find = args.get(1).eval(bindings).asString();
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(find), "find string cannot be null or empty");
+      if (Strings.isNullOrEmpty(input)) {
+        return ExprEval.of(0);
+      }
+      int counter = 0;
+      int findLen = find.length();
+      for (int i = 0; i < input.length(); i++) {
+        int index = input.indexOf(find, i);
+        if (index < 0) {
+          break;
+        }
+        i = index + findLen;
+        counter++;
+      }
+      return ExprEval.of(counter);
+    }
+  }
+
   @Function.Named("replace")
   final class ReplaceFunc extends Function.StringOut
   {
