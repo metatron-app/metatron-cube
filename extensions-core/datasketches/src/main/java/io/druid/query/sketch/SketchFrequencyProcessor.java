@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
@@ -40,6 +41,9 @@ import java.util.Map;
 public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchFrequencyProcessor.class);
+
+  @JsonCreator
+  public SketchFrequencyProcessor() {}
 
   @Override
   @SuppressWarnings("unchecked")

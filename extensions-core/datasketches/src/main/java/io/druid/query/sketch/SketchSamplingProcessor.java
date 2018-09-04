@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
@@ -38,6 +39,9 @@ import java.util.Map;
 public class SketchSamplingProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchSamplingProcessor.class);
+
+  @JsonCreator
+  public SketchSamplingProcessor() {}
 
   @Override
   @SuppressWarnings("unchecked")

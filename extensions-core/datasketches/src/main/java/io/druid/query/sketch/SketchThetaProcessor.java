@@ -19,9 +19,9 @@
 
 package io.druid.query.sketch;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
-import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -39,6 +39,9 @@ import java.util.Map;
 public class SketchThetaProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchThetaProcessor.class);
+
+  @JsonCreator
+  public SketchThetaProcessor() {}
 
   @Override
   @SuppressWarnings("unchecked")
@@ -63,7 +66,7 @@ public class SketchThetaProcessor extends PostProcessingOperator.Abstract
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
                   TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
-                  entry.setValue(toMap(sketch.value()));
+                  entry.setValue(SketchThetaPostAggregator.toMap(sketch.value(), 2, false));
                 }
                 return input;
               }
@@ -71,14 +74,5 @@ public class SketchThetaProcessor extends PostProcessingOperator.Abstract
         );
       }
     };
-  }
-
-  private Map<String, Object> toMap(Sketch sketch)
-  {
-    Map<String, Object> result = Maps.newLinkedHashMap();
-    result.put("estimate", sketch.getEstimate());
-    result.put("upper95", sketch.getUpperBound(2));
-    result.put("lower95", sketch.getLowerBound(2));
-    return result;
   }
 }

@@ -103,6 +103,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final PostAggregator cardinalityOfIndexPostAggr = new SketchThetaPostAggregator(
       cardinalityOfIndexMetric,
       indexSketchMetric,
+      null,
       true
   );
 
@@ -111,6 +112,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final PostAggregator cardinalityOfQualityPostAggr = new SketchThetaPostAggregator(
       cardinalityOfQualityMetric,
       qualitySketchMetric,
+      null,
       true
   );
 }

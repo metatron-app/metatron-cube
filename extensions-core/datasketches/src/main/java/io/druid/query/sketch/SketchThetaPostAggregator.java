@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.TypeResolver;
@@ -42,24 +43,46 @@ public class SketchThetaPostAggregator implements PostAggregator
 {
   private final String name;
   private final String fieldName;
+  private final int numStdDev;
   private final boolean round;
 
   @JsonCreator
   public SketchThetaPostAggregator(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("numStdDev") Integer numStdDev,
       @JsonProperty("round") boolean round
   )
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = Preconditions.checkNotNull(fieldName, "'fieldName' cannot be null");
+    this.numStdDev = numStdDev == null ? -1 : numStdDev;
     this.round = round;
   }
 
   @Override
+  @JsonProperty
   public String getName()
   {
     return name;
+  }
+
+  @JsonProperty
+  public String getFieldName()
+  {
+    return fieldName;
+  }
+
+  @JsonProperty
+  public int getNumStdDev()
+  {
+    return numStdDev;
+  }
+
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
   }
 
   @Override
@@ -84,11 +107,25 @@ public class SketchThetaPostAggregator implements PostAggregator
   @SuppressWarnings("unchecked")
   public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
-    if (sketch != null) {
-      double estimate = sketch.value().getEstimate();
-      return round ? Math.round(estimate) : estimate;
+    TypedSketch<Sketch> typed = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
+    if (typed != null) {
+      Sketch sketch = typed.value();
+      if (numStdDev > 0) {
+        return toMap(sketch, numStdDev, round);
+      } else {
+        double estimate = sketch.getEstimate();
+        return round ? Math.round(estimate) : estimate;
+      }
     }
     return null;
+  }
+
+  static Map<String, Object> toMap(Sketch sketch, int numStdDev, boolean round)
+  {
+    Map<String, Object> result = Maps.newLinkedHashMap();
+    result.put("estimate", round ? Math.round(sketch.getEstimate()) : sketch.getEstimate());
+    result.put("upper95", round ? Math.round(sketch.getUpperBound(numStdDev)) : sketch.getUpperBound(numStdDev));
+    result.put("lower95", round ? Math.round(sketch.getLowerBound(numStdDev)) : sketch.getLowerBound(numStdDev));
+    return result;
   }
 }
