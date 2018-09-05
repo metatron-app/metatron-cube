@@ -284,8 +284,15 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ExprEval eval(ExprEval param)
     {
-      if (param.value() instanceof Collection) {
-        return ExprEval.of(((Collection) param.value()).size());
+      final Object value = param.value();
+      if (value == null) {
+        return ExprEval.of(0);
+      }
+      if (value instanceof Collection) {
+        return ExprEval.of(((Collection) value).size());
+      }
+      if (value.getClass().isArray()) {
+        return ExprEval.of(java.lang.reflect.Array.getLength(value));
       }
       throw new IllegalArgumentException("parameter is not a collection");
     }
