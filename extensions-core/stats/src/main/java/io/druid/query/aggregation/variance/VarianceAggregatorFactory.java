@@ -220,6 +220,12 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.DOUBLE;
+  }
+
+  @Override
   public Object deserialize(Object object)
   {
     if (object instanceof byte[]) {

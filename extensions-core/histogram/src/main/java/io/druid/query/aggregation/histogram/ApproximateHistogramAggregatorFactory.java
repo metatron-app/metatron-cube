@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -203,6 +204,12 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return ((ApproximateHistogramHolder) object).toHistogram(numBuckets);
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.of("approximateHistogram");
   }
 
   @JsonProperty

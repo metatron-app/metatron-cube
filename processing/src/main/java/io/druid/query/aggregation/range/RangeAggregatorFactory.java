@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -123,6 +124,12 @@ public class RangeAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return delegateFactory.finalizeComputation(object);
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return delegateFactory.finalizedType();
   }
 
   @Override

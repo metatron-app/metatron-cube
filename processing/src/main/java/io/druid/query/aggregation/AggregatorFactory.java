@@ -130,7 +130,15 @@ public abstract class AggregatorFactory implements Cacheable
    *
    * @return the finalized value that should be returned for the initial query
    */
-  public abstract Object finalizeComputation(Object object);
+  public Object finalizeComputation(Object object)
+  {
+    return object;
+  }
+
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.of(getTypeName());
+  }
 
   public abstract String getName();
 

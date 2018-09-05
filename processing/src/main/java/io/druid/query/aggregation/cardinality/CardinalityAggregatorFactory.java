@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
@@ -184,6 +185,12 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return HyperUniquesAggregatorFactory.estimateCardinality(object, round);
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   @Override

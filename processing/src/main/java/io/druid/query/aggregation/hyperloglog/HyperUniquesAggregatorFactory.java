@@ -49,7 +49,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   public static Object estimateCardinality(Object object, boolean round)
   {
     if (object == null) {
-      return 0;
+      return round ? 0L : 0D;
     }
 
     final HyperLogLogCollector collector = (HyperLogLogCollector) object;
@@ -178,6 +178,12 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return estimateCardinality(object, round);
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   @Override

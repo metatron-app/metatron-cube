@@ -319,12 +319,6 @@ public class ListAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object finalizeComputation(Object object)
-  {
-    return object;
-  }
-
-  @Override
   @JsonProperty
   public String getName()
   {

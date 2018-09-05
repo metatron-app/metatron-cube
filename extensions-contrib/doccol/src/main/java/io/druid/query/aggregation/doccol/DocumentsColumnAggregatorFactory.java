@@ -3,6 +3,7 @@ package io.druid.query.aggregation.doccol;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -107,6 +108,12 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return ((DocumentsColumn)object).get();
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.STRING_ARRAY;
   }
 
   @Override

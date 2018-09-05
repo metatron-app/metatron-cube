@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -173,6 +174,12 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return object;
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.UNKNOWN;
   }
 
   @JsonProperty

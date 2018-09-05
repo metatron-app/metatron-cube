@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Doubles;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -97,6 +98,12 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return ((MetricRange)object).getRange();
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.DOUBLE;
   }
 
   @Override

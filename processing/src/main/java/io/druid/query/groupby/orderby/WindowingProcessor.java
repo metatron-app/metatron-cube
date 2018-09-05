@@ -24,7 +24,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -33,7 +32,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.Direction;
-import io.druid.segment.column.Column;
 
 import java.util.Arrays;
 import java.util.Collections;

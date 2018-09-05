@@ -114,12 +114,6 @@ public class RelayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object finalizeComputation(Object object)
-  {
-    return object;
-  }
-
-  @Override
   @JsonProperty
   public String getName()
   {

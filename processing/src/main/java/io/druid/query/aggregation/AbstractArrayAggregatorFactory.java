@@ -130,6 +130,12 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.ofArray(delegate.finalizedType());
+  }
+
+  @Override
   public String getName()
   {
     return delegate.getName();

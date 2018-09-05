@@ -151,6 +151,20 @@ public class MathPostAggregator implements DecoratingPostAggregator
     return new MathPostAggregator(name, expression, ordering)
     {
       @Override
+      public ValueDesc resolve(final TypeResolver resolver)
+      {
+        return parsed.resolve(new TypeResolver.Abstract()
+        {
+          @Override
+          public ValueDesc resolve(String column)
+          {
+            AggregatorFactory aggregator = aggregators.get(column);
+            return aggregator == null ? resolver.resolve(column) : aggregator.finalizedType();
+          }
+        });
+      }
+
+      @Override
       public Object compute(final DateTime timestamp, final Map<String, Object> values)
       {
         Expr.NumericBinding binding = new Expr.NumericBinding()

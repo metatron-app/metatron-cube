@@ -176,12 +176,6 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     return object;
   }
 
-  @Override
-  public Object finalizeComputation(Object object)
-  {
-    return object;
-  }
-
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()

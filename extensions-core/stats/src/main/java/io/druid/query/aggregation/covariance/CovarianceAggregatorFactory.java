@@ -200,6 +200,12 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.DOUBLE;
+  }
+
+  @Override
   public Object deserialize(Object object)
   {
     if (object instanceof byte[]) {

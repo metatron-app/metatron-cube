@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
@@ -110,6 +111,12 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return new DateTime((long)object);
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.DATETIME;
   }
 
   @Override

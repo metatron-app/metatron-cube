@@ -22,6 +22,7 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 
@@ -119,6 +120,15 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     } else {
       return object;
     }
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    if (shouldFinalize) {
+      return errorBoundsStdDev != null ? ValueDesc.of("sketchEstimateWithErrorBounds") : ValueDesc.DOUBLE;
+    }
+    return ValueDesc.of(getTypeName());
   }
 
   @Override

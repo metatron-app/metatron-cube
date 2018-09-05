@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import com.metamx.common.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.codec.binary.Base64;
 
@@ -117,6 +118,12 @@ public class HistogramAggregatorFactory extends AggregatorFactory
   public Object finalizeComputation(Object object)
   {
     return ((Histogram) object).asVisual();
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.of("histogramVisual");
   }
 
   @Override
