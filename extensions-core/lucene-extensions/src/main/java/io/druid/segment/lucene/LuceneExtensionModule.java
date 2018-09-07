@@ -38,7 +38,9 @@ public class LuceneExtensionModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule("lucene-extension")
+            .registerSubtypes(ShapeIndexingStrategy.class)
             .registerSubtypes(SpatialIndexingStrategy.class)
+            .registerSubtypes(LatLonShapeIndexingStrategy.class)
             .registerSubtypes(LuceneSpatialFilter.class)
             .registerSubtypes(LuceneLatLonPolygonFilter.class)
             .registerSubtypes(GeoHashFunctions.class)

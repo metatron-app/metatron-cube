@@ -32,7 +32,7 @@ import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.ShapeFormat;
-import io.druid.segment.lucene.SpatialIndexingStrategy;
+import io.druid.segment.lucene.ShapeIndexingStrategy;
 import io.druid.segment.lucene.SpatialOperations;
 import io.druid.segment.lucene.TextIndexingStrategy;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -143,7 +143,7 @@ public class ComplexColumnSerializerTest
         serde,
         LuceneIndexingSpec.of(
             null,
-            new SpatialIndexingStrategy("geom", ShapeFormat.WKT, -1)
+            new ShapeIndexingStrategy("geom", ShapeFormat.WKT, -1)
         )
     );
     serializer.open();

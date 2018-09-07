@@ -85,7 +85,6 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     this.latitudes = latitude != null ? new double[]{latitude} : latitudes;
     this.longitudes = longitude != null ? new double[]{longitude} : longitudes;
     this.radiusMeters = type == PointQueryType.DISTANCE ? radiusMeters : 0;
-    Preconditions.checkArgument(field.contains("."), "should reference lat-lon point in struct field");
     Preconditions.checkArgument(getLatitudes().length == getLongitudes().length, "invalid coordinates");
   }
 
@@ -171,10 +170,14 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
           ImmutableBitmap baseBitmap
       )
       {
-        // column-name.field-name
+        String columnName = field;
+        String fieldName = field;
         int index = field.indexOf('.');
-        String columnName = field.substring(0, index);
-        String fieldName = field.substring(index + 1);
+        if (index > 0) {
+          // column-name.field-name
+          columnName = field.substring(0, index);
+          fieldName = field.substring(index + 1);
+        }
         LuceneIndex lucene = Preconditions.checkNotNull(
             selector.getLuceneIndex(columnName),
             "no lucene index for " + columnName
