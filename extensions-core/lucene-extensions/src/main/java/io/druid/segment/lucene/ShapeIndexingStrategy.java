@@ -20,10 +20,12 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.vividsolutions.jts.geom.Geometry;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.ValueDesc;
@@ -38,27 +40,91 @@ import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.io.ShapeReader;
+import org.locationtech.spatial4j.shape.Shape;
+import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 /**
  */
 @JsonTypeName("shape")
 public class ShapeIndexingStrategy implements LuceneIndexingStrategy
 {
-  private static final int DEFAULT_PRECISION = 18;
+  enum ShapeType
+  {
+    POINT {
+      @Override
+      boolean validate(Shape shape)
+      {
+        if (shape instanceof JtsGeometry) {
+          Geometry geometry = ((JtsGeometry) shape).getGeom();
+          return geometry instanceof com.vividsolutions.jts.geom.Point ||
+                 geometry instanceof com.vividsolutions.jts.geom.MultiPoint;
+        }
+        return false;
+      }
+    },
+    LINE {
+      @Override
+      boolean validate(Shape shape)
+      {
+        if (shape instanceof JtsGeometry) {
+          Geometry geometry = ((JtsGeometry) shape).getGeom();
+          return geometry instanceof com.vividsolutions.jts.geom.LineString ||
+                 geometry instanceof com.vividsolutions.jts.geom.MultiLineString;
+        }
+        return false;
+      }
+    },
+    POLYGON {
+      @Override
+      boolean validate(Shape shape)
+      {
+        if (shape instanceof JtsGeometry) {
+          Geometry geometry = ((JtsGeometry) shape).getGeom();
+          return geometry instanceof com.vividsolutions.jts.geom.Polygon ||
+                 geometry instanceof com.vividsolutions.jts.geom.MultiPolygon;
+        }
+        return false;
+      }
+    },
+    ALL;
+
+    boolean validate(Shape shape)
+    {
+      return true;
+    }
+  }
+
+//   1 : 5,009.4km x 4,992.6km
+//   2 : 1,252.3km x 624.1km
+//   3 : 156.5km x 156km
+//   4 : 39.1km x 19.5km
+//   5 : 4.9km x 4.9km
+//   6 : 1.2km x 609.4m
+//   7 : 152.9m x 152.4m
+//   8 : 38.2m x 19m
+//   9 : 4.8m x 4.8m
+//  10 : 1.2m x 59.5cm
+//  11 : 14.9cm x 14.9cm
+//  12 : 3.7cm x 1.9cm
+
+  private static final int DEFAULT_PRECISION = 10;
 
   private final String fieldName;
   private final ShapeFormat shapeFormat;
+  private final ShapeType shapeType;
   private final int maxLevels;
 
   @JsonCreator
   public ShapeIndexingStrategy(
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
+      @JsonProperty("shapeType") ShapeType shapeType,
       @JsonProperty("maxLevels") int maxLevels
   )
   {
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName cannot be null");
     this.shapeFormat = Preconditions.checkNotNull(shapeFormat, "shapeFormat cannot be null");
+    this.shapeType = shapeType;
     this.maxLevels = maxLevels <= 0 ? DEFAULT_PRECISION : maxLevels;
     Preconditions.checkArgument(
         maxLevels < GeohashUtils.MAX_PRECISION, "invalid max level " + maxLevels
@@ -76,6 +142,13 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   public ShapeFormat getShapeFormat()
   {
     return shapeFormat;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public ShapeType getShapeType()
+  {
+    return shapeType;
   }
 
   @JsonProperty
@@ -97,6 +170,8 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
     final SpatialPrefixTree grid = new GeohashPrefixTree(JtsSpatialContext.GEO, maxLevels);
     final SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
     final ShapeReader reader = shapeFormat.newReader(JtsSpatialContext.GEO);
+    final ShapeType validator = shapeType == null ? ShapeType.ALL : shapeType;
+
     final int wktIndex;
     if (type.isStruct()) {
       StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
@@ -118,7 +193,11 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
           return null;
         }
         try {
-          return strategy.createIndexableFields(reader.read(input));
+          final Shape shape = reader.read(input);
+          if (!validator.validate(shape)) {
+            throw new IllegalStateException("invalid shape type " + shape);
+          }
+          return strategy.createIndexableFields(shape);
         }
         catch (Exception e) {
           throw ParsingFail.propagate(input, e);

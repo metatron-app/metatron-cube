@@ -143,7 +143,7 @@ public class ComplexColumnSerializerTest
         serde,
         LuceneIndexingSpec.of(
             null,
-            new ShapeIndexingStrategy("geom", ShapeFormat.WKT, -1)
+            new ShapeIndexingStrategy("geom", ShapeFormat.WKT, null, -1)
         )
     );
     serializer.open();

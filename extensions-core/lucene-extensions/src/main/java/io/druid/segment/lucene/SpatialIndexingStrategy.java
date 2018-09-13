@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
  */
-@Deprecated()
+@Deprecated
 @JsonTypeName("spatial")
 public class SpatialIndexingStrategy extends ShapeIndexingStrategy
 {
@@ -33,9 +33,10 @@ public class SpatialIndexingStrategy extends ShapeIndexingStrategy
   public SpatialIndexingStrategy(
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
+      @JsonProperty("shapeType") ShapeType shapeType,
       @JsonProperty("maxLevels") int maxLevels
   )
   {
-    super(fieldName, shapeFormat, maxLevels);
+    super(fieldName, shapeFormat, shapeType, maxLevels);
   }
 }
