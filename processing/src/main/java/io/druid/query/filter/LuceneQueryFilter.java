@@ -98,7 +98,11 @@ public class LuceneQueryFilter implements DimFilter.LuceneFilter
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
-    return this;
+    String replaced = mapping.get(field);
+    if (replaced == null || replaced.equals(field)) {
+      return this;
+    }
+    return new LuceneQueryFilter(replaced, analyzer, expression);
   }
 
   @Override

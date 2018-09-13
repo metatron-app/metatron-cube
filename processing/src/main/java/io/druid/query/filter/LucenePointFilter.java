@@ -143,7 +143,11 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
-    return this;
+    String replaced = mapping.get(field);
+    if (replaced == null || replaced.equals(field)) {
+      return this;
+    }
+    return new LucenePointFilter(replaced, type, null, null, latitudes, longitudes, radiusMeters);
   }
 
   @Override

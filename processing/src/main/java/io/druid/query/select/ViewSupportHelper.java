@@ -52,7 +52,7 @@ public class ViewSupportHelper
     return rewrite(query, Suppliers.ofInstance(resolver));
   }
 
-  public static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, Supplier<RowResolver> supplier)
+  private static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, Supplier<RowResolver> supplier)
   {
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
@@ -109,7 +109,7 @@ public class ViewSupportHelper
     for (VirtualColumn vc : virtualColumns) {
       if (vc instanceof ExprVirtualColumn) {
         Expr expr = Parser.parse(((ExprVirtualColumn) vc).getExpression());
-        if (Evals.isIdentifier(expr)) {
+        if (Evals.isIdentifier(expr) && !Evals.getIdentifier(expr).equals(vc.getOutputName())) {
           mapping.put(vc.getOutputName(), Evals.getIdentifier(expr));
         }
       }

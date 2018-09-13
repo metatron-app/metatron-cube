@@ -103,7 +103,11 @@ public class LuceneLatLonPolygonFilter implements DimFilter.LuceneFilter
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
-    return this;
+    String replaced = mapping.get(field);
+    if (replaced == null || replaced.equals(field)) {
+      return this;
+    }
+    return new LuceneLatLonPolygonFilter(replaced, shapeFormat, shapeString);
   }
 
   @Override
