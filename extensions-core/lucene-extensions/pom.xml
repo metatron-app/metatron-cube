@@ -32,10 +32,6 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <properties>
-        <geotools.version>19.0</geotools.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.druid</groupId>
