@@ -133,6 +133,16 @@ public class JoinElement
 
   private String findAlias(String expression, Set<String> aliases)
   {
+    if (aliases == null) {
+      int index = expression.indexOf('.');
+      if (index < 0) {
+        throw new IllegalArgumentException("cannot find alias from " + expression);
+      }
+      if (expression.indexOf('.', index + 1) > 0) {
+        throw new IllegalArgumentException("ambiguous alias.. contains more than one dot in " + expression);
+      }
+      return expression.substring(0, index);
+    }
     String found = null;
     for (String alias : aliases) {
       if (expression.startsWith(alias + ".")) {

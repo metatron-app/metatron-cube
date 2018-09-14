@@ -29,6 +29,11 @@ import java.util.List;
 @JsonTypeName("query")
 public class QueryDataSource implements DataSource
 {
+  public static QueryDataSource of(Query query)
+  {
+    return new QueryDataSource(query);
+  }
+
   @JsonProperty
   private final Query query;
   private transient Schema schema;  //  result schema of the query

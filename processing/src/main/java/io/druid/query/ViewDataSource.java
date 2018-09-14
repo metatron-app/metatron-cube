@@ -37,12 +37,22 @@ public class ViewDataSource implements DataSource
 {
   public static ViewDataSource of(String dataSource, String... columns)
   {
-    return new ViewDataSource(dataSource, Arrays.asList(columns), null, null, false);
+    return of(dataSource, Arrays.asList(columns));
+  }
+
+  public static ViewDataSource of(String dataSource, List<String> columns)
+  {
+    return new ViewDataSource(dataSource, columns, null, null, false);
   }
 
   public static ViewDataSource of(String dataSource, DimFilter filer, String... columns)
   {
-    return new ViewDataSource(dataSource, Arrays.asList(columns), null, filer, false);
+    return of(dataSource, filer, Arrays.asList(columns));
+  }
+
+  public static ViewDataSource of(String dataSource, DimFilter filer, List<String> columns)
+  {
+    return new ViewDataSource(dataSource, columns, null, filer, false);
   }
 
   @JsonProperty
