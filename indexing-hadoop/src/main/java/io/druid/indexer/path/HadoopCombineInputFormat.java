@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * This makes FileSplit cause it's FileInputFormat (todo)
  */
 public class HadoopCombineInputFormat extends FileInputFormat
 {
@@ -120,7 +121,8 @@ public class HadoopCombineInputFormat extends FileInputFormat
       if (splitSize == COMBINE_PER_ELEMENT) {
         for (String paths : entry.getValue()) {
           FileInputFormat.setInputPaths(cloned, paths);
-          result.add(new HadoopSplit(ImmutableMap.<String, List<InputSplit>>of(dataSource, super.getSplits(cloned))));
+          List splits = super.getSplits(cloned);
+          result.add(new HadoopSplit(compact(ImmutableMap.<String, List<InputSplit>>of(dataSource, splits))));
         }
         continue;
       }
@@ -156,8 +158,14 @@ public class HadoopCombineInputFormat extends FileInputFormat
   {
     Map<String, List<FileSplit>> compact = Maps.newHashMap();
     for (Map.Entry<String, List<FileSplit>> entry : mapping.entrySet()) {
-      if (!entry.getValue().isEmpty()) {
-        compact.put(entry.getKey(), entry.getValue());
+      List<FileSplit> splits = Lists.newArrayList();
+      for (FileSplit split : entry.getValue()) {
+        if (split.getLength() > 0) {
+          splits.add(split);
+        }
+      }
+      if (!splits.isEmpty()) {
+        compact.put(entry.getKey(), splits);
       }
     }
     return compact;

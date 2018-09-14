@@ -192,6 +192,7 @@ public class HivePathSpec implements PathSpec.Resolving
           null,
           elements,
           inputFormat,
+          -1,
           splitSize,
           false,
           table.isPartitioned(),

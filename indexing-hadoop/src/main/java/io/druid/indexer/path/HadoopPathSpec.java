@@ -28,6 +28,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.indexer.hadoop.SkippingTextInputFormat;
 import io.druid.jackson.DefaultObjectMapper;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -59,6 +60,7 @@ public class HadoopPathSpec implements PathSpec
 
   private final List<PathSpecElement> elements;
   private final Class inputFormat;
+  private final int skipHeader;
   private final long splitSize;
   private final boolean findRecursive;
   private final boolean extractPartition;
@@ -69,6 +71,7 @@ public class HadoopPathSpec implements PathSpec
       @JsonProperty("basePath") String basePath,
       @JsonProperty("elements") List<PathSpecElement> elements,
       @JsonProperty("inputFormat") Class inputFormat,
+      @JsonProperty("skipHeader") int skipHeader,
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("findRecursive") boolean findRecursive,
       @JsonProperty("extractPartition") boolean extractPartition,
@@ -77,6 +80,11 @@ public class HadoopPathSpec implements PathSpec
   {
     this.basePath = basePath;
     this.elements = Preconditions.checkNotNull(elements);
+    if (skipHeader > 0) {
+      Preconditions.checkArgument(inputFormat == null || inputFormat == SkippingTextInputFormat.class);
+      inputFormat = SkippingTextInputFormat.class;
+    }
+    this.skipHeader = skipHeader;
     this.inputFormat = inputFormat == null ? TextInputFormat.class : inputFormat;
     this.splitSize = StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE);
     this.findRecursive = findRecursive;
@@ -101,6 +109,7 @@ public class HadoopPathSpec implements PathSpec
     this.elements = pathSpec.elements;
     this.inputFormat = pathSpec.inputFormat;
     this.splitSize = pathSpec.splitSize;
+    this.skipHeader = pathSpec.skipHeader;
     this.findRecursive = pathSpec.findRecursive;
     this.extractPartition = pathSpec.extractPartition;
     this.properties = pathSpec.properties;
@@ -203,6 +212,9 @@ public class HadoopPathSpec implements PathSpec
       job.getConfiguration().setClass(INPUT_FORMAT_OLD, inputFormat, org.apache.hadoop.mapred.InputFormat.class);
     } else {
       throw new IllegalArgumentException("invalid format " + inputFormat);
+    }
+    if (skipHeader > 0) {
+      job.getConfiguration().setInt(SkippingTextInputFormat.SKIP_ROW_NUM, skipHeader);
     }
     job.getConfiguration().setLong(SPLIT_SIZE, splitSize);
 

@@ -41,6 +41,7 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
@@ -198,13 +199,15 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         throws IOException, InterruptedException
     {
       super.setup(context);
-      tuningConfig = config.getSchema().getTuningConfig();
+      HadoopIngestionSpec schema = config.getSchema();
+      DataSchema dataSchema = schema.getDataSchema();
+      tuningConfig = schema.getTuningConfig();
 
-      aggregators = config.getSchema().getDataSchema().getAggregators();
+      aggregators = dataSchema.getAggregators();
 
-      dynamicDataSource = config.getSchema().getIOConfig().getPathSpec().get("type").equals("hadoop");
+      dynamicDataSource = "hadoop".equals(schema.getIOConfig().getPathSpec().get("type"));
       if (!dynamicDataSource) {
-        currentDataSource = config.getSchema().getDataSchema().getDataSource();
+        currentDataSource = dataSchema.getDataSource();
       }
 
       flushedIndex = context.getCounter("druid.internal", "index-flush-count");

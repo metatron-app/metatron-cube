@@ -175,9 +175,10 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
 
     Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
     Map<String, Object> datasourcePathSpec = null;
-    if (pathSpec.get(type).equals(dataSource)) {
+    final Object specType = pathSpec.get(type);
+    if (dataSource.equals(specType)) {
       datasourcePathSpec = pathSpec;
-    } else if (pathSpec.get(type).equals(multi)) {
+    } else if (multi.equals(specType)) {
       List<Map<String, Object>> childPathSpecs = (List<Map<String, Object>>) pathSpec.get(children);
       for (Map<String, Object> childPathSpec : childPathSpecs) {
         if (childPathSpec.get(type).equals(dataSource)) {
