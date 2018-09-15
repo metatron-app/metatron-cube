@@ -104,6 +104,6 @@ public interface Row extends Comparable<Row>
 
     void set(String column, Object value);
 
-    void remove(String column);
+    Object remove(String column);
   }
 }
