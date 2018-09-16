@@ -162,6 +162,12 @@ public class ViewSupportHelperTest
     }
 
     @Override
+    public Map<String, String> getColumnDescriptor(String column)
+    {
+      return null;
+    }
+
+    @Override
     public long getSerializedSize(String column)
     {
       return 0;

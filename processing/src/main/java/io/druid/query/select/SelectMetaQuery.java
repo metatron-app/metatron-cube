@@ -27,6 +27,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.Intervals;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
@@ -35,10 +37,12 @@ import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
+import io.druid.query.ViewDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.LegacySegmentSpec;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
@@ -57,6 +61,22 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   public static SelectMetaQuery forQuery(Query source)
   {
     return forQuery(source, false, false);
+  }
+
+  public static SelectMetaQuery forView(ViewDataSource view, boolean schemaOnly)
+  {
+    return new SelectMetaQuery(
+        view,
+        MultipleIntervalSegmentSpec.of(Intervals.ETERNITY),
+        null,
+        null,
+        null,
+        null,
+        null,
+        schemaOnly,
+        null,
+        null
+    );
   }
 
   @SuppressWarnings("unchecked")
@@ -124,7 +144,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimFilter = dimFilter;
-    this.granularity = granularity;
+    this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.schemaOnly = schemaOnly == null ? false : schemaOnly;
     this.pagingSpec = pagingSpec;
   }

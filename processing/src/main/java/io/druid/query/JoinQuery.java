@@ -48,6 +48,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final List<JoinElement> elements;
   private final String timeColumnName;
   private final boolean prefixAlias;
+  private final boolean asArray;
   private final int limit;
   private final int parallelism;
   private final int queue;
@@ -57,6 +58,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("dataSources") Map<String, DataSource> dataSources,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
+      @JsonProperty("asArray") boolean asArray,
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("limit") int limit,
@@ -68,6 +70,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
     this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
     this.prefixAlias = prefixAlias;
+    this.asArray = asArray;
     this.timeColumnName = timeColumnName;
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.limit = limit;
@@ -173,6 +176,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return prefixAlias;
   }
 
+  @JsonProperty
+  public boolean isAsArray()
+  {
+    return asArray;
+  }
+
   public String getTimeColumnName()
   {
     return timeColumnName;
@@ -224,6 +233,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         dataSources,
         elements,
         prefixAlias,
+        asArray,
         timeColumnName,
         getQuerySegmentSpec(),
         limit,
@@ -247,10 +257,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     XJoinPostProcessor joinProcessor = jsonMapper.convertValue(
-        ImmutableMap.of("type", "join", "elements", elements, "prefixAlias", prefixAlias),
+        ImmutableMap.of("type", "join", "elements", elements, "asArray", asArray, "prefixAlias", prefixAlias),
         new TypeReference<XJoinPostProcessor>()
         {
         }
@@ -295,6 +305,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getDataSources(),
         getElements(),
         prefixAlias,
+        asArray,
         getTimeColumnName(),
         getQuerySegmentSpec(),
         limit,
@@ -311,6 +322,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            "dataSources=" + dataSources +
            ", elements=" + elements +
            ", prefixAlias=" + prefixAlias +
+           ", asArray=" + asArray +
            ", parallelism=" + parallelism +
            ", queue=" + queue +
            ", limit=" + limit +

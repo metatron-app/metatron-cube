@@ -286,10 +286,18 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     for (String dimension : adapter.getAvailableDimensions()) {
       columnTypes.put(dimension, adapter.getColumnType(dimension));
       columnCapabilities.put(dimension, adapter.getColumnCapabilities(dimension));
+      Map<String, String> descs = adapter.getColumnDescriptor(dimension);
+      if (!GuavaUtils.isNullOrEmpty(descs)) {
+        columnDescriptors.put(dimension, descs);
+      }
     }
     for (String metric : adapter.getAvailableMetrics()) {
       columnTypes.put(metric, adapter.getColumnType(metric));
       columnCapabilities.put(metric, adapter.getColumnCapabilities(metric));
+      Map<String, String> descs = adapter.getColumnDescriptor(metric);
+      if (!GuavaUtils.isNullOrEmpty(descs)) {
+        columnDescriptors.put(metric, descs);
+      }
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilitiesImpl.of(ValueType.LONG));
@@ -317,6 +325,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     virtualColumns.addImplicitVCs(this);
   }
 
+  // for output schema.. does not provide column descriptor
   private RowResolver(
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> metrics,

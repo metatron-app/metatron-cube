@@ -223,6 +223,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public Map<String, String> getColumnDescriptor(String columnName)
+  {
+    Column column = index.getColumn(columnName);
+    return column == null ? null : column.getColumnDescs();
+  }
+
+  @Override
   public DateTime getMaxIngestedEventTime()
   {
     // For immutable indexes, maxIngestedEventTime is maxTime.

@@ -25,6 +25,8 @@ import io.druid.segment.data.Indexed;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.util.Map;
+
 /**
  */
 public interface StorageAdapter extends CursorFactory
@@ -56,6 +58,7 @@ public interface StorageAdapter extends CursorFactory
    * @return type name
    */
   public ValueDesc getColumnType(String column);
+  public Map<String, String> getColumnDescriptor(String column);
   public long getSerializedSize(String column);
   public float getAverageSize(String column);
   public int getNumRows();

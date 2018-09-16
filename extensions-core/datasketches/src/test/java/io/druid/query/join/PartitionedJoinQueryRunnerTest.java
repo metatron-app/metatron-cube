@@ -121,6 +121,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".quality = " + JOIN_DS_P + ".quality")),
         false,
+        false,
         null,
         firstToThird, 0, 0, 0, null
     );

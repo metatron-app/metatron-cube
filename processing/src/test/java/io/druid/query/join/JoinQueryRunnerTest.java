@@ -137,6 +137,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
         false,
+        false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
@@ -234,6 +235,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, "X.market = Y.market")),
         false,
+        false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
@@ -262,6 +264,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
             new JoinElement(JoinType.INNER, "X.market = Y.market"),
             new JoinElement(JoinType.INNER, "Y.market = Z.market")
         ),
+        false,
         false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
@@ -303,6 +306,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList( new JoinElement(JoinType.INNER, "X.market = Y.market")),
         false,
+        false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
@@ -315,6 +319,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         Arrays.asList(
             new JoinElement(JoinType.INNER, "A.market = B.market")
         ),
+        false,
         false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
@@ -356,6 +361,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
         true,
+        false,
         null,
         firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
