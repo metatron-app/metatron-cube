@@ -63,7 +63,7 @@ public class AnomalyPostProcessorTest
         Pair.of("SimpleThresholdModel", 39)
     )) {
       AnomalyPostProcessor processor = new AnomalyPostProcessor(
-          "t", "m", "p", "a", "OlympicModel", entry.lhs, parameters, Granularities.HOUR
+          "t", "m", "p", "a", "OlympicModel", entry.lhs, parameters, Granularities.HOUR, null
       );
 
       @SuppressWarnings("unchecked")

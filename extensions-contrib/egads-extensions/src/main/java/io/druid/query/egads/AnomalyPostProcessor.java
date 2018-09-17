@@ -37,6 +37,7 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
   private final Map<String, Object> parameters;
 
   private final Granularity timeGranularity;
+  private final String tsModelColumn;
 
   @JsonCreator
   public AnomalyPostProcessor(
@@ -47,7 +48,8 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("tsModel") String tsModel,
       @JsonProperty("adModel") String adModel,
       @JsonProperty("parameters") Map<String, Object> parameters,
-      @JsonProperty("timeGranularity") Granularity timeGranularity
+      @JsonProperty("timeGranularity") Granularity timeGranularity,
+      @JsonProperty("tsModelColumn") String tsModelColumn
   )
   {
     this.timestampColumn = Preconditions.checkNotNull(timestampColumn, "'timestampColumn' cannot be null");
@@ -63,6 +65,7 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
       Preconditions.checkNotNull(anomalyColumn, "'anomalyColumn' cannot be null");
     }
     this.timeGranularity = timeGranularity;
+    this.tsModelColumn = tsModelColumn;
   }
 
   @Override
@@ -107,6 +110,14 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
               RowEntry<Map<String, Object>> entry = (RowEntry<Map<String, Object>>) observed.get(i);
               entry.row.put(predictColumn, expected.get(i).value);
             }
+          }
+          if (tsModelColumn != null && timeSeries.size() > 0) {
+            RowEntry<Map<String, Object>> entry = (RowEntry<Map<String, Object>>) observed.get(0);
+            Map<String, Object> modelDesc = ImmutableMap.<String, Object>of(
+                "name", model.getModelName(),
+                "type", model.getModelType()
+            );
+            entry.row.put(tsModelColumn, modelDesc);
           }
 
           if (adModel != null) {
