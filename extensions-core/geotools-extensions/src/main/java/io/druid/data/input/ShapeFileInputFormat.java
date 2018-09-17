@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -62,11 +63,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static com.metamx.common.StringUtils.UTF8_STRING;
-
 public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
 {
   private static final Logger LOG = new Logger(ShapeFileInputFormat.class);
+
+  private static final String ENCODING = "shape.encoding";
 
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException
@@ -119,6 +120,7 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
     final Path shapeIndexFile = new Path(shapeSplit.shapeIndexFile);
     final Path attributeFile = new Path(shapeSplit.attributeFile);
 
+    final Charset charset = Charset.forName(context.getConfiguration().get(ENCODING, StringUtils.UTF8_STRING));
     final GeometryFactory geometryFactory = new GeometryFactory();
 
     final ShapefileReader shapeReader = new ShapefileReader(new ShpFiles(File.createTempFile("druid_shape", ".shp"))
@@ -148,14 +150,11 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
           throw new IllegalArgumentException("Not supported type " + type);
         }
       }
-    }, false, Charset.defaultCharset());
+    }, false, charset);
 
     Path projectFile = new Path(shapeSplit.projectFile);
     StringWriter writer = new StringWriter();
-    IOUtils.copy(
-        projectFile.getFileSystem(context.getConfiguration()).open(projectFile),
-        writer, Charset.forName(UTF8_STRING)
-    );
+    IOUtils.copy(projectFile.getFileSystem(context.getConfiguration()).open(projectFile), writer, charset);
 
     DbaseFileHeader header = attrReader.getHeader();
     final String[] fields = new String[header.getNumFields()];

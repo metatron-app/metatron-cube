@@ -20,6 +20,7 @@
 package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -38,6 +39,7 @@ import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -49,28 +51,35 @@ public class StaticPathSpec implements PathSpec
   private final Class<? extends InputFormat> inputFormat;
   private final boolean combinePerPath;
 
+  private final Map<String, Object> properties;
+
   @JsonCreator
   public StaticPathSpec(
       @JsonProperty("paths") String paths,
       @JsonProperty("combinePerPath") boolean combinePerPath,
-      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat
+      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
+      @JsonProperty("properties") Map<String, Object> properties
   )
   {
     this.paths = Preconditions.checkNotNull(paths);
     this.combinePerPath = combinePerPath;
     this.inputFormat = inputFormat;
+    this.properties = properties;
     Preconditions.checkArgument(!combinePerPath || inputFormat == null || inputFormat == TextInputFormat.class);
   }
 
   public StaticPathSpec(String paths, Class<? extends InputFormat> inputFormat)
   {
-    this(paths, false, inputFormat);
+    this(paths, false, inputFormat, null);
   }
 
   @Override
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
     log.info("Adding paths[%s]", paths);
+    if (properties != null && !properties.isEmpty()) {
+      HadoopPathSpec.configure(job, properties);
+    }
 
     addToMultipleInputs(config, job, paths, inputFormat);
     if (combinePerPath) {
@@ -96,6 +105,13 @@ public class StaticPathSpec implements PathSpec
   public boolean isCombinePerPath()
   {
     return combinePerPath;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Map<String, Object> getProperties()
+  {
+    return properties;
   }
 
   public static void addToMultipleInputs(

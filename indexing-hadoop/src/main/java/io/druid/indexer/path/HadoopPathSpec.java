@@ -155,31 +155,7 @@ public class HadoopPathSpec implements PathSpec
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
     if (properties != null && !properties.isEmpty()) {
-      for (Map.Entry<String, Object> entry : properties.entrySet()) {
-        Object value = entry.getValue();
-        if (value == null) {
-          job.getConfiguration().unset(entry.getKey());
-          continue;
-        }
-        if (value instanceof String) {
-          job.getConfiguration().set(entry.getKey(), (String) value);
-        } else if (value instanceof Integer) {
-          job.getConfiguration().setInt(entry.getKey(), (Integer) value);
-        } else if (value instanceof Long) {
-          job.getConfiguration().setLong(entry.getKey(), (Long) value);
-        } else if (value instanceof Float) {
-          job.getConfiguration().setFloat(entry.getKey(), (Float) value);
-        } else if (value instanceof Double) {
-          job.getConfiguration().setDouble(entry.getKey(), (Double) value);
-        } else if (value instanceof Boolean) {
-          job.getConfiguration().setBoolean(entry.getKey(), (Boolean) value);
-        } else if (value instanceof List) {
-          List<String> casted = GuavaUtils.cast((List<?>) value);
-          job.getConfiguration().setStrings(entry.getKey(), casted.toArray(new String[casted.size()]));
-        } else {
-          new Logger(HadoopPathSpec.class).warn("Invalid type value %s (%s).. ignoring", value, value.getClass());
-        }
-      }
+      configure(job, properties);
     }
 
     String dataSource = config.getDataSource();
@@ -229,6 +205,35 @@ public class HadoopPathSpec implements PathSpec
     job.setInputFormatClass(HadoopCombineInputFormat.class);
 
     return job;
+  }
+
+  static void configure(Job job, Map<String, Object> properties)
+  {
+    for (Map.Entry<String, Object> entry : properties.entrySet()) {
+      Object value = entry.getValue();
+      if (value == null) {
+        job.getConfiguration().unset(entry.getKey());
+        continue;
+      }
+      if (value instanceof String) {
+        job.getConfiguration().set(entry.getKey(), (String) value);
+      } else if (value instanceof Integer) {
+        job.getConfiguration().setInt(entry.getKey(), (Integer) value);
+      } else if (value instanceof Long) {
+        job.getConfiguration().setLong(entry.getKey(), (Long) value);
+      } else if (value instanceof Float) {
+        job.getConfiguration().setFloat(entry.getKey(), (Float) value);
+      } else if (value instanceof Double) {
+        job.getConfiguration().setDouble(entry.getKey(), (Double) value);
+      } else if (value instanceof Boolean) {
+        job.getConfiguration().setBoolean(entry.getKey(), (Boolean) value);
+      } else if (value instanceof List) {
+        List<String> casted = GuavaUtils.cast((List<?>) value);
+        job.getConfiguration().setStrings(entry.getKey(), casted.toArray(new String[casted.size()]));
+      } else {
+        new Logger(HadoopPathSpec.class).warn("Invalid type value %s (%s).. ignoring", value, value.getClass());
+      }
+    }
   }
 
   @Override
