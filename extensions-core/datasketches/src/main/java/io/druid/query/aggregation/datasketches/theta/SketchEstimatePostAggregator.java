@@ -33,6 +33,7 @@ import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class SketchEstimatePostAggregator implements PostAggregator
@@ -91,14 +92,13 @@ public class SketchEstimatePostAggregator implements PostAggregator
   @Override
   public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    Sketch sketch = (Sketch) field.compute(timestamp, combinedAggregators);
+    Sketch sketch = SketchSetPostAggregator.toSketch(field.compute(timestamp, combinedAggregators));
     if (errorBoundsStdDev != null) {
-      SketchEstimateWithErrorBounds result = new SketchEstimateWithErrorBounds(
+      return new SketchEstimateWithErrorBounds(
           sketch.getEstimate(),
           sketch.getUpperBound(errorBoundsStdDev),
           sketch.getLowerBound(errorBoundsStdDev),
           errorBoundsStdDev);
-      return result;
     } else {
       return sketch.getEstimate();
     }
@@ -148,7 +148,7 @@ public class SketchEstimatePostAggregator implements PostAggregator
     if (!name.equals(that.name)) {
       return false;
     }
-    if (errorBoundsStdDev != that.errorBoundsStdDev) {
+    if (!Objects.equals(errorBoundsStdDev, that.errorBoundsStdDev)) {
       return false;
     }
     return field.equals(that.field);
@@ -160,7 +160,7 @@ public class SketchEstimatePostAggregator implements PostAggregator
   {
     int result = name.hashCode();
     result = 31 * result + field.hashCode();
-    result = 31 * result + (errorBoundsStdDev != null ? errorBoundsStdDev.hashCode() : 0);
+    result = 31 * result + Objects.hashCode(errorBoundsStdDev);
     return result;
   }
 }

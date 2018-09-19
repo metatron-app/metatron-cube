@@ -89,6 +89,8 @@ public abstract class SketchAggregator implements Aggregator
       union.update((Memory) update);
     } else if (update instanceof Sketch) {
       union.update((Sketch) update);
+    } else if (update instanceof Union) {
+      union.update(((Union) update).getResult());
     } else if (update instanceof String) {
       union.update((String) update);
     } else if (update instanceof byte[]) {

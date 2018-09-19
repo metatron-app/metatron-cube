@@ -28,6 +28,7 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.Union;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.QueryToolBinders;
 import io.druid.initialization.DruidModule;
@@ -113,6 +114,9 @@ public class SketchModule implements DruidModule
             .registerSubtypes(SketchThetaPostAggregator.class)
             .addSerializer(
                 Sketch.class, new SketchJsonSerializer()
+            )
+            .addSerializer(
+                Union.class, new UnionJsonSerializer()
             )
             .addSerializer(
                 ItemsSketch.class, new ItemsSketchJsonSerializer()
