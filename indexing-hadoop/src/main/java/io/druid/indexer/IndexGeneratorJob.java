@@ -50,6 +50,8 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configurable;
@@ -249,13 +251,17 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       int hardLimit
   )
   {
-    final HadoopTuningConfig tuningConfig = config.getSchema().getTuningConfig();
+    final HadoopIngestionSpec schema = config.getSchema();
+    final HadoopTuningConfig tuningConfig = schema.getTuningConfig();
+    final DataSchema dataSchema = schema.getDataSchema();
+    final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(theBucket.time.getMillis())
-        .withDimensionsSpec(config.getSchema().getDataSchema().getParser())
-        .withQueryGranularity(config.getSchema().getDataSchema().getGranularitySpec().getQueryGranularity())
+        .withDimensionsSpec(dataSchema.getParser())
+        .withQueryGranularity(granularitySpec.getQueryGranularity())
+        .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withMetrics(aggs)
-        .withRollup(config.getSchema().getDataSchema().getGranularitySpec().isRollup())
+        .withRollup(granularitySpec.isRollup())
         .build();
 
     final int boundary = hardLimit < 0 ? tuningConfig.getRowFlushBoundary() : hardLimit;

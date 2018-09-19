@@ -59,6 +59,7 @@ public class IncrementalIndexMultiValueSpecTest
     IncrementalIndexSchema schema = new IncrementalIndexSchema(
         0,
         QueryGranularities.ALL,
+        null,
         dimensionsSpec,
         new AggregatorFactory[0],
         true

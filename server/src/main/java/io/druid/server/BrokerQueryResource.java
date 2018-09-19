@@ -425,6 +425,7 @@ public class BrokerQueryResource extends QueryResource
           .withDimensionsSpec(dimensionsSpec)
           .withMetrics(schema.getAggregators())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
+          .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withRollup(rollup == null ? granularitySpec.isRollup() : rollup)
           .withFixedSchema(true)
           .build();

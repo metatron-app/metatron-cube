@@ -22,6 +22,7 @@ package io.druid.granularity;
 import com.metamx.common.IAE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.joda.time.chrono.ISOChronology;
 
@@ -179,6 +180,16 @@ public enum GranularityType
       }
     }
     return false;
+  }
+
+  public static GranularityType fromInterval(Interval interval)
+  {
+    try {
+      return fromPeriod(new Period(interval.getStart(), interval.getEnd()));
+    }
+    catch (Exception e) {
+      return null;
+    }
   }
 
   /**

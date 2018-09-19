@@ -2089,7 +2089,7 @@ public class IndexMergerTest
   {
     IncrementalIndexSchema schema = new IncrementalIndexSchema(
         0L,
-        QueryGranularities.NONE,
+        QueryGranularities.NONE, null,
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(dims), null, null),
         new AggregatorFactory[]{new CountAggregatorFactory("count")},
         true

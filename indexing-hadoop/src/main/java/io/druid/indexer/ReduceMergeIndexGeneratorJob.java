@@ -307,12 +307,15 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
     private IncrementalIndex makeIncrementalIndex(Interval interval)
     {
+      final DataSchema dataSchema = config.getSchema().getDataSchema();
+      final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
-          .withDimensionsSpec(config.getSchema().getDataSchema().getParser())
-          .withQueryGranularity(config.getSchema().getDataSchema().getGranularitySpec().getQueryGranularity())
+          .withDimensionsSpec(dataSchema.getParser())
+          .withQueryGranularity(granularitySpec.getQueryGranularity())
+          .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
-          .withRollup(config.getSchema().getDataSchema().getGranularitySpec().isRollup())
+          .withRollup(granularitySpec.isRollup())
           .build();
 
       return new OnheapIncrementalIndex(

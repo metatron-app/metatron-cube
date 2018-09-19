@@ -90,7 +90,7 @@ public class IncrementalIndexTest
     };
     final IncrementalIndexSchema schema = new IncrementalIndexSchema(
         0,
-        QueryGranularities.MINUTE,
+        QueryGranularities.MINUTE, null,
         dimensions,
         metrics,
         true

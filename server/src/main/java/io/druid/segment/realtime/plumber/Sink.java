@@ -34,6 +34,7 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.realtime.FireHydrant;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.ShardSpec;
@@ -245,12 +246,14 @@ public class Sink implements Iterable<FireHydrant>
 
   private FireHydrant makeNewCurrIndex(long minTimestamp, DataSchema schema)
   {
+    final GranularitySpec granularitySpec = schema.getGranularitySpec();
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(minTimestamp)
-        .withQueryGranularity(schema.getGranularitySpec().getQueryGranularity())
+        .withQueryGranularity(granularitySpec.getQueryGranularity())
+        .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withDimensionsSpec(schema.getParser())
         .withMetrics(schema.getAggregators())
-        .withRollup(schema.getGranularitySpec().isRollup())
+        .withRollup(granularitySpec.isRollup())
         .build();
 
     final FireHydrant old;

@@ -263,7 +263,8 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
 
     this.metadata = new Metadata()
         .setAggregators(AggregatorFactory.toCombiner(metrics))
-        .setQueryGranularity(this.gran);
+        .setQueryGranularity(gran)
+        .setSegmentGranularity(incrementalIndexSchema.getSegmentGran());
 
     this.aggs = initAggs(metrics, rowSupplier, deserializeComplexMetrics);
     this.columnCapabilities = Maps.newHashMap();

@@ -44,6 +44,7 @@ public class IncrementalIndexSchema
 {
   private final long minTimestamp;
   private final Granularity gran;
+  private final Granularity segmentGran;
   private final DimensionsSpec dimensionsSpec;
   private final AggregatorFactory[] metrics;
   private final boolean rollup;
@@ -53,6 +54,7 @@ public class IncrementalIndexSchema
   public IncrementalIndexSchema(
       @JsonProperty("minTimestamp") long minTimestamp,
       @JsonProperty("gran") Granularity gran,
+      @JsonProperty("segmentGran") Granularity segmentGran,
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
@@ -61,6 +63,7 @@ public class IncrementalIndexSchema
   {
     this.minTimestamp = minTimestamp;
     this.gran = gran == null ? Granularities.NONE : gran;
+    this.segmentGran = segmentGran;
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
@@ -70,12 +73,13 @@ public class IncrementalIndexSchema
   public IncrementalIndexSchema(
       long minTimestamp,
       Granularity gran,
+      Granularity segmentGran,
       DimensionsSpec dimensionsSpec,
       AggregatorFactory[] metrics,
       boolean rollup
   )
   {
-    this(minTimestamp, gran, dimensionsSpec, metrics, rollup, false);
+    this(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, false);
   }
 
   @JsonProperty
@@ -88,6 +92,12 @@ public class IncrementalIndexSchema
   public Granularity getGran()
   {
     return gran;
+  }
+
+  @JsonProperty
+  public Granularity getSegmentGran()
+  {
+    return segmentGran;
   }
 
   @JsonProperty
@@ -153,22 +163,22 @@ public class IncrementalIndexSchema
 
   public IncrementalIndexSchema withRollup(boolean rollup)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
   }
 
   public IncrementalIndexSchema withDimensionsSpec(DimensionsSpec dimensionsSpec)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
   }
 
   public IncrementalIndexSchema withMetrics(AggregatorFactory... metrics)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
   }
 
   public IncrementalIndexSchema withMinTimestamp(long minTimestamp)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
   }
 
   @Override
@@ -177,6 +187,7 @@ public class IncrementalIndexSchema
     return "IncrementalIndexSchema{" +
            "minTimestamp=" + minTimestamp +
            ", gran=" + gran +
+           ", segmentGran=" + segmentGran +
            ", dimensionsSpec=" + dimensionsSpec +
            ", metrics=" + Arrays.toString(metrics) +
            ", rollup=" + rollup +
@@ -188,6 +199,7 @@ public class IncrementalIndexSchema
   {
     private long minTimestamp;
     private Granularity gran;
+    private Granularity segmentGran;
     private DimensionsSpec dimensionsSpec;
     private AggregatorFactory[] metrics;
     private boolean fixedSchema;
@@ -211,6 +223,12 @@ public class IncrementalIndexSchema
     public Builder withQueryGranularity(Granularity gran)
     {
       this.gran = gran;
+      return this;
+    }
+
+    public Builder withSegmentGranularity(Granularity segmentGran)
+    {
+      this.segmentGran = segmentGran;
       return this;
     }
 
@@ -281,7 +299,7 @@ public class IncrementalIndexSchema
 
     public IncrementalIndexSchema build()
     {
-      return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup, fixedSchema);
+      return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
     }
   }
 }

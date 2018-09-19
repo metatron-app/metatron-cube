@@ -30,6 +30,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.GranularityType;
 import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.ConcatQueryRunner;
@@ -103,7 +104,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
 
         List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getDataInterval()) : null;
 
-        Metadata metadata = adapter.getMetadata();;
+        Metadata metadata = adapter.getMetadata();
 
         Map<String, AggregatorFactory> aggregators = null;
         if (query.hasAggregators() && metadata != null && metadata.getAggregators() != null) {
@@ -117,6 +118,13 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
         Granularity segmentGranularity = null;
         if (metadata != null && query.hasQueryGranularity()) {
           segmentGranularity = metadata.getSegmentGranularity();
+          if (segmentGranularity == null) {
+            Interval interval = segment.getDataInterval();
+            GranularityType granularityType = GranularityType.fromInterval(interval);
+            if (granularityType != null) {
+              segmentGranularity = granularityType.getDefaultGranularity();
+            }
+          }
         }
         long ingestedNumRows = -1;
         if (metadata != null && query.hasIngestedNumRows()) {

@@ -17,6 +17,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
@@ -395,12 +396,15 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
 
     private IncrementalIndex makeIncrementalIndex()
     {
+      final DataSchema dataSchema = config.getSchema().getDataSchema();
+      final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
-          .withDimensionsSpec(config.getSchema().getDataSchema().getParser())
-          .withQueryGranularity(config.getSchema().getDataSchema().getGranularitySpec().getQueryGranularity())
+          .withDimensionsSpec(dataSchema.getParser())
+          .withQueryGranularity(granularitySpec.getQueryGranularity())
+          .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
-          .withRollup(config.getSchema().getDataSchema().getGranularitySpec().isRollup())
+          .withRollup(granularitySpec.isRollup())
           .build();
 
       OnheapIncrementalIndex newIndex = new OnheapIncrementalIndex(
