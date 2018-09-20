@@ -38,8 +38,8 @@ import com.google.common.hash.Hashing;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
-import io.druid.data.ParsingFail;
 import io.druid.data.ParserInitializationFail;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
@@ -243,6 +243,9 @@ public class IndexTask extends AbstractFixedIntervalTask
     try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getDataSchema().getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
+        if (inputRow == null) {
+          continue;
+        }
         DateTime dt = new DateTime(inputRow.getTimestampFromEpoch());
         Optional<Interval> interval = granularitySpec.bucketInterval(dt);
         if (interval.isPresent()) {
@@ -277,6 +280,9 @@ public class IndexTask extends AbstractFixedIntervalTask
     try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getDataSchema().getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
+        if (inputRow == null) {
+          continue;
+        }
         if (interval.contains(inputRow.getTimestampFromEpoch())) {
           final List<Object> groupKey = Rows.toGroupKey(
               queryGranularity.truncate(inputRow.getTimestampFromEpoch()),
@@ -399,6 +405,10 @@ public class IndexTask extends AbstractFixedIntervalTask
             continue;
           }
           throw Throwables.propagate(e);
+        }
+        if (inputRow == null) {
+          metrics.incrementThrownAway();
+          continue;
         }
 
         if (shouldIndex(shardSpec, interval, inputRow, rollupGran)) {

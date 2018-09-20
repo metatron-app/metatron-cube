@@ -188,7 +188,10 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory
       final List<InputRow> rows = Lists.newArrayList();
       for (final Map<String, Object> event : events) {
         // Might throw an exception. We'd like that to happen now, instead of while adding to the row buffer.
-        rows.add(parser.parse(event));
+        final InputRow row = parser.parse(event);
+        if (row != null) {
+          rows.add(row);
+        }
       }
 
       try {

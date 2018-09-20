@@ -249,7 +249,9 @@ public class RocketMQFirehoseFactory implements FirehoseFactory
           if (!entry.getValue().isEmpty()) {
             MessageExt message = entry.getValue().pollFirst();
             InputRow inputRow = theParser.parse(ByteBuffer.wrap(message.getBody()));
-
+            if (inputRow == null) {
+              continue;
+            }
             if (!windows.keySet().contains(entry.getKey())) {
               windows.put(entry.getKey(), new ConcurrentSkipListSet<Long>());
             }
