@@ -93,7 +93,8 @@ public class IncrementalIndexTest
         QueryGranularities.MINUTE, null,
         dimensions,
         metrics,
-        true
+        true,
+        false
     );
 
     final List<Object[]> constructors = Lists.newArrayList();

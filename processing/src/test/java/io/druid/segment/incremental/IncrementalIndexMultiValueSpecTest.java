@@ -62,7 +62,8 @@ public class IncrementalIndexMultiValueSpecTest
         null,
         dimensionsSpec,
         new AggregatorFactory[0],
-        true
+        true,
+        false
     );
     Map<String, Object> map = new HashMap<String, Object>()
     {

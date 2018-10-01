@@ -21,8 +21,10 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = PostAggregationsPostProcessor.class)
 @JsonSubTypes(value = {
@@ -65,5 +67,11 @@ public interface PostProcessingOperator<T>
 
     @Override
     public boolean hasTabularOutput() { return false; }
+  }
+
+  // this is needed to be implemented by all post processors, but let's do it step by step
+  interface SchemaResolving
+  {
+    IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper);
   }
 }

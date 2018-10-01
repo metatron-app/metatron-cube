@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.guava.Sequence;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.Map;
 
@@ -73,6 +74,21 @@ public class PostProcessingOperators
         {
         }
     );
+  }
+
+  public static IncrementalIndexSchema resolve(Query<?> query, ObjectMapper mapper, IncrementalIndexSchema schema)
+  {
+    PostProcessingOperator postProcessor = load(query, mapper);
+    if (postProcessor instanceof PostProcessingOperator.SchemaResolving) {
+      schema = ((PostProcessingOperator.SchemaResolving) postProcessor).resolve(query, schema, mapper);
+    } else if (postProcessor instanceof ListPostProcessingOperator) {
+      for (PostProcessingOperator child : ((ListPostProcessingOperator<?>) postProcessor).getProcessors()) {
+        if (child instanceof PostProcessingOperator.SchemaResolving) {
+          schema = ((PostProcessingOperator.SchemaResolving) child).resolve(query, schema, mapper);
+        }
+      }
+    }
+    return schema;
   }
 
   public static <T> boolean isTabularOutput(Query<T> query, ObjectMapper mapper)

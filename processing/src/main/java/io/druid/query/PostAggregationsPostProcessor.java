@@ -21,21 +21,32 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.query.select.Schema;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class PostAggregationsPostProcessor extends PostProcessingOperator.Abstract
+public class PostAggregationsPostProcessor
+    extends PostProcessingOperator.Abstract
+    implements PostProcessingOperator.SchemaResolving
 {
   private final List<PostAggregator> postAggregations;
 
@@ -78,5 +89,36 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Abstra
         );
       }
     };
+  }
+
+  @Override
+  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper)
+  {
+    if (GuavaUtils.isNullOrEmpty(postAggregations)) {
+      return input;
+    }
+    Schema schema = input.asSchema(true);
+    List<String> dimensionNames = input.getDimensionsSpec().getDimensionNames();
+    List<String> metricNames = input.getMetricNames();
+    List<AggregatorFactory> aggregatorFactories = Lists.newArrayList(Arrays.asList(input.getMetrics()));
+    for (PostAggregator postAggregator : postAggregations) {
+      String outputName = postAggregator.getName();
+      if (dimensionNames.indexOf(outputName) >= 0) {
+        continue; // whatever it is, it's string
+      }
+      ValueDesc valueDesc = postAggregator.resolve(schema);
+      if (metricNames.indexOf(outputName) >= 0) {
+        aggregatorFactories.set(
+            metricNames.indexOf(outputName),
+            new RelayAggregatorFactory(outputName, valueDesc.typeName())
+        );
+      } else {
+        aggregatorFactories.add(
+            metricNames.indexOf(outputName),
+            new RelayAggregatorFactory(outputName, valueDesc.typeName())
+        );
+      }
+    }
+    return input.withMetrics(aggregatorFactories.toArray(new AggregatorFactory[0]));
   }
 }

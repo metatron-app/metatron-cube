@@ -70,18 +70,6 @@ public class IncrementalIndexSchema
     this.fixedSchema = fixedSchema;
   }
 
-  public IncrementalIndexSchema(
-      long minTimestamp,
-      Granularity gran,
-      Granularity segmentGran,
-      DimensionsSpec dimensionsSpec,
-      AggregatorFactory[] metrics,
-      boolean rollup
-  )
-  {
-    this(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, false);
-  }
-
   @JsonProperty
   public long getMinTimestamp()
   {
@@ -163,22 +151,22 @@ public class IncrementalIndexSchema
 
   public IncrementalIndexSchema withRollup(boolean rollup)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
   }
 
   public IncrementalIndexSchema withDimensionsSpec(DimensionsSpec dimensionsSpec)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
   }
 
   public IncrementalIndexSchema withMetrics(AggregatorFactory... metrics)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
   }
 
   public IncrementalIndexSchema withMinTimestamp(long minTimestamp)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup);
+    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
   }
 
   @Override

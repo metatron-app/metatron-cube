@@ -142,6 +142,13 @@ public class Queries
 
   public static IncrementalIndexSchema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
+    return PostProcessingOperators.resolve(
+        subQuery, segmentWalker.getObjectMapper(), _relaySchema(subQuery, segmentWalker)
+    );
+  }
+
+  private static IncrementalIndexSchema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  {
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema.Builder builder = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)
@@ -448,7 +455,8 @@ public class Queries
     AggregatorFactory aggregator = Queries.convert(ag, jsonMapper, AggregatorFactory.class);
     PostAggregator postAggregator = Queries.convert(pg, jsonMapper, PostAggregator.class);
 
-    metaQuery = (TimeseriesQuery) metaQuery.withAggregatorSpecs(Arrays.asList(aggregator))
+    metaQuery = (TimeseriesQuery) metaQuery.withVirtualColumns(virtualColumns)
+                                           .withAggregatorSpecs(Arrays.asList(aggregator))
                                            .withPostAggregatorSpecs(Arrays.asList(postAggregator))
                                            .withOutputColumns(Arrays.asList("SPLIT"))
                                            .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);

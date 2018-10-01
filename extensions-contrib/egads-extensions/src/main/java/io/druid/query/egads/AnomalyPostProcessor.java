@@ -3,30 +3,40 @@ package io.druid.query.egads;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.egads.data.Anomaly;
 import com.yahoo.egads.data.TimeSeries;
 import com.yahoo.egads.models.adm.AnomalyDetectionModel;
 import com.yahoo.egads.models.tsmm.TimeSeriesModel;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 /**
  */
 @JsonTypeName("anomaly")
-public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
+public class AnomalyPostProcessor
+    extends PostProcessingOperator.Abstract
+    implements PostProcessingOperator.SchemaResolving
 {
   private final String timestampColumn;
   private final String metricColumn;
@@ -159,5 +169,21 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
   public boolean hasTabularOutput()
   {
     return true;
+  }
+
+  @Override
+  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper)
+  {
+    if (predictColumn == null && tsModelColumn == null) {
+      return input;
+    }
+    List<AggregatorFactory> metrics = Lists.newArrayList(Arrays.asList(input.getMetrics()));
+    if (predictColumn != null) {
+      metrics.add(new RelayAggregatorFactory(predictColumn, ValueDesc.FLOAT_TYPE));
+    }
+    if (tsModelColumn != null) {
+      metrics.add(new RelayAggregatorFactory(tsModelColumn, ValueDesc.MAP_TYPE));
+    }
+    return input.withMetrics(metrics.toArray(new AggregatorFactory[0]));
   }
 }

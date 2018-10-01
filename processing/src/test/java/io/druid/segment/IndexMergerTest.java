@@ -2092,7 +2092,8 @@ public class IndexMergerTest
         QueryGranularities.NONE, null,
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(dims), null, null),
         new AggregatorFactory[]{new CountAggregatorFactory("count")},
-        true
+        true,
+        false
     );
 
     return new OnheapIncrementalIndex(schema, true, 1000);
