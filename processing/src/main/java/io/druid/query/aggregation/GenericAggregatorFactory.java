@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
@@ -61,6 +62,11 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
       String inputType
   )
   {
+    if (name == null && (fieldName != null || fieldExpression != null)) {
+      name = fieldName != null ? fieldName : Iterables.getOnlyElement(Parser.findRequiredBindings(fieldExpression));
+    } else if (name != null && fieldExpression == null && fieldName == null) {
+      fieldName = name;
+    }
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     Preconditions.checkArgument(
         fieldName == null ^ fieldExpression == null,
