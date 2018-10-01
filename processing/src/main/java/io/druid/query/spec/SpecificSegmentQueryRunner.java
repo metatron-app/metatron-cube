@@ -64,12 +64,15 @@ public class SpecificSegmentQueryRunner<T> implements QueryRunner<T>
     int index = currThreadName.indexOf('[');
     String prefix = index > 0 ? currThreadName.substring(0, index) : currThreadName;
 
+    final SegmentDescriptor descriptor = specificSpec.getDescriptor();
     final String newName = String.format(
-        "%s[%s_%s_%s]",
+        "%s[%s_%s_%s_%s_%d]",
         prefix,
         query.getType(),
         query.getId(),
-        specificSpec.getDescriptor().getInterval()
+        descriptor.getInterval(),
+        descriptor.getVersion(),
+        descriptor.getPartitionNumber()
     );
 
     final Sequence<T> baseSequence = doNamed(
@@ -103,7 +106,7 @@ public class SpecificSegmentQueryRunner<T> implements QueryRunner<T>
                     missingSegments = Lists.newArrayList();
                     responseContext.put(Result.MISSING_SEGMENTS_KEY, missingSegments);
                   }
-                  missingSegments.add(specificSpec.getDescriptor());
+                  missingSegments.add(descriptor);
                   return initValue;
                 }
               }
