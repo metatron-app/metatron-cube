@@ -141,7 +141,7 @@ public class SelectorFilter implements Filter
         }
       };
     }
-    final Object casted = ValueDesc.isNumeric(valueType) ? Evals.castToValue(ExprEval.of(value), valueType) : value;
+    final Object casted = valueType.isPrimitiveNumeric() ? Evals.castToValue(ExprEval.of(value), valueType) : value;
     return Filters.toValueMatcher(
         selector, new Predicate()
         {

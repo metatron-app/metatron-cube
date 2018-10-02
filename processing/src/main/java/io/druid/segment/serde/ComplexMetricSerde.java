@@ -146,6 +146,6 @@ public abstract class ComplexMetricSerde
 
   public static interface Factory
   {
-    ComplexMetricSerde create(String elementType);
+    ComplexMetricSerde create(String[] elements);
   }
 }

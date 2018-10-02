@@ -647,16 +647,16 @@ public class StringComparators
       return comparator;
     }
     Preconditions.checkArgument(sourceType.isStruct(), "not supported type " + sourceType);
-    String[] descriptive = TypeUtils.splitDescriptiveType(sourceType.typeName());
-    List<String> elements = TypeUtils.splitWithEscape(descriptive[1], ',');
-    Comparator[] comparators = new Comparator[elements.size()];
+    String[] parsed = Preconditions.checkNotNull(TypeUtils.splitDescriptiveType(sourceType.typeName()));
+    String[] elements = Arrays.copyOfRange(parsed, 1, parsed.length);
+    Comparator[] comparators = new Comparator[elements.length];
     if (defaultOrdering) {
       Arrays.fill(comparators, Ordering.natural().nullsFirst());
       return Comparators.toArrayComparator(comparators);
     }
-    Preconditions.checkArgument(elements.size() >= orderingSpecs.size(), "not matching number of elements");
-    for (int i = 0; i < elements.size(); i++) {
-      ValueType elementType = ValueType.ofPrimitive(elements.get(i).trim());
+    Preconditions.checkArgument(elements.length >= orderingSpecs.size(), "not matching number of elements");
+    for (int i = 0; i < elements.length; i++) {
+      ValueType elementType = ValueType.ofPrimitive(elements[i].trim());
       OrderingSpec orderingSpec = i < orderingSpecs.size() ? orderingSpecs.get(i) : null;
       if (orderingSpec != null) {
         String ordering = orderingSpec.getDimensionOrder();

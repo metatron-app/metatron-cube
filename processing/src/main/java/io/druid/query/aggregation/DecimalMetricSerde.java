@@ -178,18 +178,15 @@ public class DecimalMetricSerde extends ComplexMetricSerde
   public static class Factory implements ComplexMetricSerde.Factory
   {
     @Override
-    public ComplexMetricSerde create(String elementType)
+    public ComplexMetricSerde create(String[] elements)
     {
-      if (elementType.isEmpty()) {
+      if (elements == null || elements.length <= 1) {
         return new DecimalMetricSerde(DEFAULT_PRECISION, DEFAULT_SCALE, DEFAULT_ROUNDING_MODE);
       }
-      String[] splits = elementType.split(",");
-      Preconditions.checkArgument(splits.length >= 2, "at least needs precision and scale");
-
-      int precision = Integer.valueOf(splits[0].trim());
-      int scale = Integer.valueOf(splits[1].trim());
-      RoundingMode roundingMode = splits.length > 2
-                                  ? RoundingMode.valueOf(splits[2].toUpperCase().trim())
+      int precision = Integer.valueOf(elements[1]);
+      int scale = elements.length > 2 ? Integer.valueOf(elements[2]) : DEFAULT_SCALE;
+      RoundingMode roundingMode = elements.length > 3
+                                  ? RoundingMode.valueOf(elements[3].toUpperCase())
                                   : DEFAULT_ROUNDING_MODE;
 
       return new DecimalMetricSerde(precision, scale, roundingMode);

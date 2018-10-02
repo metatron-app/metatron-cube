@@ -126,11 +126,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
           ValueDifference<ValueDesc> value = entry.getValue();
           ValueDesc left = value.leftValue();
           ValueDesc right = value.rightValue();
-          ValueDesc resolved = ValueDesc.UNKNOWN;
-          if (left.isNumeric() && right.isNumeric()) {
-            resolved = ValueDesc.DOUBLE;
-          }
-          resolver.columnTypes.put(entry.getKey(), resolved);
+          resolver.columnTypes.put(entry.getKey(), ValueDesc.toCommonType(left, right));
         }
       }
       MapDifference<String, Map<String, String>> difference = Maps.difference(

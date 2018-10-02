@@ -66,6 +66,8 @@ import org.rosuda.JRI.RVector;
 import org.rosuda.JRI.Rengine;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Formatter;
@@ -215,13 +217,13 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc type(ValueDesc param)
     {
-      return param.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
+      return ValueDesc.DOUBLE;
     }
 
     @Override
     protected ExprEval eval(ExprEval param)
     {
-      return param.type().isNumeric() ? ExprEval.of(eval(param.doubleValue())) : ExprEval.UNKNOWN;
+      return ExprEval.of(eval(param.doubleValue()));
     }
  
     protected abstract double eval(double value);
@@ -232,7 +234,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc type(ValueDesc param)
     {
-      return param.isFloat() ? ValueDesc.FLOAT : param.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
+      return param.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
     }
 
     @Override
@@ -241,10 +243,9 @@ public interface BuiltinFunctions extends Function.Library
       ValueDesc type = param.type();
       if (type.isFloat()) {
         return ExprEval.of(param.floatValue());
-      } else if (type.isNumeric()) {
+      } else {
         return ExprEval.of(param.doubleValue());
       }
-      return ExprEval.UNKNOWN;
     }
  
     protected abstract float eval(float value);
@@ -257,16 +258,13 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc type(ValueDesc x, ValueDesc y)
     {
-      return x.isNumeric() && y.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
+      return ValueDesc.DOUBLE;
     }
 
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (x.isNumeric() && y.isNumeric()) {
-        return ExprEval.of(eval(x.doubleValue(), y.doubleValue()));
-      }
-      return ExprEval.UNKNOWN;
+      return ExprEval.of(eval(x.doubleValue(), y.doubleValue()));
     }
  
     protected abstract double eval(double x, double y);
@@ -970,14 +968,13 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ValueDesc type(ValueDesc param)
     {
-      return param.isNumeric() ? ValueDesc.LONG : ValueDesc.UNKNOWN;
+      return ValueDesc.LONG;
     }
 
     @Override
     protected ExprEval eval(ExprEval param)
     {
-      return param.isNumeric() ? ExprEval.of(Math.getExponent(param.doubleValue()))
-                               : ExprEval.UNKNOWN;
+      return ExprEval.of(Math.getExponent(param.doubleValue()));
     }
   }
 
@@ -1053,7 +1050,7 @@ public interface BuiltinFunctions extends Function.Library
           public ValueDesc apply(List<Expr> args, TypeResolver bindings)
           {
             ValueDesc param = args.get(0).resolve(bindings);
-            return param.isNumeric() ? ValueDesc.LONG : param;
+            return param.isPrimitiveNumeric() ? ValueDesc.LONG : param.isDecimal() ? ValueDesc.DECIMAL : param;
           }
 
           @Override
@@ -1061,29 +1058,34 @@ public interface BuiltinFunctions extends Function.Library
           {
             ExprEval param = Evals.eval(args.get(0), bindings);
             ValueDesc type = param.type();
-            if (type.isFloat()) {
+            if (type.isLong()) {
+              return param;
+            } else if (type.isFloat()) {
               final float value = param.floatValue();
               return ExprEval.of(Float.isNaN(value) || Float.isInfinite(value) ? value : Math.round(value));
-            } else if (type.isNumeric()) {
+            } else if (type.isDouble()) {
               final double value = param.doubleValue();
               return ExprEval.of(Double.isNaN(value) || Double.isInfinite(value) ? value : Math.round(value));
+            } else if (type.isDecimal()) {
+              BigDecimal decimal = (BigDecimal) param.value();
+              return ExprEval.of(decimal.setScale(0, RoundingMode.HALF_UP), type);
             }
             return param;
           }
         };
       }
-      final int value = Evals.getConstantInt(args.get(1));
-      if (value < 0) {
+      final int scale = Evals.getConstantInt(args.get(1));
+      if (scale < 0) {
         throw new RuntimeException("2nd argument of '" + name() + "' should be positive integer");
       }
-      final double x = Math.pow(10, value);
+      final double x = Math.pow(10, scale);
       return new Child()
       {
         @Override
         public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
           ValueDesc param = args.get(0).resolve(bindings);
-          return param.isNumeric() ? ValueDesc.DOUBLE : param;
+          return param.isDecimal() ? ValueDesc.DECIMAL : param;
         }
 
         @Override
@@ -1091,9 +1093,19 @@ public interface BuiltinFunctions extends Function.Library
         {
           ExprEval param = Evals.eval(args.get(0), bindings);
           ValueDesc type = param.type();
-          if (type.isNumeric()) {
+          if (type.isLong()) {
+            return param;
+          } else if (type.isFloat()) {
+            final double value = param.floatValue();
+            return ExprEval.of(
+                Double.isNaN(value) || Double.isInfinite(value) ? (float)value : (float)Math.round(value * x) / x
+            );
+          } else if (type.isDouble()) {
             final double value = param.doubleValue();
             return ExprEval.of(Double.isNaN(value) || Double.isInfinite(value) ? value : Math.round(value * x) / x);
+          } else if (type.isDecimal()) {
+            BigDecimal decimal = (BigDecimal) param.value();
+            return ExprEval.of(decimal.setScale(scale, RoundingMode.HALF_UP), type);
           }
           return param;
         }
@@ -1254,17 +1266,11 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ValueDesc type(ValueDesc x, ValueDesc y)
     {
-      if (!x.isNumeric() || !y.isNumeric()) {
-        return ValueDesc.UNKNOWN;
-      }
       return x.isFloat() && y.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
     }
 
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (!x.isNumeric() || !y.isNumeric()) {
-        return ExprEval.UNKNOWN;
-      }
       if (x.isFloat() && y.isFloat()) {
         return ExprEval.of(eval(x.floatValue(), y.floatValue()));
       } else {
@@ -1282,17 +1288,11 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ValueDesc type(ValueDesc x, ValueDesc y)
     {
-      if (!x.isNumeric() || !y.isNumeric()) {
-        return ValueDesc.UNKNOWN;
-      }
       return x.equals(y) ? x : ValueDesc.DOUBLE;
     }
 
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (!x.isNumeric() || !y.isNumeric()) {
-        return ExprEval.UNKNOWN;
-      }
       if (x.isLong() && y.isLong()) {
         return ExprEval.of(eval(x.longValue(), y.longValue()));
       } else if (x.isFloat() && y.isFloat()) {
@@ -1407,22 +1407,16 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ValueDesc type(ValueDesc x, ValueDesc y)
     {
-      if (x.isNumeric() && y.isNumeric()) {
-        return x.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
-      }
-      return ValueDesc.UNKNOWN;
+      return x.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
     }
 
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (x.isNumeric() && y.isNumeric()) {
-        if (x.isFloat()) {
-          return ExprEval.of(Math.scalb(x.floatValue(), y.intValue()));
-        }
-        return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
+      if (x.isFloat()) {
+        return ExprEval.of(Math.scalb(x.floatValue(), y.intValue()));
       }
-      return ExprEval.UNKNOWN;
+      return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
     }
   }
 
@@ -2879,7 +2873,7 @@ public interface BuiltinFunctions extends Function.Library
       if (parameters.length == 0 || !(parameters[0] instanceof Number)) {
         throw new RuntimeException("function 'percentile' needs 1 ratio argument");
       }
-      Preconditions.checkArgument(fieldType.isNumeric());
+      Preconditions.checkArgument(fieldType.isPrimitiveNumeric());
       type = fieldType.type();
       percentile = ((Number) parameters[0]).floatValue();
       if (percentile < 0 || percentile > 1) {
@@ -2992,7 +2986,7 @@ public interface BuiltinFunctions extends Function.Library
       if (parameters.length == 0) {
         throw new IllegalArgumentException(name() + " should have at least one argument (binCount)");
       }
-      Preconditions.checkArgument(fieldType.isNumeric());
+      Preconditions.checkArgument(fieldType.isPrimitiveNumeric());
       type = fieldType.type();
 
       binCount = ((Number)parameters[0]).intValue();

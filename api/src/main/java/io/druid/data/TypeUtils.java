@@ -36,7 +36,12 @@ public class TypeUtils
     if (index1 < 0 || !string.endsWith(")")) {
       return null;
     }
-    return new String[] {string.substring(0, index1), string.substring(index1 + 1, string.length() - 1)};
+    final String type = string.substring(0, index1);
+    final String description = string.substring(index1 + 1, string.length() - 1);
+    final List<String> elements = TypeUtils.splitWithEscape(description, ',');
+    elements.add(0, type);
+
+    return elements.toArray(new String[0]);
   }
 
   public static List<String> splitWithEscape(String string, char target)

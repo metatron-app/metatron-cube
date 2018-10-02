@@ -125,6 +125,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -175,40 +176,41 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("idx", "index")
+                new LongSumAggregatorFactory("idx", "index"),
+                new GenericSumAggregatorFactory("idx2", "indexDecimal", "decimal")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 158L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 120L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 2900L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 78L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 119L),
-
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 147L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "business", "rows", 1L, "idx", 112L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 166L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "health", "rows", 1L, "idx", 113L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 2505L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "technology", "rows", 1L, "idx", 97L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
-    );
-
+    String[] columnNames = {"__time", "alias", "rows", "idx", "idx2"};
+    Object[][] objects = {
+        array("2011-04-01T00:00:00.000Z", "automotive", 1L, 135L, BigDecimal.valueOf(135L)),
+        array("2011-04-01T00:00:00.000Z", "business", 1L, 118L, BigDecimal.valueOf(118L)),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1L, 158L, BigDecimal.valueOf(158L)),
+        array("2011-04-01T00:00:00.000Z", "health", 1L, 120L, BigDecimal.valueOf(120L)),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L, 2870L, BigDecimal.valueOf(2870L)),
+        array("2011-04-01T00:00:00.000Z", "news", 1L, 121L, BigDecimal.valueOf(121L)),
+        array("2011-04-01T00:00:00.000Z", "premium", 3L, 2900L, BigDecimal.valueOf(2900L)),
+        array("2011-04-01T00:00:00.000Z", "technology", 1L, 78L, BigDecimal.valueOf(78L)),
+        array("2011-04-01T00:00:00.000Z", "travel", 1L, 119L, BigDecimal.valueOf(119L)),
+        array("2011-04-02T00:00:00.000Z", "automotive", 1L, 147L, BigDecimal.valueOf(147L)),
+        array("2011-04-02T00:00:00.000Z", "business", 1L, 112L, BigDecimal.valueOf(112L)),
+        array("2011-04-02T00:00:00.000Z", "entertainment", 1L, 166L, BigDecimal.valueOf(166L)),
+        array("2011-04-02T00:00:00.000Z", "health", 1L, 113L, BigDecimal.valueOf(113L)),
+        array("2011-04-02T00:00:00.000Z", "mezzanine", 3L, 2447L, BigDecimal.valueOf(2447L)),
+        array("2011-04-02T00:00:00.000Z", "news", 1L, 114L, BigDecimal.valueOf(114L)),
+        array("2011-04-02T00:00:00.000Z", "premium", 3L, 2505L, BigDecimal.valueOf(2505L)),
+        array("2011-04-02T00:00:00.000Z", "technology", 1L, 97L, BigDecimal.valueOf(97L)),
+        array("2011-04-02T00:00:00.000Z", "travel", 1L, 126L, BigDecimal.valueOf(126L))
+    };
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
 
-    String[] columnNames = {"__time", "alias", "rows"};
+    columnNames = new String[] {"__time", "alias", "rows"};
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         new Object[]{"2011-04-01", "automotive", 1L},

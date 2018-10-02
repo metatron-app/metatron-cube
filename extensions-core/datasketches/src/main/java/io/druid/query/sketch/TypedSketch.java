@@ -236,13 +236,12 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
               "invalid description " + type
           );
           List<ValueType> fields = Lists.newArrayList();
-          for (String element : split[1].split(",")) {
-            element = element.trim();
-            int index = element.indexOf(':');
+          for (int i = 1; i < split.length; i++) {
+            int index = split[i].indexOf(':');
             if (index >= 0) {
-              element = split[1].substring(index);    // named field
+              split[i] = split[1].substring(index);    // named field
             }
-            fields.add(ValueType.ofPrimitive(element));
+            fields.add(ValueType.ofPrimitive(split[i]));
           }
           return new ArrayOfStructSerDe(fields);
         }

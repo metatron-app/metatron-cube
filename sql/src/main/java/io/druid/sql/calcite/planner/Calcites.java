@@ -149,9 +149,9 @@ public class Calcites
 
   public static String getStringComparatorForValueType(ValueDesc valueDesc)
   {
-    if (ValueDesc.isNumeric(valueDesc)) {
+    if (valueDesc.isNumeric()) {
       return StringComparators.NUMERIC_NAME;
-    } else if (ValueDesc.isStringOrDimension(valueDesc)) {
+    } else if (valueDesc.isStringOrDimension()) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       throw new ISE("Unrecognized valueDesc[%s]", valueDesc);

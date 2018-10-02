@@ -50,7 +50,7 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
 
   public BitSlicedBitmap(ValueDesc type, BitmapFactory factory, ImmutableBitmap[] bitmaps, int rowCount)
   {
-    Preconditions.checkArgument(type.isNumeric(), "only primitive numeric types allowed");
+    Preconditions.checkArgument(type.isPrimitiveNumeric(), "only primitive numeric types allowed");
     if (type.isFloat()) {
       if (bitmaps.length == Float.SIZE) {
         this.bitmaps = bitmaps;

@@ -50,7 +50,7 @@ public class ComplexMetrics
       if (descriptiveType != null) {
         ComplexMetricSerde.Factory factory = complexSerializerFactories.get(descriptiveType[0]);
         if (factory != null) {
-          serde = factory.create(descriptiveType[1]);
+          serde = factory.create(descriptiveType);
         }
       }
     }

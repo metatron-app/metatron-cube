@@ -161,7 +161,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               if (type.isPrimitive()) {
                 primitiveColumns.put(column, type.type());
               }
-              if (type.isNumeric()) {
+              if (type.isPrimitiveNumeric()) {
                 numericColumns.put(column, type.type());
               }
             }
@@ -228,7 +228,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               result.put("iqr", new Object[]{lower, upper});
               result.put("count", itemsSketch.getN());
 
-              if (type.isNumeric()) {
+              if (type.isPrimitiveNumeric()) {
                 double q1 = ((Number) lower).doubleValue();
                 double q3 = ((Number) upper).doubleValue();
                 double delta = (q3 - q1) * 1.5;
@@ -428,13 +428,13 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     List<PostAggregator> postAggregators = Lists.newArrayList();
-    if (type.isNumeric()) {
+    if (type.isPrimitiveNumeric()) {
       aggregators.add(new CountAggregatorFactory(column + ".missing", escaped + " == 0"));
     } else {
       aggregators.add(new CountAggregatorFactory(column + ".missing", "isnull(" + escaped + ")"));
     }
 
-    if (type.isNumeric()) {
+    if (type.isPrimitiveNumeric()) {
       double q1 = ((Number) lower).doubleValue();
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;

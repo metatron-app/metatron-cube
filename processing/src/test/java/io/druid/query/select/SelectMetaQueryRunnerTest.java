@@ -83,7 +83,7 @@ public class SelectMetaQueryRunnerTest
   {
     boolean incremental = dataSource.equals(TestIndex.REALTIME) || dataSource.equals(TestIndex.REALTIME_NOROLLUP);
     List<String> dimensions = Arrays.asList("market");
-    List<String> metrics = Arrays.asList("__time", "index", "indexMin", "indexMaxPlusTen", "quality_uniques");
+    List<String> metrics = Arrays.asList("__time", "index", "indexMin", "indexMaxPlusTen", "quality_uniques", "indexDecimal");
 
     Interval interval = dataSource.equals(TestIndex.MMAPPED_SPLIT) ? TestIndex.INTERVAL_TOP : TestIndex.INTERVAL;
     String segmentId = getSegmentId(interval);
@@ -112,7 +112,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(26, value.getTotalCount());
-    Assert.assertEquals(incremental ? 702 : 1014, value.getEstimatedSize());
+    Assert.assertEquals(incremental ? 702 : 1248, value.getEstimatedSize());
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
@@ -126,7 +126,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(8, value.getTotalCount());
-    Assert.assertEquals(incremental ? 216 : 312, value.getEstimatedSize());
+    Assert.assertEquals(incremental ? 216 : 384, value.getEstimatedSize());
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
@@ -141,7 +141,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
-    Assert.assertEquals(incremental ? 108 : 156, value.getEstimatedSize());
+    Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(new DateTime(2011, 1, 13, 0, 0), r.getTimestamp());
@@ -149,7 +149,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
-    Assert.assertEquals(incremental ? 108 : 156, value.getEstimatedSize());
+    Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
   }
 
   @Test

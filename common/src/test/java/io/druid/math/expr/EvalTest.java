@@ -39,6 +39,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.List;
@@ -84,9 +86,7 @@ public class EvalTest
 
   private Object eval(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ValueDesc.UNKNOWN, ret.type());
-    return ret.value();
+    return _eval(x, bindings).value();
   }
 
   @Test
@@ -327,6 +327,26 @@ public class EvalTest
   }
 
   @Test
+  public void testBasicDecimal()
+  {
+    final BigDecimal x = BigDecimal.valueOf(100);
+    final BigDecimal y = BigDecimal.valueOf(200.1234);
+    final double p = 1234.5678;
+    final long q = 12345678;
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", x, "y", y, "p", p, "q", q));
+    Assert.assertEquals(x.add(y), eval("x + y", bindings));
+    Assert.assertEquals(x.subtract(y), eval("x - y", bindings));
+    Assert.assertEquals(x.multiply(y), eval("x * y", bindings));
+    Assert.assertEquals(x.divide(y, MathContext.DECIMAL64), eval("x / y", bindings));
+    Assert.assertEquals(x.add(BigDecimal.valueOf(p)), eval("x + p", bindings));
+    Assert.assertEquals(BigDecimal.valueOf(q).add(y), eval("q + y", bindings));
+
+    // currently, round is the sole function supports decimal type
+    Assert.assertEquals(BigDecimal.valueOf(200), eval("round(y)", bindings));
+    Assert.assertEquals(BigDecimal.valueOf(200.12), eval("round(y, 2)", bindings));
+  }
+
+  @Test
   public void testWeekInMonth()
   {
     HashMap<String, Object> mapping = Maps.<String, Object>newHashMap();
@@ -334,15 +354,8 @@ public class EvalTest
 
     // null
     mapping.put("time", null);
-    Assert.assertEquals(
-        null, evalString(
-            "time_format("
-            + "time, "
-            + "out.format='W\\'th\\' MMM yyyy', "
-            + "out.locale='en', "
-            + "out.timezone='UTC'"
-            + ")", bindings
-        )
+    Assert.assertNull(
+        evalString("time_format(time, out.format='W\\'th\\' MMM yyyy', out.locale='en', out.timezone='UTC')", bindings)
     );
 
     // thursday

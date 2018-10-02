@@ -92,6 +92,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return of(longValue, ValueDesc.DOUBLE);
   }
 
+  public static ExprEval of(BigDecimal decimal)
+  {
+    return of(decimal, ValueDesc.ofDecimal(decimal));
+  }
+
   public static ExprEval of(DateTime dateTimeValue)
   {
     return of(dateTimeValue, ValueDesc.DATETIME);
@@ -204,26 +209,21 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public boolean asBoolean()
   {
-    switch (rhs.type()) {
-      case FLOAT:
-        return floatValue() > 0;
-      case DOUBLE:
-        return doubleValue() > 0;
-      case LONG:
-        return longValue() > 0;
-      case STRING:
-        return !isNull() && Boolean.valueOf(stringValue());
+    if (rhs.isNumeric()) {
+      return doubleValue() > 0;
+    } else if (rhs.isStringOrDimension()) {
+      return !isNull() && Boolean.valueOf(stringValue());
+    } else {
+      return !isNull();
     }
-    return !isNull();
   }
 
   public float asFloat()
   {
+    if (rhs.isNumeric()) {
+      return floatValue();
+    }
     switch (rhs.type()) {
-      case FLOAT:
-      case DOUBLE:
-      case LONG:
-        return floatValue();
       case STRING:
         return isNull() ? 0F : Rows.tryParseFloat(asString());
       case DATETIME:
@@ -234,11 +234,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public double asDouble()
   {
+    if (rhs.isNumeric()) {
+      return doubleValue();
+    }
     switch (rhs.type()) {
-      case FLOAT:
-      case DOUBLE:
-      case LONG:
-        return doubleValue();
       case STRING:
         return isNull() ? 0D : Rows.tryParseDouble(asString());
       case DATETIME:
@@ -249,11 +248,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public long asLong()
   {
+    if (rhs.isNumeric()) {
+      return longValue();
+    }
     switch (rhs.type()) {
-      case FLOAT:
-      case DOUBLE:
-      case LONG:
-        return longValue();
       case STRING:
         return isNull() ? 0L : Rows.tryParseLong(asString());
       case DATETIME:
@@ -264,11 +262,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public int asInt()
   {
+    if (rhs.isNumeric()) {
+      return intValue();
+    }
     switch (rhs.type()) {
-      case FLOAT:
-      case DOUBLE:
-      case LONG:
-        return intValue();
       case STRING:
         return isNull() ? 0 : Rows.tryParseInt(asString());
       case DATETIME:

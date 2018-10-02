@@ -26,6 +26,7 @@ import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
@@ -69,7 +70,8 @@ public class TestIndex
       "null_column",
       "quality_uniques",
       "indexMin",
-      "indexMaxPlusTen"
+      "indexMaxPlusTen",
+      "indexDecimal"
   };
   public static final String[] DIMENSIONS = new String[]{
       "market",
@@ -97,10 +99,11 @@ public class TestIndex
   public static final Interval INTERVAL_BOTTOM = new Interval("2011-03-01T00:00:00.000Z/2011-05-01T00:00:00.000Z");
 
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
-      new GenericSumAggregatorFactory(METRICS[0], METRICS[0], ValueType.FLOAT.getName()),
-      new GenericMinAggregatorFactory(METRICS[1], METRICS[0], ValueType.FLOAT.getName()),
-      new DoubleMaxAggregatorFactory(METRICS[2], null, "index + 10"),
-      new HyperUniquesAggregatorFactory("quality_uniques", "quality")
+      new GenericSumAggregatorFactory("index", "index", ValueDesc.FLOAT_TYPE),
+      new GenericMinAggregatorFactory("indexMin", "index", ValueDesc.FLOAT_TYPE),
+      new DoubleMaxAggregatorFactory("indexMaxPlusTen", null, "index + 10"),
+      new HyperUniquesAggregatorFactory("quality_uniques", "quality"),
+      new GenericSumAggregatorFactory("indexDecimal", "index", "decimal")
   };
   private static final IndexSpec indexSpec = new IndexSpec();
 

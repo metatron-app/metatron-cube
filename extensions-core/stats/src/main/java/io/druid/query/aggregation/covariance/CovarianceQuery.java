@@ -92,7 +92,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
       if (column.equals(target) || excludes.contains(target)) {
         continue;
       }
-      if (ValueDesc.isNumeric(entry.getValue())) {
+      if (entry.getValue().isPrimitiveNumeric()) {
         aggregators.add(new PearsonAggregatorFactory(target, column, target, null, "double"));
       }
     }

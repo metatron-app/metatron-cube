@@ -195,7 +195,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        mmap1 ? 60484 : 0,
+        mmap1 ? 71905 : 0,
         1209,
         null,
         null
@@ -238,7 +238,7 @@ public class SegmentMetadataQueryTest
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
         ),
-        mmap2 ? 60484 : 0,
+        mmap2 ? 71905 : 0,
         1209,
         null,
         null
@@ -284,7 +284,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(), false, mmap1 ? 2812 : 0, 2, 1023, "", "value", null
             )
         ),
-        mmap1 ? 60484 : 0,
+        mmap1 ? 71905 : 0,
         1209,
         null,
         null
@@ -319,7 +319,7 @@ public class SegmentMetadataQueryTest
             "string-expr",
             new ColumnAnalysis(ValueDesc.STRING_TYPE, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
         ),
-        mmap1 ? 60484 : 0,
+        mmap1 ? 71905 : 0,
         1209,
         null,
         null

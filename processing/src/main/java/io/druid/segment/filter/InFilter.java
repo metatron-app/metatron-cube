@@ -183,7 +183,7 @@ public class InFilter implements Filter
   private Predicate toPredicate(final boolean containsNull, final ValueDesc valueType)
   {
     final Set container;
-    if (extractionFn == null && ValueDesc.isNumeric(valueType)) {
+    if (extractionFn == null && valueType != null && valueType.isPrimitiveNumeric()) {
       Preconditions.checkArgument(!containsNull, "cannot use null value for numeric type");
       container = Sets.newHashSet();
       for (String value : values) {

@@ -66,7 +66,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
     this.fieldName2 = fieldName2;
     this.predicate = predicate;
     this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
-    if (ValueDesc.isNumeric(this.inputType)) {
+    if (this.inputType.isPrimitiveNumeric()) {
       Preconditions.checkArgument(fieldName2 != null, "fieldName2 should not be null");
     } else {
       Preconditions.checkArgument(fieldName2 == null, "fieldName2 should be null");

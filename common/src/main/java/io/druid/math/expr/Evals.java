@@ -92,13 +92,18 @@ public class Evals
 
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
-    if (leftVal.type().equals(rightVal.type())) {
-      return Objects.equals(leftVal.value(), rightVal.value());
+    final ValueDesc lt = leftVal.type();
+    final ValueDesc rt = rightVal.type();
+    if (lt.isLong() && rt.isLong()) {
+      return leftVal.longValue() == rightVal.longValue();
     }
-    if (leftVal.isNumeric() && rightVal.isNumeric()) {
-      return leftVal.doubleValue() == rightVal.doubleValue();
+    if (lt.isFloat() && rt.isFloat()) {
+      return leftVal.floatValue() == rightVal.floatValue();
     }
-    return false;
+    if (lt.isDouble() && rt.isDouble()) {
+      return leftVal.doubleValue() == rightVal.longValue();
+    }
+    return Objects.equals(leftVal.value(), rightVal.value());
   }
 
   public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
@@ -362,16 +367,6 @@ public class Evals
         return eval.asDateTime();
     }
     throw new IllegalArgumentException("not supported type " + castTo);
-  }
-
-  static ExprEval castNullToNumeric(ExprEval eval, ValueDesc castTo)
-  {
-    Preconditions.checkArgument(eval.isNull());
-    Preconditions.checkArgument(castTo.isNumeric());
-    if (eval.isLong() && castTo.isLong()) {
-      return ExprEval.of(0L);
-    }
-    return ExprEval.of(0D);
   }
 
   public static com.google.common.base.Function<Comparable, Number> asNumberFunc(ValueType type)

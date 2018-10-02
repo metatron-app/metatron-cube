@@ -28,6 +28,8 @@ public class TypeUtilsTest
   public void testSplitDescriptiveType() {
     String[] split = TypeUtils.splitDescriptiveType("struct(18, 2, UP)");
     Assert.assertEquals("struct", split[0]);
-    Assert.assertEquals("18, 2, UP", split[1]);
+    Assert.assertEquals("18", split[1]);
+    Assert.assertEquals("2", split[2]);
+    Assert.assertEquals("UP", split[3]);
   }
 }

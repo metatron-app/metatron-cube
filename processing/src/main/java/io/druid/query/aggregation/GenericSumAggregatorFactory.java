@@ -53,11 +53,8 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(
-        ValueDesc.isPrimitive(outputType) || ValueDesc.isDecimal(outputType),
-        "unsupported type " + outputType
-    );
-    this.handleDecimal = ValueDesc.isDecimal(outputType);
+    this.handleDecimal = outputType.isDecimal();
+    Preconditions.checkArgument(outputType.isNumeric(), "unsupported type " + outputType);
   }
 
   public GenericSumAggregatorFactory(String name, String fieldName, String inputType)
@@ -104,7 +101,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
-        if (ValueDesc.isDecimal(valueType)) {
+        if (valueType.isDecimal()) {
           return DecimalSumAggregator.create(
               ColumnSelectors.<BigDecimal>getObjectColumnSelector(
                   metricFactory,
@@ -150,7 +147,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
-        if (ValueDesc.isDecimal(valueType)) {
+        if (valueType.isDecimal()) {
           DecimalMetricSerde decimalSerde = (DecimalMetricSerde) ComplexMetrics.getSerdeForType(valueType);
           return DecimalSumBufferAggregator.create(
               ColumnSelectors.<BigDecimal>getObjectColumnSelector(

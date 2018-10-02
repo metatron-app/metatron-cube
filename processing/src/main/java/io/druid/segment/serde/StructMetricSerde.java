@@ -32,6 +32,7 @@ import io.druid.data.input.Rows;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
+import org.apache.commons.lang.StringUtils;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
@@ -49,22 +50,21 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
   private final String[] fieldNames;
   private final ValueType[] fieldTypes;
 
-  public StructMetricSerde(String typeName)
+  public StructMetricSerde(String[] elements)
   {
-    String[] expressions = typeName.split(",");
-    Preconditions.checkArgument(expressions.length <= 255, "cannot exceed 255 elements");
-    fieldNames = new String[expressions.length];
-    fieldTypes = new ValueType[expressions.length];
+    Preconditions.checkArgument(elements.length <= 255, "cannot exceed 255 elements");
+    fieldNames = new String[elements.length];
+    fieldTypes = new ValueType[elements.length];
 
-    for (int i = 0; i < expressions.length; i++) {
-      String element = expressions[i].trim();
+    for (int i = 0; i < elements.length; i++) {
+      String element = elements[i].trim();
       int index = element.indexOf(":");
       Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
       fieldNames[i] = element.substring(0, index).trim();
       fieldTypes[i] = ValueType.fromString(element.substring(index + 1).trim());
       Preconditions.checkArgument(fieldTypes[i].isPrimitive());
     }
-    this.typeName = typeName;
+    this.typeName = StringUtils.join(elements, ',');
   }
 
   @Override
@@ -299,9 +299,9 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
   public static class Factory implements ComplexMetricSerde.Factory
   {
     @Override
-    public ComplexMetricSerde create(String elementType)
+    public ComplexMetricSerde create(String[] elements)
     {
-      return new StructMetricSerde(elementType);
+      return new StructMetricSerde(Arrays.copyOfRange(elements, 1, elements.length));
     }
   }
 }

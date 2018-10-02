@@ -22,11 +22,14 @@ package io.druid.data;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  */
@@ -156,11 +159,6 @@ public class ValueDesc implements Serializable
     return typeName.equals(INDEXED_ID_TYPE) || isPrefixed(typeName, INDEXED_ID_PREFIX);
   }
 
-  public static boolean isDecimal(ValueDesc valueType)
-  {
-    return valueType != null && valueType.typeName.startsWith(DECIMAL_TYPE);
-  }
-
   private static boolean isPrefixed(String typeName, String prefix)
   {
     return typeName != null && typeName.toLowerCase().startsWith(prefix);
@@ -229,7 +227,7 @@ public class ValueDesc implements Serializable
     return valueDesc;
   }
 
-  public static ValueDesc toCommonType(@Nullable ValueDesc type1, ValueDesc type2)
+  public static ValueDesc toCommonType(@Nullable ValueDesc type1, @NotNull ValueDesc type2)
   {
     if (type1 == null) {
       return type2;
@@ -237,6 +235,10 @@ public class ValueDesc implements Serializable
     if (type1.equals(type2)) {
       return type1;
     }
+    if (type1.isDecimal() && type2.isDecimal()) {
+      return commonDecimal(type1, type2);
+    }
+    // todo : decimal + double = decimal
     if (type1.isNumeric() && type2.isNumeric()) {
       return ValueDesc.DOUBLE;
     }
@@ -244,6 +246,31 @@ public class ValueDesc implements Serializable
       return ValueDesc.STRING;
     }
     return ValueDesc.UNKNOWN;
+  }
+
+  // see DecimalMetricSerde
+  private static ValueDesc commonDecimal(ValueDesc type1, ValueDesc type2)
+  {
+    String[] desc1 = TypeUtils.splitDescriptiveType(type1.typeName);
+    String[] desc2 = TypeUtils.splitDescriptiveType(type2.typeName);
+
+    int p1 = desc1.length > 1 ? Integer.valueOf(desc1[1]) : 18;
+    int p2 = desc2.length > 1 ? Integer.valueOf(desc2[1]) : 18;
+
+    int s1 = desc1.length > 2 ? Integer.valueOf(desc1[2]) : 0;
+    int s2 = desc2.length > 2 ? Integer.valueOf(desc2[2]) : 0;
+
+    String mode = null;
+    if (desc1.length > 3 || desc2.length > 3) {
+      String mode1 = desc1.length > 3 && !Strings.isNullOrEmpty(desc1[3]) ? desc1[3] : "DOWN";
+      String mode2 = desc2.length > 3 && !Strings.isNullOrEmpty(desc2[3]) ? desc2[3] : "DOWN";
+      Preconditions.checkArgument(Objects.equals(mode1, mode2), "different rounding mode");
+      mode = mode1;
+    }
+    int scale = Math.max(s1, s2);
+    int precision = scale + Math.max(p1 - s1, p2 - s2) + 1;
+
+    return ValueDesc.of(DECIMAL_TYPE + "(" + precision + "," + s1 + "," + mode + ")");
   }
 
   public static boolean isSameCategory(ValueDesc type1, ValueDesc type2)
@@ -393,11 +420,6 @@ public class ValueDesc implements Serializable
     return type != null && type.isPrimitive();
   }
 
-  public static boolean isNumeric(ValueDesc type)
-  {
-    return type != null && type.isNumeric();
-  }
-
   public static boolean isUnknown(ValueDesc type)
   {
     return isType(type, UNKNOWN_TYPE);
@@ -418,9 +440,19 @@ public class ValueDesc implements Serializable
     return type.isPrimitive();
   }
 
-  public boolean isNumeric()
+  public boolean isPrimitiveNumeric()
   {
     return type.isNumeric();
+  }
+
+  public boolean isNumeric()
+  {
+    return type.isNumeric() || isDecimal();
+  }
+
+  public boolean isDecimal()
+  {
+    return typeName.startsWith(DECIMAL_TYPE);
   }
 
   public boolean isString()
