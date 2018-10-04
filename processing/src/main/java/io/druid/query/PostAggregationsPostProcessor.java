@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
@@ -56,6 +57,13 @@ public class PostAggregationsPostProcessor
   )
   {
     this.postAggregations = postAggregations == null ? ImmutableList.<PostAggregator>of() : postAggregations;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<PostAggregator> getPostAggregations()
+  {
+    return postAggregations;
   }
 
   @Override

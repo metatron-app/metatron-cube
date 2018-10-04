@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -39,6 +40,13 @@ public class RowToMap extends PostProcessingOperator.Abstract<Row>
   public RowToMap(@JsonProperty("timestampColumn") String timestampColumn)
   {
     this.timestampColumn = timestampColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimestampColumn()
+  {
+    return timestampColumn;
   }
 
   @Override

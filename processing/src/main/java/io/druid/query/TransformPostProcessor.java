@@ -25,7 +25,7 @@ import io.druid.common.utils.Sequences;
 
 import java.util.Map;
 
-public class TransformPostProcessor extends PostProcessingOperator.Abstract
+public class TransformPostProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
 {
   private final Function function;
 

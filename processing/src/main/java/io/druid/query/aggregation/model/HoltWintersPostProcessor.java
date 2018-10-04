@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -111,14 +112,18 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final boolean pad;
   private final List<String> dimensions;
   private final List<String> values;
+  private final int useLastN;
   private final boolean keepValuesOnly;
   private final int numPrediction;
-  private final int limit;
   private final int confidence;
   private final List<PostAggregator> postAggregations;
+  private final String timeExpression;
+  private final String timeColumn;
+  private final String timeLocale;
+  private final String timeZone;
+  private final Granularity timeGranularity;
 
   private final Function<Row, DateTime> timeFunction;
-  private final Granularity timeGranularity;
 
   private final SimpleBounds bounds;
 
@@ -154,10 +159,14 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.dimensions = dimensions == null ? ImmutableList.<String>of() : dimensions;
     this.values = Preconditions.checkNotNull(values, "'columns' cannot be null");
     this.keepValuesOnly = keepValuesOnly;
-    this.limit = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
+    this.useLastN = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
     this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
     this.postAggregations = postAggregations == null ? ImmutableList.<PostAggregator>of() : postAggregations;
+    this.timeExpression = timeExpression;
+    this.timeColumn = timeColumn;
+    this.timeLocale = timeLocale;
+    this.timeZone = timeZone;
     this.timeGranularity = timeGranularity;
     this.bounds = new SimpleBounds(
         new double[]{alpha == null ? 0 : alpha, beta == null ? 0 : beta, gamma == null ? 0 : gamma},
@@ -317,7 +326,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
         values.size()
     );
     for (int i = 0; i < length; i++) {
-      numbers[i] = new BoundedTimeseries(limit, granularity);
+      numbers[i] = new BoundedTimeseries(useLastN, granularity);
     }
     return numbers;
   }
@@ -403,6 +412,121 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       throw Throwables.propagate(e);
     }
     return rows;
+  }
+
+  @JsonProperty
+  public double getAlpha()
+  {
+    return alpha;
+  }
+
+  @JsonProperty
+  public double getBeta()
+  {
+    return beta;
+  }
+
+  @JsonProperty
+  public double getGamma()
+  {
+    return gamma;
+  }
+
+  @JsonProperty
+  public int getPeriod()
+  {
+    return period;
+  }
+
+  @JsonProperty
+  public HoltWintersModel.SeasonalityType getSeasonalityType()
+  {
+    return seasonalityType;
+  }
+
+  @JsonProperty
+  public boolean isPad()
+  {
+    return pad;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<String> getDimensions()
+  {
+    return dimensions;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<String> getValues()
+  {
+    return values;
+  }
+
+  @JsonProperty
+  public int getUseLastN()
+  {
+    return useLastN;
+  }
+
+  @JsonProperty
+  public boolean isKeepValuesOnly()
+  {
+    return keepValuesOnly;
+  }
+
+  @JsonProperty
+  public int getNumPrediction()
+  {
+    return numPrediction;
+  }
+
+  @JsonProperty
+  public int getConfidence()
+  {
+    return confidence;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<PostAggregator> getPostAggregations()
+  {
+    return postAggregations;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimeExpression()
+  {
+    return timeExpression;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimeColumn()
+  {
+    return timeColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimeLocale()
+  {
+    return timeLocale;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimeZone()
+  {
+    return timeZone;
+  }
+
+  @JsonProperty
+  public Granularity getTimeGranularity()
+  {
+    return timeGranularity;
   }
 
   private static class BoundedTimeseries

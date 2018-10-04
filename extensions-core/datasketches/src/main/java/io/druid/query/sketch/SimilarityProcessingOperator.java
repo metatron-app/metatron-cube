@@ -20,6 +20,7 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
@@ -67,6 +68,20 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
   {
     this.threshold = threshold;
     this.dataSourceSet = dataSources == null || dataSources.isEmpty() ? null : Sets.newHashSet(dataSources);
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public float getThreshold()
+  {
+    return threshold;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<String> getDataSourceSet()
+  {
+    return Lists.newArrayList(dataSourceSet);
   }
 
   @Override

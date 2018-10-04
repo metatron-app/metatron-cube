@@ -56,7 +56,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
+public class JoinPostProcessor extends PostProcessingOperator.UnionSupport implements PostProcessingOperator.Local
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 

@@ -20,6 +20,7 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
@@ -43,6 +44,12 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
   private static final Logger LOG = new Logger(SketchQuantilesProcessor.class);
 
   private final SketchQuantilesOp op;
+  private final Map<String, double[]> fractions;
+  private final Integer evenSpaced;
+  private final Integer evenCounted;
+  private final Integer slopedSpaced;
+  private final Map<String, String[]> splitPoints;
+
   private final Object parameter;
 
   @JsonCreator
@@ -56,6 +63,12 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
   )
   {
     this.op = op == null ? SketchQuantilesOp.QUANTILES : op;
+    this.fractions = fractions;
+    this.evenSpaced = evenSpaced;
+    this.evenCounted = evenCounted;
+    this.slopedSpaced = slopedSpaced;
+    this.splitPoints = splitPoints;
+
     if (op == null || op == SketchQuantilesOp.QUANTILES) {
       parameter = fractions != null ? fractions :
                   evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
@@ -100,5 +113,46 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
         );
       }
     };
+  }
+
+  @JsonProperty
+  public SketchQuantilesOp getOp()
+  {
+    return op;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Map<String, double[]> getFractions()
+  {
+    return fractions;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer getEvenSpaced()
+  {
+    return evenSpaced;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer getEvenCounted()
+  {
+    return evenCounted;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer getSlopedSpaced()
+  {
+    return slopedSpaced;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Map<String, String[]> getSplitPoints()
+  {
+    return splitPoints;
   }
 }

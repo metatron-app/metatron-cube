@@ -37,7 +37,7 @@ import java.util.Map;
 
 /**
  */
-public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row>
+public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row> implements PostProcessingOperator.Local
 {
   private final LimitSpec limitSpec;
   private final Supplier<GroupByQueryConfig> groupByConfig;

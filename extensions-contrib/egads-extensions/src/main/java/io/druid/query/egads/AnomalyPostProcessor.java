@@ -1,6 +1,7 @@
 package io.druid.query.egads;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -185,5 +186,68 @@ public class AnomalyPostProcessor
       metrics.add(new RelayAggregatorFactory(tsModelColumn, ValueDesc.MAP_TYPE));
     }
     return input.withMetrics(metrics.toArray(new AggregatorFactory[0]));
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimestampColumn()
+  {
+    return timestampColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getMetricColumn()
+  {
+    return metricColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getPredictColumn()
+  {
+    return predictColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getAnomalyColumn()
+  {
+    return anomalyColumn;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTsModel()
+  {
+    return tsModel;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getAdModel()
+  {
+    return adModel;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Map<String, Object> getParameters()
+  {
+    return parameters;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Granularity getTimeGranularity()
+  {
+    return timeGranularity;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTsModelColumn()
+  {
+    return tsModelColumn;
   }
 }

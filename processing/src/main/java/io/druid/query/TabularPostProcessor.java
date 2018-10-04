@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.guava.Sequence;
 
@@ -41,6 +42,13 @@ public class TabularPostProcessor extends PostProcessingOperator.Abstract
   {
     this.timestampColumn = timestampColumn;
     this.warehouse = warehouse;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimestampColumn()
+  {
+    return timestampColumn;
   }
 
   @Override

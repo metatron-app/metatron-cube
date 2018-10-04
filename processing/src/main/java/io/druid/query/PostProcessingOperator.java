@@ -74,4 +74,9 @@ public interface PostProcessingOperator<T>
   {
     IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper);
   }
+
+  // marker for not-serializable post processors
+  interface Local
+  {
+  }
 }

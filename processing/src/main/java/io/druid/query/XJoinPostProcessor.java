@@ -55,7 +55,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
+public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport implements PostProcessingOperator.Local
 {
   private static final Logger log = new Logger(XJoinPostProcessor.class);
 
@@ -428,7 +428,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     }
   }
 
-  private static enum Condition
+  private enum Condition
   {
     LT  { boolean match(final int compare) { return compare < 0; } },
     EQ  { boolean match(final int compare) { return compare == 0; } },
