@@ -42,7 +42,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(outputType.type().isPrimitive(), "cannot min on complex type");
+    Preconditions.checkArgument(outputType == null || outputType.isPrimitive(), "cannot min on complex type");
   }
 
   public GenericMinAggregatorFactory(String name, String fieldName, String inputType)

@@ -435,14 +435,15 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
     }
 
     if (type.isPrimitiveNumeric()) {
+      String inputType = type.typeName();
       double q1 = ((Number) lower).doubleValue();
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;
       String outlier = escaped + " < " + (q1 - iqr * 1.5) + " || " + escaped + " >  " + (q3 + iqr * 1.5);
       aggregators.add(new CountAggregatorFactory(column + ".outlier", outlier));
-      aggregators.add(new GenericSumAggregatorFactory(column + ".sum", column, null));
-      aggregators.add(new VarianceAggregatorFactory(column + ".variance", column));
-      aggregators.add(new KurtosisAggregatorFactory(column + ".skewness", column, null, null));
+      aggregators.add(new GenericSumAggregatorFactory(column + ".sum", column, inputType));
+      aggregators.add(new VarianceAggregatorFactory(column + ".variance", column, inputType));
+      aggregators.add(new KurtosisAggregatorFactory(column + ".skewness", column, null, inputType));
 
       postAggregators.add(new MathPostAggregator(column + ".mean", column + ".sum / count"));
       postAggregators.add(new StandardDeviationPostAggregator(column + ".stddev", column + ".variance", null));

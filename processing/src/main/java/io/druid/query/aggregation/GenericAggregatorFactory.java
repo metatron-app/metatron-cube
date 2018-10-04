@@ -21,7 +21,9 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -31,6 +33,7 @@ import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -43,7 +46,7 @@ import java.util.Set;
 
 /**
  */
-public abstract class GenericAggregatorFactory extends AggregatorFactory
+public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeResolving
 {
   protected final String fieldName;
   protected final String name;
@@ -72,18 +75,37 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
         fieldName == null ^ fieldExpression == null,
         "Must have a valid, non-null fieldName or fieldExpression"
     );
-    this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
+    this.inputType = inputType == null ? null : ValueDesc.of(inputType);
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
-    this.outputType = toOutputType(this.inputType);
+    this.outputType = inputType == null ? null : toOutputType(this.inputType);
     this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : null;
   }
 
   public GenericAggregatorFactory(String name, String fieldName, String inputType)
   {
     this(name, fieldName, null, null, inputType);
+  }
+
+  @Override
+  public boolean needResolving()
+  {
+    return inputType == null;
+  }
+
+  @Override
+  public AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  {
+    ValueDesc sourceType = resolver.get().resolve(fieldName);
+    return withValue(name, fieldName, sourceType.typeName());
+  }
+
+  @Override
+  public String getInputTypeName()
+  {
+    return inputType.typeName();
   }
 
   protected ValueDesc toOutputType(ValueDesc inputType)
@@ -94,6 +116,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
+    Preconditions.checkNotNull(inputType, "input type is not resolved");
     if (!ValueDesc.isArray(inputType)) {
       return factorize(metricFactory, inputType);
     }
@@ -119,6 +142,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
+    Preconditions.checkNotNull(inputType, "input type is not resolved");
     if (!ValueDesc.isArray(inputType)) {
       return factorizeBuffered(metricFactory, inputType);
     }
@@ -213,7 +237,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @JsonProperty
   public String getInputType()
   {
-    return inputType.typeName();
+    return inputType == null ? null : inputType.typeName();
   }
 
   @Override
@@ -238,7 +262,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
+    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(getInputType());
 
     int length = 1 + nameBytes.length
                    + fieldNameBytes.length

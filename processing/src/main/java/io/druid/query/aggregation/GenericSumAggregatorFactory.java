@@ -41,8 +41,6 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
 
   private static final byte CACHE_TYPE_ID = 0x0A;
 
-  private final boolean handleDecimal;
-
   @JsonCreator
   public GenericSumAggregatorFactory(
       @JsonProperty("name") String name,
@@ -53,8 +51,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    this.handleDecimal = outputType.isDecimal();
-    Preconditions.checkArgument(outputType.isNumeric(), "unsupported type " + outputType);
+    Preconditions.checkArgument(outputType == null || outputType.isNumeric(), "unsupported type " + outputType);
   }
 
   public GenericSumAggregatorFactory(String name, String fieldName, String inputType)
@@ -178,7 +175,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   @Override
   public final Object deserialize(Object object)
   {
-    if (handleDecimal && object instanceof String) {
+    if (object instanceof String && outputType.isDecimal()) {
       return new BigDecimal((String) object);
     }
     return super.deserialize(object);

@@ -62,21 +62,21 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
   }
 
+  public VarianceAggregatorFactory(String name, String fieldName, String inputType)
+  {
+    this(name, fieldName, null, null, null, inputType);
+  }
+
   public VarianceAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null, null, null, null);
+    this(name, fieldName, ValueDesc.DOUBLE_TYPE);
   }
 
   @Override
-  public String getTypeName()
+  protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    return "variance";
-  }
-
-  @Override
-  public String getInputTypeName()
-  {
-    return inputType.typeName();
+    ValueDesc variance = ValueDesc.of("variance");
+    return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(variance) : variance;
   }
 
   @Override

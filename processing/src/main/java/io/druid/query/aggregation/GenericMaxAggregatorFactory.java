@@ -47,7 +47,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(outputType.type().isPrimitive(), "cannot max on complex type");
+    Preconditions.checkArgument(outputType == null || outputType.isPrimitive(), "cannot max on complex type");
   }
 
   public GenericMaxAggregatorFactory(String name, String fieldName, String inputType)
