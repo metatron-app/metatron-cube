@@ -51,6 +51,11 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
     return clazz == HashMap.class || clazz == LinkedHashMap.class || clazz == TreeMap.class;
   }
 
+  public static Map<String, Object> toUpdatable(Map<String, Object> event)
+  {
+    return supportInplaceUpdate(event) ? event : Maps.newLinkedHashMap(event);
+  }
+
   private final DateTime timestamp;
   private final Map<String, Object> event;
 

@@ -76,6 +76,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
     @JsonSubTypes.Type(name = "kmeans.tagging", value = KMeansTaggingQuery.class),
+    @JsonSubTypes.Type(name = "classify", value = ClassifyQuery.class),
 })
 public interface Query<T> extends QueryContextKeys
 {
@@ -215,5 +216,10 @@ public interface Query<T> extends QueryContextKeys
   interface ManagementQuery
   {
     Set<String> supports();
+  }
+
+  interface ClassifierFactory<T> extends Query<T>
+  {
+    Classifier toClassifier(Sequence<T> sequence, String tagColumn);
   }
 }

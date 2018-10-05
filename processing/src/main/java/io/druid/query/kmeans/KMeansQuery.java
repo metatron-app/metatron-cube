@@ -29,10 +29,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
+import io.druid.query.Classifier;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -41,7 +42,6 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
-import io.druid.query.metadata.metadata.ListColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -56,7 +56,10 @@ import java.util.Random;
  */
 public class KMeansQuery
     extends BaseQuery<Centroid>
-    implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>, Query.DimFilterSupport<Centroid>
+    implements Query.RewritingQuery<Centroid>,
+    Query.IteratingQuery<CentroidDesc, Centroid>,
+    Query.DimFilterSupport<Centroid>,
+    Query.ClassifierFactory<Centroid>
 {
   private static final Logger LOG = new Logger(KMeansQuery.class);
 
@@ -439,6 +442,13 @@ public class KMeansQuery
       }
     }
     return true;
+  }
+
+  @Override
+  public Classifier toClassifier(Sequence<Centroid> sequence, String tagColumn)
+  {
+    Centroid[] centroids = Sequences.toArray(sequence, Centroid.class);
+    return new KMeansClassifier(metrics, centroids, DistanceMeasure.of(measure), tagColumn);
   }
 
   @Override

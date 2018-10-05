@@ -74,7 +74,7 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner)
+  public QueryRunner<T> postProcess(UnionAllQueryRunner baseQueryRunner)
   {
     QueryRunner<T> queryRunner = ((PostProcessingOperator.UnionSupport) processors.get(0)).postProcess(baseQueryRunner);
     for (PostProcessingOperator processor : processors) {

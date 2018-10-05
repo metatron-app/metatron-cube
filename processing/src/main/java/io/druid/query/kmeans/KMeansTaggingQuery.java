@@ -29,6 +29,7 @@ import com.google.common.collect.Range;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.BaseQuery;
+import io.druid.query.ClassifyPostProcessor;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -248,7 +249,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       source = ((Query.RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
     }
     Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING, new KmeansTaggingPostProcessor()
+        QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)
     );
     return new UnionAllQuery(
         null,

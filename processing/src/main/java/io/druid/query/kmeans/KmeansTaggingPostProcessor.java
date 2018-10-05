@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@Deprecated
 public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionSupport<T>
 {
   private static final Logger LOG = new Logger(KmeansTaggingPostProcessor.class);
@@ -35,7 +36,7 @@ public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionS
   }
 
   @Override
-  public QueryRunner postProcess(final UnionAllQueryRunner<T> baseRunner)
+  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
   {
     return new QueryRunner()
     {
