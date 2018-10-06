@@ -20,6 +20,9 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import io.druid.common.guava.IdentityFunction;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -106,5 +109,25 @@ public class BySegmentResultValueClass<T> implements BySegmentResultValue<T>
     result = 31 * result + (segmentId != null ? segmentId.hashCode() : 0);
     result = 31 * result + (interval != null ? interval.hashCode() : 0);
     return result;
+  }
+
+  public static <T> IdentityFunction<Result<BySegmentResultValueClass<T>>> deserializer(final Function<T, T> deserializer)
+  {
+    return new IdentityFunction<Result<BySegmentResultValueClass<T>>>()
+    {
+      @Override
+      public Result<BySegmentResultValueClass<T>> apply(Result<BySegmentResultValueClass<T>> input)
+      {
+        final BySegmentResultValueClass<T> bySegmentValue = input.getValue();
+        return new Result<>(
+            input.getTimestamp(),
+            new BySegmentResultValueClass<T>(
+                Lists.transform(bySegmentValue.getResults(), deserializer),
+                bySegmentValue.getSegmentId(),
+                bySegmentValue.getInterval()
+            )
+        );
+      }
+    };
   }
 }

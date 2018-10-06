@@ -2242,6 +2242,7 @@ public class CachingClusteredClientTest
         cache,
         jsonMapper,
         backgroundExecutorService,
+        backgroundExecutorService,
         new QueryConfig(),
         new CacheConfig()
         {

@@ -38,6 +38,7 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.Progressing;
+import io.druid.concurrent.PrioritizedCallable;
 import org.apache.commons.io.IOUtils;
 
 import javax.annotation.Nullable;
@@ -57,6 +58,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -499,5 +501,17 @@ public class GuavaUtils
     output.delete();
     output.mkdirs();
     return output;
+  }
+
+  public static <F, T> Callable<T> asCallable(final Function<F, T> function, final F param)
+  {
+    return new PrioritizedCallable.Background<T>()
+    {
+      @Override
+      public T call() throws Exception
+      {
+        return function.apply(param);
+      }
+    };
   }
 }
