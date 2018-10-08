@@ -125,6 +125,7 @@ public class DirectDruidClientTest
         "foo",
         null,
         new NoopServiceEmitter(),
+        new BrokerIOConfig(),
         MoreExecutors.sameThreadExecutor()
     );
     DirectDruidClient client2 = new DirectDruidClient(
@@ -135,6 +136,7 @@ public class DirectDruidClientTest
         "foo2",
         null,
         new NoopServiceEmitter(),
+        new BrokerIOConfig(),
         MoreExecutors.sameThreadExecutor()
     );
 
@@ -239,6 +241,7 @@ public class DirectDruidClientTest
         "foo",
         null,
         new NoopServiceEmitter(),
+        new BrokerIOConfig(),
         MoreExecutors.sameThreadExecutor()
     );
 
@@ -310,6 +313,7 @@ public class DirectDruidClientTest
         hostName,
         null,
         new NoopServiceEmitter(),
+        new BrokerIOConfig(),
         MoreExecutors.sameThreadExecutor()
     );
 

@@ -124,6 +124,7 @@ public class BrokerServerView implements TimelineServerView
   private final FilteredServerInventoryView baseView;
   private final TierSelectorStrategy tierSelectorStrategy;
   private final ServiceEmitter emitter;
+  private final BrokerIOConfig ioConfig;
   private final ExecutorService backgroundExecutorService;
   private final Predicate<Pair<DruidServerMetadata, DataSegment>> segmentFilter;
 
@@ -142,6 +143,7 @@ public class BrokerServerView implements TimelineServerView
       TierSelectorStrategy tierSelectorStrategy,
       ServiceEmitter emitter,
       final BrokerSegmentWatcherConfig segmentWatcherConfig,
+      BrokerIOConfig ioConfig,
       @Processing ExecutorService backgroundExecutorService
   )
   {
@@ -159,6 +161,7 @@ public class BrokerServerView implements TimelineServerView
     this.clients = Maps.newConcurrentMap();
     this.selectors = Maps.newHashMap();
     this.timelines = Maps.newHashMap();
+    this.ioConfig = ioConfig;
 
     this.segmentFilter = new Predicate<Pair<DruidServerMetadata, DataSegment>>()
     {
@@ -270,6 +273,7 @@ public class BrokerServerView implements TimelineServerView
         server.getHost(),
         server.getType(),
         emitter,
+        ioConfig,
         backgroundExecutorService
     );
   }

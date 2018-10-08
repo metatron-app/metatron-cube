@@ -286,11 +286,12 @@ public class StreamHandlerFactory
     public StreamHandler create(
         final Query query,
         final URL url,
+        final int queueSize,
         final ServiceMetricEvent.Builder builder,
         final Map<String, Object> context
     )
     {
-      return new BaseHandler(query.getId(), url, -1)
+      return new BaseHandler(query.getId(), url, queueSize)
       {
         @Override
         public void handleHeader(HttpHeaders headers) throws IOException

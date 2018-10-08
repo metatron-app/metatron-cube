@@ -25,6 +25,7 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
+import io.druid.client.BrokerIOConfig;
 import io.druid.client.BrokerSegmentWatcherConfig;
 import io.druid.client.BrokerServerView;
 import io.druid.client.CachingClusteredClient;
@@ -101,6 +102,7 @@ public class CliBroker extends ServerRunnable
             JsonConfigProvider.bind(binder, "druid.broker.cache", CacheConfig.class);
             binder.install(new CacheModule());
 
+            JsonConfigProvider.bind(binder, "druid.broker.io", BrokerIOConfig.class);
             JsonConfigProvider.bind(binder, "druid.broker.select", TierSelectorStrategy.class);
             JsonConfigProvider.bind(binder, "druid.broker.select.tier.custom", CustomTierSelectorStrategyConfig.class);
             JsonConfigProvider.bind(binder, "druid.broker.balancer", ServerSelectorStrategy.class);

@@ -84,6 +84,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final HttpClient httpClient;
   private final String host;
   private final String type;
+  private final BrokerIOConfig ioConfig;
   private final ExecutorService backgroundExecutorService;
 
   private final AtomicInteger openConnections;
@@ -99,6 +100,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       String host,
       String type,
       ServiceEmitter emitter,
+      BrokerIOConfig ioConfig,
       ExecutorService backgroundExecutorService
   )
   {
@@ -109,6 +111,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.httpClient = httpClient;
     this.host = host;
     this.type = type;
+    this.ioConfig = ioConfig;
     this.backgroundExecutorService = backgroundExecutorService;
     this.contentType = objectMapper.getFactory() instanceof SmileFactory
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
@@ -164,7 +167,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           new Request(HttpMethod.POST, url)
               .setContent(bytes)
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
-          handlerFactory.create(query, url, builder, context)
+          handlerFactory.create(query, url, ioConfig.getQueueSize(), builder, context)
       );
       final long elapsed = System.currentTimeMillis() - start;
       if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
