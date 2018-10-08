@@ -142,9 +142,13 @@ public class Queries
 
   public static IncrementalIndexSchema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
-    return PostProcessingOperators.resolve(
-        subQuery, segmentWalker.getObjectMapper(), _relaySchema(subQuery, segmentWalker)
-    );
+    ObjectMapper mapper = segmentWalker.getObjectMapper();
+    IncrementalIndexSchema schema = _relaySchema(subQuery, segmentWalker);
+    PostProcessingOperator postProcessor = PostProcessingOperators.load(subQuery, mapper);
+    if (postProcessor instanceof PostProcessingOperator.SchemaResolving) {
+      schema = ((PostProcessingOperator.SchemaResolving) postProcessor).resolve(subQuery, schema, mapper);
+    }
+    return schema;
   }
 
   private static IncrementalIndexSchema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)

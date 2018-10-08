@@ -21,13 +21,16 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.List;
 
 /**
  */
 public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionSupport<T>
+    implements PostProcessingOperator.SchemaResolving
 {
   private final List<PostProcessingOperator> processors;
   private final boolean supportsUnion;
@@ -87,5 +90,16 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   public boolean hasTabularOutput()
   {
     return getLast().hasTabularOutput();
+  }
+
+  @Override
+  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema schema, ObjectMapper mapper)
+  {
+    for (PostProcessingOperator child : processors) {
+      if (child instanceof PostProcessingOperator.SchemaResolving) {
+        schema = ((PostProcessingOperator.SchemaResolving) child).resolve(query, schema, mapper);
+      }
+    }
+    return schema;
   }
 }

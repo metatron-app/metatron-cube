@@ -40,7 +40,6 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
     @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),
     @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
     @JsonSubTypes.Type(name = "postAggregations", value = PostAggregationsPostProcessor.class),
-    @JsonSubTypes.Type(name = "transform", value = TransformPostProcessor.class),
     @JsonSubTypes.Type(name = "rowMapping", value = RowMappingPostProcessor.class),
 })
 public interface PostProcessingOperator<T>

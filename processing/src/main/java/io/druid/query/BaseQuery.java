@@ -22,9 +22,12 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -32,18 +35,17 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -52,8 +54,6 @@ import java.util.Objects;
  */
 public abstract class BaseQuery<T> implements Query<T>
 {
-  private static final QuerySegmentSpec EMPTY = new MultipleIntervalSegmentSpec(Arrays.<Interval>asList());
-
   @SuppressWarnings("unchecked")
   public static Query getRepresentative(Query query)
   {
@@ -138,8 +138,8 @@ public abstract class BaseQuery<T> implements Query<T>
       Map<String, Object> context
   )
   {
-    this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource can't be null");
-    this.querySegmentSpec = querySegmentSpec == null ? EMPTY : querySegmentSpec;
+    this.dataSource = dataSource;
+    this.querySegmentSpec = querySegmentSpec;
     this.descending = descending;
     this.context = context;
   }
@@ -248,7 +248,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {
-    return run(querySegmentSpec.lookup(this, walker), context);
+    return querySegmentSpec == null ? Sequences.<T>empty() : run(querySegmentSpec.lookup(this, walker), context);
   }
 
   @Override
@@ -260,7 +260,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public List<Interval> getIntervals()
   {
-    return querySegmentSpec.getIntervals();
+    return querySegmentSpec == null ? ImmutableList.<Interval>of() : querySegmentSpec.getIntervals();
   }
 
   @Override
@@ -268,10 +268,8 @@ public abstract class BaseQuery<T> implements Query<T>
   {
     if (duration == null) {
       Duration totalDuration = new Duration(0);
-      for (Interval interval : querySegmentSpec.getIntervals()) {
-        if (interval != null) {
-          totalDuration = totalDuration.plus(interval.toDuration());
-        }
+      for (Interval interval : Iterables.filter(getIntervals(), Predicates.notNull())) {
+        totalDuration = totalDuration.plus(interval.toDuration());
       }
       duration = totalDuration;
     }
@@ -432,21 +430,19 @@ public abstract class BaseQuery<T> implements Query<T>
 
     BaseQuery baseQuery = (BaseQuery) o;
 
-    if (!dataSource.equals(baseQuery.dataSource)) {
+    if (!Objects.equals(dataSource, baseQuery.dataSource)) {
       return false;
     }
     if (descending != baseQuery.descending) {
       return false;
     }
-    if (context != null ? !context.equals(baseQuery.context) : baseQuery.context != null) {
+    if (!Objects.equals(context, baseQuery.context)) {
       return false;
     }
-    if (querySegmentSpec != null
-        ? !querySegmentSpec.equals(baseQuery.querySegmentSpec)
-        : baseQuery.querySegmentSpec != null) {
+    if (!Objects.equals(querySegmentSpec, baseQuery.querySegmentSpec)) {
       return false;
     }
-    if (duration != null ? !duration.equals(baseQuery.duration) : baseQuery.duration != null) {
+    if (!Objects.equals(duration, baseQuery.duration)) {
       return false;
     }
 
