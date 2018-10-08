@@ -92,7 +92,7 @@ public class ModuleBuiltinFunctions implements Function.Library
   }
 
   @Function.Named("lookupMap")
-  public static class LookupMapFunc extends BuiltinFunctions.NamedParams
+  public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
@@ -144,7 +144,7 @@ public class ModuleBuiltinFunctions implements Function.Library
   }
 
   @Function.Named("lookup")
-  public static class LookupFunc extends BuiltinFunctions.NamedParams
+  public static class LookupFunc extends BuiltinFunctions.ParameterizingNamedParams
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)

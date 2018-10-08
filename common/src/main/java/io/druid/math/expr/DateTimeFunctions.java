@@ -551,7 +551,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  abstract class DateTimeParser extends BuiltinFunctions.NamedParams
+  abstract class DateTimeParser extends BuiltinFunctions.ParameterizingNamedParams
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, final Map<String, ExprEval> namedParam)

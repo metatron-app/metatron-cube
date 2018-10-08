@@ -155,7 +155,7 @@ public interface BuiltinFunctions extends Function.Library
   abstract class NamedParams extends Function.AbstractFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public final Function create(List<Expr> args)
     {
       final int namedParamStart;
       int i = 0;
@@ -175,9 +175,13 @@ public interface BuiltinFunctions extends Function.Library
         namedParam.put(Evals.getIdentifier(assign.assignee), Evals.getConstantEval(assign.assigned));
         Preconditions.checkArgument(Evals.isConstant(assign.assigned), "named params should be constant");
       }
-      List<Expr> remaining = args.subList(0, namedParamStart);
-      final Function function = toFunction(parameterize(remaining, namedParam));
+      final Function function = toFunction(args, namedParamStart, namedParam);
 
+      return asChild(namedParamStart, function);
+    }
+
+    protected final Function asChild(final int namedParamStart, final Function function)
+    {
       return new Child()
       {
         @Override
@@ -194,10 +198,7 @@ public interface BuiltinFunctions extends Function.Library
       };
     }
 
-    protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
-    {
-      return Maps.newHashMap();
-    }
+    protected abstract Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter);
 
     protected final String getString(Map<String, ExprEval> namedParam, String key, Object defaultValue)
     {
@@ -207,6 +208,30 @@ public interface BuiltinFunctions extends Function.Library
     protected final boolean getBoolean(Map<String, ExprEval> namedParam, String key)
     {
       return namedParam.containsKey(key) && namedParam.get(key).asBoolean();
+    }
+
+    protected final int getInt(Map<String, ExprEval> namedParam, String key, int defaultValue)
+    {
+      return namedParam.containsKey(key) ? namedParam.get(key).asInt() : defaultValue;
+    }
+
+    protected final double getDouble(Map<String, ExprEval> namedParam, String key, double defaultValue)
+    {
+      return namedParam.containsKey(key) ? namedParam.get(key).asDouble() : defaultValue;
+    }
+  }
+
+  abstract class ParameterizingNamedParams extends NamedParams
+  {
+    @Override
+    protected Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter)
+    {
+      return asChild(start, toFunction(parameterize(args.subList(0, start), parameter)));
+    }
+
+    protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
+    {
+      return Maps.newHashMap();
     }
 
     protected abstract Function toFunction(final Map<String, Object> parameter);
