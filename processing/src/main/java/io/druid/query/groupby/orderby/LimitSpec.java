@@ -38,6 +38,7 @@ import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -142,6 +143,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   }
 
   public Function<Sequence<Row>, Sequence<Row>> build(
+      List<VirtualColumn> vcs,
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> aggs,
       List<PostAggregator> postAggs,
@@ -154,7 +156,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
       return new SortingFn(ordering, limit);
     }
-    WindowingProcessor processor = new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs);
+    WindowingProcessor processor = new WindowingProcessor(vcs, dimensions, aggs, postAggs, windowingSpecs);
     boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
     Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, SEQUENCE_TO_LIST);
     if (skipSortForLimit) {

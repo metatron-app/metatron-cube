@@ -64,7 +64,7 @@ public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
     {
       // dimension : dimensions, __time, not-existing or virtual columns
       ValueDesc resolved = resolver.resolve(getDimension(), ValueDesc.STRING);
-      return ValueDesc.isUnknown(resolved) && getExtractionFn() != null ? ValueDesc.STRING : resolved;
+      return resolved.isUnknown() && getExtractionFn() != null ? ValueDesc.STRING : resolved;
     }
   }
 }

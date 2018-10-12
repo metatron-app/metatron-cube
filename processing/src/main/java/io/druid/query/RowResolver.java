@@ -179,12 +179,19 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     List<PostAggregator> postAggregators = Lists.newArrayList();
     if (query instanceof Query.AggregationsSupport) {
       aggregatorFactories = ((Query.AggregationsSupport<?>)query).getAggregatorSpecs();
-    }
-    if (query instanceof Query.AggregationsSupport) {
       postAggregators = ((Query.AggregationsSupport<?>)query).getPostAggregatorSpecs();
     }
-    VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    return new RowResolver(query.getDimensions(), aggregatorFactories, postAggregators, vcs);
+    return outOf(query.getVirtualColumns(), query.getDimensions(), aggregatorFactories, postAggregators);
+  }
+
+  public static RowResolver outOf(
+      List<VirtualColumn> virtualColumns,
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> metrics,
+      List<PostAggregator> postAggregators
+  )
+  {
+    return new RowResolver(dimensions, metrics, postAggregators, VirtualColumns.valueOf(virtualColumns));
   }
 
   public static Class<?> toClass(ValueDesc valueDesc)
@@ -331,8 +338,10 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   {
     this.dimensionNames = Lists.newArrayList();
     this.metricNames = Lists.newArrayList();
-    this.virtualColumns = virtualColumns;
     this.aggregators = Maps.newHashMap();
+    this.virtualColumns = virtualColumns;
+
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     for (DimensionSpec dimension : dimensions) {
       if (dimension.getExtractionFn() != null) {
         columnTypes.put(dimension.getOutputName(), ValueDesc.ofDimension(ValueType.STRING));
@@ -341,16 +350,18 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     for (AggregatorFactory metric : metrics) {
       columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
     }
+    virtualColumns.addImplicitVCs(this);
+
+    for (DimensionSpec dimension : dimensions) {
+      if (dimension.getExtractionFn() == null) {
+        ValueDesc resolved = dimension.resolve(this);
+        columnTypes.put(dimension.getOutputName(), resolved.isUnknown() ? ValueDesc.STRING : resolved);
+      }
+    }
+
     for (PostAggregator postAggregator : postAggregators) {
       columnTypes.put(postAggregator.getName(), postAggregator.resolve(this));
     }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    for (DimensionSpec dimension : dimensions) {
-      if (dimension.getExtractionFn() == null) {
-        columnTypes.put(dimension.getOutputName(), dimension.resolve(this));
-      }
-    }
-    virtualColumns.addImplicitVCs(this);
   }
 
   private RowResolver(Schema schema, VirtualColumns virtualColumns)
@@ -453,6 +464,11 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public VirtualColumn getVirtualColumn(String columnName)
   {
     return virtualColumns.getVirtualColumn(columnName);
+  }
+
+  public Map<String, ValueDesc> getResolvedColumnTypes()
+  {
+    return columnTypes;
   }
 
   @Override
@@ -624,6 +640,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     final List<String> metrics = Lists.newArrayList();
     final List<ValueDesc> metricTypes = Lists.newArrayList();
     final List<AggregatorFactory> aggregators = Lists.newArrayList();
+    final Map<String, Map<String, String>> descriptors = Maps.newHashMap();
     for (String column : columns) {
       ValueDesc resolved = resolve(column, ValueDesc.UNKNOWN);
       if (ValueDesc.isDimension(resolved)) {
@@ -634,13 +651,17 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
         metricTypes.add(resolved);
         aggregators.add(getAggregators().get(column));  // can be null
       }
+      Map<String, String> descriptor = getDescriptor(column);
+      if (!GuavaUtils.isNullOrEmpty(descriptor)) {
+        descriptors.put(column, descriptor);
+      }
     }
     return new Schema(
         dimensions,
         metrics,
         GuavaUtils.concat(dimensionTypes, metricTypes),
         aggregators,
-        columnDescriptors
+        descriptors
     );
   }
 

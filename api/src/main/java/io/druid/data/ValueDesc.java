@@ -420,11 +420,6 @@ public class ValueDesc implements Serializable
     return type != null && type.isPrimitive();
   }
 
-  public static boolean isUnknown(ValueDesc type)
-  {
-    return isType(type, UNKNOWN_TYPE);
-  }
-
   public static boolean isType(ValueDesc type, String typeName)
   {
     return type != null && typeName.equals(type.typeName);
@@ -493,6 +488,11 @@ public class ValueDesc implements Serializable
   public boolean isStruct()
   {
     return typeName.toLowerCase().startsWith(STRUCT_TYPE);
+  }
+
+  public boolean isUnknown()
+  {
+    return typeName.equals(UNKNOWN_TYPE);
   }
 
   public Comparable cast(Object value)

@@ -32,6 +32,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.Direction;
+import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,14 +48,15 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private final List<PartitionDefinition> partitions = Lists.newArrayList();
 
   public WindowingProcessor(
-      List<WindowingSpec> windowingSpecs,
+      List<VirtualColumn> virtualColumns,
       List<DimensionSpec> dimensionSpecs,
       List<AggregatorFactory> aggregators,
-      List<PostAggregator> postAggregators
+      List<PostAggregator> postAggregators,
+      List<WindowingSpec> windowingSpecs
   )
   {
     Map<String, ValueDesc> expectedTypes = AggregatorFactory.createTypeMap(
-        dimensionSpecs, aggregators, postAggregators
+        virtualColumns, dimensionSpecs, aggregators, postAggregators
     );
 
     WindowContext context = WindowContext.newInstance(DimensionSpecs.toOutputNames(dimensionSpecs), expectedTypes);

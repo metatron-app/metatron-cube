@@ -474,7 +474,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       if (virtualColumns.containsKey(metric)) {
         continue;
       }
-      ValueDesc valueType = resolver.resolve(metric);
+      ValueDesc valueType = resolver.resolve(metric, ValueDesc.UNKNOWN);
       if (ValueDesc.isArray(valueType)) {
         virtualColumns.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
       } else if (valueType.isStruct()) {

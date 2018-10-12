@@ -28,6 +28,7 @@ import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 
@@ -44,6 +45,7 @@ public class NoopLimitSpec extends LimitSpec
 
   @Override
   public Function<Sequence<Row>, Sequence<Row>> build(
+      List<VirtualColumn> vcs,
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> aggs,
       List<PostAggregator> postAggs,

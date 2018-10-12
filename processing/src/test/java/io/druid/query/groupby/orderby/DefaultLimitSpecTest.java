@@ -38,6 +38,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -106,6 +107,7 @@ public class DefaultLimitSpecTest
     LimitSpec limitSpec = LimitSpecs.of(2);
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
+        ImmutableList.<VirtualColumn>of(),
         ImmutableList.<DimensionSpec>of(),
         ImmutableList.<AggregatorFactory>of(),
         ImmutableList.<PostAggregator>of(),
@@ -124,6 +126,7 @@ public class DefaultLimitSpecTest
     LimitSpec limitSpec = LimitSpecs.of(2, new OrderByColumnSpec("k1", Direction.ASCENDING));
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
+        ImmutableList.<VirtualColumn>of(),
         ImmutableList.<DimensionSpec>of(
             new DefaultDimensionSpec("k1", "k1")
         ),
@@ -142,6 +145,7 @@ public class DefaultLimitSpecTest
 
     // if there is an aggregator with same name then that is used to build ordering
     limitFn = limitSpec.build(
+        ImmutableList.<VirtualColumn>of(),
         ImmutableList.<DimensionSpec>of(
             new DefaultDimensionSpec("k1", "k1")
         ),
@@ -160,6 +164,7 @@ public class DefaultLimitSpecTest
 
     // if there is a post-aggregator with same name then that is used to build ordering
     limitFn = limitSpec.build(
+        ImmutableList.<VirtualColumn>of(),
         ImmutableList.<DimensionSpec>of(
             new DefaultDimensionSpec("k1", "k1")
         ),
@@ -183,6 +188,7 @@ public class DefaultLimitSpecTest
     );
 
     limitFn = limitSpec.build(
+        ImmutableList.<VirtualColumn>of(),
         ImmutableList.<DimensionSpec>of(new DefaultDimensionSpec("k1", "k1")),
         ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")),
         ImmutableList.<PostAggregator>of(new MathPostAggregator("k1", "1 + 1")),
