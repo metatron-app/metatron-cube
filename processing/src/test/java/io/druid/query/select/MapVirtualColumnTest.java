@@ -211,6 +211,7 @@ public class MapVirtualColumnTest
   }
 
   @Test(expected = UnsupportedOperationException.class)
+  @Ignore("now index vc is used automatically for map vc")
   public void testException1() throws Exception
   {
     Druids.SelectQueryBuilder builder = testBuilder();

@@ -33,6 +33,7 @@ import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,7 +79,9 @@ public class MapVirtualColumn implements VirtualColumn
     Preconditions.checkArgument(column.startsWith(outputName));
     final int index = column.indexOf('.', outputName.length());
     if (index < 0) {
-      return ValueDesc.MAP;
+      ValueDesc keyType = types.resolve(keyDimension);
+      ValueDesc valueType = types.resolve(valueDimension != null ? valueDimension : valueMetric);
+      return ValueDesc.of(ValueDesc.MAP_TYPE + "(" + keyType + "," + valueType + ")");
     }
     if (valueDimension != null) {
       return ValueDesc.STRING;
@@ -261,7 +264,7 @@ public class MapVirtualColumn implements VirtualColumn
     Preconditions.checkArgument(dimension.startsWith(outputName));
     final int index = dimension.indexOf('.', outputName.length());
     if (index < 0) {
-      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
+      return asKeyIndexed().asDimension(dimension, extractionFn, factory);
     }
     String target = dimension.substring(index + 1);
     if (MAP_KEY.equals(target)) {
@@ -300,6 +303,17 @@ public class MapVirtualColumn implements VirtualColumn
                      .array();
   }
 
+  public KeyIndexedVirtualColumn asKeyIndexed()
+  {
+    return new KeyIndexedVirtualColumn(
+        keyDimension,
+        valueDimension == null ? null : Arrays.asList(valueDimension),
+        valueMetric == null ? null : Arrays.asList(valueMetric),
+        null,
+        outputName
+    );
+  }
+
   @JsonProperty
   public String getKeyDimension()
   {
@@ -322,12 +336,6 @@ public class MapVirtualColumn implements VirtualColumn
   public String getOutputName()
   {
     return outputName;
-  }
-
-  @Override
-  public boolean isIndexed(String dimension)
-  {
-    return false;
   }
 
   @Override

@@ -304,6 +304,7 @@ public class VirtualColumnTest
   }
 
   @Test(expected = ISE.class)
+  @Ignore("now index vc is used automatically for map vc")
   public void testException1() throws Exception
   {
     BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
@@ -559,6 +560,10 @@ public class VirtualColumnTest
 
     checkQueryResult(query, expectedResults);
 
+    // auto conversion to key-indexed VC for group-by query
+    query = builder.setVirtualColumns(new MapVirtualColumn("keys", "values", null, "indexed")).build();
+    checkQueryResult(query, expectedResults);
+
     // same query on array metric
     virtualColumns = Arrays.<VirtualColumn>asList(
         new KeyIndexedVirtualColumn("keys", null, Arrays.asList("array"), null, "indexed")
@@ -575,6 +580,10 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
+    checkQueryResult(query, expectedResults);
+
+    // auto conversion to key-indexed VC for group-by query
+    query = builder.setVirtualColumns(new MapVirtualColumn("keys", null, "array", "indexed")).build();
     checkQueryResult(query, expectedResults);
 
     // expression
@@ -744,6 +753,10 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
+    checkQueryResult(query, expectedResults);
+
+    // auto conversion to key-indexed VC for group-by query
+    query = builder.setVirtualColumns(new MapVirtualColumn("keys", "values", null, "indexed")).build();
     checkQueryResult(query, expectedResults);
   }
 

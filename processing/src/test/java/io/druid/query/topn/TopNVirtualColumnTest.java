@@ -22,9 +22,8 @@ package io.druid.query.topn;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
+import io.druid.common.utils.Sequences;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -38,6 +37,7 @@ import io.druid.query.filter.InDimFilter;
 import io.druid.query.groupby.VirtualColumnTest;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.KeyIndexedVirtualColumn;
+import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
@@ -153,11 +153,16 @@ public class TopNVirtualColumnTest
 
     builder.metric(new NumericTopNMetricSpec("sumOf"));
 
-    List result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
+    TopNQuery query = builder.build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
     );
-    TestHelper.assertExpectedResults(expectedResults, result);
+
+    // auto conversion to key-indexed VC for group-by query
+    query = builder.virtualColumn(new MapVirtualColumn("keys", "values", null, "indexed")).build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
+    );
 
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(
@@ -173,11 +178,10 @@ public class TopNVirtualColumnTest
     );
     builder.metric(new NumericTopNMetricSpec("maxOf"));
 
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
+    query = builder.build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
     );
-    TestHelper.assertExpectedResults(expectedResults, result);
 
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(
@@ -193,11 +197,10 @@ public class TopNVirtualColumnTest
     );
     builder.metric(new InvertedTopNMetricSpec(new NumericTopNMetricSpec("minOf")));
 
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
+    query = builder.build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
     );
-    TestHelper.assertExpectedResults(expectedResults, result);
 
     // with filter
     builder.virtualColumn(
@@ -217,11 +220,10 @@ public class TopNVirtualColumnTest
             )
         )
     );
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
+    query = builder.build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
     );
-    TestHelper.assertExpectedResults(expectedResults, result);
   }
 
 
@@ -256,11 +258,16 @@ public class TopNVirtualColumnTest
 
     builder.metric(new NumericTopNMetricSpec("sumOf"));
 
-    List result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
+    TopNQuery query = builder.build();
+    TestHelper.assertExpectedResults(expectedResults, Sequences.toList(
+        runner.run(query, ImmutableMap.<String, Object>of())
+    ));
+
+    // auto conversion to key-indexed VC for group-by query
+    query = builder.virtualColumn(new MapVirtualColumn("keys", null, "array", "indexed")).build();
+    TestHelper.assertExpectedResults(
+        expectedResults, Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()))
     );
-    TestHelper.assertExpectedResults(expectedResults, result);
 
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(
@@ -276,11 +283,10 @@ public class TopNVirtualColumnTest
     );
     builder.metric(new NumericTopNMetricSpec("maxOf"));
 
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
-    );
-    TestHelper.assertExpectedResults(expectedResults, result);
+    query = builder.build();
+    TestHelper.assertExpectedResults(expectedResults, Sequences.toList(
+        runner.run(query, ImmutableMap.<String, Object>of())
+    ));
 
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(
@@ -296,11 +302,10 @@ public class TopNVirtualColumnTest
     );
     builder.metric(new InvertedTopNMetricSpec(new NumericTopNMetricSpec("minOf")));
 
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
-    );
-    TestHelper.assertExpectedResults(expectedResults, result);
+    query = builder.build();
+    TestHelper.assertExpectedResults(expectedResults, Sequences.toList(
+        runner.run(query, ImmutableMap.<String, Object>of())
+    ));
 
     // with filter
     builder.virtualColumn(
@@ -320,10 +325,9 @@ public class TopNVirtualColumnTest
             )
         )
     );
-    result = Sequences.toList(
-        runner.run(builder.build(), ImmutableMap.<String, Object>of()),
-        Lists.<Result<TopNResultValue>>newArrayList()
-    );
-    TestHelper.assertExpectedResults(expectedResults, result);
+    query = builder.build();
+    TestHelper.assertExpectedResults(expectedResults, Sequences.toList(
+        runner.run(query, ImmutableMap.<String, Object>of())
+    ));
   }
 }

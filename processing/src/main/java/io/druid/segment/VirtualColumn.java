@@ -42,8 +42,6 @@ public interface VirtualColumn extends Cacheable
 {
   String getOutputName();
 
-  boolean isIndexed(String dimension);
-
   ValueDesc resolveType(String column, TypeResolver resolver);
 
   ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory);

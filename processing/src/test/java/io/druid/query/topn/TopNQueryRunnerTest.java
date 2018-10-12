@@ -77,6 +77,7 @@ import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -746,6 +747,7 @@ public class TopNQueryRunnerTest
   }
 
   @Test(expected=IllegalArgumentException.class)
+  @Ignore("now it's resolved in query runner with resolver")
   public void testTopNOnVirtual()
   {
     // cannot do this, currently.. use group-by query

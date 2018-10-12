@@ -31,6 +31,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
@@ -100,6 +101,18 @@ public class GroupByQueryRunnerFactory
     List<ValueType> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       ValueDesc type = dimensionSpec.resolve(resolver.get());
+      if (ValueDesc.isMap(type)) {
+        String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
+        if (descriptiveType == null) {
+          throw new ISE("cannot resolve value type of map %s [%s]", type, dimensionSpec);
+        }
+        type = ValueDesc.of(descriptiveType[2]);
+        if (type.isDimension()) {
+          type = ValueDesc.of(ValueDesc.typeOfDimension(type));
+        } else if (type.isArray()) {
+          type = ValueDesc.elementOfArray(type);
+        }
+      }
       if (ValueDesc.isDimension(type)) {
         types.add(ValueType.of(type.subElement().typeName()));
       } else if (ValueDesc.isPrimitive(type)) {

@@ -19,10 +19,12 @@
 
 package io.druid.query.topn;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
@@ -30,9 +32,12 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumns;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -51,6 +56,20 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
   ) {
     super(toolchest, queryWatcher);
     this.computationBufferPool = computationBufferPool;
+  }
+
+  @Override
+  public Future<Object> preFactoring(
+      TopNQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
+  {
+    if (!GuavaUtils.isNullOrEmpty(query.getVirtualColumns())) {
+      VirtualColumns.assertDimensionIndexed(resolver.get(), query.getDimensionSpec());
+    }
+    return null;
   }
 
   @Override

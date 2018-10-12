@@ -97,7 +97,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       return ValueDesc.elementOfArray(types.resolve(column), ValueDesc.UNKNOWN);
     }
     if (outputName.equals(column)) {
-      return ValueDesc.subElementOf(types.resolve(keyDimension), ValueDesc.UNKNOWN);
+      return types.resolve(keyDimension);
     }
     return types.resolve(column);
   }
@@ -391,12 +391,6 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   public String getOutputName()
   {
     return outputName;
-  }
-
-  @Override
-  public boolean isIndexed(String dimension)
-  {
-    return dimension.equals(outputName);
   }
 
   @JsonProperty

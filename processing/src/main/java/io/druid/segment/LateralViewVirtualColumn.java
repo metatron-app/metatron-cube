@@ -66,12 +66,6 @@ public class LateralViewVirtualColumn implements VirtualColumn
     return outputName;
   }
 
-  @Override
-  public boolean isIndexed(String dimension)
-  {
-    return false;
-  }
-
   @JsonProperty
   public String getMetricName()
   {

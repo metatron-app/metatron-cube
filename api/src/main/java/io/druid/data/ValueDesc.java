@@ -402,7 +402,7 @@ public class ValueDesc implements Serializable
 
   public static boolean isMap(ValueDesc type)
   {
-    return type != null && type.typeName.equals(MAP_TYPE);
+    return type != null && type.isMap();
   }
 
   public static boolean isString(ValueDesc type)
@@ -450,6 +450,11 @@ public class ValueDesc implements Serializable
     return typeName.startsWith(DECIMAL_TYPE);
   }
 
+  public boolean isMap()
+  {
+    return typeName.startsWith(MAP_TYPE);
+  }
+
   public boolean isString()
   {
     return type == ValueType.STRING;
@@ -458,6 +463,11 @@ public class ValueDesc implements Serializable
   public boolean isDimension()
   {
     return isDimension(typeName);
+  }
+
+  public boolean isArray()
+  {
+    return isArray(typeName);
   }
 
   public boolean isStringOrDimension()

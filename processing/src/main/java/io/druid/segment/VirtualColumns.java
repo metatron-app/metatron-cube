@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.ISE;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
@@ -46,15 +48,17 @@ import java.util.Set;
  */
 public class VirtualColumns implements Iterable<VirtualColumn>
 {
-  public static void checkDimensionIndexed(List<VirtualColumn> virtualColumns, String dimension)
+  public static void assertDimensionIndexed(RowResolver resolver, DimensionSpec dimension)
   {
-    if (virtualColumns != null && !virtualColumns.isEmpty()) {
-      for (VirtualColumn vc : virtualColumns) {
-        if (vc.getOutputName().equals(dimension)) {
-          Preconditions.checkArgument(vc.isIndexed(dimension), "cannot reference virtual column in this context");
-        }
+    ValueDesc type = dimension.resolve(resolver);
+    if (type.isMap()) {
+      String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
+      if (descriptiveType == null) {
+        throw new ISE("cannot resolve value type of map %s [%s]", type, dimension);
       }
+      type = ValueDesc.of(descriptiveType[1]);
     }
+    Preconditions.checkArgument(type.isDimension(), "group-by columns " + dimension + " is not dimension indexed (" + type + ")");
   }
 
   public static Set<String> getVirtualColumnNames(List<VirtualColumn> virtualColumns)
