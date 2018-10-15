@@ -82,8 +82,8 @@ public class Parser
           factory = new Function.Stateless(function);
         }
       }
-      catch (Exception e) {
-        log.info(e, "failed to instantiate " + clazz.getName() + ".. ignoring");
+      catch (Throwable t) {
+        log.info(t, "failed to instantiate %s.. ignoring", clazz.getName());
         continue;
       }
       if (factory == null || factory.name() == null) {
