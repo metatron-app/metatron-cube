@@ -20,6 +20,7 @@
 package io.druid.hive;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -54,6 +55,7 @@ public class HivePathSpec implements PathSpec.Resolving
   private final String source;
   private final String metastoreUri;
   private final List<Map<String, String>> partialPartitionList;
+  private final String extractPartitionRegex;
   private final String splitSize;
   private final Map<String, Object> properties;
 
@@ -63,6 +65,7 @@ public class HivePathSpec implements PathSpec.Resolving
       @JsonProperty("metastoreUri") String metastoreUri,
       @JsonProperty("partialPartitions") Map<String, String> partialPartitions,
       @JsonProperty("partialPartitionList") List<Map<String, String>> partialPartitionList,
+      @JsonProperty("extractPartitionRegex") String extractPartitionRegex,
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("properties") Map<String, Object> properties
   ) throws Exception
@@ -73,6 +76,7 @@ public class HivePathSpec implements PathSpec.Resolving
     this.partialPartitionList = partialPartitionList == null && partialPartitions != null ?
                                 Arrays.asList(partialPartitions) :
                                 partialPartitionList;
+    this.extractPartitionRegex = extractPartitionRegex;
     this.splitSize = splitSize;
     this.properties = properties;
   }
@@ -90,18 +94,28 @@ public class HivePathSpec implements PathSpec.Resolving
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<Map<String, String>> getPartialPartitionList()
   {
     return partialPartitionList;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getExtractPartitionRegex()
+  {
+    return extractPartitionRegex;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getSplitSize()
   {
     return splitSize;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -188,6 +202,9 @@ public class HivePathSpec implements PathSpec.Resolving
       for (String element : pathSpecs) {
         elements.add(new PathSpecElement(element, null, null, null));
       }
+      if (elements.isEmpty()) {
+        throw new IllegalArgumentException("Failed to translate hive table to path spec");
+      }
       return new HadoopPathSpec(
           null,
           elements,
@@ -196,6 +213,7 @@ public class HivePathSpec implements PathSpec.Resolving
           splitSize,
           false,
           table.isPartitioned(),
+          extractPartitionRegex,
           properties
       );
     }

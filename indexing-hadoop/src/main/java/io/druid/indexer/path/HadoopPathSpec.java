@@ -20,9 +20,11 @@
 package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
@@ -55,6 +57,7 @@ public class HadoopPathSpec implements PathSpec
 
   public static final String FIND_RECURSIVE = FileInputFormat.INPUT_DIR_RECURSIVE;
   public static final String EXTRACT_PARTITION = "druid.hadoop.input.path.extract.partition";
+  public static final String EXTRACT_PARTITION_REGEX = "druid.hadoop.input.path.extract.partition.regex";
 
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
@@ -64,6 +67,7 @@ public class HadoopPathSpec implements PathSpec
   private final long splitSize;
   private final boolean findRecursive;
   private final boolean extractPartition;
+  private final String extractPartitionRegex;
   private final Map<String, Object> properties;
 
   @JsonCreator
@@ -75,6 +79,7 @@ public class HadoopPathSpec implements PathSpec
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("findRecursive") boolean findRecursive,
       @JsonProperty("extractPartition") boolean extractPartition,
+      @JsonProperty("extractPartitionRegex") String extractPartitionRegex,
       @JsonProperty("properties") Map<String, Object> properties
   )
   {
@@ -89,6 +94,7 @@ public class HadoopPathSpec implements PathSpec
     this.splitSize = StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE);
     this.findRecursive = findRecursive;
     this.extractPartition = extractPartition;
+    this.extractPartitionRegex = extractPartition ? extractPartitionRegex : null;
     this.properties = properties;
     Preconditions.checkArgument(!elements.isEmpty());
     Preconditions.checkArgument(basePath == null || new Path(basePath).isAbsolute());
@@ -112,10 +118,12 @@ public class HadoopPathSpec implements PathSpec
     this.skipHeader = pathSpec.skipHeader;
     this.findRecursive = pathSpec.findRecursive;
     this.extractPartition = pathSpec.extractPartition;
+    this.extractPartitionRegex = pathSpec.extractPartitionRegex;
     this.properties = pathSpec.properties;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getBasePath()
   {
     return basePath;
@@ -146,6 +154,14 @@ public class HadoopPathSpec implements PathSpec
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getExtractPartitionRegex()
+  {
+    return extractPartitionRegex;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -196,6 +212,9 @@ public class HadoopPathSpec implements PathSpec
 
     job.getConfiguration().setBoolean(FIND_RECURSIVE, findRecursive);
     job.getConfiguration().setBoolean(EXTRACT_PARTITION, extractPartition);
+    if (!Strings.isNullOrEmpty(extractPartitionRegex)) {
+      job.getConfiguration().set(EXTRACT_PARTITION_REGEX, extractPartitionRegex);
+    }
 
     // used for sized partition spec
     // path1;format1,path2;format2

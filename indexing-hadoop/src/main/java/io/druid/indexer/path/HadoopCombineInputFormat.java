@@ -23,7 +23,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.Pair;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.DatasourceInputFormat;
 import io.druid.indexer.hadoop.InputFormatWrapper;
@@ -52,6 +55,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This makes FileSplit cause it's FileInputFormat (todo)
@@ -252,7 +258,9 @@ public class HadoopCombineInputFormat extends FileInputFormat
     final HadoopSplit hadoopSplit = (HadoopSplit) split;
     final InputFormat format = getInputFormat(conf);
 
+    final String extractPartitionRegex = conf.get(HadoopPathSpec.EXTRACT_PARTITION_REGEX, null);
     final boolean extractPartition = conf.getBoolean(HadoopPathSpec.EXTRACT_PARTITION, false);
+    final Pair<Matcher, Set<String>> matcher = makeExtractor(extractPartitionRegex);
 
     return new RecordReader()
     {
@@ -302,7 +310,7 @@ public class HadoopCombineInputFormat extends FileInputFormat
 
         CURRENT_PATH.set(split.getPath());
         if (extractPartition) {
-          CURRENT_PARTITION.set(extractPartition(split.getPath()));
+          CURRENT_PARTITION.set(extractPartition(split.getPath(), matcher));
           log.info("Reading from path %s [%s]", CURRENT_PATH.get(), CURRENT_PARTITION.get());
         } else {
           log.info("Reading from path %s", CURRENT_PATH.get());
@@ -369,9 +377,43 @@ public class HadoopCombineInputFormat extends FileInputFormat
     throw new IllegalArgumentException("never");
   }
 
-  private Map<String, String> extractPartition(Path path)
+  private boolean logged;
+
+  final Pair<Matcher, Set<String>> makeExtractor(String extractPartitionRegex)
+  {
+    if (extractPartitionRegex == null) {
+      return null;
+    }
+    Pattern pattern = Pattern.compile(extractPartitionRegex);
+    Set<String> namedGroups = getNamedGroupCandidates(extractPartitionRegex);
+    if (namedGroups.isEmpty()) {
+      throw new IAE("cannot find named groups in regex %s", extractPartitionRegex);
+    }
+    return Pair.of(pattern.matcher(""), namedGroups);
+  }
+
+  final Map<String, String> extractPartition(Path path, Pair<Matcher, Set<String>> extractor)
   {
     Map<String, String> partition = Maps.newLinkedHashMap();
+    if (extractor != null) {
+      Matcher matcher = extractor.lhs;
+      if (!matcher.reset(path.toString()).find()) {
+        if (!logged) {
+          logged = true;
+          log.info(
+              "Failed to extract partition from %s by regex %s.. will ignore similar problems", path, matcher.pattern()
+          );
+        }
+        return partition;
+      }
+      for (String groupName : extractor.rhs) {
+        String groupValue = matcher.group(groupName);
+        if (groupValue != null) {
+          partition.put(groupName, groupValue);
+        }
+      }
+      return partition;
+    }
     for (; path != null; path = path.getParent()) {
       String pathName = path.getName();
       int index = pathName.indexOf('=');
@@ -383,5 +425,18 @@ public class HadoopCombineInputFormat extends FileInputFormat
       }
     }
     return partition;
+  }
+
+  // hate this..
+  private static Set<String> getNamedGroupCandidates(String regex)
+  {
+    Set<String> namedGroups = Sets.newTreeSet();
+    Matcher m = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>").matcher(regex);
+
+    while (m.find()) {
+      namedGroups.add(m.group(1));
+    }
+
+    return namedGroups;
   }
 }
