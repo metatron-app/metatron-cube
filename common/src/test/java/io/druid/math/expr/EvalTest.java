@@ -549,6 +549,14 @@ public class EvalTest
   }
 
   @Test
+  public void testExtractTimestamp()
+  {
+    DateTime current = DateTimes.nowUtc();
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", current.getMillis()));
+    Assert.assertEquals(current, evalDateTime("datetime(x, format='SSSSSS')", bindings));
+  }
+
+  @Test
   public void testDiffTimes()
   {
     DateTimeZone home = DateTimeZone.forID("Asia/Seoul");

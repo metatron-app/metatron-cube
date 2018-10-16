@@ -29,6 +29,7 @@ import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.logger.Logger;
+import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
@@ -95,7 +96,7 @@ public class QueryManager implements QueryWatcher, Runnable
           @Override
           public QueryStatus apply(String s)
           {
-            return new QueryStatus(timeout);
+            return new QueryStatus(query.getType(), timeout);
           }
         }
     );
@@ -145,8 +146,27 @@ public class QueryManager implements QueryWatcher, Runnable
     return -1;
   }
 
+  public void dumpAll()
+  {
+    LOG.info("Dumping query manager..");
+    for (Map.Entry<String, QueryStatus> entry : queries.entrySet()) {
+      QueryStatus status = entry.getValue();
+      LOG.info("-- %s (%s) : started=%s, end=%s, duration=%d, canceled=%s, pending=%d, tagged=%s",
+               entry.getKey(),
+               status.type,
+               DateTimes.utc(status.start),
+               status.end < 0 ? "<not>" : DateTimes.utc(status.end),
+               status.end < 0 ? -1 : status.end - status.start,
+               status.canceled,
+               status.futures.size(),
+               status.timers.values()
+      );
+    }
+  }
+
   private static class QueryStatus
   {
+    private final String type;
     private final int timeout;
     private final long start = System.currentTimeMillis();
     private final Set<String> dataSources = Sets.newConcurrentHashSet();
@@ -157,8 +177,9 @@ public class QueryManager implements QueryWatcher, Runnable
     private volatile boolean canceled;
     private volatile long end = -1;
 
-    public QueryStatus(int timeout)
+    public QueryStatus(String type, int timeout)
     {
+      this.type = type;
       this.timeout = timeout;
     }
 
@@ -176,7 +197,10 @@ public class QueryManager implements QueryWatcher, Runnable
       futures.remove(future);
       dataSources.removeAll(dataSource);
       if (future instanceof Tagged) {
-        timers.get(future).end();
+        Timer timer = timers.get(future);
+        if (timer != null) {
+          timer.end();
+        }
       }
       // this is possible because druid registers queries before fire to historical nodes
       if (!canceled && futures.isEmpty() && dataSources.isEmpty()) {
@@ -197,9 +221,12 @@ public class QueryManager implements QueryWatcher, Runnable
     {
       boolean success = true;
       for (ListenableFuture future : futures) {
-        success = success & future.cancel(true);  // cancel all
+        success = success & (future.isCancelled() || future.cancel(true));  // cancel all
         if (future instanceof Tagged) {
-          timers.get(future).end();
+          Timer timer = timers.get(future);
+          if (timer != null) {
+            timer.end();
+          }
         }
       }
       futures.clear();
@@ -210,7 +237,7 @@ public class QueryManager implements QueryWatcher, Runnable
     private boolean isExpired(long expire)
     {
       long endTime = end < 0 ? start + timeout : end;
-      return endTime > 0 && (System.currentTimeMillis() - end) > expire;
+      return endTime > 0 && (System.currentTimeMillis() - endTime) > expire;
     }
 
     public void log()
@@ -285,10 +312,18 @@ public class QueryManager implements QueryWatcher, Runnable
             }
         ).keySet()
     );
+    if (!expiredQueries.isEmpty()) {
+      LOG.info("Expiring %d queries", expiredQueries.size());
+    }
     for (String queryId : expiredQueries) {
       QueryStatus status = queries.remove(queryId);
       if (status != null) {
-        status.clear();
+        try {
+          status.clear();
+        }
+        catch (Exception e) {
+          // ignore
+        }
       }
     }
   }

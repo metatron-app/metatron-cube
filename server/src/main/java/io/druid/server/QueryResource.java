@@ -201,6 +201,15 @@ public class QueryResource
   }
 
   @GET
+  @Path("/dump")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response dumpQueries(@Context final HttpServletRequest req)
+  {
+    queryManager.dumpAll();
+    return Response.status(Response.Status.ACCEPTED).build();
+  }
+
+  @GET
   @Path("/jmx")
   @Produces(MediaType.APPLICATION_JSON)
   public Response getJMX(
