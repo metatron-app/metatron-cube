@@ -161,7 +161,7 @@ public class SketchHandlerTest
     q.updateWithValue(sketch2, 11.2f);
 
     SketchBinaryFn binary = new SketchBinaryFn(16, q);
-    TypedSketch<ItemsSketch> sketch = binary.merge(q.toSketch(sketch1), q.toSketch(sketch2));
+    TypedSketch<ItemsSketch> sketch = binary.merge("test", q.toSketch(sketch1), q.toSketch(sketch2));
     ItemsSketch<Float> r = sketch.value();
     Assert.assertArrayEquals(new Float[]{-3.5f, -1.2f, 1.5f, 2.5f, 4.2f, 7.2f, 11.5f}, r.getQuantiles(7));
   }

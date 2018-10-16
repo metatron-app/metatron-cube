@@ -25,6 +25,7 @@ import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -56,7 +57,7 @@ public class SketchBinaryFn
       TypedSketch sketch = (TypedSketch) entry.getValue();
       TypedSketch merging = (TypedSketch) value2.get(entry.getKey());
       if (merging != null) {
-        sketch = merge(sketch, merging);
+        sketch = merge(entry.getKey(), sketch, merging);
       }
       merged.put(entry.getKey(), sketch);
     }
@@ -69,11 +70,11 @@ public class SketchBinaryFn
   }
 
   @SuppressWarnings("unchecked")
-  final TypedSketch merge(TypedSketch object1, TypedSketch object2)
+  final TypedSketch merge(String columnName, TypedSketch object1, TypedSketch object2)
   {
     Preconditions.checkArgument(
-        object1.type() == object2.type(),
-        "Type mismatch.. " + object1.type() + " with " + object2.type()
+        Objects.equals(object1.type(), object2.type()),
+        "Type mismatch.. " + object1.type() + " with " + object2.type() + " for column " + columnName
     );
     TypedSketch union = handler.newUnion(nomEntries, object1.type(), null);
     handler.updateWithSketch(union, object1.value());
