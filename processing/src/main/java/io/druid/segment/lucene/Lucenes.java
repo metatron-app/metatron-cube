@@ -21,6 +21,7 @@ package io.druid.segment.lucene;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
@@ -29,6 +30,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
@@ -84,14 +86,24 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.LuceneIndexInput;
 import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.SingleInstanceLockFactory;
 import org.apache.lucene.util.BytesRef;
 
+import java.io.DataOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -144,6 +156,159 @@ public class Lucenes
     };
   }
 
+  public static int sizeOf(IndexWriter writer) throws IOException
+  {
+    Directory directory = writer.getDirectory();
+    String[] files = directory.listAll();
+    int length = Integer.BYTES + Integer.BYTES; // total size + number of files
+    for (String file : files) {
+      length += Integer.BYTES;  // length of file-name
+      length += StringUtils.estimatedBinaryLengthAsUTF8(file);  // file-name
+      length += Integer.BYTES + Integer.BYTES;  // offset + length
+      length += directory.fileLength(file);
+    }
+    return length;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static void writeTo(IndexWriter writer, WritableByteChannel channel) throws IOException
+  {
+    Directory directory = writer.getDirectory();
+    String[] files = directory.listAll();
+
+    int headerOffset = Ints.BYTES;  // number of files
+    int dataOffset = 0;
+    Pair<byte[], int[]>[] dataOffsets = new Pair[files.length];
+    for (int i = 0; i < files.length; i++) {
+      byte[] binary = StringUtils.toUtf8WithNullToEmpty(files[i]);
+      int dataLength = Ints.checkedCast(directory.fileLength(files[i]));
+      dataOffsets[i] = Pair.of(binary, new int[]{dataOffset, dataLength});
+      headerOffset += Ints.BYTES + binary.length + Ints.BYTES + Ints.BYTES;
+      dataOffset += dataLength;
+    }
+    DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));
+    output.writeInt(headerOffset + dataOffset);
+
+    output.writeInt(files.length);
+    for (Map.Entry<byte[], int[]> entry : dataOffsets) {
+      final byte[] key = entry.getKey();
+      final int[] value = entry.getValue();
+      output.writeInt(key.length);
+      output.write(key);
+      output.writeInt(value[0]);
+      output.writeInt(value[1]);
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("-----------------> %s, %,d, %,d", new String(key), value[0], value[1]);
+      }
+    }
+    final byte[] buffer = new byte[IO_BUFFER];
+    for (int i = 0; i < files.length; i++) {
+      IndexInput input = directory.openInput(files[i], null);
+      int offset = 0;
+      int length = dataOffsets[i].rhs[1];
+      while (offset < length) {
+        int toRead = Math.min(length - offset, buffer.length);
+        input.readBytes(buffer, 0, toRead);
+        output.write(buffer, 0, toRead);
+        offset += toRead;
+      }
+    }
+    output.flush();
+    output.close();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static DirectoryReader readFrom(final ByteBuffer buffer)
+  {
+    int fileNum = buffer.getInt();
+    final Map<String, int[]> dataOffsets = Maps.newLinkedHashMap();
+    for (int i = 0; i < fileNum; i++) {
+      String fileName = StringUtils.fromUtf8(buffer, buffer.getInt());
+      int[] offsetLength = {buffer.getInt(), buffer.getInt()};
+      dataOffsets.put(fileName, offsetLength);
+      LOGGER.debug("-----------------> %s, %,d, %,d", fileName, offsetLength[0], offsetLength[1]);
+    }
+    final ByteBuffer datum = buffer.slice();
+    final BaseDirectory directory = new BaseDirectory(new SingleInstanceLockFactory())
+    {
+      @Override
+      public String[] listAll() throws IOException
+      {
+        return dataOffsets.keySet().toArray(new String[0]);
+      }
+
+      @Override
+      public void deleteFile(String name) throws IOException
+      {
+        throw new UnsupportedOperationException("deleteFile");
+      }
+
+      @Override
+      public long fileLength(String name) throws IOException
+      {
+        int[] offsetLength = dataOffsets.get(name);
+        if (offsetLength == null) {
+          throw new FileNotFoundException(name);
+        }
+        return offsetLength[1];
+      }
+
+      @Override
+      public IndexOutput createOutput(String name, IOContext context) throws IOException
+      {
+        throw new UnsupportedOperationException("createOutput");
+      }
+
+      @Override
+      public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) throws IOException
+      {
+        throw new UnsupportedOperationException("createTempOutput");
+      }
+
+      @Override
+      public void sync(Collection<String> names) throws IOException
+      {
+        throw new UnsupportedOperationException("sync");
+      }
+
+      @Override
+      public void rename(String source, String dest) throws IOException
+      {
+        throw new UnsupportedOperationException("rename");
+      }
+
+      @Override
+      public void syncMetaData() throws IOException
+      {
+        throw new UnsupportedOperationException("syncMetaData");
+      }
+
+      @Override
+      public IndexInput openInput(String name, IOContext context) throws IOException
+      {
+        final int[] offsets = dataOffsets.get(name);
+        if (offsets == null) {
+          throw new FileNotFoundException(name);
+        }
+        LOGGER.debug("-------> %s : %d~%d(%d)", name, offsets[0], offsets[0] + offsets[1], offsets[1]);
+        datum.limit(offsets[0] + offsets[1]).position(offsets[0]);
+        return LuceneIndexInput.newInstance("LuceneIndex(name=" + name + ")", datum.slice(), offsets[1]);
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+      }
+    };
+    try {
+      return DirectoryReader.open(directory);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Deprecated
   public static byte[] serializeAndClose(IndexWriter writer) throws IOException
   {
     ByteArrayDataOutput bout = ByteStreams.newDataOutput();

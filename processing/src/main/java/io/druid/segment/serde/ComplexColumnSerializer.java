@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
@@ -200,7 +199,6 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   public static class LuceneIndexPartSerDe implements ColumnPartSerde
   {
     private final IndexWriter luceneIndexer;
-    private byte[] lucenePayload;
 
     @JsonCreator
     public LuceneIndexPartSerDe()
@@ -221,15 +219,13 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
         @Override
         public long getSerializedSize() throws IOException
         {
-          lucenePayload = Lucenes.serializeAndClose(luceneIndexer);
-          return Ints.BYTES + lucenePayload.length;
+          return Lucenes.sizeOf(luceneIndexer);
         }
 
         @Override
         public void writeToChannel(WritableByteChannel channel) throws IOException
         {
-          channel.write(ByteBuffer.wrap(Ints.toByteArray(lucenePayload.length)));
-          channel.write(ByteBuffer.wrap(lucenePayload));
+          Lucenes.writeTo(luceneIndexer, channel);
         }
       };
     }
@@ -268,7 +264,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
                 @Override
                 public LuceneIndex get()
                 {
-                  final DirectoryReader reader = Lucenes.deserializeWithRuntimeException(bufferToUse.asReadOnlyBuffer());
+                  final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
                   final IndexSearcher searcher = new IndexSearcher(reader);
 
                   return new LuceneIndex()
