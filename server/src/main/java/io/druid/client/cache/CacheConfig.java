@@ -46,6 +46,9 @@ public class CacheConfig
   private int cacheBulkMergeLimit = Integer.MAX_VALUE;
 
   @JsonProperty
+  private List<String> cacheable = Arrays.asList();
+
+  @JsonProperty
   private List<String> unCacheable = Arrays.asList(
       Query.GROUP_BY,
       Query.SELECT,
@@ -76,6 +79,6 @@ public class CacheConfig
   public boolean isQueryCacheable(Query query)
   {
     // O(n) impl, but I don't think we'll ever have a million query types here
-    return !unCacheable.contains(query.getType());
+    return cacheable.isEmpty() ? !unCacheable.contains(query.getType()) : cacheable.contains(query.getType());
   }
 }
