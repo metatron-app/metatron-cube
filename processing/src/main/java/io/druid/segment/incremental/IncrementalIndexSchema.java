@@ -112,6 +112,11 @@ public class IncrementalIndexSchema
     return fixedSchema;
   }
 
+  public List<String> getDimensionNames()
+  {
+    return dimensionsSpec.getDimensionNames();
+  }
+
   public List<String> getMetricNames()
   {
     List<String> metricNames = Lists.newArrayListWithCapacity(metrics.length);

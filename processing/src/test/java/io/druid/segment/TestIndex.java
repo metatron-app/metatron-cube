@@ -19,19 +19,25 @@
 
 package io.druid.segment;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
+import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -46,6 +52,7 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.VersionedIntervalTimeline;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -53,7 +60,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 /**
  */
@@ -83,15 +93,15 @@ public class TestIndex
       };
   public static final String[] METRICS = new String[]{"index", "indexMin", "indexMaxPlusTen"};
   public static final StringInputRowParser PARSER = new StringInputRowParser(
-        new DelimitedParseSpec(
-            new DefaultTimestampSpec("ts", "iso", null),
-            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList(DIMENSIONS)), null, null),
-            "\t",
-            "\u0001",
-            Arrays.asList(COLUMNS)
-        )
-        , "utf8"
-    );
+      new DelimitedParseSpec(
+          new DefaultTimestampSpec("ts", "iso", null),
+          new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList(DIMENSIONS)), null, null),
+          "\t",
+          "\u0001",
+          Arrays.asList(COLUMNS)
+      )
+      , "utf8"
+  );
   private static final Logger log = new Logger(TestIndex.class);
 
   public static final Interval INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
@@ -149,6 +159,7 @@ public class TestIndex
     getMMappedTestIndex();
     getNoRollupMMappedTestIndex();
     mergedRealtimeIndex();
+    addSalesIndex();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
@@ -187,6 +198,92 @@ public class TestIndex
       segmentWalker.add(SEGMENT.withDataSource("mmapped_norollup"), noRollupMmappedIndex);
     }
     return noRollupMmappedIndex;
+  }
+
+  private static synchronized void addSalesIndex()
+  {
+    segmentWalker.addPopulator(
+        "sales",
+        new IdentityFunction<VersionedIntervalTimeline<String, Segment>>()
+        {
+          @Override
+          public VersionedIntervalTimeline<String, Segment> apply(VersionedIntervalTimeline<String, Segment> timeline)
+          {
+            final List<String> columnNames = Arrays.asList(
+                "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
+                "Quantity", "Region", "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus",
+                "orderprofitable", "SalesAboveTarget", "latitude", "longitude", "Discount", "Profit", "Sales",
+                "DaystoShipActual", "SalesForecast", "DaystoShipScheduled", "SalesperCustomer", "ProfitRatio"
+            );
+            final IncrementalIndexSchema schema = loadJson(
+                "sales_incremental_schema.json",
+                new TypeReference<IncrementalIndexSchema>() {}
+            );
+            final Granularity granularity = schema.getSegmentGran();
+            final StringInputRowParser parser = new StringInputRowParser(
+                new DelimitedParseSpec(
+                    new DefaultTimestampSpec("OrderDate", "yyyy-MM-dd HH:mm:ss", null),
+                    schema.getDimensionsSpec(),
+                    "\t",
+                    null,
+                    columnNames
+                ), "utf8"
+            );
+            try {
+              for (Map.Entry<Long, IncrementalIndex> entry : asCharSource("sales_tab_delimiter.csv").readLines(
+                  new LineProcessor<Map<Long, IncrementalIndex>>()
+                  {
+                    private final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
+
+                    @Override
+                    public boolean processLine(String line) throws IOException
+                    {
+                      InputRow inputRow = parser.parse(line);
+                      DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
+                      IncrementalIndex index = indices.computeIfAbsent(
+                          dateTime.getMillis(),
+                          new Function<Long, IncrementalIndex>()
+                          {
+                            @Override
+                            public IncrementalIndex apply(Long aLong)
+                            {
+                              return new OnheapIncrementalIndex(schema, true, 10000);
+                            }
+                          }
+                      );
+                      index.add((Row)inputRow);
+                      return true;
+                    }
+
+                    @Override
+                    public Map<Long, IncrementalIndex> getResult()
+                    {
+                      return indices;
+                    }
+                  }
+              ).entrySet()) {
+                Interval interval = new Interval(entry.getKey(), granularity.next(entry.getKey()));
+                DataSegment segment = new DataSegment(
+                    "sales", interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
+                );
+                timeline.add(
+                    segment.getInterval(),
+                    segment.getVersion(),
+                    segment.getShardSpec()
+                           .createChunk((Segment) new QueryableIndexSegment(
+                               segment.getIdentifier(),
+                               persistRealtimeAndLoadMMapped(entry.getValue())
+                           ))
+                );
+              }
+            }
+            catch (Exception e) {
+              throw Throwables.propagate(e);
+            }
+            return timeline;
+          }
+        }
+    );
   }
 
   public static synchronized QueryableIndex mergedRealtimeIndex()
@@ -239,6 +336,16 @@ public class TestIndex
   public static IncrementalIndex makeRealtimeIndex(String resourceFilename, boolean rollup)
   {
     return makeRealtimeIndex(asCharSource(resourceFilename), rollup);
+  }
+
+  public static <T> T loadJson(String resource, TypeReference<T> reference)
+  {
+    try {
+      return TestHelper.JSON_MAPPER.readValue(asCharSource(resource).openStream(), reference);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   public static CharSource asCharSource(String resourceFilename)

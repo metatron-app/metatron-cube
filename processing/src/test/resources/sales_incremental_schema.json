@@ -1,0 +1,24 @@
+{
+  "dimensionsSpec": {
+    "dimensions": [
+      "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName", "Quantity", "Region",
+      "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus", "orderprofitable", "SalesAboveTarget",
+      "latitude", "longitude"
+    ]
+  },
+  "metrics": [
+    {"type": "count", "name": "count"},
+    {"fieldName": "Discount", "type": "sum", "inputType": "double", "name": "Discount"},
+    {"fieldName": "Profit", "type": "sum", "inputType": "double", "name": "Profit"},
+    {"fieldName": "Sales", "type": "sum", "inputType": "double", "name": "Sales"},
+    {"fieldName": "DaystoShipActual", "type": "sum", "inputType": "double", "name": "DaystoShipActual"},
+    {"fieldName": "SalesForecast", "type": "sum", "inputType": "double", "name": "SalesForecast"},
+    {"fieldName": "DaystoShipScheduled", "type": "sum", "inputType": "double", "name": "DaystoShipScheduled"},
+    {"fieldName": "SalesperCustomer", "type": "sum", "inputType": "double", "name": "SalesperCustomer"},
+    {"fieldName": "ProfitRatio", "type": "sum", "inputType": "double", "name": "ProfitRatio"}
+  ],
+  "gran": "DAY",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": true
+}

@@ -244,7 +244,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       return ValueDesc.FLOAT;
     } else if (clazz == Double.class || clazz == Double.TYPE) {
       return ValueDesc.DOUBLE;
-    } else if (clazz == Long.class || clazz == Long.TYPE) {
+    } else if (clazz == Long.class || clazz == Long.TYPE || clazz == Integer.class || clazz == Integer.TYPE) {
       return ValueDesc.LONG;
     } else if (clazz == DateTime.class) {
       return ValueDesc.DATETIME;

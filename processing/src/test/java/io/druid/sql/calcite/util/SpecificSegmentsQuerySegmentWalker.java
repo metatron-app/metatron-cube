@@ -33,6 +33,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.DataSource;
@@ -71,6 +72,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -85,8 +87,40 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ExecutorService executor;
   private final QueryConfig queryConfig;
-  private final Map<String, VersionedIntervalTimeline<String, Segment>> timeLines;
+
+  private final PopulatingMap timeLines;
   private final List<DataSegment> segments;
+
+  private static class PopulatingMap extends HashMap<String, VersionedIntervalTimeline<String, Segment>>
+  {
+    private Map<String, IdentityFunction<VersionedIntervalTimeline<String, Segment>>> populators = Maps.newHashMap();
+
+    @Override
+    public VersionedIntervalTimeline<String, Segment> get(Object key)
+    {
+      return computeIfAbsent(
+          (String) key,
+          new java.util.function.Function<String, VersionedIntervalTimeline<String, Segment>>()
+          {
+            @Override
+            public VersionedIntervalTimeline<String, Segment> apply(String key)
+            {
+              IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator = populators.get(key);
+              if (populator != null) {
+                return populator.apply(new VersionedIntervalTimeline<String, Segment>(Ordering.<String>natural()));
+              }
+              return null;
+            }
+          }
+      );
+    }
+
+    public void addPopulator(String key, IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator)
+    {
+      Preconditions.checkArgument(!populators.containsKey(key));
+      populators.put(key, populator);
+    }
+  }
 
   public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
@@ -94,7 +128,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     this.conglomerate = conglomerate;
     this.executor = MoreExecutors.sameThreadExecutor();
     this.queryConfig = new QueryConfig();
-    this.timeLines = Maps.newHashMap();
+    this.timeLines = new PopulatingMap();
     this.segments = Lists.newArrayList();
   }
 
@@ -103,7 +137,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
       QueryConfig queryConfig,
-      Map<String, VersionedIntervalTimeline<String, Segment>> timeLines,
+      PopulatingMap timeLines,
       List<DataSegment> segments
   )
   {
@@ -169,6 +203,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
   {
     return addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
+  }
+
+  public void addPopulator(String dataSource, IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator)
+  {
+    timeLines.addPopulator(dataSource, populator);
   }
 
   private SpecificSegmentsQuerySegmentWalker addSegment(DataSegment descriptor, Segment segment)
