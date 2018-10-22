@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.sketch.ThetaOperations;
 
 public class EmptySketchAggregator implements Aggregator
 {
@@ -36,7 +37,7 @@ public class EmptySketchAggregator implements Aggregator
   @Override
   public Object get()
   {
-    return SketchOperations.EMPTY_SKETCH;
+    return ThetaOperations.EMPTY_SKETCH;
   }
 
   @Override

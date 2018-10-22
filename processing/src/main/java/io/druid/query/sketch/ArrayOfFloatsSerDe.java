@@ -30,7 +30,8 @@ import com.yahoo.sketches.ArrayOfItemsSerDe;
 public class ArrayOfFloatsSerDe extends ArrayOfItemsSerDe<Float>
 {
   @Override
-  public byte[] serializeToByteArray(final Float[] items) {
+  public byte[] serializeToByteArray(final Float[] items)
+  {
     final byte[] bytes = new byte[Floats.BYTES * items.length];
     final WritableMemory mem = WritableMemory.wrap(bytes);
     long offsetBytes = 0;
@@ -42,7 +43,8 @@ public class ArrayOfFloatsSerDe extends ArrayOfItemsSerDe<Float>
   }
 
   @Override
-  public Float[] deserializeFromMemory(final Memory mem, final int length) {
+  public Float[] deserializeFromMemory(final Memory mem, final int length)
+  {
     UnsafeUtil.checkBounds(0, Floats.BYTES, mem.getCapacity());
     final Float[] array = new Float[length];
     long offsetBytes = 0;

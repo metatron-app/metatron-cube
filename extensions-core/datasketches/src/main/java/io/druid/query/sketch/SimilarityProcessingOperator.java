@@ -40,15 +40,14 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQueryRunner;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static io.druid.query.aggregation.datasketches.theta.SketchOperations.Func.INTERSECT;
-import static io.druid.query.aggregation.datasketches.theta.SketchOperations.Func.NOT;
-import static io.druid.query.aggregation.datasketches.theta.SketchOperations.Func.UNION;
+import static io.druid.query.sketch.ThetaOperations.Func.INTERSECT;
+import static io.druid.query.sketch.ThetaOperations.Func.NOT;
+import static io.druid.query.sketch.ThetaOperations.Func.UNION;
 
 /**
  */
@@ -238,10 +237,10 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
   {
     double A = source.getEstimate();
     double B = target.getEstimate();
-    double AorB = SketchOperations.sketchSetOperation(UNION, nomEntries, source, target).getEstimate();
-    double AandB = SketchOperations.sketchSetOperation(INTERSECT, nomEntries, source, target).getEstimate();
-    double A_B = SketchOperations.sketchSetOperation(NOT, nomEntries, source, target).getEstimate();
-    double B_A = SketchOperations.sketchSetOperation(NOT, nomEntries, target, source).getEstimate();
+    double AorB = ThetaOperations.sketchSetOperation(UNION, nomEntries, source, target).getEstimate();
+    double AandB = ThetaOperations.sketchSetOperation(INTERSECT, nomEntries, source, target).getEstimate();
+    double A_B = ThetaOperations.sketchSetOperation(NOT, nomEntries, source, target).getEstimate();
+    double B_A = ThetaOperations.sketchSetOperation(NOT, nomEntries, target, source).getEstimate();
 
     double similarity = -1;
     if (A >= B) {

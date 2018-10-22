@@ -34,7 +34,6 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
@@ -126,8 +125,8 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
         {
         }
     );
-    assertEqual(sketch1, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality1"), ValueDesc.STRING));
-    assertEqual(sketch2, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality2"), ValueDesc.STRING));
+    assertEqual(sketch1, ThetaOperations.deserializeQuantile(deserialized.getValue().get("quality1"), ValueDesc.STRING));
+    assertEqual(sketch2, ThetaOperations.deserializeQuantile(deserialized.getValue().get("quality2"), ValueDesc.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")
@@ -248,7 +247,7 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     SketchQuery postProcessing = query.withOverriddenContext(
         ImmutableMap.<String, Object>of(
             Query.POST_PROCESSING,
-            new SketchQuantilesProcessor(SketchQuantilesOp.QUANTILES, null, 2, null, null, null)
+            new SketchQuantilesProcessor(QuantileOperation.QUANTILES, null, 2, null, null, null)
         )
     );
 

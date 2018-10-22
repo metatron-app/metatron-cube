@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 
@@ -42,7 +43,7 @@ public class EmptySketchBufferAggregator implements BufferAggregator
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return SketchOperations.EMPTY_SKETCH;
+    return ThetaOperations.EMPTY_SKETCH;
   }
 
   @Override

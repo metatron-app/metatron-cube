@@ -43,34 +43,34 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   public static SketchQuantilesPostAggregator fraction(String name, String fieldName, double fraction)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, fraction, null, null, null, null, null, null, false
+        name, fieldName, QuantileOperation.QUANTILES, fraction, null, null, null, null, null, null, false
     );
   }
 
   public static SketchQuantilesPostAggregator fractions(String name, String fieldName, double[] fractions)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, fractions, null, null, null, null, null, false
+        name, fieldName, QuantileOperation.QUANTILES, null, fractions, null, null, null, null, null, false
     );
   }
 
   public static SketchQuantilesPostAggregator evenSpaced(String name, String fieldName, int evenSpaced)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, null, null, evenSpaced, null, null, null, false
+        name, fieldName, QuantileOperation.QUANTILES, null, null, null, evenSpaced, null, null, null, false
     );
   }
 
   private final String name;
   private final String fieldName;
-  private final SketchQuantilesOp op;
+  private final QuantileOperation op;
   private final Object parameter;
 
   @JsonCreator
   public SketchQuantilesPostAggregator(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("op") SketchQuantilesOp op,
+      @JsonProperty("op") QuantileOperation op,
       @JsonProperty("fraction") Double fraction,
       @JsonProperty("fractions") double[] fractions,
       @JsonProperty("count") Integer count,
@@ -83,29 +83,29 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = Preconditions.checkNotNull(fieldName, "'fieldName' cannot be null");
-    this.op = op == null ? SketchQuantilesOp.QUANTILES : op;
+    this.op = op == null ? QuantileOperation.QUANTILES : op;
     if (op == null ||
-        op == SketchQuantilesOp.QUANTILES ||
-        op == SketchQuantilesOp.QUANTILES_CDF ||
-        op == SketchQuantilesOp.QUANTILES_PMF) {
+        op == QuantileOperation.QUANTILES ||
+        op == QuantileOperation.QUANTILES_CDF ||
+        op == QuantileOperation.QUANTILES_PMF) {
       Object parameter = fraction != null ? fraction :
                          fractions != null ? fractions :
                          count != null ? count :
-                         evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
-                         evenCounted != null && evenCounted > 0 ? SketchQuantilesOp.evenCounted(evenCounted) :
-                         slopedSpaced != null && slopedSpaced > 0 ? SketchQuantilesOp.slopedSpaced(slopedSpaced) :
-                         SketchQuantilesOp.DEFAULT_QUANTILE_PARAM;
-      if (op == null || op == SketchQuantilesOp.QUANTILES) {
+                         evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced) :
+                         evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted) :
+                         slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced) :
+                         QuantileOperation.DEFAULT_QUANTILE_PARAM;
+      if (op == null || op == QuantileOperation.QUANTILES) {
         this.parameter = parameter;
       } else {
-        this.parameter = SketchQuantilesOp.quantileRatioParam(parameter, ratioAsCount);
+        this.parameter = QuantileOperation.quantileRatioParam(parameter, ratioAsCount);
       }
-    } else if (op == SketchQuantilesOp.CDF || op == SketchQuantilesOp.PMF) {
-      parameter = SketchQuantilesOp.ratioParam(splitPoints, ratioAsCount);
+    } else if (op == QuantileOperation.CDF || op == QuantileOperation.PMF) {
+      parameter = QuantileOperation.ratioParam(splitPoints, ratioAsCount);
     } else {
       parameter = splitPoints;
     }
-    Preconditions.checkArgument(op == SketchQuantilesOp.IQR || parameter != null);
+    Preconditions.checkArgument(op == QuantileOperation.IQR || parameter != null);
   }
 
   @Override

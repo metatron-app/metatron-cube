@@ -40,6 +40,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.select.SelectResultValue;
+import io.druid.query.sketch.ThetaOperations;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -460,9 +461,9 @@ public class SketchAggregationTest
     union2.update("health");
     Sketch sketch2 = union2.getResult();
 
-    Sketch union = SketchOperations.sketchSetOperation(SketchOperations.Func.UNION, size, sketch1, sketch2);
-    Sketch intersect = SketchOperations.sketchSetOperation(SketchOperations.Func.INTERSECT, size, sketch1, sketch2);
-    Sketch not = SketchOperations.sketchSetOperation(SketchOperations.Func.NOT, size, sketch1, sketch2);
+    Sketch union = ThetaOperations.sketchSetOperation(ThetaOperations.Func.UNION, size, sketch1, sketch2);
+    Sketch intersect = ThetaOperations.sketchSetOperation(ThetaOperations.Func.INTERSECT, size, sketch1, sketch2);
+    Sketch not = ThetaOperations.sketchSetOperation(ThetaOperations.Func.NOT, size, sketch1, sketch2);
 
     System.out.println("[SketchAggregationTest/main] " + union.getEstimate());
     System.out.println("[SketchAggregationTest/main] " + intersect.getEstimate());

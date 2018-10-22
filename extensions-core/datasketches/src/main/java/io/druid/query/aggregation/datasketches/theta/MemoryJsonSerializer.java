@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.yahoo.memory.Memory;
+import io.druid.query.sketch.ThetaOperations;
 
 import java.io.IOException;
 
@@ -35,6 +36,6 @@ public class MemoryJsonSerializer extends JsonSerializer<Memory>
   public void serialize(Memory mem, JsonGenerator jgen, SerializerProvider provider)
       throws IOException, JsonProcessingException
   {
-    jgen.writeBinary(SketchOperations.deserializeFromMemory(mem).toByteArray());
+    jgen.writeBinary(ThetaOperations.deserializeFromMemory(mem).toByteArray());
   }
 }

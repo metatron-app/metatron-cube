@@ -203,9 +203,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               }
               final ItemsSketch itemsSketch = sketch.value();
               final ValueDesc type = sketch.type();
-              Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(
+              Object[] quantiles = (Object[]) QuantileOperation.QUANTILES.calculate(
                   itemsSketch,
-                  SketchQuantilesOp.DEFAULT_QUANTILE_PARAM
+                  QuantileOperation.DEFAULT_QUANTILE_PARAM
               );
               result.put("type", type);
               if (typeDetail != null && typeDetail.containsKey(column)) {
@@ -219,8 +219,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               result.put("quantiles", dedup);
               if (dedup.length > 1) {
                 Object[] splits = Arrays.copyOfRange(dedup, 1, dedup.length - 1); // remove min value
-                result.put("pmf", SketchQuantilesOp.PMF.calculate(itemsSketch, splits));
-                result.put("cdf", SketchQuantilesOp.CDF.calculate(itemsSketch, splits));
+                result.put("pmf", QuantileOperation.PMF.calculate(itemsSketch, splits));
+                result.put("cdf", QuantileOperation.CDF.calculate(itemsSketch, splits));
               }
 
               Object lower = itemsSketch.getQuantile(0.25f);

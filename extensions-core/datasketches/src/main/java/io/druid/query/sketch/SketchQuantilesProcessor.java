@@ -43,7 +43,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchQuantilesProcessor.class);
 
-  private final SketchQuantilesOp op;
+  private final QuantileOperation op;
   private final Map<String, double[]> fractions;
   private final Integer evenSpaced;
   private final Integer evenCounted;
@@ -54,7 +54,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
 
   @JsonCreator
   public SketchQuantilesProcessor(
-      @JsonProperty("op") SketchQuantilesOp op,
+      @JsonProperty("op") QuantileOperation op,
       @JsonProperty("fractions") Map<String, double[]> fractions,
       @JsonProperty("evenSpaced") Integer evenSpaced,
       @JsonProperty("evenCounted") Integer evenCounted,
@@ -62,23 +62,23 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("splitPoints") Map<String, String[]> splitPoints
   )
   {
-    this.op = op == null ? SketchQuantilesOp.QUANTILES : op;
+    this.op = op == null ? QuantileOperation.QUANTILES : op;
     this.fractions = fractions;
     this.evenSpaced = evenSpaced;
     this.evenCounted = evenCounted;
     this.slopedSpaced = slopedSpaced;
     this.splitPoints = splitPoints;
 
-    if (op == null || op == SketchQuantilesOp.QUANTILES) {
+    if (op == null || op == QuantileOperation.QUANTILES) {
       parameter = fractions != null ? fractions :
-                  evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
-                  evenCounted != null && evenCounted > 0 ? SketchQuantilesOp.evenCounted(evenCounted) :
-                  slopedSpaced != null && slopedSpaced > 0 ? SketchQuantilesOp.slopedSpaced(slopedSpaced) :
-                  SketchQuantilesOp.DEFAULT_QUANTILE_PARAM;
+                  evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced) :
+                  evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted) :
+                  slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced) :
+                  QuantileOperation.DEFAULT_QUANTILE_PARAM;
     } else {
       parameter = splitPoints;
     }
-    Preconditions.checkArgument(op == SketchQuantilesOp.IQR || parameter != null);
+    Preconditions.checkArgument(op == QuantileOperation.IQR || parameter != null);
   }
 
   @Override
@@ -116,7 +116,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
   }
 
   @JsonProperty
-  public SketchQuantilesOp getOp()
+  public QuantileOperation getOp()
   {
     return op;
   }

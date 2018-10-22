@@ -30,6 +30,7 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.sketch.ThetaOperations;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
@@ -44,7 +45,7 @@ public class SketchSetPostAggregator implements PostAggregator
 
   private final String name;
   private final List<PostAggregator> fields;
-  private final SketchOperations.Func func;
+  private final ThetaOperations.Func func;
   private final int maxSketchSize;
 
   @JsonCreator
@@ -57,7 +58,7 @@ public class SketchSetPostAggregator implements PostAggregator
   {
     this.name = name;
     this.fields = fields;
-    this.func = SketchOperations.Func.valueOf(func);
+    this.func = ThetaOperations.Func.valueOf(func);
     this.maxSketchSize = maxSize == null ? SketchAggregatorFactory.DEFAULT_MAX_SKETCH_SIZE : maxSize;
     Util.checkIfPowerOf2(this.maxSketchSize, "size");
 
@@ -96,7 +97,7 @@ public class SketchSetPostAggregator implements PostAggregator
       sketches[i] = toSketch(fields.get(i).compute(timestamp, combinedAggregators));
     }
 
-    return SketchOperations.sketchSetOperation(func, maxSketchSize, sketches);
+    return ThetaOperations.sketchSetOperation(func, maxSketchSize, sketches);
   }
 
   static Sketch toSketch(Object obj)

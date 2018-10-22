@@ -29,7 +29,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
@@ -118,8 +117,8 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTest
         {
         }
     );
-    assertEqual(sketch1, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality1"), ValueDesc.STRING));
-    assertEqual(sketch2, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality2"), ValueDesc.STRING));
+    assertEqual(sketch1, ThetaOperations.deserializeFrequency(deserialized.getValue().get("quality1"), ValueDesc.STRING));
+    assertEqual(sketch2, ThetaOperations.deserializeFrequency(deserialized.getValue().get("quality2"), ValueDesc.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")

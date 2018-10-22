@@ -28,6 +28,7 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
+import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 
@@ -59,7 +60,7 @@ public class SketchMergeComplexMetricSerde extends ComplexMetricSerde
         if (object == null || object instanceof Sketch || object instanceof Memory) {
           return object;
         }
-        return SketchOperations.deserialize(object);
+        return ThetaOperations.deserialize(object);
       }
     };
   }

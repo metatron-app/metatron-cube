@@ -222,7 +222,7 @@ public interface SketchHandler<U>
         case LONG:
           union.value().update(((Number) value).longValue());
           break;
-        default :
+        default:
           throw new IllegalArgumentException("not supported type " + union.type());
       }
     }

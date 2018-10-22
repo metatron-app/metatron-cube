@@ -29,7 +29,7 @@ import java.util.List;
 
 /**
  */
-public enum SketchQuantilesOp
+public enum QuantileOperation
 {
   QUANTILES {
     @Override
@@ -180,7 +180,7 @@ public enum SketchQuantilesOp
   }
 
   @JsonCreator
-  public static SketchQuantilesOp fromString(String name)
+  public static QuantileOperation fromString(String name)
   {
     return name == null ? null : valueOf(name.toUpperCase());
   }
@@ -213,7 +213,8 @@ public enum SketchQuantilesOp
     final boolean evenCounted;
     final boolean slopedSpaced;
 
-    private QuantileParam(int number, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced) {
+    private QuantileParam(int number, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced)
+    {
       this.number = number;
       this.evenSpaced = evenSpaced;
       this.evenCounted = evenCounted;

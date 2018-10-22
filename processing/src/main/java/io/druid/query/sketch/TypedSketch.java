@@ -39,7 +39,6 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -51,7 +50,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
   public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
-    ByteBuffer value = ByteBuffer.wrap(SketchOperations.asBytes(bytes));
+    ByteBuffer value = ByteBuffer.wrap(ThetaOperations.asBytes(bytes));
     ValueDesc type = TypedSketch.typeFromBytes(value);
     return TypedSketch.of(type, deserialize(sketchOp, Memory.wrap(value.slice()), type, comparator));
   }
@@ -65,13 +64,13 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     switch (sketchOp) {
       case THETA:
-        return SketchOperations.deserializeFromMemory(memory);
+        return ThetaOperations.deserializeFromMemory(memory);
       case QUANTILE:
-        return SketchOperations.deserializeQuantileFromMemory(memory, type, comparator);
+        return ThetaOperations.deserializeQuantileFromMemory(memory, type, comparator);
       case FREQUENCY:
-        return SketchOperations.deserializeFrequencyFromMemory(memory, type);
+        return ThetaOperations.deserializeFrequencyFromMemory(memory, type);
       case SAMPLING:
-        return SketchOperations.deserializeSamplingFromMemory(memory, type);
+        return ThetaOperations.deserializeSamplingFromMemory(memory, type);
     }
     throw new UnsupportedOperationException("invalid type " + sketchOp);
   }
@@ -79,32 +78,33 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   public static TypedSketch of(final ValueDesc type, final Object value)
   {
     if (value instanceof Union) {
-      return of(type, (Union)value);
+      return of(type, (Union) value);
     }
     if (value instanceof Sketch) {
-      return of(type, (Sketch)value);
+      return of(type, (Sketch) value);
     }
     if (value instanceof ItemsUnion) {
-      return of(type, (ItemsUnion)value);
+      return of(type, (ItemsUnion) value);
     }
     if (value instanceof ItemsSketch) {
-      return of(type, (ItemsSketch)value);
+      return of(type, (ItemsSketch) value);
     }
     if (value instanceof com.yahoo.sketches.frequencies.ItemsSketch) {
-      return of(type, (com.yahoo.sketches.frequencies.ItemsSketch)value);
+      return of(type, (com.yahoo.sketches.frequencies.ItemsSketch) value);
     }
     if (value instanceof ReservoirItemsUnion) {
-      return of(type, (ReservoirItemsUnion)value);
+      return of(type, (ReservoirItemsUnion) value);
     }
     if (value instanceof ReservoirItemsSketch) {
-      return of(type, (ReservoirItemsSketch)value);
+      return of(type, (ReservoirItemsSketch) value);
     }
     throw new IllegalArgumentException("Not supported type.. " + value);
   }
 
   public static TypedSketch<Union> of(final ValueDesc type, final Union sketch)
   {
-    return new TypedSketch<Union>(type, sketch) {
+    return new TypedSketch<Union>(type, sketch)
+    {
 
       @Override
       public byte[] sketchToBytes()
@@ -116,7 +116,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static TypedSketch<Sketch> of(final ValueDesc type, final Sketch sketch)
   {
-    return new TypedSketch<Sketch>(type, sketch) {
+    return new TypedSketch<Sketch>(type, sketch)
+    {
 
       @Override
       public byte[] sketchToBytes()
@@ -128,7 +129,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static TypedSketch<ItemsUnion> of(final ValueDesc type, final ItemsUnion sketch)
   {
-    return new TypedSketch<ItemsUnion>(type, sketch) {
+    return new TypedSketch<ItemsUnion>(type, sketch)
+    {
 
       @Override
       @SuppressWarnings("unchecked")
@@ -141,7 +143,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static TypedSketch<ItemsSketch> of(final ValueDesc type, final ItemsSketch sketch)
   {
-    return new TypedSketch<ItemsSketch>(type, sketch) {
+    return new TypedSketch<ItemsSketch>(type, sketch)
+    {
 
       @Override
       @SuppressWarnings("unchecked")
@@ -156,7 +159,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
       final ValueDesc type, final com.yahoo.sketches.frequencies.ItemsSketch sketch
   )
   {
-    return new TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch>(type, sketch) {
+    return new TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch>(type, sketch)
+    {
 
       @Override
       @SuppressWarnings("unchecked")
@@ -169,7 +173,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static TypedSketch<ReservoirItemsUnion> of(final ValueDesc type, final ReservoirItemsUnion sketch)
   {
-    return new TypedSketch<ReservoirItemsUnion>(type, sketch) {
+    return new TypedSketch<ReservoirItemsUnion>(type, sketch)
+    {
 
       @Override
       @SuppressWarnings("unchecked")
@@ -182,7 +187,8 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static TypedSketch<ReservoirItemsSketch> of(final ValueDesc type, final ReservoirItemsSketch sketch)
   {
-    return new TypedSketch<ReservoirItemsSketch>(type, sketch) {
+    return new TypedSketch<ReservoirItemsSketch>(type, sketch)
+    {
 
       @Override
       @SuppressWarnings("unchecked")
@@ -253,13 +259,13 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     switch (type.type()) {
       case FLOAT:
-        return new byte[] {0x00};
+        return new byte[]{0x00};
       case DOUBLE:
-        return new byte[] {0x01};
+        return new byte[]{0x01};
       case LONG:
-        return new byte[] {0x02};
+        return new byte[]{0x02};
       case STRING:
-        return new byte[] {0x03};
+        return new byte[]{0x03};
       case COMPLEX:
         byte[] bytes = StringUtils.toUtf8(type.typeName());
         Preconditions.checkArgument(bytes.length < 0xFF);

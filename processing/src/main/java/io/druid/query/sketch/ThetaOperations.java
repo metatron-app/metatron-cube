@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches.theta;
+package io.druid.query.sketch;
 
 import com.google.common.base.Charsets;
 import com.yahoo.memory.Memory;
@@ -31,20 +31,17 @@ import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueDesc;
-import io.druid.query.sketch.TypedSketch;
 import org.apache.commons.codec.binary.Base64;
 
 import java.util.Comparator;
 
-public class SketchOperations
+public class ThetaOperations
 {
   public static final Sketch EMPTY_SKETCH = Sketches.updateSketchBuilder().build().compact(true, null);
 
-  public static enum Func
+  public enum Func
   {
-    UNION,
-    INTERSECT,
-    NOT
+    UNION, INTERSECT, NOT
   }
 
   public static byte[] asBytes(Object serialized)

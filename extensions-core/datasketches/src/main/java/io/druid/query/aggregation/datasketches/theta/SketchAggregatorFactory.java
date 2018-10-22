@@ -37,6 +37,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -105,7 +106,7 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    return SketchOperations.deserialize(object);
+    return ThetaOperations.deserialize(object);
   }
 
   @Override
