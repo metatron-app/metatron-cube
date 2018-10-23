@@ -51,10 +51,12 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
-import io.druid.segment.QueryableIndex;
+import io.druid.query.sketch.QuantileOperation;
 import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.column.Column;
+import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -142,39 +144,42 @@ public class GroupByQueryRunnerFactory
     if (dimensionSpecs.isEmpty()) {
       return null;
     }
-    QueryableIndexStorageAdapter adapter = null;
-    for (Segment segment : Lists.reverse(segments)) {
-      QueryableIndex index = segment.asQueryableIndex(false);
-      if (index != null) {
-        adapter = new QueryableIndexStorageAdapter(index, segment.getIdentifier());
-        break;
-      }
-    }
     int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
-
-    DimensionSpec dimensionSpec = dimensionSpecs.get(0);
-    if (adapter != null) {
-      Column column = adapter.getColumn(dimensionSpec.getDimension());
-      if (column != null && column.getCapabilities().isDictionaryEncoded()) {
-        int cardinality = column.getBitmapIndex().getCardinality();
-        numSplit = Math.max(numSplit, 1 + (cardinality >> 18));
-      }
-    }
     if (numSplit < 2) {
       return null;
     }
-    final Object[] values = Queries.makeColumnHistogramOn(
-        resolver,
-        segmentWalker,
-        mapper,
-        query.asTimeseriesQuery(),
-        dimensionSpec,
-        numSplit
-    );
-    if (values == null || values.length < 3) {
+
+    Object[] thresholds = null;
+    DimensionSpec dimensionSpec = dimensionSpecs.get(0);
+    QueryableIndexStorageAdapter adapter = Segments.findRecentQueryableIndex(segments);
+    if (adapter != null) {
+      Column column = adapter.getColumn(dimensionSpec.getDimension());
+      if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+        GenericIndexed<String> dictionary = column.getDictionary();
+        numSplit = Math.max(numSplit, 1 + (dictionary.size() >> 18));
+        if (numSplit < 2) {
+          return null;
+        }
+        if (dictionary.hasQuantile()) {
+          thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
+              dictionary.getQuantile(), QuantileOperation.slopedSpaced(numSplit + 1)
+          );
+        } else {
+          thresholds = Queries.makeColumnHistogramOn(
+              resolver,
+              segmentWalker,
+              mapper,
+              query.asTimeseriesQuery(),
+              dimensionSpec,
+              numSplit
+          );
+        }
+      }
+    }
+    if (thresholds == null || thresholds.length < 3) {
       return null;
     }
-    logger.info("split on values : %s", Arrays.toString(values));
+    logger.info("split %s on values : %s", dimensionSpec.getDimension(), Arrays.toString(thresholds));
 
     ValueDesc type = dimensionSpec.resolve(resolver.get());
     if (type.isDimension()) {
@@ -192,25 +197,25 @@ public class GroupByQueryRunnerFactory
 
     Direction direction = orderingSpec.getDirection();
     List<GroupByQuery> splits = Lists.newArrayList();
-    for (int i = 1; i < values.length; i++) {
+    for (int i = 1; i < thresholds.length; i++) {
       BoundDimFilter filter;
       if (i == 1) {
         filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.lt(dimension, values[i]) :
-                     BoundDimFilter.gte(dimension, values[i]);
-      } else if (i < values.length - 1) {
+                     BoundDimFilter.lt(dimension, thresholds[i]) :
+                     BoundDimFilter.gte(dimension, thresholds[i]);
+      } else if (i < thresholds.length - 1) {
         filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.between(dimension, values[i - 1], values[i]) :
-                     BoundDimFilter.between(dimension, values[i], values[i - 1]);
+                     BoundDimFilter.between(dimension, thresholds[i - 1], thresholds[i]) :
+                     BoundDimFilter.between(dimension, thresholds[i], thresholds[i - 1]);
       } else {
         filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.gte(dimension, values[i - 1]) :
-                     BoundDimFilter.lt(dimension, values[i - 1]);
+                     BoundDimFilter.gte(dimension, thresholds[i - 1]) :
+                     BoundDimFilter.lt(dimension, thresholds[i - 1]);
       }
       if (type.isStringOrDimension() && !orderingSpec.isNaturalOrdering()) {
         filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
       }
-      logger.info("--> filter : %s ", filter);
+      logger.debug("--> filter : %s ", filter);
       splits.add(
           query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );

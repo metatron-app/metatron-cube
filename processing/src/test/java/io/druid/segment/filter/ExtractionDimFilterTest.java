@@ -45,6 +45,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
 import org.junit.Assert;
@@ -131,7 +132,7 @@ public class ExtractionDimFilterTest
       return new BitmapIndexColumnPartSupplier(
           factory,
           GenericIndexed.fromIterable(Arrays.asList(foo1BitMap), serdeFactory.getObjectStrategy()),
-          GenericIndexed.fromIterable(Arrays.asList("foo1"), GenericIndexed.STRING_STRATEGY)
+          GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY)
       ).get();
     }
 

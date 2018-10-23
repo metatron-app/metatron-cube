@@ -59,7 +59,7 @@ public class BitSlicedBitmapTest
   public void testLong()
   {
     BitSlicer<Long> slicer = new BitSlicer.LongType(factory);
-    for (long v : new long[]{Long.MAX_VALUE, 20000l, 15000l, 18000l, 15000l, 25000l, 30000l, Long.MIN_VALUE + 10}) {
+    for (long v : new long[]{Long.MAX_VALUE, 20000L, 15000L, 18000L, 15000L, 25000L, 30000L, Long.MIN_VALUE + 10}) {
       slicer.add(v);
     }
     BitSlicedBitmap<Long> bitmap = slicer.build();
@@ -300,6 +300,7 @@ public class BitSlicedBitmapTest
   }
 
   @Test
+  @Ignore("deprecated")
   public void testFloatRanges()
   {
     final Random x = new Random();
@@ -433,6 +434,7 @@ public class BitSlicedBitmapTest
   }
 
   @Test
+  @Ignore("deprecated")
   public void testDoubleRanges()
   {
     final Random x = new Random();

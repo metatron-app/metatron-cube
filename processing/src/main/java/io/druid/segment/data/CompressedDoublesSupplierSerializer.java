@@ -19,24 +19,19 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedDoublesSupplierSerializer
+public class CompressedDoublesSupplierSerializer implements ColumnPartWriter<Double>
 {
   public static CompressedDoublesSupplierSerializer create(
       IOPeon ioPeon,
@@ -45,29 +40,23 @@ public class CompressedDoublesSupplierSerializer
       final CompressedObjectStrategy.CompressionStrategy compression
   ) throws IOException
   {
-    return create(ioPeon, filenameBase, CompressedDoublesIndexedSupplier.MAX_DOUBLES_IN_BUFFER, order, compression);
-  }
-
-  public static CompressedDoublesSupplierSerializer create(
-      IOPeon ioPeon,
-      final String filenameBase,
-      final int sizePer,
-      final ByteOrder order,
-      final CompressedObjectStrategy.CompressionStrategy compression
-  ) throws IOException
-  {
-    final CompressedDoublesSupplierSerializer retVal = new CompressedDoublesSupplierSerializer(
-        sizePer,
+    return new CompressedDoublesSupplierSerializer(
+        CompressedDoublesIndexedSupplier.MAX_DOUBLES_IN_BUFFER,
         new GenericIndexedWriter<ResourceHolder<DoubleBuffer>>(
-            ioPeon, filenameBase, CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)
+            ioPeon,
+            filenameBase,
+            CompressedDoubleBufferObjectStrategy.getBufferForOrder(
+                order,
+                compression,
+                CompressedDoublesIndexedSupplier.MAX_DOUBLES_IN_BUFFER
+            )
         ),
         compression
     );
-    return retVal;
   }
 
   private final int sizePer;
-  private final GenericIndexedWriter<ResourceHolder<DoubleBuffer>> flattener;
+  private final ColumnPartWriter<ResourceHolder<DoubleBuffer>> flattener;
   private final CompressedObjectStrategy.CompressionStrategy compression;
 
   private int numInserted = 0;
@@ -76,7 +65,7 @@ public class CompressedDoublesSupplierSerializer
 
   public CompressedDoublesSupplierSerializer(
       int sizePer,
-      GenericIndexedWriter<ResourceHolder<DoubleBuffer>> flattener,
+      ColumnPartWriter<ResourceHolder<DoubleBuffer>> flattener,
       CompressedObjectStrategy.CompressionStrategy compression
   )
   {
@@ -88,6 +77,7 @@ public class CompressedDoublesSupplierSerializer
     endBuffer.mark();
   }
 
+  @Override
   public void open() throws IOException
   {
     flattener.open();
@@ -98,11 +88,12 @@ public class CompressedDoublesSupplierSerializer
     return numInserted;
   }
 
+  @Override
   public void add(Double value) throws IOException
   {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
-      flattener.write(StupidResourceHolder.create(endBuffer));
+      flattener.add(StupidResourceHolder.create(endBuffer));
       endBuffer = DoubleBuffer.allocate(sizePer);
       endBuffer.mark();
     }
@@ -111,27 +102,17 @@ public class CompressedDoublesSupplierSerializer
     ++numInserted;
   }
 
-  public void closeAndConsolidate(OutputSupplier<? extends OutputStream> consolidatedOut) throws IOException
-  {
-    close();
-    try (OutputStream out = consolidatedOut.getOutput()) {
-      out.write(CompressedDoublesIndexedSupplier.version);
-      out.write(Ints.toByteArray(numInserted));
-      out.write(Ints.toByteArray(sizePer));
-      out.write(new byte[]{compression.getId()});
-      ByteStreams.copy(flattener.combineStreams(), out);
-    }
-  }
-
+  @Override
   public void close() throws IOException
   {
     endBuffer.limit(endBuffer.position());
     endBuffer.rewind();
-    flattener.write(StupidResourceHolder.create(endBuffer));
+    flattener.add(StupidResourceHolder.create(endBuffer));
     endBuffer = null;
     flattener.close();
   }
 
+  @Override
   public long getSerializedSize()
   {
     return 1 +              // version
@@ -141,13 +122,13 @@ public class CompressedDoublesSupplierSerializer
            flattener.getSerializedSize();
   }
 
+  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{CompressedDoublesIndexedSupplier.version}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    final ReadableByteChannel from = Channels.newChannel(flattener.combineStreams().getInput());
-    ByteStreams.copy(from, channel);
+    flattener.writeToChannel(channel);
   }
 }

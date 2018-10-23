@@ -21,6 +21,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
@@ -50,6 +51,7 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
 import java.io.BufferedReader;
@@ -109,6 +111,14 @@ public class IndexViewer implements CommonShell
 
   public void run(List<String> arguments) throws Exception
   {
+    DateTimeZone timeZone = null;
+    if (!GuavaUtils.isNullOrEmpty(arguments)) {
+      for (int i = 0; i < arguments.size() - 1; i++) {
+        if (arguments.get(i).equals("-z") || arguments.get(i).equals("--zone")) {
+          timeZone = JodaUtils.toTimeZone(arguments.get(++i));
+        }
+      }
+    }
     File baseDir = config.getInfoDir();
     if (!baseDir.exists() && !config.getInfoDir().mkdirs()) {
       return;
@@ -126,10 +136,14 @@ public class IndexViewer implements CommonShell
     // ds to indices
     Map<String, List<IndexMeta>> mapping2 = Maps.newHashMap();
     LOG.info("Total %d segments found in %s", segmentsToLoad.length, baseDir);
+    int fails = 0;
     for (File file : segmentsToLoad) {
       DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
-      IndexMeta index = find(locations, segment);
+      IndexMeta index = find(locations, segment, timeZone);
       if (index == null) {
+        if (fails++ > 100) {
+          throw new IllegalArgumentException("too many fails.. invalid timezone?");
+        }
         continue;
       }
       List<IndexMeta> indices = mapping2.get(segment.getDataSource());
@@ -160,9 +174,9 @@ public class IndexViewer implements CommonShell
     }
   }
 
-  private IndexMeta find(List<File> locations, DataSegment segment) throws IOException
+  private IndexMeta find(List<File> locations, DataSegment segment, DateTimeZone timeZone) throws IOException
   {
-    String storageDir = DataSegmentPusherUtil.getStorageDir(segment);
+    String storageDir = DataSegmentPusherUtil.getStorageDir(segment, timeZone);
     for (File location : locations) {
       File localStorageDir = new File(location, storageDir);
       if (localStorageDir.exists()) {
@@ -376,6 +390,12 @@ public class IndexViewer implements CommonShell
       );
       Map<String, Object> columnStats = column.getColumnStats();
       if (!GuavaUtils.isNullOrEmpty(columnStats)) {
+        for (Map.Entry<String, Object> entry : columnStats.entrySet()) {
+          String stat = Objects.toString(entry.getValue(), null);
+          if (stat != null && stat.length() > 16) {
+            entry.setValue(stat.substring(0, 12) + "...(abbreviated)");
+          }
+        }
         writer.println(format(", stats %s", columnStats));
       } else {
         writer.println();
@@ -385,12 +405,14 @@ public class IndexViewer implements CommonShell
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
+        ItemsSketch quantile = dictionary.getQuantile();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
+        String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
         builder.append(
             format(
-                "dictionary encoded (cardinality = %d, hasNull = %s, dictionary = %,d bytes, rows = %,d bytes)",
-                dictionary.size(), dictionary.indexOf(null) >= 0, dictionarySize, (encodedSize - dictionarySize)
+                "dictionary encoded (cardinality = %d, hasNull = %s, hasQuantile = %s, dictionary = %,d bytes, rows = %,d bytes)",
+                dictionary.size(), hasNull, quantile != null, dictionarySize, encodedSize - dictionarySize
             )
         );
         CloseQuietly.close(dictionaryEncoded);

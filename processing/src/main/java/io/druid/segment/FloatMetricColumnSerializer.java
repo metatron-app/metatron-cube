@@ -19,13 +19,16 @@
 
 package io.druid.segment;
 
-import com.google.common.io.Files;
+import io.druid.common.utils.SerializerUtils;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 
 /**
  */
@@ -71,9 +74,13 @@ public class FloatMetricColumnSerializer implements MetricColumnSerializer
   {
     final File outFile = IndexIO.makeMetricFile(outDir, metricName, IndexIO.BYTE_ORDER);
     outFile.delete();
-    MetricHolder.writeFloatMetric(
-        Files.newOutputStreamSupplier(outFile, true), metricName, writer
-    );
+    writer.close();
+    try (WritableByteChannel channel = new FileOutputStream(outFile, true).getChannel()) {
+      channel.write(ByteBuffer.wrap(MetricHolder.version));
+      SerializerUtils.writeString(channel, metricName);
+      SerializerUtils.writeString(channel, "float");
+      writer.writeToChannel(channel);
+    }
     IndexIO.checkFileSize(outFile);
 
     writer = null;

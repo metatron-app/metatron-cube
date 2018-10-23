@@ -19,15 +19,19 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.io.Files;
+import io.druid.common.utils.SerializerUtils;
 import io.druid.segment.IndexIO;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.MetricHolder;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 
 /**
  */
@@ -38,7 +42,7 @@ public class ComplexMetricColumnSerializer implements MetricColumnSerializer
   private final IOPeon ioPeon;
   private final File outDir;
 
-  private GenericIndexedWriter writer;
+  private ColumnPartWriter<Object> writer;
 
   public ComplexMetricColumnSerializer(
       String metricName,
@@ -67,7 +71,7 @@ public class ComplexMetricColumnSerializer implements MetricColumnSerializer
   @Override
   public void serialize(Object agg) throws IOException
   {
-    writer.write(agg);
+    writer.add(agg);
   }
 
   @Override
@@ -77,9 +81,13 @@ public class ComplexMetricColumnSerializer implements MetricColumnSerializer
 
     final File outFile = IndexIO.makeMetricFile(outDir, metricName, IndexIO.BYTE_ORDER);
     outFile.delete();
-    MetricHolder.writeComplexMetric(
-        Files.newOutputStreamSupplier(outFile, true), metricName, serde.getTypeName(), writer
-    );
+    writer.close();
+    try (WritableByteChannel channel = new FileOutputStream(outFile, true).getChannel()) {
+      channel.write(ByteBuffer.wrap(MetricHolder.version));
+      SerializerUtils.writeString(channel, metricName);
+      SerializerUtils.writeString(channel, serde.getTypeName());
+      writer.writeToChannel(channel);
+    }
     IndexIO.checkFileSize(outFile);
 
     writer = null;

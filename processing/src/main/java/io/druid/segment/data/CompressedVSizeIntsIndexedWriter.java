@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
@@ -28,8 +27,6 @@ import io.druid.segment.IndexIO;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 /**
@@ -58,7 +55,7 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
   private final int chunkBytes;
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
-  private final GenericIndexedWriter<ResourceHolder<ByteBuffer>> flattener;
+  private final ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener;
   private final ByteBuffer intBuffer;
   private ByteBuffer endBuffer;
   private int numInserted;
@@ -97,7 +94,7 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
   {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
-      flattener.write(StupidResourceHolder.create(endBuffer));
+      flattener.add(StupidResourceHolder.create(endBuffer));
       endBuffer = ByteBuffer.allocate(chunkBytes).order(byteOrder);
       endBuffer.limit(numBytes * chunkFactor);
     }
@@ -117,7 +114,7 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
       if (numInserted > 0) {
         endBuffer.limit(endBuffer.position());
         endBuffer.rewind();
-        flattener.write(StupidResourceHolder.create(endBuffer));
+        flattener.add(StupidResourceHolder.create(endBuffer));
       }
       endBuffer = null;
     }
@@ -144,7 +141,6 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    final ReadableByteChannel from = Channels.newChannel(flattener.combineStreams().getInput());
-    ByteStreams.copy(from, channel);
+    flattener.writeToChannel(channel);
   }
 }

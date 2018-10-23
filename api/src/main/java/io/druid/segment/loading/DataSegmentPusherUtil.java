@@ -21,6 +21,8 @@ package io.druid.segment.loading;
 
 import com.google.common.base.Joiner;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 import org.joda.time.format.ISODateTimeFormat;
 
 /**
@@ -29,18 +31,27 @@ public class DataSegmentPusherUtil
 {
   private static final Joiner JOINER = Joiner.on("/").skipNulls();
 
+  public static String getStorageDir(DataSegment segment)
+  {
+    return getStorageDir(segment, null);
+  }
+
   // Note: storage directory structure format = .../dataSource/interval/version/partitionNumber/
   // If above format is ever changed, make sure to change it appropriately in other places
   // e.g. HDFSDataSegmentKiller uses this information to clean the version, interval and dataSource directories
   // on segment deletion if segment being deleted was the only segment
-  public static String getStorageDir(DataSegment segment)
+  public static String getStorageDir(DataSegment segment, DateTimeZone timezone)
   {
+    Interval interval = segment.getInterval();
+    if (timezone != null) {
+      interval = interval.withChronology(interval.getChronology().withZone(timezone));
+    }
     return JOINER.join(
         segment.getDataSource(),
         String.format(
             "%s_%s",
-            segment.getInterval().getStart(),
-            segment.getInterval().getEnd()
+            interval.getStart(),
+            interval.getEnd()
         ),
         segment.getVersion(),
         segment.getShardSpec().getPartitionNum()

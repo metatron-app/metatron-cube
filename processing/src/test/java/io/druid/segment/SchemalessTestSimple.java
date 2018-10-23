@@ -83,12 +83,12 @@ public class SchemalessTestSimple
             },
             {
                 new QueryableIndexSegment(
-                    null, persistedIncrementalIndex
+                    "test", persistedIncrementalIndex
                 )
             },
             {
                 new QueryableIndexSegment(
-                    null, mergedIncrementalIndex
+                    "test", mergedIncrementalIndex
                 )
             }
         }

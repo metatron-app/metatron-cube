@@ -66,6 +66,7 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
@@ -108,7 +109,6 @@ public class IndexIO
   private final Map<Integer, IndexLoader> indexLoaders;
 
   private static final EmittingLogger log = new EmittingLogger(IndexIO.class);
-  private static final SerializerUtils serializerUtils = new SerializerUtils();
 
   private final ObjectMapper mapper;
   private final DefaultIndexIOHandler defaultIndexIOHandler;
@@ -448,12 +448,12 @@ public class IndexIO
 
       indexBuffer.get(); // Skip the version byte
       final GenericIndexed<String> availableDimensions = GenericIndexed.read(
-          indexBuffer, GenericIndexed.STRING_STRATEGY
+          indexBuffer, ObjectStrategy.STRING_STRATEGY
       );
       final GenericIndexed<String> availableMetrics = GenericIndexed.read(
-          indexBuffer, GenericIndexed.STRING_STRATEGY
+          indexBuffer, ObjectStrategy.STRING_STRATEGY
       );
-      final Interval dataInterval = new Interval(serializerUtils.readString(indexBuffer));
+      final Interval dataInterval = new Interval(SerializerUtils.readString(indexBuffer));
       final BitmapSerdeFactory bitmapSerdeFactory = new BitmapSerde.LegacyBitmapSerdeFactory();
 
       CompressedLongsIndexedSupplier timestamps = CompressedLongsIndexedSupplier.fromByteBuffer(
@@ -477,7 +477,7 @@ public class IndexIO
 
       for (String dimension : IndexedIterable.create(availableDimensions)) {
         ByteBuffer dimBuffer = smooshedFiles.mapFile(makeDimFile(inDir, dimension).getName());
-        String fileDimensionName = serializerUtils.readString(dimBuffer);
+        String fileDimensionName = SerializerUtils.readString(dimBuffer);
         Preconditions.checkState(
             dimension.equals(fileDimensionName),
             "Dimension file[%s] has dimension[%s] in it!?",
@@ -485,14 +485,14 @@ public class IndexIO
             fileDimensionName
         );
 
-        dimValueLookups.put(dimension, GenericIndexed.read(dimBuffer, GenericIndexed.STRING_STRATEGY));
+        dimValueLookups.put(dimension, GenericIndexed.read(dimBuffer, ObjectStrategy.STRING_STRATEGY));
         dimColumns.put(dimension, VSizeIndexed.readFromByteBuffer(dimBuffer));
       }
 
       ByteBuffer invertedBuffer = smooshedFiles.mapFile("inverted.drd");
       for (int i = 0; i < availableDimensions.size(); ++i) {
         bitmaps.put(
-            serializerUtils.readString(invertedBuffer),
+            SerializerUtils.readString(invertedBuffer),
             GenericIndexed.read(invertedBuffer, bitmapSerdeFactory.getObjectStrategy())
         );
       }
@@ -501,7 +501,7 @@ public class IndexIO
       ByteBuffer spatialBuffer = smooshedFiles.mapFile("spatial.drd");
       while (spatialBuffer != null && spatialBuffer.hasRemaining()) {
         spatialIndexed.put(
-            serializerUtils.readString(spatialBuffer),
+            SerializerUtils.readString(spatialBuffer),
             ByteBufferSerializer.read(
                 spatialBuffer,
                 new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory())
@@ -556,7 +556,7 @@ public class IndexIO
       BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
 
       while (invertedBuffer.hasRemaining()) {
-        final String dimName = serializerUtils.readString(invertedBuffer);
+        final String dimName = SerializerUtils.readString(invertedBuffer);
         bitmapIndexes.put(
             dimName,
             GenericIndexed.read(invertedBuffer, bitmapSerdeFactory.getObjectStrategy())
@@ -567,7 +567,7 @@ public class IndexIO
       final ByteBuffer spatialBuffer = v8SmooshedFiles.mapFile("spatial.drd");
       while (spatialBuffer != null && spatialBuffer.hasRemaining()) {
         spatialIndexes.put(
-            serializerUtils.readString(spatialBuffer),
+            SerializerUtils.readString(spatialBuffer),
             ByteBufferSerializer.read(
                 spatialBuffer, new IndexedRTree.ImmutableRTreeObjectStrategy(
                     bitmapSerdeFactory.getBitmapFactory()
@@ -587,17 +587,17 @@ public class IndexIO
           final List<ByteBuffer> outParts = Lists.newArrayList();
 
           ByteBuffer dimBuffer = v8SmooshedFiles.mapFile(filename);
-          String dimension = serializerUtils.readString(dimBuffer);
+          String dimension = SerializerUtils.readString(dimBuffer);
           if (!filename.equals(String.format("dim_%s.drd", dimension))) {
             throw new ISE("loaded dimension[%s] from file[%s]", dimension, filename);
           }
 
           ByteArrayOutputStream nameBAOS = new ByteArrayOutputStream();
-          serializerUtils.writeString(nameBAOS, dimension);
+          SerializerUtils.writeString(nameBAOS, dimension);
           outParts.add(ByteBuffer.wrap(nameBAOS.toByteArray()));
 
           GenericIndexed<String> dictionary = GenericIndexed.read(
-              dimBuffer, GenericIndexed.STRING_STRATEGY
+              dimBuffer, ObjectStrategy.STRING_STRATEGY
           );
 
           if (dictionary.size() == 0) {
@@ -646,7 +646,7 @@ public class IndexIO
 
                 dictionary = GenericIndexed.fromIterable(
                     Iterables.concat(nullList, dictionary),
-                    GenericIndexed.STRING_STRATEGY
+                    ObjectStrategy.STRING_STRATEGY
                 );
 
                 bitmaps = GenericIndexed.fromIterable(
@@ -811,7 +811,7 @@ public class IndexIO
 
       indexBuffer.get(); // Skip the version byte
       final GenericIndexed<String> dims8 = GenericIndexed.read(
-          indexBuffer, GenericIndexed.STRING_STRATEGY
+          indexBuffer, ObjectStrategy.STRING_STRATEGY
       );
       final GenericIndexed<String> dims9 = GenericIndexed.fromIterable(
           Iterables.filter(
@@ -824,32 +824,32 @@ public class IndexIO
                 }
               }
           ),
-          GenericIndexed.STRING_STRATEGY
+          ObjectStrategy.STRING_STRATEGY
       );
       final GenericIndexed<String> availableMetrics = GenericIndexed.read(
-          indexBuffer, GenericIndexed.STRING_STRATEGY
+          indexBuffer, ObjectStrategy.STRING_STRATEGY
       );
-      final Interval dataInterval = new Interval(serializerUtils.readString(indexBuffer));
+      final Interval dataInterval = new Interval(SerializerUtils.readString(indexBuffer));
       final BitmapSerdeFactory segmentBitmapSerdeFactory = mapper.readValue(
-          serializerUtils.readString(indexBuffer),
+          SerializerUtils.readString(indexBuffer),
           BitmapSerdeFactory.class
       );
 
       Set<String> columns = Sets.newTreeSet();
       columns.addAll(Lists.newArrayList(dims9));
       columns.addAll(Lists.newArrayList(availableMetrics));
-      GenericIndexed<String> cols = GenericIndexed.fromIterable(columns, GenericIndexed.STRING_STRATEGY);
+      GenericIndexed<String> cols = GenericIndexed.fromIterable(columns, ObjectStrategy.STRING_STRATEGY);
 
       final String segmentBitmapSerdeFactoryString = mapper.writeValueAsString(segmentBitmapSerdeFactory);
 
       final long numBytes = cols.getSerializedSize() + dims9.getSerializedSize() + 16
-                            + serializerUtils.getSerializedStringByteSize(segmentBitmapSerdeFactoryString);
+                            + SerializerUtils.getSerializedStringByteSize(segmentBitmapSerdeFactoryString);
       final SmooshedWriter writer = v9Smoosher.addWithSmooshedWriter("index.drd", numBytes);
       cols.writeToChannel(writer);
       dims9.writeToChannel(writer);
-      serializerUtils.writeLong(writer, dataInterval.getStartMillis());
-      serializerUtils.writeLong(writer, dataInterval.getEndMillis());
-      serializerUtils.writeString(writer, segmentBitmapSerdeFactoryString);
+      SerializerUtils.writeLong(writer, dataInterval.getStartMillis());
+      SerializerUtils.writeLong(writer, dataInterval.getEndMillis());
+      SerializerUtils.writeString(writer, segmentBitmapSerdeFactoryString);
       writer.close();
 
       final ByteBuffer metadataBuffer = v8SmooshedFiles.mapFile("metadata.drd");
@@ -871,7 +871,7 @@ public class IndexIO
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       String descriptor = mapper.writeValueAsString(serdeficator);
       log.debug("> %s : %s", columnName, descriptor);
-      serializerUtils.writeString(baos, descriptor);
+      SerializerUtils.writeString(baos, descriptor);
       byte[] specBytes = baos.toByteArray();
 
       final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
@@ -1022,8 +1022,8 @@ public class IndexIO
        * Index.drd should consist of the segment version, the columns and dimensions of the segment as generic
        * indexes, the interval start and end millis as longs (in 16 bytes), and a bitmap index type.
        */
-      final GenericIndexed<String> cols = GenericIndexed.read(indexBuffer, GenericIndexed.STRING_STRATEGY);
-      final GenericIndexed<String> dims = GenericIndexed.read(indexBuffer, GenericIndexed.STRING_STRATEGY);
+      final GenericIndexed<String> cols = GenericIndexed.read(indexBuffer, ObjectStrategy.STRING_STRATEGY);
+      final GenericIndexed<String> dims = GenericIndexed.read(indexBuffer, ObjectStrategy.STRING_STRATEGY);
       final Interval dataInterval = new Interval(indexBuffer.getLong(), indexBuffer.getLong());
       final BitmapSerdeFactory serdeFactory;
 
@@ -1033,7 +1033,7 @@ public class IndexIO
        * this information is appended to the end of index.drd.
        */
       if (indexBuffer.hasRemaining()) {
-        serdeFactory = mapper.readValue(serializerUtils.readString(indexBuffer), BitmapSerdeFactory.class);
+        serdeFactory = mapper.readValue(SerializerUtils.readString(indexBuffer), BitmapSerdeFactory.class);
       } else {
         serdeFactory = new BitmapSerde.LegacyBitmapSerdeFactory();
       }
@@ -1043,7 +1043,7 @@ public class IndexIO
       if (metadataBB != null) {
         try {
           metadata = mapper.readValue(
-              serializerUtils.readBytes(metadataBB, metadataBB.remaining()),
+              SerializerUtils.readBytes(metadataBB, metadataBB.remaining()),
               Metadata.class
           );
         }
@@ -1085,7 +1085,7 @@ public class IndexIO
         throws IOException
     {
       ColumnDescriptor serde = mapper.readValue(
-          serializerUtils.readString(byteBuffer), ColumnDescriptor.class
+          SerializerUtils.readString(byteBuffer), ColumnDescriptor.class
       );
       return serde.read(byteBuffer, serdeFactory);
     }

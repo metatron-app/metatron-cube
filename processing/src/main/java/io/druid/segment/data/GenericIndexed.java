@@ -22,8 +22,11 @@ package io.druid.segment.data;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
-import io.druid.common.guava.GuavaUtils;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.query.sketch.SketchOp;
+import io.druid.query.sketch.TypedSketch;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
@@ -50,7 +53,16 @@ import java.util.Map;
  */
 public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, ColumnPartSerde.Serializer
 {
-  private static final byte version = 0x1;
+  static final byte version = 0x1;
+
+  enum Feature
+  {
+    SORTED, QUANTILE_SKETCH;
+
+    public boolean isSet(int flags) { return (getMask() & flags) != 0; }
+
+    public int getMask() { return (1 << ordinal()); }
+  }
 
   public static <T> GenericIndexed<T> fromArray(T[] objects, ObjectStrategy<T> strategy)
   {
@@ -63,10 +75,10 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (!objects.hasNext()) {
       final ByteBuffer buffer = ByteBuffer.allocate(4).putInt(0);
       buffer.flip();
-      return new GenericIndexed<T>(buffer, strategy, true);
+      return new GenericIndexed<T>(buffer, null, strategy, true);
     }
 
-    boolean allowReverseLookup = !(strategy instanceof ObjectStrategy.NotComparable);
+    boolean sorted = !(strategy instanceof ObjectStrategy.NotComparable);
     int count = 0;
 
     ByteArrayOutputStream headerBytes = new ByteArrayOutputStream();
@@ -77,8 +89,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       do {
         count++;
         T next = objects.next();
-        if (allowReverseLookup && prevVal != null && !(strategy.compare(prevVal, next) < 0)) {
-          allowReverseLookup = false;
+        if (sorted && prevVal != null && !(strategy.compare(prevVal, next) < 0)) {
+          sorted = false;
         }
 
         final byte[] bytes = strategy.toBytes(next);
@@ -107,7 +119,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     theBuffer.put(valueBytes.toByteArray());
     theBuffer.flip();
 
-    return new GenericIndexed<T>(theBuffer.asReadOnlyBuffer(), strategy, allowReverseLookup);
+    return new GenericIndexed<T>(null, theBuffer.asReadOnlyBuffer(), strategy, sorted);
   }
 
   @Override
@@ -126,7 +138,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   public void collect(Collector<T> collector)
   {
     final ByteBuffer buffer = bufferAsReadOnly();
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < count; i++) {
       collector.collect(i, loadValue(buffer, i));
     }
   }
@@ -165,48 +177,53 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   public int totalLengthOfWords()
   {
-    return theBuffer.getInt(indexOffset + (size - 1) * 4) - size * 4;
+    return theBuffer.getInt(indexOffset + (count - 1) * 4) - count * 4;
   }
 
   final ByteBuffer theBuffer;
+  final ByteBuffer quantile;
   final ObjectStrategy<T> strategy;
   final boolean allowReverseLookup;
 
-  final int size;
+  final int count;
   final int indexOffset;
   final int valuesOffset;
   final BufferIndexed bufferIndexed;
 
   GenericIndexed(
+      ByteBuffer quantile,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup
   )
   {
+    this.quantile = quantile;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
 
-    size = theBuffer.getInt();
+    count = theBuffer.getInt();
     indexOffset = theBuffer.position();
-    valuesOffset = theBuffer.position() + (size << 2);
+    valuesOffset = theBuffer.position() + (count << 2);
     bufferIndexed = new BufferIndexed();
   }
 
   GenericIndexed(
+      ByteBuffer quantile,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup,
-      int size,
+      int count,
       int indexOffset,
       int valuesOffset,
       BufferIndexed bufferIndexed
   )
   {
+    this.quantile = quantile;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
-    this.size = size;
+    this.count = count;
     this.indexOffset = indexOffset;
     this.valuesOffset = valuesOffset;
     this.bufferIndexed = bufferIndexed;
@@ -224,10 +241,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       }
     };
     return new GenericIndexed<T>(
+        quantile,
         copyBuffer,
         strategy,
         allowReverseLookup,
-        size,
+        count,
         indexOffset,
         valuesOffset,
         bufferIndexed
@@ -268,7 +286,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     @Override
     public int size()
     {
-      return size;
+      return count;
     }
 
     protected ByteBuffer reader()
@@ -282,8 +300,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       if (index < 0) {
         throw new IAE("Index[%s] < 0", index);
       }
-      if (index >= size) {
-        throw new IAE(String.format("Index[%s] >= size[%s]", index, size));
+      if (index >= count) {
+        throw new IAE(String.format("Index[%s] >= size[%s]", index, count));
       }
 
       return loadValue(copyBuffer, index);
@@ -347,7 +365,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       value = (value != null && value.equals("")) ? null : value;
 
       int minIndex = 0;
-      int maxIndex = size - 1;
+      int maxIndex = count - 1;
       while (minIndex <= maxIndex) {
         int currIndex = (minIndex + maxIndex) >>> 1;
 
@@ -374,16 +392,37 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     }
   }
 
+  @Override
   public long getSerializedSize()
   {
-    return theBuffer.remaining() + 2 + 4 + 4;
+    long length = 0;
+    length += Byte.BYTES; // version
+    length += Byte.BYTES; // flag
+    if (quantile != null) {
+      length += Ints.BYTES + quantile.remaining();  // length + binary
+    }
+    length += Ints.BYTES + theBuffer.remaining();   // length + binary
+    length += Ints.BYTES; // count
+    return length;
   }
 
+  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version, allowReverseLookup ? (byte) 0x1 : (byte) 0x0}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
+    byte flag = 0;
+    if (allowReverseLookup) {
+      flag |= Feature.SORTED.getMask();
+    }
+    if (quantile != null) {
+      flag |= Feature.QUANTILE_SKETCH.getMask();
+    }
+    channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
+    if (quantile != null) {
+      channel.write(ByteBuffer.wrap(Ints.toByteArray(quantile.remaining())));
+      channel.write(quantile.asReadOnlyBuffer());
+    }
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + Ints.BYTES)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
     channel.write(theBuffer.asReadOnlyBuffer());
   }
 
@@ -391,6 +430,22 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   public Map<String, Object> getSerializeStats()
   {
     return null;
+  }
+
+  public boolean isSorted()
+  {
+    return allowReverseLookup;
+  }
+
+  public boolean hasQuantile()
+  {
+    return quantile != null;
+  }
+
+  public ItemsSketch getQuantile()
+  {
+    // todo handle ValueDesc
+    return quantile == null ? null : (ItemsSketch) TypedSketch.readPart(quantile, SketchOp.QUANTILE, ValueDesc.STRING);
   }
 
   /**
@@ -411,87 +466,21 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     };
   }
 
-  @SuppressWarnings("unchecked")
-  public static <T> GenericIndexed<T> read(
-      ByteBuffer buffer,
-      ObjectStrategy<T> strategy
-  )
+  public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy)
   {
-    byte versionFromBuffer = buffer.get();
-
-    if (version == versionFromBuffer) {
-      boolean allowReverseLookup = buffer.get() == 0x1;
-      int size = buffer.getInt();
-      ByteBuffer bufferToUse = buffer.asReadOnlyBuffer();
-      bufferToUse.limit(bufferToUse.position() + size);
-      buffer.position(bufferToUse.limit());
-      return new GenericIndexed<T>(
-          bufferToUse,
-          strategy,
-          allowReverseLookup
-      );
+    final byte versionFromBuffer = buffer.get();
+    if (version != versionFromBuffer) {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
 
-    throw new IAE("Unknown version[%s]", versionFromBuffer);
+    byte flag = buffer.get();
+    boolean sorted = Feature.SORTED.isSet(flag);
+    boolean hasQuantileSketch = Feature.QUANTILE_SKETCH.isSet(flag);
+    ByteBuffer quantile = null;
+    if (hasQuantileSketch) {
+      quantile = ByteBufferSerializer.prepareForRead(buffer);
+    }
+    ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
+    return new GenericIndexed<T>(quantile, dictionary, strategy, sorted);
   }
-
-  public static final ObjectStrategy<String> STRING_STRATEGY = new CacheableObjectStrategy<String>()
-  {
-    @Override
-    public Class<? extends String> getClazz()
-    {
-      return String.class;
-    }
-
-    @Override
-    public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
-    {
-      return StringUtils.fromUtf8(buffer, numBytes);
-    }
-
-    @Override
-    public byte[] toBytes(String val)
-    {
-      if (val == null) {
-        return new byte[]{};
-      }
-      return StringUtils.toUtf8(val);
-    }
-
-    @Override
-    public int compare(String o1, String o2)
-    {
-      return GuavaUtils.nullFirstNatural().compare(o1, o2);
-    }
-  };
-
-  public static final ObjectStrategy<String> STRING_WITH_INTERN_STRATEGY = new CacheableObjectStrategy<String>()
-  {
-    @Override
-    public Class<? extends String> getClazz()
-    {
-      return String.class;
-    }
-
-    @Override
-    public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
-    {
-      return StringUtils.fromUtf8(buffer, numBytes).intern();
-    }
-
-    @Override
-    public byte[] toBytes(String val)
-    {
-      if (val == null) {
-        return new byte[]{};
-      }
-      return StringUtils.toUtf8(val);
-    }
-
-    @Override
-    public int compare(String o1, String o2)
-    {
-      return GuavaUtils.nullFirstNatural().compare(o1, o2);
-    }
-  };
 }

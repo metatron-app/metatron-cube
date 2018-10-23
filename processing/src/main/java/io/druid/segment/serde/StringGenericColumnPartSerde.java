@@ -24,6 +24,7 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.ObjectStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -63,7 +64,7 @@ public class StringGenericColumnPartSerde implements ColumnPartSerde
           BitmapSerdeFactory serdeFactory
       ) throws IOException
       {
-        final GenericIndexed<String> indexed = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);
+        final GenericIndexed<String> indexed = GenericIndexed.read(buffer, ObjectStrategy.STRING_STRATEGY);
         builder.setType(ValueDesc.STRING)
                .setHasMultipleValues(false)
                .setGenericColumn(new StringColumnPartSupplier(indexed));

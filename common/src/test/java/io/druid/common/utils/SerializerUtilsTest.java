@@ -28,14 +28,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 
 public class SerializerUtilsTest
 {
-  private SerializerUtils serializerUtils;
   private  final float delta = 0;
   private  final String [] strings = {"1#","2","3"};
   private  final int [] ints = {1,2,3};
@@ -89,55 +87,7 @@ public class SerializerUtilsTest
     out.close();
     longsByte = bos.toByteArray();
     bos.close();
-    serializerUtils = new SerializerUtils();
     outStream = new ByteArrayOutputStream();
-  }
-
-  @Test
-  public void testWriteInts() throws IOException
-  {
-    serializerUtils.writeInts(outStream, ints);
-    byte [] actuals = outStream.toByteArray();
-    Assert.assertArrayEquals(intsByte, actuals);
-  }
-
-  @Test
-  public void testWriteFloats() throws IOException
-  {
-    serializerUtils.writeFloats(outStream, floats);
-    byte [] actuals = outStream.toByteArray();
-    Assert.assertArrayEquals(floatsByte, actuals);
-  }
-
-  @Test
-  public void testChannelWritefloat() throws IOException
-  {
-    final int index = 0; 
-    WritableByteChannel channelOutput = Channels.newChannel(outStream);
-    serializerUtils.writeFloat(channelOutput, floats[index]);
-    ByteArrayInputStream inputstream = new ByteArrayInputStream(outStream.toByteArray());
-    if (channelOutput != null) {
-      channelOutput.close();
-    }
-    float expected = serializerUtils.readFloat(inputstream);
-    float actuals = floats[index];
-    Assert.assertEquals(expected, actuals,delta);
-  }
-
-  @Test
-  public void testWriteLongs() throws IOException
-  {
-    serializerUtils.writeLongs(outStream, longs);
-    byte [] actuals = outStream.toByteArray();
-    Assert.assertArrayEquals(longsByte,actuals);
-  }
-
-  @Test
-  public void testWriteStrings() throws IOException
-  {
-    serializerUtils.writeStrings(outStream, strings);
-    byte [] actuals = outStream.toByteArray();
-    Assert.assertArrayEquals(stringsByte,actuals);
   }
 
   @Test
@@ -145,49 +95,13 @@ public class SerializerUtilsTest
   {
     final int index = 0;
     WritableByteChannel channelOutput = Channels.newChannel(outStream);
-    serializerUtils.writeLong(channelOutput, longs[index]);
+    SerializerUtils.writeLong(channelOutput, longs[index]);
     ByteArrayInputStream inputstream = new ByteArrayInputStream(outStream.toByteArray());
     channelOutput.close();
     inputstream.close();
-    long expected = serializerUtils.readLong(inputstream);
+    long expected = SerializerUtils.readLong(inputstream);
     long actuals = longs[index];
     Assert.assertEquals(expected, actuals);
-  }
-
-  @Test
-  public void testReadInts() throws IOException
-  {
-    ByteArrayInputStream inputstream = new ByteArrayInputStream(intsByte);
-    int [] actuals = serializerUtils.readInts(inputstream);
-    inputstream.close();
-    Assert.assertArrayEquals(ints, actuals);
-  }
-
-  @Test
-  public void testReadFloats() throws IOException
-  {
-    ByteArrayInputStream inputstream = new ByteArrayInputStream(floatsByte);
-    float [] actuals = serializerUtils.readFloats(inputstream);
-    inputstream.close();
-    Assert.assertArrayEquals(floats, actuals, delta);
-  }
-
-  @Test
-  public void testReadLongs() throws IOException
-  {
-    ByteArrayInputStream inputstream = new ByteArrayInputStream(longsByte);
-    long  [] actuals = serializerUtils.readLongs(inputstream);
-    inputstream.close();
-    Assert.assertArrayEquals(longs, actuals);
-  }
-
-  @Test 
-  public void testReadStrings()throws IOException
-  {
-    ByteArrayInputStream inputstream = new ByteArrayInputStream(stringsByte);
-    String  [] actuals = serializerUtils.readStrings(inputstream);
-    inputstream.close();
-    Assert.assertArrayEquals(strings, actuals);
   }
 
   @Test
@@ -195,29 +109,18 @@ public class SerializerUtilsTest
   {
     final int index = 0; 
     WritableByteChannel channelOutput = Channels.newChannel(outStream);
-    serializerUtils.writeString(channelOutput, strings[index]);
+    SerializerUtils.writeString(channelOutput, strings[index]);
     ByteArrayInputStream inputstream = new ByteArrayInputStream(outStream.toByteArray());
     channelOutput.close();
     inputstream.close();
-    String expected = serializerUtils.readString(inputstream);
+    String expected = SerializerUtils.readString(inputstream);
     String actuals = strings[index];
     Assert.assertEquals(expected, actuals);
-  }
-
-  @Test 
-  public void testByteBufferReadStrings() throws IOException
-  {
-    ByteBuffer buffer = ByteBuffer.allocate(stringsByte.length);
-    buffer.put(stringsByte);
-    buffer.flip();
-    String  [] actuals = serializerUtils.readStrings(buffer);
-    Assert.assertArrayEquals(strings, actuals);
   }
 
   @After
   public void tearDown() throws IOException
   {
-    serializerUtils = null;
     outStream.close();
   }
 }

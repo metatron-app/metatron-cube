@@ -23,13 +23,15 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
-public interface IndexedIntsWriter extends Closeable
+public interface ColumnPartWriter<T> extends Closeable
 {
-  public void open() throws IOException;
+  void open() throws IOException;
 
-  public void add(Object obj) throws IOException;
+  void add(T obj) throws IOException;
 
-  public long getSerializedSize();
+  void close() throws IOException;
 
-  public void writeToChannel(WritableByteChannel channel) throws IOException;
+  long getSerializedSize();
+
+  void writeToChannel(WritableByteChannel channel) throws IOException;
 }

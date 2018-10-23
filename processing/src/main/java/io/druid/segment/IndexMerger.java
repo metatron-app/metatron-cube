@@ -33,7 +33,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
@@ -68,6 +67,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.GenericIndexed;
@@ -78,6 +78,7 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIndexedWriter;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -97,7 +98,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -114,8 +117,7 @@ public class IndexMerger
 {
   private static final Logger log = new Logger(IndexMerger.class);
 
-  protected static final ListIndexed EMPTY_STR_DIM_VAL = new ListIndexed<>(Arrays.asList(""), String.class);
-  protected static final SerializerUtils serializerUtils = new SerializerUtils();
+  protected static final ListIndexed<String> EMPTY_STR_DIM_VAL = new ListIndexed<>(Arrays.asList(""), String.class);
   protected static final int INVALID_ROW = -1;
   protected static final Splitter SPLITTER = Splitter.on(",");
 
@@ -701,8 +703,8 @@ public class IndexMerger
            FileChannel channel = fileOutputStream.getChannel()) {
         channel.write(ByteBuffer.wrap(new byte[]{IndexIO.V8_VERSION}));
 
-        GenericIndexed.fromIterable(mergedDimensions, GenericIndexed.STRING_STRATEGY).writeToChannel(channel);
-        GenericIndexed.fromIterable(mergedMetrics, GenericIndexed.STRING_STRATEGY).writeToChannel(channel);
+        GenericIndexed.fromIterable(mergedDimensions, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
+        GenericIndexed.fromIterable(mergedMetrics, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
 
         DateTime minTime = new DateTime(JodaUtils.MAX_INSTANT);
         DateTime maxTime = new DateTime(JodaUtils.MIN_INSTANT);
@@ -713,8 +715,8 @@ public class IndexMerger
         }
 
         dataInterval = new Interval(minTime, maxTime);
-        serializerUtils.writeString(channel, String.format("%s/%s", minTime, maxTime));
-        serializerUtils.writeString(channel, mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory()));
+        SerializerUtils.writeString(channel, String.format("%s/%s", minTime, maxTime));
+        SerializerUtils.writeString(channel, mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory()));
       }
       IndexIO.checkFileSize(indexFile);
       log.info("outDir[%s] completed index.drd in %,d millis.", v8OutDir, System.currentTimeMillis() - startTime);
@@ -737,9 +739,7 @@ public class IndexMerger
       for (String dimension : mergedDimensions) {
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
-        final GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(
-            ioPeon, dimension, GenericIndexed.STRING_STRATEGY
-        );
+        ColumnPartWriter<String> writer = GenericIndexedWriter.dimWriter(ioPeon, dimension, false);
         writer.open();
 
         boolean dimHasNull = false;
@@ -782,7 +782,7 @@ public class IndexMerger
           DictionaryMergeIterator iterator = new DictionaryMergeIterator(dimValueLookups, true);
 
           while (iterator.hasNext()) {
-            writer.write(iterator.next());
+            writer.add(iterator.next());
           }
 
           for (int i = 0; i < indexes.size(); i++) {
@@ -793,7 +793,7 @@ public class IndexMerger
           cardinality = iterator.counter;
         } else if (numMergeIndex == 1) {
           for (String value : dimValueLookup) {
-            writer.write(value);
+            writer.add(value);
           }
           cardinality = dimValueLookup.size();
         }
@@ -807,8 +807,10 @@ public class IndexMerger
         dimOuts.add(dimOut);
 
         writer.close();
-        serializerUtils.writeString(dimOut, dimension);
-        ByteStreams.copy(writer.combineStreams(), dimOut);
+        try (WritableByteChannel channel = Channels.newChannel(dimOut.getOutput())) {
+          SerializerUtils.writeString(channel, dimension);
+          writer.writeToChannel(channel);
+        }
 
         ioPeon.cleanup();
       }
@@ -915,15 +917,20 @@ public class IndexMerger
         }
       }
 
-      final File timeFile = IndexIO.makeTimeFile(v8OutDir, IndexIO.BYTE_ORDER);
+      File timeFile = IndexIO.makeTimeFile(v8OutDir, IndexIO.BYTE_ORDER);
       timeFile.delete();
-      OutputSupplier<FileOutputStream> out = Files.newOutputStreamSupplier(timeFile, true);
-      timeWriter.closeAndConsolidate(out);
+      timeWriter.close();
+      try (WritableByteChannel channel = new FileOutputStream(timeFile, true).getChannel()) {
+        timeWriter.writeToChannel(channel);
+      }
       IndexIO.checkFileSize(timeFile);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
-        forwardDimWriters.get(i).close();
-        ByteStreams.copy(forwardDimWriters.get(i).combineStreams(), dimOuts.get(i));
+        VSizeIndexedWriter writer = forwardDimWriters.get(i);
+        writer.close();
+        try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).getOutput())) {
+          writer.writeToChannel(channel);
+        }
       }
 
       for (MetricColumnSerializer metWriter : metWriters) {
@@ -943,7 +950,7 @@ public class IndexMerger
 
       final File invertedFile = new File(v8OutDir, "inverted.drd");
       Files.touch(invertedFile);
-      out = Files.newOutputStreamSupplier(invertedFile, true);
+      OutputSupplier<FileOutputStream> invertedOut = Files.newOutputStreamSupplier(invertedFile, true);
 
       final File geoFile = new File(v8OutDir, "spatial.drd");
       Files.touch(geoFile);
@@ -956,14 +963,14 @@ public class IndexMerger
         File dimOutFile = dimOuts.get(i).getFile();
         final MappedByteBuffer dimValsMapped = Files.map(dimOutFile);
 
-        if (!dimension.equals(serializerUtils.readString(dimValsMapped))) {
+        if (!dimension.equals(SerializerUtils.readString(dimValsMapped))) {
           throw new ISE("dimensions[%s] didn't equate!?  This is a major WTF moment.", dimension);
         }
-        Indexed<String> dimVals = GenericIndexed.read(dimValsMapped, GenericIndexed.STRING_STRATEGY);
+        Indexed<String> dimVals = GenericIndexed.read(dimValsMapped, ObjectStrategy.STRING_STRATEGY);
         log.info("Starting dimension[%s] with cardinality[%,d]", dimension, dimVals.size());
 
         final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
-        GenericIndexedWriter<ImmutableBitmap> writer = new GenericIndexedWriter<>(
+        ColumnPartWriter<ImmutableBitmap> writer = new GenericIndexedWriter<>(
             ioPeon, dimension, bitmapSerdeFactory.getObjectStrategy()
         );
         writer.open();
@@ -1012,7 +1019,7 @@ public class IndexMerger
             bitset.or(nullRowsList.get(i));
           }
 
-          writer.write(
+          writer.add(
               bitmapSerdeFactory.getBitmapFactory().makeImmutableBitmap(bitset)
           );
 
@@ -1030,18 +1037,22 @@ public class IndexMerger
         }
         writer.close();
 
-        serializerUtils.writeString(out, dimension);
-        ByteStreams.copy(writer.combineStreams(), out);
+        try (WritableByteChannel channel = Channels.newChannel(invertedOut.getOutput())) {
+          SerializerUtils.writeString(channel, dimension);
+          writer.writeToChannel(channel);
+        }
         ioPeon.cleanup();
 
         log.info("Completed dimension[%s] in %,d millis.", dimension, System.currentTimeMillis() - dimStartTime);
 
         if (isSpatialDim) {
-          spatialWriter.write(ImmutableRTree.newImmutableFromMutable(tree));
+          spatialWriter.add(ImmutableRTree.newImmutableFromMutable(tree));
           spatialWriter.close();
 
-          serializerUtils.writeString(spatialOut, dimension);
-          ByteStreams.copy(spatialWriter.combineStreams(), spatialOut);
+          try (WritableByteChannel channel = Channels.newChannel(spatialOut.getOutput())) {
+            SerializerUtils.writeString(channel, dimension);
+            spatialWriter.writeToChannel(channel);
+          }
           spatialIoPeon.cleanup();
         }
         ByteBufferUtils.unmap(dimValsMapped);
@@ -1092,8 +1103,8 @@ public class IndexMerger
       createIndexDrdFile(
           IndexIO.V8_VERSION,
           v8OutDir,
-          GenericIndexed.fromIterable(mergedDimensions, GenericIndexed.STRING_STRATEGY),
-          GenericIndexed.fromIterable(mergedMetrics, GenericIndexed.STRING_STRATEGY),
+          GenericIndexed.fromIterable(mergedDimensions, ObjectStrategy.STRING_STRATEGY),
+          GenericIndexed.fromIterable(mergedMetrics, ObjectStrategy.STRING_STRATEGY),
           dataInterval,
           indexSpec.getBitmapSerdeFactory()
       );
@@ -1222,10 +1233,10 @@ public class IndexMerger
 
       availableDimensions.writeToChannel(channel);
       availableMetrics.writeToChannel(channel);
-      serializerUtils.writeString(
+      SerializerUtils.writeString(
           channel, String.format("%s/%s", dataInterval.getStart(), dataInterval.getEnd())
       );
-      serializerUtils.writeString(
+      SerializerUtils.writeString(
           channel, mapper.writeValueAsString(bitmapSerdeFactory)
       );
     }

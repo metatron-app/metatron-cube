@@ -49,10 +49,10 @@ public class SimpleShell extends GuiceRunnable
     super(log);
   }
 
-  @Option(name = "-c", description = "", required = false)
+  @Option(name = "-c", description = "command (shell/index)", required = false)
   private String command = "shell";
 
-  @Option(name = "-p", description = "", required = false)
+  @Option(name = "-p", description = "location of property file", required = false)
   private List<String> properties;
 
   @Arguments(description = "Additional arguments")

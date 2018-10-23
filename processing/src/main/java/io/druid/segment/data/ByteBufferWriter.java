@@ -27,7 +27,6 @@ import com.google.common.io.CountingOutputStream;
 import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Ints;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
@@ -37,7 +36,7 @@ import java.util.Arrays;
 
 /**
  */
-public class ByteBufferWriter<T> implements Closeable
+public class ByteBufferWriter<T> implements ColumnPartWriter<T>
 {
   private final IOPeon ioPeon;
   private final String filenameBase;
@@ -57,13 +56,15 @@ public class ByteBufferWriter<T> implements Closeable
     this.strategy = strategy;
   }
 
+  @Override
   public void open() throws IOException
   {
     headerOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("header")));
     valueOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("value")));
   }
 
-  public void write(T objectToWrite) throws IOException
+  @Override
+  public void add(T objectToWrite) throws IOException
   {
     byte[] bytesToWrite = strategy.toBytes(objectToWrite);
 
@@ -88,12 +89,21 @@ public class ByteBufferWriter<T> implements Closeable
     );
   }
 
+  @Override
   public long getSerializedSize()
   {
     return headerOut.getCount() + valueOut.getCount();
   }
 
-  public InputSupplier<InputStream> combineStreams()
+  @Override
+  public void writeToChannel(WritableByteChannel channel) throws IOException
+  {
+    try (ReadableByteChannel from = Channels.newChannel(combineStreams().getInput())) {
+      ByteStreams.copy(from, channel);
+    }
+  }
+
+  private InputSupplier<InputStream> combineStreams()
   {
     return ByteStreams.join(
         Iterables.transform(
@@ -115,11 +125,5 @@ public class ByteBufferWriter<T> implements Closeable
             }
         )
     );
-  }
-
-  public void writeToChannel(WritableByteChannel channel) throws IOException
-  {
-    final ReadableByteChannel from = Channels.newChannel(combineStreams().getInput());
-    ByteStreams.copy(from, channel);
   }
 }

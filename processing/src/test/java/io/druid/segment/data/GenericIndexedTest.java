@@ -38,7 +38,7 @@ public class GenericIndexedTest
   @Test(expected = UnsupportedOperationException.class)
   public void testNotSortedNoIndexOf() throws Exception
   {
-    GenericIndexed.fromArray(new String[]{"a", "c", "b"}, GenericIndexed.STRING_STRATEGY).indexOf("a");
+    GenericIndexed.fromArray(new String[]{"a", "c", "b"}, ObjectStrategy.STRING_STRATEGY).indexOf("a");
   }
 
   @Test(expected = UnsupportedOperationException.class)
@@ -46,7 +46,7 @@ public class GenericIndexedTest
   {
     serializeAndDeserialize(
         GenericIndexed.fromArray(
-            new String[]{"a", "c", "b"}, GenericIndexed.STRING_STRATEGY
+            new String[]{"a", "c", "b"}, ObjectStrategy.STRING_STRATEGY
         )
     ).indexOf("a");
   }
@@ -55,7 +55,7 @@ public class GenericIndexedTest
   public void testSanity() throws Exception
   {
     final String[] strings = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"};
-    Indexed<String> indexed = GenericIndexed.fromArray(strings, GenericIndexed.STRING_STRATEGY);
+    Indexed<String> indexed = GenericIndexed.fromArray(strings, ObjectStrategy.STRING_STRATEGY);
 
     checkBasicAPIs(strings, indexed, true);
 
@@ -70,9 +70,7 @@ public class GenericIndexedTest
     final String[] strings = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"};
 
     GenericIndexed<String> deserialized = serializeAndDeserialize(
-        GenericIndexed.fromArray(
-            strings, GenericIndexed.STRING_STRATEGY
-        )
+        GenericIndexed.fromArray(strings, ObjectStrategy.STRING_STRATEGY)
     );
 
     checkBasicAPIs(strings, deserialized, true);
@@ -89,7 +87,7 @@ public class GenericIndexedTest
 
     GenericIndexed<String> deserialized = serializeAndDeserialize(
         GenericIndexed.fromArray(
-            strings, GenericIndexed.STRING_STRATEGY
+            strings, ObjectStrategy.STRING_STRATEGY
         )
     );
     checkBasicAPIs(strings, deserialized, false);
@@ -131,7 +129,7 @@ public class GenericIndexedTest
     final ByteBuffer byteBuffer = ByteBuffer.wrap(baos.toByteArray());
     Assert.assertEquals(indexed.getSerializedSize(), byteBuffer.remaining());
     GenericIndexed<String> deserialized = GenericIndexed.read(
-        byteBuffer, GenericIndexed.STRING_STRATEGY
+        byteBuffer, ObjectStrategy.STRING_STRATEGY
     );
     Assert.assertEquals(0, byteBuffer.remaining());
     return deserialized;

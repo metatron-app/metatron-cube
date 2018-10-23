@@ -38,6 +38,7 @@ import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
@@ -108,7 +109,7 @@ public class DimensionPredicateFilterBenchmark
                             }
                           }
                       ),
-        GenericIndexed.STRING_STRATEGY
+        ObjectStrategy.STRING_STRATEGY
     );
     final BitmapIndex bitmapIndex = new BitmapIndexColumnPartSupplier(
         bitmapFactory,

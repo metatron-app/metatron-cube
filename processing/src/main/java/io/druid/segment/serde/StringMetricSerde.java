@@ -70,6 +70,6 @@ public class StringMetricSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy<String> getObjectStrategy()
   {
-    return GenericIndexed.STRING_STRATEGY;
+    return ObjectStrategy.STRING_STRATEGY;
   }
 }

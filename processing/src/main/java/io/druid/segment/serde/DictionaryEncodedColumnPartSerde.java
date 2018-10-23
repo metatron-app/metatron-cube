@@ -26,6 +26,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.IAE;
+import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
@@ -35,14 +36,14 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.ByteBufferWriter;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedIntsWriter;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
 import io.druid.segment.data.WritableSupplier;
@@ -58,6 +59,8 @@ import java.util.Map;
 
 public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 {
+  private static final Logger LOG = new Logger(DictionaryEncodedColumnPartSerde.class);
+
   private static final int NO_FLAGS = 0;
 
   enum Feature
@@ -139,11 +142,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
   {
     private VERSION version = null;
     private int flags = NO_FLAGS;
-    private GenericIndexedWriter<String> dictionaryWriter = null;
-    private IndexedIntsWriter valueWriter = null;
+    private ColumnPartWriter<String> dictionaryWriter = null;
+    private ColumnPartWriter valueWriter = null;
     private BitmapSerdeFactory bitmapSerdeFactory = null;
-    private GenericIndexedWriter<ImmutableBitmap> bitmapIndexWriter = null;
-    private ByteBufferWriter<ImmutableRTree> spatialIndexWriter = null;
+    private ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter = null;
+    private ColumnPartWriter<ImmutableRTree> spatialIndexWriter = null;
     private ByteOrder byteOrder = null;
 
     public SerializerBuilder withDictionary(GenericIndexedWriter<String> dictionaryWriter)
@@ -158,13 +161,13 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public SerializerBuilder withBitmapIndex(GenericIndexedWriter<ImmutableBitmap> bitmapIndexWriter)
+    public SerializerBuilder withBitmapIndex(ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter)
     {
       this.bitmapIndexWriter = bitmapIndexWriter;
       return this;
     }
 
-    public SerializerBuilder withSpatialIndex(ByteBufferWriter<ImmutableRTree> spatialIndexWriter)
+    public SerializerBuilder withSpatialIndex(ColumnPartWriter<ImmutableRTree> spatialIndexWriter)
     {
       this.spatialIndexWriter = spatialIndexWriter;
       return this;
@@ -176,7 +179,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public SerializerBuilder withValue(IndexedIntsWriter valueWriter, boolean hasMultiValue, boolean compressed)
+    public SerializerBuilder withValue(ColumnPartWriter valueWriter, boolean hasMultiValue, boolean compressed)
     {
       this.valueWriter = valueWriter;
       if (hasMultiValue) {
@@ -452,10 +455,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
         final boolean hasMultipleValues = Feature.MULTI_VALUE.isSet(rFlags) || Feature.MULTI_VALUE_V3.isSet(rFlags);
 
-        final GenericIndexed<String> rDictionary = GenericIndexed.read(
-            buffer,
-            GenericIndexed.STRING_STRATEGY
-        );
+        final GenericIndexed<String> rDictionary = GenericIndexed.read(buffer, ObjectStrategy.STRING_STRATEGY);
         builder.setType(ValueDesc.STRING);
 
         final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
@@ -478,7 +478,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                    )
                );
 
-        GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(
+        final GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(
             buffer, bitmapSerdeFactory.getObjectStrategy()
         );
         builder.setBitmapIndex(

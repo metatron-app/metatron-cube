@@ -20,7 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
-import com.metamx.common.Pair;
+import com.metamx.common.IAE;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,6 +38,15 @@ public class ByteBufferSerializer<T>
     buffer.position(bufferToUse.limit());
 
     return strategy.fromByteBuffer(bufferToUse, size);
+  }
+
+  public static ByteBuffer prepareForRead(ByteBuffer buffer, byte version)
+  {
+    final byte versionFromBuffer = buffer.get();
+    if (versionFromBuffer != version) {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
+    }
+    return prepareForRead(buffer);
   }
 
   // make buffer for read and move forward position of original buffer

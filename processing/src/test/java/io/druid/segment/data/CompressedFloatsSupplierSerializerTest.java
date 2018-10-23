@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.OutputSupplier;
 import io.druid.collections.ResourceHolder;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,11 +26,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 
 @RunWith(Parameterized.class)
 public class CompressedFloatsSupplierSerializerTest extends CompressionStrategyTest
@@ -67,17 +66,11 @@ public class CompressedFloatsSupplierSerializerTest extends CompressionStrategyT
       serializer.add((float) i);
     }
 
+    serializer.close();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    serializer.closeAndConsolidate(
-        new OutputSupplier<OutputStream>()
-        {
-          @Override
-          public OutputStream getOutput() throws IOException
-          {
-            return baos;
-          }
-        }
-    );
+    try (WritableByteChannel channel = Channels.newChannel(baos)) {
+      serializer.writeToChannel(channel);
+    }
 
     Assert.assertEquals(baos.size(), serializer.getSerializedSize());
 
@@ -112,17 +105,11 @@ public class CompressedFloatsSupplierSerializerTest extends CompressionStrategyT
         compressionStrategy
     );
     serializer.open();
+    serializer.close();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    serializer.closeAndConsolidate(
-        new OutputSupplier<OutputStream>()
-        {
-          @Override
-          public OutputStream getOutput() throws IOException
-          {
-            return baos;
-          }
-        }
-    );
+    try (WritableByteChannel channel = Channels.newChannel(baos)) {
+      serializer.writeToChannel(channel);
+    }
 
     Assert.assertEquals(baos.size(), serializer.getSerializedSize());
     IndexedFloats floats = CompressedFloatsIndexedSupplier

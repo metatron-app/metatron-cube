@@ -40,7 +40,12 @@ import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.sketch.QuantileOperation;
+import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
+import io.druid.segment.column.Column;
+import io.druid.segment.data.GenericIndexed;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -91,31 +96,50 @@ public class StreamRawQueryRunnerFactory
     if (GuavaUtils.isNullOrEmpty(query.getSortOn()) || numSplit < 2) {
       return null;
     }
+
+    Object[] thresholds = null;
     String sortColumn = query.getSortOn().get(0);
-    final Object[] values = Queries.makeColumnHistogramOn(
-        resolver,
-        segmentWalker,
-        mapper,
-        query.asTimeseriesQuery(),
-        DefaultDimensionSpec.of(sortColumn),
-        numSplit
-    );
-    if (values == null || values.length < 3) {
+    QueryableIndexStorageAdapter adapter = Segments.findRecentQueryableIndex(segments);
+    if (adapter != null) {
+      Column column = adapter.getColumn(sortColumn);
+      if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+        GenericIndexed<String> dictionary = column.getDictionary();
+        numSplit = Math.max(numSplit, 1 + (dictionary.size() >> 20));
+        if (numSplit < 2) {
+          return null;
+        }
+        if (dictionary.hasQuantile()) {
+          thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
+              dictionary.getQuantile(), QuantileOperation.slopedSpaced(numSplit + 1)
+          );
+        } else {
+          thresholds = Queries.makeColumnHistogramOn(
+              resolver,
+              segmentWalker,
+              mapper,
+              query.asTimeseriesQuery(),
+              DefaultDimensionSpec.of(sortColumn),
+              numSplit
+          );
+        }
+      }
+    }
+    if (thresholds == null || thresholds.length < 3) {
       return null;
     }
-    logger.info("--> values : %s", Arrays.toString(values));
+    logger.info("split %s on values : %s", sortColumn, Arrays.toString(thresholds));
 
     List<StreamRawQuery> splits = Lists.newArrayList();
-    for (int i = 1; i < values.length; i++) {
+    for (int i = 1; i < thresholds.length; i++) {
       BoundDimFilter filter;
       if (i == 1) {
-        filter = BoundDimFilter.lt(sortColumn, values[i]);
-      } else if (i < values.length - 1) {
-        filter = BoundDimFilter.between(sortColumn, values[i - 1], values[i]);
+        filter = BoundDimFilter.lt(sortColumn, thresholds[i]);
+      } else if (i < thresholds.length - 1) {
+        filter = BoundDimFilter.between(sortColumn, thresholds[i - 1], thresholds[i]);
       } else {
-        filter = BoundDimFilter.gte(sortColumn, values[i - 1]);
+        filter = BoundDimFilter.gte(sortColumn, thresholds[i - 1]);
       }
-      logger.info("--> filter : %s ", filter);
+      logger.debug("--> filter : %s ", filter);
       splits.add(
           query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );

@@ -19,7 +19,10 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Lists;
 import io.druid.segment.data.Indexed;
+
+import java.util.List;
 
 /**
  */
@@ -31,6 +34,17 @@ public class Segments
       return segment.asQueryableIndex(false).getAvailableDimensions();
     }
     return segment.asStorageAdapter(false).getAvailableDimensions();
+  }
+
+  public static QueryableIndexStorageAdapter findRecentQueryableIndex(List<Segment> segments)
+  {
+    for (Segment segment : Lists.reverse(segments)) {
+      QueryableIndex index = segment.asQueryableIndex(false);
+      if (index != null) {
+        return new QueryableIndexStorageAdapter(index, segment.getIdentifier());
+      }
+    }
+    return null;
   }
 
   public static int getNumRows(Segment segment)

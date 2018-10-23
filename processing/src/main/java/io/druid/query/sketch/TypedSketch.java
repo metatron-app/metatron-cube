@@ -48,6 +48,11 @@ import java.util.List;
  */
 public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
+  public static Object readPart(ByteBuffer buffer, SketchOp sketchOp, ValueDesc type)
+  {
+    return deserialize(sketchOp, Memory.wrap(buffer.slice()), type, type.comparator());
+  }
+
   public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
     ByteBuffer value = ByteBuffer.wrap(ThetaOperations.asBytes(bytes));

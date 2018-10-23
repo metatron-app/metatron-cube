@@ -25,7 +25,7 @@ import com.metamx.common.IAE;
 import java.io.IOException;
 import java.util.List;
 
-public abstract class MultiValueIndexedIntsWriter implements IndexedIntsWriter
+public abstract class MultiValueIndexedIntsWriter implements ColumnPartWriter
 {
   @Override
   public void add(Object obj) throws IOException

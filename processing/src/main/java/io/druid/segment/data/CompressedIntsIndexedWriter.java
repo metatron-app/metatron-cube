@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
@@ -29,8 +28,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 /**
@@ -57,7 +54,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
 
   private final int chunkFactor;
   private final CompressedObjectStrategy.CompressionStrategy compression;
-  private final GenericIndexedWriter<ResourceHolder<IntBuffer>> flattener;
+  private final ColumnPartWriter<ResourceHolder<IntBuffer>> flattener;
   private IntBuffer endBuffer;
   private int numInserted;
 
@@ -89,7 +86,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
-      flattener.write(StupidResourceHolder.create(endBuffer));
+      flattener.add(StupidResourceHolder.create(endBuffer));
       endBuffer = IntBuffer.allocate(chunkFactor);
     }
     endBuffer.put(val);
@@ -103,7 +100,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
       if (numInserted > 0) {
         endBuffer.limit(endBuffer.position());
         endBuffer.rewind();
-        flattener.write(StupidResourceHolder.create(endBuffer));
+        flattener.add(StupidResourceHolder.create(endBuffer));
       }
       endBuffer = null;
     }
@@ -129,7 +126,6 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    final ReadableByteChannel from = Channels.newChannel(flattener.combineStreams().getInput());
-    ByteStreams.copy(from, channel);
+    flattener.writeToChannel(channel);
   }
 }

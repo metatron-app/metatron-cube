@@ -127,7 +127,26 @@ public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements C
     }
   }
 
-  public InputSupplier<InputStream> combineStreams()
+  @Override
+  public long getSerializedSize()
+  {
+    return 1 +    // version
+           1 +    // numBytes
+           4 +    // numBytesWritten
+           4 +    // numElements
+           headerOut.getCount() +
+           valuesOut.getCount();
+  }
+
+  @Override
+  public void writeToChannel(WritableByteChannel channel) throws IOException
+  {
+    try (ReadableByteChannel from = Channels.newChannel(combineStreams().getInput())) {
+      ByteStreams.copy(from, channel);
+    }
+  }
+
+  private InputSupplier<InputStream> combineStreams()
   {
     return ByteStreams.join(
         Iterables.transform(
@@ -149,23 +168,5 @@ public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements C
             }
         )
     );
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return 1 +    // version
-           1 +    // numBytes
-           4 +    // numBytesWritten
-           4 +    // numElements
-           headerOut.getCount() +
-           valuesOut.getCount();
-  }
-
-  @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
-  {
-    final ReadableByteChannel from = Channels.newChannel(combineStreams().getInput());
-    ByteStreams.copy(from, channel);
   }
 }

@@ -19,12 +19,15 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
+
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 
 public interface ObjectStrategy<T> extends Comparator<T>
 {
-  public Class<? extends T> getClazz();
+  Class<? extends T> getClazz();
 
   /**
    * Convert values from their underlying byte representation.
@@ -36,8 +39,9 @@ public interface ObjectStrategy<T> extends Comparator<T>
    * @param numBytes number of bytes used to store the value, starting at buffer.position()
    * @return an object created from the given byte buffer representation
    */
-  public T fromByteBuffer(ByteBuffer buffer, int numBytes);
-  public byte[] toBytes(T val);
+  T fromByteBuffer(ByteBuffer buffer, int numBytes);
+
+  byte[] toBytes(T val);
 
   abstract class NotComparable<T> implements ObjectStrategy<T>
   {
@@ -47,4 +51,34 @@ public interface ObjectStrategy<T> extends Comparator<T>
       throw new UnsupportedOperationException();
     }
   }
+
+  ObjectStrategy<String> STRING_STRATEGY = new CacheableObjectStrategy<String>()
+  {
+    @Override
+    public Class<? extends String> getClazz()
+    {
+      return String.class;
+    }
+
+    @Override
+    public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
+    {
+      return StringUtils.fromUtf8(buffer, numBytes);
+    }
+
+    @Override
+    public byte[] toBytes(String val)
+    {
+      if (val == null) {
+        return new byte[]{};
+      }
+      return StringUtils.toUtf8(val);
+    }
+
+    @Override
+    public int compare(String o1, String o2)
+    {
+      return GuavaUtils.nullFirstNatural().compare(o1, o2);
+    }
+  };
 }

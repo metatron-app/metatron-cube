@@ -36,6 +36,7 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.lucene.LuceneIndexingSpec;
@@ -78,7 +79,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   private final List<Function<Object, Field[]>> fieldGenerators;
   private final IndexWriter luceneIndexer;
 
-  private GenericIndexedWriter writer;
+  private ColumnPartWriter<Object> writer;
 
   public ComplexColumnSerializer(
       IOPeon ioPeon,
@@ -118,7 +119,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   @Override
   public void serialize(Object obj) throws IOException
   {
-    writer.write(obj);
+    writer.add(obj);
     if (luceneIndexer != null) {
       final Document doc = new Document();
       for (Function<Object, Field[]> generator : fieldGenerators) {

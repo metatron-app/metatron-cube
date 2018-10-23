@@ -23,7 +23,7 @@ import com.metamx.common.IAE;
 
 import java.io.IOException;
 
-public abstract class SingleValueIndexedIntsWriter implements IndexedIntsWriter
+public abstract class SingleValueIndexedIntsWriter implements ColumnPartWriter
 {
   @Override
   public void add(Object obj) throws IOException
