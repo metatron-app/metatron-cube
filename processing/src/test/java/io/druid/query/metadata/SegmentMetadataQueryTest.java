@@ -188,14 +188,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap1 ? 2834 : 0,
+                mmap1 ? 2854 : 0,
                 1,
                 "preferred",
                 "preferred",
                 null
             )
         ),
-        mmap1 ? 74720 : 0,
+        mmap1 ? 74988 : 0,
         1209,
         null,
         null
@@ -230,7 +230,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap2 ? 2834 : 0,
+                mmap2 ? 2854 : 0,
                 1,
                 "preferred",
                 "preferred",
@@ -238,7 +238,7 @@ public class SegmentMetadataQueryTest
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
         ),
-        mmap2 ? 74720 : 0,
+        mmap2 ? 74988 : 0,
         1209,
         null,
         null
@@ -281,10 +281,10 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), false, mmap1 ? 2859 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), false, mmap1 ? 2879 : 0, 2, 1023, "", "value", null
             )
         ),
-        mmap1 ? 74720 : 0,
+        mmap1 ? 74988 : 0,
         1209,
         null,
         null
@@ -319,7 +319,7 @@ public class SegmentMetadataQueryTest
             "string-expr",
             new ColumnAnalysis(ValueDesc.STRING_TYPE, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
         ),
-        mmap1 ? 74720 : 0,
+        mmap1 ? 74988 : 0,
         1209,
         null,
         null
@@ -559,7 +559,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 2834 : 0) + (mmap2 ? 2834 : 0),
+        (mmap1 ? 2854 : 0) + (mmap2 ? 2854 : 0),
         1,
         "preferred",
         "preferred",
@@ -574,7 +574,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 2938 : 0) + (mmap2 ? 2938 : 0),
+        (mmap1 ? 2982 : 0) + (mmap2 ? 2982 : 0),
         3,
         "spot",
         "upfront",
@@ -589,7 +589,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 3264 : 0) + (mmap2 ? 3264 : 0),
+        (mmap1 ? 3356 : 0) + (mmap2 ? 3356 : 0),
         9,
         "automotive",
         "travel",

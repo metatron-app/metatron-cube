@@ -30,7 +30,6 @@ import com.metamx.common.guava.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
 import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;

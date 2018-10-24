@@ -21,7 +21,6 @@ import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
-import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
@@ -405,14 +404,15 @@ public class IndexViewer implements CommonShell
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
-        ItemsSketch quantile = dictionary.getQuantile();
+        boolean quantile = dictionary.hasQuantile();
+        boolean theta = dictionary.hasTheta();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
         builder.append(
             format(
-                "dictionary encoded (cardinality = %d, hasNull = %s, hasQuantile = %s, dictionary = %,d bytes, rows = %,d bytes)",
-                dictionary.size(), hasNull, quantile != null, dictionarySize, encodedSize - dictionarySize
+                "dictionary encoded (cardinality = %d, null = %s, quantile = %s, theta = %s, dictionary = %,d bytes, rows = %,d bytes)",
+                dictionary.size(), hasNull, quantile, theta, dictionarySize, encodedSize - dictionarySize
             )
         );
         CloseQuietly.close(dictionaryEncoded);

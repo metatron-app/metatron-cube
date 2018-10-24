@@ -22,6 +22,7 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -29,6 +30,10 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import com.yahoo.sketches.Family;
+import com.yahoo.sketches.quantiles.ItemsUnion;
+import com.yahoo.sketches.theta.SetOperation;
+import com.yahoo.sketches.theta.Union;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.data.TypeUtils;
@@ -52,10 +57,8 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.sketch.QuantileOperation;
-import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
-import io.druid.segment.column.Column;
 import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
@@ -151,30 +154,37 @@ public class GroupByQueryRunnerFactory
 
     Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
-    QueryableIndexStorageAdapter adapter = Segments.findRecentQueryableIndex(segments);
-    if (adapter != null) {
-      Column column = adapter.getColumn(dimensionSpec.getDimension());
-      if (column != null && column.getCapabilities().isDictionaryEncoded()) {
-        GenericIndexed<String> dictionary = column.getDictionary();
-        numSplit = Math.max(numSplit, 1 + (dictionary.size() >> 18));
+    List<GenericIndexed<String>> dictionaries = Segments.findDictionaryIndexed(segments, dimensionSpec.getDimension());
+    if (!dictionaries.isEmpty()) {
+      Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
+      for (GenericIndexed<String> dictionary : dictionaries) {
+        if (dictionary.hasTheta()) {
+          union.update(dictionary.getTheta());
+        }
+      }
+      int cardinality = (int) union.getResult().getEstimate();
+      if (cardinality > 0) {
+        numSplit = Math.max(numSplit, 1 + (cardinality >> 18));
         if (numSplit < 2) {
           return null;
         }
+      }
+      ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
+      for (GenericIndexed<String> dictionary : dictionaries) {
         if (dictionary.hasQuantile()) {
-          thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-              dictionary.getQuantile(), QuantileOperation.slopedSpaced(numSplit + 1)
-          );
-        } else {
-          thresholds = Queries.makeColumnHistogramOn(
-              resolver,
-              segmentWalker,
-              mapper,
-              query.asTimeseriesQuery(),
-              dimensionSpec,
-              numSplit
-          );
+          itemsUnion.update(dictionary.getQuantile());
         }
       }
+      if (!itemsUnion.isEmpty()) {
+        thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
+            itemsUnion.getResult(), QuantileOperation.slopedSpaced(numSplit + 1)
+        );
+      }
+    }
+    if (thresholds == null) {
+      thresholds = Queries.makeColumnHistogramOn(
+          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit
+      );
     }
     if (thresholds == null || thresholds.length < 3) {
       return null;

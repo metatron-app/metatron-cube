@@ -25,8 +25,12 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
+import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
+import com.yahoo.sketches.theta.SetOperation;
+import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueDesc;
 import io.druid.query.sketch.TypedSketch;
 
@@ -43,15 +47,27 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
 {
   private static Logger LOG = new Logger(GenericIndexedWriter.class);
 
-  public static GenericIndexedWriter<String> dimWriter(IOPeon ioPeon, String filenameBase, boolean quantileSketch)
+  public static GenericIndexedWriter<String> dimWriter(
+      IOPeon ioPeon,
+      String filenameBase,
+      boolean quantileSketch,
+      boolean thetaSketch
+  )
   {
-    return new GenericIndexedWriter<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, quantileSketch);
+    return new GenericIndexedWriter<>(
+        ioPeon,
+        filenameBase,
+        ObjectStrategy.STRING_STRATEGY,
+        quantileSketch,
+        thetaSketch
+    );
   }
 
   private final IOPeon ioPeon;
   private final String filenameBase;
   private final ObjectStrategy<T> strategy;
   private final boolean quantileSketch;
+  private final boolean thetaSketch;
 
   private boolean sorted;
   private T prevObject = null;
@@ -59,27 +75,31 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
   private CountingOutputStream headerOut = null;
   private CountingOutputStream valuesOut = null;
   private CountingOutputStream quantileOut = null;
+  private CountingOutputStream thetaOut = null;
   private int numWritten = 0;
 
   private ItemsUnion quantile;
+  private Union theta;
 
   public GenericIndexedWriter(
       IOPeon ioPeon,
       String filenameBase,
       ObjectStrategy<T> strategy,
-      boolean quantileSketch
+      boolean quantileSketch,
+      boolean thetaSketch
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.strategy = strategy;
     this.quantileSketch = quantileSketch && strategy.getClazz() == String.class;
+    this.thetaSketch = thetaSketch && strategy.getClazz() == String.class;
     this.sorted = !(strategy instanceof ObjectStrategy.NotComparable);
   }
 
   public GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
   {
-    this(ioPeon, filenameBase, strategy, false);
+    this(ioPeon, filenameBase, strategy, false, false);
   }
 
   public boolean isSorted()
@@ -97,6 +117,16 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     return quantile == null ? null : quantile.getResult();
   }
 
+  public boolean hasThetaSketch()
+  {
+    return thetaSketch;
+  }
+
+  public Sketch getTheta()
+  {
+    return theta == null ? null : theta.getResult();
+  }
+
   @Override
   public void open() throws IOException
   {
@@ -105,6 +135,10 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     if (quantileSketch) {
       quantileOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("quantile")));
       quantile = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst()); // need not to be exact
+    }
+    if (thetaSketch) {
+      thetaOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("theta")));
+      theta = (Union) SetOperation.builder().setNominalEntries(256).build(Family.UNION); // need not to be exact
     }
   }
 
@@ -117,6 +151,9 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     }
     if (quantile != null) {
       quantile.update(objectToWrite);
+    }
+    if (theta != null) {
+      theta.update((String) objectToWrite);
     }
 
     byte[] bytesToWrite = strategy.toBytes(objectToWrite);
@@ -154,6 +191,10 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
       quantileOut.write(quantile.toByteArray(TypedSketch.toItemsSerDe(ValueDesc.STRING)));
       quantileOut.close();
     }
+    if (thetaOut != null) {
+      thetaOut.write(theta.getResult().toByteArray());
+      thetaOut.close();
+    }
   }
 
   @Override
@@ -162,6 +203,7 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     return Byte.BYTES +           // version
            Byte.BYTES +           // flag
            (quantileOut == null ? 0 : Ints.BYTES + quantileOut.getCount()) +   // quantile
+           (thetaOut == null ? 0 : Ints.BYTES + thetaOut.getCount()) +   // theta
            Ints.BYTES +           // numBytesWritten
            Ints.BYTES +           // numElements
            headerOut.getCount() + // header length
@@ -178,6 +220,9 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     if (hasQuantileSketch()) {
       flag |= GenericIndexed.Feature.QUANTILE_SKETCH.getMask();
     }
+    if (hasThetaSketch()) {
+      flag |= GenericIndexed.Feature.THETA_SKETCH.getMask();
+    }
     channel.write(ByteBuffer.wrap(new byte[] {GenericIndexed.version, flag}));
 
     // size + quantile
@@ -185,6 +230,14 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
       int length = Ints.checkedCast(quantileOut.getCount());
       channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
       try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("quantile")))) {
+        ByteStreams.copy(input, channel);
+      }
+    }
+    // size + theta
+    if (thetaOut != null) {
+      int length = Ints.checkedCast(thetaOut.getCount());
+      channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
+      try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("theta")))) {
         ByteStreams.copy(input, channel);
       }
     }

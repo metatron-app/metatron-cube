@@ -20,6 +20,8 @@
 package io.druid.segment;
 
 import com.google.common.collect.Lists;
+import io.druid.segment.column.Column;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 
 import java.util.List;
@@ -36,15 +38,20 @@ public class Segments
     return segment.asStorageAdapter(false).getAvailableDimensions();
   }
 
-  public static QueryableIndexStorageAdapter findRecentQueryableIndex(List<Segment> segments)
+  public static List<GenericIndexed<String>> findDictionaryIndexed(List<Segment> segments, String columnName)
   {
+    List<GenericIndexed<String>> found = Lists.newArrayList();
     for (Segment segment : Lists.reverse(segments)) {
       QueryableIndex index = segment.asQueryableIndex(false);
       if (index != null) {
-        return new QueryableIndexStorageAdapter(index, segment.getIdentifier());
+        Column column = index.getColumn(columnName);
+        GenericIndexed<String> dictionary = column.getDictionary();
+        if (dictionary != null) {
+          found.add(dictionary);
+        }
       }
     }
-    return null;
+    return found;
   }
 
   public static int getNumRows(Segment segment)

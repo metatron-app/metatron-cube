@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.sketch.SketchOp;
@@ -57,7 +58,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   enum Feature
   {
-    SORTED, QUANTILE_SKETCH;
+    SORTED, QUANTILE_SKETCH, THETA_SKETCH;
 
     public boolean isSet(int flags) { return (getMask() & flags) != 0; }
 
@@ -75,7 +76,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (!objects.hasNext()) {
       final ByteBuffer buffer = ByteBuffer.allocate(4).putInt(0);
       buffer.flip();
-      return new GenericIndexed<T>(buffer, null, strategy, true);
+      return new GenericIndexed<T>(null, null, buffer, strategy, true);
     }
 
     boolean sorted = !(strategy instanceof ObjectStrategy.NotComparable);
@@ -119,7 +120,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     theBuffer.put(valueBytes.toByteArray());
     theBuffer.flip();
 
-    return new GenericIndexed<T>(null, theBuffer.asReadOnlyBuffer(), strategy, sorted);
+    return new GenericIndexed<T>(null, null, theBuffer.asReadOnlyBuffer(), strategy, sorted);
   }
 
   @Override
@@ -180,8 +181,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return theBuffer.getInt(indexOffset + (count - 1) * 4) - count * 4;
   }
 
-  final ByteBuffer theBuffer;
   final ByteBuffer quantile;
+  final ByteBuffer theta;
+  final ByteBuffer theBuffer;
   final ObjectStrategy<T> strategy;
   final boolean allowReverseLookup;
 
@@ -192,12 +194,14 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   GenericIndexed(
       ByteBuffer quantile,
+      ByteBuffer theta,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup
   )
   {
     this.quantile = quantile;
+    this.theta = theta;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
@@ -210,6 +214,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   GenericIndexed(
       ByteBuffer quantile,
+      ByteBuffer theta,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup,
@@ -220,6 +225,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   )
   {
     this.quantile = quantile;
+    this.theta = theta;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
@@ -242,6 +248,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     };
     return new GenericIndexed<T>(
         quantile,
+        theta,
         copyBuffer,
         strategy,
         allowReverseLookup,
@@ -401,6 +408,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (quantile != null) {
       length += Ints.BYTES + quantile.remaining();  // length + binary
     }
+    if (theta != null) {
+      length += Ints.BYTES + theta.remaining();  // length + binary
+    }
     length += Ints.BYTES + theBuffer.remaining();   // length + binary
     length += Ints.BYTES; // count
     return length;
@@ -416,10 +426,17 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (quantile != null) {
       flag |= Feature.QUANTILE_SKETCH.getMask();
     }
+    if (theta != null) {
+      flag |= Feature.THETA_SKETCH.getMask();
+    }
     channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
     if (quantile != null) {
       channel.write(ByteBuffer.wrap(Ints.toByteArray(quantile.remaining())));
       channel.write(quantile.asReadOnlyBuffer());
+    }
+    if (theta != null) {
+      channel.write(ByteBuffer.wrap(Ints.toByteArray(theta.remaining())));
+      channel.write(theta.asReadOnlyBuffer());
     }
     channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + Ints.BYTES)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
@@ -442,12 +459,23 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return quantile != null;
   }
 
-  public ItemsSketch getQuantile()
+  @SuppressWarnings("unchecked")
+  public ItemsSketch<String> getQuantile()
   {
     // todo handle ValueDesc
     return quantile == null ? null : (ItemsSketch) TypedSketch.readPart(quantile, SketchOp.QUANTILE, ValueDesc.STRING);
   }
 
+  public boolean hasTheta()
+  {
+    return theta != null;
+  }
+
+  public Sketch getTheta()
+  {
+    // todo handle ValueDesc
+    return theta == null ? null : (Sketch) TypedSketch.readPart(theta, SketchOp.THETA, ValueDesc.STRING);
+  }
   /**
    * Create a non-thread-safe Indexed, which may perform better than the underlying Indexed.
    *
@@ -476,11 +504,16 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     byte flag = buffer.get();
     boolean sorted = Feature.SORTED.isSet(flag);
     boolean hasQuantileSketch = Feature.QUANTILE_SKETCH.isSet(flag);
+    boolean hasThetaSketch = Feature.THETA_SKETCH.isSet(flag);
     ByteBuffer quantile = null;
     if (hasQuantileSketch) {
       quantile = ByteBufferSerializer.prepareForRead(buffer);
     }
+    ByteBuffer theta = null;
+    if (hasThetaSketch) {
+      theta = ByteBufferSerializer.prepareForRead(buffer);
+    }
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
-    return new GenericIndexed<T>(quantile, dictionary, strategy, sorted);
+    return new GenericIndexed<T>(quantile, theta, dictionary, strategy, sorted);
   }
 }
