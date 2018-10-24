@@ -21,14 +21,14 @@ package io.druid.segment.data;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
-import com.metamx.collections.bitmap.BitSetBitmapFactory;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.RoaringBitmapFactory;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.segment.bitmap.BitSetBitmapFactory;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.serde.ColumnPartSerde;

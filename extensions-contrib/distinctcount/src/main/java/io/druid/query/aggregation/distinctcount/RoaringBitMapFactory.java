@@ -21,7 +21,7 @@ package io.druid.query.aggregation.distinctcount;
 
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.RoaringBitmapFactory;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 
 public class RoaringBitMapFactory implements BitMapFactory
 {

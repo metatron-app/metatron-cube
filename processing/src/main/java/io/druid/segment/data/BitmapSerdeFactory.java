@@ -36,4 +36,6 @@ public interface BitmapSerdeFactory
   public ObjectStrategy<ImmutableBitmap> getObjectStrategy();
 
   public BitmapFactory getBitmapFactory();
+
+  public BitmapFactory getBitmapFactory(boolean optimizeForSerialization);
 }

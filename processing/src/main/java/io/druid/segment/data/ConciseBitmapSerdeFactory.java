@@ -47,6 +47,12 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
     return bitmapFactory;
   }
 
+  @Override
+  public BitmapFactory getBitmapFactory(boolean optimizeForSerialization)
+  {
+    return bitmapFactory;
+  }
+
   private static Ordering<WrappedImmutableConciseBitmap> conciseComparator = new Ordering<WrappedImmutableConciseBitmap>()
   {
     @Override

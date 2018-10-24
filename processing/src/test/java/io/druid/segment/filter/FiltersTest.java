@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.RoaringBitmapFactory;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -37,6 +36,7 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.segment.VirtualColumns;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -22,8 +22,8 @@ package io.druid.segment.data;
 import com.google.common.collect.Ordering;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.RoaringBitmapFactory;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 import java.nio.ByteBuffer;
@@ -34,6 +34,7 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
 {
   public static final ObjectStrategy<ImmutableBitmap> objectStrategy = new ImmutableRoaringBitmapObjectStrategy();
   public static final BitmapFactory bitmapFactory = new RoaringBitmapFactory();
+  public static final BitmapFactory bitmapFactoryOptimized = new RoaringBitmapFactory(true);
 
   @Override
   public ObjectStrategy<ImmutableBitmap> getObjectStrategy()
@@ -45,6 +46,12 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
   public BitmapFactory getBitmapFactory()
   {
     return bitmapFactory;
+  }
+
+  @Override
+  public BitmapFactory getBitmapFactory(boolean optimizeForSerialization)
+  {
+    return optimizeForSerialization ? bitmapFactory : bitmapFactoryOptimized;
   }
 
   private static Ordering<WrappedImmutableRoaringBitmap> roaringComparator = new Ordering<WrappedImmutableRoaringBitmap>()

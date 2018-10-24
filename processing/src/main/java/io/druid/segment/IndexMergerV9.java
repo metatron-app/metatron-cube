@@ -496,21 +496,19 @@ public class IndexMergerV9 extends IndexMerger
         dimValueWriters.get(dimIndex).writeToChannel(channel);
       }
 
+      final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory(true);
+
       final MappedByteBuffer dimValsMapped = Files.map(dimValueFile);
       Indexed<String> dimVals = GenericIndexed.read(dimValsMapped, ObjectStrategy.STRING_STRATEGY);
 
       ColumnPartWriter<ImmutableRTree> spatialIndexWriter = spatialIndexWriters.get(dimIndex);
       RTree tree = null;
       if (spatialIndexWriter != null) {
-        BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
         tree = new RTree(2, new LinearGutmanSplitStrategy(0, 50, bitmapFactory), bitmapFactory);
       }
 
       IndexSeeker[] dictIdSeeker = toIndexSeekers(adapters, dimConversions, dimension);
-
-      ImmutableBitmap nullRowBitmap = bitmapSerdeFactory.getBitmapFactory().makeImmutableBitmap(
-          nullRowsList.get(dimIndex)
-      );
+      ImmutableBitmap nullRowBitmap = bitmapFactory.makeImmutableBitmap(nullRowsList.get(dimIndex));
 
       //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
       for (int dictId = 0; dictId < dimVals.size(); dictId++) {
@@ -527,17 +525,15 @@ public class IndexMergerV9 extends IndexMerger
           }
         }
 
-        MutableBitmap bitset = bitmapSerdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
+        MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
         for (Integer row : CombiningIterable.createSplatted(
-            convertedInverteds,
-            Ordering.<Integer>natural().nullsFirst()
-        )) {
+            convertedInverteds, Ordering.<Integer>natural().nullsFirst())) {
           if (row != INVALID_ROW) {
             bitset.add(row);
           }
         }
 
-        ImmutableBitmap bitmapToWrite = bitmapSerdeFactory.getBitmapFactory().makeImmutableBitmap(bitset);
+        ImmutableBitmap bitmapToWrite = bitmapFactory.makeImmutableBitmap(bitset);
         if ((dictId == 0) && (Iterables.getFirst(dimVals, "") == null)) {
           bitmapToWrite = nullRowBitmap.union(bitmapToWrite);
         }
