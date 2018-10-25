@@ -106,6 +106,10 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
 
     builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
 
+    long startTime = System.currentTimeMillis();
+    final Sequence<T> sequence = queryRunner.run(query, responseContext);
+    final long elapsed = System.currentTimeMillis() - startTime;
+
     return new Sequence<T>()
     {
       @Override
@@ -113,9 +117,9 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
       {
         OutType retVal;
 
-        long startTime = System.currentTimeMillis();
+        final long startTime = System.currentTimeMillis();
         try {
-          retVal = queryRunner.run(query, responseContext).accumulate(outType, accumulator);
+          retVal = sequence.accumulate(outType, accumulator);
         }
         catch (RuntimeException e) {
           builder.setDimension(DruidMetrics.STATUS, "failed");
@@ -126,7 +130,7 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
           throw e;
         }
         finally {
-          long timeTaken = System.currentTimeMillis() - startTime;
+          long timeTaken = elapsed + System.currentTimeMillis() - startTime;
 
           emitter.emit(builder.build(metricName, timeTaken));
 
@@ -143,9 +147,9 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
       {
         Yielder<OutType> retVal;
 
-        long startTime = System.currentTimeMillis();
+        final long startTime = System.currentTimeMillis();
         try {
-          retVal = queryRunner.run(query, responseContext).toYielder(initValue, accumulator);
+          retVal = sequence.toYielder(initValue, accumulator);
         }
         catch (RuntimeException e) {
           builder.setDimension(DruidMetrics.STATUS, "failed");
@@ -203,7 +207,7 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
                 builder.setDimension(DruidMetrics.STATUS, "short");
               }
 
-              long timeTaken = System.currentTimeMillis() - startTime;
+              long timeTaken = elapsed + System.currentTimeMillis() - startTime;
               emitter.emit(builder.build(metricName, timeTaken));
 
               if (creationTime > 0) {

@@ -20,6 +20,7 @@
 package io.druid.concurrent;
 
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -27,6 +28,8 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.metamx.common.guava.ResourceClosingSequence;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Tagged;
 import io.druid.common.guava.GuavaUtils;
@@ -188,6 +191,31 @@ public class Execs
     {
       return destroyed;
     }
+  }
+
+  public static <T> List<ListenableFuture<Sequence<T>>> execute(
+      final ExecutorService executor,
+      final Semaphore semaphore,
+      final Iterable<Supplier<Sequence<T>>> sequences
+  )
+  {
+    return execute(executor, Iterables.transform(
+        sequences, new Function<Supplier<Sequence<T>>, Callable<Sequence<T>>>()
+        {
+          @Override
+          public Callable<Sequence<T>> apply(final Supplier<Sequence<T>> sequence)
+          {
+            return new PrioritizedCallable.Background<Sequence<T>>()
+            {
+              @Override
+              public Sequence<T> call() throws Exception
+              {
+                return new ResourceClosingSequence<T>(sequence.get(), semaphore);
+              }
+            };
+          }
+        }
+    ), semaphore, semaphore.semaphore.availablePermits(), 0);
   }
 
   public static <V> List<ListenableFuture<V>> execute(

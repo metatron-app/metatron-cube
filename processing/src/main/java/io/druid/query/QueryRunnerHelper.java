@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.ResourceClosingSequence;
@@ -146,6 +147,44 @@ public class QueryRunnerHelper
         ),
         toolChest,
         mapper
+    );
+  }
+
+  public static <T> QueryRunner<T> toEmptyQueryRunner()
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return Sequences.empty();
+      }
+    };
+  }
+
+  public static <T> Iterable<Supplier<Sequence<T>>> asSuppliers(
+      final Iterable<QueryRunner<T>> runners,
+      final Query<T> query,
+      final Map<String, Object> responseContext
+  )
+  {
+    return Iterables.transform(
+        runners,
+        new Function<QueryRunner<T>, Supplier<Sequence<T>>>()
+        {
+          @Override
+          public Supplier<Sequence<T>> apply(final QueryRunner<T> runner)
+          {
+            return new Supplier<Sequence<T>>()
+            {
+              @Override
+              public Sequence<T> get()
+              {
+                return runner.run(query, responseContext);
+              }
+            };
+          }
+        }
     );
   }
 }
