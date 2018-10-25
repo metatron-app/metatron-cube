@@ -121,7 +121,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   @Override
   public Granularity getSegmentGranularity()
   {
-    throw new UnsupportedOperationException();
+    return null;
   }
 
   @Override

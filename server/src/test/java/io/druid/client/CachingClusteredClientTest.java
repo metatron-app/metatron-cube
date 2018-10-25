@@ -575,6 +575,7 @@ public class CachingClusteredClientTest
     EasyMock.verify(cache);
 
     EasyMock.reset(cache);
+    EasyMock.reset(serverView);
     cacheKeyCapture.reset();
     EasyMock.expect(cache.getBulk(EasyMock.capture(cacheKeyCapture)))
             .andReturn(ImmutableMap.<Cache.NamedKey, byte[]>of())
@@ -2208,6 +2209,11 @@ public class CachingClusteredClientTest
         {
           @Override
           public void registerSegmentCallback(Executor exec, SegmentCallback callback)
+          {
+          }
+
+          @Override
+          public void removeSegmentCallback(SegmentCallback callback)
           {
           }
 

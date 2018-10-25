@@ -44,7 +44,7 @@ public class VarianceAggregatorTest
 
   public VarianceAggregatorTest() throws Exception
   {
-    String aggSpecJson = "{\"type\": \"variance\", \"name\": \"billy\", \"fieldName\": \"nilly\"}";
+    String aggSpecJson = "{\"type\": \"variance\", \"name\": \"billy\", \"fieldName\": \"nilly\", \"inputType\": \"double\"}";
     aggFactory = new DefaultObjectMapper().readValue(aggSpecJson, VarianceAggregatorFactory.class);
     double sum = 0;
     for (int i = 0; i < values.length; i++) {

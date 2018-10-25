@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
@@ -184,7 +185,7 @@ public class QueryResourceTest
     Assert.assertNotNull(response);
   }
 
-  @Test
+  @Test(expected = JsonParseException.class)
   public void testBadQuery() throws IOException
   {
     EasyMock.replay(testServletRequest);

@@ -94,41 +94,49 @@ public class CachingClusteredClientFunctionalityTest {
     client.run(builder.build(), responseContext);
     Assert.assertNull(responseContext.get("uncoveredIntervals"));
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-01/2015-01-03");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-01/2015-01-02");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-01/2015-01-04");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-01/2015-01-02", "2015-01-03/2015-01-04");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-02/2015-01-04");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-03/2015-01-04");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-01/2015-01-30");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-01/2015-01-02", "2015-01-03/2015-01-04", "2015-01-05/2015-01-30");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-02/2015-01-30");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-03/2015-01-04", "2015-01-05/2015-01-30");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-04/2015-01-30");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-05/2015-01-30");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-10/2015-01-30");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
     assertUncovered(responseContext, false, "2015-01-10/2015-01-30");
 
+    EasyMock.reset(serverView);
     builder.intervals("2015-01-01/2015-02-25");
     responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);
@@ -190,6 +198,11 @@ public class CachingClusteredClientFunctionalityTest {
         {
           @Override
           public void registerSegmentCallback(Executor exec, SegmentCallback callback)
+          {
+          }
+
+          @Override
+          public void removeSegmentCallback(SegmentCallback callback)
           {
           }
 

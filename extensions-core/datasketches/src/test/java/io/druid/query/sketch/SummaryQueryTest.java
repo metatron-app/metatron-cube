@@ -69,14 +69,14 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
     Assert.assertEquals(TestIndex.INTERVAL_TOP, segment1.get("interval"));
     Assert.assertEquals(611L, segment1.get("rows"));
     Assert.assertEquals(611L, segment1.get("ingestedRows"));
-    Assert.assertEquals(32691L, segment1.get("serializedSize"));
+    Assert.assertEquals(40341L, segment1.get("serializedSize"));
     Assert.assertNotNull(segment1.get("lastAccessTime"));
 
     Map<String, Object> segment2 = (Map<String, Object>) perSegments.get(1);
     Assert.assertEquals(TestIndex.INTERVAL_BOTTOM, segment2.get("interval"));
     Assert.assertEquals(598L, segment2.get("rows"));
     Assert.assertEquals(598L, segment2.get("ingestedRows"));
-    Assert.assertEquals(32202L, segment2.get("serializedSize"));
+    Assert.assertEquals(39751L, segment2.get("serializedSize"));
     Assert.assertNotNull(segment2.get("lastAccessTime"));
 
     // dimension
@@ -210,8 +210,8 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
     );
     Assert.assertEquals(0l, indexMinStats.get("zeros"));
     Assert.assertEquals(416.321345853845, indexMinStats.get("mean"));
-    Assert.assertEquals(223501.33231703882, indexMinStats.get("variance"));
-    Assert.assertEquals(472.7592752311041, indexMinStats.get("stddev"));
+    Assert.assertEquals(223501.3318992264, indexMinStats.get("variance"));
+    Assert.assertEquals(472.75927478921705, indexMinStats.get("stddev"));
     Assert.assertEquals(-0.397621490102432, indexMinStats.get("skewness"));
     Assert.assertEquals(0l, indexMinStats.get("outliers"));
     Assert.assertEquals(1199.0d, indexMinStats.get("cardinality"));

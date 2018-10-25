@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.IAE;
 import com.metamx.common.MapUtils;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
@@ -59,7 +58,6 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.SegmentWithResolver;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
@@ -525,11 +523,7 @@ public class ServerManagerTest
     @Override
     public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Future<Object> optimizer)
     {
-      final Segment delegated = ((SegmentWithResolver) adapter).getSegment();
-      if (!(delegated instanceof ReferenceCountingSegment)) {
-        throw new IAE("Expected instance of ReferenceCountingSegment, got %s", adapter.getClass());
-      }
-      final ReferenceCountingSegment segment = (ReferenceCountingSegment) delegated;
+      final ReferenceCountingSegment segment = (ReferenceCountingSegment) adapter;
 
       Assert.assertTrue(segment.getNumReferences() > 0);
       segmentReferences.add(segment);
