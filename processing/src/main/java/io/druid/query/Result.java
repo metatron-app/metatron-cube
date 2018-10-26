@@ -21,12 +21,25 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import org.joda.time.DateTime;
 
 /**
  */
 public class Result<T> implements Comparable<Result<T>>
 {
+  public static <T> Function<Result<T>, T> unwrap()
+  {
+    return new Function<Result<T>, T>()
+    {
+      @Override
+      public T apply(Result<T> input)
+      {
+        return input.getValue();
+      }
+    };
+  }
+
   public static String MISSING_SEGMENTS_KEY = "missingSegments";
   public static String GROUPBY_TYPES_KEY = "groupByTypes";
 

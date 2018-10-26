@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.Query;
@@ -33,11 +34,13 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import org.junit.Assert;
 
 import java.util.Arrays;
 import java.util.List;
@@ -115,5 +118,17 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
   public static List list(Object... objects)
   {
     return Arrays.asList(objects);
+  }
+
+  protected void assertCache(SketchQuery query, Result<Object[]> result)
+  {
+    CacheStrategy<Result<Object[]>, Object[], SketchQuery> strategy = toolChest.getCacheStrategy(query);
+    Object[] cached = strategy.prepareForCache().apply(result);
+    Assert.assertEquals(result.getTimestamp().getMillis(), cached[0]);
+    Assert.assertArrayEquals(result.getValue(), Arrays.copyOfRange(cached, 1, cached.length));
+
+    Result<Object[]> out = strategy.pullFromCache().apply(cached);
+    Assert.assertEquals(result.getTimestamp(), out.getTimestamp());
+    Assert.assertArrayEquals(result.getValue(), out.getValue());
   }
 }

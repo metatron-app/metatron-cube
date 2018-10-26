@@ -336,8 +336,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           total += value.length;
         }
         log.info(
-            "Requested %,d segments and returned %,d segments (%,d bytes) from cache, took %,d msec",
-            cacheKeys.size(), cachedValues.size(), total, System.currentTimeMillis() - start
+            "Requested %,d segments for %s and returned %,d segments (%,d bytes) from cache, took %,d msec",
+            cacheKeys.size(), query.getType(), cachedValues.size(), total, System.currentTimeMillis() - start
         );
       } else {
         cachedValues = ImmutableMap.of();

@@ -109,24 +109,25 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2).value();
 
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
-    Result<Map<String, Object>> result = new Result<>(new DateTime("2016-12-14T16:08:00"), sketches);
+    Result<Object[]> result = new Result<>(new DateTime("2016-12-14T16:08:00"), new Object[] {sketch1, sketch2});
 
     String serialized = JSON_MAPPER.writeValueAsString(result);
     Assert.assertEquals(
         "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
-        + "\"result\":{"
-        + "\"quality1\":\"AgMICBAAAAAGAAAAAAAAAAoAAABhdXRvbW90aXZlBAAAAG5ld3MKAAAAYXV0b21vdGl2ZQgAAABidXNpbmVzcw0AAABlbnRlcnRhaW5tZW50BgAAAGhlYWx0aAkAAABtZXp6YW5pbmUEAAAAbmV3cw==\","
-        + "\"quality2\":\"AgMICBAAAAAVAAAAAAAAAAsAAABhdXRvbW90aXZlMQgAAABwcmVtaXVtMwsAAABhdXRvbW90aXZlMQsAAABhdXRvbW90aXZlMgsAAABhdXRvbW90aXZlMwkAAABidXNpbmVzczEJAAAAYnVzaW5lc3MyCQAAAGJ1c2luZXNzMw4AAABlbnRlcnRhaW5tZW50MQ4AAABlbnRlcnRhaW5tZW50Mg4AAABlbnRlcnRhaW5tZW50MwcAAABoZWFsdGgxBwAAAGhlYWx0aDIHAAAAaGVhbHRoMwoAAABtZXp6YW5pbmUxCgAAAG1lenphbmluZTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQUAAABuZXdzMgUAAABuZXdzMwgAAABwcmVtaXVtMQgAAABwcmVtaXVtMggAAABwcmVtaXVtMw==\"}}",
+        + "\"result\":["
+        + "\"AgMICBAAAAAGAAAAAAAAAAoAAABhdXRvbW90aXZlBAAAAG5ld3MKAAAAYXV0b21vdGl2ZQgAAABidXNpbmVzcw0AAABlbnRlcnRhaW5tZW50BgAAAGhlYWx0aAkAAABtZXp6YW5pbmUEAAAAbmV3cw==\","
+        + "\"AgMICBAAAAAVAAAAAAAAAAsAAABhdXRvbW90aXZlMQgAAABwcmVtaXVtMwsAAABhdXRvbW90aXZlMQsAAABhdXRvbW90aXZlMgsAAABhdXRvbW90aXZlMwkAAABidXNpbmVzczEJAAAAYnVzaW5lc3MyCQAAAGJ1c2luZXNzMw4AAABlbnRlcnRhaW5tZW50MQ4AAABlbnRlcnRhaW5tZW50Mg4AAABlbnRlcnRhaW5tZW50MwcAAABoZWFsdGgxBwAAAGhlYWx0aDIHAAAAaGVhbHRoMwoAAABtZXp6YW5pbmUxCgAAAG1lenphbmluZTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQUAAABuZXdzMgUAAABuZXdzMwgAAABwcmVtaXVtMQgAAABwcmVtaXVtMggAAABwcmVtaXVtMw==\""
+        + "]}",
         serialized
     );
-    Result<Map<String, Object>> deserialized = JSON_MAPPER.readValue(
+    Result<Object[]> deserialized = JSON_MAPPER.readValue(
         serialized,
-        new TypeReference<Result<Map<String, Object>>>()
+        new TypeReference<Result<Object[]>>()
         {
         }
     );
-    assertEqual(sketch1, ThetaOperations.deserializeQuantile(deserialized.getValue().get("quality1"), ValueDesc.STRING));
-    assertEqual(sketch2, ThetaOperations.deserializeQuantile(deserialized.getValue().get("quality2"), ValueDesc.STRING));
+    assertEqual(sketch1, ThetaOperations.deserializeQuantile(deserialized.getValue()[0], ValueDesc.STRING));
+    assertEqual(sketch2, ThetaOperations.deserializeQuantile(deserialized.getValue()[1], ValueDesc.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")
@@ -173,19 +174,13 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     TypedSketch<ItemsSketch> sketch2 = handler.toSketch(union2);
     Assert.assertEquals("premium", sketch2.value().getQuantile(0.5f));
 
-    Result<Map<String, Object>> merged =
+    Result<Object[]> merged =
         new SketchBinaryFn(nomEntries, handler).apply(
-            new Result<Map<String, Object>>(
-                new DateTime(0),
-                    ImmutableMap.<String, Object>of("quality", sketch1)
-            ),
-            new Result<Map<String, Object>>(
-                new DateTime(0),
-                    ImmutableMap.<String, Object>of("quality", sketch2)
-            )
+            new Result<Object[]>(new DateTime(0), new Object[]{sketch1}),
+            new Result<Object[]>(new DateTime(0), new Object[]{sketch2})
         );
 
-    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) merged.getValue().get("quality");
+    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) merged.getValue()[0];
     Assert.assertEquals("mezzanine", sketch.value().getQuantile(0.5f));
   }
 
@@ -202,13 +197,13 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
       SketchQuery query = baseQuery.withOverriddenContext(
           ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
       );
-      List<Result<Map<String, Object>>> result = Sequences.toList(
+      List<Result<Object[]>> result = Sequences.toList(
           query.run(segmentWalker, Maps.<String, Object>newHashMap())
       );
       Assert.assertEquals(1, result.size());
-      Map<String, Object> values = result.get(0).getValue();
-      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
-      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
+      Object[] values = result.get(0).getValue();
+      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[0];
+      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[1];
       Assert.assertEquals("spot", sketch1.value().getQuantile(0.5d));
       final Object quantile = sketch2.value().getQuantile(0.5d);
       Assert.assertTrue(Sets.<Object>newHashSet("mezzanine", "news").contains(quantile));
@@ -233,13 +228,13 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
         ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, false)
     );
 
-    List<Result<Map<String, Object>>> result = Sequences.toList(
+    List<Result<Object[]>> result = Sequences.toList(
         query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
-    Map<String, Object> values = result.get(0).getValue();
-    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
-    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
+    Object[] values = result.get(0).getValue();
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[0];
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[1];
     Assert.assertEquals("total_market", sketch1.value().getQuantile(0.3d));
     Assert.assertEquals("upfront", sketch1.value().getQuantile(0.8d));
     Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d));
@@ -254,8 +249,8 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     result = Sequences.toList(postProcessing.run(segmentWalker, Maps.<String, Object>newHashMap()));
     Assert.assertEquals(1, result.size());
     values = result.get(0).getValue();
-    Assert.assertArrayEquals(new String[]{"total_market", "upfront"}, (String[]) values.get("market"));
-    Assert.assertArrayEquals(new String[]{"mezzanine", "premium"}, (String[]) values.get("quality"));
+    Assert.assertArrayEquals(new String[]{"total_market", "upfront"}, (String[]) values[0]);
+    Assert.assertArrayEquals(new String[]{"mezzanine", "premium"}, (String[]) values[1]);
   }
 
   @Test
@@ -276,20 +271,20 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
         null
     );
 
-    List<Result<Map<String, Object>>> result = Sequences.toList(
+    List<Result<Object[]>> result = Sequences.toList(
         query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
-    Map<String, Object> values = result.get(0).getValue();
+    Object[] values = result.get(0).getValue();
 
-    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market_aa");
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[0];
     Assert.assertEquals("total_market_aa", sketch1.value().getQuantile(0.3d));
     Assert.assertEquals("upfront_aa", sketch1.value().getQuantile(0.8d));
 
-    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[1];
     Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d));
 
-    TypedSketch<ItemsSketch> sketch3 = (TypedSketch<ItemsSketch>) values.get("index");
+    TypedSketch<ItemsSketch> sketch3 = (TypedSketch<ItemsSketch>) values[2];
     Assert.assertEquals(545, ((Number) sketch3.value().getMinValue()).doubleValue(), 100);
     Assert.assertEquals(1044, ((Number) sketch3.value().getQuantile(0.4d)).doubleValue(), 100);
     Assert.assertEquals(1251, ((Number) sketch3.value().getQuantile(0.8d)).doubleValue(), 100);
@@ -300,11 +295,11 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
       mapper = mapper.registerModule(module);
     }
     byte[] serialized = mapper.writeValueAsBytes(result.get(0));
-    Result<Map<String, Object>> deserialized = toolChest.makePreComputeManipulatorFn(query, null).apply(
-        mapper.<Result<Map<String, Object>>>readValue(serialized, toolChest.getResultTypeReference())
+    Result<Object[]> deserialized = toolChest.makePreComputeManipulatorFn(query, null).apply(
+        mapper.<Result<Object[]>>readValue(serialized, toolChest.getResultTypeReference())
     );
     Assert.assertNotNull("never", deserialized);
-    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) deserialized.getValue().get("index");
+    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) deserialized.getValue()[2];
     Assert.assertEquals(545, ((Number) sketch.value().getMinValue()).doubleValue(), 100);
     Assert.assertEquals(1044, ((Number) sketch.value().getQuantile(0.4d)).doubleValue(), 100);
     Assert.assertEquals(1251, ((Number) sketch.value().getQuantile(0.8d)).doubleValue(), 100);

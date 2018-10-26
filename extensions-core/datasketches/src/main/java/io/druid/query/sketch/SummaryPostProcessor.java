@@ -35,11 +35,11 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -140,23 +140,22 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           return baseRunner.run(query, responseContext);
         }
         final List<VirtualColumn> virtualColumns = ((SketchQuery) representative).getVirtualColumns();
-
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
-        Sequence<Pair<Query, Sequence<Result<Map<String, Object>>>>> sequences = baseRunner.run(query, responseContext);
-        for (Pair<Query, Sequence<Result<Map<String, Object>>>> pair :
-            Sequences.toList(sequences, Lists.<Pair<Query, Sequence<Result<Map<String, Object>>>>>newArrayList())) {
+        Sequence<Pair<Query, Sequence<Result<Object[]>>>> sequences = baseRunner.run(query, responseContext);
+        for (Pair<Query, Sequence<Result<Object[]>>> pair :
+            Sequences.toList(sequences, Lists.<Pair<Query, Sequence<Result<Object[]>>>>newArrayList())) {
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
-          Result<Map<String, Object>> values = Iterables.getOnlyElement(
-              Sequences.toList(pair.rhs, Lists.<Result<Map<String, Object>>>newArrayList())
-          );
-          final Map<String, Object> value = values.getValue();
+
+          final List<String> columns = sketchQuery.estimatedOutputColumns();
+          final Result<Object[]> values = Iterables.getOnlyElement(Sequences.toList(pair.rhs));
+          final Object[] value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
             final Map<String, ValueType> primitiveColumns = Maps.newTreeMap();
             final Map<String, ValueType> numericColumns = Maps.newTreeMap();
-            for (Map.Entry<String, Object> entry : value.entrySet()) {
-              final String column = entry.getKey();
-              final ValueDesc type = ((TypedSketch<ItemsSketch>) entry.getValue()).type();
+            for (int i = 0; i < value.length; i++) {
+              final String column = columns.get(i);
+              final ValueDesc type = ((TypedSketch<ItemsSketch>) value[i]).type();
               if (type.isPrimitive()) {
                 primitiveColumns.put(column, type.type());
               }
@@ -193,9 +192,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 null,
                 BaseQuery.copyContextForMeta(query.withOverriddenContext(Query.ALL_DIMENSIONS_FOR_EMPTY, false))
             );
-            for (Map.Entry<String, Object> entry : value.entrySet()) {
-              final String column = entry.getKey();
-              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+            for (int i = 0; i < value.length; i++) {
+              final String column = columns.get(i);
+              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) value[i];
               Map<String, Object> result = results.get(column);
               if (result == null) {
                 results.put(column, result = Maps.newLinkedHashMap());
@@ -331,12 +330,12 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 )
             );
           } else if (sketchQuery.getSketchOp() == SketchOp.THETA) {
-            for (Map.Entry<String, Object> entry : value.entrySet()) {
-              String dimension = entry.getKey();
-              TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
-              Map<String, Object> result = results.get(dimension);
+            for (int i = 0; i < value.length; i++) {
+              final String column = columns.get(i);
+              final TypedSketch<Sketch> sketch = ((TypedSketch<Sketch>) value[i]);
+              Map<String, Object> result = results.get(column);
               if (result == null) {
-                results.put(dimension, result = Maps.newLinkedHashMap());
+                results.put(column, result = Maps.newLinkedHashMap());
               }
               Sketch thetaSketch = sketch.value();
               if (thetaSketch.isEstimationMode()) {

@@ -242,7 +242,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<Sketch> toSketch(TypedSketch<Union> input)
     {
-      return TypedSketch.of(input.type(), input.value().getResult());
+      return input == null ? null : TypedSketch.of(input.type(), input.value().getResult());
     }
   }
 
@@ -347,7 +347,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<ItemsSketch> toSketch(TypedSketch<ItemsUnion> input)
     {
-      return TypedSketch.of(input.type(), input.value().getResult());
+      return input == null ? null : TypedSketch.of(input.type(), input.value().getResult());
     }
   }
 
@@ -449,7 +449,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch toSketch(TypedSketch<ReservoirItemsUnion> union)
     {
-      return TypedSketch.of(union.type(), union.value().getResult());
+      return union == null ? null : TypedSketch.of(union.type(), union.value().getResult());
     }
   }
 }

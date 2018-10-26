@@ -20,17 +20,15 @@
 package io.druid.query.sketch;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 
-import java.util.Map;
 import java.util.Objects;
 
 /**
  */
 public class SketchBinaryFn
-    implements BinaryFn<Result<Map<String, Object>>, Result<Map<String, Object>>, Result<Map<String, Object>>>
+    implements BinaryFn<Result<Object[]>, Result<Object[]>, Result<Object[]>>
 {
   private final int nomEntries;
   private final SketchHandler handler;
@@ -42,39 +40,33 @@ public class SketchBinaryFn
   }
 
   @Override
-  public Result<Map<String, Object>> apply(
-      Result<Map<String, Object>> arg1, Result<Map<String, Object>> arg2
-  )
+  public Result<Object[]> apply(Result<Object[]> arg1, Result<Object[]> arg2)
   {
     if (arg2 == null) {
       return arg1;
     }
-    final Map<String, Object> value1 = arg1.getValue();
-    final Map<String, Object> value2 = arg2.getValue();
+    final Object[] value1 = arg1.getValue();
+    final Object[] value2 = arg2.getValue();
+    Preconditions.checkArgument(value1.length == value2.length);
 
-    final Map<String, Object> merged = Maps.newHashMap();
-    for (Map.Entry<String, Object> entry : value1.entrySet()) {
-      TypedSketch sketch = (TypedSketch) entry.getValue();
-      TypedSketch merging = (TypedSketch) value2.get(entry.getKey());
-      if (merging != null) {
-        sketch = merge(entry.getKey(), sketch, merging);
-      }
-      merged.put(entry.getKey(), sketch);
+    for (int i = 0; i < value1.length; i++) {
+      value1[i] = merge((TypedSketch) value1[i], (TypedSketch) value2[i]);
     }
-    for (Map.Entry<String, Object> entry : value2.entrySet()) {
-      if (!value1.containsKey(entry.getKey())) {
-        merged.put(entry.getKey(), entry.getValue());
-      }
-    }
-    return new Result<>(arg1.getTimestamp(), merged);
+    return arg1;
   }
 
   @SuppressWarnings("unchecked")
-  final TypedSketch merge(String columnName, TypedSketch object1, TypedSketch object2)
+  final TypedSketch merge(TypedSketch object1, TypedSketch object2)
   {
+    if (object1 == null) {
+      return object2;
+    }
+    if (object2 == null) {
+      return object1;
+    }
     Preconditions.checkArgument(
         Objects.equals(object1.type(), object2.type()),
-        "Type mismatch.. " + object1.type() + " with " + object2.type() + " for column " + columnName
+        "Type mismatch.. " + object1.type() + " with " + object2.type()
     );
     TypedSketch union = handler.newUnion(nomEntries, object1.type(), null);
     handler.updateWithSketch(union, object1.value());

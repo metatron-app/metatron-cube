@@ -20,8 +20,6 @@
 package io.druid.query.sketch;
 
 import com.google.inject.Inject;
-import io.druid.cache.BitmapCache;
-import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -29,13 +27,12 @@ import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.segment.Segment;
 
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<Map<String, Object>>, SketchQuery>
+public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<Object[]>, SketchQuery>
 {
   @Inject
   public SketchQueryRunnerFactory(
@@ -47,18 +44,18 @@ public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   }
 
   @Override
-  public QueryRunner<Result<Map<String, Object>>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<Object[]>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SketchQueryRunner(segment, cache);
   }
 
   @Override
-  public QueryRunner<Result<Map<String, Object>>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<Map<String, Object>>>> queryRunners,
+  public QueryRunner<Result<Object[]>> mergeRunners(
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<Object[]>>> queryRunners,
       Future<Object> optimizer
   )
   {
-    return new ChainedExecutionQueryRunner<Result<Map<String, Object>>>(
+    return new ChainedExecutionQueryRunner<Result<Object[]>>(
         queryExecutor, queryWatcher, queryRunners
     );
   }

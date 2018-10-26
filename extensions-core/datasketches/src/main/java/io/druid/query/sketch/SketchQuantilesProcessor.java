@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -34,6 +35,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -88,24 +90,26 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
     return new QueryRunner()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence run(Query query, final Map responseContext)
       {
         if (!(query instanceof SketchQuery) || ((SketchQuery) query).getSketchOp() != SketchOp.QUANTILE) {
           LOG.info("query should be 'sketch' type with 'quantile' operation");
           return baseRunner.run(query, responseContext);
         }
+        final SketchQuery sketchQuery = (SketchQuery) query;
+        final List<String> columns = sketchQuery.estimatedOutputColumns();
         return Sequences.map(
             baseRunner.run(query, responseContext), new Function()
             {
               @Override
               public Object apply(Object input)
               {
-                Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
-                Map<String, Object> result = element.getValue();
-                for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  Object param = parameter instanceof Map ? ((Map)parameter).get(entry.getKey()) : parameter;
-                  TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
-                  entry.setValue(op.calculate(sketch.value(), param));
+                final Map<String, Object> result = Maps.newLinkedHashMap();
+                Result<Object[]> element = (Result<Object[]>) input;
+                final Object[] sketches = element.getValue();
+                for (int i = 0; i < sketches.length; i++) {
+                  Object param = parameter instanceof Map ? ((Map)parameter).get(columns.get(i)) : parameter;
+                  sketches[i] = op.calculate(((TypedSketch<ItemsSketch>) sketches[i]).value(), param);
                 }
                 return input;
               }

@@ -25,12 +25,16 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -44,8 +48,8 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("sketch")
-public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
-    implements Query.MetricSupport<Result<Map<String, Object>>>
+public class SketchQuery extends BaseQuery<Result<Object[]>>
+    implements Query.MetricSupport<Result<Object[]>>, Query.ArrayOutputSupport<Result<Object[]>>
 {
   public static SketchQuery theta(String dataSource, Interval interval)
   {
@@ -61,6 +65,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         null
     );
   }
+
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
@@ -309,5 +314,17 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;
     return result;
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Result<Object[]>> sequence)
+  {
+    return Sequences.map(sequence, Result.<Object[]>unwrap());
   }
 }

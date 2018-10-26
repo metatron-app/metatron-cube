@@ -63,7 +63,7 @@ import java.util.Map;
 
 /**
  */
-public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>>>
+public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 {
   private static final Logger LOG = new Logger(SketchQueryRunner.class);
 
@@ -77,8 +77,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   }
 
   @Override
-  public Sequence<Result<Map<String, Object>>> run(
-      final Query<Result<Map<String, Object>>> baseQuery,
+  @SuppressWarnings("unchecked")
+  public Sequence<Result<Object[]>> run(
+      final Query<Result<Object[]>> baseQuery,
       final Map<String, Object> responseContext
   )
   {
@@ -103,21 +104,21 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final SketchOp sketchOp = query.getSketchOp();
     final SketchHandler<?> handler = sketchOp.handler();
 
-    final QueryableIndex index = segment.asQueryableIndex(true);
+    final QueryableIndex queryable = segment.asQueryableIndex(true);
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
     if (!sketchOp.isCardinalitySensitive()
-        && index != null
+        && queryable != null
         && metrics.isEmpty()
         && resolver.supportsExactBitmap(columns, filter)) {
       // Closing this will cause segfaults in unit tests.
-      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
+      final BitmapFactory bitmapFactory = queryable.getBitmapFactoryForDimensions();
+      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, queryable);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
       for (DimensionSpec spec : dimensions) {
-        Column column = index.getColumn(spec.getDimension());
+        Column column = queryable.getColumn(spec.getDimension());
         if (column == null) {
           continue;
         }
@@ -149,13 +150,16 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
-    final Map<String, Object> sketches = Maps.newLinkedHashMap();
-    for (Map.Entry<String, TypedSketch> entry : unions.entrySet()) {
-      sketches.put(entry.getKey(), handler.toSketch(entry.getValue()));
+    final Object[] sketches = new Object[dimensions.size() + metrics.size()];
+    int index = 0;
+    for (DimensionSpec dimension : dimensions) {
+      sketches[index++] = handler.toSketch(unions.get(dimension.getOutputName()));
     }
-
+    for (String metric : metrics) {
+      sketches[index++] = handler.toSketch(unions.get(metric));
+    }
     DateTime start = segment.getDataInterval().getStart();
-    return Sequences.simple(Arrays.asList(new Result<Map<String, Object>>(start, sketches)));
+    return Sequences.simple(Arrays.asList(new Result<Object[]>(start, sketches)));
   }
 
   private ImmutableBitmap toDependentBitmap(DimFilter current, BitmapIndexSelector selector)

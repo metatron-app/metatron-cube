@@ -97,29 +97,32 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
           LOG.info("query should be 'sketch' type with 'theta' operation");
           return baseRunner.run(query, responseContext);
         }
-        Sequence<Result<Map<String, Object>>> sequences = baseRunner.run(query, responseContext);
-        final int nomEntries = ((SketchQuery) query).getSketchParam();
+        final SketchQuery sketchQuery = (SketchQuery) query;
+        final List<String> columns = sketchQuery.estimatedOutputColumns();
+        final int nomEntries = sketchQuery.getSketchParam();
         final List<Similarity> similarities = Lists.newArrayList();
+        Sequence<Result<Object[]>> sequences = baseRunner.run(query, responseContext);
         sequences.accumulate(
-            null, new Accumulator<Object, Result<Map<String,Object>>>()
+            null, new Accumulator<Object, Result<Object[]>>()
             {
               @Override
               public Object accumulate(
-                  Object accumulated, Result<Map<String, Object>> element
+                  Object accumulated, Result<Object[]> element
               )
               {
-                final Map<String, Object> result = element.getValue();
-                final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.size());
-                for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
+                final Object[] result = element.getValue();
+                final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.length);
+                for (int i = 0; i < result.length; i++) {
+                  String column = columns.get(i);
+                  TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
                   for (Map.Entry<String, Sketch> sketches : sketchMap.entrySet()) {
                     Map<String, Object> relations = getSimilarity(nomEntries, sketch.value(), sketches.getValue());
                     double similarity = (double) relations.get("similarity");
                     if (similarity > threshold) {
-                      similarities.add(new Similarity(entry.getKey(), sketches.getKey(), relations));
+                      similarities.add(new Similarity(column, sketches.getKey(), relations));
                     }
                   }
-                  sketchMap.put(entry.getKey(), sketch.value());
+                  sketchMap.put(column, sketch.value());
                 }
                 return null;
               }
@@ -168,23 +171,25 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
               )
               {
                 final String dataSource = Iterables.getOnlyElement(in.lhs.getDataSource().getNames());
+                final SketchQuery sketchQuery = (SketchQuery) in.lhs;
                 final Sequence sequence = in.rhs;
 
+                final List<String> columns = sketchQuery.estimatedOutputColumns();
                 sequence.accumulate(
                     null, new Accumulator<Object, Object>()
                     {
                       @Override
                       public Object accumulate(Object accumulated, Object input)
                       {
-                        Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
+                        Result<Object[]> element = (Result<Object[]>) input;
                         final boolean except = dataSourceSet != null && !dataSourceSet.contains(dataSource);
 
-                        Map<String, Object> result = element.getValue();
+                        final Object[] result = element.getValue();
 
-                        final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.size());
-                        for (Map.Entry<String, Object> entry : result.entrySet()) {
-                          TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
-                          sketchMap.put(entry.getKey(), sketch.value());
+                        final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.length);
+                        for (int i = 0; i < result.length; i++) {
+                          TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
+                          sketchMap.put(columns.get(i), sketch.value());
                         }
 
                         for (Map.Entry<String, Map<String, Sketch>> prev : sketches.entrySet()) {
