@@ -19,6 +19,12 @@ public enum SketchOp
     {
       return new SketchHandler.Theta();
     }
+
+    @Override
+    public boolean isCardinalitySensitive()
+    {
+      return false;
+    }
   },
   QUANTILE {
     @Override
@@ -86,6 +92,11 @@ public enum SketchOp
   }
 
   public abstract SketchHandler handler();
+
+  public boolean isCardinalitySensitive()
+  {
+    return true;
+  }
 
   @JsonValue
   public String getName()

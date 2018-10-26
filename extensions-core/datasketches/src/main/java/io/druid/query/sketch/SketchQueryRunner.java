@@ -100,14 +100,18 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
     final DimFilter filter = Filters.convertToCNF(query.getFilter());
     final int sketchParam = query.getSketchParam();
-    final SketchHandler<?> handler = query.getSketchOp().handler();
+    final SketchOp sketchOp = query.getSketchOp();
+    final SketchHandler<?> handler = sketchOp.handler();
 
     final QueryableIndex index = segment.asQueryableIndex(true);
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (index != null && metrics.isEmpty() && resolver.supportsExactBitmap(columns, filter)) {
+    if (!sketchOp.isCardinalitySensitive()
+        && index != null
+        && metrics.isEmpty()
+        && resolver.supportsExactBitmap(columns, filter)) {
       // Closing this will cause segfaults in unit tests.
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
