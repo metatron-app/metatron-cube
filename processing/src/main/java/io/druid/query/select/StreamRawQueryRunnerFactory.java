@@ -106,7 +106,7 @@ public class StreamRawQueryRunnerFactory
     if (!dictionaries.isEmpty()) {
       Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
       for (GenericIndexed<String> dictionary : dictionaries) {
-        if (dictionary.hasTheta()) {
+        if (dictionary.hasSketch()) {
           union.update(dictionary.getTheta());
         }
       }
@@ -119,7 +119,7 @@ public class StreamRawQueryRunnerFactory
       }
       ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
       for (GenericIndexed<String> dictionary : dictionaries) {
-        if (dictionary.hasQuantile()) {
+        if (dictionary.hasSketch()) {
           itemsUnion.update(dictionary.getQuantile());
         }
       }

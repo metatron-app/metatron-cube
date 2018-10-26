@@ -404,15 +404,14 @@ public class IndexViewer implements CommonShell
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
-        boolean quantile = dictionary.hasQuantile();
-        boolean theta = dictionary.hasTheta();
+        boolean sketch = dictionary.hasSketch();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
         builder.append(
             format(
-                "dictionary encoded (cardinality = %d, null = %s, quantile = %s, theta = %s, dictionary = %,d bytes, rows = %,d bytes)",
-                dictionary.size(), hasNull, quantile, theta, dictionarySize, encodedSize - dictionarySize
+                "dictionary encoded (cardinality = %d, null = %s, sketch = %s, dictionary = %,d bytes, rows = %,d bytes)",
+                dictionary.size(), hasNull, sketch, dictionarySize, encodedSize - dictionarySize
             )
         );
         CloseQuietly.close(dictionaryEncoded);

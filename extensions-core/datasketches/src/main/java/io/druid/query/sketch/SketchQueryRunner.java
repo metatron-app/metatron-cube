@@ -122,12 +122,14 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
           Column column = queryable.getColumn(dimensionSpec.getDimension());
           if (column != null && column.getCapabilities().isDictionaryEncoded()) {
             final GenericIndexed<String> dictionary = column.getDictionary();
-            if (sketchOp == SketchOp.QUANTILE && dictionary.hasQuantile()) {
-              sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getQuantile());
-              dimensions.set(index, null);
-            } else if (sketchOp == SketchOp.THETA && dictionary.hasTheta()) {
-              sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getTheta());
-              dimensions.set(index, null);
+            if (dictionary.hasSketch()) {
+              if (sketchOp == SketchOp.QUANTILE) {
+                sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getQuantile());
+                dimensions.set(index, null);
+              } else if (sketchOp == SketchOp.THETA) {
+                sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getTheta());
+                dimensions.set(index, null);
+              }
             }
           }
         }

@@ -739,7 +739,7 @@ public class IndexMerger
       for (String dimension : mergedDimensions) {
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
-        ColumnPartWriter<String> writer = GenericIndexedWriter.dimWriter(ioPeon, dimension, false, false);
+        ColumnPartWriter<String> writer = GenericIndexedWriter.dimWriter(ioPeon, dimension, false);
         writer.open();
 
         boolean dimHasNull = false;

@@ -18,7 +18,7 @@ public class GenericIndexedWriterTest
   {
     IOPeon ioPeon = new TmpFileIOPeon();
     ObjectStrategy<String> strategy = ObjectStrategy.STRING_STRATEGY;
-    GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(ioPeon, "test", strategy, true, true);
+    GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(ioPeon, "test", strategy, true);
     writer.open();
     writer.add("a");
     writer.add("b");

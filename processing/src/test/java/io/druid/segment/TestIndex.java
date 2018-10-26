@@ -28,7 +28,6 @@ import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;

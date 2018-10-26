@@ -769,7 +769,7 @@ public class IndexMergerV9 extends IndexMerger
     ArrayList<GenericIndexedWriter<String>> dimValueWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
     for (String dimension : mergedDimensions) {
       final GenericIndexedWriter<String> writer = GenericIndexedWriter.dimWriter(
-          ioPeon, String.format("%s.dim_values", dimension), true, true
+          ioPeon, String.format("%s.dim_values", dimension), true
       );
       writer.open();
       dimValueWriters.add(writer);

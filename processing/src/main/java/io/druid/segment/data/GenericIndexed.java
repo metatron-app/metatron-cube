@@ -58,7 +58,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   enum Feature
   {
-    SORTED, QUANTILE_SKETCH, THETA_SKETCH;
+    SORTED, SKETCH;
 
     public boolean isSet(int flags) { return (getMask() & flags) != 0; }
 
@@ -405,10 +405,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     long length = 0;
     length += Byte.BYTES; // version
     length += Byte.BYTES; // flag
-    if (quantile != null) {
+    if (quantile != null && theta != null) {
       length += Ints.BYTES + quantile.remaining();  // length + binary
-    }
-    if (theta != null) {
       length += Ints.BYTES + theta.remaining();  // length + binary
     }
     length += Ints.BYTES + theBuffer.remaining();   // length + binary
@@ -423,18 +421,13 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (allowReverseLookup) {
       flag |= Feature.SORTED.getMask();
     }
-    if (quantile != null) {
-      flag |= Feature.QUANTILE_SKETCH.getMask();
-    }
-    if (theta != null) {
-      flag |= Feature.THETA_SKETCH.getMask();
+    if (quantile != null && theta != null) {
+      flag |= Feature.SKETCH.getMask();
     }
     channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
-    if (quantile != null) {
+    if (quantile != null && theta != null) {
       channel.write(ByteBuffer.wrap(Ints.toByteArray(quantile.remaining())));
       channel.write(quantile.asReadOnlyBuffer());
-    }
-    if (theta != null) {
       channel.write(ByteBuffer.wrap(Ints.toByteArray(theta.remaining())));
       channel.write(theta.asReadOnlyBuffer());
     }
@@ -454,9 +447,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return allowReverseLookup;
   }
 
-  public boolean hasQuantile()
+  public boolean hasSketch()
   {
-    return quantile != null;
+    return quantile != null && theta != null;
   }
 
   @SuppressWarnings("unchecked")
@@ -464,11 +457,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   {
     // todo handle ValueDesc
     return quantile == null ? null : (ItemsSketch) TypedSketch.readPart(quantile, SketchOp.QUANTILE, ValueDesc.STRING);
-  }
-
-  public boolean hasTheta()
-  {
-    return theta != null;
   }
 
   public Sketch getTheta()
@@ -503,14 +491,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
     byte flag = buffer.get();
     boolean sorted = Feature.SORTED.isSet(flag);
-    boolean hasQuantileSketch = Feature.QUANTILE_SKETCH.isSet(flag);
-    boolean hasThetaSketch = Feature.THETA_SKETCH.isSet(flag);
+    boolean hasSketch = Feature.SKETCH.isSet(flag);
     ByteBuffer quantile = null;
-    if (hasQuantileSketch) {
-      quantile = ByteBufferSerializer.prepareForRead(buffer);
-    }
     ByteBuffer theta = null;
-    if (hasThetaSketch) {
+    if (hasSketch) {
+      quantile = ByteBufferSerializer.prepareForRead(buffer);
       theta = ByteBufferSerializer.prepareForRead(buffer);
     }
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
