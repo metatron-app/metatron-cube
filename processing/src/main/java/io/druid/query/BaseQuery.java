@@ -349,6 +349,11 @@ public abstract class BaseQuery<T> implements Query<T>
     return query.getContext() == null ? Maps.<String, Object>newHashMap() : Maps.newHashMap(query.getContext());
   }
 
+  public static Map<String, Object> copyContextForMeta(Query<?> query)
+  {
+    return copyContextForMeta(query.getContext());
+  }
+
   public static Map<String, Object> copyContextForMeta(Map<String, Object> context)
   {
     final Map<String, Object> forMeta = Maps.newHashMap();

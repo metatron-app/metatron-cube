@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
@@ -127,21 +128,17 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<Query<T>> getQueries()
   {
     return queries;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Query<T> getQuery()
   {
     return query;
-  }
-
-  @JsonProperty
-  public Query<T> getLastQuery()
-  {
-    return query == null ? queries.get(queries.size() - 1) : query;
   }
 
   @JsonProperty

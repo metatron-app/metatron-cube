@@ -49,7 +49,6 @@ import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.MetricValueExtractor;
 import io.druid.query.PostProcessingOperator;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -192,7 +191,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 null,
                 null,
                 null,
-                Queries.extractContext(query, BaseQuery.QUERYID)
+                BaseQuery.copyContextForMeta(query.withOverriddenContext(Query.ALL_DIMENSIONS_FOR_EMPTY, false))
             );
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
@@ -247,7 +246,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                     new SearchQuerySpec.TakeAll(),
                     new LexicographicSearchSortSpec(Arrays.asList("$count:desc")),
                     false,
-                    Queries.extractContext(query, BaseQuery.QUERYID)
+                    BaseQuery.copyContextForMeta(query)
                 );
                 final List<Map> frequentItems = Lists.newArrayList();
                 result.put("frequentItems", frequentItems);
@@ -358,7 +357,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               new NoneColumnIncluderator(),
               null,
               false,
-              Queries.extractContext(query, BaseQuery.QUERYID),
+              BaseQuery.copyContextForMeta(query),
               SegmentMetadataQuery.DEFAULT_NON_COLUMN_STATS,
               false,
               false
