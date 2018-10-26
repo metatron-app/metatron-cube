@@ -27,11 +27,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.path.HadoopPathSpec;
-import io.druid.indexer.path.PathSpecElement;
 import io.druid.indexer.path.PathSpec;
+import io.druid.indexer.path.PathSpecElement;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -165,22 +167,25 @@ public class HivePathSpec implements PathSpec.Resolving
             pathSpecs.add(new Partition(table, partition).getLocation());
           }
         } else {
+          final List<String> partitionKeys = Lists.newArrayList();
+          for (FieldSchema partitionKey : table.getPartitionKeys()) {
+            partitionKeys.add(partitionKey.getName());
+          }
           for (Map<String, String> partialPartitionValues : partialPartitionList) {
-            List<String> partitionVals = Lists.newArrayList();
-            for (FieldSchema partitionKey : table.getPartitionKeys()) {
-              String partitionVal = partialPartitionValues.remove(partitionKey.getName());
+            final List<String> partitionVals = Lists.newArrayList();
+            for (String partitionKey : partitionKeys) {
+              String partitionVal = partialPartitionValues.remove(partitionKey);
               if (partitionVal != null) {
                 partitionVals.add(partitionVal);
-                continue;
               }
-              if (!partialPartitionValues.isEmpty()) {
-                logger.warn("some partition values are not used.. %s" + partialPartitionList);
-              }
-              break;
+            }
+            if (partitionVals.isEmpty()) {
+              throw new IAE(
+                  "cannot find any partition from %s.. partitionKeys %s",
+                  partialPartitionValues, partitionKeys
+              );
             }
             for (org.apache.hadoop.hive.metastore.api.Partition partition :
-                partitionVals.isEmpty() ?
-                client.listPartitions(dbName, tableName, (short) -1) :
                 client.listPartitions(dbName, tableName, partitionVals, (short) -1)) {
               pathSpecs.add(new Partition(table, partition).getLocation());
             }
@@ -246,21 +251,22 @@ public class HivePathSpec implements PathSpec.Resolving
 
     HivePathSpec that = (HivePathSpec) o;
 
-    if (!metastoreUri.equals(that.metastoreUri)) {
-      return false;
-    }
-    if (partialPartitionList != null
-        ? !partialPartitionList.equals(that.partialPartitionList)
-        : that.partialPartitionList != null) {
-      return false;
-    }
-    if (properties != null ? !properties.equals(that.properties) : that.properties != null) {
-      return false;
-    }
     if (!source.equals(that.source)) {
       return false;
     }
-    if (splitSize != null ? !splitSize.equals(that.splitSize) : that.splitSize != null) {
+    if (!metastoreUri.equals(that.metastoreUri)) {
+      return false;
+    }
+    if (!Objects.equals(partialPartitionList, that.partialPartitionList)) {
+      return false;
+    }
+    if (!Objects.equals(extractPartitionRegex, that.extractPartitionRegex)) {
+      return false;
+    }
+    if (!Objects.equals(properties, that.properties)) {
+      return false;
+    }
+    if (!Objects.equals(splitSize, that.splitSize)) {
       return false;
     }
 
@@ -273,6 +279,7 @@ public class HivePathSpec implements PathSpec.Resolving
     int result = source.hashCode();
     result = 31 * result + metastoreUri.hashCode();
     result = 31 * result + (partialPartitionList != null ? partialPartitionList.hashCode() : 0);
+    result = 31 * result + (extractPartitionRegex != null ? extractPartitionRegex.hashCode() : 0);
     result = 31 * result + (splitSize != null ? splitSize.hashCode() : 0);
     result = 31 * result + (properties != null ? properties.hashCode() : 0);
     return result;
@@ -285,6 +292,7 @@ public class HivePathSpec implements PathSpec.Resolving
            "source='" + source + '\'' +
            ", metastoreUri='" + metastoreUri + '\'' +
            ", partialPartitionList=" + partialPartitionList +
+           ", extractPartitionRegex=" + extractPartitionRegex +
            ", splitSize='" + splitSize + '\'' +
            ", properties=" + properties +
            '}';

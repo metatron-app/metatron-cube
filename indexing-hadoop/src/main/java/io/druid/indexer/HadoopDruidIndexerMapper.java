@@ -142,7 +142,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     if (invalidRows.getValue() <= INVALID_LOG_THRESHOLD) {
       log.warn(
           e,
-          "Ignoring invalid row [%s] due to parsing error.. %s", value,
+          "Ignoring invalid [%d]th row [%s] due to parsing error.. %s", invalidRows.getValue(), value,
           invalidRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
       );
     }
