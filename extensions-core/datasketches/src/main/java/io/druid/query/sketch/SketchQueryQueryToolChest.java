@@ -94,7 +94,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
       createMergeFn(Query<Result<Object[]>> input)
       {
         final SketchQuery sketch = (SketchQuery) input;
-        return new SketchBinaryFn(sketch.getSketchParam(), sketch.getSketchOp().handler());
+        return new SketchBinaryFn(sketch.getSketchParamWithDefault(), sketch.getSketchOp().handler());
       }
     };
   }

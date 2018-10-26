@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -53,6 +54,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 import org.joda.time.DateTime;
@@ -97,18 +99,47 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
       majorTypes.put(entry.getKey(), ValueDesc.of(entry.getValue()));
     }
 
-    final List<DimensionSpec> dimensions = query.getDimensions();
+    final List<DimensionSpec> dimensions = Lists.newArrayList(query.getDimensions());
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
     final DimFilter filter = Filters.convertToCNF(query.getFilter());
-    final int sketchParam = query.getSketchParam();
     final SketchOp sketchOp = query.getSketchOp();
+    final int sketchParam = query.getSketchParamWithDefault();
     final SketchHandler<?> handler = sketchOp.handler();
 
+    final Object[] sketches = new Object[dimensions.size() + metrics.size()];
+
     final QueryableIndex queryable = segment.asQueryableIndex(true);
+    if (queryable != null && filter == null && query.getSketchParam() == 0) {
+      int index = 0;
+      for (DimensionSpec dimensionSpec : dimensions) {
+        ValueDesc majorType = majorTypes.get(dimensionSpec.getDimension());
+        if (majorType != null && !ValueDesc.isString(majorType)) {
+          LOG.info(
+              "Skipping %s, which is expected to be %s type but %s type",
+              dimensionSpec.getDimension(), majorType, ValueDesc.STRING_TYPE
+          );
+        } else if (dimensionSpec.getExtractionFn() == null) {
+          Column column = queryable.getColumn(dimensionSpec.getDimension());
+          if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+            final GenericIndexed<String> dictionary = column.getDictionary();
+            if (sketchOp == SketchOp.QUANTILE && dictionary.hasQuantile()) {
+              sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getQuantile());
+              dimensions.set(index, null);
+            } else if (sketchOp == SketchOp.THETA && dictionary.hasTheta()) {
+              sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getTheta());
+              dimensions.set(index, null);
+            }
+          }
+        }
+        index++;
+      }
+    }
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
-    Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
+    Iterable<String> columns = DimensionSpecs.toInputNames(
+        Iterables.filter(dimensions, Predicates.<DimensionSpec>notNull())
+    );
     if (!sketchOp.isCardinalitySensitive()
         && queryable != null
         && metrics.isEmpty()
@@ -118,6 +149,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, queryable);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
       for (DimensionSpec spec : dimensions) {
+        if (spec == null) {
+          continue;
+        }
         Column column = queryable.getColumn(spec.getDimension());
         if (column == null) {
           continue;
@@ -150,10 +184,12 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
-    final Object[] sketches = new Object[dimensions.size() + metrics.size()];
     int index = 0;
     for (DimensionSpec dimension : dimensions) {
-      sketches[index++] = handler.toSketch(unions.get(dimension.getOutputName()));
+      if (dimension != null) {
+        sketches[index] = handler.toSketch(unions.get(dimension.getOutputName()));
+      }
+      index++;
     }
     for (String metric : metrics) {
       sketches[index++] = handler.toSketch(unions.get(metric));
@@ -188,6 +224,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
         final List<DimensionSelector> dimSelectors = Lists.newArrayList();
         final List<TypedSketch> sketches = Lists.newArrayList();
         for (DimensionSpec dimension : dimensions) {
+          if (dimension == null) {
+            continue;
+          }
           ValueDesc majorType = majorTypes.get(dimension.getDimension());
           if (majorType != null && !ValueDesc.isStringOrDimension(majorType)) {
             LOG.info(

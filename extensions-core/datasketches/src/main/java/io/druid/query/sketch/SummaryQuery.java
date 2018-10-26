@@ -143,7 +143,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     sketchContext.put(Query.ALL_METRICS_FOR_EMPTY, allMetricsForEmpty(this, false));
 
     SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 8192, SketchOp.QUANTILE,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.QUANTILE,
         Maps.newHashMap(sketchContext)
     );
     SketchQuery theta = new SketchQuery(

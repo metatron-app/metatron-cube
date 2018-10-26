@@ -40,24 +40,24 @@ import java.util.List;
  */
 public class DimensionSpecs
 {
-  public static List<String> toInputNames(List<DimensionSpec> dimensionSpecs)
+  public static List<String> toInputNames(Iterable<DimensionSpec> dimensionSpecs)
   {
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, INPUT_NAME));
   }
 
-  public static List<String> toOutputNames(List<DimensionSpec> dimensionSpecs)
+  public static List<String> toOutputNames(Iterable<DimensionSpec> dimensionSpecs)
   {
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
   }
 
-  public static List<String> toDescriptions(List<DimensionSpec> dimensionSpecs)
+  public static List<String> toDescriptions(Iterable<DimensionSpec> dimensionSpecs)
   {
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, DESCRIPTION));
   }
 
-  public static String[] toOutputNamesAsArray(List<DimensionSpec> dimensionSpecs)
+  public static String[] toOutputNamesAsArray(Iterable<DimensionSpec> dimensionSpecs)
   {
-    return toOutputNames(dimensionSpecs).toArray(new String[dimensionSpecs.size()]);
+    return toOutputNames(dimensionSpecs).toArray(new String[0]);
   }
 
   public static List<ValueDesc> toOutputTypes(Query.DimensionSupport<?> query)

@@ -92,7 +92,7 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.filter = filter;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
-    this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
+    this.sketchParam = sketchParam == null ? 0 : this.sketchOp.normalize(sketchParam);
   }
 
   @Override
@@ -262,12 +262,18 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
     return sketchOp;
   }
 
+  public int getSketchParamWithDefault()
+  {
+    return sketchParam == 0 ? sketchOp.defaultParam() : sketchParam;
+  }
+
   @Override
   public String toString()
   {
     return "SketchQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", sketchOp=" + sketchOp +
+           ", sketchParam=" + sketchParam +
            ", virtualColumns=" + virtualColumns +
            ", dimensions=" + dimensions +
            ", metrics=" + metrics +
@@ -301,7 +307,7 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
     if (!Objects.equals(filter, that.filter)) {
       return false;
     }
-    return sketchOp == that.sketchOp && sketchParam == that.sketchParam;
+    return sketchOp == that.sketchOp && Objects.equals(sketchParam, that.sketchParam);
   }
 
   @Override
@@ -312,7 +318,7 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
     result = 31 * result + Objects.hashCode(virtualColumns);
     result = 31 * result + Objects.hashCode(filter);
     result = 31 * result + sketchOp.ordinal();
-    result = 31 * result + sketchParam;
+    result = 31 * result + Objects.hashCode(sketchParam);
     return result;
   }
 
