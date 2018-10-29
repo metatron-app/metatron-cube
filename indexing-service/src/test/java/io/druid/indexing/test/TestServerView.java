@@ -47,6 +47,12 @@ public class TestServerView implements FilteredServerInventoryView, ServerView.S
   }
 
   @Override
+  public void removeSegmentCallback(ServerView.SegmentCallback callback)
+  {
+    callbacks.remove(callback);
+  }
+
+  @Override
   public void registerServerCallback(Executor exec, ServerView.ServerCallback callback)
   {
     // No-op

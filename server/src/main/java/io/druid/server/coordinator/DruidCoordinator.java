@@ -45,6 +45,7 @@ import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.ServerInventoryView;
+import io.druid.client.ServerView;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.collections.CountingMap;
 import io.druid.common.config.JacksonConfigManager;
@@ -57,6 +58,7 @@ import io.druid.guice.annotations.Self;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.DruidNode;
+import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.server.coordinator.helper.DruidCoordinatorCleanupOvershadowed;
 import io.druid.server.coordinator.helper.DruidCoordinatorCleanupUnneeded;
@@ -86,9 +88,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -139,6 +145,8 @@ public class DruidCoordinator
   private final CoordinatorDynamicConfig defaultConfig;
   private final BalancerStrategyFactory factory;
   private final ListeningExecutorService balancerExec;
+
+  private final ReplicationThrottler replicatorThrottler;
 
   @Inject
   public DruidCoordinator(
@@ -222,8 +230,13 @@ public class DruidCoordinator
     this.loadManagementPeons = loadQueuePeonMap;
     this.defaultConfig = defaultConfig == null ? new CoordinatorDynamicConfig() : defaultConfig;
     this.factory = factory;
+    final CoordinatorDynamicConfig dynamicConfigs = getDynamicConfigs();
     this.balancerExec = MoreExecutors.listeningDecorator(
-        Executors.newFixedThreadPool(getDynamicConfigs().getBalancerComputeThreads())
+        Executors.newFixedThreadPool(dynamicConfigs.getBalancerComputeThreads())
+    );
+    this.replicatorThrottler = new ReplicationThrottler(
+        dynamicConfigs.getReplicationThrottleLimit(),
+        dynamicConfigs.getReplicantLifetime()
     );
   }
 
@@ -636,34 +649,76 @@ public class DruidCoordinator
   }
 
   // wish not to be called too frequently..
-  public Future<CoordinatorStats> scheduleNow(final Set<DataSegment> segments)
+  public CoordinatorStats scheduleNow(
+      final Set<DataSegment> segments,
+      final boolean assertLoaded,
+      final long waitTimeout
+  )
+      throws InterruptedException, ExecutionException, TimeoutException
+
+  {
+    if (!assertLoaded) {
+      return scheduleNow(segments).get(waitTimeout, TimeUnit.MILLISECONDS);
+    }
+    final CountDownLatch latch = new CountDownLatch(segments.size());
+    final ServerView.BaseSegmentCallback callback = new ServerView.BaseSegmentCallback()
+    {
+      @Override
+      public ServerView.CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
+      {
+        latch.countDown();
+        return ServerView.CallbackAction.CONTINUE;
+      }
+    };
+    serverInventoryView.registerSegmentCallback(exec, callback);
+
+    long start = System.currentTimeMillis();
+    try {
+      CoordinatorStats stats = scheduleNow(segments).get(waitTimeout, TimeUnit.MILLISECONDS);
+      long remain = waitTimeout - (System.currentTimeMillis() - start);
+      if (remain <= 0 || !latch.await(remain, TimeUnit.MILLISECONDS)) {
+        throw new TimeoutException("At least " + latch.getCount() + " segments are not loaded yet");
+      }
+      return stats;
+    }
+    finally {
+      serverInventoryView.removeSegmentCallback(callback);
+    }
+  }
+
+  private Future<CoordinatorStats> scheduleNow(final Set<DataSegment> segments)
   {
     return exec.submit(
-        new Callable<CoordinatorStats>()
-        {
-          @Override
-          public CoordinatorStats call()
+          new Callable<CoordinatorStats>()
           {
-            CoordinatorStats stats = new CoordinatorStats();
-            if (leader) {
-              LoadRule loader = ForeverLoadRule.of(1);
-              DruidCoordinatorRuntimeParams param = buildParam(
+            @Override
+            public CoordinatorStats call()
+            {
+              DruidCoordinatorRuntimeParams params = buildParam(
                   DruidCoordinatorRuntimeParams.newBuilder().withAvailableSegments(segments)
               );
-              for (DataSegment segment : segments) {
-                stats.accumulate(loader.run(DruidCoordinator.this, param, segment));
+              if (leader) {
+                final List<Rule> loader = Arrays.<Rule>asList(ForeverLoadRule.of(1));
+                params = params.buildFromExisting()
+                               .withDatabaseRuleManager(
+                                   new MetadataRuleManager.Abstract()
+                                   {
+                                     @Override
+                                     public List<Rule> getRulesWithDefault(String dataSource) { return loader;}
+                                   }
+                               ).build();
+                new DruidCoordinatorRuleRunner(DruidCoordinator.this).run(params);
               }
+              return params.getCoordinatorStats();
             }
-            return stats;
-          }
 
-          @Override
-          public String toString()
-          {
-            return "scheduleNow";
+            @Override
+            public String toString()
+            {
+              return "scheduleNow";
+            }
           }
-        }
-    );
+      );
   }
 
   private void stopBeingLeader()
@@ -863,6 +918,7 @@ public class DruidCoordinator
                   .withSegmentReplicantLookup(SegmentReplicantLookup.make(cluster))
                   .withBalancerReferenceTimestamp(DateTime.now())
                   .withBalancerStrategy(factory.createBalancerStrategy(balancerExec))
+                  .withReplicationManager(replicatorThrottler)
                   .build();
   }
 

@@ -28,16 +28,17 @@ import java.util.concurrent.Executor;
  */
 public interface ServerView
 {
-  public void registerServerCallback(Executor exec, ServerCallback callback);
-  public void registerSegmentCallback(Executor exec, SegmentCallback callback);
+  void registerServerCallback(Executor exec, ServerCallback callback);
+  void registerSegmentCallback(Executor exec, SegmentCallback callback);
+  void removeSegmentCallback(SegmentCallback callback);
 
-  public enum CallbackAction
+  enum CallbackAction
   {
     CONTINUE,
     UNREGISTER,
   }
 
-  public static interface ServerCallback
+  static interface ServerCallback
   {
     /**
      * Called when a server is removed.
@@ -53,10 +54,10 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    public CallbackAction serverRemoved(DruidServer server);
+    CallbackAction serverRemoved(DruidServer server);
   }
 
-  public static interface SegmentCallback
+  static interface SegmentCallback
   {
     /**
      * Called when a segment is added to a server.
@@ -73,7 +74,7 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    public CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment);
+    CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment);
 
     /**
      * Called when a segment is removed from a server.
@@ -90,12 +91,12 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    public CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment);
+    CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment);
 
-    public CallbackAction segmentViewInitialized();
+    CallbackAction segmentViewInitialized();
   }
 
-  public static abstract class BaseSegmentCallback implements SegmentCallback
+  static abstract class BaseSegmentCallback implements SegmentCallback
   {
     @Override
     public CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)

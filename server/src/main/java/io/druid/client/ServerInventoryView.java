@@ -222,6 +222,12 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
     segmentCallbacks.put(callback, exec);
   }
 
+  @Override
+  public void removeSegmentCallback(SegmentCallback callback)
+  {
+    segmentCallbacks.remove(callback);
+  }
+
   public InventoryManagerConfig getInventoryManagerConfig()
   {
     return inventoryManager.getConfig();

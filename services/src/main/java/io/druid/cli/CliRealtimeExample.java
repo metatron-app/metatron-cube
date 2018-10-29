@@ -104,6 +104,11 @@ public class CliRealtimeExample extends ServerRunnable
     {
       // do nothing
     }
+
+    @Override
+    public void removeSegmentCallback(SegmentCallback callback)
+    {
+    }
   }
 
   private static class NoopInventoryView implements InventoryView

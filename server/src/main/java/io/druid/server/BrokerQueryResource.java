@@ -373,11 +373,13 @@ public class BrokerQueryResource extends QueryResource
         Set<DataSegment> segments = Sets.newHashSet(segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
         try {
-          coordinator.scheduleNow(segments);
+          long assertTimeout = PropUtils.parseLong(forwardContext, "waitTimeout", 0L);
+          boolean assertLoaded = PropUtils.parseBoolean(forwardContext, "assertLoaded");
+          coordinator.scheduleNow(segments, assertTimeout, assertLoaded);
         }
         catch (Exception e) {
           // ignore
-          log.info("failed to notify coordinator directly.. just wait next round of coordination");
+          log.info("failed to notify coordinator directly by %s.. just wait next round of coordination", e);
         }
         builder.put("type", "publish");
       }
@@ -430,7 +432,7 @@ public class BrokerQueryResource extends QueryResource
           .withFixedSchema(true)
           .build();
 
-      Map<String, Object> forwardContext = Maps.newHashMap();
+      Map<String, Object> forwardContext = Maps.newHashMap(loadSpec.getProperties());
       forwardContext.put("format", "index");
       forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
       forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() { } ));

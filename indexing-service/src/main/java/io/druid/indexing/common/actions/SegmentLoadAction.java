@@ -62,7 +62,7 @@ public class SegmentLoadAction implements TaskAction<Map<String, Object>>
   {
     // can be null in tests & hard to mock that
     if (toolbox.getCoordinatorClient() != null) {
-      return toolbox.getCoordinatorClient().scheduleNow(segments);
+      return toolbox.getCoordinatorClient().scheduleNow(segments, 0L, false);
     }
     return ImmutableMap.of();
   }

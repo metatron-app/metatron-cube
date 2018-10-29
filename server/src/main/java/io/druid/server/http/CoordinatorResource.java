@@ -43,7 +43,6 @@ import javax.ws.rs.core.Response;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -183,15 +182,21 @@ public class CoordinatorResource
     return Response.ok(results).build();
   }
 
+  private static final long DEFAULT_ASSERT_TIMEOUT = 30_000;
+
   @POST
   @Path("/scheduleNow")
   @Produces({MediaType.APPLICATION_JSON})
   @Consumes({MediaType.APPLICATION_JSON})
-  public Response loadToIndex(Set<DataSegment> segments)
+  public Response loadToIndex(
+      @QueryParam("assertLoaded") boolean assertLoaded,
+      @QueryParam("assertTimeout") long assertTimeout,
+      Set<DataSegment> segments)
       throws InterruptedException, ExecutionException, TimeoutException
   {
     // seemed not very useful
-    CoordinatorStats stats = coordinator.scheduleNow(segments).get(30, TimeUnit.SECONDS);
+    assertTimeout = assertTimeout <= 0 ? DEFAULT_ASSERT_TIMEOUT : assertTimeout;
+    CoordinatorStats stats = coordinator.scheduleNow(segments, assertLoaded, assertTimeout);
     return Response.ok(stats.getGlobalStats()).build();
   }
 }

@@ -28,9 +28,10 @@ import java.util.concurrent.Executor;
 
 public interface FilteredServerInventoryView extends InventoryView
 {
-  public void registerSegmentCallback(
+  void registerSegmentCallback(
       Executor exec, ServerView.SegmentCallback callback, Predicate<Pair<DruidServerMetadata, DataSegment>> filter
   );
+  void removeSegmentCallback(ServerView.SegmentCallback callback);
 
-  public void registerServerCallback(Executor exec, ServerView.ServerCallback callback);
+  void registerServerCallback(Executor exec, ServerView.ServerCallback callback);
 }

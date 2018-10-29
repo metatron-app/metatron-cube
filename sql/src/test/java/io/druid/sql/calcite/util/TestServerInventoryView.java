@@ -73,6 +73,11 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
+  public void removeSegmentCallback(SegmentCallback callback)
+  {
+  }
+
+  @Override
   public void registerTimelineCallback(final Executor exec, final TimelineCallback callback)
   {
     for (DataSegment segment : segments) {

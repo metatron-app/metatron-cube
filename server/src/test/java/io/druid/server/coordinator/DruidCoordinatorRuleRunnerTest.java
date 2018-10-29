@@ -93,7 +93,15 @@ public class DruidCoordinatorRuleRunnerTest
       start = start.plusHours(1);
     }
 
-    ruleRunner = new DruidCoordinatorRuleRunner(new ReplicationThrottler(24, 1), coordinator);
+    final ReplicationThrottler throttler = new ReplicationThrottler(24, 1);
+    ruleRunner = new DruidCoordinatorRuleRunner(coordinator)
+    {
+      @Override
+      public ReplicationThrottler getReplicationThrottler(DruidCoordinatorRuntimeParams params)
+      {
+        return throttler;
+      }
+    };
   }
 
   @After
@@ -1172,7 +1180,15 @@ public class DruidCoordinatorRuleRunnerTest
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
             .build();
 
-    DruidCoordinatorRuleRunner runner = new DruidCoordinatorRuleRunner(new ReplicationThrottler(7, 1), coordinator);
+    final ReplicationThrottler throttler = new ReplicationThrottler(7, 1);
+    DruidCoordinatorRuleRunner runner = new DruidCoordinatorRuleRunner(coordinator)
+    {
+      @Override
+      public ReplicationThrottler getReplicationThrottler(DruidCoordinatorRuntimeParams params)
+      {
+        return throttler;
+      }
+    };
     DruidCoordinatorRuntimeParams afterParams = runner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 

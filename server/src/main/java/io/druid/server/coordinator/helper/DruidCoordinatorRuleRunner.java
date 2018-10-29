@@ -45,35 +45,19 @@ import java.util.function.Function;
 public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 {
   private static final EmittingLogger log = new EmittingLogger(DruidCoordinatorRuleRunner.class);
-  private static int MAX_MISSING_RULES = 10;
-
-  private final ReplicationThrottler replicatorThrottler;
+  private static final int MAX_MISSING_RULES = 10;
 
   private final DruidCoordinator coordinator;
 
   public DruidCoordinatorRuleRunner(DruidCoordinator coordinator)
   {
-    this(
-        new ReplicationThrottler(
-            coordinator.getDynamicConfigs().getReplicationThrottleLimit(),
-            coordinator.getDynamicConfigs().getReplicantLifetime()
-        ),
-        coordinator
-    );
-  }
-
-  public DruidCoordinatorRuleRunner(
-      ReplicationThrottler replicatorThrottler,
-      DruidCoordinator coordinator
-  )
-  {
-    this.replicatorThrottler = replicatorThrottler;
     this.coordinator = coordinator;
   }
 
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    ReplicationThrottler replicatorThrottler = getReplicationThrottler(params);
     replicatorThrottler.updateParams(
         coordinator.getDynamicConfigs().getReplicationThrottleLimit(),
         coordinator.getDynamicConfigs().getReplicantLifetime()
@@ -141,6 +125,11 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     return paramsWithReplicationManager.buildFromExisting()
                                        .withCoordinatorStats(stats)
                                        .build();
+  }
+
+  protected ReplicationThrottler getReplicationThrottler(DruidCoordinatorRuntimeParams params)
+  {
+    return params.getReplicationManager();
   }
 
   protected Set<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)

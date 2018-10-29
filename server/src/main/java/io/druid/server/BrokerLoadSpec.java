@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.query.ResultWriter;
 import io.druid.segment.incremental.BaseTuningConfig;
@@ -32,6 +33,7 @@ import io.druid.segment.indexing.DataSchema;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -46,6 +48,8 @@ public class BrokerLoadSpec
   private final DataSchema schema;
   private final BaseTuningConfig tuningConfig;
 
+  private final Map<String, Object> properties;
+
   @JsonCreator
   public BrokerLoadSpec(
       @JsonProperty("basePath") String basePath,
@@ -53,7 +57,8 @@ public class BrokerLoadSpec
       @JsonProperty("inputFormat") String inputFormat,
       @JsonProperty("skipFirstN") int skipFirstN,
       @JsonProperty("schema") DataSchema schema,
-      @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig
+      @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig,
+      @JsonProperty("properties") Map<String, Object> properties
   )
   {
     this.basePath = basePath;
@@ -62,10 +67,12 @@ public class BrokerLoadSpec
     this.skipFirstN = skipFirstN;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
     this.tuningConfig = tuningConfig;
+    this.properties = properties == null ? ImmutableMap.<String, Object>of() : properties;
     Preconditions.checkArgument(!paths.isEmpty(), "paths should not be empty");
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getBasePath()
   {
     return basePath;
@@ -78,6 +85,7 @@ public class BrokerLoadSpec
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getInputFormat()
   {
     return inputFormat;
@@ -100,6 +108,12 @@ public class BrokerLoadSpec
   public BaseTuningConfig getTuningConfig()
   {
     return tuningConfig;
+  }
+
+  @JsonProperty
+  public Map<String, Object> getProperties()
+  {
+    return properties;
   }
 
   public List<URI> getURIs() throws URISyntaxException
@@ -156,6 +170,7 @@ public class BrokerLoadSpec
            ", skipFirstN=" + skipFirstN +
            ", schema=" + schema +
            ", tuningConfig=" + tuningConfig +
+           ", properties=" + properties +
            '}';
   }
 }

@@ -716,6 +716,12 @@ public class BrokerServerView implements TimelineServerView
     baseView.registerSegmentCallback(exec, callback, segmentFilter);
   }
 
+  @Override
+  public void removeSegmentCallback(SegmentCallback callback)
+  {
+    baseView.removeSegmentCallback(callback);
+  }
+
   private void executeCallbacks(final Function<TimelineCallback, CallbackAction> function)
   {
     for (final Map.Entry<TimelineCallback, Executor> entry : timelineCallbacks.entrySet()) {

@@ -100,9 +100,10 @@ public class CoordinatorClient
     );
   }
 
-  public Map<String, Object> scheduleNow(Set<DataSegment> segments)
+  public Map<String, Object> scheduleNow(Set<DataSegment> segments, long waitTimeout, boolean assertLoaded)
   {
-    return execute(HttpMethod.POST, "/scheduleNow", segments, new TypeReference<Map<String, Object>>() {});
+    String resource = String.format("/scheduleNow?assertLoaded=%s&waitTimeout=%s", assertLoaded, waitTimeout);
+    return execute(HttpMethod.POST, resource, segments, new TypeReference<Map<String, Object>>() {});
   }
 
   private <T> T execute(HttpMethod method, String resource, TypeReference<T> resultType)
