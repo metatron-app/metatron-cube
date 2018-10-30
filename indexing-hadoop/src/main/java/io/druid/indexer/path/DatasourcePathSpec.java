@@ -113,8 +113,8 @@ public class DatasourcePathSpec implements PathSpec
     DatasourceIngestionSpec updatedIngestionSpec = ingestionSpec;
     if (updatedIngestionSpec.getDimensions() == null) {
       List<String> dims;
-      if (config.getParser().getParseSpec().getDimensionsSpec().hasCustomDimensions()) {
-        dims = config.getParser().getParseSpec().getDimensionsSpec().getDimensionNames();
+      if (config.getParser().getDimensionsSpec().hasCustomDimensions()) {
+        dims = config.getParser().getDimensionsSpec().getDimensionNames();
       } else {
         Set<String> dimSet = Sets.newHashSet(
             Iterables.concat(
@@ -135,7 +135,6 @@ public class DatasourcePathSpec implements PathSpec
             Sets.difference(
                 dimSet,
                 config.getParser()
-                      .getParseSpec()
                       .getDimensionsSpec()
                       .getDimensionExclusions()
             )

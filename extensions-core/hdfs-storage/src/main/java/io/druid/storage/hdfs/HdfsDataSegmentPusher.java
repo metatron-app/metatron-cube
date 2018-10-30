@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
@@ -37,6 +38,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
@@ -61,7 +63,9 @@ import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
+import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -71,11 +75,11 @@ import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Reader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.net.URI;
@@ -191,107 +195,48 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     }
     thresholds[locations.size()] = total;
 
-    final int skipFirstN = PropUtils.parseInt(context, "skipFirstN", -1);
-    final boolean ignoreInvalidRows = PropUtils.parseBoolean(context, "ignoreInvalidRows", false);
-    final Iterable<Sequences.RowReader> readers = Iterables.transform(
-        locations, new Function<URI, Sequences.RowReader>()
-        {
-          @Override
-          public Sequences.RowReader apply(URI input)
-          {
-            final int index = locations.indexOf(input);
-            try {
-              return toReader(input, index);
-            }
-            catch (Throwable t) {
-              throw Throwables.propagate(t);
-            }
+    final Function<URI, Iterator<Row>> converter = new Function<URI, Iterator<Row>>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Iterator<Row> apply(URI input)
+      {
+        final int index = locations.indexOf(input);
+        try {
+          final Path path = new Path(input);
+          final FileSystem fileSystem = path.getFileSystem(hadoopConfig);
+          final FSDataInputStream stream = fileSystem.open(path);
+          Iterator<Row> iterator;
+          if (parser instanceof InputRowParser.Streaming && ((InputRowParser.Streaming) parser).accept(stream)) {
+            iterator = ((InputRowParser.Streaming) parser).parseStream(stream);
+          } else {
+            final String encoding = Objects.toString(context.get("encoding"), null);
+            final boolean ignoreInvalidRows = PropUtils.parseBoolean(context, "ignoreInvalidRows");
+            iterator = Iterators.transform(
+                IOUtils.lineIterator(new InputStreamReader(stream, Charsets.toCharset(encoding))),
+                InputRowParsers.asFunction(parser, ignoreInvalidRows)
+            );
           }
-
-          private Sequences.RowReader toReader(URI input, final int index) throws IOException
+          return new GuavaUtils.DelegatedProgressing<Row>(GuavaUtils.withResource(iterator, stream))
           {
-            final Path path = new Path(input);
-            final FileSystem fileSystem = path.getFileSystem(hadoopConfig);
-            final FSDataInputStream open = fileSystem.open(path);
-            final BufferedReader reader = new BufferedReader(new InputStreamReader(open));
-            for (int x = 0; x < skipFirstN; x++) {
-              reader.readLine();  // skip
-            }
-            return new Sequences.RowReader()
+            @Override
+            public float progress()
             {
-              @Override
-              public Object readRow() throws IOException, InterruptedException
-              {
-                return reader.readLine();
+              try {
+                return (thresholds[index] - stream.available()) / thresholds[thresholds.length - 1];
               }
-
-              @Override
-              public float progress()
-              {
-                try {
-                  return (thresholds[index] + open.getPos()) / thresholds[thresholds.length - 1];
-                }
-                catch (IOException e) {
-                  return thresholds[index] / thresholds[thresholds.length - 1];
-                }
+              catch (IOException e) {
+                return thresholds[index] / thresholds[thresholds.length - 1];
               }
-
-              @Override
-              public void close() throws IOException
-              {
-                reader.close();
-              }
-            };
-          }
+            }
+          };
         }
-    );
-
-    return Sequences.toSequence(
-        new Sequences.RowReader()
-        {
-          private Iterator<Sequences.RowReader> iterator = readers.iterator();
-          private Sequences.RowReader current = Sequences.NULL_READER;
-
-          @Override
-          public void close() throws IOException
-          {
-            current.close();
-          }
-
-          @Override
-          public Object readRow() throws IOException, InterruptedException
-          {
-            Object row = current.readRow();
-            for (; row == null && iterator.hasNext(); row = current.readRow()) {
-              current.close();
-              current = iterator.next();
-            }
-            return row;
-          }
-
-          @Override
-          public float progress()
-          {
-            return current.progress();
-          }
-        },
-        new Function<Object, Row>()
-        {
-          @Override
-          @SuppressWarnings("unchecked")
-          public Row apply(Object input) {
-            try {
-              return parser.parse(input);
-            }
-            catch (Exception e) {
-              if (ignoreInvalidRows) {
-                return null;
-              }
-              throw Throwables.propagate(e);
-            }
-          }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
         }
-    );
+      }
+    };
+    return Sequences.once(GuavaUtils.concat(Iterators.transform(locations.iterator(), converter)));
   }
 
   @Override

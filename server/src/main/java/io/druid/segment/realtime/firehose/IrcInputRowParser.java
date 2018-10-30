@@ -25,9 +25,13 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.ircclouds.irc.api.domain.messages.ChannelPrivMsg;
 import com.metamx.common.Pair;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import org.joda.time.DateTime;
+
+import java.util.Set;
 
 /**
  * <p><b>Example Usage</b></p>
@@ -62,7 +66,7 @@ import org.joda.time.DateTime;
  * }</pre>
  */
 @JsonTypeName("irc")
-public class IrcInputRowParser implements InputRowParser
+public class IrcInputRowParser implements InputRowParser<Pair<DateTime, ChannelPrivMsg>>
 {
   private final ParseSpec parseSpec;
   private final IrcDecoder decoder;
@@ -84,23 +88,35 @@ public class IrcInputRowParser implements InputRowParser
   }
 
   @Override
-  public InputRow parse(Object raw)
+  public InputRow parse(Pair<DateTime, ChannelPrivMsg> msg)
   {
-    @SuppressWarnings("unchecked")
-    Pair<DateTime, ChannelPrivMsg> msg = (Pair<DateTime, ChannelPrivMsg>)raw;
     return decoder.decodeMessage(msg.lhs, msg.rhs.getChannelName(), msg.rhs.getText());
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new IrcInputRowParser(parseSpec, decoder);
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
+  }
+
+    @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new IrcInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        decoder
+    );
   }
 }

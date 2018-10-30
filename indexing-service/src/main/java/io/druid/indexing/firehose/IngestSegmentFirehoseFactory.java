@@ -150,8 +150,8 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
       final List<String> dims;
       if (dimensions != null) {
         dims = dimensions;
-      } else if (inputRowParser.getParseSpec().getDimensionsSpec().hasCustomDimensions()) {
-        dims = inputRowParser.getParseSpec().getDimensionsSpec().getDimensionNames();
+      } else if (inputRowParser.getDimensionsSpec().hasCustomDimensions()) {
+        dims = inputRowParser.getDimensionsSpec().getDimensionNames();
       } else {
         Set<String> dimSet = Sets.newHashSet(
             Iterables.concat(
@@ -187,7 +187,6 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
             Sets.difference(
                 dimSet,
                 inputRowParser
-                    .getParseSpec()
                     .getDimensionsSpec()
                     .getDimensionExclusions()
             )

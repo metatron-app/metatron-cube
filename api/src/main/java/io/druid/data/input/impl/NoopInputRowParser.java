@@ -22,6 +22,9 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
+
+import java.util.Set;
 
 /**
  */
@@ -37,6 +40,12 @@ public class NoopInputRowParser implements InputRowParser<InputRow>
     this.parseSpec = parseSpec != null ? parseSpec : new TimeAndDimsParseSpec(null, null);
   }
 
+  @JsonProperty
+  public ParseSpec getParseSpec()
+  {
+    return parseSpec;
+  }
+
   @Override
   public InputRow parse(InputRow input)
   {
@@ -44,15 +53,23 @@ public class NoopInputRowParser implements InputRowParser<InputRow>
   }
 
   @Override
-  public ParseSpec getParseSpec()
+  public TimestampSpec getTimestampSpec()
   {
-    return parseSpec;
+    return parseSpec.getTimestampSpec();
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public DimensionsSpec getDimensionsSpec()
   {
-    return new NoopInputRowParser(parseSpec);
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new NoopInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+    );
   }
 
   @Override

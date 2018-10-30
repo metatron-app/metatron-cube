@@ -36,6 +36,7 @@ import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
+import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.Progressing;
 import io.druid.concurrent.PrioritizedCallable;
@@ -65,6 +66,8 @@ import java.util.zip.GZIPInputStream;
  */
 public class GuavaUtils
 {
+  private static final Logger LOG = new Logger(GuavaUtils.class);
+
   private static final Comparator NULL_FIRST_NATURAL = Ordering.natural().nullsFirst();
 
   @SuppressWarnings("unchecked")
@@ -434,17 +437,23 @@ public class GuavaUtils
   {
     return new CloseableIterator<T>()
     {
+      private boolean closed;
+
       @Override
       public void close() throws IOException
       {
-        closeable.close();
+        if (!closed) {
+          closed = true;
+          closeable.close();
+        }
       }
 
       @Override
       public boolean hasNext()
       {
-        final boolean hasNext = iterator.hasNext();
-        if (!hasNext) {
+        final boolean hasNext = !closed && iterator.hasNext();
+        if (!hasNext && !closed) {
+          closed = true;
           IOUtils.closeQuietly(closeable);
         }
         return hasNext;
@@ -457,7 +466,10 @@ public class GuavaUtils
           return iterator.next();
         }
         catch (NoSuchElementException e) {
-          IOUtils.closeQuietly(closeable);
+          if (!closed) {
+            closed = true;
+            IOUtils.closeQuietly(closeable);
+          }
           throw e;
         }
       }
@@ -493,6 +505,50 @@ public class GuavaUtils
     {
       return delegate instanceof Progressing ? ((Progressing) delegate).progress() : hasNext() ? 0 : 1;
     }
+
+    @Override
+    public void close() throws IOException
+    {
+      if (delegate instanceof Closeable) {
+        ((Closeable) delegate).close();
+      }
+    }
+  }
+
+  public static <T> Iterator<T> concat(final Iterator<Iterator<T>> readers)
+  {
+    return new Progressing.OnIterator<T>()
+    {
+      private Iterator<T> current = Iterators.emptyIterator();
+
+      @Override
+      public float progress()
+      {
+        return current instanceof Progressing ? ((Progressing) current).progress() : hasNext() ? 0 : 1;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        if (current instanceof Closeable) {
+          ((Closeable) current).close();
+        }
+      }
+
+      @Override
+      public boolean hasNext()
+      {
+        for (; !current.hasNext() && readers.hasNext(); current = readers.next()) {
+        }
+        return current.hasNext();
+      }
+
+      @Override
+      public T next()
+      {
+        return current.next();
+      }
+    };
   }
 
   public static File createTemporaryDirectory(String prefix, String suffix) throws IOException

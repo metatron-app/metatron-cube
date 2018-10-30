@@ -48,7 +48,6 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
@@ -110,6 +109,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -407,9 +407,8 @@ public class BrokerQueryResource extends QueryResource
 
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
-      ParseSpec parseSpec = parser.getParseSpec();
-      final DimensionsSpec dimensionsSpec = parseSpec.getDimensionsSpec();
-      final String timestampColumn = parseSpec.getTimestampSpec().getTimestampColumn();
+      final DimensionsSpec dimensionsSpec = parser.getDimensionsSpec();
+      final String timestampColumn = parser.getTimestampSpec().getTimestampColumn();
       if (!dimensionsSpec.hasCustomDimensions()) {
         throw new IllegalArgumentException("Need to specify dimension specs, for now");
       }

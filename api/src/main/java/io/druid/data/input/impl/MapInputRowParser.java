@@ -24,10 +24,12 @@ import com.google.common.collect.Sets;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MapInputRowParser implements InputRowParser<Map<String, Object>>
 {
@@ -75,15 +77,28 @@ public class MapInputRowParser implements InputRowParser<Map<String, Object>>
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new MapInputRowParser(parseSpec);
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new MapInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+    );
   }
 }

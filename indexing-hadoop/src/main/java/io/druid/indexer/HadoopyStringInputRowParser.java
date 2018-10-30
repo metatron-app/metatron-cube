@@ -22,6 +22,8 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.IAE;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
@@ -29,6 +31,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  */
@@ -39,7 +42,8 @@ public class HadoopyStringInputRowParser implements InputRowParser<Object>
 
   public HadoopyStringInputRowParser(
       @JsonProperty("parseSpec") ParseSpec parseSpec,
-      @JsonProperty("encoding") String encoding)
+      @JsonProperty("encoding") String encoding
+  )
   {
     this.encoding = encoding;
     this.parser = new StringInputRowParser(parseSpec, encoding);
@@ -64,15 +68,30 @@ public class HadoopyStringInputRowParser implements InputRowParser<Object>
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parser.getParseSpec();
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new HadoopyStringInputRowParser(parseSpec, encoding);
+    return getParseSpec().getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return getParseSpec().getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    ParseSpec parseSpec = parser.getParseSpec();
+    return new HadoopyStringInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        encoding
+    );
   }
 }

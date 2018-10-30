@@ -140,20 +140,11 @@ public class RocketMQFirehoseFactory implements FirehoseFactory
   {
 
     Set<String> newDimExclus = Sets.union(
-        byteBufferInputRowParser.getParseSpec().getDimensionsSpec().getDimensionExclusions(),
+        byteBufferInputRowParser.getDimensionsSpec().getDimensionExclusions(),
         Sets.newHashSet("feed")
     );
 
-    final InputRowParser theParser = byteBufferInputRowParser.withParseSpec(
-        byteBufferInputRowParser.getParseSpec()
-                                .withDimensionsSpec(
-                                    byteBufferInputRowParser.getParseSpec()
-                                                            .getDimensionsSpec()
-                                                            .withDimensionExclusions(
-                                                                newDimExclus
-                                                            )
-                                )
-    );
+    final InputRowParser theParser = byteBufferInputRowParser.withDimensionExclusions(newDimExclus);
 
     /**
      * Topic-Queue mapping.

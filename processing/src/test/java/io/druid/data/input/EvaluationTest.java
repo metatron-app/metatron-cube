@@ -23,8 +23,6 @@ import com.google.common.collect.Maps;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
@@ -37,6 +35,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class EvaluationTest
 {
@@ -72,13 +71,19 @@ public class EvaluationTest
       }
 
       @Override
-      public ParseSpec getParseSpec()
+      public TimestampSpec getTimestampSpec()
       {
-        return parseSpec;
+        return parseSpec.getTimestampSpec();
       }
 
       @Override
-      public InputRowParser withParseSpec(ParseSpec parseSpec)
+      public DimensionsSpec getDimensionsSpec()
+      {
+        return parseSpec.getDimensionsSpec();
+      }
+
+      @Override
+      public InputRowParser withDimensionExclusions(Set<String> exclusions)
       {
         throw new UnsupportedOperationException();
       }

@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.input.avro.AvroBytesDecoder;
 import io.druid.data.input.avro.GenericRecordAsMap;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import org.apache.avro.generic.GenericRecord;
@@ -29,6 +30,7 @@ import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Set;
 
 public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
 {
@@ -64,10 +66,21 @@ public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
+  }
+
+  @Override
+  public TimestampSpec getTimestampSpec()
+  {
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
   }
 
   @JsonProperty
@@ -77,10 +90,10 @@ public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new AvroStreamInputRowParser(
-        parseSpec,
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
         avroBytesDecoder
     );
   }

@@ -46,9 +46,9 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
     String name = fullSchema.getName();
 
     HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
-    String tsField = config.getParser().getParseSpec().getTimestampSpec().getTimestampColumn();
+    String tsField = config.getParser().getTimestampSpec().getTimestampColumn();
 
-    List<DimensionSchema> dimensionSchema = config.getParser().getParseSpec().getDimensionsSpec().getDimensions();
+    List<DimensionSchema> dimensionSchema = config.getParser().getDimensionsSpec().getDimensions();
     Set<String> dimensions = Sets.newHashSet();
     for (DimensionSchema dim : dimensionSchema) {
       dimensions.add(dim.getName());

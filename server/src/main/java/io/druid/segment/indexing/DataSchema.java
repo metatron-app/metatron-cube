@@ -36,7 +36,6 @@ import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.Validation;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -128,54 +127,43 @@ public class DataSchema
 
   private InputRowParser createInputRowParser()
   {
-    final InputRowParser inputRowParser = jsonMapper.convertValue(this.parser, InputRowParser.class);
+    InputRowParser inputRowParser = jsonMapper.convertValue(this.parser, InputRowParser.class);
 
-    final Set<String> dimensionExclusions = Sets.newHashSet();
+    Set<String> exclusions = Sets.newHashSet();
     for (AggregatorFactory aggregator : aggregators) {
-      dimensionExclusions.addAll(aggregator.requiredFields());
-      dimensionExclusions.add(aggregator.getName());
+      exclusions.addAll(aggregator.requiredFields());
+      exclusions.add(aggregator.getName());
     }
 
-    ParseSpec parseSpec = inputRowParser.getParseSpec();
-    if (parseSpec != null) {
-      final DimensionsSpec dimensionsSpec = parseSpec.getDimensionsSpec();
-      final TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
+    DimensionsSpec dimensionsSpec = inputRowParser.getDimensionsSpec();
+    TimestampSpec timestampSpec = inputRowParser.getTimestampSpec();
 
-      // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
-      if (timestampSpec != null && timestampSpec.getTimestampColumn() != null) {
-        final String timestampColumn = timestampSpec.getTimestampColumn();
-        if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensionNames().contains(timestampColumn))) {
-          dimensionExclusions.add(timestampColumn);
-        }
+    // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
+    if (timestampSpec != null && timestampSpec.getTimestampColumn() != null) {
+      String timestampColumn = timestampSpec.getTimestampColumn();
+      if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensionNames().contains(timestampColumn))) {
+        exclusions.add(timestampColumn);
       }
-      if (dimensionsSpec != null) {
-        final Set<String> metSet = Sets.newHashSet();
-        for (AggregatorFactory aggregator : aggregators) {
-          metSet.add(aggregator.getName());
-        }
-        final Set<String> dimSet = Sets.newHashSet(dimensionsSpec.getDimensionNames());
-        final Set<String> overlap = Sets.intersection(metSet, dimSet);
-        if (!overlap.isEmpty()) {
-          throw new IAE(
-              "Cannot have overlapping dimensions and metrics of the same name. Please change the name of the metric. Overlap: %s",
-              overlap
-          );
-        }
-
-        return inputRowParser.withParseSpec(
-            parseSpec.withDimensionsSpec(
-                dimensionsSpec.withDimensionExclusions(
-                    Sets.difference(dimensionExclusions, dimSet)
-                )
-            )
+    }
+    if (dimensionsSpec != null) {
+      Set<String> metSet = Sets.newHashSet();
+      for (AggregatorFactory aggregator : aggregators) {
+        metSet.add(aggregator.getName());
+      }
+      Set<String> dimSet = Sets.newHashSet(dimensionsSpec.getDimensionNames());
+      Set<String> overlap = Sets.intersection(metSet, dimSet);
+      if (!overlap.isEmpty()) {
+        throw new IAE(
+            "Cannot have overlapping dimensions and metrics of the same name. Please change the name of the metric. Overlap: %s",
+            overlap
         );
-      } else {
-        return inputRowParser;
       }
-    } else {
-      log.warn("No parseSpec in parser has been specified.");
-      return inputRowParser;
+      exclusions = Sets.difference(exclusions, dimSet);
     }
+    if (!exclusions.isEmpty()) {
+      inputRowParser = inputRowParser.withDimensionExclusions(exclusions);
+    }
+    return inputRowParser;
   }
 
   @JsonProperty("metricsSpec")

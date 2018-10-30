@@ -21,11 +21,13 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ParsingFail;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import org.apache.avro.generic.GenericRecord;
 
 import java.util.List;
+import java.util.Set;
 
 public class AvroHadoopInputRowParser implements InputRowParser<GenericRecord>
 {
@@ -56,7 +58,6 @@ public class AvroHadoopInputRowParser implements InputRowParser<GenericRecord>
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
@@ -69,8 +70,23 @@ public class AvroHadoopInputRowParser implements InputRowParser<GenericRecord>
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new AvroHadoopInputRowParser(parseSpec, fromPigAvroStorage);
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new AvroHadoopInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        fromPigAvroStorage
+    );
   }
 }

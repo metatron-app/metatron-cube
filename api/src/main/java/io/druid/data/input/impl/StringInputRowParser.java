@@ -24,6 +24,7 @@ import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -31,6 +32,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -80,7 +82,6 @@ public class StringInputRowParser implements InputRowParser
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
@@ -93,9 +94,25 @@ public class StringInputRowParser implements InputRowParser
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new StringInputRowParser(parseSpec, getEncoding());
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public InputRowParser withDimensionExclusions(Set exclusions)
+  {
+    return new StringInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        getEncoding()
+    );
   }
 
   private Map<String, Object> buildStringKeyMap(ByteBuffer input)

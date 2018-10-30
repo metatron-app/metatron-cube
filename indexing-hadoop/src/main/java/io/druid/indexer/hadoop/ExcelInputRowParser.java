@@ -28,12 +28,14 @@ import io.druid.data.input.ExcelParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -77,14 +79,24 @@ public class ExcelInputRowParser implements InputRowParser<ExcelRow>
   }
 
   @Override
-  public ParseSpec getParseSpec()
+  public TimestampSpec getTimestampSpec()
   {
-    return parseSpec;
+    return parseSpec.getTimestampSpec();
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public DimensionsSpec getDimensionsSpec()
   {
-    return new ExcelInputRowParser(parseSpec, columns, sheetNameColumn);
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new ExcelInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        columns,
+        sheetNameColumn
+    );
   }
 }

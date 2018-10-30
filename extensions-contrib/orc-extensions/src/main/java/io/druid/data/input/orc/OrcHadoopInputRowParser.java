@@ -80,6 +80,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 {
@@ -159,6 +160,18 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     catch (Exception e) {
       throw ParsingFail.propagate(input, e);
     }
+  }
+
+  @Override
+  public TimestampSpec getTimestampSpec()
+  {
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
   }
 
   private Object getDatum(PrimitiveObjectInspector inspector, Object field)
@@ -264,7 +277,6 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     return list;
   }
 
-  @Override
   @JsonProperty
   public ParseSpec getParseSpec()
   {
@@ -278,9 +290,13 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
-    return new OrcHadoopInputRowParser(parseSpec, typeString, null);
+    return new OrcHadoopInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        typeString,
+        null
+    );
   }
 
   public InputRowParser withTypeString(String typeString)

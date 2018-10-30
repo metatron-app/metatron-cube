@@ -28,12 +28,14 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.DateTime;
 
 import java.util.List;
+import java.util.Set;
 
 public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord>
 {
@@ -72,15 +74,28 @@ public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord
   }
 
   @JsonProperty
-  @Override
   public ParseSpec getParseSpec()
   {
     return parseSpec;
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public TimestampSpec getTimestampSpec()
   {
-    return new ParquetHadoopInputRowParser(parseSpec);
+    return parseSpec.getTimestampSpec();
+  }
+
+  @Override
+  public DimensionsSpec getDimensionsSpec()
+  {
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new ParquetHadoopInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+    );
   }
 }

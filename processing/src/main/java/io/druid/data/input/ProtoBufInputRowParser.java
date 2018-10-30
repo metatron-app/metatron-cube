@@ -29,6 +29,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.ParseSpec;
@@ -36,6 +37,7 @@ import io.druid.data.input.impl.ParseSpec;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import static com.google.protobuf.Descriptors.Descriptor;
@@ -62,15 +64,24 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
   }
 
   @Override
-  public ParseSpec getParseSpec()
+  public TimestampSpec getTimestampSpec()
   {
-    return parseSpec;
+    return parseSpec.getTimestampSpec();
   }
 
   @Override
-  public InputRowParser withParseSpec(ParseSpec parseSpec)
+  public DimensionsSpec getDimensionsSpec()
   {
-    return new ProtoBufInputRowParser(parseSpec, descriptorFileInClasspath);
+    return parseSpec.getDimensionsSpec();
+  }
+
+  @Override
+  public InputRowParser withDimensionExclusions(Set<String> exclusions)
+  {
+    return new ProtoBufInputRowParser(
+        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        descriptorFileInClasspath
+    );
   }
 
   @Override

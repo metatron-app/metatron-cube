@@ -44,7 +44,6 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
 import io.druid.granularity.Granularity;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
@@ -618,8 +617,8 @@ public class HadoopDruidIndexerConfig
     }
 
     Preconditions.checkNotNull(schema.getDataSchema().getDataSource(), "dataSource");
-    Preconditions.checkNotNull(schema.getDataSchema().getParser().getParseSpec(), "parseSpec");
-    Preconditions.checkNotNull(schema.getDataSchema().getParser().getParseSpec().getTimestampSpec(), "timestampSpec");
+    Preconditions.checkNotNull(schema.getDataSchema().getParser().getDimensionsSpec(), "dimensionsSpec");
+    Preconditions.checkNotNull(schema.getDataSchema().getParser().getTimestampSpec(), "timestampSpec");
     Preconditions.checkNotNull(schema.getDataSchema().getGranularitySpec(), "granularitySpec");
     Preconditions.checkNotNull(pathSpec, "inputSpec");
     Preconditions.checkNotNull(schema.getTuningConfig().getWorkingPath(), "workingPath");
@@ -656,8 +655,7 @@ public class HadoopDruidIndexerConfig
 
   private List<String> extractCommonDimensions()
   {
-    ParseSpec parseSpec = getParser().getParseSpec();
-    List<String> dimensions = Lists.newArrayList(parseSpec.getDimensionsSpec().getDimensionNames());
+    List<String> dimensions = Lists.newArrayList(getParser().getDimensionsSpec().getDimensionNames());
     if (pathSpec instanceof PartitionPathSpec) {
       PartitionPathSpec partitionPathSpec = (PartitionPathSpec) pathSpec;
       for (String partitionColumn : partitionPathSpec.getPartitionColumns()) {

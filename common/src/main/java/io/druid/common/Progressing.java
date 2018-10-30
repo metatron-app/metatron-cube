@@ -19,8 +19,10 @@
 
 package io.druid.common;
 
+import com.google.common.collect.Iterators;
 import io.druid.data.input.Firehose;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 
@@ -30,7 +32,7 @@ public interface Progressing
 {
   float progress();
 
-  interface OnFirehose extends Progressing, Firehose { }
+  interface OnFirehose extends Progressing, Firehose, Closeable { }
 
-  interface OnIterator<T> extends Progressing, Iterator<T> { }
+  interface OnIterator<T> extends Progressing, Iterator<T>, Closeable { }
 }

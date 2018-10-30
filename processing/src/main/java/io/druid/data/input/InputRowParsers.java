@@ -19,17 +19,22 @@
 
 package io.druid.data.input;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -47,7 +52,7 @@ public class InputRowParsers
     }
 
     final Map<String, ValueDesc> mapping = AggregatorFactory.toExpectedInputType(aggregators);
-    for (DimensionSchema dimension : parser.getParseSpec().getDimensionsSpec().getDimensions()) {
+    for (DimensionSchema dimension : parser.getDimensionsSpec().getDimensions()) {
       mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType()));
     }
     for (Evaluation evaluation : evaluations) {
@@ -60,6 +65,37 @@ public class InputRowParsers
     return new InputRowParser.Delegated<T>()
     {
       @Override
+      public boolean accept(Object input)
+      {
+        if (parser instanceof Streaming) {
+          return ((Streaming<T>) parser).accept(input);
+        }
+        throw new IllegalStateException();
+      }
+
+      @Override
+      public Iterator<InputRow> parseStream(Object input)
+      {
+        if (parser instanceof Streaming) {
+          return Iterators.filter(
+              Iterators.transform(
+                  ((Streaming<T>) parser).parseStream(input),
+                  new Function<InputRow, InputRow>()
+                  {
+                    @Override
+                    public InputRow apply(InputRow input)
+                    {
+                      return convert(input);
+                    }
+                  }
+              ),
+              Predicates.<InputRow>notNull()
+          );
+        }
+        throw new IllegalStateException();
+      }
+
+      @Override
       public InputRowParser<T> getDelegate()
       {
         return parser;
@@ -68,8 +104,11 @@ public class InputRowParsers
       @Override
       public InputRow parse(T input)
       {
-        @SuppressWarnings("unchecked")
-        InputRow inputRow = parser.parse(input);
+        return convert(parser.parse(input));
+      }
+
+      private InputRow convert(InputRow inputRow)
+      {
         if (inputRow == null) {
           return null;
         }
@@ -78,7 +117,7 @@ public class InputRowParsers
             inputRow = evaluator.evaluate(inputRow);
           }
           catch (Exception e) {
-            throw ParsingFail.propagate(input, e);
+            throw ParsingFail.propagate(inputRow, e);
           }
         }
         for (RowEvaluator<Boolean> validator : validators) {
@@ -90,15 +129,41 @@ public class InputRowParsers
       }
 
       @Override
-      public ParseSpec getParseSpec()
+      public TimestampSpec getTimestampSpec()
       {
-        return parser.getParseSpec();
+        return parser.getTimestampSpec();
       }
 
       @Override
-      public InputRowParser withParseSpec(ParseSpec parseSpec)
+      public DimensionsSpec getDimensionsSpec()
       {
-        throw new UnsupportedOperationException("withParseSpec");
+        return parser.getDimensionsSpec();
+      }
+
+      @Override
+      public InputRowParser withDimensionExclusions(Set<String> exclusions)
+      {
+        throw new UnsupportedOperationException("withDimensionExclusions");
+      }
+    };
+  }
+
+  public static <T> Function<T, InputRow> asFunction(final InputRowParser<T> parser, final boolean ignoreInvalidRows)
+  {
+    return new Function<T, InputRow>()
+    {
+      @Override
+      public InputRow apply(T input)
+      {
+        try {
+          return parser.parse(input);
+        }
+        catch (Exception e) {
+          if (!ignoreInvalidRows) {
+            throw ParsingFail.propagate(input, e);
+          }
+          return null;
+        }
       }
     };
   }

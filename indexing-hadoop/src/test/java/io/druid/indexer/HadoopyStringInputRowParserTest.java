@@ -46,6 +46,6 @@ public class HadoopyStringInputRowParserTest
     );
 
     Assert.assertTrue(parser instanceof HadoopyStringInputRowParser);
-    Assert.assertEquals("xXx", parser.getParseSpec().getTimestampSpec().getTimestampColumn());
+    Assert.assertEquals("xXx", parser.getTimestampSpec().getTimestampColumn());
   }
 }

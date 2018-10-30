@@ -70,19 +70,10 @@ public class KafkaEightFirehoseFactory implements FirehoseFactory
   public Firehose connect(final InputRowParser firehoseParser) throws IOException
   {
     Set<String> newDimExclus = Sets.union(
-        firehoseParser.getParseSpec().getDimensionsSpec().getDimensionExclusions(),
+        firehoseParser.getDimensionsSpec().getDimensionExclusions(),
         Sets.newHashSet("feed")
     );
-    final InputRowParser theParser = firehoseParser.withParseSpec(
-        firehoseParser.getParseSpec()
-                      .withDimensionsSpec(
-                          firehoseParser.getParseSpec()
-                                        .getDimensionsSpec()
-                                        .withDimensionExclusions(
-                                            newDimExclus
-                                        )
-                      )
-    );
+    final InputRowParser theParser = firehoseParser.withDimensionExclusions(newDimExclus);
 
     final ConsumerConnector connector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProps));
 

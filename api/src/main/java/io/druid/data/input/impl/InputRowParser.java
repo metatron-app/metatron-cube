@@ -17,26 +17,43 @@
 
 package io.druid.data.input.impl;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
+
+import java.util.Iterator;
+import java.util.Set;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = StringInputRowParser.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "string", value = StringInputRowParser.class),
     @JsonSubTypes.Type(name = "map", value = MapInputRowParser.class),
-    @JsonSubTypes.Type(name = "noop", value = NoopInputRowParser.class)
+    @JsonSubTypes.Type(name = "noop", value = NoopInputRowParser.class),
+    @JsonSubTypes.Type(name = "csv.stream", value = CSVInputRowParser.class),
 })
+// not for serialization
 public interface InputRowParser<T>
 {
-  public InputRow parse(T input) ;
+  InputRow parse(T input);
 
-  public ParseSpec getParseSpec();
+  @JsonIgnore
+  TimestampSpec getTimestampSpec();
 
-  public InputRowParser withParseSpec(ParseSpec parseSpec) ;
+  @JsonIgnore
+  DimensionsSpec getDimensionsSpec();
 
-  interface Delegated<T> extends InputRowParser<T>
+  InputRowParser withDimensionExclusions(Set<String> exclusions);
+
+  interface Streaming<T> extends InputRowParser<T>
+  {
+    boolean accept(Object input);
+
+    Iterator<InputRow> parseStream(Object input);
+  }
+
+  interface Delegated<T> extends Streaming<T>
   {
     InputRowParser<T> getDelegate();
   }

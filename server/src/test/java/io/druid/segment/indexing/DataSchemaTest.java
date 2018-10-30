@@ -25,10 +25,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.metamx.common.IAE;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.DurationGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -77,7 +77,7 @@ public class DataSchemaTest
 
     Assert.assertEquals(
         ImmutableSet.of("time", "col1", "col2", "metric1", "metric2"),
-        schema.getParser().getParseSpec().getDimensionsSpec().getDimensionExclusions()
+        schema.getParser().getDimensionsSpec().getDimensionExclusions()
     );
   }
 
@@ -106,7 +106,7 @@ public class DataSchemaTest
 
     Assert.assertEquals(
         ImmutableSet.of("dimC", "col1", "metric1", "metric2"),
-        schema.getParser().getParseSpec().getDimensionsSpec().getDimensionExclusions()
+        schema.getParser().getDimensionsSpec().getDimensionExclusions()
     );
   }
 
@@ -195,11 +195,12 @@ public class DataSchemaTest
 
     Assert.assertEquals(actual.getDataSource(), "test");
     Assert.assertEquals(
-        actual.getParser().getParseSpec(),
-        new JSONParseSpec(
-            new DefaultTimestampSpec("xXx", null, null),
-            new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null)
-        )
+        actual.getParser().getDimensionsSpec(),
+        new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null)
+    );
+    Assert.assertEquals(
+        actual.getParser().getTimestampSpec(),
+        new DefaultTimestampSpec("xXx", null, null)
     );
     Assert.assertArrayEquals(
         actual.getAggregators(),

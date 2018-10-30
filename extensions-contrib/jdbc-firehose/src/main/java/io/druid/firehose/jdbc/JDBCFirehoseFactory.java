@@ -149,7 +149,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory
   public Firehose connect(final InputRowParser parser) throws IOException, ParseException, IllegalArgumentException
   {
     if (columns != null) {
-      verifyParserSpec(parser.getParseSpec(), columns);
+      verifyParserSpec(parser, columns);
     }
 
     BasicDataSource dataSource = new BasicDataSource();
@@ -193,7 +193,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory
                     }
                     Preconditions.checkArgument(queryColumns.size() > 0,
                         String.format("No column in table [%s]", table));
-                    verifyParserSpec(parser.getParseSpec(), queryColumns);
+                    verifyParserSpec(parser, queryColumns);
                   }
                   if (columnIsNumeric.size() == 0) {
                     ResultSetMetaData metadata = r.getMetaData();
@@ -309,13 +309,13 @@ public class JDBCFirehoseFactory implements FirehoseFactory
     }
   }
 
-  private void verifyParserSpec(ParseSpec parseSpec, List<String> storedColumns) throws IllegalArgumentException
+  private void verifyParserSpec(InputRowParser parser, List<String> storedColumns) throws IllegalArgumentException
   {
-    String tsColumn = parseSpec.getTimestampSpec().getTimestampColumn();
+    String tsColumn = parser.getTimestampSpec().getTimestampColumn();
     Preconditions.checkArgument(storedColumns.contains(tsColumn),
         String.format("timestamp column %s does not exist in table %s", tsColumn, table));
 
-    for (DimensionSchema dim: parseSpec.getDimensionsSpec().getDimensions())
+    for (DimensionSchema dim : parser.getDimensionsSpec().getDimensions())
     {
       Preconditions.checkArgument(storedColumns.contains(dim.getName()),
           String.format("dimension column %s does not exist in table %s", dim, table));
