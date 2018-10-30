@@ -24,6 +24,7 @@ import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
 
 import java.nio.ByteBuffer;
@@ -73,12 +74,15 @@ public class StringInputRowParser implements InputRowParser
   @Override
   public InputRow parse(Object input)
   {
+    Map<String, Object> event;
     if (input instanceof String) {
-      return parseMap(parseString((String)input));
+      event = parseString((String) input);
     } else if (input instanceof ByteBuffer) {
-      return parseMap(buildStringKeyMap((ByteBuffer)input));
+      event = buildStringKeyMap((ByteBuffer) input);
+    } else {
+      throw new IllegalArgumentException("invalid type value " + input);
     }
-    throw new IllegalArgumentException("invalid type value " + input);
+    return parseMap(Rows.mergePartitions(event));
   }
 
   @JsonProperty

@@ -133,9 +133,7 @@ public class IndexTaskTest
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(
                     tmpDir,
-                    "druid*",
-                    null,
-                    null
+                    "druid*"
                 )
             ),
             new IndexTask.IndexTuningConfig(
@@ -206,9 +204,7 @@ public class IndexTaskTest
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(
                     tmpDir,
-                    "druid*",
-                    null,
-                    null
+                    "druid*"
                 )
             ),
             null
@@ -314,9 +310,7 @@ public class IndexTaskTest
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(
                     tmpDir,
-                    "druid*",
-                    null,
-                    null
+                    "druid*"
                 )
             ),
             null

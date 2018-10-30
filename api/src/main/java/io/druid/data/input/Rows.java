@@ -29,6 +29,8 @@ import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 import org.joda.time.DateTime;
 
+import java.io.File;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,6 +42,35 @@ import java.util.TreeMap;
  */
 public class Rows extends io.druid.data.Rows
 {
+  public static Map<String, Object> mergePartitions(Map<String, Object> event)
+  {
+    final Map<String, Object> partitions = InputRow.CURRENT_PARTITION.get();
+    if (partitions == null || partitions.isEmpty()) {
+      return event;
+    }
+    Map<String, Object> updatable = MapBasedRow.toUpdatable(event);
+    for (Map.Entry<String, Object> partition : partitions.entrySet()) {
+      updatable.putIfAbsent(partition.getKey(), partition.getValue());
+    }
+    return updatable;
+  }
+
+  public static void setPartition(File path)
+  {
+    Map<String, Object> partitions = Maps.newLinkedHashMap();
+    for (; path != null; path = path.getParentFile()) {
+      String pathName = path.getName();
+      int index = pathName.indexOf('=');
+      if (index < 0 && !partitions.isEmpty()) {
+        break;
+      }
+      if (index > 0) {
+        partitions.put(pathName.substring(0, index), pathName.substring(index + 1));
+      }
+    }
+    InputRow.CURRENT_PARTITION.set(partitions);
+  }
+
   public static Map<String, Object> retain(Map<String, Object> input, List<String> columns)
   {
     Map<String, Object> event = new LinkedHashMap<>();

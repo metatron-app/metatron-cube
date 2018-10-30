@@ -59,6 +59,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.druid.data.input.InputRow.CURRENT_PARTITION;
+
 /**
  * This makes FileSplit cause it's FileInputFormat (todo)
  */
@@ -71,7 +73,6 @@ public class HadoopCombineInputFormat extends FileInputFormat
 
   public static final ThreadLocal<String> CURRENT_DATASOURCE = new ThreadLocal<>();
   public static final ThreadLocal<Path> CURRENT_PATH = new ThreadLocal<>();
-  public static final ThreadLocal<Map<String, String>> CURRENT_PARTITION = new ThreadLocal<>();
 
   private transient Boolean splitable;
 
@@ -392,9 +393,9 @@ public class HadoopCombineInputFormat extends FileInputFormat
     return Pair.of(pattern.matcher(""), namedGroups);
   }
 
-  final Map<String, String> extractPartition(Path path, Pair<Matcher, Set<String>> extractor)
+  final Map<String, Object> extractPartition(Path path, Pair<Matcher, Set<String>> extractor)
   {
-    Map<String, String> partition = Maps.newLinkedHashMap();
+    Map<String, Object> partition = Maps.newLinkedHashMap();
     if (extractor != null) {
       Matcher matcher = extractor.lhs;
       if (!matcher.reset(path.toString()).find()) {

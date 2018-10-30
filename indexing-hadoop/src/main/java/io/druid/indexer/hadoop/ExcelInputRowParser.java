@@ -27,6 +27,7 @@ import io.druid.data.ParsingFail;
 import io.druid.data.input.ExcelParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -69,7 +70,7 @@ public class ExcelInputRowParser implements InputRowParser<ExcelRow>
   {
     try {
       Supplier<String[]> supplier = columnNameSupplier != null ? columnNameSupplier : input;
-      Map<String, Object> converted = ExcelParser.convert(input.row(), sheetNameColumn, supplier);
+      Map<String, Object> converted = Rows.mergePartitions(ExcelParser.convert(input.row(), sheetNameColumn, supplier));
       DateTime dateTime = timestampSpec.extractTimestamp(converted);
       return new MapBasedInputRow(dateTime, dimensions, converted);
     }

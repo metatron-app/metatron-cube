@@ -34,6 +34,7 @@ import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.InputRowParsers;
+import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.InputRowParser.Streaming;
 import io.druid.utils.Runnables;
@@ -62,6 +63,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
   private final File baseDir;
   private final String filter;
   private final String encoding;
+  private final boolean extractPartition;
   private final InputRowParser parser;
 
   @JsonCreator
@@ -69,6 +71,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
       @JsonProperty("baseDir") File baseDir,
       @JsonProperty("filter") String filter,
       @JsonProperty("encoding") String encoding,
+      @JsonProperty("extractPartition") boolean extractPartition,
       // Backwards compatible
       @JsonProperty("parser") InputRowParser parser
   )
@@ -76,7 +79,13 @@ public class LocalFirehoseFactory implements FirehoseFactory
     this.baseDir = baseDir;
     this.filter = filter;
     this.encoding = encoding;
+    this.extractPartition = extractPartition;
     this.parser = parser;
+  }
+
+  public LocalFirehoseFactory(File baseDir, String filter)
+  {
+    this(baseDir, filter, null, false, null);
   }
 
   @JsonProperty
@@ -138,6 +147,9 @@ public class LocalFirehoseFactory implements FirehoseFactory
                 iterator = ((Streaming) parser).parseStream(reader);
               } else {
                 iterator = Iterators.transform(IOUtils.lineIterator(reader), InputRowParsers.asFunction(parser, false));
+              }
+              if (extractPartition) {
+                Rows.setPartition(input.lhs);
               }
               return new GuavaUtils.DelegatedProgressing<InputRow>(GuavaUtils.withResource(iterator, reader))
               {

@@ -43,7 +43,7 @@ public class PartitionExtractorTest
     expected.put("mm", "25");
     expected.put("ss", "100");
 
-    Map<String, String> map = format.extractPartition(new Path(
+    Map<String, Object> map = format.extractPartition(new Path(
         "hdfs://localhost:9000/some/path/yy=2018/MM=10/dd=16/HH=10/mm=25/ss=100"), null);
     Assert.assertEquals(expected, map);
 

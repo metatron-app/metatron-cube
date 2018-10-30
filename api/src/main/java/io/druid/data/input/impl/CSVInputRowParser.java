@@ -11,6 +11,7 @@ import com.metamx.common.IAE;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -130,12 +131,13 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
       public InputRow apply(final CSVRecord input)
       {
         final int max = Math.min(columns.size(), input.size());
-        Map<String, Object> event = Maps.newHashMap();
+        final Map<String, Object> event = Maps.newHashMap();
         for (int i = 0; i < max; i++) {
           event.put(columns.get(i), input.get(i));
         }
-        DateTime dateTime = timestampSpec.extractTimestamp(event);
-        return new MapBasedInputRow(dateTime, dimensions, event);
+        Map<String, Object> merged = Rows.mergePartitions(event);
+        DateTime dateTime = timestampSpec.extractTimestamp(merged);
+        return new MapBasedInputRow(dateTime, dimensions, merged);
       }
     });
   }

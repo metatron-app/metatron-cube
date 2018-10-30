@@ -39,7 +39,7 @@ public class LocalFirehoseFactoryTest
       throw new IllegalArgumentException();
     }
     File parent = new File(resource.getPath()).getParentFile();
-    LocalFirehoseFactory factory = new LocalFirehoseFactory(parent, "druid*", null, TestIndex.PARSER);
+    LocalFirehoseFactory factory = new LocalFirehoseFactory(parent, "druid*", null, false, TestIndex.PARSER);
     Firehose firehose = factory.connect(TestIndex.PARSER);
     while (firehose.hasMore()) {
       InputRow row = firehose.nextRow();

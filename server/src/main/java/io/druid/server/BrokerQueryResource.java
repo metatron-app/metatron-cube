@@ -72,6 +72,7 @@ import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
+import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
@@ -109,9 +110,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -408,7 +409,10 @@ public class BrokerQueryResource extends QueryResource
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
       final DimensionsSpec dimensionsSpec = parser.getDimensionsSpec();
-      final String timestampColumn = parser.getTimestampSpec().getTimestampColumn();
+      final String timestampColumn = Objects.toString(
+          parser.getTimestampSpec().getTimestampColumn(),
+          EventHolder.timestampKey
+      );
       if (!dimensionsSpec.hasCustomDimensions()) {
         throw new IllegalArgumentException("Need to specify dimension specs, for now");
       }
@@ -450,10 +454,11 @@ public class BrokerQueryResource extends QueryResource
           )
       );
       log.info("Start loading.. %s into index", locations);
-      final Map<String, Object> loadContext = ImmutableMap.<String, Object>of(
-          "skipFirstN", loadSpec.getSkipFirstN(),
-          "ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows()
-      );
+
+      Map<String, Object> loadContext = Maps.newHashMap(forwardContext);
+      loadContext.put("skipFirstN", loadSpec.getSkipFirstN());
+      loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+
       final Sequence<Row> sequence = writer.read(locations, parser, loadContext);
       final QueryRunner runner = wrapForward(
           query, new QueryRunner()

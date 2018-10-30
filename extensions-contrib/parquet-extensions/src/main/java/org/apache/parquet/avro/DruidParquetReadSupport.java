@@ -62,7 +62,7 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
     List<Type> partialFields = Lists.newArrayList();
 
     for (Type type : fullSchema.getFields()) {
-      if (tsField.equals(type.getName())
+      if (type.getName().equals(tsField)
           || metricsFields.contains(type.getName())
           || dimensions.size() > 0 && dimensions.contains(type.getName())
           || dimensions.size() == 0) {

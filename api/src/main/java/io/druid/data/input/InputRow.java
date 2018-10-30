@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * An InputRow is the interface definition of an event being input into the data ingestion layer.
@@ -28,13 +29,14 @@ import java.util.List;
  * implement "schema-less" data ingestion that allows the system to add new dimensions as they appear.
  *
  */
-public interface
-    InputRow extends Row
+public interface InputRow extends Row
 {
+  ThreadLocal<Map<String, Object>> CURRENT_PARTITION = new ThreadLocal<Map<String, Object>>();
+
   /**
    * Returns the dimensions that exist in this row.
    *
    * @return the dimensions that exist in this row.
    */
-  public List<String> getDimensions();
+  List<String> getDimensions();
 }

@@ -312,7 +312,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory
   private void verifyParserSpec(InputRowParser parser, List<String> storedColumns) throws IllegalArgumentException
   {
     String tsColumn = parser.getTimestampSpec().getTimestampColumn();
-    Preconditions.checkArgument(storedColumns.contains(tsColumn),
+    Preconditions.checkArgument(tsColumn == null || storedColumns.contains(tsColumn),
         String.format("timestamp column %s does not exist in table %s", tsColumn, table));
 
     for (DimensionSchema dim : parser.getDimensionsSpec().getDimensions())

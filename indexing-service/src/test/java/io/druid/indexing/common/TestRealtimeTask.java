@@ -59,7 +59,7 @@ public class TestRealtimeTask extends RealtimeIndexTask
         taskResource,
         new FireDepartment(
             new DataSchema(dataSource, null, new AggregatorFactory[]{}, null, mapper), new RealtimeIOConfig(
-            new LocalFirehoseFactory(new File("lol"), "rofl", null, null), new PlumberSchool()
+            new LocalFirehoseFactory(new File("lol"), "rofl"), new PlumberSchool()
         {
           @Override
           public Plumber findPlumber(

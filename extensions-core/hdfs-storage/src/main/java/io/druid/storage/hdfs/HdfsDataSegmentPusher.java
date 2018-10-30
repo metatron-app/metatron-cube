@@ -41,6 +41,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
@@ -79,7 +80,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.Reader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.net.URI;
@@ -216,6 +216,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
                 IOUtils.lineIterator(new InputStreamReader(stream, Charsets.toCharset(encoding))),
                 InputRowParsers.asFunction(parser, ignoreInvalidRows)
             );
+          }
+          if (PropUtils.parseBoolean(context, "extractPartition")) {
+            Rows.setPartition(new File(input));
           }
           return new GuavaUtils.DelegatedProgressing<Row>(GuavaUtils.withResource(iterator, stream))
           {

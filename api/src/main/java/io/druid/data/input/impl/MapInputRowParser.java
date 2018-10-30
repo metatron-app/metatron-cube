@@ -24,6 +24,7 @@ import com.google.common.collect.Sets;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
 
@@ -44,8 +45,9 @@ public class MapInputRowParser implements InputRowParser<Map<String, Object>>
   }
 
   @Override
-  public InputRow parse(Map<String, Object> theMap)
+  public InputRow parse(Map<String, Object> event)
   {
+    final Map<String, Object> theMap = Rows.mergePartitions(event);
     final List<String> dimensions = parseSpec.getDimensionsSpec().hasCustomDimensions()
                                     ? parseSpec.getDimensionsSpec().getDimensionNames()
                                     : Lists.newArrayList(

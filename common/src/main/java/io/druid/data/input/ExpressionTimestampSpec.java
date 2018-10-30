@@ -50,17 +50,22 @@ public class ExpressionTimestampSpec implements TimestampSpec
     this.parsed = Parser.parse(expression);
   }
 
-  @Override
-  @JsonProperty("column")
-  public String getTimestampColumn()
+  @JsonProperty("expression")
+  public String getExpression()
   {
     return expression;
   }
 
   @Override
+  public String getTimestampColumn()
+  {
+    return null;
+  }
+
+  @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    final Object o = parsed.eval(Parser.withMap(input)).lhs;
+    final Object o = parsed.eval(Parser.withMap(input)).value();
     if (o == null) {
       return null;
     } else if (o instanceof DateTime) {

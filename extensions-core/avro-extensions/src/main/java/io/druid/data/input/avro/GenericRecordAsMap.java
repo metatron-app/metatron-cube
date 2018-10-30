@@ -21,6 +21,8 @@ package io.druid.data.input.avro;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import io.druid.data.input.InputRow;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -29,6 +31,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +41,7 @@ public class GenericRecordAsMap implements Map<String, Object>
   private final GenericRecord record;
   private final boolean fromPigAvroStorage;
   private final Map<String, Schema.Field> schema = Maps.newHashMap();
+  private final Map<String, Object> partitions;
 
   private static final Function<Object, String> PIG_AVRO_STORAGE_ARRAY_TO_STRING_INCLUDING_NULL = new Function<Object, String>()
   {
@@ -56,24 +60,31 @@ public class GenericRecordAsMap implements Map<String, Object>
     for (Schema.Field field : record.getSchema().getFields()) {
       schema.put(field.name(), field);
     }
+    Map<String, Object> partitions = InputRow.CURRENT_PARTITION.get();
+    if (partitions != null & !partitions.isEmpty()) {
+      for (String key : schema.keySet()) {
+        partitions.remove(key);
+      }
+    }
+    this.partitions = partitions == null ? Collections.<String, Object>emptyMap() : partitions;
   }
 
   @Override
   public int size()
   {
-    return schema.size();
+    return schema.size() + partitions.size();
   }
 
   @Override
   public boolean isEmpty()
   {
-    return schema.isEmpty();
+    return schema.isEmpty() && partitions.isEmpty();
   }
 
   @Override
   public boolean containsKey(Object key)
   {
-    return schema.containsKey(key);
+    return schema.containsKey(key) || partitions.containsKey(key);
   }
 
   @Override
@@ -103,7 +114,11 @@ public class GenericRecordAsMap implements Map<String, Object>
   @Override
   public Object get(Object key)
   {
-    Object field = record.get(key.toString());
+    Object field = partitions.get(key);
+    if (field != null) {
+      return field;
+    }
+    field = record.get(key.toString());
     if (fromPigAvroStorage && field instanceof GenericData.Array) {
       return Lists.transform((List) field, PIG_AVRO_STORAGE_ARRAY_TO_STRING_INCLUDING_NULL);
     }
@@ -140,7 +155,7 @@ public class GenericRecordAsMap implements Map<String, Object>
   @Override
   public Set<String> keySet()
   {
-    return schema.keySet();
+    return Sets.union(schema.keySet(), partitions.keySet());
   }
 
   @Override

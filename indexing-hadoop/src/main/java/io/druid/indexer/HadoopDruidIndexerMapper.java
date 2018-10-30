@@ -24,12 +24,9 @@ import com.metamx.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.Row;
-import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
-import io.druid.indexer.path.HadoopCombineInputFormat;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
@@ -37,7 +34,6 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.util.Map;
 
 public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<Object, Object, KEYOUT, VALUEOUT>
 {
@@ -93,12 +89,10 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   }
 
   @Override
-  protected void map(
-      Object key, Object value, Context context
-  ) throws IOException, InterruptedException
+  protected void map(Object key, Object value, Context context) throws IOException, InterruptedException
   {
     try {
-      final InputRow inputRow = parseInputRow(value);
+      final InputRow inputRow = parseInputRow(value, parser);
       if (inputRow == null) {
         return;
       }
@@ -149,20 +143,6 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     if (e instanceof ParserInitializationFail) {
       throw (ParserInitializationFail) e;   // invalid configuration, etc.. fail early
     }
-  }
-
-  private InputRow parseInputRow(Object value)
-  {
-    InputRow inputRow = parseInputRow(value, parser);
-    Map<String, String> partition = HadoopCombineInputFormat.CURRENT_PARTITION.get();
-    if (inputRow != null && partition != null && !partition.isEmpty()) {
-      Row.Updatable updatable = Rows.toUpdatable(inputRow);
-      for (Map.Entry<String, String> entry : partition.entrySet()) {
-        updatable.set(entry.getKey(), entry.getValue());
-      }
-      inputRow = (InputRow) updatable;
-    }
-    return inputRow;
   }
 
   @SuppressWarnings("unchecked")
