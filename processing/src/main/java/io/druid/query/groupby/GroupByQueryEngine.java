@@ -44,11 +44,13 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -131,7 +133,7 @@ public class GroupByQueryEngine
   {
     return Sequences.map(
         takeTopN(query).apply(processInternal(query, Sequences.simple(Arrays.asList(segment)), cache)),
-        converter(query)
+        arrayToRow(query)
     );
   }
 
@@ -284,6 +286,7 @@ public class GroupByQueryEngine
 
       int index = 0;
       columnMapping = Maps.newHashMap();
+      columnMapping.put(Row.TIME_COLUMN_NAME, index++);
       for (String dimName : dimNames) {
         columnMapping.put(dimName, index++);
       }
@@ -494,7 +497,7 @@ public class GroupByQueryEngine
                   {
                     final Object[] array = new Object[numColumns];
 
-                    int i = 0;
+                    int i = 1;
                     final int[] keyArray = input.getKey().array;
                     for (int x = 0; x < dimensions.length; ++x) {
                       array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
@@ -519,7 +522,7 @@ public class GroupByQueryEngine
                         array[i++] = postAggregator.compute(timestamp, accessor);
                       }
                     }
-                    array[i] = timestamp;
+                    array[0] = timestamp.getMillis();
                     return array;
                   }
                 }
@@ -592,7 +595,7 @@ public class GroupByQueryEngine
     if (segmentLimit == null || segmentLimit.getLimit() <= 0) {
       return Functions.identity();
     }
-    final List<String> columnNames = toColumnNames(query);
+    final List<String> columnNames = toOutputColumns(query);
     final Map<String, Comparator> comparatorMap = toComparatorMap(query);
     final List<Pair<Integer, Comparator>> comparators = Lists.newArrayList();
     for (OrderByColumnSpec orderings : limitSpec.getSegmentLimitOrdering()) {
@@ -645,12 +648,12 @@ public class GroupByQueryEngine
     };
   }
 
-  public static Function<Object[], Row> converter(final GroupByQuery query)
+  public static Function<Object[], Row> arrayToRow(final BaseAggregationQuery<?> query)
   {
     return new Function<Object[], Row>()
     {
       private final boolean asSorted = query.getContextBoolean("TEST_AS_SORTED", false);
-      private final String[] columnNames = toColumnNames(query).toArray(new String[0]);
+      private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
 
       @Override
       public Row apply(final Object[] input)
@@ -659,14 +662,36 @@ public class GroupByQueryEngine
                                                       : Maps.<String, Object>newHashMap();
         int i = 0;
         for (; i < columnNames.length; i++) {
-          theEvent.put(columnNames[i], input[i]);
+          theEvent.put(columnNames[i], input[i + 1]);
         }
-        return new MapBasedRow((DateTime) input[i], theEvent);
+        return new MapBasedRow(query.getGranularity().toDateTime((Long)input[0]), theEvent);
       }
     };
   }
 
-  private static List<String> toColumnNames(GroupByQuery query)
+  public static Function<Row, Object[]> rowToArray(final BaseAggregationQuery<?> query)
+  {
+    return new Function<Row, Object[]>()
+    {
+      private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
+
+      @Override
+      public Object[] apply(final Row input)
+      {
+        if (input instanceof CompactRow) {
+          return ((CompactRow) input).getValues();
+        }
+        final Object[] array = new Object[1 + columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+          array[i + 1] = input.getRaw(columnNames[i]);
+        }
+        array[0] = input.getTimestampFromEpoch();
+        return array;
+      }
+    };
+  }
+
+  private static List<String> toOutputColumns(BaseAggregationQuery<?> query)
   {
     List<String> columns = Lists.newArrayList();
     columns.addAll(DimensionSpecs.toOutputNames(query.getDimensions()));
@@ -675,7 +700,7 @@ public class GroupByQueryEngine
     return columns;
   }
 
-  private static Map<String, Comparator> toComparatorMap(GroupByQuery query)
+  private static Map<String, Comparator> toComparatorMap(BaseAggregationQuery<?> query)
   {
     Map<String, Comparator> comparatorMap = Maps.newHashMap();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {

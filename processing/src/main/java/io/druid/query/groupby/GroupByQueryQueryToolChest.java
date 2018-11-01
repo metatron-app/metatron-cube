@@ -302,7 +302,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                   }
                 };
             LOG.info("Running streaming subquery with max pages [%d]", maxPage);
-            return Sequences.<Row>once(GuavaUtils.map(iterator, GroupByQueryEngine.converter(groupBy)));
+            return Sequences.<Row>once(GuavaUtils.map(iterator, GroupByQueryEngine.arrayToRow(groupBy)));
           }
         };
       }
