@@ -19,6 +19,7 @@
 
 package io.druid.query.groupby.orderby;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -31,10 +32,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Yielder;
 import io.druid.common.Cacheable;
+import io.druid.common.Yielders;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.Row;
+import io.druid.guice.annotations.Processing;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.PostAggregators;
@@ -45,6 +52,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
 @JsonSubTypes(value = {
@@ -77,34 +86,38 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   private final OrderedLimitSpec nodeLimit;
   private final List<WindowingSpec> windowingSpecs;
 
+  private final ExecutorService executor;
+
   @JsonCreator
   public LimitSpec(
       @JsonProperty("columns") List<OrderByColumnSpec> columns,
       @JsonProperty("limit") Integer limit,
       @JsonProperty("segmentLimit") OrderedLimitSpec segmentLimit,
       @JsonProperty("nodeLimit") OrderedLimitSpec nodeLimit,
-      @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs
+      @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs,
+      @JacksonInject @Processing ExecutorService executor
   )
   {
     super(columns, limit);
     this.segmentLimit = segmentLimit;
     this.nodeLimit = nodeLimit;
     this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
+    this.executor = executor == null ? MoreExecutors.sameThreadExecutor() : executor;
   }
 
   public LimitSpec(List<OrderByColumnSpec> columns, Integer limit, List<WindowingSpec> windowingSpecs)
   {
-    this(columns, limit, null, null, windowingSpecs);
+    this(columns, limit, null, null, windowingSpecs, null);
   }
 
   public LimitSpec(List<OrderByColumnSpec> columns, Integer limit)
   {
-    this(columns, limit, null, null, null);
+    this(columns, limit, null, null, null, null);
   }
 
   public LimitSpec(List<WindowingSpec> windowingSpecs)
   {
-    this(null, null, null, null, windowingSpecs);
+    this(null, null, null, null, windowingSpecs, null);
   }
 
   @JsonProperty
@@ -130,21 +143,24 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
 
   public LimitSpec withWindowing(List<WindowingSpec> windowingSpecs)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, executor);
   }
 
   public LimitSpec withOrderingSpec(List<OrderByColumnSpec> columns)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, executor);
   }
 
   public LimitSpec withNoProcessing()
   {
     return segmentLimit == null && nodeLimit == null ?
-           NoopLimitSpec.INSTANCE : new LimitSpec(null, null, segmentLimit, nodeLimit, null);
+           NoopLimitSpec.INSTANCE : new LimitSpec(null, null, segmentLimit, nodeLimit, null, executor);
   }
 
-  public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
+  public Function<Sequence<Row>, Sequence<Row>> build(
+      Query.AggregationsSupport<?> query,
+      boolean sortOnTimeForLimit
+  )
   {
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
       return new LimitingFn(limit);
@@ -155,7 +171,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     ));
     if (windowingSpecs.isEmpty()) {
       Ordering<Object[]> ordering = WindowingProcessor.makeArrayComparator(query, columns, sortOnTimeForLimit);
-      return new SortingArrayFn(query, ordering, limit);
+      return new SortingArrayFn(query, ordering, limit, executor);
     }
     WindowingProcessor processor = new WindowingProcessor(query, windowingSpecs);
     boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
@@ -221,25 +237,79 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
 
   private static class SortingArrayFn implements Function<Sequence<Row>, Sequence<Row>>
   {
+    static final int GROUP_SIZE = 0x40000;
+
     private final Query.AggregationsSupport<?> query;
     private final Comparator<Object[]> comparator;
     private final int limit;
+    private final ExecutorService executor;
 
-    public SortingArrayFn(Query.AggregationsSupport<?> query, Comparator<Object[]> comparator, int limit)
+    public SortingArrayFn(
+        Query.AggregationsSupport<?> query,
+        Comparator<Object[]> comparator,
+        int limit,
+        ExecutorService executor
+    )
     {
       this.query = query;
       this.comparator = comparator;
       this.limit = limit;
+      this.executor = executor;
     }
 
     @Override
     public Sequence<Row> apply(Sequence<Row> input)
     {
-      List<Object[]> rows = Sequences.toList(Sequences.map(input, GroupByQueryEngine.rowToArray(query)));
-      Object[][] array = rows.toArray(new Object[rows.size()][]);
-      Arrays.parallelSort(array, comparator);
-      Iterable<Row> sorted = Iterables.transform(Arrays.asList(array), GroupByQueryEngine.arrayToRow(query));
-      return Sequences.limit(Sequences.simple(sorted), limit);
+      final List<Future<Object[][]>> sorted = Lists.newArrayList();
+      Yielder<Object[]> yielder = Yielders.each(Sequences.map(input, GroupByQueryEngine.rowToArray(query)));
+      while (!yielder.isDone()) {
+        final List<Object[]> rows = Lists.newArrayList();
+        for (; !yielder.isDone() && rows.size() < GROUP_SIZE; yielder = yielder.next(null)) {
+          rows.add(yielder.get());
+        }
+        if (rows.isEmpty()) {
+          continue;
+        }
+        // sort self for last group
+        ExecutorService runner = yielder.isDone() ? MoreExecutors.sameThreadExecutor() : executor;
+        sorted.add(
+            runner.submit(
+                new PrioritizedCallable.Background<Object[][]>()
+                {
+                  @Override
+                  public Object[][] call() throws Exception
+                  {
+                    // paging?
+                    Object[][] array = rows.toArray(new Object[rows.size()][]);
+                    Arrays.parallelSort(array, comparator);
+                    return array;
+                  }
+                }
+            )
+        );
+      }
+      if (sorted.isEmpty()) {
+        return Sequences.empty();
+      }
+      Iterable<Object[]> stream;
+      if (sorted.size() == 1) {
+        stream = Arrays.asList(Futures.getUnchecked(sorted.get(0)));
+      } else {
+        stream = Iterables.mergeSorted(Lists.newArrayList(Iterables.transform(
+            sorted,
+            new Function<Future<Object[][]>, Iterable<Object[]>>()
+            {
+              @Override
+              public Iterable<Object[]> apply(Future<Object[][]> input1)
+              {
+                return Arrays.asList(Futures.getUnchecked(input1));
+              }
+            }
+        )), comparator);
+      }
+      return Sequences.simple(
+          Iterables.limit(Iterables.transform(stream, GroupByQueryEngine.arrayToRow(query)), limit)
+      );
     }
   }
 

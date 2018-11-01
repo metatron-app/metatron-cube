@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.metamx.common.guava.ResourceClosingSequence;
@@ -45,6 +46,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -145,6 +147,18 @@ public class Execs
           }
         }
     );
+  }
+
+  public static <T> Function<Future<T>, T> getUnchecked()
+  {
+    return new Function<Future<T>, T>()
+    {
+      @Override
+      public T apply(Future<T> input)
+      {
+        return Futures.getUnchecked(input);
+      }
+    };
   }
 
   public static class Semaphore implements Closeable

@@ -44,13 +44,13 @@ public class LimitSpecs
 
   public static LimitSpec of(Integer limit)
   {
-    return limit == null ? NoopLimitSpec.INSTANCE : new LimitSpec(null, limit, null, null, null);
+    return limit == null ? NoopLimitSpec.INSTANCE : new LimitSpec(null, limit, null, null, null, null);
   }
 
   public static LimitSpec of(Integer limit, OrderByColumnSpec... specs)
   {
     return limit == null && specs.length == 0 ?
-           NoopLimitSpec.INSTANCE : new LimitSpec(Arrays.asList(specs), limit, null, null, null);
+           NoopLimitSpec.INSTANCE : new LimitSpec(Arrays.asList(specs), limit, null, null, null, null);
   }
 
   public static boolean isDummy(LimitSpec limitSpec)

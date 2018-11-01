@@ -712,8 +712,8 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     GroupByQuery groupBy = (GroupByQuery) query;
     sequence = groupBy.applyLimit(sequence, groupBy.isSortOnTimeForLimit(configSupplier.get().isSortOnTime()));
 
-    final List<String> outputColumns = ((GroupByQuery) query).getOutputColumns();
-    final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
+    final List<String> outputColumns = groupBy.getOutputColumns();
+    final LateralViewSpec lateralViewSpec = groupBy.getLateralView();
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       sequence = Sequences.map(
           sequence, new Function<Row, Row>()

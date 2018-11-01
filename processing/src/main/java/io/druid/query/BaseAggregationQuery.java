@@ -23,8 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
@@ -183,25 +181,11 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
 
   public Sequence<Row> applyLimit(Sequence<Row> results, boolean sortOnTimeForLimit)
   {
-    List<PostAggregator> decorated = PostAggregators.decorate(postAggregatorSpecs, aggregatorSpecs);
-    Function<Sequence<Row>, Sequence<Row>> postProcFn = limitSpec.build(this, sortOnTimeForLimit);
-
     if (havingSpec != null) {
-      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);
-      postProcFn = Functions.compose(
-          postProcFn,
-          new Function<Sequence<Row>, Sequence<Row>>()
-          {
-            @Override
-            public Sequence<Row> apply(Sequence<Row> input)
-            {
-              return Sequences.filter(input, predicate);
-            }
-          }
-      );
+      Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);
+      results = Sequences.filter(results, predicate);
     }
-
-    return postProcFn.apply(results);
+    return limitSpec.build(this, sortOnTimeForLimit).apply(results);
   }
 
   @Override
