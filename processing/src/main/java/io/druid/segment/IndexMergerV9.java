@@ -40,6 +40,7 @@ import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
 import com.metamx.common.ByteBufferUtils;
 import com.metamx.common.ISE;
+import com.metamx.common.Pair;
 import com.metamx.common.io.smoosh.FileSmoosher;
 import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
@@ -64,6 +65,7 @@ import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ObjectStrategy;
+import io.druid.segment.data.SketchWriter;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIndexedIntsWriter;
 import io.druid.segment.data.VSizeIndexedWriter;
@@ -178,11 +180,14 @@ public class IndexMergerV9 extends IndexMerger
       startTime = System.currentTimeMillis();
       final Map<String, Integer> dimCardinalities = Maps.newHashMap();
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters = setupDimValueWriters(ioPeon, mergedDimensions);
+      final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters = setupDimSketchWriters(
+          indexSpec, ioPeon, mergedDimensions
+      );
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(adapters.size());
       final ArrayList<Boolean> dimensionSkipFlag = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final ArrayList<Boolean> dimHasNullFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final ArrayList<Boolean> convertMissingDimsFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      writeDimValueAndSetupDimConversion(
+       writeDimValueAndSetupDimConversion(
           adapters, progress, mergedDimensions, dimCardinalities, dimValueWriters, dimensionSkipFlag, dimConversions,
           convertMissingDimsFlags, dimHasNullFlags
       );
@@ -223,9 +228,9 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters = setupSpatialIndexWriters(
           ioPeon, mergedDimensions, indexSpec, dimCapabilities
       );
-      makeInvertedIndexes(
+       makeInvertedIndexes(
           adapters, progress, mergedDimensions, indexSpec, v9TmpDir, rowNumConversions,
-          nullRowsList, dimValueWriters, bitmapIndexWriters, spatialIndexWriters, dimConversions
+          nullRowsList, dimValueWriters, dimSketchWriters, bitmapIndexWriters, spatialIndexWriters, dimConversions
       );
 
       /************ Finalize Build Columns *************/
@@ -234,7 +239,7 @@ public class IndexMergerV9 extends IndexMerger
       makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
-          dimValueWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters
+          dimValueWriters, dimSketchWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters
       );
 
       /************* Make index.drd & metadata.drd files **************/
@@ -344,6 +349,7 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<Boolean> dimensionSkipFlag,
       final List<ColumnCapabilitiesImpl> dimCapabilities,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
+      final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters,
       final ArrayList<ColumnPartWriter> dimWriters,
       final ArrayList<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
       final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters
@@ -359,11 +365,15 @@ public class IndexMergerV9 extends IndexMerger
       long dimStartTime = System.currentTimeMillis();
       final String dim = mergedDimensions.get(i);
       final ColumnPartWriter dimWriter = dimWriters.get(i);
+      final ColumnPartWriter dimSketchWriter = dimSketchWriters.get(i);
       final ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter = bitmapIndexWriters.get(i);
       final ColumnPartWriter<ImmutableRTree> spatialIndexWriter = spatialIndexWriters.get(i);
 
       dimWriter.close();
       bitmapIndexWriter.close();
+      if (dimSketchWriter != null) {
+        dimSketchWriter.close();
+      }
       if (spatialIndexWriter != null) {
         spatialIndexWriter.close();
       }
@@ -379,10 +389,11 @@ public class IndexMergerV9 extends IndexMerger
       final DictionaryEncodedColumnPartSerde.SerializerBuilder partBuilder = DictionaryEncodedColumnPartSerde
           .serializerBuilder()
           .withDictionary(dimValueWriters.get(i))
+          .withDictionarySketch(dimSketchWriter)
           .withValue(dimWriters.get(i), hasMultiValue, compressionStrategy != null)
           .withBitmapSerdeFactory(bitmapSerdeFactory)
-          .withBitmapIndex(bitmapIndexWriters.get(i))
-          .withSpatialIndex(spatialIndexWriters.get(i))
+          .withBitmapIndex(bitmapIndexWriter)
+          .withSpatialIndex(spatialIndexWriter)
           .withByteOrder(IndexIO.BYTE_ORDER);
 
       builder.addSerde(partBuilder.build());
@@ -476,6 +487,7 @@ public class IndexMergerV9 extends IndexMerger
       final int[][] rowNumConversions,
       final ArrayList<MutableBitmap> nullRowsList,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
+      final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters,
       final ArrayList<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
       final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters,
       final ArrayList<Map<String, IntBuffer>> dimConversions
@@ -507,6 +519,7 @@ public class IndexMergerV9 extends IndexMerger
         tree = new RTree(2, new LinearGutmanSplitStrategy(0, 50, bitmapFactory), bitmapFactory);
       }
 
+      ColumnPartWriter<Pair<String, Integer>> sketchWriter = dimSketchWriters.get(dimIndex);
       IndexSeeker[] dictIdSeeker = toIndexSeekers(adapters, dimConversions, dimension);
       ImmutableBitmap nullRowBitmap = bitmapFactory.makeImmutableBitmap(nullRowsList.get(dimIndex));
 
@@ -533,6 +546,9 @@ public class IndexMergerV9 extends IndexMerger
           }
         }
 
+        if (sketchWriter != null) {
+          sketchWriter.add(Pair.of(dimVals.get(dictId), bitset.size()));
+        }
         ImmutableBitmap bitmapToWrite = bitmapFactory.makeImmutableBitmap(bitset);
         if ((dictId == 0) && (Iterables.getFirst(dimVals, "") == null)) {
           bitmapToWrite = nullRowBitmap.union(bitmapToWrite);
@@ -769,12 +785,32 @@ public class IndexMergerV9 extends IndexMerger
     ArrayList<GenericIndexedWriter<String>> dimValueWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
     for (String dimension : mergedDimensions) {
       final GenericIndexedWriter<String> writer = GenericIndexedWriter.dimWriter(
-          ioPeon, String.format("%s.dim_values", dimension), true
+          ioPeon, String.format("%s.dim_values", dimension)
       );
       writer.open();
       dimValueWriters.add(writer);
     }
     return dimValueWriters;
+  }
+
+  private ArrayList<ColumnPartWriter<Pair<String, Integer>>> setupDimSketchWriters(
+      final IndexSpec indexSpec,
+      final IOPeon ioPeon,
+      final List<String> mergedDimensions
+  )
+      throws IOException
+  {
+    ArrayList<ColumnPartWriter<Pair<String, Integer>>> sketchWriters =
+        Lists.newArrayListWithCapacity(mergedDimensions.size());
+    for (String dimension : mergedDimensions) {
+      SketchWriter writer = null;
+      if (indexSpec.getDimensionCompressionStrategy() != null) {
+        writer = new SketchWriter(ioPeon, String.format("%s.dim_sketches", dimension));
+        writer.open();
+      }
+      sketchWriters.add(writer);
+    }
+    return sketchWriters;
   }
 
   private void writeDimValueAndSetupDimConversion(

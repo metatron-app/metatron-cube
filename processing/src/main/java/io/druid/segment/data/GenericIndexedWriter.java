@@ -20,21 +20,13 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Ordering;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
-import com.yahoo.sketches.Family;
-import com.yahoo.sketches.quantiles.ItemsSketch;
-import com.yahoo.sketches.quantiles.ItemsUnion;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Sketch;
-import com.yahoo.sketches.theta.Union;
-import io.druid.data.ValueDesc;
-import io.druid.query.sketch.TypedSketch;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -49,98 +41,51 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
 
   public static GenericIndexedWriter<String> dimWriter(
       IOPeon ioPeon,
-      String filenameBase,
-      boolean sketch
+      String filenameBase
   )
   {
     return new GenericIndexedWriter<>(
         ioPeon,
         filenameBase,
-        ObjectStrategy.STRING_STRATEGY,
-        sketch
+        ObjectStrategy.STRING_STRATEGY
     );
   }
 
   private final IOPeon ioPeon;
   private final String filenameBase;
   private final ObjectStrategy<T> strategy;
-  private final boolean sketch;
 
-  private boolean sorted;
+  private boolean objectsSorted = true;
   private T prevObject = null;
 
   private CountingOutputStream headerOut = null;
   private CountingOutputStream valuesOut = null;
-  private CountingOutputStream quantileOut = null;
-  private CountingOutputStream thetaOut = null;
-  private int numWritten = 0;
-
-  private ItemsUnion quantile;
-  private Union theta;
+  int numWritten = 0;
 
   public GenericIndexedWriter(
       IOPeon ioPeon,
       String filenameBase,
-      ObjectStrategy<T> strategy,
-      boolean sketch
+      ObjectStrategy<T> strategy
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.strategy = strategy;
-    this.sketch = sketch && strategy.getClazz() == String.class;
-    this.sorted = !(strategy instanceof ObjectStrategy.NotComparable);
+    this.objectsSorted = !(strategy instanceof ObjectStrategy.NotComparable);
   }
 
-  public GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
-  {
-    this(ioPeon, filenameBase, strategy, false);
-  }
-
-  public boolean isSorted()
-  {
-    return sorted;
-  }
-
-  public boolean hasSketch()
-  {
-    return sketch;
-  }
-
-  public ItemsSketch getQuantile()
-  {
-    return sketch ? quantile.getResult() : null;
-  }
-
-  public Sketch getTheta()
-  {
-    return sketch ? theta.getResult() : null;
-  }
-
-  @Override
   public void open() throws IOException
   {
     headerOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("header")));
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("values")));
-    if (sketch) {
-      quantileOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("quantile")));
-      quantile = ItemsUnion.getInstance(1024, Ordering.natural().nullsFirst()); // need not to be exact
-
-      thetaOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("theta")));
-      theta = (Union) SetOperation.builder().setNominalEntries(16384).build(Family.UNION); // need not to be exact
-    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public void add(T objectToWrite) throws IOException
   {
-    if (sorted && prevObject != null && strategy.compare(prevObject, objectToWrite) >= 0) {
-      sorted = false;
-    }
-    if (sketch) {
-      quantile.update(objectToWrite);
-      theta.update((String) objectToWrite);
+    if (objectsSorted && prevObject != null && strategy.compare(prevObject, objectToWrite) >= 0) {
+      objectsSorted = false;
     }
 
     byte[] bytesToWrite = strategy.toBytes(objectToWrite);
@@ -166,6 +111,8 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     headerOut.close();
     valuesOut.close();
 
+    final long numBytesWritten = headerOut.getCount() + valuesOut.getCount();
+
     Preconditions.checkState(
         headerOut.getCount() == (numWritten * 4),
         "numWritten[%s] number of rows should have [%s] bytes written to headerOut, had[%s]",
@@ -173,24 +120,27 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
         numWritten * 4,
         headerOut.getCount()
     );
+    Preconditions.checkState(
+        numBytesWritten < Integer.MAX_VALUE, "Wrote[%s] bytes, which is too many.", numBytesWritten
+    );
 
-    if (quantileOut != null) {
-      quantileOut.write(quantile.toByteArray(TypedSketch.toItemsSerDe(ValueDesc.STRING)));
-      quantileOut.close();
+    OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"));
+
+    try {
+      metaOut.write(0x1);
+      metaOut.write(objectsSorted ? 0x1 : 0x0);
+      metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
+      metaOut.write(Ints.toByteArray(numWritten));
     }
-    if (thetaOut != null) {
-      thetaOut.write(theta.getResult().toByteArray());
-      thetaOut.close();
+    finally {
+      metaOut.close();
     }
   }
 
-  @Override
   public long getSerializedSize()
   {
     return Byte.BYTES +           // version
            Byte.BYTES +           // flag
-           (quantileOut == null ? 0 : Ints.BYTES + quantileOut.getCount()) +   // quantile
-           (thetaOut == null ? 0 : Ints.BYTES + thetaOut.getCount()) +   // theta
            Ints.BYTES +           // numBytesWritten
            Ints.BYTES +           // numElements
            headerOut.getCount() + // header length
@@ -201,26 +151,10 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     byte flag = 0;
-    if (sorted) {
+    if (objectsSorted) {
       flag |= GenericIndexed.Feature.SORTED.getMask();
     }
-    if (sketch) {
-      flag |= GenericIndexed.Feature.SKETCH.getMask();
-    }
     channel.write(ByteBuffer.wrap(new byte[] {GenericIndexed.version, flag}));
-
-    if (sketch) {
-      // size + quantile
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(quantileOut.getCount()))));
-      try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("quantile")))) {
-        ByteStreams.copy(input, channel);
-      }
-      // size + theta
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(thetaOut.getCount()))));
-      try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("theta")))) {
-        ByteStreams.copy(input, channel);
-      }
-    }
 
     // size + count + header + values
     int length = Ints.checkedCast(headerOut.getCount() + valuesOut.getCount() + Integer.BYTES);

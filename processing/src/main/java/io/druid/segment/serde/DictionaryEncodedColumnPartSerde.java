@@ -26,6 +26,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.IAE;
+import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
@@ -38,6 +39,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IndexedInts;
@@ -66,7 +68,8 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
   enum Feature
   {
     MULTI_VALUE,
-    MULTI_VALUE_V3;
+    MULTI_VALUE_V3,
+    DICTIONARY_SKETCH;
 
     public boolean isSet(int flags) { return (getMask() & flags) != 0; }
 
@@ -143,6 +146,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     private VERSION version = null;
     private int flags = NO_FLAGS;
     private ColumnPartWriter<String> dictionaryWriter = null;
+    private ColumnPartWriter<Pair<String, Integer>> sketchWriter = null;
     private ColumnPartWriter valueWriter = null;
     private BitmapSerdeFactory bitmapSerdeFactory = null;
     private ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter = null;
@@ -152,6 +156,15 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     public SerializerBuilder withDictionary(GenericIndexedWriter<String> dictionaryWriter)
     {
       this.dictionaryWriter = dictionaryWriter;
+      return this;
+    }
+
+    public SerializerBuilder withDictionarySketch(ColumnPartWriter<Pair<String, Integer>> sketchWriter)
+    {
+      this.sketchWriter = sketchWriter;
+      if (sketchWriter != null) {
+        this.flags |= Feature.DICTIONARY_SKETCH.getMask();
+      }
       return this;
     }
 
@@ -217,6 +230,9 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
               if (dictionaryWriter != null) {
                 size += dictionaryWriter.getSerializedSize();
               }
+              if (sketchWriter != null) {
+                size += sketchWriter.getSerializedSize();
+              }
               if (valueWriter != null) {
                 size += valueWriter.getSerializedSize();
               }
@@ -238,6 +254,9 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
               }
               if (dictionaryWriter != null) {
                 dictionaryWriter.writeToChannel(channel);
+              }
+              if (sketchWriter != null) {
+                sketchWriter.writeToChannel(channel);
               }
               if (valueWriter != null) {
                 valueWriter.writeToChannel(channel);
@@ -458,6 +477,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         final GenericIndexed<String> rDictionary = GenericIndexed.read(buffer, ObjectStrategy.STRING_STRATEGY);
         builder.setType(ValueDesc.STRING);
 
+        DictionarySketch sketch = null;
+        if (Feature.DICTIONARY_SKETCH.isSet(rFlags)) {
+          sketch = DictionarySketch.of(buffer);
+        }
+
         final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
         final ColumnPartProvider<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;
 
@@ -474,7 +498,8 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                    new DictionaryEncodedColumnSupplier(
                        rDictionary,
                        rSingleValuedColumn,
-                       rMultiValuedColumn
+                       rMultiValuedColumn,
+                       sketch
                    )
                );
 

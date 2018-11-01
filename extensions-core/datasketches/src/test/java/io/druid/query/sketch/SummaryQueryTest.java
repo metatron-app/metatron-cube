@@ -69,14 +69,14 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
     Assert.assertEquals(TestIndex.INTERVAL_TOP, segment1.get("interval"));
     Assert.assertEquals(611L, segment1.get("rows"));
     Assert.assertEquals(611L, segment1.get("ingestedRows"));
-    Assert.assertEquals(40341L, segment1.get("serializedSize"));
+    Assert.assertEquals(39657L, segment1.get("serializedSize"));
     Assert.assertNotNull(segment1.get("lastAccessTime"));
 
     Map<String, Object> segment2 = (Map<String, Object>) perSegments.get(1);
     Assert.assertEquals(TestIndex.INTERVAL_BOTTOM, segment2.get("interval"));
     Assert.assertEquals(598L, segment2.get("rows"));
     Assert.assertEquals(598L, segment2.get("ingestedRows"));
-    Assert.assertEquals(39751L, segment2.get("serializedSize"));
+    Assert.assertEquals(39067L, segment2.get("serializedSize"));
     Assert.assertNotNull(segment2.get("lastAccessTime"));
 
     // dimension

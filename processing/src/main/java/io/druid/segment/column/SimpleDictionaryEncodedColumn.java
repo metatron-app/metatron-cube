@@ -20,6 +20,10 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Strings;
+import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.ValueDesc;
+import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
@@ -27,23 +31,26 @@ import io.druid.segment.data.IndexedMultivalue;
 import java.io.IOException;
 
 /**
-*/
+ */
 public class SimpleDictionaryEncodedColumn
     implements DictionaryEncodedColumn
 {
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
   private final GenericIndexed<String> delegate;
+  private final DictionarySketch sketch;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
-      GenericIndexed<String> delegate
+      GenericIndexed<String> delegate,
+      DictionarySketch sketch
   )
   {
     this.column = singleValueColumn;
     this.multiValueColumn = multiValueColumn;
     this.delegate = delegate;
+    this.sketch = sketch;
   }
 
   @Override
@@ -96,12 +103,31 @@ public class SimpleDictionaryEncodedColumn
   }
 
   @Override
+  public boolean hasSketch()
+  {
+    return sketch != null;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ItemsSketch<String> getQuantile()
+  {
+    return sketch == null ? null : sketch.getQuantile(ValueDesc.STRING);
+  }
+
+  @Override
+  public Sketch getTheta()
+  {
+    return sketch == null ? null : sketch.getTheta(ValueDesc.STRING);
+  }
+
+  @Override
   public void close() throws IOException
   {
-    if(column != null) {
+    if (column != null) {
       column.close();
     }
-    if(multiValueColumn != null) {
+    if (multiValueColumn != null) {
       multiValueColumn.close();
     }
   }

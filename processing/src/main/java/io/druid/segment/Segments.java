@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.google.common.collect.Lists;
 import io.druid.segment.column.Column;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.Indexed;
 
 import java.util.List;
@@ -38,14 +38,14 @@ public class Segments
     return segment.asStorageAdapter(false).getAvailableDimensions();
   }
 
-  public static List<GenericIndexed<String>> findDictionaryIndexed(List<Segment> segments, String columnName)
+  public static List<DictionaryEncodedColumn> findDictionaryIndexed(List<Segment> segments, String columnName)
   {
-    List<GenericIndexed<String>> found = Lists.newArrayList();
+    List<DictionaryEncodedColumn> found = Lists.newArrayList();
     for (Segment segment : Lists.reverse(segments)) {
       QueryableIndex index = segment.asQueryableIndex(false);
       if (index != null) {
         Column column = index.getColumn(columnName);
-        GenericIndexed<String> dictionary = column.getDictionary();
+        DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
         if (dictionary != null) {
           found.add(dictionary);
         }

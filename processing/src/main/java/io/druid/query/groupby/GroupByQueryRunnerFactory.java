@@ -59,7 +59,7 @@ import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.column.DictionaryEncodedColumn;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -154,10 +154,10 @@ public class GroupByQueryRunnerFactory
 
     Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
-    List<GenericIndexed<String>> dictionaries = Segments.findDictionaryIndexed(segments, dimensionSpec.getDimension());
+    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, dimensionSpec.getDimension());
     if (!dictionaries.isEmpty()) {
       Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
-      for (GenericIndexed<String> dictionary : dictionaries) {
+      for (DictionaryEncodedColumn dictionary : dictionaries) {
         if (dictionary.hasSketch()) {
           union.update(dictionary.getTheta());
         }
@@ -170,7 +170,7 @@ public class GroupByQueryRunnerFactory
         }
       }
       ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
-      for (GenericIndexed<String> dictionary : dictionaries) {
+      for (DictionaryEncodedColumn dictionary : dictionaries) {
         if (dictionary.hasSketch()) {
           itemsUnion.update(dictionary.getQuantile());
         }

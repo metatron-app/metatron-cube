@@ -1,7 +1,5 @@
 package io.druid.segment.data;
 
-import com.yahoo.sketches.quantiles.ItemsSketch;
-import com.yahoo.sketches.theta.Sketch;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -18,15 +16,12 @@ public class GenericIndexedWriterTest
   {
     IOPeon ioPeon = new TmpFileIOPeon();
     ObjectStrategy<String> strategy = ObjectStrategy.STRING_STRATEGY;
-    GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(ioPeon, "test", strategy, true);
+    GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(ioPeon, "test", strategy);
     writer.open();
     writer.add("a");
     writer.add("b");
     writer.add("c");
     writer.close();
-
-    ItemsSketch quantile1 = writer.getQuantile();
-    Sketch theta1 = writer.getTheta();
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     try (WritableByteChannel channel = Channels.newChannel(out)) {
@@ -40,12 +35,5 @@ public class GenericIndexedWriterTest
     Assert.assertEquals(1, indexed.indexOf("b"));
     Assert.assertEquals(2, indexed.indexOf("c"));
     Assert.assertTrue(indexed.indexOf("d") < 0);
-
-    ItemsSketch quantile2 = indexed.getQuantile();
-    Assert.assertEquals(quantile1.toString(true, true), quantile2.toString(true, true));
-
-    // head vs direct.. skip summary part
-    Sketch theta2 = indexed.getTheta();
-    Assert.assertEquals(theta1.toString(false, true, 8, true), theta2.toString(false, true, 8, true));
   }
 }

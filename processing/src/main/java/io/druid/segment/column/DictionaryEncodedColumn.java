@@ -19,6 +19,8 @@
 
 package io.druid.segment.column;
 
+import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.theta.Sketch;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 
@@ -37,4 +39,8 @@ public interface DictionaryEncodedColumn extends Closeable
   public int getCardinality();
 
   public GenericIndexed<String> dictionary();
+
+  public boolean hasSketch();
+  public Sketch getTheta();
+  public ItemsSketch<String> getQuantile();
 }

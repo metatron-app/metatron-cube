@@ -22,12 +22,7 @@ package io.druid.segment.data;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
-import com.yahoo.sketches.quantiles.ItemsSketch;
-import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueDesc;
-import io.druid.query.sketch.SketchOp;
-import io.druid.query.sketch.TypedSketch;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
@@ -58,7 +53,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   enum Feature
   {
-    SORTED, SKETCH;
+    SORTED;
 
     public boolean isSet(int flags) { return (getMask() & flags) != 0; }
 
@@ -76,10 +71,10 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (!objects.hasNext()) {
       final ByteBuffer buffer = ByteBuffer.allocate(4).putInt(0);
       buffer.flip();
-      return new GenericIndexed<T>(null, null, buffer, strategy, true);
+      return new GenericIndexed<T>(buffer, strategy, true);
     }
 
-    boolean sorted = !(strategy instanceof ObjectStrategy.NotComparable);
+    boolean allowReverseLookup = !(strategy instanceof ObjectStrategy.NotComparable);
     int count = 0;
 
     ByteArrayOutputStream headerBytes = new ByteArrayOutputStream();
@@ -90,8 +85,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       do {
         count++;
         T next = objects.next();
-        if (sorted && prevVal != null && !(strategy.compare(prevVal, next) < 0)) {
-          sorted = false;
+        if (allowReverseLookup && prevVal != null && !(strategy.compare(prevVal, next) < 0)) {
+          allowReverseLookup = false;
         }
 
         final byte[] bytes = strategy.toBytes(next);
@@ -120,7 +115,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     theBuffer.put(valueBytes.toByteArray());
     theBuffer.flip();
 
-    return new GenericIndexed<T>(null, null, theBuffer.asReadOnlyBuffer(), strategy, sorted);
+    return new GenericIndexed<T>(theBuffer.asReadOnlyBuffer(), strategy, allowReverseLookup);
   }
 
   @Override
@@ -139,7 +134,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   public void collect(Collector<T> collector)
   {
     final ByteBuffer buffer = bufferAsReadOnly();
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < size; i++) {
       collector.collect(i, loadValue(buffer, i));
     }
   }
@@ -178,58 +173,48 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   public int totalLengthOfWords()
   {
-    return theBuffer.getInt(indexOffset + (count - 1) * 4) - count * 4;
+    return theBuffer.getInt(indexOffset + (size - 1) * 4) - size * 4;
   }
 
-  final ByteBuffer quantile;
-  final ByteBuffer theta;
   final ByteBuffer theBuffer;
   final ObjectStrategy<T> strategy;
   final boolean allowReverseLookup;
 
-  final int count;
+  final int size;
   final int indexOffset;
   final int valuesOffset;
   final BufferIndexed bufferIndexed;
 
   GenericIndexed(
-      ByteBuffer quantile,
-      ByteBuffer theta,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup
   )
   {
-    this.quantile = quantile;
-    this.theta = theta;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
 
-    count = theBuffer.getInt();
+    size = theBuffer.getInt();
     indexOffset = theBuffer.position();
-    valuesOffset = theBuffer.position() + (count << 2);
+    valuesOffset = theBuffer.position() + (size << 2);
     bufferIndexed = new BufferIndexed();
   }
 
   GenericIndexed(
-      ByteBuffer quantile,
-      ByteBuffer theta,
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup,
-      int count,
+      int size,
       int indexOffset,
       int valuesOffset,
       BufferIndexed bufferIndexed
   )
   {
-    this.quantile = quantile;
-    this.theta = theta;
     this.theBuffer = buffer;
     this.strategy = strategy;
     this.allowReverseLookup = allowReverseLookup;
-    this.count = count;
+    this.size = size;
     this.indexOffset = indexOffset;
     this.valuesOffset = valuesOffset;
     this.bufferIndexed = bufferIndexed;
@@ -247,12 +232,10 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       }
     };
     return new GenericIndexed<T>(
-        quantile,
-        theta,
         copyBuffer,
         strategy,
         allowReverseLookup,
-        count,
+        size,
         indexOffset,
         valuesOffset,
         bufferIndexed
@@ -293,7 +276,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     @Override
     public int size()
     {
-      return count;
+      return size;
     }
 
     protected ByteBuffer reader()
@@ -307,8 +290,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       if (index < 0) {
         throw new IAE("Index[%s] < 0", index);
       }
-      if (index >= count) {
-        throw new IAE(String.format("Index[%s] >= size[%s]", index, count));
+      if (index >= size) {
+        throw new IAE(String.format("Index[%s] >= size[%s]", index, size));
       }
 
       return loadValue(copyBuffer, index);
@@ -372,7 +355,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       value = (value != null && value.equals("")) ? null : value;
 
       int minIndex = 0;
-      int maxIndex = count - 1;
+      int maxIndex = size - 1;
       while (minIndex <= maxIndex) {
         int currIndex = (minIndex + maxIndex) >>> 1;
 
@@ -405,34 +388,16 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     long length = 0;
     length += Byte.BYTES; // version
     length += Byte.BYTES; // flag
-    if (quantile != null && theta != null) {
-      length += Ints.BYTES + quantile.remaining();  // length + binary
-      length += Ints.BYTES + theta.remaining();  // length + binary
-    }
     length += Ints.BYTES + theBuffer.remaining();   // length + binary
     length += Ints.BYTES; // count
     return length;
   }
 
-  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    byte flag = 0;
-    if (allowReverseLookup) {
-      flag |= Feature.SORTED.getMask();
-    }
-    if (quantile != null && theta != null) {
-      flag |= Feature.SKETCH.getMask();
-    }
-    channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
-    if (quantile != null && theta != null) {
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(quantile.remaining())));
-      channel.write(quantile.asReadOnlyBuffer());
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(theta.remaining())));
-      channel.write(theta.asReadOnlyBuffer());
-    }
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + Ints.BYTES)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
+    channel.write(ByteBuffer.wrap(new byte[]{version, allowReverseLookup ? (byte) 0x1 : (byte) 0x0}));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
     channel.write(theBuffer.asReadOnlyBuffer());
   }
 
@@ -447,23 +412,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return allowReverseLookup;
   }
 
-  public boolean hasSketch()
-  {
-    return quantile != null && theta != null;
-  }
-
-  @SuppressWarnings("unchecked")
-  public ItemsSketch<String> getQuantile()
-  {
-    // todo handle ValueDesc
-    return quantile == null ? null : (ItemsSketch) TypedSketch.readPart(quantile, SketchOp.QUANTILE, ValueDesc.STRING);
-  }
-
-  public Sketch getTheta()
-  {
-    // todo handle ValueDesc
-    return theta == null ? null : (Sketch) TypedSketch.readPart(theta, SketchOp.THETA, ValueDesc.STRING);
-  }
   /**
    * Create a non-thread-safe Indexed, which may perform better than the underlying Indexed.
    *
@@ -488,17 +436,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (version != versionFromBuffer) {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
-
     byte flag = buffer.get();
     boolean sorted = Feature.SORTED.isSet(flag);
-    boolean hasSketch = Feature.SKETCH.isSet(flag);
-    ByteBuffer quantile = null;
-    ByteBuffer theta = null;
-    if (hasSketch) {
-      quantile = ByteBufferSerializer.prepareForRead(buffer);
-      theta = ByteBufferSerializer.prepareForRead(buffer);
-    }
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
-    return new GenericIndexed<T>(quantile, theta, dictionary, strategy, sorted);
+    return new GenericIndexed<T>(dictionary, strategy, sorted);
   }
 }

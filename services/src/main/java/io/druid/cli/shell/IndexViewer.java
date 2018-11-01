@@ -404,7 +404,7 @@ public class IndexViewer implements CommonShell
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
-        boolean sketch = dictionary.hasSketch();
+        boolean sketch = dictionaryEncoded.hasSketch();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
