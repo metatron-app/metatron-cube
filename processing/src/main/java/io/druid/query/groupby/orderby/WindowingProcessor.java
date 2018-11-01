@@ -26,13 +26,15 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
+import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.Direction;
-import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,23 +50,23 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private final List<PartitionDefinition> partitions = Lists.newArrayList();
 
   public WindowingProcessor(
-      List<VirtualColumn> virtualColumns,
-      List<DimensionSpec> dimensionSpecs,
-      List<AggregatorFactory> aggregators,
-      List<PostAggregator> postAggregators,
+      Query.AggregationsSupport<?> query,
       List<WindowingSpec> windowingSpecs
   )
   {
     Map<String, ValueDesc> expectedTypes = AggregatorFactory.createTypeMap(
-        virtualColumns, dimensionSpecs, aggregators, postAggregators
+        query.getVirtualColumns(), query.getDimensions(), query.getAggregatorSpecs(), query.getPostAggregatorSpecs()
     );
 
-    WindowContext context = WindowContext.newInstance(DimensionSpecs.toOutputNames(dimensionSpecs), expectedTypes);
+    WindowContext context = WindowContext.newInstance(
+        DimensionSpecs.toOutputNames(query.getDimensions()),
+        expectedTypes
+    );
 
     for (WindowingSpec windowingSpec : windowingSpecs) {
       List<String> partitionColumns = windowingSpec.getPartitionColumns();
       List<OrderByColumnSpec> orderingSpecs = windowingSpec.getPartitionOrdering();
-      Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, aggregators, postAggregators, false);
+      Ordering<Row> ordering = makeRowComparator(query, orderingSpecs, false);
       PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
       partitions.add(new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators));
     }
@@ -158,84 +160,170 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     }
   }
 
-  public static Ordering<Row> makeComparator(
+  public static interface Accessor<T>
+  {
+    Object get(T source);
+  }
+
+  public static Accessor<Row> rowAccessor(final String column)
+  {
+    if (Row.TIME_COLUMN_NAME.equals(column)) {
+      return new Accessor<Row>()
+      {
+        @Override
+        public Object get(Row source)
+        {
+          return source.getTimestampFromEpoch();
+        }
+      };
+    }
+    return new Accessor<Row>()
+    {
+      @Override
+      public Object get(Row source)
+      {
+        return source.getRaw(column);
+      }
+    };
+  }
+
+  public static Accessor<Object[]> arrayAccessor(final List<String> columns, final String column)
+  {
+    return arrayAccessor(columns.indexOf(column));
+  }
+
+  private static Accessor<Object[]> arrayAccessor(final int index)
+  {
+    return new Accessor<Object[]>()
+    {
+      @Override
+      public Object get(Object[] source)
+      {
+        return index < 0 ? null : source[index];
+      }
+    };
+  }
+
+  public static Ordering<Row> makeRowComparator(
+      Query.AggregationsSupport<?> query,
       List<OrderByColumnSpec> orderingSpecs,
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> aggs,
-      List<PostAggregator> postAggs,
       boolean prependTimeOrdering
   )
   {
-    Ordering<Row> ordering = prependTimeOrdering ? new Ordering<Row>()
-    {
-      @Override
-      public int compare(Row left, Row right)
-      {
-        return Longs.compare(left.getTimestampFromEpoch(), right.getTimestampFromEpoch());
-      }
-    } : null;
+    List<Accessor<Row>> accessors = Lists.newArrayList();
+    if (prependTimeOrdering) {
+      accessors.add(rowAccessor(Row.TIME_COLUMN_NAME));
+    }
+    for (OrderByColumnSpec ordering : orderingSpecs) {
+      accessors.add(rowAccessor(ordering.getDimension()));
+    }
+    return makeComparator(query, orderingSpecs, accessors, prependTimeOrdering);
+  }
 
+  public static Ordering<Object[]> makeArrayComparator(
+      Query.AggregationsSupport<?> query,
+      List<OrderByColumnSpec> orderingSpecs,
+      boolean prependTimeOrdering
+  )
+  {
+    List<String> columns = Lists.newArrayList();
+    columns.add(Row.TIME_COLUMN_NAME);
+    columns.addAll(DimensionSpecs.toOutputNames(query.getDimensions()));
+    columns.addAll(AggregatorFactory.toNames(query.getAggregatorSpecs()));
+    columns.addAll(PostAggregators.toNames(query.getPostAggregatorSpecs()));
+
+    List<Accessor<Object[]>> accessors = Lists.newArrayList();
+    if (prependTimeOrdering) {
+      accessors.add(arrayAccessor(columns, Row.TIME_COLUMN_NAME));
+    }
+    for (OrderByColumnSpec ordering : orderingSpecs) {
+      accessors.add(arrayAccessor(columns, ordering.getDimension()));
+    }
+    return makeComparator(query, orderingSpecs, accessors, prependTimeOrdering);
+  }
+
+  private static <T> Ordering<T> makeComparator(
+      Query.AggregationsSupport<?> query,
+      List<OrderByColumnSpec> orderingSpecs,
+      List<Accessor<T>> accessors,
+      boolean prependTimeOrdering
+  )
+  {
+    int index = 0;
+    List<Comparator<T>> comparators = Lists.newArrayList();
+    if (prependTimeOrdering) {
+      final Accessor<T> accessor = accessors.get(index++);
+      comparators.add(new Comparator<T>()
+      {
+        @Override
+        public int compare(T left, T right)
+        {
+          return Longs.compare((Long) accessor.get(left), (Long) accessor.get(right));
+        }
+      });
+    }
     Map<String, DimensionSpec> dimensionsMap = Maps.newHashMap();
-    for (DimensionSpec spec : dimensions) {
+    for (DimensionSpec spec : query.getDimensions()) {
       dimensionsMap.put(spec.getOutputName(), spec);
     }
 
     Map<String, AggregatorFactory> aggregatorsMap = Maps.newHashMap();
-    for (final AggregatorFactory agg : aggs) {
+    for (AggregatorFactory agg : query.getAggregatorSpecs()) {
       aggregatorsMap.put(agg.getName(), agg);
     }
 
     Map<String, PostAggregator> postAggregatorsMap = Maps.newHashMap();
-    for (PostAggregator postAgg : postAggs) {
+    for (PostAggregator postAgg : query.getPostAggregatorSpecs()) {
       postAggregatorsMap.put(postAgg.getName(), postAgg);
     }
 
     for (OrderByColumnSpec columnSpec : orderingSpecs) {
       boolean descending = columnSpec.getDirection() == Direction.DESCENDING;
       String columnName = columnSpec.getDimension();
-      Ordering<Row> nextOrdering;
+      Accessor<T> accessor = accessors.get(index++);
+      Ordering<T> nextOrdering;
       if (postAggregatorsMap.containsKey(columnName)) {
-        nextOrdering = metricOrdering(columnName, postAggregatorsMap.get(columnName).getComparator(), descending);
+        nextOrdering = metricOrdering(accessor, postAggregatorsMap.get(columnName).getComparator(), descending);
       } else if (aggregatorsMap.containsKey(columnName)) {
-        nextOrdering = metricOrdering(columnName, aggregatorsMap.get(columnName).getComparator(), descending);
+        nextOrdering = metricOrdering(accessor, aggregatorsMap.get(columnName).getComparator(), descending);
       } else if (dimensionsMap.containsKey(columnName)) {
-        nextOrdering = dimensionOrdering(columnName, columnSpec.getComparator());
+        nextOrdering = dimensionOrdering(accessor, columnSpec.getComparator());
       } else {
-        nextOrdering = metricOrdering(columnName, descending);  // last resort.. assume it's assigned by expression
+        nextOrdering = metricOrdering(accessor, descending);  // last resort.. assume it's assigned by expression
       }
 
-      ordering = ordering == null ? nextOrdering : ordering.compound(nextOrdering);
+      comparators.add(nextOrdering);
     }
 
-    return ordering;
+    return Comparators.compound(comparators);
   }
 
-  private static Ordering<Row> metricOrdering(final String column, final Comparator comparator, boolean descending)
+  private static <T> Ordering<T> metricOrdering(final Accessor<T> accessor, Comparator comparator, boolean descending)
   {
     final Ordering ordering = Ordering.from(comparator).nullsFirst();
-    Ordering<Row> metric = new Ordering<Row>()
+    Ordering<T> metric = new Ordering<T>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public int compare(Row left, Row right)
+      public int compare(T left, T right)
       {
-        return ordering.compare(left.getRaw(column), right.getRaw(column));
+        return ordering.compare(accessor.get(left), accessor.get(right));
       }
     };
     return descending ? metric.reverse() : metric;
   }
 
-  private static Ordering<Row> metricOrdering(final String column, boolean descending)
+  private static <T> Ordering<T> metricOrdering(final Accessor<T> accessor, boolean descending)
   {
     final Ordering ordering = Ordering.natural().nullsFirst();
-    Ordering<Row> metric = new Ordering<Row>()
+    Ordering<T> metric = new Ordering<T>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public int compare(Row left, Row right)
+      public int compare(T left, T right)
       {
-        Comparable l = (Comparable) left.getRaw(column);
-        Comparable r = (Comparable) right.getRaw(column);
+        Comparable l = (Comparable) accessor.get(left);
+        Comparable r = (Comparable) accessor.get(right);
         return ordering.compare(l, r);
       }
     };
@@ -243,21 +331,18 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   }
 
   @SuppressWarnings("unchecked")
-  private static Ordering<Row> dimensionOrdering(
-      final String dimension,
-      final Comparator comparator
-  )
+  private static <T> Ordering<T> dimensionOrdering(final Accessor<T> accessor, final Comparator comparator)
   {
     return Ordering
         .from(comparator)
         .onResultOf(
-            new Function<Row, String>()
+            new Function<T, String>()
             {
               @Override
-              public String apply(Row input)
+              public String apply(T input)
               {
                 // Multi-value dimensions have all been flattened at this point;
-                return Objects.toString(input.getRaw(dimension), null);
+                return Objects.toString(accessor.get(input), null);
               }
             }
         );

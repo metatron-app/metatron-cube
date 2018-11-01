@@ -27,21 +27,23 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.Cacheable;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.VirtualColumn;
+import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.groupby.GroupByQueryEngine;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
@@ -142,21 +144,20 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
            NoopLimitSpec.INSTANCE : new LimitSpec(null, null, segmentLimit, nodeLimit, null);
   }
 
-  public Function<Sequence<Row>, Sequence<Row>> build(
-      List<VirtualColumn> vcs,
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> aggs,
-      List<PostAggregator> postAggs,
-      boolean sortOnTimeForLimit
-  ) {
+  public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
+  {
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
       return new LimitingFn(limit);
     }
+    query = query.withPostAggregatorSpecs(PostAggregators.decorate(
+        query.getPostAggregatorSpecs(),
+        query.getAggregatorSpecs()
+    ));
     if (windowingSpecs.isEmpty()) {
-      Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
-      return new SortingFn(ordering, limit);
+      Ordering<Object[]> ordering = WindowingProcessor.makeArrayComparator(query, columns, sortOnTimeForLimit);
+      return new SortingArrayFn(query, ordering, limit);
     }
-    WindowingProcessor processor = new WindowingProcessor(vcs, dimensions, aggs, postAggs, windowingSpecs);
+    WindowingProcessor processor = new WindowingProcessor(query, windowingSpecs);
     boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
     Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, SEQUENCE_TO_LIST);
     if (skipSortForLimit) {
@@ -172,7 +173,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
 
     // Materialize the Comparator first for fast-fail error checking.
-    Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
+    Ordering<Row> ordering = WindowingProcessor.makeRowComparator(query, columns, sortOnTimeForLimit);
     return Functions.compose(new ListSortingFn(ordering, limit), processed);
   }
 
@@ -218,13 +219,38 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
   }
 
+  private static class SortingArrayFn implements Function<Sequence<Row>, Sequence<Row>>
+  {
+    private final Query.AggregationsSupport<?> query;
+    private final Comparator<Object[]> comparator;
+    private final int limit;
+
+    public SortingArrayFn(Query.AggregationsSupport<?> query, Comparator<Object[]> comparator, int limit)
+    {
+      this.query = query;
+      this.comparator = comparator;
+      this.limit = limit;
+    }
+
+    @Override
+    public Sequence<Row> apply(Sequence<Row> input)
+    {
+      List<Object[]> rows = Sequences.toList(Sequences.map(input, GroupByQueryEngine.rowToArray(query)));
+      Object[][] array = rows.toArray(new Object[rows.size()][]);
+      Arrays.parallelSort(array, comparator);
+      Iterable<Row> sorted = Iterables.transform(Arrays.asList(array), GroupByQueryEngine.arrayToRow(query));
+      return Sequences.limit(Sequences.simple(sorted), limit);
+    }
+  }
+
   private static class ListSortingFn implements Function<List<Row>, Sequence<Row>>
   {
     private final TopNSorter<Row> sorter;
     private final Ordering<Row> ordering;
     private final int limit;
 
-    public ListSortingFn(Ordering<Row> ordering, int limit) {
+    public ListSortingFn(Ordering<Row> ordering, int limit)
+    {
       this.ordering = ordering;
       this.limit = limit;
       this.sorter = new TopNSorter<>(ordering);

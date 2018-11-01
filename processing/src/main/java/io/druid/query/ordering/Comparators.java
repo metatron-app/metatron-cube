@@ -129,4 +129,22 @@ public class Comparators
     }
     return d1.compareTo(d2);
   }
+
+  public static <T> Ordering<T> compound(final List<Comparator<T>> comparators)
+  {
+    return Ordering.from(new Comparator<T>()
+    {
+      @Override
+      public int compare(T o1, T o2)
+      {
+        for (Comparator<T> comparator : comparators) {
+          int compare = comparator.compare(o1, o2);
+          if (compare != 0) {
+            return compare;
+          }
+        }
+        return 0;
+      }
+    });
+  }
 }

@@ -25,10 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.VirtualColumn;
+import io.druid.query.Query;
 
 import java.util.List;
 
@@ -44,13 +41,7 @@ public class NoopLimitSpec extends LimitSpec
   public NoopLimitSpec() {super(null, Integer.MAX_VALUE); }
 
   @Override
-  public Function<Sequence<Row>, Sequence<Row>> build(
-      List<VirtualColumn> vcs,
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> aggs,
-      List<PostAggregator> postAggs,
-      boolean sortOnTimeForLimit
-  )
+  public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
   {
     return Functions.identity();
   }

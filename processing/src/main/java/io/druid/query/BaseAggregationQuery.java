@@ -184,8 +184,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   public Sequence<Row> applyLimit(Sequence<Row> results, boolean sortOnTimeForLimit)
   {
     List<PostAggregator> decorated = PostAggregators.decorate(postAggregatorSpecs, aggregatorSpecs);
-    Function<Sequence<Row>, Sequence<Row>> postProcFn =
-        limitSpec.build(getVirtualColumns(), getDimensions(), aggregatorSpecs, decorated, sortOnTimeForLimit);
+    Function<Sequence<Row>, Sequence<Row>> postProcFn = limitSpec.build(this, sortOnTimeForLimit);
 
     if (havingSpec != null) {
       final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);

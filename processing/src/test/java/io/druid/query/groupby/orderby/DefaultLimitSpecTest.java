@@ -26,8 +26,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.Intervals;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
+import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -35,12 +38,13 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.ordering.Direction;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestHelper;
-import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -51,6 +55,12 @@ import java.util.Map;
  */
 public class DefaultLimitSpecTest
 {
+  private final GroupByQuery query = new GroupByQuery(
+      TableDataSource.of("test"),
+      MultipleIntervalSegmentSpec.of(Intervals.ETERNITY), null, Granularities.ALL,
+      null, null, null, null, null, null, null, null, null, null
+  );
+
   private final List<Row> testRowsList;
   private final Sequence<Row> testRowsSequence;
 
@@ -107,10 +117,7 @@ public class DefaultLimitSpecTest
     LimitSpec limitSpec = LimitSpecs.of(2);
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
-        ImmutableList.<VirtualColumn>of(),
-        ImmutableList.<DimensionSpec>of(),
-        ImmutableList.<AggregatorFactory>of(),
-        ImmutableList.<PostAggregator>of(),
+        query,
         true
     );
 
@@ -126,60 +133,34 @@ public class DefaultLimitSpecTest
     LimitSpec limitSpec = LimitSpecs.of(2, new OrderByColumnSpec("k1", Direction.ASCENDING));
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
-        ImmutableList.<VirtualColumn>of(),
-        ImmutableList.<DimensionSpec>of(
-            new DefaultDimensionSpec("k1", "k1")
-        ),
-        ImmutableList.<AggregatorFactory>of(
-            new LongSumAggregatorFactory("k2", "k2")
-        ),
-        ImmutableList.<PostAggregator>of(
-            new ConstantPostAggregator("k3", 1L)
-        ),
+        query.withDimensionSpecs(
+            DefaultDimensionSpec.toSpec("k1"))
+             .withAggregatorSpecs(
+                 ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")))
+             .withPostAggregatorSpecs(
+                 ImmutableList.<PostAggregator>of(new ConstantPostAggregator("k3", 1L))),
         true
     );
     Assert.assertEquals(
         ImmutableList.of(testRowsList.get(1), testRowsList.get(2)),
         Sequences.toList(limitFn.apply(testRowsSequence), new ArrayList<Row>())
     );
+  }
 
-    // if there is an aggregator with same name then that is used to build ordering
-    limitFn = limitSpec.build(
-        ImmutableList.<VirtualColumn>of(),
-        ImmutableList.<DimensionSpec>of(
-            new DefaultDimensionSpec("k1", "k1")
-        ),
-        ImmutableList.<AggregatorFactory>of(
-            new LongSumAggregatorFactory("k1", "k1")
-        ),
-        ImmutableList.<PostAggregator>of(
-            new ConstantPostAggregator("k3", 1L)
-        ),
-        true
-    );
-    Assert.assertEquals(
-        ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),
-        Sequences.toList(limitFn.apply(testRowsSequence), new ArrayList<Row>())
-    );
+  @Test
+  @Ignore("not allowed in aggregation query.. todo?")
+  public void testBuildWithExplicitOrderInvalid()
+  {
+    LimitSpec limitSpec = LimitSpecs.of(2, new OrderByColumnSpec("k1", Direction.ASCENDING));
 
     // if there is a post-aggregator with same name then that is used to build ordering
-    limitFn = limitSpec.build(
-        ImmutableList.<VirtualColumn>of(),
-        ImmutableList.<DimensionSpec>of(
-            new DefaultDimensionSpec("k1", "k1")
-        ),
-        ImmutableList.<AggregatorFactory>of(
-            new LongSumAggregatorFactory("k2", "k2")
-        ),
-        ImmutableList.<PostAggregator>of(
-            new ArithmeticPostAggregator(
-                "k1",
-                "+",
-                ImmutableList.<PostAggregator>of(
-                    new ConstantPostAggregator("x", 1),
-                    new ConstantPostAggregator("y", 1))
-            )
-        ),
+    Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
+        query.withDimensionSpecs(
+            DefaultDimensionSpec.toSpec("k1"))
+             .withAggregatorSpecs(
+                 ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k1", "k1")))
+             .withPostAggregatorSpecs(
+                 ImmutableList.<PostAggregator>of(new ConstantPostAggregator("k3", 1L))),
         true
     );
     Assert.assertEquals(
@@ -188,10 +169,32 @@ public class DefaultLimitSpecTest
     );
 
     limitFn = limitSpec.build(
-        ImmutableList.<VirtualColumn>of(),
-        ImmutableList.<DimensionSpec>of(new DefaultDimensionSpec("k1", "k1")),
-        ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")),
-        ImmutableList.<PostAggregator>of(new MathPostAggregator("k1", "1 + 1")),
+        query.withDimensionSpecs(
+                 DefaultDimensionSpec.toSpec("k1"))
+             .withAggregatorSpecs(
+                 ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")))
+             .withPostAggregatorSpecs(
+                 ImmutableList.<PostAggregator>of(
+                     new ArithmeticPostAggregator(
+                         "k1", "+",
+                         ImmutableList.<PostAggregator>of(
+                             new ConstantPostAggregator("x", 1),
+                             new ConstantPostAggregator("y", 1))
+                     ))),
+        true
+    );
+    Assert.assertEquals(
+        ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),
+        Sequences.toList(limitFn.apply(testRowsSequence), new ArrayList<Row>())
+    );
+
+    limitFn = limitSpec.build(
+        query.withDimensionSpecs(
+                 DefaultDimensionSpec.toSpec("k1"))
+             .withAggregatorSpecs(
+                 ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")))
+             .withPostAggregatorSpecs(
+                 ImmutableList.<PostAggregator>of(new MathPostAggregator("k1", "1 + 1"))),
         true
     );
     Assert.assertEquals(

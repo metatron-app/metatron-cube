@@ -50,7 +50,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
-import io.druid.query.BaseAggregationQuery;
+import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -648,7 +648,7 @@ public class GroupByQueryEngine
     };
   }
 
-  public static Function<Object[], Row> arrayToRow(final BaseAggregationQuery<?> query)
+  public static Function<Object[], Row> arrayToRow(final Query.AggregationsSupport<?> query)
   {
     return new Function<Object[], Row>()
     {
@@ -669,7 +669,7 @@ public class GroupByQueryEngine
     };
   }
 
-  public static Function<Row, Object[]> rowToArray(final BaseAggregationQuery<?> query)
+  public static Function<Row, Object[]> rowToArray(final Query.AggregationsSupport<?> query)
   {
     return new Function<Row, Object[]>()
     {
@@ -691,7 +691,7 @@ public class GroupByQueryEngine
     };
   }
 
-  private static List<String> toOutputColumns(BaseAggregationQuery<?> query)
+  private static List<String> toOutputColumns(Query.AggregationsSupport<?> query)
   {
     List<String> columns = Lists.newArrayList();
     columns.addAll(DimensionSpecs.toOutputNames(query.getDimensions()));
@@ -700,7 +700,7 @@ public class GroupByQueryEngine
     return columns;
   }
 
-  private static Map<String, Comparator> toComparatorMap(BaseAggregationQuery<?> query)
+  private static Map<String, Comparator> toComparatorMap(Query.AggregationsSupport<?> query)
   {
     Map<String, Comparator> comparatorMap = Maps.newHashMap();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {

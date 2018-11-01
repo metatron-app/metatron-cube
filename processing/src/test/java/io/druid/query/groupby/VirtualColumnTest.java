@@ -137,13 +137,13 @@ public class VirtualColumnTest
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
         .withQueryGranularity(QueryGranularities.NONE)
         .withMetrics(
-            new AggregatorFactory[]{
+            Arrays.asList(
                 new RelayAggregatorFactory("array", "array", "array.float"),
                 new LongSumAggregatorFactory("m1"),
                 new LongSumAggregatorFactory("m2"),
                 new LongSumAggregatorFactory("m3"),
-                new RelayAggregatorFactory("gis", "struct", "struct(long:double,lat:double,city:string)"),
-            }
+                new RelayAggregatorFactory("gis", "struct", "struct(long:double,lat:double,city:string)")
+            )
         )
         .withRollup(false)
         .build();
@@ -197,8 +197,8 @@ public class VirtualColumnTest
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "dim", "sum_of_array[0]", "sum_of_array[1]", "sum_of_array[2]", "count"},
         new Object[]{"2011-01-12T00:00:00.000Z", null, 12L, 24L, 38L, 2L},
-        new Object[]{"2011-01-12T00:00:00.000Z", "c", 101L, 505L, 909L, 2L},
-        new Object[]{"2011-01-12T00:00:00.000Z", "a", 500L, 700L, 900L, 2L}
+        new Object[]{"2011-01-12T00:00:00.000Z", "a", 500L, 700L, 900L, 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "c", 101L, 505L, 909L, 2L}
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
@@ -216,6 +216,7 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .addOrderByColumn("count")
+        .addOrderByColumn("dim")
         .build();
 
     checkQueryResult(query, expectedResults);
@@ -230,8 +231,8 @@ public class VirtualColumnTest
         new String[]{"__time", "gis.city", "sum_of_array[0]", "sum_of_array[1]", "sum_of_array[2]", "count"},
         new Object[]{"2011-01-12T00:00:00.000Z", "daejeon", 102L, 504L, 908L, 2L},
         new Object[]{"2011-01-12T00:00:00.000Z", "pusan", 11L, 25L, 39L, 2L},
-        new Object[]{"2011-01-12T00:00:00.000Z", "seoul", 100L, 200L, 300L, 1L},
-        new Object[]{"2011-01-12T00:00:00.000Z", "daegu", 400L, 500L, 600L, 1L}
+        new Object[]{"2011-01-12T00:00:00.000Z", "daegu", 400L, 500L, 600L, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "seoul", 100L, 200L, 300L, 1L}
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
@@ -250,6 +251,7 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .addOrderByColumn("count", Direction.DESCENDING)
+        .addOrderByColumn("gis.city")
         .build();
 
     checkQueryResult(query, expectedResults);
