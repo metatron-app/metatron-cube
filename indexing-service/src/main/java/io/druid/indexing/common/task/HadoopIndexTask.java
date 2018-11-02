@@ -86,13 +86,10 @@ public class HadoopIndexTask extends HadoopTask
   {
     DataSchema dataSchema = spec.getDataSchema();
     String schemaDataSource = dataSchema.getDataSource();
+    HadoopTuningConfig tuningConfig = spec.getTuningConfig();
     Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
-    if ("hadoop".equals(pathSpec.get("type"))) {
+    if (!pathSpec.containsKey("type") || "hadoop".equals(pathSpec.get("type"))) {
       // simple validation
-      HadoopTuningConfig tuningConfig = spec.getTuningConfig();
-      if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
-        throw new IllegalArgumentException("generic type input spec only can be used with REDUCE_MERGE mode");
-      }
       Set<String> dataSources = Sets.newLinkedHashSet();
       for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {
         String dataSourceName = Objects.toString(elementSpec.get("dataSource"), schemaDataSource);
@@ -102,6 +99,11 @@ public class HadoopIndexTask extends HadoopTask
         if (!dataSources.contains(dataSourceName)) {
           dataSources.add(dataSourceName);
         }
+      }
+      if (dataSchema.getGranularitySpec().isAppending() || dataSources.size() > 1) {
+        Preconditions.checkArgument(
+            tuningConfig.getIngestionMode() == IngestionMode.REDUCE_MERGE,
+            "generic type input spec only can be used with REDUCE_MERGE mode");
       }
       if (dataSchema.getGranularitySpec().isAppending()) {
         Preconditions.checkArgument(dataSources.size() == 1, "cannot append on multi datasources, for now");
