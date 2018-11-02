@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
@@ -36,6 +37,7 @@ import io.druid.segment.lucene.LuceneIndexingSpec;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -69,13 +71,14 @@ public class IndexSpec
   private final String dimensionCompression;
   private final String metricCompression;
   private final Map<String, SecondaryIndexingSpec> secondaryIndexing;
+  private final ColumnIncluderator dimensionSketches;
 
   /**
    * Creates an IndexSpec with default parameters
    */
   public IndexSpec()
   {
-    this(null, null, null, null);
+    this(null, null, null, null, null);
   }
 
   /**
@@ -96,6 +99,7 @@ public class IndexSpec
   public IndexSpec(
       @JsonProperty("bitmap") BitmapSerdeFactory bitmapSerdeFactory,
       @JsonProperty("dimensionCompression") String dimensionCompression,
+      @JsonProperty("dimensionSketches") ColumnIncluderator dimensionSketches,
       @JsonProperty("metricCompression") String metricCompression,
       @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing
   )
@@ -107,8 +111,9 @@ public class IndexSpec
                                 "Unknown compression type[%s]", metricCompression);
 
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new RoaringBitmapSerdeFactory();
-    this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
+    this.dimensionSketches = dimensionSketches == null ? ColumnIncluderator.NONE : dimensionSketches;
+    this.metricCompression = metricCompression;
     this.secondaryIndexing = secondaryIndexing == null
                              ? ImmutableMap.<String, SecondaryIndexingSpec>of()
                              : secondaryIndexing;
@@ -120,7 +125,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, metricCompression, null);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null);
   }
 
   @JsonProperty("bitmap")
@@ -141,6 +146,12 @@ public class IndexSpec
   public String getMetricCompression()
   {
     return metricCompression;
+  }
+
+  @JsonProperty("dimensionSketches")
+  public ColumnIncluderator getDimensionSketches()
+  {
+    return dimensionSketches;
   }
 
   @JsonProperty("secondaryIndexing")
@@ -188,6 +199,7 @@ public class IndexSpec
     return new IndexSpec(
         bitmapSerdeFactory,
         dimensionCompression,
+        dimensionSketches,
         metricCompression,
         secondaryIndexing
     );
@@ -201,6 +213,7 @@ public class IndexSpec
     return new IndexSpec(
         bitmapSerdeFactory,
         dimensionCompression,
+        dimensionSketches,
         metricCompression,
         null
     );
@@ -228,6 +241,9 @@ public class IndexSpec
         : indexSpec.dimensionCompression != null) {
       return false;
     }
+    if (!Objects.equals(dimensionSketches, indexSpec.dimensionSketches)) {
+      return false;
+    }
     if (metricCompression != null
         ? !metricCompression.equals(indexSpec.metricCompression)
         : indexSpec.metricCompression != null) {
@@ -244,6 +260,7 @@ public class IndexSpec
   {
     int result = bitmapSerdeFactory != null ? bitmapSerdeFactory.hashCode() : 0;
     result = 31 * result + (dimensionCompression != null ? dimensionCompression.hashCode() : 0);
+    result = 31 * result + (dimensionSketches != null ? dimensionSketches.hashCode() : 0);
     result = 31 * result + (metricCompression != null ? metricCompression.hashCode() : 0);
     result = 31 * result + secondaryIndexing.hashCode();
     return result;

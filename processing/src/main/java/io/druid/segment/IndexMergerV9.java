@@ -45,10 +45,12 @@ import com.metamx.common.io.smoosh.FileSmoosher;
 import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
@@ -800,11 +802,16 @@ public class IndexMergerV9 extends IndexMerger
   )
       throws IOException
   {
+    ColumnIncluderator sketches = indexSpec.getDimensionSketches();
+    if (ColumnIncluderator.NONE.equals(sketches) || indexSpec.getDimensionCompressionStrategy() == null) {
+      ColumnPartWriter<Pair<String, Integer>>[] elements = new ColumnPartWriter[mergedDimensions.size()];
+      return Lists.newArrayList(elements);
+    }
     ArrayList<ColumnPartWriter<Pair<String, Integer>>> sketchWriters =
         Lists.newArrayListWithCapacity(mergedDimensions.size());
     for (String dimension : mergedDimensions) {
       SketchWriter writer = null;
-      if (indexSpec.getDimensionCompressionStrategy() != null) {
+      if (sketches.include(dimension)) {
         writer = new SketchWriter(ioPeon, String.format("%s.dim_sketches", dimension));
         writer.open();
       }

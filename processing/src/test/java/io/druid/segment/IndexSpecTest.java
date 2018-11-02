@@ -72,7 +72,7 @@ public class IndexSpecTest
   {
     final ObjectMapper objectMapper = new DefaultObjectMapper();
     final IndexSpec spec = new IndexSpec(
-        null, null, null,
+        null, null, null, null,
         ImmutableMap.<String, SecondaryIndexingSpec>of(
             "gis", LuceneIndexingSpec.of(
                 "standard",

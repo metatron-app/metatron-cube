@@ -34,4 +34,16 @@ public class NoneColumnIncluderator implements ColumnIncluderator
   {
     return NONE_CACHE_PREFIX;
   }
+
+  @Override
+  public int hashCode()
+  {
+    return NoneColumnIncluderator.class.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof NoneColumnIncluderator;
+  }
 }

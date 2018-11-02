@@ -25,21 +25,20 @@ import io.druid.common.Cacheable;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ListColumnIncluderator.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "none", value= NoneColumnIncluderator.class),
     @JsonSubTypes.Type(name = "all", value= AllColumnIncluderator.class),
     @JsonSubTypes.Type(name = "list", value= ListColumnIncluderator.class)
 })
-@Deprecated
 public interface ColumnIncluderator extends Cacheable
 {
-  public static final byte[] NONE_CACHE_PREFIX = new byte[]{0x0};
-  public static final byte[] ALL_CACHE_PREFIX = new byte[]{0x1};
-  public static final byte[] LIST_CACHE_PREFIX = new byte[]{0x2};
-
-  public boolean include(String columnName);
+  byte[] NONE_CACHE_PREFIX = new byte[]{0x0};
+  byte[] ALL_CACHE_PREFIX = new byte[]{0x1};
+  byte[] LIST_CACHE_PREFIX = new byte[]{0x2};
 
   ColumnIncluderator ALL = new AllColumnIncluderator();
   ColumnIncluderator NONE = new NoneColumnIncluderator();
+
+  boolean include(String columnName);
 }
