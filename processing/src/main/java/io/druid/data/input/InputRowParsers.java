@@ -70,7 +70,7 @@ public class InputRowParsers
         if (parser instanceof Streaming) {
           return ((Streaming<T>) parser).accept(input);
         }
-        throw new IllegalStateException();
+        return false;
       }
 
       @Override
