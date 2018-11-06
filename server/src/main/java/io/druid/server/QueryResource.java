@@ -226,7 +226,7 @@ public class QueryResource
       query += ", \"dumpLongestStack\": true";
     }
     query += "}";
-    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", req);
+    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", null, req);
   }
 
   @GET
@@ -254,7 +254,7 @@ public class QueryResource
       query.append("}");
     }
     query.append("}");
-    return doPost(new ReaderInputStream(new StringReader(query.toString())), "pretty", req);
+    return doPost(new ReaderInputStream(new StringReader(query.toString())), "pretty", null, req);
   }
 
   @POST
@@ -263,11 +263,12 @@ public class QueryResource
   public Response doPost(
       InputStream in,
       @QueryParam("pretty") String pretty,
+      @QueryParam("smile") String smile,
       @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
   ) throws IOException
   {
     final String remote = req.getRemoteAddr();
-    final RequestContext context = new RequestContext(req, pretty != null);
+    final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
     final String contentType = context.getContentType();
 
     final Thread currThread = Thread.currentThread();
@@ -499,14 +500,21 @@ public class QueryResource
   {
     final boolean isSmile;
     final boolean isPretty;
+    final boolean isSmileOut;
     final String contentType;
 
     RequestContext(HttpServletRequest request, boolean pretty)
+    {
+      this(request, pretty, false);
+    }
+
+    RequestContext(HttpServletRequest request, boolean pretty, boolean smileOut)
     {
       String requestType = request.getContentType();
       isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(requestType)
                 || APPLICATION_SMILE.equals(requestType);
       isPretty = pretty;
+      isSmileOut = smileOut;
       contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
     }
 
@@ -524,7 +532,12 @@ public class QueryResource
 
     ObjectWriter getOutputWriter(boolean useCustomSerdeForDateTime)
     {
-      ObjectMapper mapper = getInputMapper(useCustomSerdeForDateTime);
+      ObjectMapper mapper;
+      if (isSmileOut) {
+        mapper = useCustomSerdeForDateTime ? smileCustomMapper : smileMapper;
+      } else {
+        mapper = getInputMapper(useCustomSerdeForDateTime);
+      }
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 

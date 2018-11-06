@@ -180,6 +180,7 @@ public class QueryResourceTest
     Response response = queryResource.doPost(
         new ByteArrayInputStream(simpleTimeSeriesQuery.getBytes("UTF-8")),
         null /*pretty*/,
+        null,
         testServletRequest
     );
     Assert.assertNotNull(response);
@@ -192,6 +193,7 @@ public class QueryResourceTest
     Response response = queryResource.doPost(
         new ByteArrayInputStream("Meka Leka Hi Meka Hiney Ho".getBytes("UTF-8")),
         null /*pretty*/,
+        null,
         testServletRequest
     );
     Assert.assertNotNull(response);
@@ -238,6 +240,7 @@ public class QueryResourceTest
     Response response = queryResource.doPost(
         new ByteArrayInputStream(simpleTimeSeriesQuery.getBytes("UTF-8")),
         null /*pretty*/,
+        null,
         testServletRequest
     );
     Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
@@ -245,6 +248,7 @@ public class QueryResourceTest
     response = queryResource.doPost(
         new ByteArrayInputStream("{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\"}".getBytes("UTF-8")),
         null /*pretty*/,
+        null,
         testServletRequest
     );
 
@@ -322,6 +326,7 @@ public class QueryResourceTest
               startAwaitLatch.countDown();
               Response response = queryResource.doPost(
                   new ByteArrayInputStream(queryString.getBytes("UTF-8")),
+                  null,
                   null,
                   testServletRequest
               );
@@ -423,6 +428,7 @@ public class QueryResourceTest
               startAwaitLatch.countDown();
               Response response = queryResource.doPost(
                   new ByteArrayInputStream(queryString.getBytes("UTF-8")),
+                  null,
                   null,
                   testServletRequest
               );
