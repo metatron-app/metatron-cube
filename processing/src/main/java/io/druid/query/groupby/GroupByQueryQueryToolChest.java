@@ -32,7 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.emitter.service.ServiceMetricEvent;
@@ -250,7 +249,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             );
         close(segment);
 
-        return new ResourceClosingSequence<>(
+        return Sequences.withBaggage(
             postAggregate(outerQuery, outerQueryResultIndex),
             outerQueryResultIndex
         );

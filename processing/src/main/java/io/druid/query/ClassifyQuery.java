@@ -112,6 +112,6 @@ public class ClassifyQuery extends BaseQuery<Object[]>
         QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)
     );
     final Map<String, Object> context = computeOverriddenContext(postProcessing);
-    return new UnionAllQuery(null, Arrays.asList(c, q), false, -1, 2, -1, context);
+    return new UnionAllQuery(null, Arrays.asList(c, q), false, -1, 2, context);
   }
 }

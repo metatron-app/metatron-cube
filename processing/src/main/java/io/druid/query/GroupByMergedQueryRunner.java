@@ -30,7 +30,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -136,13 +135,13 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                   @Override
                   public Callable<Sequence<T>> apply(final QueryRunner<T> runner)
                   {
-                    return new AbstractPrioritizedCallable<Sequence<T>>(priority)
+                    return new Callable<Sequence<T>>()
                     {
                       @Override
                       public Sequence<T> call() throws Exception
                       {
                         try {
-                          Sequence<T> sequence = new ResourceClosingSequence<T>(
+                          Sequence<T> sequence = Sequences.withBaggage(
                               runner.run(queryParam, responseContext),
                               semaphore
                           );
@@ -166,7 +165,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                     };
                   }
                 }
-            ), semaphore, parallelism, priority
+            ), semaphore, priority
         )
     );
     waitForFutureCompletion(
@@ -187,7 +186,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       return Sequences.simple(bySegmentAccumulatorPair.lhs);
     }
 
-    return new ResourceClosingSequence<T>(
+    return Sequences.withBaggage(
         Sequences.simple(
             Iterables.<Row, T>transform(
                 incrementalIndex.toMergeStream(),
@@ -205,7 +204,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   {
     try {
       queryWatcher.registerQuery(query, future);
-      final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, (Number) null);
+      final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, null);
       if (timeout == null) {
         future.get();
       } else {

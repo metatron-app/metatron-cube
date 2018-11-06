@@ -257,7 +257,6 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         false,
         -1,
         1,
-        -1,
         computeOverriddenContext(postProcessing)
     );
   }

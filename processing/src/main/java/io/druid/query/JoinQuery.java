@@ -51,7 +51,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean asArray;
   private final int limit;
   private final int parallelism;
-  private final int queue;
 
   @JsonCreator
   public JoinQuery(
@@ -63,7 +62,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("limit") int limit,
       @JsonProperty("parallelism") int parallelism,
-      @JsonProperty("queue") int queue,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -75,7 +73,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.limit = limit;
     this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
-    this.queue = queue;
   }
 
   // dummy datasource for authorization
@@ -199,12 +196,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return parallelism;
   }
 
-  @JsonProperty
-  public int getQueue()
-  {
-    return queue;
-  }
-
   @Override
   public boolean hasFilters()
   {
@@ -238,7 +229,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         limit,
         parallelism,
-        queue,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -296,7 +286,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     Map<String, Object> context = computeOverriddenContext(joinContext);
-    return new JoinDelegate(queries, prefixAliases, sortColumns, timeColumn, limit, parallelism, queue, context);
+    return new JoinDelegate(queries, prefixAliases, sortColumns, timeColumn, limit, parallelism, context);
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)
@@ -310,7 +300,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         limit,
         parallelism,
-        queue,
         getContext()
     );
   }
@@ -324,7 +313,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            ", prefixAlias=" + prefixAlias +
            ", asArray=" + asArray +
            ", parallelism=" + parallelism +
-           ", queue=" + queue +
            ", limit=" + limit +
            '}';
   }
@@ -344,11 +332,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         String timeColumnName,
         int limit,
         int parallelism,
-        int queue,
         Map<String, Object> context
     )
     {
-      super(null, list, false, limit, parallelism, queue, context);
+      super(null, list, false, limit, parallelism, context);
       this.prefixAliases = prefixAliases;
       this.sortColumns = sortColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
@@ -379,7 +366,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           timeColumnName,
           getLimit(),
           getParallelism(),
-          getQueue(),
           getContext()
       );
     }
@@ -406,7 +392,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           timeColumnName,
           getLimit(),
           getParallelism(),
-          getQueue(),
           context
       );
     }
@@ -419,7 +404,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
              ", parallelism=" + getParallelism() +
              ", prefixAliases=" + getPrefixAliases() +
              ", timeColumnName=" + getTimeColumnName() +
-             ", queue=" + getQueue() +
              ", limit=" + getLimit() +
              '}';
     }

@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -335,7 +334,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     protected Sequence<ResultType> runOuterQuery(Query<ResultType> query, Map<String, Object> context, Segment segment)
     {
       final Function<Interval, Sequence<ResultType>> function = function(query, context, segment);
-      return new ResourceClosingSequence<>(
+      return Sequences.withBaggage(
           Sequences.concat(Sequences.map(Sequences.simple(query.getIntervals()), function)), segment
       );
     }

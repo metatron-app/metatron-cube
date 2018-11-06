@@ -26,7 +26,6 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -125,7 +124,7 @@ public class QueryRunnerHelper
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        return new ResourceClosingSequence<>(runner.run(query, responseContext), closeable);
+        return Sequences.withBaggage(runner.run(query, responseContext), closeable);
       }
     };
   }

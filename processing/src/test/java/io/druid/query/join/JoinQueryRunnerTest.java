@@ -139,7 +139,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
@@ -237,7 +237,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "COUNT", "SUM", "market_month", "value"};
@@ -267,7 +267,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
@@ -308,7 +308,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     JoinQuery joinQuery = new JoinQuery(
@@ -322,7 +322,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
@@ -363,7 +363,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         true,
         false,
         null,
-        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     // select on join

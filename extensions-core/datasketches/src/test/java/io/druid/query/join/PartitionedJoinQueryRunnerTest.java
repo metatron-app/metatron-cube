@@ -123,7 +123,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
         false,
         false,
         null,
-        firstToThird, 0, 0, 0, null
+        firstToThird, 0, 0, null
     );
 
     String[] columns = new String[]{"__time", "quality", "market", "index", "quality_month", "value"};

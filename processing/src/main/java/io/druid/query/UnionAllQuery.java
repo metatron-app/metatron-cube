@@ -32,7 +32,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.FutureSequence;
@@ -89,7 +88,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   private final boolean sortOnUnion;
   private final int limit;
   private final int parallelism;
-  private final int queue;
 
   @JsonCreator
   public UnionAllQuery(
@@ -98,7 +96,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
       @JsonProperty("sortOnUnion") boolean sortOnUnion,
       @JsonProperty("limit") int limit,
       @JsonProperty("parallelism") int parallelism,
-      @JsonProperty("queue") int queue,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -108,7 +105,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
     this.sortOnUnion = sortOnUnion;
     this.limit = limit;
     this.parallelism = parallelism;
-    this.queue = queue;
   }
 
   public Query getRepresentative()
@@ -159,12 +155,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
     return parallelism;
   }
 
-  @JsonProperty
-  public int getQueue()
-  {
-    return queue;
-  }
-
   @Override
   public boolean hasFilters()
   {
@@ -195,7 +185,7 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   protected Query newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
   {
-    return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, queue, context);
+    return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, context);
   }
 
   @Override
@@ -213,13 +203,13 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query withQueries(List<Query> queries)
   {
-    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, queue, getContext());
+    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, getContext());
   }
 
   @SuppressWarnings("unchecked")
   public Query withQuery(Query query)
   {
-    return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, queue, getContext());
+    return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, getContext());
   }
 
   @Override
@@ -252,10 +242,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
     if (parallelism != that.parallelism) {
       return false;
     }
-    if (queue != that.queue) {
-      return false;
-    }
-
     return true;
   }
 
@@ -268,7 +254,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
     result = 31 * result + (sortOnUnion ? 1 : 0);
     result = 31 * result + limit;
     result = 31 * result + parallelism;
-    result = 31 * result + queue;
     return result;
   }
 
@@ -281,7 +266,6 @@ public class UnionAllQuery<T> extends BaseQuery<T>
            ", sortOnUnion=" + sortOnUnion +
            ", limit=" + limit +
            ", parallelism=" + parallelism +
-           ", queue=" + queue +
            '}';
   }
 
@@ -337,9 +321,8 @@ public class UnionAllQuery<T> extends BaseQuery<T>
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
           final List<Query<T>> ready = toTargetQueries();
-          final int parallelism = Math.min(getParallelism(), ready.size());
-          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(parallelism, getQueue()));
-          LOG.info("Starting %d parallel works with %d threads", ready.size(), parallelism);
+          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(getParallelism(), ready.size()));
+          LOG.info("Starting %d parallel works with %d threads", ready.size(), semaphore.availablePermits());
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(
                   ready, new Function<Query<T>, Callable<Sequence<T>>>()
@@ -347,14 +330,14 @@ public class UnionAllQuery<T> extends BaseQuery<T>
                     @Override
                     public Callable<Sequence<T>> apply(final Query<T> query)
                     {
-                      return new AbstractPrioritizedCallable<Sequence<T>>(priority)
+                      return new Callable<Sequence<T>>()
                       {
                         @Override
                         public Sequence<T> call() throws Exception
                         {
                           // removed eager loading.. especially bad for join query
                           Sequence<T> sequence = query.run(segmentWalker, responseContext);
-                          return new ResourceClosingSequence<T>(sequence, semaphore);
+                          return Sequences.withBaggage(sequence, semaphore);
                         }
 
                         @Override
@@ -365,12 +348,12 @@ public class UnionAllQuery<T> extends BaseQuery<T>
                       };
                     }
                   }
-              ), semaphore, parallelism, priority
+              ), semaphore, priority
           );
           Sequence<Pair<Query<T>, Sequence<T>>> sequence = Sequences.simple(
               GuavaUtils.zip(ready, Lists.transform(futures, FutureSequence.<T>toSequence()))
           );
-          return new ResourceClosingSequence<Pair<Query<T>, Sequence<T>>>(
+          return Sequences.withBaggage(
               sequence,
               new Closeable()
               {

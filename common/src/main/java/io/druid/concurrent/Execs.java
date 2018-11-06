@@ -29,11 +29,11 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Tagged;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -205,11 +205,25 @@ public class Execs
     {
       return destroyed;
     }
+
+    public int availablePermits()
+    {
+      return semaphore.availablePermits();
+    }
   }
 
   public static <T> List<ListenableFuture<Sequence<T>>> execute(
       final ExecutorService executor,
       final Semaphore semaphore,
+      final Iterable<Supplier<Sequence<T>>> sequences
+  ) {
+    return execute(executor, semaphore, 0, sequences);
+  }
+
+  public static <T> List<ListenableFuture<Sequence<T>>> execute(
+      final ExecutorService executor,
+      final Semaphore semaphore,
+      final int priority,
       final Iterable<Supplier<Sequence<T>>> sequences
   )
   {
@@ -219,28 +233,34 @@ public class Execs
           @Override
           public Callable<Sequence<T>> apply(final Supplier<Sequence<T>> sequence)
           {
-            return new PrioritizedCallable.Background<Sequence<T>>()
+            return new PrioritizedCallable<Sequence<T>>()
             {
+              @Override
+              public int getPriority()
+              {
+                return priority;
+              }
+
               @Override
               public Sequence<T> call() throws Exception
               {
-                return new ResourceClosingSequence<T>(sequence.get(), semaphore);
+                return Sequences.withBaggage(sequence.get(), semaphore);
               }
             };
           }
         }
-    ), semaphore, semaphore.semaphore.availablePermits(), 0);
+    ), semaphore, priority);
   }
 
   public static <V> List<ListenableFuture<V>> execute(
       final ExecutorService executor,
       final Iterable<Callable<V>> works,
       final Semaphore semaphore,
-      final int parallelism,
       final int priority
   )
   {
-    log.debug("Executing with parallelism : %d, semaphore : %d", parallelism, semaphore.semaphore.availablePermits());
+    final int parallelism = semaphore.availablePermits();
+    log.debug("Executing with parallelism : %d", parallelism);
     // must be materialized first
     final List<WaitingFuture<V>> futures = Lists.newArrayList(Iterables.transform(works, WaitingFuture.<V>toWaiter()));
     final Queue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);

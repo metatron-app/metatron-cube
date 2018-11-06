@@ -38,6 +38,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.LimitedArrayLit;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
@@ -171,7 +172,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   )
   {
     return executor.submit(
-        new AbstractPrioritizedCallable(0)
+        new PrioritizedCallable.Background()
         {
           @Override
           public Object call()

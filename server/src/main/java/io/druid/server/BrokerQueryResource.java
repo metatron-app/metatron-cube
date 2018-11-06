@@ -44,6 +44,7 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -54,7 +55,6 @@ import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
-import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
@@ -474,7 +474,7 @@ public class BrokerQueryResource extends QueryResource
         queryManager.registerQuery(
             query, new ProgressingFuture(
                 exec.submit(
-                    new AbstractPrioritizedCallable<Sequence>(0)
+                    new PrioritizedCallable.Background<Sequence>()
                     {
                       @Override
                       public Sequence call() throws Exception

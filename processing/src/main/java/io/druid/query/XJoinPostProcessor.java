@@ -37,6 +37,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -179,7 +180,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       );
     }
     return executor.submit(
-        new AbstractPrioritizedCallable(0)
+        new PrioritizedCallable.Background()
         {
           @Override
           public Object call()

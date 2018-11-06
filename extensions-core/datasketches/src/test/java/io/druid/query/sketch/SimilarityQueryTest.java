@@ -57,7 +57,7 @@ public class SimilarityQueryTest extends SketchQueryRunnerTest
                        .withDimensionSpecs(DefaultDimensionSpec.toSpec("market", "quality", "placement"))
                        .withMetrics(Arrays.asList("index", "indexMin"))
         ),
-        false, 0, 2, 2,
+        false, 0, 2,
         ImmutableMap.of("postProcessing", new SimilarityProcessingOperator(0, null))
     );
 

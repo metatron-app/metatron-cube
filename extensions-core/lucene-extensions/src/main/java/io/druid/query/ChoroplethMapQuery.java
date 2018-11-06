@@ -198,7 +198,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
     }
     Map<String, Object> copy = Maps.newHashMap(context);
     copy.put(QueryContextKeys.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));
-    return new UnionAllQuery(null, queries, false, -1, 3, 2, copy);
+    return new UnionAllQuery(null, queries, false, -1, 3, copy);
   }
 
   @Override

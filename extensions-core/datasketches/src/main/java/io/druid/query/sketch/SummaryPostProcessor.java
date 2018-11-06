@@ -40,6 +40,7 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -251,7 +252,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 result.put("frequentItems", frequentItems);
                 futures.add(
                     exec.submit(
-                        new AbstractPrioritizedCallable<Integer>(0)
+                        new PrioritizedCallable.Background<Integer>()
                         {
                           @Override
                           public Integer call()
@@ -282,7 +283,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
             final TimeseriesQuery timeseries = runner;
             futures.add(
                 exec.submit(
-                    new AbstractPrioritizedCallable<Integer>(0)
+                    new PrioritizedCallable.Background<Integer>()
                     {
                       @Override
                       public Integer call()
@@ -366,7 +367,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           stats.put("segments", segments);
           futures.add(
               exec.submit(
-                  new AbstractPrioritizedCallable<Integer>(0)
+                  new PrioritizedCallable.Background<Integer>()
                   {
                     @Override
                     public Integer call()

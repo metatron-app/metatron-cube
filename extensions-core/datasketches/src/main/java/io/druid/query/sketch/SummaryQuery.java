@@ -163,7 +163,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     );
     Map<String, Object> summaryContext = computeOverriddenContext(postProcessor);
 
-    return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, -1, summaryContext);
+    return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, summaryContext);
   }
 
   @Override
