@@ -77,10 +77,10 @@ public class AppendingGranularitySpec implements GranularitySpec
     return granularitySpec.bucketInterval(dt);
   }
 
-  public SegmentDescriptor getSegmentDescriptor(Interval interval)
+  public SegmentDescriptor getSegmentDescriptor(long timestamp)
   {
     for (SegmentDescriptor descriptor : descriptors) {
-      if (interval.equals(descriptor.getInterval())) {
+      if (descriptor.getInterval().contains(timestamp)) {
         return descriptor;
       }
     }

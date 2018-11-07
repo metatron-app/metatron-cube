@@ -20,6 +20,7 @@
 package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -132,24 +133,28 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Granularity getQueryGranularity()
   {
     return queryGranularity;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Granularity getSegmentGranularity()
   {
     return segmentGranularity;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Boolean isRollup()
   {
     return rollup;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<String, AggregatorFactory> getAggregators()
   {
     return aggregators;

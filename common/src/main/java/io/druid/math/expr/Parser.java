@@ -83,7 +83,7 @@ public class Parser
         }
       }
       catch (Throwable t) {
-        log.info(t, "failed to instantiate %s.. ignoring", clazz.getName());
+        log.warn("failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
         continue;
       }
       if (factory == null || factory.name() == null) {

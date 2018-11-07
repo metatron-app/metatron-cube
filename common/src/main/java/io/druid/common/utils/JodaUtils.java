@@ -41,6 +41,7 @@ import sun.util.calendar.ZoneInfo;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -161,6 +162,20 @@ public class JodaUtils
     }
     );
 
+  }
+
+  public static List<Interval> overlapping(final Interval interval, Iterable<Interval> intervals)
+  {
+    return Lists.newArrayList(Iterables.filter(
+        intervals, new Predicate<Interval>()
+        {
+          @Override
+          public boolean apply(Interval input)
+          {
+            return input.overlaps(interval);
+          }
+        }
+    ));
   }
 
   public static Interval trim(Interval i, Iterable<Interval> intervals)

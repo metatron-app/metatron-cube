@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
-import com.google.common.io.ByteStreams;
+import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
@@ -66,8 +66,6 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
   {
     this.config = config;
     this.jsonMapper = jsonMapper;
-
-    log.info("Configured local filesystem as deep storage");
   }
 
   @Override
@@ -116,7 +114,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
   {
     File descriptorFile = new File(outDir, "descriptor.json");
     log.info("Creating descriptor file at[%s]", descriptorFile);
-    Files.copy(ByteStreams.newInputStreamSupplier(jsonMapper.writeValueAsBytes(segment)), descriptorFile);
+    ByteSource.wrap(jsonMapper.writeValueAsBytes(segment)).copyTo(Files.asByteSink(descriptorFile));
     return segment;
   }
 

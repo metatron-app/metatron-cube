@@ -589,7 +589,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       IndexSpec indexSpec = tuningConfig.getIndexSpec();
       LinearShardSpec appendingSpec = LinearShardSpec.of(0);
       if (granularitySpec instanceof AppendingGranularitySpec) {
-        SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
+        AppendingGranularitySpec appending = (AppendingGranularitySpec) granularitySpec;
+        SegmentDescriptor descriptor = appending.getSegmentDescriptor(time.getMillis());
         if (descriptor != null) {
           appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
           version = descriptor.getVersion();

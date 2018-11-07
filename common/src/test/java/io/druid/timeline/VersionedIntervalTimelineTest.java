@@ -29,6 +29,7 @@ import com.metamx.common.Pair;
 import io.druid.common.utils.JodaUtils;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.IntegerPartitionChunk;
+import io.druid.timeline.partition.LinearPartitionChunk;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
@@ -1714,6 +1715,36 @@ public class VersionedIntervalTimelineTest
 
     Assert.assertTrue(timeline.isOvershadowed(new Interval("2011-04-15/2011-04-21"), "0"));
     Assert.assertFalse(timeline.isOvershadowed(new Interval("2011-04-21/2011-04-22"), "0"));
+  }
+
+  @Test
+  public void testAppending()
+  {
+    timeline = makeStringIntegerTimeline();
+
+    add("2018-11-07/2018-11-08", "11", LinearPartitionChunk.make(0, 0));
+    add("2018-11-07/2018-11-08", "11", LinearPartitionChunk.make(1, 1));
+    add("2018-11-08/2018-11-09", "12", LinearPartitionChunk.make(0, 2));
+    List<TimelineObjectHolder<String, Integer>> holders = timeline.lookup(new Interval("2018-11-01/2018-11-30"));
+    Assert.assertEquals(2, holders.size());
+    Assert.assertEquals(2, holders.get(0).getObject().size());
+    Assert.assertEquals(1, holders.get(1).getObject().size());
+
+    add("2018-11-08/2018-11-09", "12", LinearPartitionChunk.make(1, 3));
+    add("2018-11-09/2018-11-10", "13", LinearPartitionChunk.make(0, 4));
+    holders = timeline.lookup(new Interval("2018-11-01/2018-11-30"));
+    Assert.assertEquals(3, holders.size());
+    Assert.assertEquals(2, holders.get(0).getObject().size());
+    Assert.assertEquals(2, holders.get(1).getObject().size());
+    Assert.assertEquals(1, holders.get(2).getObject().size());
+
+    add("2018-11-07/2018-11-08", "14", LinearPartitionChunk.make(0, 5));
+    add("2018-11-08/2018-11-09", "14", LinearPartitionChunk.make(0, 6));
+    holders = timeline.lookup(new Interval("2018-11-01/2018-11-30"));
+    Assert.assertEquals(3, holders.size());
+    Assert.assertEquals(1, holders.get(0).getObject().size());
+    Assert.assertEquals(1, holders.get(1).getObject().size());
+    Assert.assertEquals(1, holders.get(2).getObject().size());
   }
 
   private Pair<Interval, Pair<String, PartitionHolder<Integer>>> createExpected(

@@ -274,7 +274,9 @@ public class HadoopIndexTask extends HadoopTask
     String version = lock.getVersion();
 
     if (granularitySpec.isAppending()) {
-      List<SegmentDescriptor> descriptors = actionClient.submit(new SegmentAppendingAction(dataSource, intervals));
+      List<SegmentDescriptor> descriptors = actionClient.submit(
+          new SegmentAppendingAction(dataSource, intervals, granularitySpec.getSegmentGranularity())
+      );
       indexerSchema = indexerSchema.withDataSchema(
           dataSchema.withGranularitySpec(new AppendingGranularitySpec(granularitySpec, descriptors))
       );

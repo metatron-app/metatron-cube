@@ -20,13 +20,15 @@
 package io.druid.indexing.common.actions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.ISE;
 import io.druid.common.utils.JodaUtils;
+import io.druid.granularity.Granularity;
 import io.druid.indexing.common.task.Task;
 import io.druid.query.SegmentDescriptor;
 import io.druid.timeline.DataSegment;
@@ -37,23 +39,24 @@ import org.joda.time.Interval;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor>>
 {
-  @JsonIgnore
   private final String dataSource;
-
-  @JsonIgnore
   private final List<Interval> intervals;   // this should be split on segment granularity
+  private final Granularity segmentGranularity;
 
   @JsonCreator
   public SegmentAppendingAction(
       @JsonProperty("dataSource") String dataSource,
-      @JsonProperty("intervals") List<Interval> intervals
-  )
+      @JsonProperty("intervals") List<Interval> intervals,
+      @JsonProperty("segmentGranularity") Granularity segmentGranularity
+      )
   {
     this.dataSource = Preconditions.checkNotNull(dataSource);
-    this.intervals = Preconditions.checkNotNull(intervals);
+    this.intervals = Preconditions.checkNotNull(intervals);   // assured not overlapping
+    this.segmentGranularity = segmentGranularity;
   }
 
   @JsonProperty
@@ -68,6 +71,13 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
     return intervals;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Granularity getSegmentGranularity()
+  {
+    return segmentGranularity;
+  }
+
   public TypeReference<List<SegmentDescriptor>> getReturnTypeReference()
   {
     return new TypeReference<List<SegmentDescriptor>>()
@@ -78,7 +88,7 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
   @Override
   public List<SegmentDescriptor> perform(Task task, TaskActionToolbox toolbox) throws IOException
   {
-    Map<Interval, List<DataSegment>> segmentsMap = Maps.newHashMap();
+    final Map<Interval, List<DataSegment>> segmentsMap = Maps.newHashMap();
     for (DataSegment segment : toolbox.getIndexerMetadataStorageCoordinator()
                                       .getUsedSegmentsForIntervals(dataSource, intervals)) {
       List<DataSegment> segments = segmentsMap.get(segment.getInterval());
@@ -91,32 +101,57 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
     List<SegmentDescriptor> appendingSegments = Lists.newArrayList();
     for (Interval interval : intervals) {
       List<DataSegment> segments = segmentsMap.remove(interval);
-      if (segments == null) {
-        if (JodaUtils.overlaps(interval, segmentsMap.keySet())) {
-          throw new IllegalStateException("some overlapping interval");
-        }
+      if (segments != null && !segments.isEmpty()) {
+        appendingSegments.add(makeSegment(interval, segments));
         continue;
       }
-      String version = null;
-      int maxPartitionNum = -1;
-      for (DataSegment segment : segments) {
-        ShardSpec shardSpec = segment.getShardSpec();
-        if (!(shardSpec instanceof LinearShardSpec)) {
-          throw new IllegalStateException("cannot append to non-linear shard");
+      if (segmentGranularity == null) {
+        checkOverlapped(segmentsMap.keySet(), interval);
+      } else {
+        for (Interval segmented : segmentGranularity.getIterable(interval)) {
+          segments = segmentsMap.remove(segmented);
+          if (segments != null && !segments.isEmpty()) {
+            appendingSegments.add(makeSegment(segmented, segments));
+          } else {
+            checkOverlapped(segmentsMap.keySet(), segmented);
+          }
         }
-        if (version == null) {
-          version = segment.getVersion();
-          maxPartitionNum = shardSpec.getPartitionNum();
-          continue;
-        }
-        if (!version.equals(segment.getVersion())) {
-          throw new IllegalStateException("segment version conflicts");
-        }
-        maxPartitionNum = Math.max(maxPartitionNum, shardSpec.getPartitionNum());
       }
-      appendingSegments.add(new SegmentDescriptor(interval, version, maxPartitionNum + 1));
     }
     return appendingSegments;
+  }
+
+  private void checkOverlapped(Set<Interval> intervals, Interval interval)
+  {
+    List<Interval> overlapping = JodaUtils.overlapping(interval, intervals);
+    if (!overlapping.isEmpty()) {
+      throw new ISE("%s is overlapping with existing %s", interval, overlapping);
+    }
+  }
+
+  private SegmentDescriptor makeSegment(Interval interval, List<DataSegment> segments)
+  {
+    String version = null;
+    int maxPartitionNum = -1;
+    for (DataSegment segment : segments) {
+      ShardSpec shardSpec = segment.getShardSpec();
+      if (!(shardSpec instanceof LinearShardSpec)) {
+        throw new ISE("segment %s is not linear shard", segment);
+      }
+      if (!interval.contains(segment.getInterval())) {
+        throw new ISE("segment %s is not contained in the interval %s", segment, interval);
+      }
+      if (version == null) {
+        version = segment.getVersion();
+        maxPartitionNum = shardSpec.getPartitionNum();
+      } else {
+        Preconditions.checkArgument(
+            version.equals(segment.getVersion()), "version conflict in a chunk.. should not be happened"
+        );
+        maxPartitionNum = Math.max(maxPartitionNum, shardSpec.getPartitionNum());
+      }
+    }
+    return new SegmentDescriptor(interval, version, maxPartitionNum + 1);
   }
 
   @Override

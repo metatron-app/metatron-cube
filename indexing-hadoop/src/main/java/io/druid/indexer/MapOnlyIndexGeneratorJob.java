@@ -284,7 +284,8 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       LinearShardSpec appendingSpec = LinearShardSpec.of(0);
       String version = tuningConfig.getVersion();
       if (granularitySpec instanceof AppendingGranularitySpec) {
-        SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
+        AppendingGranularitySpec appending = (AppendingGranularitySpec) granularitySpec;
+        SegmentDescriptor descriptor = appending.getSegmentDescriptor(interval.getStartMillis());
         if (descriptor != null) {
           appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
           version = descriptor.getVersion();

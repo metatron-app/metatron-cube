@@ -115,8 +115,6 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     this.hadoopConfig = hadoopConfig;
     this.jsonMapper = jsonMapper;
     this.merger = merger;
-
-    log.info("Configured HDFS as deep storage");
   }
 
   @Override
