@@ -7881,6 +7881,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                         helloFn
                     )),
                     null,
+                    null,
                     false,
                     false
                 )

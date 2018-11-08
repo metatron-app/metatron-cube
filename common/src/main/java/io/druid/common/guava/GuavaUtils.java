@@ -280,8 +280,8 @@ public class GuavaUtils
   public static int[] indexOf(List<String> list, List<String> indexing)
   {
     List<Integer> indices = Lists.newArrayList();
-    for (String sort : indexing) {
-      indices.add(list.indexOf(sort));
+    for (String index : indexing) {
+      indices.add(list.indexOf(index));
     }
     return Ints.toArray(indices);
   }
@@ -294,6 +294,20 @@ public class GuavaUtils
         return null;
       }
       ints[i] = (int) longs[i];
+    }
+    return ints;
+  }
+
+  public static int[] intsFromTo(int end)
+  {
+    return intsFromTo(0, end);
+  }
+
+  public static int[] intsFromTo(int start, int end)
+  {
+    final int[] ints = new int[end - start];
+    for (int i = 0; i < ints.length; i++) {
+      ints[i] = start + i;
     }
     return ints;
   }
@@ -355,6 +369,16 @@ public class GuavaUtils
   public static boolean containsNull(List list)
   {
     return Lists.newArrayList(list).contains(null);
+  }
+
+  public static boolean containsAny(Collection collection, Collection finding)
+  {
+    for (Object x : finding) {
+      if (collection.contains(x)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static List<String> retain(List<String> list, List<String> retain)

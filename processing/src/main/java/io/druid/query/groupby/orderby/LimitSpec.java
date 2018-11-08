@@ -157,6 +157,11 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
            NoopLimitSpec.INSTANCE : new LimitSpec(null, null, segmentLimit, nodeLimit, null, executor);
   }
 
+  public LimitSpec withNoLimiting()
+  {
+    return new LimitSpec(columns, null, null, null, windowingSpecs, executor);
+  }
+
   public Function<Sequence<Row>, Sequence<Row>> build(
       Query.AggregationsSupport<?> query,
       boolean sortOnTimeForLimit

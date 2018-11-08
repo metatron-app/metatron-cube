@@ -39,6 +39,7 @@ import org.apache.commons.io.IOUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -50,6 +51,12 @@ public class Sequences extends com.metamx.common.guava.Sequences
   public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Sequence<Sequence<T>> baseSequences)
   {
     return new MergeSequence<T>(ordering, baseSequences);
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> of(T... elements)
+  {
+    return BaseSequence.simple(Arrays.asList(elements));
   }
 
   public static <T> List<T> toList(Sequence<T> seq)

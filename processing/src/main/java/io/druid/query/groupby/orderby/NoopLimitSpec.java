@@ -83,6 +83,12 @@ public class NoopLimitSpec extends LimitSpec
   }
 
   @Override
+  public LimitSpec withNoLimiting()
+  {
+    return this;
+  }
+
+  @Override
   public String toString()
   {
     return "NoopLimitSpec{}";

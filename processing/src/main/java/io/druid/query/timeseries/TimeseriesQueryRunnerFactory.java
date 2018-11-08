@@ -63,13 +63,13 @@ public class TimeseriesQueryRunnerFactory
 
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeseriesResultValue>>> queryRunners,
+      ExecutorService queryExecutor,
+      Iterable<QueryRunner<Result<TimeseriesResultValue>>> queryRunners,
       Future<Object> optimizer
   )
   {
-    return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(
-        queryExecutor, queryWatcher, queryRunners
-    ) {
+    return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(queryExecutor, queryWatcher, queryRunners)
+    {
       @Override
       protected Iterator<Result<TimeseriesResultValue>> toIterator(
           Query<Result<TimeseriesResultValue>> query,

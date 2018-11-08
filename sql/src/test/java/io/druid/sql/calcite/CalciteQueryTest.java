@@ -1090,6 +1090,7 @@ public class CalciteQueryTest
                                         new DefaultDimensionSpec("m1", "m1")
                                     ),
                                     null,
+                                    null,
                                     false,
                                     true
                                 )
@@ -3335,6 +3336,7 @@ public class CalciteQueryTest
                               null,
                               DIMS(new DefaultDimensionSpec("dim2", null)),
                               null,
+                              null,
                               false,
                               true
                           ),
@@ -3407,6 +3409,7 @@ public class CalciteQueryTest
                               "a0",
                               null,
                               DIMS(new DefaultDimensionSpec("dim2", null)),
+                              null,
                               null,
                               false,
                               true
@@ -3496,6 +3499,7 @@ public class CalciteQueryTest
                               null,
                               DIMS(new DefaultDimensionSpec("dim2", "dim2")),
                               null,
+                              null,
                               false,
                               true
                           ),
@@ -3504,6 +3508,7 @@ public class CalciteQueryTest
                                   "a2",
                                   null,
                                   DIMS(new DefaultDimensionSpec("dim2", "dim2")),
+                                  null,
                                   null,
                                   false,
                                   true
@@ -3521,6 +3526,7 @@ public class CalciteQueryTest
                                   )
                               ),
                               null,
+                              null,
                               false,
                               true
                           ),
@@ -3528,6 +3534,7 @@ public class CalciteQueryTest
                               "a4",
                               null,
                               DIMS(new DefaultDimensionSpec("a4:v", "a4:v")),
+                              null,
                               null,
                               false,
                               true
@@ -4100,6 +4107,7 @@ public class CalciteQueryTest
                               null,
                               DIMS(new DefaultDimensionSpec("d0", null)),
                               null,
+                              null,
                               false,
                               true
                           )
@@ -4231,6 +4239,7 @@ public class CalciteQueryTest
                               null,
                               DIMS(new DefaultDimensionSpec("dim2", null)),
                               null,
+                              null,
                               false,
                               true
                           )
@@ -4279,6 +4288,7 @@ public class CalciteQueryTest
                                   )
                               ),
                               null,
+                              null,
                               false,
                               true
                           )
@@ -4314,6 +4324,7 @@ public class CalciteQueryTest
                               "a0",
                               null,
                               DIMS(new DefaultDimensionSpec("a0:v", "a0:v")),
+                              null,
                               null,
                               false,
                               true

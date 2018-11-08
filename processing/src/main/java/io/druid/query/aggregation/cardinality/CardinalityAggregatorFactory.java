@@ -31,13 +31,14 @@ import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.ValueMatcher;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
@@ -56,6 +57,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   private final String predicate;
   private final List<String> fieldNames;
   private final List<DimensionSpec> fields;
+  private final GroupingSetSpec groupingSets;
   private final boolean byRow;
   private final boolean round;
 
@@ -64,6 +66,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       @JsonProperty("name") final String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
       @JsonProperty("fields") final List<DimensionSpec> fields,
+      @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
       @JsonProperty("predicate") final String predicate,
       @JsonProperty("byRow") final boolean byRow,
       @JsonProperty("round") final boolean round
@@ -73,6 +76,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     this.predicate = predicate;
     this.fieldNames = fieldNames;
     this.fields = fields;
+    this.groupingSets = groupingSets;
     this.byRow = byRow;
     this.round = round;
     Preconditions.checkArgument(
@@ -83,39 +87,46 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
   {
-    this(name, fieldNames, null, null, byRow, false);
+    this(name, fieldNames, null, null, null, byRow, false);
   }
 
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnFactory)
   {
-    List<DimensionSelector> selectors = makeDimensionSelectors(columnFactory);
+    List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
+    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
 
-    if (selectors.isEmpty()) {
-      return Aggregators.noopAggregator();
+    int[][] grouping = null;
+    if (groupingSets != null) {
+      grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
-
-    return new CardinalityAggregator(ColumnSelectors.toMatcher(predicate, columnFactory), selectors, byRow);
+    ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
+    return new CardinalityAggregator(predicate, selectors, grouping, byRow);
   }
 
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnFactory)
   {
-    List<DimensionSelector> selectors = makeDimensionSelectors(columnFactory);
+    List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
+    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
 
-    if (selectors.isEmpty()) {
-      return Aggregators.noopBufferAggregator();
+    int[][] grouping = null;
+    if (groupingSets != null) {
+      grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
-
-    return new CardinalityBufferAggregator(selectors, ColumnSelectors.toMatcher(predicate, columnFactory), byRow);
+    ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
+    return new CardinalityBufferAggregator(selectors, predicate, grouping, byRow);
   }
 
-  private List<DimensionSelector> makeDimensionSelectors(final ColumnSelectorFactory columnFactory)
+  private List<DimensionSelector> makeDimensionSelectors(
+      final List<DimensionSpec> dimensionSpecs,
+      final ColumnSelectorFactory columnFactory
+  )
   {
     return Lists.newArrayList(
         Lists.transform(
-            Preconditions.checkNotNull(fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames)),
+            Preconditions.checkNotNull(dimensionSpecs),
             new Function<DimensionSpec, DimensionSelector>()
             {
               @Override
@@ -311,6 +322,9 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (!Objects.equals(predicate, that.predicate)) {
       return false;
     }
+    if (!Objects.equals(groupingSets, that.groupingSets)) {
+      return false;
+    }
 
     return true;
   }
@@ -333,7 +347,8 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     return "CardinalityAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldNames='" + fieldNames + '\'' +
-           ", fields='" + fields + '\'' +
+           ", fields=" + fields +
+           ", groupingSets=" + groupingSets +
            ", predicate='" + predicate + '\'' +
            ", byRow=" + byRow +
            ", round=" + round +

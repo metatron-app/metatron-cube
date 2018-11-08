@@ -26,15 +26,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
@@ -46,14 +51,19 @@ import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.SequenceCountingProcessor;
 import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.having.AlwaysHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
@@ -65,6 +75,7 @@ import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -269,6 +280,47 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimensions(),
         getGroupingSets(),
         virtualColumns,
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getLateralView(),
+        getContext()
+    );
+  }
+
+  @Override
+  public GroupByQuery withGranularity(Granularity granularity)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        granularity,
+        getDimensions(),
+        getGroupingSets(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getLateralView(),
+        getContext()
+    );
+  }
+
+  public GroupByQuery withGroupingSet(GroupingSetSpec groupingSet)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        groupingSet,
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
@@ -687,6 +739,121 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         postAggregatorSpecs,
         outputColumns,
         Queries.extractContext(this, BaseQuery.QUERYID)
+    );
+  }
+
+  public Query toCardinalityEstimator(Supplier<GroupByQueryConfig> config, ObjectMapper mapper)
+  {
+    GroupByQuery query = this;
+    if (query.getLateralView() != null ||
+        (query.getHavingSpec() != null && !(query.getHavingSpec() instanceof AlwaysHavingSpec))) {
+      return toWorstCase(query, mapper);
+    }
+    List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
+    List<String> metrics = GuavaUtils.concat(
+        AggregatorFactory.toNames(query.getAggregatorSpecs()),
+        PostAggregators.toNames(query.getPostAggregatorSpecs())
+    );
+    LimitSpec limitSpec = query.getLimitSpec();
+    List<String> candidate = outputNames;
+    if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      for (WindowingSpec windowingSpec : limitSpec.getWindowingSpecs()) {
+        List<String> partitionColumns = windowingSpec.getPartitionColumns();
+        if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
+          if (GuavaUtils.containsAny(partitionColumns, metrics)) {
+            return toWorstCase(query, mapper);
+          }
+          List<String> retained = partitionColumns.isEmpty()
+                                  ? partitionColumns
+                                  : GuavaUtils.retain(candidate, partitionColumns);
+          if (candidate.size() > retained.size()) {
+            candidate = retained;
+          }
+        }
+      }
+    }
+    GroupingSetSpec groupingSet = query.getGroupingSets();
+    if (groupingSet != null && candidate.size() > 1 && candidate.size() < outputNames.size()) {
+      int[] mapping = GuavaUtils.indexOf(outputNames, candidate);
+      int[][] indices = groupingSet.getGroupings(outputNames);
+      List<List<Integer>> list = Lists.newArrayList();
+      for (int[] index : indices) {
+        List<Integer> rewritten = Lists.newArrayList();
+        for (int x : index) {
+          if (mapping[x] >= 0) {
+            rewritten.add(mapping[x]);
+          }
+        }
+        if (!rewritten.isEmpty() && !list.contains(rewritten)) {
+          list.add(rewritten);
+        }
+      }
+      groupingSet = new GroupingSetSpec.Indices(list);
+    }
+    // marker to mimic group-by style handling in cardinality aggregator
+    if (groupingSet == null) {
+      groupingSet = new GroupingSetSpec.Indices(null);
+    }
+    List<DimensionSpec> fields = Lists.newArrayList();
+    for (String column : candidate) {
+      fields.add(query.getDimensions().get(outputNames.indexOf(column)));
+    }
+
+    boolean sortOnTime = query.isSortOnTimeForLimit(config.get().isSortOnTime());
+    Granularity granularity = sortOnTime ? query.getGranularity() : Granularities.ALL;
+
+    AggregatorFactory cardinality = new CardinalityAggregatorFactory(
+        "$cardinality", null, fields, groupingSet, null, true, true
+    );
+
+    return query.withGroupingSet(null)
+                .withPostAggregatorSpecs(null)
+                .withAggregatorSpecs(Arrays.asList(cardinality))
+                .withGranularity(granularity)
+                .withDimensionSpecs(null)
+                .withHavingSpec(null)
+                .withLimitSpec(null)
+                .withOutputColumns(null)
+                .withOverriddenContext(FINALIZE, true)
+                .withOverriddenContext(FINAL_WORK, true)
+                .withOverriddenContext(ALL_DIMENSIONS_FOR_EMPTY, false)
+                .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.Abstract<Row>()
+                {
+                  @Override
+                  public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)
+                  {
+                    return new QueryRunner<Row>()
+                    {
+                      @Override
+                      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+                      {
+                        int sum = baseRunner.run(query, responseContext).accumulate(0, new Accumulator<Integer, Row>()
+                        {
+                          @Override
+                          public Integer accumulate(Integer accumulated, Row in)
+                          {
+                            return accumulated + Ints.checkedCast(in.getLongMetric("$cardinality"));
+                          }
+                        });
+                        return Sequences.<Row>of(
+                            new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", sum))
+                        );
+                      }
+
+                      @Override
+                      public String toString()
+                      {
+                        return "cardinality";
+                      }
+                    };
+                  }
+                });
+  }
+
+  private Query toWorstCase(GroupByQuery query, ObjectMapper jsonMapper)
+  {
+    return PostProcessingOperators.append(
+        query.withLimitSpec(query.getLimitSpec().withNoLimiting()), jsonMapper, SequenceCountingProcessor.INSTANCE
     );
   }
 

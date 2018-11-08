@@ -114,7 +114,15 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
         virtualColumns.add(virtualColumn);
       }
 
-      aggregatorFactory = new CardinalityAggregatorFactory(name, null, ImmutableList.of(dimensionSpec), null, false, true);
+      aggregatorFactory = new CardinalityAggregatorFactory(
+          name,
+          null,
+          ImmutableList.of(dimensionSpec),
+          null,
+          null,
+          false,
+          true
+      );
     }
 
     return Aggregation.create(virtualColumns, aggregatorFactory);

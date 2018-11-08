@@ -166,6 +166,8 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return lateralView;
   }
 
+  public abstract BaseAggregationQuery withGranularity(Granularity granularity);
+
   public abstract BaseAggregationQuery withLimitSpec(LimitSpec limitSpec);
 
   public abstract BaseAggregationQuery withHavingSpec(HavingSpec havingSpec);

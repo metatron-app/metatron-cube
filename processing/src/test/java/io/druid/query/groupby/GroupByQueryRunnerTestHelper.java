@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
@@ -141,7 +142,26 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
   public static List<Row> runQuery(GroupByQuery query)
   {
-    return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+    return runQuery(query, false);
+  }
+
+  public static List<Row> runQuery(GroupByQuery query, boolean checkCount)
+  {
+    List<Row> rows = Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+    if (checkCount) {
+      int sum = count(query);
+      Assert.assertEquals(sum, rows.size());
+    }
+    return rows;
+  }
+
+  public static int count(GroupByQuery query)
+  {
+    int sum = 0;
+    for (Row x : runRowQuery(new GroupByMetaQuery(query))) {
+      sum += Ints.checkedCast(x.getLongMetric("cardinality"));
+    }
+    return sum;
   }
 
   @SuppressWarnings("unchecked")

@@ -2925,6 +2925,7 @@ public class TopNQueryRunnerTest
                             helloFn
                         )),
                         null,
+                        null,
                         false,
                         false
                     )

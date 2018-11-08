@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.guava.Sequence;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -79,5 +80,19 @@ public class PostProcessingOperators
   {
     PostProcessingOperator<T> processor = load(query, mapper);
     return processor != null && processor.hasTabularOutput();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Query append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
+  {
+    PostProcessingOperator<T> existing = load(query, mapper);
+    if (existing != null) {
+      if (existing instanceof ListPostProcessingOperator) {
+        ((ListPostProcessingOperator) existing).getProcessors().add(processor);
+        return query;
+      }
+      processor = new ListPostProcessingOperator(Arrays.asList(existing, processor));
+    }
+    return query.withOverriddenContext(Query.POST_PROCESSING, processor);
   }
 }

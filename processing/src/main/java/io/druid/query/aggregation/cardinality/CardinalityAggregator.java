@@ -38,42 +38,91 @@ public class CardinalityAggregator implements Aggregator
 
   private final ValueMatcher predicate;
   private final List<DimensionSelector> selectorList;
+  private final int[][] groupings;
   private final boolean byRow;
 
   private static final HashFunction hashFn = Hashing.murmur3_128();
   public static final char SEPARATOR = '\u0001';
 
-  protected static void hashRow(List<DimensionSelector> selectorList, HyperLogLogCollector collector)
+  protected static void hashRow(List<DimensionSelector> selectorList, int[][] groupings, HyperLogLogCollector collector)
   {
-    final Hasher hasher = hashFn.newHasher();
-    for (int k = 0; k < selectorList.size(); ++k) {
-      if (k != 0) {
-        hasher.putByte((byte) 0);
-      }
-      final DimensionSelector selector = selectorList.get(k);
+    final Object[] values = new Object[selectorList.size()];
+    for (int i = 0; i < values.length; i++) {
+      final DimensionSelector selector = selectorList.get(i);
       final IndexedInts row = selector.getRow();
-      final int size = row.size();
       // nothing to add to hasher if size == 0, only handle size == 1 and size != 0 cases.
-      if (size == 1) {
-        final String value = Objects.toString(selector.lookupName(row.get(0)), null);
-        hasher.putUnencodedChars(value != null ? value : NULL_STRING);
-      } else if (size != 0) {
-        final String[] values = new String[size];
-        for (int i = 0; i < size; ++i) {
-          final String value = Objects.toString(selector.lookupName(row.get(i)), null);
-          values[i] = value != null ? value : NULL_STRING;
+      if (row.size() == 1) {
+        values[i] = Objects.toString(selector.lookupName(row.get(0)), NULL_STRING);
+      } else {
+        final String[] multi = new String[row.size()];
+        for (int j = 0; j < multi.length; ++j) {
+          multi[j] = Objects.toString(selector.lookupName(row.get(j)), NULL_STRING);
         }
         // Values need to be sorted to ensure consistent multi-value ordering across different segments
-        Arrays.sort(values);
-        for (int i = 0; i < size; ++i) {
-          if (i != 0) {
-            hasher.putChar(SEPARATOR);
+        Arrays.sort(multi);
+        values[i] = multi;
+      }
+    }
+    if (groupings == null) {
+      collector.add(makeHash(values).hash().asBytes());
+    } else {
+      if (groupings.length == 0) {
+        populateAndHash(values, 0, collector);
+      } else {
+        for (int[] grouping : groupings) {
+          final Object[] copy = new Object[values.length];
+          for (int index : grouping) {
+            copy[index] = values[index];
           }
-          hasher.putUnencodedChars(values[i]);
+          populateAndHash(copy, 0, collector);
         }
       }
     }
-    collector.add(hasher.hash().asBytes());
+  }
+
+  private static void populateAndHash(final Object[] values, final int index, final HyperLogLogCollector collector)
+  {
+    if (values.length == index) {
+      collector.add(makeHash(values).hash().asBytes());
+      return;
+    }
+    final Object value = values[index];
+    if (value == null || value instanceof String) {
+      populateAndHash(values, index + 1, collector);
+    } else {
+      for (String element : (String[]) value) {
+        Object[] copy = Arrays.copyOf(values, values.length);
+        copy[index] = element;
+        populateAndHash(copy, index + 1, collector);
+      }
+    }
+  }
+  private static Hasher makeHash(final Object[] values)
+  {
+    final Hasher hasher = hashFn.newHasher();
+    for (int i = 0; i < values.length; i++) {
+      if (i != 0) {
+        hasher.putByte((byte) 0);
+      }
+      final Object value = values[i];
+      if (value == null) {
+        hasher.putUnencodedChars(NULL_STRING);
+      } else if (value instanceof String) {
+        hasher.putUnencodedChars((String) value);
+      } else {
+        final String[] multi = (String[]) value;
+        for (int j = 0; j < multi.length; j++) {
+          if (j != 0) {
+            hasher.putChar(SEPARATOR);
+          }
+          hasher.putUnencodedChars(multi[j]);
+        }
+      }
+    }
+    if (values.length == 0) {
+      hasher.putUnencodedChars(NULL_STRING);
+    }
+    return hasher;
   }
 
   protected static void hashValues(final List<DimensionSelector> selectors, HyperLogLogCollector collector)
@@ -84,6 +133,9 @@ public class CardinalityAggregator implements Aggregator
         collector.add(hashFn.hashUnencodedChars(value == null ? NULL_STRING : value).asBytes());
       }
     }
+    if (selectors.isEmpty()) {
+      collector.add(hashFn.hashUnencodedChars(NULL_STRING).asBytes());
+    }
   }
 
   private HyperLogLogCollector collector;
@@ -91,18 +143,20 @@ public class CardinalityAggregator implements Aggregator
   public CardinalityAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
+      int[][] groupings,
       boolean byRow
   )
   {
     this.predicate = predicate;
     this.selectorList = selectorList;
+    this.groupings = groupings;
     this.collector = HyperLogLogCollector.makeLatestCollector();
     this.byRow = byRow;
   }
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(ValueMatcher.TRUE, selectorList, byRow);
+    this(ValueMatcher.TRUE, selectorList, null, byRow);
   }
 
   @Override
@@ -110,7 +164,7 @@ public class CardinalityAggregator implements Aggregator
   {
     if (predicate.matches()) {
       if (byRow) {
-        hashRow(selectorList, collector);
+        hashRow(selectorList, groupings, collector);
       } else {
         hashValues(selectorList, collector);
       }
@@ -150,7 +204,7 @@ public class CardinalityAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new CardinalityAggregator(predicate, selectorList, byRow);
+    return new CardinalityAggregator(predicate, selectorList, groupings, byRow);
   }
 
   @Override

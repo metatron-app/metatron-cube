@@ -400,6 +400,13 @@ public class Queries
           query = union.withQueries(queries);
         }
       }
+    } else if (query instanceof Query.WrappingQuery) {
+      Query.WrappingQuery wrapping = (Query.WrappingQuery) query;
+      Query source = wrapping.query();
+      Query converted = iterate(source, function);
+      if (source != converted) {
+        return wrapping.withQuery(converted);
+      }
     }
     return function.apply(query);
   }

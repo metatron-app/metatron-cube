@@ -495,6 +495,7 @@ public class CardinalityAggregatorTest
             new DefaultDimensionSpec("c", "c")
         ),
         null,
+        null,
         true,
         false
     );
@@ -518,6 +519,7 @@ public class CardinalityAggregatorTest
             new RegexFilteredDimensionSpec(new DefaultDimensionSpec("a", "a"), ".*"),
             new DefaultDimensionSpec("c", "c")
         ),
+        null,
         null,
         false,
         true

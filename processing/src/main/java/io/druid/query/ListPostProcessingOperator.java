@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.List;
@@ -41,7 +42,7 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   )
   {
     Preconditions.checkArgument(processors != null && !processors.isEmpty());
-    this.processors = processors;
+    this.processors = Lists.newArrayList(processors);
     this.supportsUnion = processors.get(0).supportsUnionProcessing();
     for (int i = 1; i < processors.size(); i++) {
       Preconditions.checkArgument(!processors.get(i).supportsUnionProcessing());

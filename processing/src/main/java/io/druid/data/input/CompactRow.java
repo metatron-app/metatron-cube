@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 /**
@@ -58,5 +59,11 @@ public class CompactRow extends AbstractRow
   public Collection<String> getColumns()
   {
     throw new UnsupportedOperationException("getColumns");
+  }
+
+  @Override
+  public String toString()
+  {
+    return Arrays.toString(values);
   }
 }

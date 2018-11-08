@@ -290,6 +290,26 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
   }
 
   @Override
+  public TimeseriesQuery withGranularity(Granularity granularity)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
   public TimeseriesQuery withLimitSpec(LimitSpec limitSpec)
   {
     return new TimeseriesQuery(

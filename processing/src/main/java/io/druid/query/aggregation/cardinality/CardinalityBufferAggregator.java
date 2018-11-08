@@ -31,6 +31,7 @@ public class CardinalityBufferAggregator implements BufferAggregator
 {
   private final List<DimensionSelector> selectorList;
   private final ValueMatcher predicate;
+  private final int[][] groupings;
   private final boolean byRow;
 
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
@@ -38,17 +39,19 @@ public class CardinalityBufferAggregator implements BufferAggregator
   public CardinalityBufferAggregator(
       List<DimensionSelector> selectorList,
       ValueMatcher predicate,
+      int[][] groupings,
       boolean byRow
   )
   {
     this.selectorList = selectorList;
     this.predicate = predicate;
+    this.groupings = groupings;
     this.byRow = byRow;
   }
 
   public CardinalityBufferAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(selectorList, ValueMatcher.TRUE, byRow);
+    this(selectorList, ValueMatcher.TRUE, null, byRow);
   }
 
   @Override
@@ -70,7 +73,7 @@ public class CardinalityBufferAggregator implements BufferAggregator
       try {
         final HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buf);
         if (byRow) {
-          CardinalityAggregator.hashRow(selectorList, collector);
+          CardinalityAggregator.hashRow(selectorList, groupings, collector);
         } else {
           CardinalityAggregator.hashValues(selectorList, collector);
         }
