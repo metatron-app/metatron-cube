@@ -36,6 +36,7 @@ import io.druid.indexing.common.RetryPolicyFactory;
 import io.druid.indexing.common.task.Task;
 import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Duration;
 
 import javax.ws.rs.core.MediaType;
@@ -76,6 +77,7 @@ public class RemoteTaskActionClient implements TaskActionClient
   {
     log.debug("Performing action for task[%s]: %s", task.getId(), taskAction);
 
+    boolean retry = true;
     byte[] dataToSend = jsonMapper.writeValueAsBytes(new TaskActionHolder(task, taskAction));
 
     final RetryPolicy retryPolicy = retryPolicyFactory.makeRetryPolicy();
@@ -111,7 +113,8 @@ public class RemoteTaskActionClient implements TaskActionClient
           throw Throwables.propagate(e);
         }
 
-        if (response.getStatus().getCode() / 100 == 2) {
+        final HttpResponseStatus status = response.getStatus();
+        if (status.getCode() / 100 == 2) {
           final Map<String, Object> responseDict = jsonMapper.readValue(
               response.getContent(),
               new TypeReference<Map<String, Object>>()
@@ -120,11 +123,11 @@ public class RemoteTaskActionClient implements TaskActionClient
           );
           return jsonMapper.convertValue(responseDict.get("result"), taskAction.getReturnTypeReference());
         } else {
-          // Want to retry, so throw an IOException.
+          retry = status.getCode() != 406;
           throw new IOException(
               String.format(
                   "Scary HTTP status returned: %s. Check your overlord[%s] logs for exceptions.",
-                  response.getStatus(),
+                  status,
                   server.getHost()
               )
           );
@@ -132,6 +135,9 @@ public class RemoteTaskActionClient implements TaskActionClient
       }
       catch (IOException | ChannelException e) {
         log.warn(e, "Exception submitting action for task[%s]", task.getId());
+        if (!retry) {
+          throw new ISE("Not recoverable problem by %s.. ignoring further retry", e.toString());
+        }
 
         final Duration delay = retryPolicy.getAndIncrementRetryDelay();
         if (delay == null) {
@@ -150,10 +156,10 @@ public class RemoteTaskActionClient implements TaskActionClient
     }
   }
 
-  private long jitter(long input){
+  private long jitter(long input)
+  {
     final double jitter = random.nextGaussian() * input / 4.0;
-    long retval = input + (long)jitter;
-    return retval < 0 ? 0 : retval;
+    return Math.max(0, input + (long) jitter);
   }
 
   private URI makeServiceUri(final Server instance) throws URISyntaxException

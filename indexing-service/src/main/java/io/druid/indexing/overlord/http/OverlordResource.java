@@ -517,6 +517,10 @@ public class OverlordResource
               retMap = Maps.newHashMap();
               retMap.put("result", ret);
             }
+            catch (IllegalArgumentException | IllegalStateException e) {
+              log.warn(e, "Failed to perform task action (not acceptable)");
+              return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+            }
             catch (IOException e) {
               log.warn(e, "Failed to perform task action");
               return Response.serverError().build();
