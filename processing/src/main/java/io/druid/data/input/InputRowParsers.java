@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -31,6 +32,10 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.query.aggregation.AggregatorFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -166,5 +171,19 @@ public class InputRowParsers
         }
       }
     };
+  }
+
+  public static Iterator<InputRow> toStreamIterator(InputRowParser.Streaming<?> streaming, InputStream input)
+      throws IOException
+  {
+    if (streaming.accept(input)) {
+      return streaming.parseStream(input);
+    } else {
+      Reader reader = new InputStreamReader(input, StringUtils.UTF8_STRING);
+      if (streaming.accept(reader)) {
+        return streaming.parseStream(reader);
+      }
+    }
+    return null;
   }
 }

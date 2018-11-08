@@ -20,6 +20,7 @@
 package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -133,6 +134,7 @@ public class ColumnAnalysis
       @JsonSubTypes.Type(Float.class), @JsonSubTypes.Type(Double.class)
   })
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.WRAPPER_OBJECT)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Comparable getMinValue()
   {
     return minValue;
@@ -144,12 +146,14 @@ public class ColumnAnalysis
       @JsonSubTypes.Type(Float.class), @JsonSubTypes.Type(Double.class)
   })
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.WRAPPER_OBJECT)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Comparable getMaxValue()
   {
     return maxValue;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getErrorMessage()
   {
     return errorMessage;

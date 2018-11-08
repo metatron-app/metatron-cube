@@ -57,6 +57,7 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
@@ -616,14 +617,20 @@ public class HadoopDruidIndexerConfig
       throw Throwables.propagate(e);
     }
 
-    Preconditions.checkNotNull(schema.getDataSchema().getDataSource(), "dataSource");
-    Preconditions.checkNotNull(schema.getDataSchema().getParser().getDimensionsSpec(), "dimensionsSpec");
-    Preconditions.checkNotNull(schema.getDataSchema().getParser().getTimestampSpec(), "timestampSpec");
-    Preconditions.checkNotNull(schema.getDataSchema().getGranularitySpec(), "granularitySpec");
+    DataSchema dataSchema = schema.getDataSchema();
+    Preconditions.checkNotNull(dataSchema.getDataSource(), "dataSource");
+    Preconditions.checkNotNull(dataSchema.getGranularitySpec(), "granularitySpec");
+
+    InputRowParser parser = dataSchema.getParser();
+    Preconditions.checkNotNull(parser.getDimensionsSpec(), "dimensionsSpec");
+    Preconditions.checkNotNull(parser.getTimestampSpec(), "timestampSpec");
+
+    HadoopTuningConfig tuningConfig = schema.getTuningConfig();
+    Preconditions.checkNotNull(tuningConfig.getVersion(), "version");
+    Preconditions.checkNotNull(tuningConfig.getWorkingPath(), "workingPath");
+
     Preconditions.checkNotNull(pathSpec, "inputSpec");
-    Preconditions.checkNotNull(schema.getTuningConfig().getWorkingPath(), "workingPath");
     Preconditions.checkNotNull(schema.getIOConfig().getSegmentOutputPath(), "segmentOutputPath");
-    Preconditions.checkNotNull(schema.getTuningConfig().getVersion(), "version");
   }
 
   public List<String> extractForwardingColumns()
