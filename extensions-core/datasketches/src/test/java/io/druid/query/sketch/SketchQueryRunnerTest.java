@@ -56,7 +56,7 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
   protected static final ObjectMapper JSON_MAPPER;
 
   static {
-    ObjectMapper mapper = TestHelper.JSON_MAPPER;
+    ObjectMapper mapper = TestHelper.JSON_MAPPER.copy();
     for (Module module : new SketchModule().getJacksonModules()) {
       mapper = mapper.registerModule(module);
     }

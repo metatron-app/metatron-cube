@@ -30,6 +30,7 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   public void init(ByteBuffer buf, int position)
   {
     if (nm == null) {
-      nm = WritableMemory.wrap(buf);
+      nm = WritableMemory.wrap(buf, ByteOrder.nativeOrder());
     }
 
     WritableMemory mem = nm.writableRegion(position, maxIntermediateSize);

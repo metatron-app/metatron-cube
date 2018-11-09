@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import io.druid.query.aggregation.hll.HllSketchModule;
 
 /**
  */
@@ -48,6 +49,7 @@ public class DefaultObjectMapper extends ObjectMapper
     registerModule(new GuavaModule());
     registerModule(new QueryGranularityModule());
     registerModule(new AggregatorsModule());
+    registerModule(new HllSketchModule());
     registerModule(new SegmentsModule());
 
     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

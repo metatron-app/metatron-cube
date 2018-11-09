@@ -28,6 +28,7 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class SketchObjectStrategy implements ObjectStrategy
 {
@@ -87,7 +88,7 @@ public class SketchObjectStrategy implements ObjectStrategy
       return EMPTY_SKETCH;
     }
 
-    return Memory.wrap(buffer).region(buffer.position(), numBytes);
+    return Memory.wrap(buffer, ByteOrder.nativeOrder()).region(buffer.position(), numBytes);
   }
 
   @Override

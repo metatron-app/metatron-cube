@@ -41,6 +41,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Comparator;
 import java.util.List;
 
@@ -50,14 +51,15 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
   public static Object readPart(ByteBuffer buffer, SketchOp sketchOp, ValueDesc type)
   {
-    return deserialize(sketchOp, Memory.wrap(buffer.slice()), type, type.comparator());
+    return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.nativeOrder()), type, type.comparator());
   }
 
   public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
     ByteBuffer value = ByteBuffer.wrap(ThetaOperations.asBytes(bytes));
     ValueDesc type = TypedSketch.typeFromBytes(value);
-    return TypedSketch.of(type, deserialize(sketchOp, Memory.wrap(value.slice()), type, comparator));
+    Memory memory = Memory.wrap(value.slice(), ByteOrder.nativeOrder());
+    return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
 
   private static Object deserialize(
