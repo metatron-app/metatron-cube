@@ -171,7 +171,8 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
 
       @Override
       public void initialize(InputSplit split, final TaskAttemptContext context)
-          throws IOException, InterruptedException {}
+          throws IOException, InterruptedException
+      {}
 
       @Override
       public boolean nextKeyValue() throws IOException, InterruptedException
@@ -227,22 +228,11 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
   }
 
   // epsg-hsql seemed not working on MR
-  private static MathTransform makeTransformer(String projection)
+  static MathTransform makeTransformer(String projection)
   {
     try {
-      final CoordinateReferenceSystem targetCRS = CRS.parseWKT(
-          "GEOGCS[\"WGS 84\",\n"
-          + "    DATUM[\"WGS_1984\",\n"
-          + "        SPHEROID[\"WGS 84\",6378137,298.257223563,\n"
-          + "            AUTHORITY[\"EPSG\",\"7030\"]],\n"
-          + "        AUTHORITY[\"EPSG\",\"6326\"]],\n"
-          + "    PRIMEM[\"Greenwich\",0,\n"
-          + "        AUTHORITY[\"EPSG\",\"8901\"]],\n"
-          + "    UNIT[\"degree\",0.0174532925199433,\n"
-          + "        AUTHORITY[\"EPSG\",\"9122\"]],\n"
-          + "    AUTHORITY[\"EPSG\",\"4326\"]]");
-
       final CoordinateReferenceSystem sourceCRS = CRS.parseWKT(projection);
+      final CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
       LOG.info(".. converting %s to EPSG:4326", sourceCRS.getCoordinateSystem().getName());
       return CRS.findMathTransform(sourceCRS, targetCRS, true);
     }

@@ -141,7 +141,7 @@ public class ComplexColumnSerializerTest
         serde,
         LuceneIndexingSpec.of(
             null,
-            new LatLonPointIndexingStrategy("coord", "lat", "lon"),
+            new LatLonPointIndexingStrategy("coord", "lat", "lon", null),
             new TextIndexingStrategy("address")
         )
     );

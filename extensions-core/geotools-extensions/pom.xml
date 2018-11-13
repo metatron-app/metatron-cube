@@ -119,6 +119,12 @@
             <version>${geotools.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-epsg-wkt</artifactId>
+            <version>${geotools.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>junit</groupId>

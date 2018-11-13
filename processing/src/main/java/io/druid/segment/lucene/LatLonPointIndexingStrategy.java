@@ -23,11 +23,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
+
+import java.util.Objects;
 
 /**
  */
@@ -36,17 +41,20 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   private final String fieldName;
   private final String latitude;
   private final String longitude;
+  private final String crs;
 
   @JsonCreator
   public LatLonPointIndexingStrategy(
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("latitude") String latitude,
-      @JsonProperty("longitude") String longitude
+      @JsonProperty("longitude") String longitude,
+      @JsonProperty("crs") String crs
   )
   {
     this.fieldName = Preconditions.checkNotNull(fieldName);
     this.latitude = Preconditions.checkNotNull(latitude);
     this.longitude = Preconditions.checkNotNull(longitude);
+    this.crs = crs;
   }
 
   @Override
@@ -66,6 +74,12 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   public String getLongitude()
   {
     return longitude;
+  }
+
+  @JsonProperty
+  public String getCrs()
+  {
+    return crs;
   }
 
   @Override
@@ -93,19 +107,32 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
         serde.type(indexLon).isNumeric(),
         "invalid field type " + serde.type(indexLon) + " for " + longitude
     );
+    if (crs == null) {
+      return new Function<Object, Field[]>()
+      {
+        @Override
+        public Field[] apply(Object input)
+        {
+          Object[] struct = (Object[]) input;
+          double latitude = ((Number) struct[indexLat]).doubleValue();
+          double longitude = ((Number) struct[indexLon]).doubleValue();
+          return new Field[]{new LatLonPoint(fieldName, latitude, longitude)};
+        }
+      };
+    }
+    final double[] lonlat = new double[2];
+    final Expr.NumericBinding binding = Parser.withMap(ImmutableMap.<String, Object>of("lonlat", lonlat));
+    final Expr expr = Parser.parse("lonlat.to4326('" + crs + "',lonlat)");
     return new Function<Object, Field[]>()
     {
       @Override
       public Field[] apply(Object input)
       {
         Object[] struct = (Object[]) input;
-        return new Field[]{
-            new LatLonPoint(
-                fieldName,
-                ((Number) struct[indexLat]).doubleValue(),
-                ((Number) struct[indexLon]).doubleValue()
-            )
-        };
+        lonlat[0] = ((Number) struct[indexLon]).doubleValue();
+        lonlat[1] = ((Number) struct[indexLat]).doubleValue();
+        double[] converted = (double[]) expr.eval(binding).value();
+        return new Field[]{new LatLonPoint(fieldName, converted[1], converted[0])};
       }
     };
   }
@@ -129,6 +156,9 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
       return false;
     }
     if (!longitude.equals(that.longitude)) {
+      return false;
+    }
+    if (!Objects.equals(crs, that.crs)) {
       return false;
     }
 

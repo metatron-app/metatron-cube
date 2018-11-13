@@ -76,7 +76,7 @@ public class IndexSpecTest
         ImmutableMap.<String, SecondaryIndexingSpec>of(
             "gis", LuceneIndexingSpec.of(
                 "standard",
-                new LatLonPointIndexingStrategy("coord", "lat", "lon"),
+                new LatLonPointIndexingStrategy("coord", "lat", "lon", null),
                 new TextIndexingStrategy("text")
             )
         )
