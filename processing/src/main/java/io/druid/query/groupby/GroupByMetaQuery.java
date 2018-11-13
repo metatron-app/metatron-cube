@@ -3,9 +3,13 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.DummyQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
@@ -69,10 +73,19 @@ public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQ
   @Override
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
-    Query rewritten = query.toCardinalityEstimator(queryConfig.groupBy, jsonMapper);
-    if (rewritten instanceof RewritingQuery) {
-      rewritten = ((RewritingQuery)rewritten).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+    try {
+      Query rewritten = query.toCardinalityEstimator(queryConfig.groupBy, jsonMapper, true);
+      if (rewritten instanceof RewritingQuery) {
+        rewritten = ((RewritingQuery)rewritten).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+      }
+      return rewritten;
     }
-    return rewritten;
+    catch (Exception e) {
+      return new DummyQuery<Row>(
+          Sequences.<Row>of(
+              new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", -1, "error", e.toString()))
+          )
+      );
+    }
   }
 }

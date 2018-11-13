@@ -20,6 +20,8 @@
 package io.druid.query;
 
 import com.google.common.collect.Maps;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
@@ -29,19 +31,28 @@ import java.util.Map;
 @SuppressWarnings("unchecked")
 public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
 {
+  private final Sequence<T> sequence;
+
   public DummyQuery()
   {
-    this(new TableDataSource("<NOT-EXISTING>"), null, false, Maps.<String, Object>newHashMap());
+    this(new TableDataSource("<NOT-EXISTING>"), null, false, null, Maps.<String, Object>newHashMap());
   }
 
-  public DummyQuery(
+  public DummyQuery(Sequence<T> sequence)
+  {
+    this(new TableDataSource("<NOT-EXISTING>"), null, false, sequence, Maps.<String, Object>newHashMap());
+  }
+
+  private DummyQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
       boolean descending,
+      Sequence<T> sequence,
       Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, descending, context);
+    this.sequence = sequence == null ? Sequences.<T>empty() : sequence;
   }
 
   @Override
@@ -57,6 +68,7 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
+        sequence,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -68,6 +80,7 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
         getDataSource(),
         spec,
         isDescending(),
+        sequence,
         getContext()
     );
   }
@@ -79,7 +92,20 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
         dataSource,
         getQuerySegmentSpec(),
         isDescending(),
+        sequence,
         getContext()
     );
+  }
+
+  @Override
+  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
+  {
+    return sequence;
+  }
+
+  @Override
+  public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
+  {
+    return sequence;
   }
 }

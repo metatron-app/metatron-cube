@@ -737,11 +737,14 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
-  public Query toCardinalityEstimator(Supplier<GroupByQueryConfig> config, ObjectMapper mapper)
+  public Query toCardinalityEstimator(Supplier<GroupByQueryConfig> config, ObjectMapper mapper, boolean throwException)
   {
     GroupByQuery query = this;
     if (query.getLateralView() != null ||
         (query.getHavingSpec() != null && !(query.getHavingSpec() instanceof AlwaysHavingSpec))) {
+      if (throwException) {
+        throw new IllegalStateException("cannot estimate group-by with lateral view or having clause");
+      }
       return toWorstCase(query, mapper);
     }
     List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
@@ -756,6 +759,9 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         List<String> partitionColumns = windowingSpec.getPartitionColumns();
         if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
           if (GuavaUtils.containsAny(partitionColumns, metrics)) {
+            if (throwException) {
+              throw new IllegalStateException("cannot estimate group-by partitioned by metric");
+            }
             return toWorstCase(query, mapper);
           }
           List<String> retained = partitionColumns.isEmpty()
@@ -794,6 +800,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       fields.add(query.getDimensions().get(outputNames.indexOf(column)));
     }
 
+    // todo: is this right?
     boolean sortOnTime = query.isSortOnTimeForLimit(config.get().isSortOnTime());
     Granularity granularity = sortOnTime ? query.getGranularity() : Granularities.ALL;
 
