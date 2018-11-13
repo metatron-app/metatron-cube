@@ -95,4 +95,18 @@ public class PostProcessingOperators
     }
     return query.withOverriddenContext(Query.POST_PROCESSING, processor);
   }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Query prepend(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
+  {
+    PostProcessingOperator<T> existing = load(query, mapper);
+    if (existing != null) {
+      if (existing instanceof ListPostProcessingOperator) {
+        ((ListPostProcessingOperator) existing).getProcessors().add(0, processor);
+        return query;
+      }
+      processor = new ListPostProcessingOperator(Arrays.asList(processor, existing));
+    }
+    return query.withOverriddenContext(Query.POST_PROCESSING, processor);
+  }
 }

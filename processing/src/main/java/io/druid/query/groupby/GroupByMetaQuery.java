@@ -69,6 +69,10 @@ public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQ
   @Override
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
-    return query.toCardinalityEstimator(queryConfig.groupBy, jsonMapper);
+    Query rewritten = query.toCardinalityEstimator(queryConfig.groupBy, jsonMapper);
+    if (rewritten instanceof RewritingQuery) {
+      rewritten = ((RewritingQuery)rewritten).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+    }
+    return rewritten;
   }
 }

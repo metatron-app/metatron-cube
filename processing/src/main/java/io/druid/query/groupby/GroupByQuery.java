@@ -560,13 +560,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (!dimensions.isEmpty()) {
       return this;
     }
-    PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);
-    if (current == null) {
-      current = new TimeseriesToRow();
-    }
-    return Druids.newTimeseriesQueryBuilder().copy(this)
-                 .overrideContext(ImmutableMap.<String, Object>of(POST_PROCESSING, current))
-                 .build();
+    TimeseriesQuery timeseries = Druids.newTimeseriesQueryBuilder().copy(this).build();
+    return PostProcessingOperators.prepend(timeseries, jsonMapper, new TimeseriesToRow());
   }
 
   public int[][] getGroupings()
