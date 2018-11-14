@@ -20,11 +20,13 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
@@ -37,16 +39,53 @@ import java.util.Objects;
  */
 public class Validation
 {
+  static final Logger LOG = new Logger(Validation.class);
+
   public static List<RowEvaluator<Boolean>> toEvaluators(List<Validation> validations, TypeResolver resolver)
   {
     if (GuavaUtils.isNullOrEmpty(validations)) {
       return ImmutableList.of();
     }
+    List<Expr> parsedExpressions = Lists.newArrayList();
     List<RowEvaluator<Boolean>> validators = Lists.newArrayList();
     for (Validation validation : validations) {
+      if (validation.columnName == null) {
+        parsedExpressions.addAll(validation.parsedExpressions);
+        continue;
+      }
+      if (!parsedExpressions.isEmpty()) {
+        validators.add(toEvaluator(resolver, null, parsedExpressions));
+        parsedExpressions = Lists.newArrayList();
+      }
       validators.add(validation.toEvaluator(resolver));
     }
+    if (!parsedExpressions.isEmpty()) {
+      validators.add(toEvaluator(resolver, null, parsedExpressions));
+    }
     return validators;
+  }
+
+  private static RowEvaluator<Boolean> toEvaluator(
+      final TypeResolver resolver,
+      final String columnName,
+      final List<Expr> expressions
+  )
+  {
+    final InputRowBinding<Boolean> bindings = new InputRowBinding<>(columnName, resolver);
+    return new RowEvaluator<Boolean>()
+    {
+      @Override
+      public Boolean evaluate(InputRow inputRow)
+      {
+        bindings.reset(inputRow);
+        for (Expr expression : expressions) {
+          if (expression.eval(bindings).asBoolean()) {
+            return false;
+          }
+        }
+        return true;
+      }
+    };
   }
 
   private final String columnName;
@@ -73,6 +112,7 @@ public class Validation
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getColumnName()
   {
     return columnName;
@@ -86,22 +126,7 @@ public class Validation
 
   public RowEvaluator<Boolean> toEvaluator(TypeResolver resolver)
   {
-    final InputRowBinding<Boolean> bindings = new InputRowBinding<>(columnName, resolver);
-
-    return new RowEvaluator<Boolean>()
-    {
-      @Override
-      public Boolean evaluate(InputRow inputRow)
-      {
-        bindings.reset(inputRow);
-        for (Expr expression : parsedExpressions) {
-          if (expression.eval(bindings).asBoolean()) {
-            return false;
-          }
-        }
-        return true;
-      }
-    };
+    return toEvaluator(resolver, columnName, parsedExpressions);
   }
 
   @Override

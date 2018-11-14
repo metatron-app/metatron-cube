@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
@@ -45,6 +46,8 @@ import java.util.Set;
  */
 public class InputRowParsers
 {
+  private static Logger LOG = new Logger(InputRowParser.class);
+
   public static <T> InputRowParser<T> wrap(
       final InputRowParser<T> parser,
       final AggregatorFactory[] aggregators,
@@ -69,6 +72,8 @@ public class InputRowParsers
 
     return new InputRowParser.Delegated<T>()
     {
+      private boolean warned;
+
       @Override
       public boolean accept(Object input)
       {
@@ -126,7 +131,18 @@ public class InputRowParsers
           }
         }
         for (RowEvaluator<Boolean> validator : validators) {
-          if (!validator.evaluate(inputRow)) {
+          try {
+            if (!validator.evaluate(inputRow)) {
+              return null;
+            }
+          }
+          catch (Exception e) {
+            if (!warned) {
+              LOG.info(
+                  "Exception %s thrown validating row %s. Will be regarded as invalid and not logged further", e, inputRow
+              );
+              warned = true;
+            }
             return null;
           }
         }
