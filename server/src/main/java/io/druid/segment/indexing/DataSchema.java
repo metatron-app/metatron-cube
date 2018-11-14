@@ -27,9 +27,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
@@ -55,6 +57,7 @@ public class DataSchema
   private final Map<String, Object> parser;
   private final AggregatorFactory[] aggregators;
   private final GranularitySpec granularitySpec;
+  private final boolean enforceType;
 
   private final List<Evaluation> evaluations;
   private final List<Validation> validations;
@@ -65,6 +68,7 @@ public class DataSchema
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("parser") Map<String, Object> parser,
       @JsonProperty("metricsSpec") AggregatorFactory[] aggregators,
+      @JsonProperty("enforceType") boolean enforceType,
       @JsonProperty("granularitySpec") GranularitySpec granularitySpec,
       @JsonProperty("evaluations") List<Evaluation> evaluations,
       @JsonProperty("validations") List<Validation> validations,
@@ -79,6 +83,7 @@ public class DataSchema
       log.warn("No metricsSpec has been specified. Are you sure this is what you want?");
     }
     this.aggregators = aggregators == null ? new AggregatorFactory[0] : aggregators;
+    this.enforceType = enforceType;
 
     if (granularitySpec == null) {
       log.warn("No granularitySpec has been specified. Using UniformGranularitySpec as default.");
@@ -99,7 +104,7 @@ public class DataSchema
       ObjectMapper jsonMapper
   )
   {
-    this(dataSource, parser, aggregators, granularitySpec, null, null, jsonMapper);
+    this(dataSource, parser, aggregators, false, granularitySpec, null, null, jsonMapper);
   }
 
   @JsonProperty
@@ -120,6 +125,18 @@ public class DataSchema
     if (parser == null) {
       log.warn("No parser has been specified");
       return null;
+    }
+    List<Evaluation> evaluations = getEvaluations();
+    if (enforceType && aggregators.length > 0) {
+      evaluations = Lists.newArrayList();
+      for (Map.Entry<String, ValueDesc> mapping : AggregatorFactory.toExpectedInputType(aggregators).entrySet()) {
+        String column = mapping.getKey();
+        ValueDesc type = mapping.getValue();
+        if (type.isPrimitive()) {
+          evaluations.add(new Evaluation(column, String.format("cast(%s, '%s')", column, type)));
+        }
+      }
+      evaluations.addAll(getEvaluations());
     }
     final InputRowParser parser = createInputRowParser();
     return InputRowParsers.wrap(parser, aggregators, evaluations, validations);
@@ -185,6 +202,12 @@ public class DataSchema
   }
 
   @JsonProperty
+  public boolean isEnforceType()
+  {
+    return enforceType;
+  }
+
+  @JsonProperty
   public GranularitySpec getGranularitySpec()
   {
     return granularitySpec;
@@ -192,12 +215,26 @@ public class DataSchema
 
   public DataSchema withDataSource(String dataSource)
   {
-    return new DataSchema(dataSource, parser, aggregators, granularitySpec, evaluations, validations, jsonMapper);
+    return new DataSchema(dataSource,
+                          parser,
+                          aggregators,
+                          enforceType,
+                          granularitySpec,
+                          evaluations,
+                          validations,
+                          jsonMapper);
   }
 
   public DataSchema withGranularitySpec(GranularitySpec granularitySpec)
   {
-    return new DataSchema(dataSource, parser, aggregators, granularitySpec, evaluations, validations, jsonMapper);
+    return new DataSchema(dataSource,
+                          parser,
+                          aggregators,
+                          enforceType,
+                          granularitySpec,
+                          evaluations,
+                          validations,
+                          jsonMapper);
   }
 
   @Override
@@ -207,6 +244,7 @@ public class DataSchema
            "dataSource='" + dataSource + '\'' +
            ", parser=" + parser +
            ", aggregators=" + Arrays.toString(aggregators) +
+           ", enforceType=" + enforceType +
            ", evaluations=" + evaluations +
            ", validations=" + validations +
            ", granularitySpec=" + granularitySpec +

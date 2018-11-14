@@ -265,7 +265,14 @@ public abstract class AggregatorFactory implements Cacheable
     for (AggregatorFactory factory : aggregators) {
       Set<String> required = Sets.newHashSet(factory.requiredFields());
       if (required.size() == 1) {
-        types.put(Iterables.getOnlyElement(required), ValueDesc.of(factory.getInputTypeName()));
+        String column = Iterables.getOnlyElement(required);
+        ValueDesc type = ValueDesc.of(factory.getInputTypeName());
+        ValueDesc prev = types.put(column, type);
+        if (prev != null && !prev.equals(type)) {
+          // conflicting..
+          types.put(column, ValueDesc.toCommonType(prev, type));
+          log.warn("Type conflict on %s (%s and %s)", column, prev, type);
+        }
       }
     }
     return types;
