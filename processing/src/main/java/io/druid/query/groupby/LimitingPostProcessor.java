@@ -77,4 +77,12 @@ public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row> 
   {
     return limitSpec;
   }
+
+  @Override
+  public String toString()
+  {
+    return "LimitingPostProcessor{" +
+           "limitSpec=" + limitSpec +
+           '}';
+  }
 }

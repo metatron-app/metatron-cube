@@ -57,6 +57,12 @@ public interface PostProcessingOperator<T>
     public boolean supportsUnionProcessing() { return true;}
 
     public abstract QueryRunner postProcess(UnionAllQueryRunner<?> baseQueryRunner);
+
+    @Override
+    public String toString()
+    {
+      return getClass().getSimpleName();
+    }
   }
 
   public abstract class Abstract<T> implements PostProcessingOperator<T>
@@ -66,6 +72,12 @@ public interface PostProcessingOperator<T>
 
     @Override
     public boolean hasTabularOutput() { return false; }
+
+    @Override
+    public String toString()
+    {
+      return getClass().getSimpleName();
+    }
   }
 
   // this is needed to be implemented by all post processors, but let's do it step by step

@@ -72,4 +72,10 @@ public class TabularPostProcessor extends PostProcessingOperator.Abstract
   {
     return true;
   }
+
+  @Override
+  public String toString()
+  {
+    return "TabularPostProcessor{timestampColumn=" + timestampColumn + "}";
+  }
 }

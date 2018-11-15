@@ -67,4 +67,12 @@ public class RowToMap extends PostProcessingOperator.Abstract<Row>
   {
     return true;
   }
+
+  @Override
+  public String toString()
+  {
+    return "RowToMap{" +
+           "timestampColumn=" + timestampColumn +
+           '}';
+  }
 }

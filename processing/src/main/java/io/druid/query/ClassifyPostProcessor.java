@@ -67,4 +67,12 @@ public class ClassifyPostProcessor extends PostProcessingOperator.UnionSupport
       }
     };
   }
+
+  @Override
+  public String toString()
+  {
+    return "ClassifyPostProcessor{" +
+           "tagColumn='" + tagColumn + '\'' +
+           '}';
+  }
 }

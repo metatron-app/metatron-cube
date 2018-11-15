@@ -129,4 +129,12 @@ public class PostAggregationsPostProcessor
     }
     return input.withMetrics(aggregatorFactories.toArray(new AggregatorFactory[0]));
   }
+
+  @Override
+  public String toString()
+  {
+    return "PostAggregationsPostProcessor{" +
+           "postAggregations=" + postAggregations +
+           '}';
+  }
 }

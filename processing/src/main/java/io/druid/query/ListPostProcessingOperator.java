@@ -103,4 +103,10 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
     }
     return schema;
   }
+
+  @Override
+  public String toString()
+  {
+    return "ListPostProcessingOperator" + processors;
+  }
 }

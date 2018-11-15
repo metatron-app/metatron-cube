@@ -271,4 +271,13 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                        .put("B-A", (int) B_A)
                        .build();
   }
+
+  @Override
+  public String toString()
+  {
+    return "SimilarityProcessingOperator{" +
+           "threshold=" + threshold +
+           ", dataSourceSet=" + dataSourceSet +
+           '}';
+  }
 }
