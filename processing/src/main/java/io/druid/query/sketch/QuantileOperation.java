@@ -65,7 +65,7 @@ public enum QuantileOperation
           // a = 2 * (total - (p + 1) * b) / (p * (p + 1))
           int p = quantileParam.number - 2;
           double total = sketch.getN();
-          double b = total / (p * 3);
+          double b = total / (p * 2);
           double a = (total - (p + 1) * b) * 2 / (p * (p + 1));
           double[] quantiles = new double[quantileParam.number];
           for (int i = 1; i <= p; i++) {
@@ -235,6 +235,16 @@ public enum QuantileOperation
   public static QuantileParam slopedSpaced(int partition)
   {
     return new QuantileParam(partition, false, false, true);
+  }
+
+  public static QuantileParam valueOf(String strategy, int partition)
+  {
+    switch (strategy) {
+      case "evenSpaced": return evenSpaced(partition);
+      case "evenCounted": return evenCounted(partition);
+      case "slopedSpaced": return slopedSpaced(partition);
+      default: return slopedSpaced(partition);
+    }
   }
 
   private static class QuantileRatioParam

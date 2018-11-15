@@ -183,8 +183,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         query.getContext()
     ).withOverriddenContext(
         ImmutableMap.<String, Object>of(
-            QueryContextKeys.FINALIZE, false,
-            QueryContextKeys.FINAL_WORK, false
+            Query.FINALIZE, false,
+            Query.FINAL_WORK, false,
+            Query.LOCAL_SPLIT_STRATEGY, query.getLocalSplitStrategy()
         )
     );
   }

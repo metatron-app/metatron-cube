@@ -215,6 +215,14 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return null;
   }
 
+  public String getLocalSplitStrategy()
+  {
+    if (GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) && GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      return "slopedSpaced";
+    }
+    return "evenSpaced";
+  }
+
   @Override
   public boolean equals(Object o)
   {

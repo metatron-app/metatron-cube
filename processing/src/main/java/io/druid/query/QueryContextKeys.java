@@ -35,6 +35,7 @@ public interface QueryContextKeys
   public static final String FINAL_WORK = "finalWork";
   public static final String LOCAL_POST_PROCESSING = "localPostProcessing";
   public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
+  public static final String LOCAL_SPLIT_STRATEGY = "localSplitStrategy";
 
   // group-by config.. overriding
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";

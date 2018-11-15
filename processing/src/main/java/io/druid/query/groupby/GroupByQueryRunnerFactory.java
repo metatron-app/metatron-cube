@@ -154,6 +154,8 @@ public class GroupByQueryRunnerFactory
 
     Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
+
+    String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, dimensionSpec.getDimension());
     if (!dictionaries.isEmpty()) {
       Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
@@ -177,13 +179,13 @@ public class GroupByQueryRunnerFactory
       }
       if (!itemsUnion.isEmpty()) {
         thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.slopedSpaced(numSplit + 1)
+            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1)
         );
       }
     }
     if (thresholds == null) {
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit
+          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
       );
     }
     if (thresholds == null || thresholds.length < 3) {

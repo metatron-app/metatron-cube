@@ -419,7 +419,8 @@ public class Queries
       ObjectMapper jsonMapper,
       TimeseriesQuery metaQuery,
       DimensionSpec dimensionSpec,
-      int numSplits
+      int numSplits,
+      String splitType
   )
   {
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
@@ -460,7 +461,7 @@ public class Queries
                                          .put("name", "SPLIT")
                                          .put("fieldName", "SKETCH")
                                          .put("op", "QUANTILES")
-                                         .put("slopedSpaced", numSplits + 1)
+                                         .put(splitType, numSplits + 1)
                                          .build();
 
     AggregatorFactory aggregator = Queries.convert(ag, jsonMapper, AggregatorFactory.class);

@@ -45,6 +45,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.sketch.QuantileOperation;
@@ -103,6 +104,8 @@ public class StreamRawQueryRunnerFactory
       return null;
     }
 
+    String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
+
     Object[] thresholds = null;
     String sortColumn = query.getOrderBySpecs().get(0).getDimension();
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, sortColumn);
@@ -128,13 +131,14 @@ public class StreamRawQueryRunnerFactory
       }
       if (!itemsUnion.isEmpty()) {
         thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.slopedSpaced(numSplit + 1)
+            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1)
         );
       }
     }
     if (thresholds == null) {
+      DimensionSpec dimensionSpec = DefaultDimensionSpec.of(sortColumn);
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), DefaultDimensionSpec.of(sortColumn), numSplit
+          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
       );
     }
     if (thresholds == null || thresholds.length < 3) {
