@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -139,12 +140,12 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
             queryWatcher.registerQuery(query, futures);
 
+            final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, null);
             try {
-              final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, (Number) null);
               List<Iterable<T>> iterables = timeout == null ?
                                             futures.get() :
                                             futures.get(timeout.longValue(), TimeUnit.MILLISECONDS);
-              return toIterator(query, iterables);
+              return mergeResults(query, iterables).iterator();
             }
             catch (InterruptedException e) {
               log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
@@ -173,8 +174,9 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
     );
   }
 
-  protected Iterator<T> toIterator(Query<T> query, List<Iterable<T>> results)
+  protected Iterable<T> mergeResults(Query<T> query, List<Iterable<T>> results)
   {
-    return new MergeIterable<>(query.getResultOrdering().nullsFirst(), results).iterator();
+    final Ordering<T> ordering = query.getResultOrdering();
+    return ordering == null ? Iterables.concat(results) : new MergeIterable<>(ordering.nullsFirst(), results);
   }
 }

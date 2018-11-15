@@ -61,7 +61,15 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     if (obj == null) {
       return null;
     } else if (obj instanceof String) {
-      return new OrderByColumnSpec(obj.toString(), null);
+      final String string = obj.toString();
+      final String[] splits = string.split(":");
+      if (splits.length == 2 || splits.length == 3) {
+        Direction direction = Direction.tryFromString(splits[1]);
+        if (direction != null) {
+          return new OrderByColumnSpec(splits[0], direction, splits.length == 3 ? splits[2] : null);
+        }
+      }
+      return new OrderByColumnSpec(string, null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;
 

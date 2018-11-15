@@ -40,9 +40,9 @@ import io.druid.query.filter.NoopDimFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.query.search.search.FragmentSearchQuerySpec;
 import io.druid.query.search.search.InsensitiveContainsSearchQuerySpec;
@@ -56,10 +56,8 @@ import io.druid.query.select.StreamRawQuery;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
-import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -793,72 +791,6 @@ public class Druids
   }
 
   /**
-   * A Builder for Result.
-   * <p/>
-   * Required: timestamp() and value() must be called before build()
-   * <p/>
-   * Usage example:
-   * <pre><code>
-   *   Result&lt;T&gt; result = Druids.newResultBuilder()
-   *                            .timestamp(egDateTime)
-   *                            .value(egValue)
-   *                            .build();
-   * </code></pre>
-   *
-   * @see Result
-   */
-  public static class ResultBuilder<T>
-  {
-    private DateTime timestamp;
-    private Object value;
-
-    public ResultBuilder()
-    {
-      timestamp = new DateTime(0);
-      value = null;
-    }
-
-    public Result<T> build()
-    {
-      return new Result<T>(timestamp, (T) value);
-    }
-
-    public ResultBuilder copy(ResultBuilder builder)
-    {
-      return new ResultBuilder()
-          .timestamp(builder.timestamp)
-          .value(builder.value);
-    }
-
-    public ResultBuilder<T> timestamp(DateTime t)
-    {
-      timestamp = t;
-      return this;
-    }
-
-    public ResultBuilder<T> value(Object v)
-    {
-      value = v;
-      return this;
-    }
-  }
-
-  public static ResultBuilder newResultBuilder()
-  {
-    return new ResultBuilder();
-  }
-
-  public static ResultBuilder<SearchResultValue> newSearchResultBuilder()
-  {
-    return new ResultBuilder<SearchResultValue>();
-  }
-
-  public static ResultBuilder<TimeBoundaryResultValue> newTimeBoundaryResultBuilder()
-  {
-    return new ResultBuilder<TimeBoundaryResultValue>();
-  }
-
-  /**
    * A Builder for SegmentMetadataQuery.
    * <p/>
    * Required: dataSource(), intervals() must be called before build()
@@ -1064,6 +996,7 @@ public class Druids
       return new StreamQuery(
           dataSource,
           querySegmentSpec,
+          descending,
           dimFilter,
           granularity,
           columns,
@@ -1086,12 +1019,13 @@ public class Druids
       return new StreamRawQuery(
           dataSource,
           querySegmentSpec,
+          descending,
           dimFilter,
           granularity,
           columns,
           virtualColumns,
           concatString,
-          sortOn,
+          sortOn == null ? null : OrderByColumnSpec.ascending(sortOn),
           pagingSpec == null ? -1 : pagingSpec.getThreshold(),
           context
       );

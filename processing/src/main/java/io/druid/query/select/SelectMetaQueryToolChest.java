@@ -60,9 +60,7 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
       @Override
       protected Ordering<Result<SelectMetaResultValue>> makeOrdering(Query<Result<SelectMetaResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(
-            ((SelectMetaQuery) query).getGranularity(), query.isDescending()
-        );
+        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
       }
 
       @Override

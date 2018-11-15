@@ -132,6 +132,7 @@ public interface Query<T> extends QueryContextKeys
 
   boolean isDescending();
 
+  // used for result sorting.. return null if no need to (concat all: see stream query)
   Ordering<T> getResultOrdering();
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);

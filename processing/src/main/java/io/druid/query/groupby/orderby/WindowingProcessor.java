@@ -33,6 +33,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
+import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.Direction;
 
@@ -160,11 +161,6 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     }
   }
 
-  public static interface Accessor<T>
-  {
-    Object get(T source);
-  }
-
   public static Accessor<Row> rowAccessor(final String column)
   {
     if (Row.TIME_COLUMN_NAME.equals(column)) {
@@ -192,7 +188,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return arrayAccessor(columns.indexOf(column));
   }
 
-  private static Accessor<Object[]> arrayAccessor(final int index)
+  public static Accessor<Object[]> arrayAccessor(final int index)
   {
     return new Accessor<Object[]>()
     {

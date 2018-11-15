@@ -23,13 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,6 +42,7 @@ import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -161,7 +162,7 @@ public class QueryRunnerHelper
     };
   }
 
-  public static <T> Iterable<Supplier<Sequence<T>>> asSuppliers(
+  public static <T> Iterable<Callable<Sequence<T>>> asCallable(
       final Iterable<QueryRunner<T>> runners,
       final Query<T> query,
       final Map<String, Object> responseContext
@@ -169,15 +170,15 @@ public class QueryRunnerHelper
   {
     return Iterables.transform(
         runners,
-        new Function<QueryRunner<T>, Supplier<Sequence<T>>>()
+        new Function<QueryRunner<T>, Callable<Sequence<T>>>()
         {
           @Override
-          public Supplier<Sequence<T>> apply(final QueryRunner<T> runner)
+          public Callable<Sequence<T>> apply(final QueryRunner<T> runner)
           {
-            return new Supplier<Sequence<T>>()
+            return new PrioritizedCallable.Background<Sequence<T>>()
             {
               @Override
-              public Sequence<T> get()
+              public Sequence<T> call()
               {
                 return runner.run(query, responseContext);
               }

@@ -19,30 +19,31 @@
 
 package io.druid.query.select;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
-import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.WindowingProcessor;
+import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -51,17 +52,18 @@ import java.util.Map;
 @JsonTypeName(Query.SELECT_STREAM_RAW)
 public class StreamRawQuery extends AbstractStreamQuery<Object[]>
 {
-  private final List<String> sortOn;  // sort spec?
+  private final List<OrderByColumnSpec> orderBySpecs;
 
   public StreamRawQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
-      @JsonProperty("sortOn") List<String> sortOn,
+      @JsonProperty("sortOn") List<OrderByColumnSpec> orderBySpecs,
       @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -69,6 +71,7 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     super(
         dataSource,
         querySegmentSpec,
+        descending,
         dimFilter,
         granularity,
         columns,
@@ -77,7 +80,7 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         limit,
         context
     );
-    this.sortOn = sortOn == null ? ImmutableList.<String>of() : sortOn;
+    this.orderBySpecs = orderBySpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderBySpecs;
   }
 
   @Override
@@ -88,37 +91,59 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
 
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
-  public List<String> getSortOn()
+  public List<OrderByColumnSpec> getOrderBySpecs()
   {
-    return sortOn;
+    return orderBySpecs;
   }
 
-  private int[] toSortIndices()
+  @JsonIgnore
+  public List<String> getSortOn()
   {
-    if (GuavaUtils.isNullOrEmpty(getSortOn())) {
-      return null;
-    }
-    List<String> columnNames = getColumns();
-
-    List<Integer> indices = Lists.newArrayList();
-    for (String sort : getSortOn()) {
-      int index = columnNames.indexOf(sort);
-      if (index >= 0) {
-        indices.add(index);
-      }
-    }
-    return indices.isEmpty() ? null : Ints.toArray(indices);
+    return OrderByColumnSpec.getColumns(orderBySpecs);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public Ordering<Object[]> getResultOrdering()
   {
-    int[] indices = toSortIndices();
-    if (indices != null) {
-      return Ordering.from(Comparators.toArrayComparator(indices));
+    final List<String> columnNames = getColumns();
+    final List<OrderByColumnSpec> orderBySpecs = getOrderBySpecs();
+
+    final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
+    if (orderBySpecs.isEmpty() && timeIndex >= 0) {
+      final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(timeIndex);
+      Ordering<Object[]> ordering = Ordering.from(new Comparator<Object[]>()
+      {
+        @Override
+        @SuppressWarnings("unchecked")
+        public int compare(final Object[] o1, final Object[] o2)
+        {
+          return -Long.compare((Long) accessor.get(o1), (Long) accessor.get(o2));
+        }
+      });
+      if (isDescending()) {
+        ordering = ordering.reverse();
+      }
+      return ordering;
     }
-    return null;
+    final List<Comparator<Object[]>> comparators = Lists.newArrayList();
+    for (OrderByColumnSpec sort : orderBySpecs) {
+      int index = columnNames.indexOf(sort.getDimension());
+      if (index >= 0) {
+        final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(index);
+        final Comparator comparator = sort.getComparator();
+        comparators.add(new Comparator<Object[]>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public int compare(final Object[] o1, final Object[] o2)
+          {
+            return comparator.compare(accessor.get(o1), accessor.get(o2));
+          }
+        });
+      }
+    }
+    return comparators.isEmpty() ? null : Comparators.compound(comparators);
   }
 
   @Override
@@ -127,12 +152,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         dataSource,
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -144,12 +170,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         spec,
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -161,12 +188,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         computeOverriddenContext(contextOverride)
     );
@@ -178,12 +206,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         filter,
         getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -195,12 +224,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
         virtualColumns,
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -212,12 +242,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         columns,
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -228,12 +259,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
     return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getSortOn(),
+        getOrderBySpecs(),
         limit,
         getContext()
     );

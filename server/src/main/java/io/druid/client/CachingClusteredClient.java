@@ -169,7 +169,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             sequences.add(runner.run(query, responseContext));
           }
         }
-        return toolChest.mergeSequences(query, sequences);
+        return QueryUtils.mergeSort(query, sequences);
       }
       catch (Exception e) {
         throw Throwables.propagate(e);
@@ -626,7 +626,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       final CacheAccessTime cacheAccessTime
   )
   {
-    Sequence<T> sequence = toolChest.mergeSequences(query, sequencesByInterval);
+    Sequence<T> sequence = QueryUtils.mergeSort(query, sequencesByInterval);
     if (numCachedSegments > 0 && cacheAccessTime != null) {
       sequence = Sequences.withBaggage(
           sequence, new Closeable()

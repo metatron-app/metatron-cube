@@ -132,6 +132,9 @@ public class Comparators
 
   public static <T> Ordering<T> compound(final List<Comparator<T>> comparators)
   {
+    if (comparators.size() == 1) {
+      return Ordering.from(comparators.get(0));
+    }
     return Ordering.from(new Comparator<T>()
     {
       @Override

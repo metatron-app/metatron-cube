@@ -109,6 +109,13 @@ public class OrderingSpec implements Cacheable
 
   public Comparator getComparator()
   {
+    if (isNaturalOrdering()) {
+      Ordering comparator = Ordering.natural().nullsFirst();
+      if (direction == Direction.DESCENDING) {
+        comparator = comparator.reverse();
+      }
+      return comparator;
+    }
     StringComparator comparator = StringComparators.makeComparator(dimensionOrder);
     if (direction == Direction.DESCENDING) {
       comparator = StringComparators.revert(comparator);

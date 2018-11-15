@@ -844,6 +844,7 @@ public class DruidQuery
     return new StreamRawQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
+        false,
         filtration.getDimFilter(),
         Granularities.ALL,
         columns,

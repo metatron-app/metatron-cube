@@ -38,6 +38,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -51,23 +52,26 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
       new Interval("2011-01-12/2011-01-14")
   );
 
-  @Parameterized.Parameters(name = "{0}")
+  @Parameterized.Parameters(name = "{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
+    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
   }
 
   private final String dataSource;
+  private final boolean descending;
 
-  public StreamRawQueryRunnerTest(String dataSource)
+  public StreamRawQueryRunnerTest(String dataSource, boolean descending)
   {
     this.dataSource = dataSource;
+    this.descending = descending;
   }
 
   private Druids.SelectQueryBuilder newTestQuery()
   {
     return Druids.newSelectQueryBuilder()
                  .dataSource(dataSource)
+                 .descending(descending)
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(Arrays.<String>asList()))
                  .metrics(Arrays.<String>asList())
                  .intervals(QueryRunnerTestHelper.fullOnInterval)
@@ -113,6 +117,9 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
         array(time("2011-04-02"), "upfront", "mezzanine", 1144.3424072265625, 1144.3424f),
         array(time("2011-04-02"), "upfront", "premium", 1049.738525390625, 1049.7385f)
     );
+    if (query.isDescending()) {
+      Collections.reverse(expected);
+    }
 
     List<Object[]> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
@@ -120,12 +127,15 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     );
     Assert.assertEquals(expected.size(), results.size());
     for (int i = 0; i < results.size(); i++) {
-      Assert.assertArrayEquals(i + " th row", expected.get(i), results.get(i));
+      Assert.assertArrayEquals(
+          i + " th row.. "+ Arrays.toString(expected.get(i)) + " vs " + Arrays.toString(expected.get(i)),
+          expected.get(i), results.get(i)
+      );
     }
 
     // disable split (need sketch)
     query = builder.context(ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, 1))
-                   .streamingRaw(Arrays.asList("quality", "__time"));
+                   .streamingRaw(Arrays.asList("quality", "market", "__time"));
 
     expected = Lists.newArrayList(
         array(time("2011-04-01"), "spot", "automotive", 135.88510131835938, 135.8851f),
@@ -137,24 +147,25 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
         array(time("2011-04-01"), "spot", "health", 120.13470458984375, 120.134705f),
         array(time("2011-04-02"), "spot", "health", 113.44600677490234, 113.44601f),
         array(time("2011-04-01"), "spot", "mezzanine", 109.70581817626953, 109.70582f),
-        array(time("2011-04-01"), "total_market", "mezzanine", 1314.8397216796875, 1314.8397f),
-        array(time("2011-04-01"), "upfront", "mezzanine", 1447.3411865234375, 1447.3412f),
         array(time("2011-04-02"), "spot", "mezzanine", 110.93193054199219, 110.93193f),
+        array(time("2011-04-01"), "total_market", "mezzanine", 1314.8397216796875, 1314.8397f),
         array(time("2011-04-02"), "total_market", "mezzanine", 1193.5562744140625, 1193.5563f),
+        array(time("2011-04-01"), "upfront", "mezzanine", 1447.3411865234375, 1447.3412f),
         array(time("2011-04-02"), "upfront", "mezzanine", 1144.3424072265625, 1144.3424f),
         array(time("2011-04-01"), "spot", "news", 121.58358001708984, 121.58358f),
         array(time("2011-04-02"), "spot", "news", 114.2901382446289, 114.29014f),
         array(time("2011-04-01"), "spot", "premium", 144.5073699951172, 144.50737f),
-        array(time("2011-04-01"), "total_market", "premium", 1522.043701171875, 1522.0437f),
-        array(time("2011-04-01"), "upfront", "premium", 1234.24755859375, 1234.2476f),
         array(time("2011-04-02"), "spot", "premium", 135.30149841308594, 135.3015f),
+        array(time("2011-04-01"), "total_market", "premium", 1522.043701171875, 1522.0437f),
         array(time("2011-04-02"), "total_market", "premium", 1321.375, 1321.375f),
+        array(time("2011-04-01"), "upfront", "premium", 1234.24755859375, 1234.2476f),
         array(time("2011-04-02"), "upfront", "premium", 1049.738525390625, 1049.7385f),
         array(time("2011-04-01"), "spot", "technology", 78.62254333496094, 78.62254f),
         array(time("2011-04-02"), "spot", "technology", 97.38743591308594, 97.387436f),
         array(time("2011-04-01"), "spot", "travel", 119.92274475097656, 119.922745f),
         array(time("2011-04-02"), "spot", "travel", 126.41136169433594, 126.41136f)
     );
+    // descending is ignored when sortOn is assigned
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
         Lists.<Object[]>newArrayList()

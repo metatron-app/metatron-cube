@@ -126,9 +126,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       @Override
       protected Ordering<Result<TopNResultValue>> makeOrdering(Query<Result<TopNResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(
-            ((TopNQuery) query).getGranularity(), query.isDescending()
-        );
+        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
       }
 
       @Override

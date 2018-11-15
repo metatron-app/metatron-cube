@@ -44,6 +44,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
   public StreamQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("columns") List<String> columns,
@@ -56,6 +57,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     super(
         dataSource,
         querySegmentSpec,
+        descending,
         dimFilter,
         granularity,
         columns,
@@ -78,6 +80,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         getDataSource(),
         querySegmentSpec,
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
@@ -94,6 +97,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         dataSource,
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
@@ -110,6 +114,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
@@ -126,6 +131,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         dimFilter,
         getGranularity(),
         getColumns(),
@@ -142,6 +148,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         getColumns(),
@@ -158,6 +165,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         getGranularity(),
         columns,

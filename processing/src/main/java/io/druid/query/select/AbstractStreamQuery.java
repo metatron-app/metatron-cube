@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
@@ -51,6 +52,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   public AbstractStreamQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
+      boolean descending,
       DimFilter dimFilter,
       Granularity granularity,
       List<String> columns,
@@ -60,7 +62,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
       Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, false, context);
+    super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
@@ -128,6 +130,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
         .append(getType()).append('{')
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec())
+        .append(", descending=").append(isDescending())
         .append(", granularity=").append(granularity)
         .append(", limit=").append(limit);
 

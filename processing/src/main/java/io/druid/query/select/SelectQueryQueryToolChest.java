@@ -132,9 +132,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       @Override
       protected Ordering<Result<SelectResultValue>> makeOrdering(Query<Result<SelectResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(
-            ((SelectQuery) query).getGranularity(), query.isDescending()
-        );
+        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
       }
 
       @Override

@@ -33,7 +33,6 @@ import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.segment.Segment;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -71,15 +70,15 @@ public class TimeseriesQueryRunnerFactory
     return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(queryExecutor, queryWatcher, queryRunners)
     {
       @Override
-      protected Iterator<Result<TimeseriesResultValue>> toIterator(
+      protected Iterable<Result<TimeseriesResultValue>> mergeResults(
           Query<Result<TimeseriesResultValue>> query,
           List<Iterable<Result<TimeseriesResultValue>>> results
       )
       {
         if (QueryGranularities.ALL.equals(query.getGranularity())) {
-          return Iterables.concat(results).iterator();
+          return Iterables.concat(results);
         }
-        return super.toIterator(query, results);
+        return super.mergeResults(query, results);
       }
     };
   }

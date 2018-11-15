@@ -25,13 +25,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.Druids;
-import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -45,6 +45,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
+
 /**
  */
 @RunWith(Parameterized.class)
@@ -54,32 +56,26 @@ public class StreamQueryRunnerTest
       new Interval("2011-01-12/2011-01-14")
   );
 
-  private static final StreamQueryToolChest toolChest = new StreamQueryToolChest();
-
   @Parameterized.Parameters(name = "{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return QueryRunnerTestHelper.transformToConstructionFeeder(
-        QueryRunnerTestHelper.makeQueryRunners(
-            new StreamQueryRunnerFactory(
-                toolChest,
-                new StreamQueryEngine()
-            )
-        )
-    );
+    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
   }
 
-  private final QueryRunner<StreamQueryRow> runner;
+  private final String dataSource;
+  private final boolean descending;
 
-  public StreamQueryRunnerTest(QueryRunner<StreamQueryRow> runner)
+  public StreamQueryRunnerTest(String dataSource, boolean descending)
   {
-    this.runner = runner;
+    this.dataSource = dataSource;
+    this.descending = descending;
   }
 
   private Druids.SelectQueryBuilder newTestQuery()
   {
     return Druids.newSelectQueryBuilder()
-                 .dataSource(new TableDataSource(QueryRunnerTestHelper.dataSource))
+                 .dataSource(TableDataSource.of(dataSource))
+                 .descending(descending)
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(Arrays.<String>asList()))
                  .metrics(Arrays.<String>asList())
                  .intervals(QueryRunnerTestHelper.fullOnInterval)
@@ -98,28 +94,47 @@ public class StreamQueryRunnerTest
     StreamQuery query = builder.streaming();
 
     String[] columnNames = {"__time", "market", "quality", "index", "indexMin"};
-    List<StreamQueryRow> expected = createExpected(
-        columnNames,
-        new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100F},
-        new Object[]{"2011-01-12T00:00:00.000Z", "spot", "business", 100D, 100F},
-        new Object[]{"2011-01-12T00:00:00.000Z", "spot", "entertainment", 100D, 100F}
-    );
+    List<StreamQueryRow> expected;
+    if (descending) {
+      expected = createExpected(
+          columnNames,
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
+          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
+      );
+    } else {
+      expected = createExpected(
+          columnNames,
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100F},
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "business", 100D, 100F},
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "entertainment", 100D, 100F}
+      );
+    }
 
     List<StreamQueryRow> results = Sequences.toList(
-        runner.run(query, Maps.<String, Object>newHashMap()),
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
         Lists.<StreamQueryRow>newArrayList()
     );
     validate(columnNames, expected, results);
 
     query = query.withDimFilter(new MathExprFilter("index > 200"));
-    expected = createExpected(
-        columnNames,
-        new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "mezzanine", 1000D, 1000F},
-        new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "premium", 1000D, 1000F},
-        new Object[]{"2011-01-12T00:00:00.000Z", "upfront", "mezzanine", 800D, 800F}
-    );
+    if (descending) {
+      expected = createExpected(
+          columnNames,
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
+          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
+      );
+    } else {
+      expected = createExpected(
+          columnNames,
+          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "mezzanine", 1000D, 1000F},
+          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "premium", 1000D, 1000F},
+          new Object[]{"2011-01-12T00:00:00.000Z", "upfront", "mezzanine", 800D, 800F}
+      );
+    }
     results = Sequences.toList(
-        runner.run(query, Maps.<String, Object>newHashMap()),
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
         Lists.<StreamQueryRow>newArrayList()
     );
     validate(columnNames, expected, results);

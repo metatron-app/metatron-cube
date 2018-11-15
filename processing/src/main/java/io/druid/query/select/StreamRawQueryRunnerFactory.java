@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
@@ -33,6 +34,7 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -52,6 +54,7 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -96,12 +99,12 @@ public class StreamRawQueryRunnerFactory
   )
   {
     int numSplit = query.getContextInt(Query.RAW_LOCAL_SPLIT_NUM, 5);
-    if (GuavaUtils.isNullOrEmpty(query.getSortOn()) || numSplit < 2) {
+    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs()) || numSplit < 2) {
       return null;
     }
 
     Object[] thresholds = null;
-    String sortColumn = query.getSortOn().get(0);
+    String sortColumn = query.getOrderBySpecs().get(0).getDimension();
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, sortColumn);
     if (!dictionaries.isEmpty()) {
       Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
@@ -191,17 +194,29 @@ public class StreamRawQueryRunnerFactory
         }
       };
     }
-    final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
     return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
+      public Sequence<Object[]> run(final Query<Object[]> query, final Map<String, Object> responseContext)
       {
-        // segment ordered (or time-ordered)
-        List<Sequence<Object[]>> sequences = Lists.transform(
-            Execs.execute(executor, semaphore, QueryRunnerHelper.asSuppliers(runners, query, responseContext)),
-            FutureSequence.<Object[]>toSequence()
-        );
+        StreamRawQuery stream = (StreamRawQuery) query;
+        Iterable<Sequence<Object[]>> iterable;
+        if (GuavaUtils.isNullOrEmpty(stream.getOrderBySpecs())) {
+          iterable = Iterables.transform(
+              QueryRunnerHelper.asCallable(runners, query, responseContext),
+              Sequences.<Object[]>callableToLazy()
+          );
+        } else {
+          iterable = Iterables.transform(
+              Execs.execute(executor, QueryRunnerHelper.asCallable(runners, query, responseContext)),
+              FutureSequence.<Object[]>toSequence()
+          );
+        }
+        List<Sequence<Object[]>> sequences = Lists.newArrayList(iterable);
+        if (stream.isDescending()) {
+          Collections.reverse(sequences);
+        }
+        // no need to sort on time in here (not like CCC)
         return QueryUtils.mergeSort(query, sequences);
       }
     };

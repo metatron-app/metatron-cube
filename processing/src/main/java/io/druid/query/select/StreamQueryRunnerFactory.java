@@ -19,21 +19,22 @@
 
 package io.druid.query.select;
 
-import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -79,38 +80,41 @@ public class StreamQueryRunnerFactory
 
   @Override
   public QueryRunner<StreamQueryRow> mergeRunners(
-      final ExecutorService queryExecutor,
+      final ExecutorService executor,
       final Iterable<QueryRunner<StreamQueryRow>> queryRunners,
-      Future<Object> optimizer
+      final Future<Object> optimizer
   )
   {
+    final List<QueryRunner<StreamQueryRow>> runners = Lists.newArrayList(queryRunners);
+    if (runners.isEmpty()) {
+      return QueryRunnerHelper.toEmptyQueryRunner();
+    }
+    if (runners.size() == 1) {
+      return new QueryRunner<StreamQueryRow>()
+      {
+        @Override
+        public Sequence<StreamQueryRow> run(Query<StreamQueryRow> query, Map<String, Object> responseContext)
+        {
+          return runners.get(0).run(query, responseContext);
+        }
+      };
+    }
     return new QueryRunner<StreamQueryRow>()
     {
       @Override
       public Sequence<StreamQueryRow> run(final Query<StreamQueryRow> query, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(
+        StreamQuery stream = (StreamQuery) query;
+        List<Sequence<StreamQueryRow>> sequences = Lists.newArrayList(
             Iterables.transform(
-                queryRunners,
-                new Function<QueryRunner<StreamQueryRow>, Sequence<StreamQueryRow>>()
-                {
-                  @Override
-                  public Sequence<StreamQueryRow> apply(final QueryRunner<StreamQueryRow> input)
-                  {
-                    return new LazySequence<StreamQueryRow>(
-                        new Supplier<Sequence<StreamQueryRow>>()
-                        {
-                          @Override
-                          public Sequence<StreamQueryRow> get()
-                          {
-                            return input.run(query, responseContext);
-                          }
-                        }
-                    );
-                  }
-                }
+                QueryRunnerHelper.asCallable(runners, query, responseContext),
+                Sequences.<StreamQueryRow>callableToLazy()
             )
         );
+        if (stream.isDescending()) {
+          Collections.reverse(sequences);
+        }
+        return Sequences.concat(sequences);
       }
     };
   }

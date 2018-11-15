@@ -185,6 +185,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        isDescending(),
         getDimFilter(),
         QueryGranularities.ALL,
         getMetrics(),

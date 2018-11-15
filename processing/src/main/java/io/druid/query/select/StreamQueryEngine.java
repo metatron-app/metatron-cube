@@ -22,12 +22,12 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.RowResolver;
@@ -83,12 +83,11 @@ public class StreamQueryEngine
   )
   {
     Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
-    Ordering<Object[]> ordering = query.getResultOrdering();
-    if (ordering == null) {
+    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
       return result.rhs;
     }
     List<Object[]> sorted = Sequences.toList(result.rhs);
-    Collections.sort(sorted, ordering);
+    Collections.sort(sorted, query.getResultOrdering());
     return Sequences.simple(sorted);
   }
 

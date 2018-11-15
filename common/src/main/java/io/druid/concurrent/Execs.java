@@ -20,7 +20,6 @@
 package io.druid.concurrent;
 
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -29,11 +28,9 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Tagged;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -188,7 +185,7 @@ public class Execs
     }
 
     @Override
-    public void close() throws IOException
+    public void close()
     {
       log.debug("> close %s", name);
       semaphore.release();
@@ -212,44 +209,21 @@ public class Execs
     }
   }
 
-  public static <T> List<ListenableFuture<Sequence<T>>> execute(
+  public static <T> Iterable<Future<T>> execute(
       final ExecutorService executor,
-      final Semaphore semaphore,
-      final Iterable<Supplier<Sequence<T>>> sequences
-  ) {
-    return execute(executor, semaphore, 0, sequences);
-  }
-
-  public static <T> List<ListenableFuture<Sequence<T>>> execute(
-      final ExecutorService executor,
-      final Semaphore semaphore,
-      final int priority,
-      final Iterable<Supplier<Sequence<T>>> sequences
+      final Iterable<Callable<T>> works
   )
   {
-    return execute(executor, Iterables.transform(
-        sequences, new Function<Supplier<Sequence<T>>, Callable<Sequence<T>>>()
+    return Iterables.transform(
+        works, new Function<Callable<T>, Future<T>>()
         {
           @Override
-          public Callable<Sequence<T>> apply(final Supplier<Sequence<T>> sequence)
+          public Future<T> apply(Callable<T> callable)
           {
-            return new PrioritizedCallable<Sequence<T>>()
-            {
-              @Override
-              public int getPriority()
-              {
-                return priority;
-              }
-
-              @Override
-              public Sequence<T> call() throws Exception
-              {
-                return Sequences.withBaggage(sequence.get(), semaphore);
-              }
-            };
+            return executor.submit(callable);
           }
         }
-    ), semaphore, priority);
+    );
   }
 
   public static <V> List<ListenableFuture<V>> execute(
