@@ -33,9 +33,9 @@ import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
+import io.druid.concurrent.Execs;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
-import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
 
 import java.io.IOException;
@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.function.Function;
 
 public class QueryManager implements QueryWatcher, Runnable
@@ -101,7 +102,7 @@ public class QueryManager implements QueryWatcher, Runnable
         }
     );
     if (status.canceled) {
-      throw new QueryInterruptedException(new InterruptedException());
+      throw new CancellationException();
     }
     final List<String> dataSources = query.getDataSource().getNames();
 
@@ -221,7 +222,7 @@ public class QueryManager implements QueryWatcher, Runnable
     {
       boolean success = true;
       for (ListenableFuture future : futures) {
-        success = success & (future.isCancelled() || future.cancel(true));  // cancel all
+        success = success & Execs.cancelQuietly(future);  // cancel all
         if (future instanceof Tagged) {
           Timer timer = timers.get(future);
           if (timer != null) {

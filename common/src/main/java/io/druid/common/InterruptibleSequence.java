@@ -16,40 +16,63 @@
 
 package io.druid.common;
 
-import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
+import com.metamx.common.guava.YieldingSequenceBase;
+import com.metamx.common.logger.Logger;
 
+import java.io.IOException;
 import java.util.concurrent.Future;
 
 /**
  */
-public class InterruptibleSequence<T> implements Sequence<T>
+public class InterruptibleSequence<T> extends YieldingSequenceBase<T>
 {
+  private static final Logger LOG = new Logger(InterruptibleSequence.class);
+
   private final Future<?> future;
   private final Sequence<T> delegate;
 
-  public InterruptibleSequence(Future<?> future, Sequence<T> delegate) {
+  public InterruptibleSequence(Future<?> future, Sequence<T> delegate)
+  {
     this.future = future;
     this.delegate = delegate;
   }
 
   @Override
-  public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
   {
-    return delegate.accumulate(initValue, accumulator);   // don't interrupt
+    return wrapYielder(delegate.toYielder(initValue, accumulator));
   }
 
-  @Override
-  public <OutType> Yielder<OutType> toYielder(
-      OutType initValue, YieldingAccumulator<OutType, T> accumulator
-  )
+  private <OutType> Yielder<OutType> wrapYielder(final Yielder<OutType> yielder)
   {
-    final Yielder<OutType> yielder = delegate.toYielder(initValue, accumulator);
-    if (future.isCancelled()) {
-      return Yielders.done(null, yielder);
-    }
-    return yielder;
+    return new Yielder<OutType>()
+    {
+      @Override
+      public OutType get()
+      {
+        return yielder.get();
+      }
+
+      @Override
+      public Yielder<OutType> next(OutType initValue)
+      {
+        return future.isDone() ? Yielders.<OutType>done(initValue, yielder) : wrapYielder(yielder.next(initValue));
+      }
+
+      @Override
+      public boolean isDone()
+      {
+        return yielder.isDone();
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        yielder.close();
+      }
+    };
   }
 }

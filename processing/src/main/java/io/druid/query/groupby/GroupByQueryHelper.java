@@ -28,7 +28,6 @@ import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -125,7 +124,7 @@ public class GroupByQueryHelper
       public MergeIndex accumulate(final MergeIndex accumulated, final T in)
       {
         if (++counter % DEFAULT_POLLING_INTERVAL == 0 && semaphore.isDestroyed()) {
-          throw new QueryInterruptedException(new InterruptedException());
+          return accumulated;
         }
         accumulated.add((Row) in);
         return accumulated;

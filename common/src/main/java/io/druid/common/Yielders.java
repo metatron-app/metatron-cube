@@ -19,14 +19,49 @@
 
 package io.druid.common;
 
+import com.google.common.io.Closeables;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 /**
  */
-public class Yielders extends com.metamx.common.guava.Yielders
+public class Yielders
 {
+  // walk around of NPE from next()
+  public static <T> Yielder<T> done(final T finalVal, final Closeable closeable)
+  {
+    return new Yielder<T>()
+    {
+      @Override
+      public T get()
+      {
+        return finalVal;
+      }
+
+      @Override
+      public Yielder<T> next(T initValue)
+      {
+        return this;
+      }
+
+      @Override
+      public boolean isDone()
+      {
+        return true;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        Closeables.close(closeable, false);
+      }
+    };
+  }
+
   public static <T> Yielder<T> each(final Sequence<T> sequence)
   {
     return sequence.toYielder(null, new Yielding<T>());

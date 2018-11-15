@@ -499,18 +499,18 @@ public class ServerManager implements QuerySegmentWalker
         final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture(), "split-runner");
         queryManager.registerQuery(baseQuery, future);
         return Sequences.withBaggage(
-            Sequences.concat(
+            Sequences.interruptible(future, Sequences.concat(
                 Iterables.transform(
                     queries, new Function<Query<T>, Sequence<T>>()
                     {
                       @Override
                       public Sequence<T> apply(final Query<T> splitQuery)
                       {
-                        return Sequences.interruptible(future, runner.run(splitQuery, responseContext));
+                        return runner.run(splitQuery, responseContext);
                       }
                     }
                 )
-            ),
+            )),
             future
         );
       }

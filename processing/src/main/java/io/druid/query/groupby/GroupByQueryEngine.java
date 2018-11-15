@@ -243,7 +243,7 @@ public class GroupByQueryEngine
     {
       this.cursor = cursor;
       this.rowUpdater = new RowUpdater(bufferPool, maxPage);
-      this.asSorted = query.getContextBoolean("TEST_AS_SORTED", false);
+      this.asSorted = query.getContextBoolean("IN_TEST", false);
       String fudgeTimestampString = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
       fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
                                    ? null
@@ -652,7 +652,7 @@ public class GroupByQueryEngine
   {
     return new Function<Object[], Row>()
     {
-      private final boolean asSorted = query.getContextBoolean("TEST_AS_SORTED", false);
+      private final boolean asSorted = query.getContextBoolean("IN_TEST", false);
       private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
 
       @Override

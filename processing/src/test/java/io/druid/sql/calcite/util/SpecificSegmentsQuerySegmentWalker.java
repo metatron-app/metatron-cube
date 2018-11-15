@@ -473,11 +473,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
             }
         );
 
-    QueryRunner<T> runner = factory.mergeRunners(executor, queryRunners, optimizer);
-    runner = toolChest.finalQueryDecoration(
+    QueryRunner<T> runner = toolChest.finalQueryDecoration(
         toolChest.finalizeMetrics(
             toolChest.postMergeQueryDecoration(
-                toolChest.mergeResults(runner)
+                toolChest.mergeResults(
+                    factory.mergeRunners(executor, queryRunners, optimizer)
+                )
             )
         )
     );
@@ -486,7 +487,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
       Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
       if (queries != null) {
-        runner = toConcatRunner(queries, runner);
+        return toConcatRunner(queries, runner);
       }
     }
 

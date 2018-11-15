@@ -126,7 +126,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
 
     final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(queryables.size(), parallelism));
 
-    ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
+    final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
         Execs.execute(
             executor,
             Lists.transform(
@@ -178,6 +178,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
           {
             semaphore.destroy();
             incrementalIndex.close();
+            Execs.cancelQuietly(future);
           }
         }
     );
@@ -211,14 +212,13 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
         future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
       }
     }
-    catch (InterruptedException | TimeoutException | CancellationException e) {
-      if (e instanceof CancellationException) {
-        log.info("Query canceled, id [%s]", query.getId());
-      } else {
-        String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
-        log.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
-      }
-      future.cancel(true);
+    catch (CancellationException e) {
+      log.info("Query canceled, id [%s]", query.getId());
+      IOUtils.closeQuietly(closeOnFailure);
+      // by request.. don't propagate
+    } catch (InterruptedException | TimeoutException e) {
+      String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
+      log.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
       IOUtils.closeQuietly(closeOnFailure);
       throw new QueryInterruptedException(e);
     } catch (QueryInterruptedException e) {

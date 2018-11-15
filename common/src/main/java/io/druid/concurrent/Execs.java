@@ -338,6 +338,12 @@ public class Execs
         ((Closeable) delegate).close();
       }
     }
+
+    @Override
+    public String toString()
+    {
+      return tag + ":" + super.toString();
+    }
   }
 
   public static class SettableFuture<V> extends AbstractFuture<V> implements Closeable
@@ -359,5 +365,16 @@ public class Execs
     {
       set(null);
     }
+  }
+
+  public static boolean cancelQuietly(Future<?> future)
+  {
+    try {
+      return future.isDone() || future.cancel(true);
+    }
+    catch (Exception e) {
+      // ignore
+    }
+    return future.isDone();
   }
 }

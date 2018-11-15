@@ -22,6 +22,7 @@ package io.druid.query;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
@@ -34,6 +35,7 @@ import com.metamx.common.guava.MergeIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.concurrent.Execs;
 
 import java.util.Iterator;
 import java.util.List;
@@ -147,12 +149,17 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
                                             futures.get(timeout.longValue(), TimeUnit.MILLISECONDS);
               return mergeResults(query, iterables).iterator();
             }
+            catch (CancellationException e) {
+              log.info("Query canceled, id [%s]", query.getId());
+              Execs.cancelQuietly(futures);
+              if (query.getContextBoolean("IN_TEST", false)) {
+                throw new QueryInterruptedException(e);
+              }
+              return Iterators.emptyIterator();
+            }
             catch (InterruptedException e) {
               log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
               futures.cancel(true);
-              throw new QueryInterruptedException(e);
-            }
-            catch (CancellationException e) {
               throw new QueryInterruptedException(e);
             }
             catch (TimeoutException e) {
@@ -168,7 +175,6 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
           @Override
           public void cleanup(Iterator<T> tIterator)
           {
-
           }
         }
     );

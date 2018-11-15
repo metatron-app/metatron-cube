@@ -124,6 +124,7 @@ public class ChainedExecutionQueryRunnerTest
               .dataSource("test")
               .intervals("2014/2015")
               .aggregators(Lists.<AggregatorFactory>newArrayList(new CountAggregatorFactory("count")))
+              .addContext("IN_TEST", true)
               .build(),
         context
     );

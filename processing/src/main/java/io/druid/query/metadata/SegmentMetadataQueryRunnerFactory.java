@@ -29,6 +29,7 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.concurrent.Execs;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import io.druid.query.AbstractPrioritizedCallable;
@@ -208,12 +209,14 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                       final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, (Number) null);
                       return timeout == null ? future.get() : future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
                     }
+                    catch (CancellationException e) {
+                      log.info("Query canceled, id [%s]", query.getId());
+                      Execs.cancelQuietly(future);
+                      return Sequences.empty();
+                    }
                     catch (InterruptedException e) {
                       log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
                       future.cancel(true);
-                      throw new QueryInterruptedException(e);
-                    }
-                    catch(CancellationException e) {
                       throw new QueryInterruptedException(e);
                     }
                     catch (TimeoutException e) {

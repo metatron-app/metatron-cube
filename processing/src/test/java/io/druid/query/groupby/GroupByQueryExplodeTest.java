@@ -189,7 +189,7 @@ public class GroupByQueryExplodeTest
             )
         )
         .setContext(
-            ImmutableMap.<String, Object>of("TEST_AS_SORTED", true)
+            ImmutableMap.<String, Object>of("IN_TEST", true)
         );
 
     List<Row> expectedResults;
