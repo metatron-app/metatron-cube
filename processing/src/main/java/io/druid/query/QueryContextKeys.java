@@ -40,6 +40,7 @@ public interface QueryContextKeys
   // group-by config.. overriding
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
+  public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
   public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
   public static final String GBY_COMPACT_TRANSFER = "groupByCompactTransfer";
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";

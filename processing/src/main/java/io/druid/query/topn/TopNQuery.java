@@ -54,8 +54,6 @@ import java.util.Objects;
 public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     implements Query.AggregationsSupport<Result<TopNResultValue>>
 {
-  public static final String TOPN = "topN";
-
   private final DimensionSpec dimensionSpec;
   private final List<VirtualColumn> virtualColumns;
   private final TopNMetricSpec topNMetricSpec;

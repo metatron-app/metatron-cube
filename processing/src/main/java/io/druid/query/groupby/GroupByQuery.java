@@ -30,9 +30,12 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
@@ -53,9 +56,11 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.Result;
 import io.druid.query.SequenceCountingProcessor;
 import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -63,16 +68,21 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.InDimFilter;
 import io.druid.query.groupby.having.AlwaysHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.topn.NumericTopNMetricSpec;
 import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
+import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
@@ -80,6 +90,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -471,7 +482,14 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       query = query.tryRemoveOrdering();
     }
     if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, groupByConfig.isConvertTimeseries())) {
-      return query.tryConvertToTimeseries(jsonMapper);
+      Query converted = query.tryConvertToTimeseries(jsonMapper);
+      if (converted != null) {
+        return converted;
+      }
+    }
+    int estimationFactor = query.getContextInt(GBY_ESTIMATE_TOPN_FACTOR, groupByConfig.getEstimateTopNFactor());
+    if (estimationFactor > 0) {
+      return query.tryEstimateTopN(segmentWalker, jsonMapper, estimationFactor);
     }
     return query;
   }
@@ -558,10 +576,78 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
   {
     if (!dimensions.isEmpty()) {
-      return this;
+      return null;
     }
     TimeseriesQuery timeseries = Druids.newTimeseriesQueryBuilder().copy(this).build();
     return PostProcessingOperators.prepend(timeseries, jsonMapper, new TimeseriesToRow());
+  }
+
+  private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper, int estimationFactor)
+  {
+    if (getGroupingSets() != null || getGranularity() != Granularities.ALL) {
+      return this;
+    }
+    if (dimensions.size() != 1 || !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) || lateralView != null) {
+      return this;
+    }
+    DimensionSpec dimensionSpec = dimensions.get(0);
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      dimensionSpec = ((DimensionSpecWithOrdering) dimensions).getDelegate();
+    }
+    int estimationTopN = limitSpec.getLimit() * estimationFactor;
+    if (estimationTopN > 0x10000 || limitSpec.getColumns().size() != 1) {
+      return this;
+    }
+    OrderByColumnSpec orderBy = limitSpec.getColumns().get(0);
+    if (!orderBy.isNaturalOrdering()) {
+      return this;
+    }
+    String metric = orderBy.getDimension();
+    Pair<List<AggregatorFactory>, List<PostAggregator>> condensed = AggregatorUtil.condensedAggregators(
+        aggregatorSpecs, postAggregatorSpecs, metric
+    );
+    if (condensed.lhs.isEmpty() && condensed.rhs.isEmpty()) {
+      return this;
+    }
+    Direction direction = orderBy.getDirection() == null ? Direction.ASCENDING : orderBy.getDirection();
+    TopNMetricSpec metricSpec = new NumericTopNMetricSpec(metric, direction);
+
+    final String dimension = dimensionSpec.getOutputName();
+    final Set<String> dimensionValues = Sets.newHashSet();
+    new TopNQuery(
+        getDataSource(),
+        getVirtualColumns(),
+        dimensionSpec,
+        metricSpec,
+        limitSpec.getLimit() * estimationFactor,
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        condensed.lhs,
+        condensed.rhs,
+        getOutputColumns(),
+        BaseQuery.copyContextForMeta(this)
+    ).run(segmentWalker, Maps.<String, Object>newHashMap()).accumulate(
+        null,
+        new Accumulator<Object, Result<TopNResultValue>>()
+        {
+          @Override
+          public Object accumulate(Object accumulated, Result<TopNResultValue> in)
+          {
+            for (Map<String, Object> row : in.getValue().getValue()) {
+              dimensionValues.add(Objects.toString(row.get(dimension), ""));
+            }
+            return null;
+          }
+        }
+    );
+    DimFilter filter = new InDimFilter(
+        dimensionSpec.getDimension(),
+        Lists.newArrayList(dimensionValues),
+        dimensionSpec.getExtractionFn()
+    );
+    // seemed not need to split now
+    return withDimFilter(DimFilters.and(filter, getDimFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
   }
 
   public int[][] getGroupings()

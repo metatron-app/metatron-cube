@@ -139,7 +139,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   public LimitSpec withNoProcessing()
   {
     return segmentLimit == null && nodeLimit == null ?
-           NoopLimitSpec.INSTANCE : new LimitSpec(null, null, segmentLimit, nodeLimit, null);
+           NoopLimitSpec.INSTANCE : new LimitSpec(columns, null, segmentLimit, nodeLimit, null);
   }
 
   public LimitSpec withNoLimiting()

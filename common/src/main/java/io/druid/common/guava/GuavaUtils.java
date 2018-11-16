@@ -219,9 +219,14 @@ public class GuavaUtils
   }
 
   @SafeVarargs
-  public static <T> List<T> concat(List<T> list1, T... elements)
+  public static <T> List<T> concat(Iterable<T> list1, T... elements)
   {
-    return concat(list1, Arrays.asList(elements));
+    if (list1 == null) {
+      return Arrays.asList(elements);
+    }
+    List<T> concat = Lists.newArrayList(list1);
+    concat.addAll(Arrays.asList(elements));
+    return concat;
   }
 
   public static <T> List<T> concat(T element, List<T> list2)

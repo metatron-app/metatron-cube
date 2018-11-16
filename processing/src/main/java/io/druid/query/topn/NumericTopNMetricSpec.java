@@ -20,13 +20,16 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.ordering.Direction;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
@@ -40,13 +43,21 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
   private static final byte CACHE_TYPE_ID = 0x0;
 
   private final String metric;
+  private final Direction direction;
 
   @JsonCreator
   public NumericTopNMetricSpec(
-      @JsonProperty("metric") String metric
+      @JsonProperty("metric") String metric,
+      @JsonProperty("direction") Direction direction
   )
   {
     this.metric = metric;
+    this.direction = direction;
+  }
+
+  public NumericTopNMetricSpec(String metric)
+  {
+    this(metric, null);
   }
 
   @Override
@@ -98,6 +109,13 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
     return metric;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Direction getDirection()
+  {
+    return direction;
+  }
+
   @Override
   public Comparator getComparator(List<AggregatorFactory> aggregatorSpecs, List<PostAggregator> postAggregatorSpecs)
   {
@@ -113,6 +131,9 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
         comp = pf.getComparator();
         break;
       }
+    }
+    if (direction == Direction.ASCENDING) {
+      comp = Ordering.from(comp).reverse();
     }
 
     return comp;

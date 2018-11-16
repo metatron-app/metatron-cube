@@ -41,13 +41,16 @@ public class GroupByQueryConfig
   private int maxMergeParallelism = 8;
 
   @JsonProperty
-  private boolean convertTimeseries = false;
-
-  @JsonProperty
   private boolean preOrdering = false;
 
   @JsonProperty
   private boolean removeOrdering = false;
+
+  @JsonProperty
+  private boolean convertTimeseries = false;
+
+  @JsonProperty
+  private int estimateTopNFactor = -1;
 
   @JsonProperty
   private boolean mergeSimple = true; // todo
@@ -111,16 +114,6 @@ public class GroupByQueryConfig
     this.maxMergeParallelism = maxMergeParallelism;
   }
 
-  public boolean isConvertTimeseries()
-  {
-    return convertTimeseries;
-  }
-
-  public void setConvertTimeseries(boolean convertTimeseries)
-  {
-    this.convertTimeseries = convertTimeseries;
-  }
-
   public boolean isPreOrdering()
   {
     return preOrdering;
@@ -139,6 +132,26 @@ public class GroupByQueryConfig
   public void setRemoveOrdering(boolean removeOrdering)
   {
     this.removeOrdering = removeOrdering;
+  }
+
+  public boolean isConvertTimeseries()
+  {
+    return convertTimeseries;
+  }
+
+  public void setConvertTimeseries(boolean convertTimeseries)
+  {
+    this.convertTimeseries = convertTimeseries;
+  }
+
+  public int getEstimateTopNFactor()
+  {
+    return estimateTopNFactor;
+  }
+
+  public void setEstimateTopNFactor(int estimateTopNFactor)
+  {
+    this.estimateTopNFactor = estimateTopNFactor;
   }
 
   public boolean isMergeSimple()

@@ -31,6 +31,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
@@ -40,6 +41,7 @@ import io.druid.segment.filter.InFilter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -73,7 +75,7 @@ public class InDimFilter implements DimFilter.RangeFilter
             }
         )
     );
-    Preconditions.checkNotNull(this.values, "values can not be empty");
+    Preconditions.checkNotNull(values, "values can not be empty");
     this.dimension = dimension;
     this.extractionFn = extractionFn;
   }
@@ -250,10 +252,15 @@ public class InDimFilter implements DimFilter.RangeFilter
   @Override
   public String toString()
   {
+    Collection<String> logging = values;
+    if (values.size() > 10) {
+      logging = GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10));
+    }
+    Lists.newArrayList(Iterables.limit(values, 10));
     return "InDimFilter{" +
-           "values=" + values +
+           "values=" + logging +
            ", dimension='" + dimension + '\'' +
-           ", extractionFn=" + extractionFn +
+           (extractionFn == null ? "" : ", extractionFn=" + extractionFn) +
            '}';
   }
 }

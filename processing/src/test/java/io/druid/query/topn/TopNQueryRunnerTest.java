@@ -68,6 +68,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -96,9 +97,9 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
-public class TopNQueryRunnerTest
+public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 {
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "direction={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     List<QueryRunner<Result<TopNResultValue>>> retVal = Lists.newArrayList();
@@ -138,16 +139,19 @@ public class TopNQueryRunnerTest
         )
     );
 
-    return QueryRunnerTestHelper.transformToConstructionFeeder(retVal);
+    return QueryRunnerTestHelper.cartesian(retVal, Arrays.asList(Direction.DESCENDING, Direction.ASCENDING));
   }
 
   private final QueryRunner<Result<TopNResultValue>> runner;
+  private final Direction direction;
 
   public TopNQueryRunnerTest(
-      QueryRunner<Result<TopNResultValue>> runner
+      QueryRunner<Result<TopNResultValue>> runner,
+      Direction direction
   )
   {
     this.runner = runner;
+    this.direction = direction;
   }
 
   private Sequence<Result<TopNResultValue>> assertExpectedResults(
@@ -180,6 +184,20 @@ public class TopNQueryRunnerTest
     return mergeRunner.run(query, context);
   }
 
+  private List<Map<String, Object>> createExpectedRows(String[] columnNames, Object[]... values)
+  {
+    List<Map<String, Object>> expected = Lists.newArrayList();
+    for (Object[] value : values) {
+      Preconditions.checkArgument(value.length == columnNames.length);
+      Map<String, Object> theVals = Maps.newLinkedHashMap();
+      for (int i = 0; i < columnNames.length; i++) {
+        theVals.put(columnNames[i], value[i]);
+      }
+      expected.add(theVals);
+    }
+    return expected;
+  }
+
   @Test
   public void testFullOnTopN()
   {
@@ -187,7 +205,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.indexMetric)
+        .metric(new NumericTopNMetricSpec(indexMetric, direction))
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -204,42 +222,20 @@ public class TopNQueryRunnerTest
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<TopNResultValue>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "total_market")
-                                .put("rows", 186L)
-                                .put("index", 215679.82879638672D)
-                                .put("addRowsIndexConstant", 215866.82879638672D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1743.9217529296875D)
-                                .put("minIndex", 792.3260498046875D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "upfront")
-                                .put("rows", 186L)
-                                .put("index", 192046.1060180664D)
-                                .put("addRowsIndexConstant", 192233.1060180664D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1870.06103515625D)
-                                .put("minIndex", 545.9906005859375D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "spot")
-                                .put("rows", 837L)
-                                .put("index", 95606.57232284546D)
-                                .put("addRowsIndexConstant", 96444.57232284546D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
-                                .put("maxIndex", 277.2735290527344D)
-                                .put("minIndex", 59.02102279663086D)
-                                .build()
-                )
-            )
-        )
+    List<Map<String, Object>> expectedRows = createExpectedRows(
+        new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
+        new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+        new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+        new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
     );
+    if (direction == Direction.ASCENDING) {
+      Collections.reverse(expectedRows);
+    }
+
+    List<Result<TopNResultValue>> expectedResults = Arrays.asList(
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
+    );
+
     assertExpectedResults(expectedResults, query);
 
     QueryToolChest toolChest = new TopNQueryQueryToolChest(
@@ -252,29 +248,17 @@ public class TopNQueryRunnerTest
     // with projection processor
     QueryRunner project = QueryRunnerTestHelper.toBrokerRunner(runner, toolChest);
 
+    expectedRows = createExpectedRows(
+        new String[]{"market", "rows", "index"},
+        new Object[]{"total_market", 186L, 215679.82879638672D},
+        new Object[]{"upfront", 186L, 192046.1060180664D},
+        new Object[]{"spot", 837L, 95606.57232284546D}
+    );
+    if (direction == Direction.ASCENDING) {
+      Collections.reverse(expectedRows);
+    }
     expectedResults = Arrays.asList(
-        new Result<TopNResultValue>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "total_market")
-                                .put("rows", 186L)
-                                .put("index", 215679.82879638672D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "upfront")
-                                .put("rows", 186L)
-                                .put("index", 192046.1060180664D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "spot")
-                                .put("rows", 837L)
-                                .put("index", 95606.57232284546D)
-                                .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
     TestHelper.assertExpectedResults(expectedResults, project.run(query, ImmutableMap.of()));
   }
@@ -286,7 +270,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.addRowsIndexConstantMetric)
+        .metric(new NumericTopNMetricSpec(addRowsIndexConstantMetric, direction))
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -303,41 +287,18 @@ public class TopNQueryRunnerTest
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
+    List<Map<String, Object>> expectedRows = createExpectedRows(
+        new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
+        new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+        new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+        new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
+    );
+    if (direction == Direction.ASCENDING) {
+      Collections.reverse(expectedRows);
+    }
+
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<TopNResultValue>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "total_market")
-                                .put("rows", 186L)
-                                .put("index", 215679.82879638672D)
-                                .put("addRowsIndexConstant", 215866.82879638672D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1743.9217529296875D)
-                                .put("minIndex", 792.3260498046875D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "upfront")
-                                .put("rows", 186L)
-                                .put("index", 192046.1060180664D)
-                                .put("addRowsIndexConstant", 192233.1060180664D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1870.06103515625D)
-                                .put("minIndex", 545.9906005859375D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put(QueryRunnerTestHelper.marketDimension, "spot")
-                                .put("rows", 837L)
-                                .put("index", 95606.57232284546D)
-                                .put("addRowsIndexConstant", 96444.57232284546D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
-                                .put("maxIndex", 277.2735290527344D)
-                                .put("minIndex", 59.02102279663086D)
-                                .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
     assertExpectedResults(expectedResults, query);
   }
@@ -350,7 +311,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.uniqueMetric)
+        .metric(new NumericTopNMetricSpec(uniqueMetric, direction))
         .threshold(3)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -367,42 +328,27 @@ public class TopNQueryRunnerTest
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
+    List<Map<String, Object>> expectedRows;
+    if (direction == Direction.DESCENDING) {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
+          new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D},
+          new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+          new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D}
+      );
+    } else {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
+          new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+          new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+          new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
+      );
+    }
+
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<TopNResultValue>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                                .put("market", "spot")
-                                .put("rows", 837L)
-                                .put("index", 95606.57232284546D)
-                                .put("addRowsIndexConstant", 96444.57232284546D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
-                                .put("maxIndex", 277.2735290527344D)
-                                .put("minIndex", 59.02102279663086D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put("market", "total_market")
-                                .put("rows", 186L)
-                                .put("index", 215679.82879638672D)
-                                .put("addRowsIndexConstant", 215866.82879638672D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1743.9217529296875D)
-                                .put("minIndex", 792.3260498046875D)
-                                .build(),
-                    ImmutableMap.<String, Object>builder()
-                                .put("market", "upfront")
-                                .put("rows", 186L)
-                                .put("index", 192046.1060180664D)
-                                .put("addRowsIndexConstant", 192233.1060180664D)
-                                .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
-                                .put("maxIndex", 1870.06103515625D)
-                                .put("minIndex", 545.9906005859375D)
-                                .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
+
     assertExpectedResults(expectedResults, query);
   }
 
@@ -452,7 +398,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric)
+        .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -466,29 +412,25 @@ public class TopNQueryRunnerTest
         )
         .build();
 
+    List<Map<String, Object>> expectedRows;
+    if (direction == Direction.DESCENDING) {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"spot", UNIQUES_9, UNIQUES_9},
+          new Object[]{"total_market", UNIQUES_2, UNIQUES_2},
+          new Object[]{"upfront", UNIQUES_2, UNIQUES_2}
+      );
+    } else {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"total_market", UNIQUES_2, UNIQUES_2},
+          new Object[]{"upfront", UNIQUES_2, UNIQUES_2},
+          new Object[]{"spot", UNIQUES_9, UNIQUES_9}
+      );
+    }
+
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "spot")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_9)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_9)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "total_market")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "upfront")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
     assertExpectedResults(expectedResults, query);
   }
@@ -500,7 +442,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric)
+        .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -514,30 +456,27 @@ public class TopNQueryRunnerTest
         )
         .build();
 
+    List<Map<String, Object>> expectedRows;
+    if (direction == Direction.DESCENDING) {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"spot", UNIQUES_9, UNIQUES_9 + 1},
+          new Object[]{"total_market", UNIQUES_2, UNIQUES_2 + 1},
+          new Object[]{"upfront", UNIQUES_2, UNIQUES_2 + 1}
+      );
+    } else {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"total_market", UNIQUES_2, UNIQUES_2 + 1},
+          new Object[]{"upfront", UNIQUES_2, UNIQUES_2 + 1},
+          new Object[]{"spot", UNIQUES_9, UNIQUES_9 + 1}
+      );
+    }
+
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "spot")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_9)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_9 + 1)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "total_market")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_2 + 1)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "upfront")
-                        .put(QueryRunnerTestHelper.uniqueMetric, QueryRunnerTestHelper.UNIQUES_2)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, QueryRunnerTestHelper.UNIQUES_2 + 1)
-                        .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
+
     assertExpectedResults(expectedResults, query);
   }
 
@@ -548,7 +487,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric)
+        .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
@@ -562,30 +501,27 @@ public class TopNQueryRunnerTest
         )
         .build();
 
+    List<Map<String, Object>> expectedRows;
+    if (direction == Direction.DESCENDING) {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"spot", 9L, 10L},
+          new Object[]{"total_market", 2L, 3L},
+          new Object[]{"upfront", 2L, 3L}
+      );
+    } else {
+      expectedRows = createExpectedRows(
+          new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
+          new Object[]{"total_market", 2L, 3L},
+          new Object[]{"upfront", 2L, 3L},
+          new Object[]{"spot", 9L, 10L}
+      );
+    }
+
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
-            new DateTime("2011-01-12T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "spot")
-                        .put(QueryRunnerTestHelper.uniqueMetric, 9L)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, 10L)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "total_market")
-                        .put(QueryRunnerTestHelper.uniqueMetric, 2L)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, 3L)
-                        .build(),
-                    ImmutableMap.<String, Object>builder()
-                        .put("market", "upfront")
-                        .put(QueryRunnerTestHelper.uniqueMetric, 2L)
-                        .put(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric, 3L)
-                        .build()
-                )
-            )
-        )
+        new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
+
     assertExpectedResults(expectedResults, query);
   }
 
@@ -599,7 +535,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(QueryRunnerTestHelper.indexMetric)
+        .metric(new NumericTopNMetricSpec(indexMetric, direction))
         .threshold(4)
         .intervals(QueryRunnerTestHelper.firstToThird)
         .aggregators(QueryRunnerTestHelper.commonAggregators)
@@ -608,36 +544,20 @@ public class TopNQueryRunnerTest
         .build();
 
 
-    List<Result<TopNResultValue>> expectedResults = Arrays.asList(
-        new Result<TopNResultValue>(
-            new DateTime("2011-04-01T00:00:00.000Z"),
-            new TopNResultValue(
-                Arrays.<Map<String, Object>>asList(
-                    ImmutableMap.<String, Object>of(
-                        "addRowsIndexConstant", 5356.814697265625D,
-                        "index", 5351.814697265625D,
-                        QueryRunnerTestHelper.marketDimension, "total_market",
-                        "uniques", QueryRunnerTestHelper.UNIQUES_2,
-                        "rows", 4L
-                    ),
-                    ImmutableMap.<String, Object>of(
-                        "addRowsIndexConstant", 4880.669677734375D,
-                        "index", 4875.669677734375D,
-                        QueryRunnerTestHelper.marketDimension, "upfront",
-                        "uniques", QueryRunnerTestHelper.UNIQUES_2,
-                        "rows", 4L
-                    ),
-                    ImmutableMap.<String, Object>of(
-                        "addRowsIndexConstant", 2250.8768157958984D,
-                        "index", 2231.8768157958984D,
-                        QueryRunnerTestHelper.marketDimension, "spot",
-                        "uniques", QueryRunnerTestHelper.UNIQUES_9,
-                        "rows", 18L
-                    )
-                )
-            )
-        )
+    List<Map<String, Object>> expectedRows = createExpectedRows(
+        new String[]{"market", "index", "addRowsIndexConstant", "rows", "uniques"},
+        new Object[]{"total_market", 5351.814697265625D, 5356.814697265625D, 4L, UNIQUES_2},
+        new Object[]{"upfront", 4875.669677734375D, 4880.669677734375D, 4L, UNIQUES_2},
+        new Object[]{"spot", 2231.8768157958984D, 2250.8768157958984D, 18L, UNIQUES_9}
     );
+    if (direction == Direction.ASCENDING) {
+      Collections.reverse(expectedRows);
+    }
+
+    List<Result<TopNResultValue>> expectedResults = Arrays.asList(
+        new Result<TopNResultValue>(new DateTime("2011-04-01T00:00:00.000Z"), new TopNResultValue(expectedRows))
+    );
+
     Sequence<Result<TopNResultValue>> results = runWithMerge(
         query,
         specialContext
