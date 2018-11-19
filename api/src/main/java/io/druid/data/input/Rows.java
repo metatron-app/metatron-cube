@@ -30,7 +30,6 @@ import com.metamx.common.StringUtils;
 import org.joda.time.DateTime;
 
 import java.io.File;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -73,7 +73,7 @@ public class PivotContext
       event.put(partitionColumns.get(i), partitionKey[i]);
     }
     final Comparator<StringArray> comparator = pivotSpec.makeColumnOrdering();
-    final List<Map.Entry<StringArray, Object>> entries = IncrementalIndex.sortOn(mapping, comparator, false);
+    final List<Map.Entry<StringArray, Object>> entries = IncrementalIndex.sortOn(mapping, false, comparator);
     for (Map.Entry<StringArray, Object> entry : entries) {
       String newKey = StringUtils.concat(separator, entry.getKey().array());
       Object newValue = entry.getValue();

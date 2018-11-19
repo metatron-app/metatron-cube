@@ -67,7 +67,12 @@ public class OrderingSpec implements Cacheable
     if (obj == null) {
       return new OrderingSpec(null, null);
     } else if (obj instanceof String) {
-      String value = Objects.toString(obj, null);
+      final String value = Objects.toString(obj, null);
+      final int index = value.lastIndexOf(':');
+      if (index > 0) {
+        Direction direction = Direction.tryFromString(value.substring(index + 1));
+        return new OrderingSpec(direction, direction == null ? value : value.substring(0, index));
+      }
       Direction direction = Direction.tryFromString(value);
       return direction == null ? new OrderingSpec(null, value) : new OrderingSpec(direction, null);
     } else if (obj instanceof Map) {

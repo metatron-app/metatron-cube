@@ -41,6 +41,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.groupby.GroupByQueryEngine;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -183,15 +184,6 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return Functions.compose(new ListSortingFn(ordering, limit), processed);
   }
 
-  public List<OrderByColumnSpec> getSegmentLimitOrdering()
-  {
-    if (segmentLimit == null) {
-      throw new IllegalStateException("no segmentLimit");
-    }
-    final List<OrderByColumnSpec> segmentOrdering = segmentLimit.getColumns();
-    return !segmentOrdering.isEmpty() ? segmentOrdering : getColumns();
-  }
-
   private static class LimitingFn implements Function<Sequence<Row>, Sequence<Row>>
   {
     private int limit;
@@ -204,34 +196,41 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     @Override
     public Sequence<Row> apply(Sequence<Row> input)
     {
-      return Sequences.limit(input, limit);
+      return limit > 0 && limit < Integer.MAX_VALUE ? Sequences.limit(input, limit) : input;
     }
   }
 
   private static class SortingFn implements Function<Sequence<Row>, Sequence<Row>>
   {
     private final Query.AggregationsSupport<?> query;
-    private final TopNSorter<Object[]> sorter;
+    private final Ordering<Object[]> ordering;
     private final int limit;
 
     public SortingFn(Query.AggregationsSupport<?> query, Ordering<Object[]> ordering, int limit)
     {
       this.query = query;
+      this.ordering = ordering;
       this.limit = limit;
-      this.sorter = new TopNSorter<>(ordering);
     }
 
     @Override
     public Sequence<Row> apply(Sequence<Row> input)
     {
-      Iterable<Object[]> topN = sorter.toTopN(Sequences.map(input, GroupByQueryEngine.rowToArray(query)), limit);
-      return Sequences.simple(Iterables.transform(topN, GroupByQueryEngine.arrayToRow(query)));
+      Sequence<Object[]> sequence = Sequences.map(input, GroupByQueryEngine.rowToArray(query));
+      Iterable<Object[]> sorted;
+      if (limit > 0 && limit < Integer.MAX_VALUE) {
+        sorted = new TopNSorter<>(ordering).toTopN(sequence, limit);
+      } else {
+        Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
+        Arrays.parallelSort(array, ordering);
+        sorted = Arrays.asList(array);
+      }
+      return Sequences.simple(Iterables.transform(sorted, GroupByQueryEngine.arrayToRow(query)));
     }
   }
 
   private static class ListSortingFn implements Function<List<Row>, Sequence<Row>>
   {
-    private final TopNSorter<Row> sorter;
     private final Ordering<Row> ordering;
     private final int limit;
 
@@ -239,17 +238,16 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     {
       this.ordering = ordering;
       this.limit = limit;
-      this.sorter = new TopNSorter<>(ordering);
     }
 
     @Override
     public Sequence<Row> apply(List<Row> input)
     {
-      if (limit == Integer.MAX_VALUE || input.size() < limit) {
-        Collections.sort(input, ordering);
-        return Sequences.simple(input);
+      if (limit > 0 && limit <= input.size()) {
+        return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
       }
-      return Sequences.simple(sorter.toTopN(input, limit));
+      Collections.sort(input, ordering);
+      return Sequences.simple(input);
     }
   }
 

@@ -567,7 +567,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   private GroupByQuery tryRemoveOrdering()
   {
     if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
-        LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), dimensions)) {
+        LimitSpecs.inGroupByOrdering(limitSpec.getColumns(), dimensions)) {
       return withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
     }
     return this;

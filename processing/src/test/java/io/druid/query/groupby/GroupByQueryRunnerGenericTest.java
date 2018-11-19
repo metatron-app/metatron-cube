@@ -98,6 +98,7 @@ import io.druid.query.groupby.orderby.FlattenSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.groupby.orderby.PartitionExpression;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
@@ -317,6 +318,47 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByLocalLimit()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(fullOnInterval)
+        .setDimensions(new DefaultDimensionSpec("quality", "alias"))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("rows"),
+            new LongSumAggregatorFactory("idx", "index")
+        )
+        .setLimitSpec(LimitSpecs.of(5, OrderByColumnSpec.desc("idx")))
+        .setGranularity(allGran)
+        .build();
+
+    Iterable<Row> results;
+    List<Row> expectedResults;
+    String[] columnNames = {"__time", "alias", "rows", "idx"};
+
+    expectedResults = createExpectedRows(
+        columnNames,
+        array("1970-01-01T00:00:00.000Z", "mezzanine", 279L, 217586L),
+        array("1970-01-01T00:00:00.000Z", "premium", 279L, 210722L),
+        array("1970-01-01T00:00:00.000Z", "automotive", 93L, 12226L),
+        array("1970-01-01T00:00:00.000Z", "entertainment", 93L, 12038L),
+        array("1970-01-01T00:00:00.000Z", "travel", 93L, 11138L)
+    );
+    results = runQuery(query, false);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    LimitSpec limitSpec = new LimitSpec(OrderByColumnSpec.descending("idx"), 5, OrderedLimitSpec.of(2), null, null);
+    expectedResults = createExpectedRows(
+        columnNames,
+        array("1970-01-01T00:00:00.000Z", "mezzanine", 279L, 217586L),
+        array("1970-01-01T00:00:00.000Z", "premium", 279L, 210722L)
+    );
+    results = runQuery(query.withLimitSpec(limitSpec), false);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 

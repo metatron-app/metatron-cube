@@ -27,7 +27,6 @@ import io.druid.concurrent.Execs;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -55,18 +54,7 @@ public class GroupByQueryHelper
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
-    if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
-      return new SimpleMergeIndex(
-          query.getDimensions(),
-          query.getAggregatorSpecs(),
-          query.getGroupings(),
-          maxRowCount,
-          parallelism,
-          compact
-      );
-    } else {
-      return createIncrementalIndex(query, bufferPool, false, maxRowCount, groupByTypes);
-    }
+    return new SimpleMergeIndex(query, maxRowCount, parallelism, compact);
   }
 
   public static IncrementalIndex createIncrementalIndex(

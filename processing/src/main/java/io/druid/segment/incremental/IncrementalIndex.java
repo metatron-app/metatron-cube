@@ -56,7 +56,6 @@ import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.groupby.MergeIndex;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
@@ -67,6 +66,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import java.io.Closeable;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,7 +81,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
+public abstract class IncrementalIndex<AggregatorType> implements Closeable
 {
   static final Logger log = new Logger(IncrementalIndex.class);
 
@@ -586,7 +586,6 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     }
   }
 
-  @Override
   public void add(Row row)
   {
     Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
@@ -919,7 +918,6 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     return Iterators.transform(facts.iterator(), rowFunction(ImmutableList.<PostAggregator>of()));
   }
 
-  @Override
   public Iterable<Row> toMergeStream()
   {
     return Iterables.transform(
@@ -935,7 +933,11 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   }
 
   @SuppressWarnings("unchecked")
-  public static <K, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, Comparator<K> comparator, boolean timeLog)
+  public static <K, V> List<Map.Entry<K, V>> sortOn(
+      Map<K, V> facts,
+      boolean timeLog,
+      Comparator<K> comparator
+  )
   {
     return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(comparator), facts.size(), timeLog);
   }

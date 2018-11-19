@@ -250,7 +250,7 @@ public class GroupByQueryRunnerFactory
   {
     // mergeRunners should take ListeningExecutorService at some point
     final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
-    return new GroupByMergedQueryRunner<Row>(
+    return new GroupByMergedQueryRunner(
         queryExecutor, config, queryWatcher, computationBufferPool, queryRunners, optimizer
     );
   }

@@ -23,8 +23,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecWithOrdering;
+import io.druid.query.dimension.DimensionSpecs;
 
 import java.util.Arrays;
 import java.util.List;
@@ -72,21 +73,20 @@ public class LimitSpecs
     return getColumns(orderByColumnSpecs).toArray(new String[orderByColumnSpecs.size()]);
   }
 
-  public static boolean isGroupByOrdering(List<OrderByColumnSpec> orderByColumns, List<DimensionSpec> dimensions)
+  public static boolean inGroupByOrdering(BaseAggregationQuery<?> query, OrderedLimitSpec ordering)
+  {
+    return inGroupByOrdering(query.getLimitOrdering(ordering), query.getDimensions());
+  }
+
+  public static boolean inGroupByOrdering(List<OrderByColumnSpec> orderByColumns, List<DimensionSpec> dimensions)
   {
     if (orderByColumns.size() > dimensions.size()) {
       return false;
     }
+    List<OrderByColumnSpec> dimensionOrdering = DimensionSpecs.asOrderByColumnSpec(dimensions);
     for (int i = 0; i < orderByColumns.size(); i++) {
       OrderByColumnSpec orderBy = orderByColumns.get(i);
-      DimensionSpec dimension = dimensions.get(i);
-      if (dimension instanceof DimensionSpecWithOrdering) {
-        DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
-        if (!orderBy.isSameOrdering(explicit.getDirection(), explicit.getOrdering())) {
-          return false;
-        }
-      }
-      if (!orderBy.isBasicOrdering()) {
+      if (!orderBy.equals(dimensionOrdering.get(i))) {
         return false;
       }
     }

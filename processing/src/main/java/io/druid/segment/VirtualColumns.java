@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
@@ -87,6 +88,18 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
     }
     return map;
+  }
+
+  public static List<VirtualColumn> override(List<VirtualColumn> original, List<VirtualColumn> overriding)
+  {
+    if (GuavaUtils.isNullOrEmpty(overriding)) {
+      return original;
+    }
+    Map<String, VirtualColumn> vcs = VirtualColumns.asMap(original);
+    for (VirtualColumn vc : overriding) {
+      vcs.put(vc.getOutputName(), vc);    // override
+    }
+    return Lists.newArrayList(vcs.values());
   }
 
   public static VirtualColumns valueOf(VirtualColumn virtualColumn)

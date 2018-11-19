@@ -19,21 +19,27 @@
 
 package io.druid.query.groupby;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
+import com.metamx.common.guava.Sequence;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.groupby.orderby.LimitSpecs;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
+import io.druid.query.ordering.Comparators;
 import io.druid.segment.ColumnSelectorFactories.Caching;
 import io.druid.segment.ColumnSelectorFactories.FromInputRow;
 import io.druid.segment.ColumnSelectorFactory;
@@ -41,67 +47,49 @@ import io.druid.segment.incremental.IncrementalIndex;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 /**
  */
 public class SimpleMergeIndex implements MergeIndex
 {
+  private final GroupByQuery groupBy;
+
   private final String[] dimensions;
   private final AggregatorFactory[] metrics;
 
   private final DSuppliers.ThreadSafe<Row> rowSupplier = new DSuppliers.ThreadSafe<>();
   private final Map<TimeAndDims, Aggregator[]> mapping;
-  private final Function<TimeAndDims, Aggregator[]> populator;
+  private final java.util.function.Function<TimeAndDims, Aggregator[]> populator;
   private final int[][] groupings;
   private final boolean compact;
 
-  private final Comparator<TimeAndDims> resultComparator;
-
   public SimpleMergeIndex(
-      final List<DimensionSpec> dimensions,
-      final List<AggregatorFactory> aggregators,
-      final int[][] groupings,
+      final GroupByQuery groupBy,
       final int maxRowCount,
       final int parallelism,
       final boolean compact
   )
   {
-    this.dimensions = DimensionSpecs.toOutputNames(dimensions).toArray(new String[0]);
-    this.metrics = AggregatorFactory.toCombiner(aggregators).toArray(new AggregatorFactory[0]);
-    this.groupings = groupings;
+    this.groupBy = groupBy;
+    this.dimensions = DimensionSpecs.toOutputNamesAsArray(groupBy.getDimensions());
+    this.metrics = AggregatorFactory.toCombiner(groupBy.getAggregatorSpecs()).toArray(new AggregatorFactory[0]);
+    this.groupings = groupBy.getGroupings();
     this.mapping = parallelism == 1 ?
                    Maps.<TimeAndDims, Aggregator[]>newHashMap() :
                    new ConcurrentHashMap<TimeAndDims, Aggregator[]>(4 << parallelism);
 
-    final ColumnSelectorFactory[] selectors = new ColumnSelectorFactory[aggregators.size()];
+    final ColumnSelectorFactory[] selectors = new ColumnSelectorFactory[metrics.length];
     for (int i = 0; i < selectors.length; i++) {
       selectors[i] = new Caching(new FromInputRow(rowSupplier, metrics[i], false)).asReadOnly(metrics[i]);
     }
-    final Comparator[] comparators = DimensionSpecs.toComparator(dimensions);
-    if (comparators == null) {
-      this.resultComparator = null;
-    } else {
-      this.resultComparator = new Comparator<TimeAndDims>()
-      {
-        @Override
-        @SuppressWarnings("unchecked")
-        public int compare(TimeAndDims o1, TimeAndDims o2)
-        {
-          int compare = Longs.compare(o1.timestamp, o2.timestamp);
-          for (int i = 0; compare == 0 && i < comparators.length; i++) {
-            compare = comparators[i].compare(o1.array[i], o2.array[i]);
-          }
-          return compare;
-        }
-      };
-    }
-    this.populator = new Function<TimeAndDims, Aggregator[]>()
+
+    this.populator = new java.util.function.Function<TimeAndDims, Aggregator[]>()
     {
       @Override
       public Aggregator[] apply(TimeAndDims timeAndDims)
@@ -148,31 +136,76 @@ public class SimpleMergeIndex implements MergeIndex
   }
 
   @Override
-  public Iterable<Row> toMergeStream()
+  public Sequence<Row> toMergeStream()
   {
-    final com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row> function;
+    final Function<Map.Entry<TimeAndDims, Aggregator[]>, Object[]> toArray =
+        new Function<Map.Entry<TimeAndDims, Aggregator[]>, Object[]>()
+        {
+          @Override
+          public Object[] apply(Map.Entry<TimeAndDims, Aggregator[]> input)
+          {
+            final TimeAndDims key = input.getKey();
+            final Aggregator[] value = input.getValue();
+            final Object[] values = new Object[1 + dimensions.length + value.length];
+            int x = 0;
+            values[x++] = key.timestamp;
+            for (int i = 0; i < dimensions.length; i++) {
+              values[x++] = key.array[i];
+            }
+            for (int i = 0; i < metrics.length; i++) {
+              values[x++] = value[i].get();
+            }
+            return values;
+          }
+        };
+
+    final OrderedLimitSpec nodeLimit = groupBy.getLimitSpec().getNodeLimit();
+    if (nodeLimit != null && nodeLimit.hasLimit() && nodeLimit.getLimit() < mapping.size()) {
+      Sequence<Object[]> sequence = GroupByQueryEngine.takeTopN(groupBy, nodeLimit).apply(
+          Sequences.simple(Iterables.transform(mapping.entrySet(), toArray))
+      );
+      if (LimitSpecs.inGroupByOrdering(groupBy, nodeLimit)) {
+        return Sequences.map(sequence, GroupByQueryEngine.arrayToRow(groupBy, compact));
+      }
+      List<Object[]> list = Sequences.toList(sequence);
+      Comparator[] comparators = DimensionSpecs.toComparatorWithDefault(groupBy.getDimensions());
+      Collections.sort(list, Comparators.toArrayComparator(comparators));
+      return Sequences.simple(Iterables.transform(list, GroupByQueryEngine.arrayToRow(groupBy, compact)));
+    }
+
+    // sort all
+    final List<Map.Entry<TimeAndDims, Aggregator[]>> sorted;
+    if (DimensionSpecs.isAllDefault(groupBy.getDimensions())) {
+      sorted = IncrementalIndex.sortOn(mapping, true);
+    } else {
+      sorted = IncrementalIndex.sortOn(mapping, true, new Comparator<TimeAndDims>()
+      {
+        private final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions());
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public int compare(TimeAndDims o1, TimeAndDims o2)
+        {
+          int compare = Longs.compare(o1.timestamp, o2.timestamp);
+          for (int i = 0; compare == 0 && i < comparators.length; i++) {
+            compare = comparators[i].compare(o1.array[i], o2.array[i]);
+          }
+          return compare;
+        }
+      });
+    }
+    final Function<Map.Entry<TimeAndDims, Aggregator[]>, Row> toRow;
     if (compact) {
-      function = new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+      toRow = new Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
       {
         @Override
         public Row apply(Map.Entry<TimeAndDims, Aggregator[]> input)
         {
-          final TimeAndDims key = input.getKey();
-          final Aggregator[] value = input.getValue();
-          final Object[] values = new Object[1 + dimensions.length + value.length];
-          int x = 0;
-          values[x++] = key.timestamp;
-          for (int i = 0; i < dimensions.length; i++) {
-            values[x++] = key.array[i];
-          }
-          for (int i = 0; i < metrics.length; i++) {
-            values[x++] = value[i].get();
-          }
-          return new CompactRow(values);
+          return new CompactRow(toArray.apply(input));
         }
       };
     } else {
-      function = new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+      toRow = new Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
       {
         @Override
         public Row apply(Map.Entry<TimeAndDims, Aggregator[]> input)
@@ -190,13 +223,7 @@ public class SimpleMergeIndex implements MergeIndex
         }
       };
     }
-    List<Map.Entry<TimeAndDims, Aggregator[]>> sorted;
-    if (resultComparator != null) {
-      sorted = IncrementalIndex.sortOn(mapping, resultComparator, true);
-    } else {
-      sorted = IncrementalIndex.sortOn(mapping, true);
-    }
-    return Lists.transform(sorted, function);
+    return Sequences.simple(Lists.transform(sorted, toRow));
   }
 
   @Override
@@ -208,7 +235,7 @@ public class SimpleMergeIndex implements MergeIndex
 
   private static final Comparator comparator = Ordering.natural().nullsFirst();
 
-  private static class TimeAndDims implements Comparable<TimeAndDims>
+  protected static final class TimeAndDims implements Comparable<TimeAndDims>
   {
     private final long timestamp;
     private final Comparable[] array;

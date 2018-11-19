@@ -34,7 +34,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.StupidPool;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.ValueType;
@@ -61,11 +60,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
-public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
+public class GroupByMergedQueryRunner implements QueryRunner<Row>
 {
   private static final Logger log = new Logger(GroupByMergedQueryRunner.class);
 
-  private final List<QueryRunner<T>> queryables;
+  private final List<QueryRunner<Row>> queryables;
   private final ExecutorService exec;
   private final Supplier<GroupByQueryConfig> configSupplier;
   private final QueryWatcher queryWatcher;
@@ -77,7 +76,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       Supplier<GroupByQueryConfig> configSupplier,
       QueryWatcher queryWatcher,
       StupidPool<ByteBuffer> bufferPool,
-      Iterable<QueryRunner<T>> queryables,
+      Iterable<QueryRunner<Row>> queryables,
       Future<Object> optimizer
   )
   {
@@ -90,7 +89,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   }
 
   @Override
-  public Sequence<T> run(final Query<T> queryParam, final Map<String, Object> responseContext)
+  public Sequence<Row> run(final Query<Row> queryParam, final Map<String, Object> responseContext)
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
@@ -120,28 +119,28 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       responseContext.put(Result.GROUPBY_TYPES_KEY, groupByTypes);
     }
 
-    final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
+    final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
     final int priority = BaseQuery.getContextPriority(query, 0);
 
     final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(queryables.size(), parallelism));
 
-    final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
+    final ListenableFuture<List<Sequence<Row>>> future = Futures.allAsList(
         Execs.execute(
             executor,
             Lists.transform(
-                queryables, new Function<QueryRunner<T>, Callable<Sequence<T>>>()
+                queryables, new Function<QueryRunner<Row>, Callable<Sequence<Row>>>()
                 {
                   @Override
-                  public Callable<Sequence<T>> apply(final QueryRunner<T> runner)
+                  public Callable<Sequence<Row>> apply(final QueryRunner<Row> runner)
                   {
-                    return new Callable<Sequence<T>>()
+                    return new Callable<Sequence<Row>>()
                     {
                       @Override
-                      public Sequence<T> call() throws Exception
+                      public Sequence<Row> call() throws Exception
                       {
                         try {
-                          Sequence<T> sequence = Sequences.withBaggage(
+                          Sequence<Row> sequence = Sequences.withBaggage(
                               runner.run(queryParam, responseContext),
                               semaphore
                           );
@@ -149,7 +148,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                           if (bySegment) {
                             sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                           } else {
-                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newMergeAccumulator(semaphore));
+                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<Row>newMergeAccumulator(semaphore));
                           }
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
@@ -187,14 +186,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       return Sequences.simple(bySegmentAccumulatorPair.lhs);
     }
 
-    return Sequences.withBaggage(
-        Sequences.simple(
-            Iterables.<Row, T>transform(
-                incrementalIndex.toMergeStream(),
-                GuavaUtils.<Row, T>caster()
-            )
-        ), new AsyncCloser(incrementalIndex, executor)
-    );
+    return Sequences.withBaggage(incrementalIndex.toMergeStream() , new AsyncCloser(incrementalIndex, executor));
   }
 
   private void waitForFutureCompletion(
@@ -215,7 +207,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     catch (CancellationException e) {
       log.info("Query canceled, id [%s]", query.getId());
       IOUtils.closeQuietly(closeOnFailure);
-      // by request.. don't propagate
+      // by request.. don'Row propagate
     } catch (InterruptedException | TimeoutException e) {
       String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
       log.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());

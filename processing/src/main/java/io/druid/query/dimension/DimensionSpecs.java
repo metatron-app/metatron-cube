@@ -28,6 +28,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
@@ -70,35 +71,50 @@ public class DimensionSpecs
     return dimensionTypes;
   }
 
+  public static List<OrderByColumnSpec> asOrderByColumnSpec(List<DimensionSpec> dimensionSpecs)
+  {
+    List<OrderByColumnSpec> orderingSpecs = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        orderingSpecs.add(((DimensionSpecWithOrdering)dimensionSpec).asOrderByColumnSpec());
+      } else {
+        orderingSpecs.add(OrderByColumnSpec.asc(dimensionSpec.getOutputName()));
+      }
+    }
+    return orderingSpecs;
+  }
+
   public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)
   {
-    if (isAllDefaultOrdering(dimensionSpecs)) {
-      return null;
-    }
     List<Comparator> comparators = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      Comparator comparator = Ordering.natural().nullsFirst();
-      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        OrderingSpec orderingSpec = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
-        if (!orderingSpec.isNaturalOrdering()) {
-          comparator = StringComparators.makeComparator(orderingSpec.getDimensionOrder());
-        }
-        if (orderingSpec.getDirection() == Direction.DESCENDING) {
-          comparator = Ordering.from(comparator).reverse();
-        }
-      }
-      comparators.add(comparator);
+      comparators.add(toComparator(dimensionSpec));
     }
     return comparators.toArray(new Comparator[comparators.size()]);
   }
 
+  public static Comparator toComparator(DimensionSpec dimensionSpec)
+  {
+    Comparator comparator = Ordering.natural().nullsFirst();
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      OrderingSpec orderingSpec = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
+      if (!orderingSpec.isNaturalOrdering()) {
+        comparator = StringComparators.makeComparator(orderingSpec.getDimensionOrder());
+      }
+      if (orderingSpec.getDirection() == Direction.DESCENDING) {
+        comparator = Ordering.from(comparator).reverse();
+      }
+    }
+    return comparator;
+  }
+
   public static Comparator[] toComparatorWithDefault(List<DimensionSpec> dimensionSpecs)
   {
-    Comparator[] comparators = toComparator(dimensionSpecs);
-    if (comparators == null) {
-      comparators = new Comparator[dimensionSpecs.size()];
-      Arrays.fill(comparators, GuavaUtils.nullFirstNatural());
+    if (!isAllDefaultOrdering(dimensionSpecs)) {
+      return toComparator(dimensionSpecs);
     }
+    Comparator[] comparators = new Comparator[dimensionSpecs.size()];
+    Arrays.fill(comparators, GuavaUtils.nullFirstNatural());
     return comparators;
   }
 

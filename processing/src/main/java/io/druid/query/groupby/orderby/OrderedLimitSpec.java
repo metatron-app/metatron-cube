@@ -27,12 +27,18 @@ import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  */
 public class OrderedLimitSpec implements Cacheable
 {
+  public static OrderedLimitSpec of(int limit, OrderByColumnSpec... orderings)
+  {
+    return new OrderedLimitSpec(Arrays.asList(orderings), limit);
+  }
+
   protected final List<OrderByColumnSpec> columns;
   protected final int limit;
 
@@ -56,6 +62,11 @@ public class OrderedLimitSpec implements Cacheable
   public int getLimit()
   {
     return limit;
+  }
+
+  public boolean hasLimit()
+  {
+    return limit > 0 && limit < Integer.MAX_VALUE;
   }
 
   @Override

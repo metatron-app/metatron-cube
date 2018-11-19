@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
@@ -63,6 +64,11 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   public OrderingSpec asOrderingSpec()
   {
     return new OrderingSpec(direction, ordering);
+  }
+
+  public OrderByColumnSpec asOrderByColumnSpec()
+  {
+    return new OrderByColumnSpec(getOutputName(), direction, ordering);
   }
 
   @Override

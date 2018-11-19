@@ -27,7 +27,9 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
@@ -48,11 +50,9 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setInterval(Intervals.of("2011-01-01/2015-01-01"))
         .setDimensions(new DefaultDimensionSpec("Category", "City"))
         .setAggregatorSpecs(
-            Arrays.asList(
-                rowsCount,
-                new GenericSumAggregatorFactory("Discount", "Discount", "double"),
-                new GenericSumAggregatorFactory("Profit", "Profit", "double")
-            )
+            new CountAggregatorFactory("rows"),
+            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
+            new GenericSumAggregatorFactory("Profit", "Profit", "double")
         )
         .setGranularity(Granularities.YEAR)
         .build();
@@ -73,6 +73,64 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     };
     Iterable<Row> results = runQuery(query);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByLocalLimit()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .setDimensions(DefaultDimensionSpec.of("PostalCode"))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("rows"),
+            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
+            new GenericSumAggregatorFactory("Profit", "Profit", "double")
+        )
+        .setGranularity(Granularities.ALL)
+        .build();
+
+    Iterable<Row> results;
+    String[] columnNames = {"__time", "PostalCode", "rows", "Discount", "Profit"};
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01T00:00:00.000Z", "10024", 230L, 14.900000000000002, 21655.0),
+        array("2011-01-01T00:00:00.000Z", "10035", 263L, 12.500000000000004, 16532.0),
+        array("2011-01-01T00:00:00.000Z", "10009", 229L, 12.500000000000004, 13690.0),
+        array("2011-01-01T00:00:00.000Z", "98115", 112L, 7.6, 13300.0),
+        array("2011-01-01T00:00:00.000Z", "10011", 193L, 11.500000000000004, 10142.0),
+        array("2011-01-01T00:00:00.000Z", "47905", 12L, 0.0, 8977.0),
+        array("2011-01-01T00:00:00.000Z", "98105", 165L, 11.400000000000002, 8728.0),
+        array("2011-01-01T00:00:00.000Z", "19711", 60L, 0.0, 8087.0),
+        array("2011-01-01T00:00:00.000Z", "48205", 28L, 0.2, 7990.0),
+        array("2011-01-01T00:00:00.000Z", "90049", 151L, 10.850000000000001, 7792.0)
+    );
+    LimitSpec limitSpec = LimitSpecs.of(10, OrderByColumnSpec.desc("Profit"));
+    results = runQuery(query.withLimitSpec(limitSpec));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    // todo: single node test makes the same result
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, null, OrderedLimitSpec.of(10), null);
+    results = runQuery(query.withLimitSpec(limitSpec));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01T00:00:00.000Z", "10024", 170L, 11.100000000000001, 19497.0),
+        array("2011-01-01T00:00:00.000Z", "10035", 227L, 10.400000000000004, 15524.0),
+        array("2011-01-01T00:00:00.000Z", "10009", 229L, 12.500000000000004, 13690.0),
+        array("2011-01-01T00:00:00.000Z", "98115", 90L, 5.4, 12403.0),
+        array("2011-01-01T00:00:00.000Z", "47905", 6L, 0.0, 8769.0),
+        array("2011-01-01T00:00:00.000Z", "10011", 130L, 8.900000000000002, 7693.0),
+        array("2011-01-01T00:00:00.000Z", "48205", 12L, 0.1, 6506.0),
+        array("2011-01-01T00:00:00.000Z", "98105", 91L, 6.400000000000001, 6153.0),
+        array("2011-01-01T00:00:00.000Z", "19711", 13L, 0.0, 5572.0),
+        array("2011-01-01T00:00:00.000Z", "90049", 66L, 4.5, 5353.0)
+    );
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(10), null, null);
+    results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 

@@ -47,6 +47,7 @@ import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -221,6 +222,18 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
       return "slopedSpaced";
     }
     return "evenSpaced";
+  }
+
+  public List<OrderByColumnSpec> getLimitOrdering(OrderedLimitSpec limiting)
+  {
+    List<OrderByColumnSpec> ordering = limiting.getColumns();
+    if (GuavaUtils.isNullOrEmpty(ordering)) {
+      ordering = getLimitSpec().getColumns();
+    }
+    if (GuavaUtils.isNullOrEmpty(ordering)) {
+      ordering = DimensionSpecs.asOrderByColumnSpec(getDimensions());
+    }
+    return ordering;
   }
 
   @Override
