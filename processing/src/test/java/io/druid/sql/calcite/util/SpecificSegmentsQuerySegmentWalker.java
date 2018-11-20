@@ -24,17 +24,17 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.common.guava.IdentityFunction;
+import io.druid.data.Pair;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.NoopQueryRunner;
@@ -74,7 +74,6 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -91,36 +90,62 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   private final QueryConfig queryConfig;
 
   private final PopulatingMap timeLines;
-  private final List<DataSegment> segments;
 
-  private static class PopulatingMap extends HashMap<String, VersionedIntervalTimeline<String, Segment>>
+  private static class PopulatingMap
   {
-    private Map<String, IdentityFunction<VersionedIntervalTimeline<String, Segment>>> populators = Maps.newHashMap();
+    private final List<DataSegment> segments = Lists.newArrayList();
+    private final Map<String, VersionedIntervalTimeline<String, Segment>> node1 = Maps.newHashMap();
+    private final Map<String, VersionedIntervalTimeline<String, Segment>> node2 = Maps.newHashMap();
+    private final Map<String, Supplier<List<Pair<DataSegment, Segment>>>> populators = Maps.newHashMap();
 
-    @Override
-    public VersionedIntervalTimeline<String, Segment> get(Object key)
+    private void addSegment(DataSegment descriptor, Segment segment)
     {
-      return computeIfAbsent(
-          (String) key,
-          new java.util.function.Function<String, VersionedIntervalTimeline<String, Segment>>()
-          {
-            @Override
-            public VersionedIntervalTimeline<String, Segment> apply(String key)
-            {
-              IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator = populators.get(key);
-              if (populator != null) {
-                return populator.apply(new VersionedIntervalTimeline<String, Segment>(Ordering.<String>natural()));
-              }
-              return null;
-            }
-          }
-      );
+      int node = segment.getDataInterval().hashCode() % 2;
+      VersionedIntervalTimeline<String, Segment> timeline = get(descriptor.getDataSource(), node);
+      timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
+      segments.add(descriptor);
     }
 
-    public void addPopulator(String key, IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator)
+    public VersionedIntervalTimeline<String, Segment> get(String key, int node)
+    {
+      Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
+      if (populator == null) {
+        return (node == 0 ? node1 : node2).computeIfAbsent(
+            key,
+            new java.util.function.Function<String, VersionedIntervalTimeline<String, Segment>>()
+            {
+              @Override
+              public VersionedIntervalTimeline<String, Segment> apply(String s)
+              {
+                return new VersionedIntervalTimeline<>(Ordering.<String>natural());
+              }
+            }
+        );
+      }
+      VersionedIntervalTimeline<String, Segment> timeline1 = node1.get(key);
+      if (timeline1 == null) {
+        node1.put(key, timeline1 = new VersionedIntervalTimeline<>(Ordering.<String>natural()));
+      }
+      VersionedIntervalTimeline<String, Segment> timeline2 = node2.get(key);
+      if (timeline2 == null) {
+        node2.put(key, timeline2 = new VersionedIntervalTimeline<>(Ordering.<String>natural()));
+      }
+      for (Pair<DataSegment, Segment> pair : populator.get()) {
+        DataSegment descriptor = pair.lhs;
+        if (descriptor.getInterval().hashCode() % 2 == 0) {
+          timeline1.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(pair.rhs));
+        } else {
+          timeline2.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(pair.rhs));
+        }
+        segments.add(descriptor);
+      }
+      return node == 0 ? timeline1 : timeline2;
+    }
+
+    public void addPopulator(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
     {
       Preconditions.checkArgument(!populators.containsKey(key));
-      populators.put(key, populator);
+      populators.put(key, Suppliers.memoize(populator));
     }
   }
 
@@ -131,7 +156,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     this.executor = MoreExecutors.sameThreadExecutor();
     this.queryConfig = new QueryConfig();
     this.timeLines = new PopulatingMap();
-    this.segments = Lists.newArrayList();
   }
 
   private SpecificSegmentsQuerySegmentWalker(
@@ -139,8 +163,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
       QueryConfig queryConfig,
-      PopulatingMap timeLines,
-      List<DataSegment> segments
+      PopulatingMap timeLines
   )
   {
     this.objectMapper = objectMapper;
@@ -148,7 +171,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     this.executor = executor;
     this.queryConfig = queryConfig;
     this.timeLines = timeLines;
-    this.segments = segments;
   }
 
   public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
@@ -158,8 +180,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         conglomerate,
         executor,
         queryConfig,
-        timeLines,
-        segments
+        timeLines
     );
   }
 
@@ -170,8 +191,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         conglomerate,
         executor,
         queryConfig,
-        timeLines,
-        segments
+        timeLines
     );
   }
 
@@ -182,8 +202,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         conglomerate,
         executor,
         queryConfig,
-        timeLines,
-        segments
+        timeLines
     );
   }
 
@@ -199,38 +218,24 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
 
   public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
   {
-    return addSegment(descriptor, new IncrementalIndexSegment(index, descriptor.getIdentifier()));
+    timeLines.addSegment(descriptor, new IncrementalIndexSegment(index, descriptor.getIdentifier()));
+    return this;
   }
 
   public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
   {
-    return addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
+    timeLines.addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
+    return this;
   }
 
-  public void addPopulator(String dataSource, IdentityFunction<VersionedIntervalTimeline<String, Segment>> populator)
+  public void addPopulator(String dataSource, Supplier<List<Pair<DataSegment, Segment>>> populator)
   {
     timeLines.addPopulator(dataSource, populator);
   }
 
-  private SpecificSegmentsQuerySegmentWalker addSegment(DataSegment descriptor, Segment segment)
-  {
-    if (!timeLines.containsKey(descriptor.getDataSource())) {
-      timeLines.put(descriptor.getDataSource(), new VersionedIntervalTimeline<String, Segment>(Ordering.natural()));
-    }
-    VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(descriptor.getDataSource());
-    timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
-    segments.add(descriptor);
-    return this;
-  }
-
   public List<DataSegment> getSegments()
   {
-    return segments;
-  }
-
-  public boolean contains(String dataSource)
-  {
-    return timeLines.containsKey(dataSource);
+    return timeLines.segments;
   }
 
   @SuppressWarnings("unchecked")
@@ -291,10 +296,10 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     };
   }
 
-  private <T> Iterable<Pair<SegmentDescriptor, Segment>> getSegment(Query<T> input)
+  private <T> Iterable<Pair<SegmentDescriptor, Segment>> getSegment(Query<T> input, int node)
   {
     final String dataSourceName = Iterables.getOnlyElement(input.getDataSource().getNames());
-    final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName);
+    final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName, node);
     if (timeline == null) {
       return ImmutableList.of();
     }
@@ -316,7 +321,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
                   return Pair.of(input, chunk.getObject());
                 }
               }
-              return Pair.of(input, null);
+              return Pair.of(input, (Segment) null);
             }
           }
       );
@@ -410,7 +415,10 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
           @Override
           public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
           {
-            return toLocalQueryRunner(query, getSegment(query)).run(query, responseContext);
+            return QueryUtils.mergeSort(query, Arrays.asList(
+                toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
+                toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+            ));
           }
         }
     );

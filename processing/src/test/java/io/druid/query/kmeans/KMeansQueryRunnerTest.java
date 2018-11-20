@@ -59,108 +59,106 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
   static {
     Parser.register(ModuleBuiltinFunctions.class);
 
-    if (!TestIndex.segmentWalker.contains(KMEANS_DS)) {
-      AggregatorFactory x = new RelayAggregatorFactory("x", "double");
-      AggregatorFactory y = new RelayAggregatorFactory("y", "double");
-      DimensionsSpec dimensions = new DimensionsSpec(
-          StringDimensionSchema.ofNames("index"), null, null
-      );
-      IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
-          .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
-          .withDimensionsSpec(dimensions)
-          .withMetrics(x, y)
-          .withRollup(false);
+    AggregatorFactory x = new RelayAggregatorFactory("x", "double");
+    AggregatorFactory y = new RelayAggregatorFactory("y", "double");
+    DimensionsSpec dimensions = new DimensionsSpec(
+        StringDimensionSchema.ofNames("index"), null, null
+    );
+    IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
+        .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
+        .withDimensionsSpec(dimensions)
+        .withMetrics(x, y)
+        .withRollup(false);
 
-      StringInputRowParser parser = new StringInputRowParser(
-          new DelimitedParseSpec(
-              new DefaultTimestampSpec("ts", "iso", null),
-              dimensions,
-              "\t",
-              "\u0001",
-              Arrays.asList("ts", "index", "x", "y")
-          )
-          , "utf8"
-      );
-      final Interval interval = Intervals.of("2018-07-09/2018-07-10");
-      final Iterator<String> iterator = new Iterator<String>()
+    StringInputRowParser parser = new StringInputRowParser(
+        new DelimitedParseSpec(
+            new DefaultTimestampSpec("ts", "iso", null),
+            dimensions,
+            "\t",
+            "\u0001",
+            Arrays.asList("ts", "index", "x", "y")
+        )
+        , "utf8"
+    );
+    final Interval interval = Intervals.of("2018-07-09/2018-07-10");
+    final Iterator<String> iterator = new Iterator<String>()
+    {
+      private final DateTime start = new DateTime("2018-07-09");
+      private final int limit = 8000;
+      private final Random x = new Random(0);
+      private final Random x1 = new Random(0);
+      private final Random x2 = new Random(0);
+      private final Random y1 = new Random(0);
+      private final Random y2 = new Random(0);
+      private final StringBuilder b = new StringBuilder();
+
+      private int index = 0;
+
+      @Override
+      public boolean hasNext()
       {
-        private final DateTime start = new DateTime("2018-07-09");
-        private final int limit = 8000;
-        private final Random x = new Random(0);
-        private final Random x1 = new Random(0);
-        private final Random x2 = new Random(0);
-        private final Random y1 = new Random(0);
-        private final Random y2 = new Random(0);
-        private final StringBuilder b = new StringBuilder();
+        return index < limit;
+      }
 
-        private int index = 0;
-
-        @Override
-        public boolean hasNext()
-        {
-          return index < limit;
-        }
-
-        @Override
-        public String next()
-        {
-          b.setLength(0);
-          DateTime time = start.withFieldAdded(DurationFieldType.seconds(), index);
-          b.append(time.getMillis()).append('\t').append(index++).append('\t');
-          if (x.nextDouble() < 0.66) {
-            b.append(x1.nextGaussian() * 600 + 1000).append('\t').append(y1.nextGaussian() * 300 + 500);
-          } else {
-            b.append(x2.nextGaussian() * 200 - 500).append('\t').append(y2.nextGaussian() * 100 - 300);
-          }
-          return b.append('\n').toString();
-        }
-      };
-      final CharSource source = new CharSource()
+      @Override
+      public String next()
       {
-        @Override
-        public Reader openStream() throws IOException
+        b.setLength(0);
+        DateTime time = start.withFieldAdded(DurationFieldType.seconds(), index);
+        b.append(time.getMillis()).append('\t').append(index++).append('\t');
+        if (x.nextDouble() < 0.66) {
+          b.append(x1.nextGaussian() * 600 + 1000).append('\t').append(y1.nextGaussian() * 300 + 500);
+        } else {
+          b.append(x2.nextGaussian() * 200 - 500).append('\t').append(y2.nextGaussian() * 100 - 300);
+        }
+        return b.append('\n').toString();
+      }
+    };
+    final CharSource source = new CharSource()
+    {
+      @Override
+      public Reader openStream() throws IOException
+      {
+        return new Reader()
         {
-          return new Reader()
+          private char[] current;
+          private int offset;
+
+          @Override
+          public int read(char[] cbuf, int off, int len) throws IOException
           {
-            private char[] current;
-            private int offset;
-
-            @Override
-            public int read(char[] cbuf, int off, int len) throws IOException
-            {
-              while (current == null || offset >= current.length) {
-                if (!iterator.hasNext()) {
-                  return -1;
-                }
-                current = iterator.next().toCharArray();
-                offset = 0;
+            while (current == null || offset >= current.length) {
+              if (!iterator.hasNext()) {
+                return -1;
               }
-              final int length = Math.min(len, current.length - offset);
-              System.arraycopy(current, offset, cbuf, off, length);
-              offset += length;
-              return length;
+              current = iterator.next().toCharArray();
+              offset = 0;
             }
+            final int length = Math.min(len, current.length - offset);
+            System.arraycopy(current, offset, cbuf, off, length);
+            offset += length;
+            return length;
+          }
 
-            @Override
-            public void close() throws IOException
-            {
-            }
-          };
-        }
-      };
-      DataSegment segment = new DataSegment(
-          KMEANS_DS,
-          interval,
-          "0",
-          null,
-          Arrays.asList("market", "market_month"),
-          Arrays.asList("value"),
-          null,
-          null,
-          0
-      );
-      TestIndex.segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
-    }
+          @Override
+          public void close() throws IOException
+          {
+          }
+        };
+      }
+    };
+    DataSegment segment = new DataSegment(
+        KMEANS_DS,
+        interval,
+        "0",
+        null,
+        Arrays.asList("market", "market_month"),
+        Arrays.asList("value"),
+        null,
+        null,
+        0
+    );
+    TestIndex.segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
   }
 
   @Test

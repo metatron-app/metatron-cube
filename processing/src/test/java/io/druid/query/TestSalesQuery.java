@@ -92,9 +92,11 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    Iterable<Row> results;
     String[] columnNames = {"__time", "PostalCode", "rows", "Discount", "Profit"};
-    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+
+    Iterable<Row> results;
+    List<Row> expectedResults;
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("2011-01-01T00:00:00.000Z", "10024", 230L, 14.900000000000002, 21655.0),
         array("2011-01-01T00:00:00.000Z", "10035", 263L, 12.500000000000004, 16532.0),
@@ -111,25 +113,57 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    // todo: single node test makes the same result
+    // node limit
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01T00:00:00.000Z", "10024", 170L, 11.100000000000001, 19497.0),
+        array("2011-01-01T00:00:00.000Z", "10035", 166L, 7.5000000000000036, 13000.0),
+        array("2011-01-01T00:00:00.000Z", "98115", 90L, 5.4, 12403.0),
+        array("2011-01-01T00:00:00.000Z", "47905", 6L, 0.0, 8769.0),
+        array("2011-01-01T00:00:00.000Z", "10009", 159L, 7.500000000000003, 8338.0),
+        array("2011-01-01T00:00:00.000Z", "48205", 12L, 0.1, 6506.0),
+        array("2011-01-01T00:00:00.000Z", "98105", 91L, 6.400000000000001, 6153.0),
+        array("2011-01-01T00:00:00.000Z", "19711", 13L, 0.0, 5572.0),
+        array("2011-01-01T00:00:00.000Z", "10011", 64L, 4.200000000000001, 5375.0),
+        array("2011-01-01T00:00:00.000Z", "90049", 66L, 4.5, 5353.0)
+    );
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(10), null, null);
+    results = runQuery(query.withLimitSpec(limitSpec));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    // segment limit
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01T00:00:00.000Z", "10024", 170L, 11.100000000000001, 19497.0),
+        array("2011-01-01T00:00:00.000Z", "10035", 202L, 9.600000000000003, 14008.0),
+        array("2011-01-01T00:00:00.000Z", "98115", 90L, 5.4, 12403.0),
+        array("2011-01-01T00:00:00.000Z", "47905", 6L, 0.0, 8769.0),
+        array("2011-01-01T00:00:00.000Z", "10009", 159L, 7.500000000000003, 8338.0),
+        array("2011-01-01T00:00:00.000Z", "10011", 127L, 6.800000000000002, 7824.0),
+        array("2011-01-01T00:00:00.000Z", "19711", 44L, 0.0, 7329.0),
+        array("2011-01-01T00:00:00.000Z", "98105", 120L, 8.400000000000002, 7314.0),
+        array("2011-01-01T00:00:00.000Z", "55407", 21L, 0.0, 6645.0),
+        array("2011-01-01T00:00:00.000Z", "48205", 12L, 0.1, 6506.0)
+    );
     limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, null, OrderedLimitSpec.of(10), null);
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
+    // both
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("2011-01-01T00:00:00.000Z", "10024", 170L, 11.100000000000001, 19497.0),
-        array("2011-01-01T00:00:00.000Z", "10035", 227L, 10.400000000000004, 15524.0),
-        array("2011-01-01T00:00:00.000Z", "10009", 229L, 12.500000000000004, 13690.0),
+        array("2011-01-01T00:00:00.000Z", "10035", 166L, 7.5000000000000036, 13000.0),
         array("2011-01-01T00:00:00.000Z", "98115", 90L, 5.4, 12403.0),
         array("2011-01-01T00:00:00.000Z", "47905", 6L, 0.0, 8769.0),
-        array("2011-01-01T00:00:00.000Z", "10011", 130L, 8.900000000000002, 7693.0),
+        array("2011-01-01T00:00:00.000Z", "10009", 159L, 7.500000000000003, 8338.0),
+        array("2011-01-01T00:00:00.000Z", "10011", 127L, 6.800000000000002, 7824.0),
         array("2011-01-01T00:00:00.000Z", "48205", 12L, 0.1, 6506.0),
         array("2011-01-01T00:00:00.000Z", "98105", 91L, 6.400000000000001, 6153.0),
-        array("2011-01-01T00:00:00.000Z", "19711", 13L, 0.0, 5572.0),
-        array("2011-01-01T00:00:00.000Z", "90049", 66L, 4.5, 5353.0)
+        array("2011-01-01T00:00:00.000Z", "98103", 118L, 6.4, 6105.0),
+        array("2011-01-01T00:00:00.000Z", "94122", 157L, 11.350000000000003, 5968.0)
     );
-    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(10), null, null);
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null);
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

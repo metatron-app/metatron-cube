@@ -77,41 +77,39 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   static {
     Parser.register(ModuleBuiltinFunctions.class);
 
-    if (!TestIndex.segmentWalker.contains(JOIN_DS)) {
-      AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
-      DimensionsSpec dimensions = new DimensionsSpec(
-          StringDimensionSchema.ofNames("market", "market_month"), null, null
-      );
-      IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
-          .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
-          .withDimensionsSpec(dimensions)
-          .withMetrics(metric)
-          .withRollup(false);
+    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
+    DimensionsSpec dimensions = new DimensionsSpec(
+        StringDimensionSchema.ofNames("market", "market_month"), null, null
+    );
+    IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
+        .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
+        .withDimensionsSpec(dimensions)
+        .withMetrics(metric)
+        .withRollup(false);
 
-      DataSegment segment = new DataSegment(
-          JOIN_DS,
-          TestIndex.INTERVAL,
-          "0",
-          null,
-          Arrays.asList("market", "market_month"),
-          Arrays.asList("value"),
-          null,
-          null,
-          0
-      );
-      StringInputRowParser parser = new StringInputRowParser(
-          new DelimitedParseSpec(
-              new DefaultTimestampSpec("ts", "iso", null),
-              dimensions,
-              "\t",
-              "\u0001",
-              Arrays.asList("ts", "market", "market_month", "value")
-          )
-          , "utf8"
-      );
-      CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
-      TestIndex.segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
-    }
+    DataSegment segment = new DataSegment(
+        JOIN_DS,
+        TestIndex.INTERVAL,
+        "0",
+        null,
+        Arrays.asList("market", "market_month"),
+        Arrays.asList("value"),
+        null,
+        null,
+        0
+    );
+    StringInputRowParser parser = new StringInputRowParser(
+        new DelimitedParseSpec(
+            new DefaultTimestampSpec("ts", "iso", null),
+            dimensions,
+            "\t",
+            "\u0001",
+            Arrays.asList("ts", "market", "market_month", "value")
+        )
+        , "utf8"
+    );
+    CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
+    TestIndex.segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
   }
 
   @Parameterized.Parameters(name = "{0}")

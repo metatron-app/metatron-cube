@@ -21,14 +21,16 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Charsets;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
-import io.druid.common.guava.IdentityFunction;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
@@ -51,7 +53,6 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.VersionedIntervalTimeline;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -203,10 +204,10 @@ public class TestIndex
   {
     segmentWalker.addPopulator(
         "sales",
-        new IdentityFunction<VersionedIntervalTimeline<String, Segment>>()
+        new Supplier<List<Pair<DataSegment, Segment>>>()
         {
           @Override
-          public VersionedIntervalTimeline<String, Segment> apply(VersionedIntervalTimeline<String, Segment> timeline)
+          public List<Pair<DataSegment, Segment>> get()
           {
             final List<String> columnNames = Arrays.asList(
                 "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
@@ -228,6 +229,8 @@ public class TestIndex
                     columnNames
                 ), "utf8"
             );
+
+            List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
             try {
               for (Map.Entry<Long, IncrementalIndex> entry : asCharSource("sales_tab_delimiter.csv").readLines(
                   new LineProcessor<Map<Long, IncrementalIndex>>()
@@ -265,21 +268,15 @@ public class TestIndex
                 DataSegment segment = new DataSegment(
                     "sales", interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
-                timeline.add(
-                    segment.getInterval(),
-                    segment.getVersion(),
-                    segment.getShardSpec()
-                           .createChunk((Segment) new QueryableIndexSegment(
-                               segment.getIdentifier(),
-                               persistRealtimeAndLoadMMapped(entry.getValue())
-                           ))
+                segments.add(Pair.of(segment, (Segment) new QueryableIndexSegment(
+                    segment.getIdentifier(), persistRealtimeAndLoadMMapped(entry.getValue())))
                 );
               }
             }
             catch (Exception e) {
               throw Throwables.propagate(e);
             }
-            return timeline;
+            return segments;
           }
         }
     );

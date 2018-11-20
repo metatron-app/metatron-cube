@@ -61,41 +61,39 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
   static final String JOIN_DS_P = "join_test_p";
 
   static {
-    if (!segmentWalker.contains(JOIN_DS_P)) {
-      AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
-      DimensionsSpec dimensions = new DimensionsSpec(
-          StringDimensionSchema.ofNames("quality", "quality_month"), null, null
-      );
-      IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
-          .withMinTimestamp(new DateTime("2011-01-01").getMillis())
-          .withDimensionsSpec(dimensions)
-          .withMetrics(metric)
-          .withRollup(false);
+    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
+    DimensionsSpec dimensions = new DimensionsSpec(
+        StringDimensionSchema.ofNames("quality", "quality_month"), null, null
+    );
+    IncrementalIndexSchema schema = TestIndex.SAMPLE_SCHEMA
+        .withMinTimestamp(new DateTime("2011-01-01").getMillis())
+        .withDimensionsSpec(dimensions)
+        .withMetrics(metric)
+        .withRollup(false);
 
-      DataSegment segment = new DataSegment(
-          JOIN_DS_P,
-          TestIndex.INTERVAL,
-          "0",
-          null,
-          Arrays.asList("quality", "quality_month"),
-          Arrays.asList("value"),
-          null,
-          null,
-          0
-      );
-      StringInputRowParser parser = new StringInputRowParser(
-          new DelimitedParseSpec(
-              new DefaultTimestampSpec("ts", "iso", null),
-              dimensions,
-              "\t",
-              "\u0001",
-              Arrays.asList("ts", "quality", "quality_month", "value")
-          )
-          , "utf8"
-      );
-      CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
-      segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
-    }
+    DataSegment segment = new DataSegment(
+        JOIN_DS_P,
+        TestIndex.INTERVAL,
+        "0",
+        null,
+        Arrays.asList("quality", "quality_month"),
+        Arrays.asList("value"),
+        null,
+        null,
+        0
+    );
+    StringInputRowParser parser = new StringInputRowParser(
+        new DelimitedParseSpec(
+            new DefaultTimestampSpec("ts", "iso", null),
+            dimensions,
+            "\t",
+            "\u0001",
+            Arrays.asList("ts", "quality", "quality_month", "value")
+        )
+        , "utf8"
+    );
+    CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
+    segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
   }
 
   @Parameterized.Parameters(name = "{0}")

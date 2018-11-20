@@ -39,7 +39,7 @@ public class BitmapTest
     int range = 20_0000;
     Random r = new Random();
     BitmapFactory f = new BitSetBitmapFactory();
-    ImmutableBitmap[] bitmaps = new ImmutableBitmap[2_0000];
+    ImmutableBitmap[] bitmaps = new ImmutableBitmap[1_0000];
     for (int i = 0; i < bitmaps.length; i++) {
       int c = r.nextInt(400) + 100;
       MutableBitmap mutable = f.makeEmptyMutableBitmap();
@@ -85,7 +85,7 @@ public class BitmapTest
     int range = 20_0000;
     Random r = new Random();
     BitmapFactory f = new BitSetBitmapFactory();
-    ImmutableBitmap[] bitmaps = new ImmutableBitmap[2_0000];
+    ImmutableBitmap[] bitmaps = new ImmutableBitmap[1_0000];
     for (int i = 0; i < bitmaps.length; i++) {
       int c = r.nextInt(2500) + 500;
       MutableBitmap mutable = f.makeEmptyMutableBitmap();
