@@ -578,9 +578,8 @@ public class GroupByQueryEngine
     @Override
     public int compareTo(IntArray o)
     {
-      final int[] other = o.array;
       for (int i = 0; i < array.length; i++) {
-        final int compare = Integer.compare(array[i], other[i]);
+        final int compare = Integer.compare(array[i], o.array[i]);
         if (compare != 0) {
           return compare;
         }
@@ -631,10 +630,10 @@ public class GroupByQueryEngine
     {
       @Override
       @SuppressWarnings("unchecked")
-      public int compare(Object[] o1, Object[] o2)
+      public int compare(final Object[] o1, final Object[] o2)
       {
         for (Pair<Integer, Comparator> pair : comparators) {
-          int compared = pair.rhs.compare(o1[pair.lhs], o2[pair.lhs]);
+          final int compared = pair.rhs.compare(o1[pair.lhs], o2[pair.lhs]);
           if (compared != 0) {
             return compared;
           }
@@ -648,7 +647,7 @@ public class GroupByQueryEngine
       @Override
       public Sequence<Object[]> apply(Sequence<Object[]> sequence)
       {
-        return Sequences.simple(new TopNSorter<Object[]>(ordering).toTopN(sequence, limiting.getLimit()));
+        return Sequences.simple(TopNSorter.topN(ordering, sequence, limiting.getLimit()));
       }
     };
   }
@@ -672,6 +671,7 @@ public class GroupByQueryEngine
     }
     return new Function<Object[], Row>()
     {
+      private final Granularity granularity = query.getGranularity();
       private final boolean asSorted = query.getContextBoolean("IN_TEST", false);
       private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
 
@@ -683,7 +683,7 @@ public class GroupByQueryEngine
         for (int i = 1; i < columnNames.length; i++) {
           theEvent.put(columnNames[i], input[i]);
         }
-        return new MapBasedRow(query.getGranularity().toDateTime((Long)input[0]), theEvent);
+        return new MapBasedRow(granularity.toDateTime(((Number)input[0]).longValue()), theEvent);
       }
     };
   }

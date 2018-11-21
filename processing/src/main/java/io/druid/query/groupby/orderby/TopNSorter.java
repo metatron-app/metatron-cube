@@ -31,6 +31,11 @@ import com.metamx.common.guava.Sequence;
  */
 public class TopNSorter<T>
 {
+  public static <T> Iterable<T> topN(Ordering<T> ordering, Sequence<T> items, int n)
+  {
+    return new TopNSorter<>(ordering).toTopN(items, n);
+  }
+
   private Ordering<T> ordering;
 
   /**

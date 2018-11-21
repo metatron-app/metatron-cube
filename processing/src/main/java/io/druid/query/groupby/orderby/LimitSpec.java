@@ -219,7 +219,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       Sequence<Object[]> sequence = Sequences.map(input, GroupByQueryEngine.rowToArray(query));
       Iterable<Object[]> sorted;
       if (limit > 0 && limit < Integer.MAX_VALUE) {
-        sorted = new TopNSorter<>(ordering).toTopN(sequence, limit);
+        sorted = TopNSorter.topN(ordering, sequence, limit);
       } else {
         Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
         Arrays.parallelSort(array, ordering);

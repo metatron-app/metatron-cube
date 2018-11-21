@@ -36,7 +36,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
-import io.druid.common.DateTimes;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -381,6 +380,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     }
     return new Function<Row, Row>()
     {
+      private final Granularity granularity = query.getGranularity();
       private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
       private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
 
@@ -389,18 +389,18 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         if (input instanceof CompactRow) {
           final Object[] values = ((CompactRow) input).getValues();
-          Map<String, Object> event = Maps.newLinkedHashMap();
+          final Map<String, Object> event = Maps.newLinkedHashMap();
           int x = 1;
           for (String dimension : dimensions) {
             event.put(dimension, values[x++]);
           }
-          for (final AggregatorFactory metric : metrics) {
+          for (AggregatorFactory metric : metrics) {
             event.put(metric.getName(), fn.manipulate(metric, values[x++]));
           }
-          return new MapBasedRow(DateTimes.utc(input.getTimestampFromEpoch()), event);
+          return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
         }
-        Row.Updatable updatable = Rows.toUpdatable(input);
-        for (AggregatorFactory agg : query.getAggregatorSpecs()) {
+        final Row.Updatable updatable = Rows.toUpdatable(input);
+        for (AggregatorFactory agg : metrics) {
           final String name = agg.getName();
           updatable.set(name, fn.manipulate(agg, input.getRaw(name)));
         }
