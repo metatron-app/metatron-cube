@@ -30,6 +30,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.net.HostAndPort;
 import io.druid.client.DruidServer;
 import io.druid.common.Intervals;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.BaseQuery;
@@ -119,7 +120,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   @Override
   public Ordering<Map<String, Object>> getResultOrdering()
   {
-    return Ordering.natural().onResultOf(
+    return GuavaUtils.nullFirstNatural().onResultOf(
         new Function<Map<String, Object>, Comparable>()
         {
           @Override

@@ -406,7 +406,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @SuppressWarnings("unchecked")
   public Ordering<T> getResultOrdering()
   {
-    Ordering retVal = Ordering.natural();
+    Ordering<T> retVal = GuavaUtils.<T>noNullableNatural();
     return descending ? retVal.reverse() : retVal;
   }
 

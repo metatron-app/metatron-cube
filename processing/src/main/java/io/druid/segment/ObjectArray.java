@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.collect.Ordering;
+import io.druid.common.guava.GuavaUtils;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -86,15 +87,14 @@ public class ObjectArray<T> implements Comparable<ObjectArray<T>>
     return Arrays.toString(array);
   }
 
-  private static final Comparator comparator = Ordering.natural().nullsFirst();
+  private static final Comparator comparator = GuavaUtils.nullFirstNatural();
 
   @Override
   @SuppressWarnings("unchecked")
   public int compareTo(ObjectArray<T> o)
   {
-    T[] other = o.array;
     for (int i = 0; i < array.length; i++) {
-      final int compare = comparator.compare(array[i], other[i]);
+      final int compare = comparator.compare(array[i], o.array[i]);
       if (compare != 0) {
         return compare;
       }

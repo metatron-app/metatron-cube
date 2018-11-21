@@ -68,10 +68,28 @@ public class GuavaUtils
 {
   private static final Logger LOG = new Logger(GuavaUtils.class);
 
-  private static final Comparator NULL_FIRST_NATURAL = Ordering.natural().nullsFirst();
+  // null check in Ordering.natural() prevents unrolling in some cases
+  public static final Ordering NO_NULLABLE_NATURAL = Ordering.from(
+      new Comparator()
+      {
+        @Override
+        @SuppressWarnings("unchecked")
+        public int compare(Object o1, Object o2)
+        {
+          return ((Comparable) o1).compareTo(o2);
+        }
+      });
+
+  public static final Ordering NULL_FIRST_NATURAL = NO_NULLABLE_NATURAL.nullsFirst();
 
   @SuppressWarnings("unchecked")
-  public static <T> Comparator<T> nullFirstNatural()
+  public static <T> Ordering<T> noNullableNatural()
+  {
+    return NO_NULLABLE_NATURAL;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Ordering<T> nullFirstNatural()
   {
     return NULL_FIRST_NATURAL;
   }

@@ -23,12 +23,11 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.CompactRow;
@@ -82,7 +81,7 @@ public class SimpleMergeIndex implements MergeIndex
     this.groupings = groupBy.getGroupings();
     this.mapping = parallelism == 1 ?
                    Maps.<TimeAndDims, Aggregator[]>newHashMap() :
-                   new ConcurrentHashMap<TimeAndDims, Aggregator[]>(4 << parallelism);
+                   new ConcurrentHashMap<TimeAndDims, Aggregator[]>(16 << parallelism);
 
     final ColumnSelectorFactory[] selectors = new ColumnSelectorFactory[metrics.length];
     for (int i = 0; i < selectors.length; i++) {
@@ -186,7 +185,7 @@ public class SimpleMergeIndex implements MergeIndex
         @SuppressWarnings("unchecked")
         public int compare(TimeAndDims o1, TimeAndDims o2)
         {
-          int compare = Longs.compare(o1.timestamp, o2.timestamp);
+          int compare = Long.compare(o1.timestamp, o2.timestamp);
           for (int i = 0; compare == 0 && i < comparators.length; i++) {
             compare = comparators[i].compare(o1.array[i], o2.array[i]);
           }
@@ -233,9 +232,9 @@ public class SimpleMergeIndex implements MergeIndex
     rowSupplier.close();
   }
 
-  private static final Comparator comparator = Ordering.natural().nullsFirst();
+  private static final Comparator comparator = GuavaUtils.nullFirstNatural();
 
-  protected static final class TimeAndDims implements Comparable<TimeAndDims>
+  private static final class TimeAndDims implements Comparable<TimeAndDims>
   {
     private final long timestamp;
     private final Comparable[] array;
@@ -275,9 +274,9 @@ public class SimpleMergeIndex implements MergeIndex
 
     @Override
     @SuppressWarnings("unchecked")
-    public int compareTo(TimeAndDims o)
+    public int compareTo(final TimeAndDims o)
     {
-      int compare = Longs.compare(timestamp, o.timestamp);
+      int compare = Long.compare(timestamp, o.timestamp);
       for (int i = 0; compare == 0 && i < array.length; i++) {
         compare = comparator.compare(array[i], o.array[i]);
       }

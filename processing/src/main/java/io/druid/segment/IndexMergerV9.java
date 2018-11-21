@@ -542,7 +542,7 @@ public class IndexMergerV9 extends IndexMerger
 
         MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
         for (Integer row : CombiningIterable.createSplatted(
-            convertedInverteds, Ordering.<Integer>natural().nullsFirst())) {
+            convertedInverteds, GuavaUtils.<Integer>nullFirstNatural())) {
           if (row != INVALID_ROW) {
             bitset.add(row);
           }

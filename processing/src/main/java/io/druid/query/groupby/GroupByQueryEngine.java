@@ -500,12 +500,12 @@ public class GroupByQueryEngine
 
                     int i = 1;
                     final int[] keyArray = input.getKey().array;
-                    for (int x = 0; x < dimensions.length; ++x) {
+                    for (int x = 0; x < dimensions.length; x++) {
                       array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
                     }
 
                     final int[] position = input.getValue();
-                    for (int x = 0; x < aggregators.length; ++x) {
+                    for (int x = 0; x < aggregators.length; x++) {
                       array[i++] = aggregators[x].get(metricValues[position[0]], position[1] + increments[x]);
                     }
 

@@ -467,10 +467,10 @@ public class IndexMerger
         if (rollup) {
           return CombiningIterable.create(
               new MergeIterable<Rowboat>(
-                  Ordering.<Rowboat>natural().nullsFirst(),
+                  GuavaUtils.<Rowboat>nullFirstNatural(),
                   boats
               ),
-              Ordering.<Rowboat>natural().nullsFirst(),
+              GuavaUtils.<Rowboat>nullFirstNatural(),
               new RowboatMergeFunction(sortedMetricAggs)
           );
         } else {
@@ -589,7 +589,7 @@ public class IndexMerger
       )
       {
         return new MergeIterable<Rowboat>(
-            Ordering.<Rowboat>natural().nullsFirst(),
+            GuavaUtils.<Rowboat>nullFirstNatural(),
             boats
         );
       }
@@ -1008,7 +1008,7 @@ public class IndexMerger
           MutableBitmap bitset = bitmapSerdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
           for (Integer row : CombiningIterable.createSplatted(
               convertedInverteds,
-              Ordering.<Integer>natural().nullsFirst()
+              GuavaUtils.<Integer>nullFirstNatural()
           )) {
             if (row != INVALID_ROW) {
               bitset.add(row);

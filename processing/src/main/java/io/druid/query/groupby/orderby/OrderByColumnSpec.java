@@ -197,8 +197,8 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   {
     return "OrderByColumnSpec{" +
            "dimension='" + dimension + '\'' +
-           ", direction=" + direction + '\'' +
-           ", dimensionOrder='" + dimensionOrder + '\'' +
+           ", direction=" + direction +
+           (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
            '}';
   }
 

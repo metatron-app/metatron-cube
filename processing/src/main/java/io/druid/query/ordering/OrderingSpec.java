@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.QueryCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -90,10 +91,7 @@ public class OrderingSpec implements Cacheable
   protected final Direction direction;
   protected final String dimensionOrder;
 
-  public OrderingSpec(
-      Direction direction,
-      String dimensionOrder
-  )
+  public OrderingSpec(Direction direction, String dimensionOrder)
   {
     this.direction = direction == null ? Direction.ASCENDING : direction;
     this.dimensionOrder = dimensionOrder;
@@ -115,11 +113,11 @@ public class OrderingSpec implements Cacheable
   public Comparator getComparator()
   {
     if (isNaturalOrdering()) {
-      Ordering comparator = Ordering.natural().nullsFirst();
+      Ordering ordering = GuavaUtils.nullFirstNatural();
       if (direction == Direction.DESCENDING) {
-        comparator = comparator.reverse();
+        ordering = ordering.reverse();  // null last
       }
-      return comparator;
+      return ordering;
     }
     StringComparator comparator = StringComparators.makeComparator(dimensionOrder);
     if (direction == Direction.DESCENDING) {
@@ -144,7 +142,7 @@ public class OrderingSpec implements Cacheable
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof OrderingSpec)) {
+    if (!(o instanceof OrderingSpec)) {
       return false;
     }
 
@@ -170,7 +168,7 @@ public class OrderingSpec implements Cacheable
   public String toString()
   {
     return "OrderingSpec{" +
-           "direction=" + direction + '\'' +
+           "direction=" + direction +
            (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
            '}';
   }
