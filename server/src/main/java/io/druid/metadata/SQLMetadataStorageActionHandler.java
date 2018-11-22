@@ -32,6 +32,7 @@ import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.FoldController;
 import org.skife.jdbi.v2.Folder3;
@@ -86,6 +87,16 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
     this.entryTable = entryTable;
     this.logTable = logTable;
     this.lockTable = lockTable;
+  }
+
+  protected String getLogTable()
+  {
+    return logTable;
+  }
+
+  protected String getEntryTypeName()
+  {
+    return entryTypeName;
   }
 
   @Override
@@ -370,6 +381,34 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
   }
 
   @Override
+  public void removeTasksOlderThan(final long timestamp)
+  {
+    final DateTime dateTime = DateTimes.utc(timestamp);
+    connector.retryWithHandle(
+        new HandleCallback<Void>()
+        {
+          @Override
+          public Void withHandle(Handle handle) throws Exception
+          {
+            handle.createStatement(SQLMetadataStorageActionHandler.this.getSqlRemoveLogsOlderThan())
+                  .bind("date_time", dateTime.toString())
+                  .execute();
+            handle.createStatement(
+                io.druid.common.utils.StringUtils.format(
+                    "DELETE FROM %s WHERE created_date < :date_time AND active = false",
+                    entryTable
+                )
+            )
+                  .bind("date_time", dateTime.toString())
+                  .execute();
+
+            return null;
+          }
+        }
+    );
+  }
+
+  @Override
   public boolean addLog(final String entryId, final LogType log)
   {
     return connector.retryWithHandle(
@@ -439,6 +478,15 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
                 );
           }
         }
+    );
+  }
+
+  @Deprecated
+  public String getSqlRemoveLogsOlderThan()
+  {
+    return io.druid.common.utils.StringUtils.format("DELETE a FROM %s a INNER JOIN %s b ON a.%s_id = b.id "
+                              + "WHERE b.created_date < :date_time and b.active = false",
+                              logTable, entryTable, entryTypeName
     );
   }
 

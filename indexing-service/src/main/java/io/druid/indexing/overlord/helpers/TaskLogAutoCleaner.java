@@ -22,6 +22,7 @@ package io.druid.indexing.overlord.helpers;
 import com.google.inject.Inject;
 import com.metamx.common.concurrent.ScheduledExecutors;
 import com.metamx.common.logger.Logger;
+import io.druid.indexing.overlord.TaskStorage;
 import io.druid.tasklogs.TaskLogKiller;
 import org.joda.time.Duration;
 
@@ -35,15 +36,18 @@ public class TaskLogAutoCleaner implements OverlordHelper
 
   private final TaskLogKiller taskLogKiller;
   private final TaskLogAutoCleanerConfig config;
+  private final TaskStorage taskStorage;
 
   @Inject
   public TaskLogAutoCleaner(
       TaskLogKiller taskLogKiller,
-      TaskLogAutoCleanerConfig config
+      TaskLogAutoCleanerConfig config,
+      TaskStorage taskStorage
   )
   {
     this.taskLogKiller = taskLogKiller;
     this.config = config;
+    this.taskStorage = taskStorage;
   }
 
   @Override
@@ -67,7 +71,9 @@ public class TaskLogAutoCleaner implements OverlordHelper
           public void run()
           {
             try {
-              taskLogKiller.killOlderThan(System.currentTimeMillis() - config.getDurationToRetain());
+              long timestamp = System.currentTimeMillis() - config.getDurationToRetain();
+              taskLogKiller.killOlderThan(timestamp);
+              taskStorage.removeTasksOlderThan(timestamp);
             }
             catch (Exception ex) {
               log.error(ex, "Failed to clean-up the task logs");

@@ -39,9 +39,11 @@ import io.druid.metadata.EntryExistsException;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  * Implements an in-heap TaskStorage facility, with no persistence across restarts. This class is not
@@ -211,6 +213,29 @@ public class HeapMemoryTaskStorage implements TaskStorage
       Preconditions.checkNotNull(taskLock, "taskLock");
       taskLocks.remove(taskid, taskLock);
     } finally {
+      giant.unlock();
+    }
+  }
+
+  @Override
+  public void removeTasksOlderThan(final long timestamp)
+  {
+    giant.lock();
+
+    try {
+      List<String> taskIds = new ArrayList<>();
+      for (Map.Entry<String, TaskStuff> entry: tasks.entrySet()) {
+        if (entry.getValue().getCreatedDate().isBefore(timestamp)) {
+          taskIds.add(entry.getKey());
+        }
+      }
+
+      for (String taskId: taskIds) {
+        taskActions.removeAll(taskId);
+        tasks.remove(taskId);
+      }
+    }
+    finally {
       giant.unlock();
     }
   }
