@@ -63,7 +63,7 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
-      @JsonProperty("sortOn") List<OrderByColumnSpec> orderBySpecs,
+      @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
       @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )

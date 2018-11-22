@@ -131,7 +131,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
                 sequencesList[index.intValue()].add(sequence);
                 hashing[index.intValue()] = element.getContextBoolean("hash", false);
                 if (query instanceof StreamRawQuery &&
-                    toJoinColumns(index.intValue()).equals(((StreamRawQuery)query).getOrderBySpecs())) {
+                    toJoinColumns(index.intValue()).equals(((StreamRawQuery)query).getSortOn())) {
+                  // uses ascending for join query (see JoinElement.toQuery)
                   sorted[index.intValue()] = true;
                 }
                 index.increment();
