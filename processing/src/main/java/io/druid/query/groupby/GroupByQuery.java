@@ -497,9 +497,6 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   private GroupByQuery tryPreOrdering()
   {
     GroupByQuery query = this;
-    if (!query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
-      return query;     // cannot apply
-    }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
       return query;

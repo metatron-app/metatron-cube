@@ -41,7 +41,6 @@ public interface QueryContextKeys
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
-  public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
   public static final String GBY_COMPACT_TRANSFER = "groupByCompactTransfer";
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
@@ -76,14 +75,14 @@ public interface QueryContextKeys
       QUERYID,
       PRIORITY,
       TIMEOUT,
-      GBY_COMPACT_TRANSFER,
-      GBY_CONVERT_TIMESERIES,
-      GBY_LOCAL_SPLIT_NUM,
       GBY_MERGE_PARALLELISM,
-      GBY_MERGE_SIMPLE,
-      GBY_MERGE_SIMPLE,
+      GBY_CONVERT_TIMESERIES,
+      GBY_ESTIMATE_TOPN_FACTOR,
+      GBY_COMPACT_TRANSFER,
       GBY_PRE_ORDERING,
       GBY_REMOVE_ORDERING,
+      GBY_LOCAL_SPLIT_NUM,
+      GBY_MAX_STREAM_SUBQUERY_PAGE,
       RAW_LOCAL_SPLIT_NUM,
       USE_CACHE,
       POPULATE_CACHE,

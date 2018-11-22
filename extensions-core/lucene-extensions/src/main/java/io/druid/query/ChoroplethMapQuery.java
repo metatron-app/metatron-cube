@@ -194,7 +194,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
         ));
         filtered = filtered.withOverriddenContext(copy);
       }
-      queries.add(filtered);
+      queries.add(filtered.rewriteQuery(segmentWalker, queryConfig, jsonMapper));
     }
     Map<String, Object> copy = Maps.newHashMap(context);
     copy.put(QueryContextKeys.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));
