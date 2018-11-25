@@ -46,15 +46,12 @@ public class GroupByQueryHelper
 
   public static MergeIndex createMergeIndex(
       final GroupByQuery query,
-      final StupidPool<ByteBuffer> bufferPool,
       final int maxResult,
-      final int parallelism,
-      final boolean compact,
-      final List<ValueType> groupByTypes
+      final int parallelism
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
-    return new SimpleMergeIndex(query, maxRowCount, parallelism, compact);
+    return new MergeIndex(query, maxRowCount, parallelism);
   }
 
   public static IncrementalIndex createIncrementalIndex(

@@ -41,7 +41,6 @@ public class Result<T> implements Comparable<Result<T>>
   }
 
   public static String MISSING_SEGMENTS_KEY = "missingSegments";
-  public static String GROUPBY_TYPES_KEY = "groupByTypes";
 
   private final DateTime timestamp;
   private final T value;

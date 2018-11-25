@@ -35,7 +35,9 @@ import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.Pair;
+import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
+import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
@@ -54,6 +56,7 @@ import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -481,7 +484,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
             }
         );
 
-    QueryRunner<T> runner = toolChest.finalQueryDecoration(
+    final QueryRunner<T> runner = toolChest.finalQueryDecoration(
         toolChest.finalizeMetrics(
             toolChest.postMergeQueryDecoration(
                 toolChest.mergeResults(
@@ -499,13 +502,20 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       }
     }
 
-    final QueryRunner<T> baseRunner = runner;
+    Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
+        resolved, MetricManipulatorFns.deserializing()
+    );
+    if (BaseQuery.getContextBySegment(query, false)) {
+      manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
+    }
+    final Function deserializer = manipulatorFn;
     return new QueryRunner<T>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        return baseRunner.run(resolved, responseContext);
+        return Sequences.map(runner.run(resolved, responseContext), deserializer);
       }
     };
   }

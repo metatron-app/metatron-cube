@@ -270,7 +270,8 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           {
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                segment
+                segment,
+                false
             );
           }
         };

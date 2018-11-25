@@ -33,10 +33,8 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
-import io.druid.collections.StupidPool;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
@@ -46,7 +44,6 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -54,7 +51,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,24 +64,18 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
   private final ExecutorService exec;
   private final Supplier<GroupByQueryConfig> configSupplier;
   private final QueryWatcher queryWatcher;
-  private final StupidPool<ByteBuffer> bufferPool;
-  private final Future<Object> optimizer;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
       Supplier<GroupByQueryConfig> configSupplier,
       QueryWatcher queryWatcher,
-      StupidPool<ByteBuffer> bufferPool,
-      Iterable<QueryRunner<Row>> queryables,
-      Future<Object> optimizer
+      Iterable<QueryRunner<Row>> queryables
   )
   {
     this.exec = exec;
     this.queryWatcher = queryWatcher;
     this.queryables = Lists.newArrayList(Iterables.filter(queryables, Predicates.notNull()));
     this.configSupplier = configSupplier;
-    this.bufferPool = bufferPool;
-    this.optimizer = optimizer == null ? Futures.immediateFuture(null) : optimizer;
   }
 
   @Override
@@ -106,18 +96,9 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       parallelism = 1;
     }
 
-    boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
-    if (query.getContextBoolean(Query.FINAL_WORK, true) || query.getContextBoolean(Query.FINALIZE, true)) {
-      compact = false;  // direct call to historical
-    }
-    @SuppressWarnings("unchecked")
-    final List<ValueType> groupByTypes = (List<ValueType>) Futures.getUnchecked(optimizer);
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, bufferPool, maxRowCount, parallelism, compact, groupByTypes
+        query, maxRowCount, parallelism
     );
-    if (groupByTypes != null) {
-      responseContext.put(Result.GROUPBY_TYPES_KEY, groupByTypes);
-    }
 
     final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
@@ -186,7 +167,11 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       return Sequences.simple(bySegmentAccumulatorPair.lhs);
     }
 
-    return Sequences.withBaggage(incrementalIndex.toMergeStream() , new AsyncCloser(incrementalIndex, executor));
+    boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
+    if (query.getContextBoolean(Query.FINAL_WORK, true) || query.getContextBoolean(Query.FINALIZE, true)) {
+      compact = false;  // direct call to historical
+    }
+    return Sequences.withBaggage(incrementalIndex.toMergeStream(compact) , new AsyncCloser(incrementalIndex, executor));
   }
 
   private void waitForFutureCompletion(

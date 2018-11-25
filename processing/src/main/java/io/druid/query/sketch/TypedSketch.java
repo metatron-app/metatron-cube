@@ -54,11 +54,14 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
     return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.nativeOrder()), type, type.comparator());
   }
 
-  public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
+  public static TypedSketch deserialize(SketchOp sketchOp, Object value, Comparator comparator)
   {
-    ByteBuffer value = ByteBuffer.wrap(ThetaOperations.asBytes(bytes));
-    ValueDesc type = TypedSketch.typeFromBytes(value);
-    Memory memory = Memory.wrap(value.slice(), ByteOrder.nativeOrder());
+    if (value == null || value instanceof TypedSketch) {
+      return (TypedSketch) value;
+    }
+    ByteBuffer buffer = ByteBuffer.wrap(ThetaOperations.asBytes(value));
+    ValueDesc type = TypedSketch.typeFromBytes(buffer);
+    Memory memory = Memory.wrap(buffer.slice(), ByteOrder.nativeOrder());
     return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
 

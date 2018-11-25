@@ -364,13 +364,7 @@ public class AggregationTestHelper
           index.close();
           index = new OnheapIncrementalIndex(minTimestamp, gran, metrics, deserializeComplexMetrics, true, true, true, maxRowCount);
         }
-        if (row instanceof String && parser instanceof StringInputRowParser) {
-          //Note: this is required because StringInputRowParser is InputRowParser<ByteBuffer> as opposed to
-          //InputRowsParser<String>
-          index.add(((StringInputRowParser) parser).parse((String) row));
-        } else {
-          index.add(parser.parse(row));
-        }
+        index.add(parser.parse(row));
       }
 
       if (toMerge.size() > 0) {
@@ -440,6 +434,8 @@ public class AggregationTestHelper
         toolChest.postMergeQueryDecoration(
             toolChest.mergeResults(
                 toolChest.preMergeQueryDecoration(
+                    makeStringSerdeQueryRunner(
+                        mapper, toolChest, query,
                         factory.mergeRunners(
                             MoreExecutors.sameThreadExecutor(),
                             Lists.transform(
@@ -449,22 +445,13 @@ public class AggregationTestHelper
                                   @Override
                                   public QueryRunner apply(final Segment segment)
                                   {
-                                    try {
-                                      return makeStringSerdeQueryRunner(
-                                          mapper,
-                                          toolChest,
-                                          query,
-                                          factory.createRunner(segment, null)
-                                      );
-                                    }
-                                    catch (Exception ex) {
-                                      throw Throwables.propagate(ex);
-                                    }
+                                    return factory.createRunner(segment, null);
                                   }
                                 }
-                        ),
+                            ),
                             null
                         )
+                    )
                 )
             )
         )

@@ -24,7 +24,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -78,7 +77,6 @@ public class GroupByQueryRunnerFactory
 
   private final GroupByQueryEngine engine;
   private final Supplier<GroupByQueryConfig> config;
-  private final StupidPool<ByteBuffer> computationBufferPool;
 
   @Inject
   public GroupByQueryRunnerFactory(
@@ -92,7 +90,6 @@ public class GroupByQueryRunnerFactory
     super(toolChest, queryWatcher);
     this.engine = engine;
     this.config = config;
-    this.computationBufferPool = computationBufferPool;
   }
 
   @Override
@@ -227,7 +224,7 @@ public class GroupByQueryRunnerFactory
       if (type.isStringOrDimension() && !orderingSpec.isNaturalOrdering()) {
         filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
       }
-      logger.debug("--> filter : %s ", filter);
+      logger.debug("--> filter : %s", filter);
       splits.add(
           query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );
@@ -249,10 +246,7 @@ public class GroupByQueryRunnerFactory
   )
   {
     // mergeRunners should take ListeningExecutorService at some point
-    final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
-    return new GroupByMergedQueryRunner(
-        queryExecutor, config, queryWatcher, computationBufferPool, queryRunners, optimizer
-    );
+    return new GroupByMergedQueryRunner(MoreExecutors.listeningDecorator(exec), config, queryWatcher, queryRunners);
   }
 
   private static class GroupByQueryRunner implements QueryRunner<Row>
@@ -275,7 +269,7 @@ public class GroupByQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), GroupByQuery.class);
       }
 
-      return engine.process((GroupByQuery) input, segment, cache);
+      return engine.process((GroupByQuery) input, segment, true, cache);
     }
 
     @Override

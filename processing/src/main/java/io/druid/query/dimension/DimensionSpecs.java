@@ -86,7 +86,15 @@ public class DimensionSpecs
 
   public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)
   {
+    return toComparator(dimensionSpecs, false);
+  }
+
+  public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs, boolean prependTime)
+  {
     List<Comparator> comparators = Lists.newArrayList();
+    if (prependTime) {
+      comparators.add(GuavaUtils.noNullableNatural());
+    }
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       comparators.add(toComparator(dimensionSpec));
     }
@@ -95,7 +103,7 @@ public class DimensionSpecs
 
   public static Comparator toComparator(DimensionSpec dimensionSpec)
   {
-    Comparator comparator = Ordering.natural().nullsFirst();
+    Comparator comparator = GuavaUtils.nullFirstNatural();
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       OrderingSpec orderingSpec = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
       if (!orderingSpec.isNaturalOrdering()) {

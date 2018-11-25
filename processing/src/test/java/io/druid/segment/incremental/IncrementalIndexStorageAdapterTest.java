@@ -137,7 +137,8 @@ public class IncrementalIndexStorageAdapterTest
                     .addDimension("sally")
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
                     .build(),
-        new IncrementalIndexSegment(index, null)
+        new IncrementalIndexSegment(index, null),
+        false
     );
 
     final ArrayList<Row> results = Sequences.toList(rows, Lists.<Row>newArrayList());
@@ -196,7 +197,8 @@ public class IncrementalIndexStorageAdapterTest
                         )
                     )
                     .build(),
-        new IncrementalIndexSegment(index, null)
+        new IncrementalIndexSegment(index, null),
+        false
     );
 
     final ArrayList<Row> results = Sequences.toList(rows, Lists.<Row>newArrayList());
@@ -363,9 +365,10 @@ public class IncrementalIndexStorageAdapterTest
                     .addDimension("billy")
                     .addDimension("sally")
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
-                    .setDimFilter(DimFilters.dimEquals("sally", (String) null))
+                    .setDimFilter(DimFilters.dimEquals("sally", null))
                     .build(),
-        new IncrementalIndexSegment(index, null)
+        new IncrementalIndexSegment(index, null),
+        false
     );
 
     final ArrayList<Row> results = Sequences.toList(rows, Lists.<Row>newArrayList());

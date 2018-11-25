@@ -124,17 +124,17 @@ public class GroupByQueryEngine
     this.intermediateResultsBufferPool = intermediateResultsBufferPool;
   }
 
-  public Sequence<Row> process(final GroupByQuery query, final Segment segment)
+  public Sequence<Row> process(final GroupByQuery query, final Segment segment, final boolean compact)
   {
-    return process(query, segment, null);
+    return process(query, segment, compact, null);
   }
 
-  public Sequence<Row> process(final GroupByQuery query, final Segment segment, final Cache cache)
+  public Sequence<Row> process(final GroupByQuery query, final Segment segment, final boolean compact, final Cache cache)
   {
     final OrderedLimitSpec segmentLimit = query.getLimitSpec().getSegmentLimit();
     return Sequences.map(
         takeTopN(query, segmentLimit).apply(processInternal(query, Sequences.simple(Arrays.asList(segment)), cache)),
-        arrayToRow(query)
+        arrayToRow(query, compact)
     );
   }
 
