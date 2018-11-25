@@ -233,7 +233,7 @@ public class IncrementalIndexSchema
 
     public Builder withDimensionsSpec(InputRowParser parser)
     {
-      this.dimensionsSpec = parser.getDimensionsSpec();
+      this.dimensionsSpec = parser == null ? new DimensionsSpec(null, null, null) : parser.getDimensionsSpec();
       return this;
     }
 

@@ -30,11 +30,11 @@ import io.druid.timeline.DataSegment;
 public abstract class DropRule implements Rule
 {
   @Override
-  public CoordinatorStats run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
+  public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
-    CoordinatorStats stats = new CoordinatorStats();
+    CoordinatorStats stats = params.getCoordinatorStats();
     coordinator.removeSegment("rule", segment);
     stats.addToGlobalStat("deletedCount", 1);
-    return stats;
+    return false;
   }
 }

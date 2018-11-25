@@ -204,18 +204,18 @@ public class LoadRuleTest
     BalancerStrategy balancerStrategy =
             new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
-    CoordinatorStats stats = rule.run(
-        null,
+    DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
                                      .withDruidCluster(druidCluster)
+                                     .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
-                                     .withAvailableSegments(Arrays.asList(segment)).build(),
-        segment
-    );
+                                     .withAvailableSegments(Arrays.asList(segment)).build();
+    rule.run(null, params, segment);
 
+    CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
     Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get(DruidServer.DEFAULT_TIER).get() == 2);
     exec.shutdown();
@@ -318,18 +318,18 @@ public class LoadRuleTest
     BalancerStrategy balancerStrategy =
             new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
-    CoordinatorStats stats = rule.run(
-        null,
+    DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
                                      .withDruidCluster(druidCluster)
+                                     .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
-                                     .withAvailableSegments(Arrays.asList(segment)).build(),
-        segment
-    );
+                                     .withAvailableSegments(Arrays.asList(segment)).build();
+    rule.run(null, params, segment);
 
+    CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get(DruidServer.DEFAULT_TIER).get() == 1);
     exec.shutdown();
@@ -413,18 +413,18 @@ public class LoadRuleTest
     BalancerStrategy balancerStrategy =
             new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
-    CoordinatorStats stats = rule.run(
-        null,
+    DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
                                      .withDruidCluster(druidCluster)
-                                     .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
+                                     .withCoordinatorStats(new CoordinatorStats())
+                                     .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
-                                     .withAvailableSegments(Arrays.asList(segment)).build(),
-        segment
-    );
+                                     .withAvailableSegments(Arrays.asList(segment)).build();
+    rule.run(null, params, segment);
 
+    CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
     exec.shutdown();
   }
@@ -522,18 +522,18 @@ public class LoadRuleTest
     BalancerStrategy balancerStrategy =
             new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
-    CoordinatorStats stats = rule.run(
-        null,
+    DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
                                      .withDruidCluster(druidCluster)
+                                     .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
-                                     .withAvailableSegments(Arrays.asList(segment)).build(),
-        segment
-    );
+                                     .withAvailableSegments(Arrays.asList(segment)).build();
+    rule.run(null, params, segment);
 
+    CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);
     exec.shutdown();
   }

@@ -48,5 +48,5 @@ public interface Rule
 
   public boolean appliesTo(Interval interval, DateTime referenceTimestamp);
 
-  public CoordinatorStats run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment);
+  public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment);
 }

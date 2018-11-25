@@ -251,7 +251,7 @@ public class TaskLockbox
         if (overlapped.isEmpty()) {
           needToLock.add(dataSource);
         } else if (overlapped.size() == 1) {
-          log.info("Found lock possession %s for datasource %s", overlapped.get(0), dataSource);
+          log.info("Found existing lock possession %s for datasource %s", overlapped.get(0), dataSource);
           foundPosses.add(overlapped.get(0));
         } else {
           log.info("Multiple lock possessions %s for datasource %s.. cannot proceed", overlapped, dataSource);

@@ -442,10 +442,6 @@ public class DruidCoordinatorRuleRunnerTest
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);
 
-    emitter.emit(EasyMock.<ServiceEventBuilder>anyObject());
-    EasyMock.expectLastCall().times(12);
-    EasyMock.replay(emitter);
-
     EasyMock.expect(databaseRuleManager.getRulesWithDefault(EasyMock.<String>anyObject())).andReturn(
         Lists.<Rule>newArrayList(
             new IntervalLoadRule(new Interval("2012-01-01T00:00:00.000Z/2012-01-01T12:00:00.000Z"), ImmutableMap.<String, Integer>of("hot",1)),
@@ -494,7 +490,6 @@ public class DruidCoordinatorRuleRunnerTest
     ruleRunner.run(params);
 
     exec.shutdown();
-    EasyMock.verify(emitter);
     EasyMock.verify(mockPeon);
   }
 
@@ -541,6 +536,7 @@ public class DruidCoordinatorRuleRunnerTest
             .withAvailableSegments(availableSegments)
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
+            .withCoordinatorStats(new CoordinatorStats())
             .build();
 
     ruleRunner.run(params);
@@ -965,6 +961,7 @@ public class DruidCoordinatorRuleRunnerTest
 
     DruidCoordinatorRuntimeParams params = new DruidCoordinatorRuntimeParams.Builder()
         .withDruidCluster(druidCluster)
+        .withCoordinatorStats(new CoordinatorStats())
         .withDynamicConfigs(new CoordinatorDynamicConfig.Builder().withMillisToWaitBeforeDeleting(0L).build())
         .withAvailableSegments(availableSegments)
         .withDatabaseRuleManager(databaseRuleManager)

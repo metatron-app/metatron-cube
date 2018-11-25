@@ -23,6 +23,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -31,6 +32,7 @@ import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.ReplicationThrottler;
 import io.druid.server.coordinator.SegmentReplicantLookup;
+import io.druid.server.coordinator.ServerHolder;
 import io.druid.server.coordinator.rules.Rule;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
@@ -46,6 +48,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 {
   private static final EmittingLogger log = new EmittingLogger(DruidCoordinatorRuleRunner.class);
   private static final int MAX_MISSING_RULES = 10;
+  private static final int MAX_NOT_ASSIGNED = 100;
 
   private final DruidCoordinator coordinator;
 
@@ -77,17 +80,21 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     }
 
     DruidCoordinatorRuntimeParams paramsWithReplicationManager = params.buildFromExisting()
+                                                                       .withCoordinatorStats(stats)
                                                                        .withReplicationManager(replicatorThrottler)
                                                                        .build();
 
     // Run through all matched rules for available segments
-    DateTime now = new DateTime();
+    final DateTime now = new DateTime();
     final MetadataRuleManager databaseRuleManager = paramsWithReplicationManager.getDatabaseRuleManager();
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);
     final Map<String, List<Rule>> rulesPerDataSource = Maps.newHashMap();
     int missingRules = 0;
-    for (DataSegment segment : getTargetSegments(paramsWithReplicationManager)) {
+    int notAssignedCount = 0;
+    final Set<DataSegment> targetSegments = getTargetSegments(paramsWithReplicationManager);
+    final int maxNotAssigned = Math.max(10, Math.min((int)(targetSegments.size() * 0.3), MAX_NOT_ASSIGNED));
+    for (DataSegment segment : targetSegments) {
       List<Rule> rules = rulesPerDataSource.computeIfAbsent(
           segment.getDataSource(), new Function<String, List<Rule>>()
           {
@@ -98,10 +105,11 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
             }
           }
       );
+      boolean notAssigned = true;
       boolean foundMatchingRule = false;
       for (Rule rule : rules) {
         if (rule.appliesTo(segment, now)) {
-          stats.accumulate(rule.run(coordinator, paramsWithReplicationManager, segment));
+          notAssigned &= rule.run(coordinator, paramsWithReplicationManager, segment);
           foundMatchingRule = true;
           break;
         }
@@ -112,6 +120,9 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
           segmentsWithMissingRules.add(segment.getIdentifier());
         }
         missingRules++;
+      } else if (notAssigned && notAssignedCount++ >= maxNotAssigned) {
+        logCluster(cluster);
+        break;
       }
     }
 
@@ -122,9 +133,40 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
          .emit();
     }
 
-    return paramsWithReplicationManager.buildFromExisting()
-                                       .withCoordinatorStats(stats)
-                                       .build();
+    return paramsWithReplicationManager;
+  }
+
+  private void logCluster(DruidCluster cluster)
+  {
+    log.warn("Some segments are not assigned.. something wrong?");
+    for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> entry : cluster.getCluster().entrySet()) {
+      String tier = entry.getKey();
+      MinMaxPriorityQueue<ServerHolder> servers = entry.getValue();
+      List<String> full = Lists.newArrayList(Iterables.transform(Iterables.filter(
+          servers,
+          new Predicate<ServerHolder>()
+          {
+            @Override
+            public boolean apply(ServerHolder holder)
+            {
+              return holder.getAvailableSize() < (1L << 30);
+            }
+          }
+      ), new com.google.common.base.Function<ServerHolder, String>()
+      {
+        @Override
+        public String apply(ServerHolder input)
+        {
+          return input.getServer().getName();
+        }
+      }));
+      if (!full.isEmpty()) {
+        log.warn(
+            "tier[%s] : total %d servers, %d servers full %s", tier, servers.size(), full.size(),
+            full.size() > 10 ? full.subList(0, 10) : full
+        );
+      }
+    }
   }
 
   protected ReplicationThrottler getReplicationThrottler(DruidCoordinatorRuntimeParams params)

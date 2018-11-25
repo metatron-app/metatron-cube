@@ -199,12 +199,9 @@ public class HadoopIndexTask extends HadoopTask
   {
     Optional<SortedSet<Interval>> intervals = spec.getDataSchema().getGranularitySpec().bucketIntervals();
     if (intervals.isPresent()) {
-      Interval interval = JodaUtils.umbrellaInterval(
-          JodaUtils.condenseIntervals(
-              intervals.get()
-          )
-      );
-      log.info("Checking readiness of task %s on intervals.. %s - %s", getId(), interval, intervals.get());
+      SortedSet<Interval> buckets = intervals.get();
+      Interval interval = JodaUtils.umbrellaInterval(JodaUtils.condenseIntervals(buckets));
+      log.info("Checking lock of task %s on interval.. %s (%d buckets)", getId(), interval, buckets.size());
       return taskActionClient.submit(new LockTryAcquireAction(interval)) != null;
     } else {
       return true;

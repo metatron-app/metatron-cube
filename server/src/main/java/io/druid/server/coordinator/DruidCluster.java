@@ -60,6 +60,19 @@ public class DruidCluster
     return cluster;
   }
 
+  public long getAvailableSizeForTier(String tier)
+  {
+    MinMaxPriorityQueue<ServerHolder> tierServers = cluster.get(tier);
+    if (tierServers == null) {
+      return -1;
+    }
+    long available = 0L;
+    for (ServerHolder holder : tierServers) {
+      available += holder.getAvailableSize();
+    }
+    return available;
+  }
+
   public Iterable<String> getTierNames()
   {
     return cluster.keySet();

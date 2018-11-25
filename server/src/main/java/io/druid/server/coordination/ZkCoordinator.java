@@ -146,7 +146,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
                         child.getData(), DataSegmentChangeRequest.class
                     );
 
-                    log.info("New request[%s] with zNode[%s].", request.asString(), path);
+                    log.info("New request[%s]", request.asString());
 
                     try {
                       request.go(
@@ -297,7 +297,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   }
 
   /**
-   * Load a single segment. If the segment is loaded succesfully, this function simply returns. Otherwise it will
+   * Load a single segment. If the segment is loaded successfully, this function simply returns. Otherwise it will
    * throw a SegmentLoadingException
    *
    * @throws SegmentLoadingException

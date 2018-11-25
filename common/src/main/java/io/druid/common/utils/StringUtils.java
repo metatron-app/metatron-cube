@@ -20,6 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import java.util.IllegalFormatException;
@@ -143,6 +144,19 @@ public class StringUtils extends com.metamx.common.StringUtils
       index++;
     }
     return Long.parseLong(value.substring(0, index));
+  }
+
+  private static final String[] CODE = new String[]{"B", "KB", "MB", "GB", "TB", "PB"};
+
+  public static String toKMGT(long value)
+  {
+    Preconditions.checkArgument(value >= 0);
+    int i = 0;
+    while (value > 0x64000 && i < CODE.length) {
+      value >>= 10;
+      i++;
+    }
+    return String.format("%,d%s", value, CODE[i]);
   }
 
   public static byte[] concat(byte[]... array)

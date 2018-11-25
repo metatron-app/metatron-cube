@@ -191,14 +191,15 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
             log.info("Load Queues:");
           }
           log.info(
-              "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %,d bytes queued, %,d bytes served (%,d segments).",
+              "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %s queued, %s served (%,d segments, %.2f%% full).",
               server.getName(),
               server.getType(),
               server.getTier(),
               toLoad,
               toDrop,
-              queued,
-              server.getCurrSize(),
+              io.druid.common.utils.StringUtils.toKMGT(queued),
+              io.druid.common.utils.StringUtils.toKMGT(server.getCurrSize()),
+              ((double) server.getCurrSize() / server.getMaxSize() * 100),
               segments
           );
         }
