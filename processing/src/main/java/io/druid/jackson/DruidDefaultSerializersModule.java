@@ -21,7 +21,6 @@ package io.druid.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -34,6 +33,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
+import io.druid.query.groupby.UTF8Bytes;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
@@ -74,12 +74,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
         new JsonSerializer<DateTimeZone>()
         {
           @Override
-          public void serialize(
-              DateTimeZone dateTimeZone,
-              JsonGenerator jsonGenerator,
-              SerializerProvider serializerProvider
-          )
-              throws IOException, JsonProcessingException
+          public void serialize(DateTimeZone dateTimeZone, JsonGenerator jsonGenerator, SerializerProvider provider)
+              throws IOException
           {
             jsonGenerator.writeString(dateTimeZone.getID());
           }
@@ -91,7 +87,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
         {
           @Override
           public void serialize(Sequence value, final JsonGenerator jgen, SerializerProvider provider)
-              throws IOException, JsonProcessingException
+              throws IOException
           {
             jgen.writeStartArray();
             value.accumulate(
@@ -135,7 +131,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
         {
           @Override
           public void serialize(Yielder yielder, final JsonGenerator jgen, SerializerProvider provider)
-              throws IOException, JsonProcessingException
+              throws IOException
           {
             try {
               jgen.writeStartArray();
@@ -157,14 +153,26 @@ public class DruidDefaultSerializersModule extends SimpleModule
         new JsonDeserializer<ByteOrder>()
         {
           @Override
-          public ByteOrder deserialize(
-              JsonParser jp, DeserializationContext ctxt
-          ) throws IOException, JsonProcessingException
+          public ByteOrder deserialize(JsonParser jp, DeserializationContext ctxt)
+              throws IOException
           {
             if (ByteOrder.BIG_ENDIAN.toString().equals(jp.getText())) {
               return ByteOrder.BIG_ENDIAN;
             }
             return ByteOrder.LITTLE_ENDIAN;
+          }
+        }
+    );
+    addSerializer(
+        UTF8Bytes.class,
+        new JsonSerializer<UTF8Bytes>()
+        {
+          @Override
+          public void serialize(UTF8Bytes utf8, final JsonGenerator jgen, SerializerProvider provider)
+              throws IOException
+          {
+            final byte[] value = utf8.getValue();
+            jgen.writeUTF8String(value, 0, value.length);
           }
         }
     );

@@ -99,7 +99,7 @@ public class StreamRawQueryRunnerFactory
       ObjectMapper mapper
   )
   {
-    int numSplit = query.getContextInt(Query.RAW_LOCAL_SPLIT_NUM, 5);
+    int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 5);
     if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs()) || numSplit < 2) {
       return null;
     }

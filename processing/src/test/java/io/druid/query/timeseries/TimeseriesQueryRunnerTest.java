@@ -382,7 +382,7 @@ public class TimeseriesQueryRunnerTest
     assertExpectedResults(expected, results);
 
     // do post aggregation for inner query
-    subQuery = subQuery.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINAL_WORK, false));
+    subQuery = subQuery.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINAL_MERGE, false));
 
     TimeseriesQuery query = Druids
         .newTimeseriesQueryBuilder()

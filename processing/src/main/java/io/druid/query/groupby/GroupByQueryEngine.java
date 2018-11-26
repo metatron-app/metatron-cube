@@ -50,6 +50,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
+import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -66,6 +67,7 @@ import io.druid.query.ordering.Direction;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -138,7 +140,7 @@ public class GroupByQueryEngine
     );
   }
 
-  public Sequence<Object[]> processInternal(
+  private Sequence<Object[]> processInternal(
       final GroupByQuery query,
       final Sequence<Segment> sequences,
       final Cache cache
@@ -217,6 +219,7 @@ public class GroupByQueryEngine
     private final RowUpdater rowUpdater;
 
     private final boolean asSorted;
+    private final boolean useRawUTF8;
     private final DateTime fixedTimeForAllGranularity;
 
     private final String[] dimNames;
@@ -245,6 +248,8 @@ public class GroupByQueryEngine
       this.cursor = cursor;
       this.rowUpdater = new RowUpdater(bufferPool, maxPage);
       this.asSorted = query.getContextBoolean("IN_TEST", false);
+      this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
+                        query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
       String fudgeTimestampString = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
       fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
                                    ? null
@@ -501,7 +506,11 @@ public class GroupByQueryEngine
                     int i = 1;
                     final int[] keyArray = input.getKey().array;
                     for (int x = 0; x < dimensions.length; x++) {
-                      array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
+                      if (useRawUTF8 && dimensions[x] instanceof WithRawAccess) {
+                        array[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(keyArray[x]));
+                      } else {
+                        array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
+                      }
                     }
 
                     final int[] position = input.getValue();

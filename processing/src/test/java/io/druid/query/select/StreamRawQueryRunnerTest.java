@@ -134,7 +134,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     }
 
     // disable split (need sketch)
-    query = builder.context(ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, 1))
+    query = builder.context(ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 1))
                    .streamingRaw(Arrays.asList("quality", "market", "__time"));
 
     expected = Lists.newArrayList(

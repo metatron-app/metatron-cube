@@ -59,6 +59,9 @@ public class GroupByQueryConfig
   private boolean compactTransfer = false;
 
   @JsonProperty
+  private boolean useRawUTF8 = false;
+
+  @JsonProperty
   private int localSplitNum = -1;
 
   @JsonProperty
@@ -172,6 +175,16 @@ public class GroupByQueryConfig
   public void setCompactTransfer(boolean compactTransfer)
   {
     this.compactTransfer = compactTransfer;
+  }
+
+  public boolean isUseRawUTF8()
+  {
+    return useRawUTF8;
+  }
+
+  public void setUseRawUTF8(boolean useRawUTF8)
+  {
+    this.useRawUTF8 = useRawUTF8;
   }
 
   public int getLocalSplitNum()

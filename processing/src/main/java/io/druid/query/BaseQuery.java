@@ -64,6 +64,11 @@ public abstract class BaseQuery<T> implements Query<T>
     return represent;
   }
 
+  public static <T> boolean isLocalFinalizingQuery(Query<T> query)
+  {
+    return query.getContextBoolean(Query.FINAL_MERGE, true) || query.getContextBoolean(Query.FINALIZE, true);
+  }
+
   public static <T> int getContextPriority(Query<T> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);

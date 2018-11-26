@@ -96,14 +96,14 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       public Sequence<Result<TimeseriesResultValue>> doRun(QueryRunner<Result<TimeseriesResultValue>> baseRunner, Query<Result<TimeseriesResultValue>> query, Map<String, Object> context)
       {
-        if (query.getContextBoolean(QueryContextKeys.FINAL_WORK, true)) {
+        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
           query = timeseriesQuery.withPostAggregatorSpecs(null)
                                  .withLimitSpec(null)
                                  .withHavingSpec(null)
                                  .withOutputColumns(null)
                                  .withLateralView(null)
-                                 .withOverriddenContext(QueryContextKeys.FINAL_WORK, false)
+                                 .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false)
                                  .withOverriddenContext(BaseQuery.removeContext(QueryContextKeys.POST_PROCESSING));
         }
         return super.doRun(baseRunner, query, context);

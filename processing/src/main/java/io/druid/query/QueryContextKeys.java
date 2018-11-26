@@ -32,7 +32,7 @@ public interface QueryContextKeys
   public static final String CHUNK_PERIOD = "chunkPeriod";
   public static final String FINALIZE = "finalize";
   public static final String BY_SEGMENT = "bySegment";
-  public static final String FINAL_WORK = "finalWork";
+  public static final String FINAL_MERGE = "finalMerge";
   public static final String LOCAL_POST_PROCESSING = "localPostProcessing";
   public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
   public static final String LOCAL_SPLIT_STRATEGY = "localSplitStrategy";
@@ -45,9 +45,10 @@ public interface QueryContextKeys
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
   public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
+  public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
-  public static final String RAW_LOCAL_SPLIT_NUM = "rawLocalSplitNum";
+  public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
 
   // CacheConfig
   public static final String USE_CACHE = "useCache";
@@ -82,8 +83,9 @@ public interface QueryContextKeys
       GBY_PRE_ORDERING,
       GBY_REMOVE_ORDERING,
       GBY_LOCAL_SPLIT_NUM,
+      GBY_USE_RAW_UTF8,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
-      RAW_LOCAL_SPLIT_NUM,
+      STREAM_RAW_LOCAL_SPLIT_NUM,
       USE_CACHE,
       POPULATE_CACHE,
       ALL_DIMENSIONS_FOR_EMPTY,

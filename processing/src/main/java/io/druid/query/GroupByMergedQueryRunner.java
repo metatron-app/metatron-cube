@@ -167,10 +167,8 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       return Sequences.simple(bySegmentAccumulatorPair.lhs);
     }
 
-    boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
-    if (query.getContextBoolean(Query.FINAL_WORK, true) || query.getContextBoolean(Query.FINALIZE, true)) {
-      compact = false;  // direct call to historical
-    }
+    boolean compact = !BaseQuery.isLocalFinalizingQuery(query) &&
+                      query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
     return Sequences.withBaggage(incrementalIndex.toMergeStream(compact) , new AsyncCloser(incrementalIndex, executor));
   }
 

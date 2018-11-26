@@ -900,7 +900,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                 .withLimitSpec(null)
                 .withOutputColumns(null)
                 .withOverriddenContext(FINALIZE, true)
-                .withOverriddenContext(FINAL_WORK, true)
+                .withOverriddenContext(FINAL_MERGE, true)
                 .withOverriddenContext(ALL_DIMENSIONS_FOR_EMPTY, false)
                 .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.Abstract<Row>()
                 {
