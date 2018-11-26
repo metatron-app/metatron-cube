@@ -26,7 +26,9 @@ import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.common.DateTimes;
 import io.druid.data.Pair;
+import io.druid.granularity.Granularities;
 import io.druid.timeline.DataSegment;
 
 import java.lang.reflect.Array;
@@ -55,6 +57,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
         return Arrays.asList();   // busy.. balance later
       }
     }
+    final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
     final int serverCount = serverHolders.size();
     final Set<String> dataSourceNames = Sets.newTreeSet();  // just to estimate progress
     final ImmutableDruidServer[] servers = new ImmutableDruidServer[serverCount];
@@ -71,7 +74,9 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
         ImmutableDruidDataSource dataSource = servers[i].getDataSource(dataSourceName);
         if (dataSource != null) {
           for (DataSegment segment : dataSource.getSegments()) {
-            allSegments.add(Pair.of(i, segment));
+            if (segment.getInterval().getEndMillis() <= start) {
+              allSegments.add(Pair.of(i, segment));
+            }
           }
         }
       }
