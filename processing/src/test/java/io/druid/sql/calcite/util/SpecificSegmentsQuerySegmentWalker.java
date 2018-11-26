@@ -484,7 +484,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
             }
         );
 
-    final QueryRunner<T> runner = toolChest.finalQueryDecoration(
+    QueryRunner<T> runner = toolChest.finalQueryDecoration(
         toolChest.finalizeMetrics(
             toolChest.postMergeQueryDecoration(
                 toolChest.mergeResults(
@@ -498,7 +498,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
       Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
       if (queries != null) {
-        return toConcatRunner(queries, runner);
+        runner = toConcatRunner(queries, runner);
       }
     }
 
@@ -508,6 +508,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     if (BaseQuery.getContextBySegment(query, false)) {
       manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
     }
+    final QueryRunner<T> baseRunner = runner;
     final Function deserializer = manipulatorFn;
     return new QueryRunner<T>()
     {
@@ -515,7 +516,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        return Sequences.map(runner.run(resolved, responseContext), deserializer);
+        return Sequences.map(baseRunner.run(resolved, responseContext), deserializer);
       }
     };
   }

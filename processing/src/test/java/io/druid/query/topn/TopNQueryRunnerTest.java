@@ -244,10 +244,8 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 
+    // with projection
     query = query.withOutputColumns(Arrays.asList("market", "rows", "index"));
-    // with projection processor
-    QueryRunner project = QueryRunnerTestHelper.toBrokerRunner(runner, toolChest);
-
     expectedRows = createExpectedRows(
         new String[]{"market", "rows", "index"},
         new Object[]{"total_market", 186L, 215679.82879638672D},
@@ -260,7 +258,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
-    TestHelper.assertExpectedResults(expectedResults, project.run(query, ImmutableMap.of()));
+    TestHelper.assertExpectedResults(expectedResults, runner.run(query, ImmutableMap.<String, Object>of()));
   }
 
   @Test

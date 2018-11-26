@@ -130,6 +130,16 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     return new ResultMergeQueryRunner<Result<SelectResultValue>>(queryRunner)
     {
       @Override
+      public Sequence<Result<SelectResultValue>> doRun(
+          QueryRunner<Result<SelectResultValue>> baseRunner,
+          Query<Result<SelectResultValue>> query,
+          Map<String, Object> context
+      )
+      {
+        return super.doRun(baseRunner, query.removePostActions(), context);
+      }
+
+      @Override
       protected Ordering<Result<SelectResultValue>> makeOrdering(Query<Result<SelectResultValue>> query)
       {
         return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());

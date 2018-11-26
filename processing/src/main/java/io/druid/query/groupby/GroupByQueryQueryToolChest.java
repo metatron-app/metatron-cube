@@ -25,7 +25,6 @@ import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -129,7 +128,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         if (BaseQuery.getContextBySegment(query, false)) {
-          return runner.run(query, responseContext);
+          return runner.run(query.removePostActions(), responseContext);
         }
 
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
@@ -163,24 +162,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   private GroupByQuery removePostActions(GroupByQuery query)
   {
-    return new GroupByQuery(
-        query.getDataSource(),
-        query.getQuerySegmentSpec(),
-        query.getDimFilter(),
-        query.getGranularity(),
-        query.getDimensions(),
-        query.getGroupingSets(),
-        query.getVirtualColumns(),
-        query.getAggregatorSpecs(),
-        // Don't do post aggs until the end of this method.
-        ImmutableList.<PostAggregator>of(),
-        // Don't do "having" clause until the end of this method.
-        null,
-        query.getLimitSpec().withNoProcessing(),
-        null,
-        null,
-        query.getContext()
-    ).withOverriddenContext(
+    return query.removePostActions().withOverriddenContext(
         ImmutableMap.<String, Object>of(
             Query.FINALIZE, false,
             Query.FINAL_MERGE, false,

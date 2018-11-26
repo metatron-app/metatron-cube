@@ -27,7 +27,6 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.sketch.SketchQueryRunnerTest;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.junit.Test;

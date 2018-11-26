@@ -52,7 +52,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
@@ -94,17 +93,16 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
     return new ResultMergeQueryRunner<Result<TimeseriesResultValue>>(queryRunner)
     {
       @Override
-      public Sequence<Result<TimeseriesResultValue>> doRun(QueryRunner<Result<TimeseriesResultValue>> baseRunner, Query<Result<TimeseriesResultValue>> query, Map<String, Object> context)
+      public Sequence<Result<TimeseriesResultValue>> doRun(
+          QueryRunner<Result<TimeseriesResultValue>> baseRunner,
+          Query<Result<TimeseriesResultValue>> query,
+          Map<String, Object> context
+      )
       {
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
-          query = timeseriesQuery.withPostAggregatorSpecs(null)
-                                 .withLimitSpec(null)
-                                 .withHavingSpec(null)
-                                 .withOutputColumns(null)
-                                 .withLateralView(null)
-                                 .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false)
-                                 .withOverriddenContext(BaseQuery.removeContext(QueryContextKeys.POST_PROCESSING));
+          query = query.removePostActions()
+                       .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false)
+                       .withOverriddenContext(BaseQuery.removeContext(QueryContextKeys.POST_PROCESSING));
         }
         return super.doRun(baseRunner, query, context);
       }
@@ -154,8 +152,8 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       public byte[] computeCacheKey(TimeseriesQuery query)
       {
-        final DimFilter dimFilter = query.getDimFilter();
-        final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
+        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte descending = query.isDescending() ? (byte) 1 : 0;
@@ -166,6 +164,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
                 3
                 + granularityBytes.length
                 + filterBytes.length
+                + vcBytes.length
                 + aggregatorBytes.length
             )
             .put(TIMESERIES_QUERY)
@@ -173,6 +172,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             .put(skipEmptyBuckets)
             .put(granularityBytes)
             .put(filterBytes)
+            .put(vcBytes)
             .put(aggregatorBytes)
             .array();
       }

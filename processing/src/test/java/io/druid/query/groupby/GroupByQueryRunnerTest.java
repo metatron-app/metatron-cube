@@ -26,14 +26,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
@@ -129,7 +127,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -142,7 +139,7 @@ import static java.lang.Double.NaN;
 @RunWith(Parameterized.class)
 public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 {
-  private final QueryRunner<Row> runner;
+  private final QueryRunner runner;
   private QueryRunnerFactory<Row, Query<Row>> factory;
 
   @Parameterized.Parameters
@@ -155,16 +152,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   {
     this.factory = factory;
     this.runner = runner;
-  }
-
-  private QueryRunner<Row> toBrokerRunner(QueryRunner<Row> runner)
-  {
-    return QueryRunnerTestHelper.toBrokerRunner(runner, factory.getToolchest());
-  }
-
-  private QueryRunner<Row> toBrokerRunner(QueryRunner<Row> runner, int segmentCount, ExecutorService exec)
-  {
-    return QueryRunnerTestHelper.toBrokerRunner(runner, factory, segmentCount, exec);
   }
 
   @Test
@@ -235,11 +222,10 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         new Object[]{"2011-04-02", "travel", 1L}
     );
 
-    results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     // add post processing
-    QueryRunner<Row> broker = toBrokerRunner(runner);
     query = query.withOverriddenContext(
         ImmutableMap.<String, Object>of(
             Query.POST_PROCESSING,
@@ -263,7 +249,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02T00:00:00.000Z", "travel", 1L)
     );
 
-    results = Sequences.toList(broker.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     // post-aggregations post processor
@@ -302,7 +288,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02T00:00:00.000Z", "travel", 1L, "Apr 02")
     );
 
-    results = Sequences.toList(broker.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1508,80 +1494,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
-  public void testMergeResults()
-  {
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("idx", "index")
-            )
-        )
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
-
-    final GroupByQuery fullQuery = builder.build();
-    final GroupByQuery allGranQuery = builder.setGranularity(QueryGranularities.ALL).build();
-
-    QueryRunner mergedRunner = toBrokerRunner(
-        new QueryRunner<Row>()
-        {
-          @Override
-          public Sequence<Row> run(
-              Query<Row> query, Map<String, Object> responseContext
-          )
-          {
-            // simulate two daily segments
-            final Query query1 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-02/2011-04-03")))
-            );
-            final Query query2 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
-            );
-            return new MergeSequence(
-                query.getResultOrdering(),
-                Sequences.simple(
-                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
-                )
-            );
-          }
-        }
-    );
-
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L)
-    );
-
-    Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
-
-    List<Row> allGranExpectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "automotive", "rows", 2L, "idx", 269L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "business", "rows", 2L, "idx", 217L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "health", "rows", 2L, "idx", 216L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "news", "rows", 2L, "idx", 221L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "premium", "rows", 6L, "idx", 4416L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "technology", "rows", 2L, "idx", 177L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel", "rows", 2L, "idx", 243L)
-    );
-
-    TestHelper.assertExpectedObjects(allGranExpectedResults, mergedRunner.run(allGranQuery, context), "merged");
-  }
-
-  @Test
   public void testMergeResultsWithLimit()
   {
     for (int limit = 1; limit < 20; ++limit) {
@@ -1718,113 +1630,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setLimit(-1);
 
     builder.build();
-  }
-
-  @Test
-  public void testMergeResultsWithOrderBy()
-  {
-    LimitSpec[] orderBySpecs = new LimitSpec[]{
-        new LimitSpec(OrderByColumnSpec.ascending("idx"), null),
-        new LimitSpec(OrderByColumnSpec.ascending("rows", "idx"), null),
-        new LimitSpec(OrderByColumnSpec.descending("idx"), null),
-        new LimitSpec(OrderByColumnSpec.descending("rows", "idx"), null),
-    };
-
-    final Comparator<Row> idxComparator =
-        new Comparator<Row>()
-        {
-          @Override
-          public int compare(Row o1, Row o2)
-          {
-            return Float.compare(o1.getFloatMetric("idx"), o2.getFloatMetric("idx"));
-          }
-        };
-
-    Comparator<Row> rowsIdxComparator =
-        new Comparator<Row>()
-        {
-
-          @Override
-          public int compare(Row o1, Row o2)
-          {
-            int value = Float.compare(o1.getFloatMetric("rows"), o2.getFloatMetric("rows"));
-            if (value != 0) {
-              return value;
-            }
-
-            return idxComparator.compare(o1, o2);
-          }
-        };
-
-    List<Row> allResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L)
-    );
-
-    List<List<Row>> expectedResults = Lists.newArrayList(
-        Ordering.from(idxComparator).sortedCopy(allResults),
-        Ordering.from(rowsIdxComparator).sortedCopy(allResults),
-        Ordering.from(idxComparator).reverse().sortedCopy(allResults),
-        Ordering.from(rowsIdxComparator).reverse().sortedCopy(allResults)
-    );
-
-    for (int i = 0; i < orderBySpecs.length; ++i) {
-      doTestMergeResultsWithOrderBy(orderBySpecs[i], expectedResults.get(i));
-    }
-  }
-
-  private void doTestMergeResultsWithOrderBy(LimitSpec orderBySpec, List<Row> expectedResults)
-  {
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("idx", "index")
-            )
-        )
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
-        .setLimitSpec(orderBySpec);
-
-    final GroupByQuery fullQuery = builder.build();
-
-    QueryRunner mergedRunner = toBrokerRunner(
-        new QueryRunner<Row>()
-        {
-          @Override
-          public Sequence<Row> run(
-              Query<Row> query, Map<String, Object> responseContext
-          )
-          {
-            // simulate two daily segments
-            final Query query1 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-02/2011-04-03")))
-            );
-            final Query query2 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
-            );
-            return new MergeSequence(
-                query.getResultOrdering(),
-                Sequences.simple(
-                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
-                )
-            );
-          }
-        }
-    );
-
-    Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
   }
 
   @Test
@@ -2555,161 +2360,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
-  public void testPostAggMergedHavingSpec()
-  {
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "mezzanine",
-            "rows",
-            6L,
-            "index",
-            4420L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4420L + 1L)
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "premium",
-            "rows",
-            6L,
-            "index",
-            4416L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4416L + 1L)
-        )
-    );
-
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("index", "index")
-            )
-        )
-        .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(QueryRunnerTestHelper.addRowsIndexConstant))
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
-        .setHavingSpec(
-            new OrHavingSpec(
-                ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric, 1000L)
-                )
-            )
-        );
-
-    final GroupByQuery fullQuery = builder.build();
-
-    QueryRunner mergedRunner = toBrokerRunner(
-        new QueryRunner<Row>()
-        {
-          @Override
-          public Sequence<Row> run(
-              Query<Row> query, Map<String, Object> responseContext
-          )
-          {
-            // simulate two daily segments
-            final Query query1 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-02/2011-04-03")))
-            );
-            final Query query2 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
-            );
-            return new MergeSequence(
-                query.getResultOrdering(),
-                Sequences.simple(
-                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
-                )
-            );
-          }
-        }
-    );
-
-    Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
-  }
-
-  @Test
-  public void testGroupByWithOrderLimitHavingSpec()
-  {
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-01-25/2011-01-28")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new DoubleSumAggregatorFactory("index", "index")
-            )
-        )
-        .setGranularity(QueryGranularities.ALL)
-        .setHavingSpec(new GreaterThanHavingSpec("index", 310L))
-        .setLimitSpec(LimitSpecs.of(5, OrderByColumnSpec.asc("index")));
-
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "business",
-            "rows",
-            3L,
-            "index",
-            312.38165283203125
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "news",
-            "rows",
-            3L,
-            "index",
-            312.7834167480469
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "technology",
-            "rows",
-            3L,
-            "index",
-            324.6412353515625
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "travel",
-            "rows",
-            3L,
-            "index",
-            393.36322021484375
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "health",
-            "rows",
-            3L,
-            "index",
-            511.2996826171875
-        )
-    );
-
-    GroupByQuery fullQuery = builder.build();
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, fullQuery);
-    TestHelper.assertExpectedObjects(
-        expectedResults,
-        results,
-        ""
-    );
-  }
-
-  @Test
   public void testPostAggHavingSpec()
   {
     List<Row> expectedResults = Arrays.asList(
@@ -2819,161 +2469,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
-  public void testMergedHavingSpec()
-  {
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L)
-    );
-
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("idx", "index")
-            )
-        )
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
-        .setHavingSpec(
-            new OrHavingSpec(
-                ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec("rows", 2L),
-                    new EqualToHavingSpec("idx", 217L)
-                )
-            )
-        );
-
-    GroupByQuery fullQuery = builder.build();
-
-    QueryRunner mergedRunner = toBrokerRunner(
-        new QueryRunner<Row>()
-        {
-          @Override
-          public Sequence<Row> run(
-              Query<Row> query, Map<String, Object> responseContext
-          )
-          {
-            // simulate two daily segments
-            final Query query1 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-02/2011-04-03")))
-            );
-            final Query query2 = query.withQuerySegmentSpec(
-                new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
-            );
-            return new MergeSequence(
-                query.getResultOrdering(),
-                Sequences.simple(
-                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
-                )
-            );
-          }
-        }
-    );
-
-    Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
-  }
-
-  @Test
-  public void testMergedPostAggHavingSpec()
-  {
-    String[] columns = new String[]{"__time", "alias", "rows", "idx", "rows_times_10"};
-    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        columns,
-        new Object[]{"2011-04-01", "business", 2L, 217L, 20.0},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 4420L, 60.0},
-        new Object[]{"2011-04-01", "premium", 6L, 4416L, 60.0}
-    );
-
-    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
-        .setAggregatorSpecs(
-            Arrays.asList(
-                QueryRunnerTestHelper.rowsCount,
-                new LongSumAggregatorFactory("idx", "index")
-            )
-        )
-        .setPostAggregatorSpecs(
-            Arrays.<PostAggregator>asList(
-                new ArithmeticPostAggregator(
-                    "rows_times_10",
-                    "*",
-                    Arrays.<PostAggregator>asList(
-                        new FieldAccessPostAggregator(
-                            "rows",
-                            "rows"
-                        ),
-                        new ConstantPostAggregator(
-                            "const",
-                            10L
-                        )
-                    )
-                )
-            )
-        )
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
-        .setHavingSpec(
-            new OrHavingSpec(
-                ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec("rows_times_10", 20L),
-                    new EqualToHavingSpec("idx", 217L)
-                )
-            )
-        );
-
-    GroupByQuery fullQuery = builder.build();
-
-    QueryRunner<Row> baseRunner = new QueryRunner<Row>()
-    {
-      @Override
-      public Sequence<Row> run(
-          Query<Row> query, Map<String, Object> responseContext
-      )
-      {
-        // simulate two daily segments
-        final Query query1 = query.withQuerySegmentSpec(
-            new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-02/2011-04-03")))
-        );
-        final Query query2 = query.withQuerySegmentSpec(
-            new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
-        );
-        return new MergeSequence(
-            query.getResultOrdering(),
-            Sequences.simple(
-                Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
-            )
-        );
-      }
-    };
-
-    Map<String, Object> context = Maps.newHashMap();
-    // add an extra layer of merging, simulate broker forwarding query to historical
-    QueryRunner<Row> brokerRunner = toBrokerRunner(baseRunner);
-
-    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
-
-    fullQuery = fullQuery
-        .withPostAggregatorSpecs(Arrays.<PostAggregator>asList(new MathPostAggregator("rows_times_10", "rows * 10.0")))
-        .withHavingSpec(new ExpressionHavingSpec("rows_times_10 > 20 || idx == 217"));
-
-    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
-
-    fullQuery = fullQuery.withPostAggregatorSpecs(
-        Arrays.<PostAggregator>asList(new MathPostAggregator("rows_times_10 = rows * 10.0"))
-    );
-
-    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
-  }
-
-  @Test
   public void testGroupByWithRegEx() throws Exception
   {
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
@@ -2995,7 +2490,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "quality", "automotive", "rows", 2L)
     );
 
-    TestHelper.assertExpectedObjects(expectedResults, toBrokerRunner(runner).run(query, null), "no-limit");
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, null), "no-limit");
   }
 
   @Test
@@ -3054,7 +2549,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     Map<String, Object> context = Maps.newHashMap();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "normal");
-    TestHelper.assertExpectedObjects(expectedResults, toBrokerRunner(runner).run(query, context), "no-limit");
   }
 
   // A subquery identical to the query should yield identical results
@@ -7177,8 +6671,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   @Test
   public void testBySegmentResults()
   {
-    int segmentCount = 32;
-    Result<BySegmentResultValue> singleSegmentResult = new Result<BySegmentResultValue>(
+    Result<BySegmentResultValue> segmentResult = new Result<BySegmentResultValue>(
         new DateTime("2011-01-12T00:00:00.000Z"),
         new BySegmentResultValueClass(
             Arrays.asList(
@@ -7194,10 +6687,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             ), "testSegment", new Interval("2011-04-02T00:00:00.000Z/2011-04-04T00:00:00.000Z")
         )
     );
-    List<Result> bySegmentResults = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      bySegmentResults.add(singleSegmentResult);
-    }
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
@@ -7212,26 +6701,20 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setDimFilter(new SelectorDimFilter("quality", "mezzanine", null))
         .setContext(ImmutableMap.<String, Object>of("bySegment", true));
-    final GroupByQuery fullQuery = builder.build();
+
+    GroupByQuery fullQuery = builder.build();
     QueryToolChest toolChest = factory.getToolchest();
 
-    List<QueryRunner<Row>> singleSegmentRunners = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
-    }
-    ExecutorService exec = Executors.newCachedThreadPool();
-    QueryRunner theRunner = toBrokerRunner(runner, segmentCount, exec);
-
-    TestHelper.assertExpectedObjects(bySegmentResults, theRunner.run(fullQuery, Maps.newHashMap()), "");
-    exec.shutdownNow();
+    QueryRunner bySegment = runner;
+    List result = Sequences.toList(bySegment.run(fullQuery, Maps.<String, Object>newHashMap()));
+    TestHelper.assertExpectedObjects(Arrays.asList(segmentResult), result, "");
   }
 
 
   @Test
   public void testBySegmentResultsUnOptimizedDimextraction()
   {
-    int segmentCount = 32;
-    Result<BySegmentResultValue> singleSegmentResult = new Result<BySegmentResultValue>(
+    Result<BySegmentResultValue> segmentResult = new Result<BySegmentResultValue>(
         new DateTime("2011-01-12T00:00:00.000Z"),
         new BySegmentResultValueClass(
             Arrays.asList(
@@ -7247,10 +6730,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             ), "testSegment", new Interval("2011-04-02T00:00:00.000Z/2011-04-04T00:00:00.000Z")
         )
     );
-    List<Result> bySegmentResults = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      bySegmentResults.add(singleSegmentResult);
-    }
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
@@ -7283,25 +6762,15 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setDimFilter(new SelectorDimFilter("quality", "mezzanine", null))
         .setContext(ImmutableMap.<String, Object>of("bySegment", true));
-    final GroupByQuery fullQuery = builder.build();
-    QueryToolChest toolChest = factory.getToolchest();
 
-    List<QueryRunner<Row>> singleSegmentRunners = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
-    }
-    ExecutorService exec = Executors.newCachedThreadPool();
-    QueryRunner theRunner = toBrokerRunner(runner, segmentCount, exec);
-
-    TestHelper.assertExpectedObjects(bySegmentResults, theRunner.run(fullQuery, Maps.newHashMap()), "");
-    exec.shutdownNow();
+    GroupByQuery fullQuery = builder.build();
+    TestHelper.assertExpectedObjects(Arrays.asList(segmentResult), runner.run(fullQuery, Maps.newHashMap()), "");
   }
 
   @Test
   public void testBySegmentResultsOptimizedDimextraction()
   {
-    int segmentCount = 32;
-    Result<BySegmentResultValue> singleSegmentResult = new Result<BySegmentResultValue>(
+    Result<BySegmentResultValue> segmentResult = new Result<BySegmentResultValue>(
         new DateTime("2011-01-12T00:00:00.000Z"),
         new BySegmentResultValueClass(
             Arrays.asList(
@@ -7317,10 +6786,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             ), "testSegment", new Interval("2011-04-02T00:00:00.000Z/2011-04-04T00:00:00.000Z")
         )
     );
-    List<Result> bySegmentResults = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      bySegmentResults.add(singleSegmentResult);
-    }
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
@@ -7353,13 +6818,9 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setDimFilter(new SelectorDimFilter("quality", "mezzanine", null))
         .setContext(ImmutableMap.<String, Object>of("bySegment", true));
-    final GroupByQuery fullQuery = builder.build();
 
-    ExecutorService exec = Executors.newCachedThreadPool();
-    QueryRunner theRunner = toBrokerRunner(runner, segmentCount, exec);
-
-    TestHelper.assertExpectedObjects(bySegmentResults, theRunner.run(fullQuery, Maps.newHashMap()), "");
-    exec.shutdownNow();
+    GroupByQuery fullQuery = builder.build();
+    TestHelper.assertExpectedObjects(Arrays.asList(segmentResult), runner.run(fullQuery, Maps.newHashMap()), "");
   }
 
   // Extraction Filters testing
@@ -7727,8 +7188,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   @Test
   public void testBySegmentResultsWithAllFiltersWithExtractionFns()
   {
-    int segmentCount = 32;
-    Result<BySegmentResultValue> singleSegmentResult = new Result<BySegmentResultValue>(
+    Result<BySegmentResultValue> segmentResult = new Result<BySegmentResultValue>(
         new DateTime("2011-01-12T00:00:00.000Z"),
         new BySegmentResultValueClass(
             Arrays.asList(
@@ -7744,10 +7204,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             ), "testSegment", new Interval("2011-04-02T00:00:00.000Z/2011-04-04T00:00:00.000Z")
         )
     );
-    List<Result> bySegmentResults = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      bySegmentResults.add(singleSegmentResult);
-    }
 
     String extractionJsFn = "function(str) { return 'super-' + str; }";
     String jsFn = "function(x) { return(x === 'super-mezzanine') }";
@@ -7792,18 +7248,9 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setDimFilter(superFilter)
         .setContext(ImmutableMap.<String, Object>of("bySegment", true));
-    final GroupByQuery fullQuery = builder.build();
-    QueryToolChest toolChest = factory.getToolchest();
 
-    List<QueryRunner<Row>> singleSegmentRunners = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
-    }
-    ExecutorService exec = Executors.newCachedThreadPool();
-    QueryRunner theRunner = toBrokerRunner(runner, segmentCount, exec);
-
-    TestHelper.assertExpectedObjects(bySegmentResults, theRunner.run(fullQuery, Maps.newHashMap()), "");
-    exec.shutdownNow();
+    GroupByQuery fullQuery = builder.build();
+    TestHelper.assertExpectedObjects(Arrays.asList(segmentResult), runner.run(fullQuery, Maps.newHashMap()), "");
   }
 
   @Test

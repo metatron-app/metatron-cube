@@ -323,6 +323,12 @@ public abstract class BaseQuery<T> implements Query<T>
     );
   }
 
+  @Override
+  public Query<T> removePostActions()
+  {
+    return this;
+  }
+
   public int getContextIntWithMax(String key, int defaultValue)
   {
     if (context != null && context.containsKey(key)) {

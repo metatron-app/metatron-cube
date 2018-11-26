@@ -428,7 +428,7 @@ public class RealtimeManagerTest
 
     chiefStartedLatch.await();
 
-    for (QueryRunner runner : QueryRunnerTestHelper.makeQueryRunners((GroupByQueryRunnerFactory) factory)) {
+    for (QueryRunner runner : QueryRunnerTestHelper.makeSegmentQueryRunners((GroupByQueryRunnerFactory) factory)) {
       GroupByQuery query = GroupByQuery
           .builder()
           .setDataSource(QueryRunnerTestHelper.dataSource)
@@ -486,7 +486,7 @@ public class RealtimeManagerTest
 
     chiefStartedLatch.await();
 
-    for (QueryRunner runner : QueryRunnerTestHelper.makeQueryRunners((GroupByQueryRunnerFactory) factory)) {
+    for (QueryRunner runner : QueryRunnerTestHelper.makeSegmentQueryRunners((GroupByQueryRunnerFactory) factory)) {
       GroupByQuery query = GroupByQuery
           .builder()
           .setDataSource(QueryRunnerTestHelper.dataSource)
@@ -642,13 +642,13 @@ public class RealtimeManagerTest
 
     final Map<Interval, QueryRunner> runnerMap = ImmutableMap.<Interval, QueryRunner>of(
         interval_26_28,
-        QueryRunnerTestHelper.makeQueryRunner(
+        QueryRunnerTestHelper.makeSegmentQueryRunner(
             factory,
             "druid.sample.tsv.top"
         )
         ,
         interval_01_02,
-        QueryRunnerTestHelper.makeQueryRunner(
+        QueryRunnerTestHelper.makeSegmentQueryRunner(
             factory,
             "druid.sample.tsv.bottom"
         )
@@ -1068,8 +1068,7 @@ public class RealtimeManagerTest
 
       Assert.assertEquals(1, query.getIntervals().size());
 
-      final SegmentDescriptor descriptor =
-          ((SpecificSegmentSpec) ((BaseQuery) query).getQuerySegmentSpec()).getDescriptor();
+      final SegmentDescriptor descriptor = ((SpecificSegmentSpec) query.getQuerySegmentSpec()).getDescriptor();
 
       return new SpecificSegmentQueryRunner<T>(
           runners.get(descriptor.getInterval()),

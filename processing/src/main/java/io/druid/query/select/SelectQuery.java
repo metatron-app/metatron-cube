@@ -380,6 +380,26 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
+  public SelectQuery removePostActions()
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        pagingSpec,
+        concatString,
+        null,
+        null,
+        getContext()
+    );
+  }
+
+  @Override
   public String toString()
   {
     StringBuilder builder = new StringBuilder(64)

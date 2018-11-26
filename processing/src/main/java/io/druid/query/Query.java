@@ -141,6 +141,8 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
 
+  Query<T> removePostActions();
+
   Query<T> withId(String id);
 
   String getId();

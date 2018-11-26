@@ -167,9 +167,8 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       return Sequences.simple(bySegmentAccumulatorPair.lhs);
     }
 
-    boolean compact = !BaseQuery.isLocalFinalizingQuery(query) &&
-                      query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
-    return Sequences.withBaggage(incrementalIndex.toMergeStream(compact) , new AsyncCloser(incrementalIndex, executor));
+    boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
+    return Sequences.withBaggage(incrementalIndex.toMergeStream(compact), new AsyncCloser(incrementalIndex, executor));
   }
 
   private void waitForFutureCompletion(

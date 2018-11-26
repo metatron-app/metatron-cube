@@ -469,6 +469,27 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @Override
+  public GroupByQuery removePostActions()
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getGroupingSets(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        null,
+        null,
+        getLimitSpec().withNoProcessing(),
+        null,
+        null,
+        getContext()
+    );
+  }
+
+  @Override
   public Query rewriteQuery(
       QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
   )

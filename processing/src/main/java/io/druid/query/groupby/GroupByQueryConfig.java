@@ -56,9 +56,6 @@ public class GroupByQueryConfig
   private boolean mergeSimple = true; // todo
 
   @JsonProperty
-  private boolean compactTransfer = false;
-
-  @JsonProperty
   private boolean useRawUTF8 = false;
 
   @JsonProperty
@@ -165,16 +162,6 @@ public class GroupByQueryConfig
   public void setMergeSimple(boolean mergeSimple)
   {
     this.mergeSimple = mergeSimple;
-  }
-
-  public boolean isCompactTransfer()
-  {
-    return compactTransfer;
-  }
-
-  public void setCompactTransfer(boolean compactTransfer)
-  {
-    this.compactTransfer = compactTransfer;
   }
 
   public boolean isUseRawUTF8()

@@ -98,10 +98,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
     if (isBySegment) {
       finalizerFn = new Function<T, T>()
       {
-        final Function<T, T> baseFinalizer = toolChest.makePostComputeManipulatorFn(
-            query,
-            metricManipulationFn
-        );
+        final Function<T, T> baseFinalizer = toolChest.makePostComputeManipulatorFn(query, metricManipulationFn);
 
         @Override
         @SuppressWarnings("unchecked")

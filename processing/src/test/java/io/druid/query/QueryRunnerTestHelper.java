@@ -56,6 +56,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -639,6 +640,25 @@ public class QueryRunnerTestHelper
     );
   }
 
+  public static <T, QueryType extends Query<T>> List<QueryRunner<T>> makeSegmentQueryRunners(
+      QueryRunnerFactory<T, QueryType> factory
+  )
+      throws IOException
+  {
+    final IncrementalIndex rtIndex = TestIndex.getIncrementalTestIndex();
+    final IncrementalIndex noRollupRtIndex = TestIndex.getNoRollupIncrementalTestIndex();
+    final QueryableIndex mMappedTestIndex = TestIndex.getMMappedTestIndex();
+    final QueryableIndex noRollupMMappedTestIndex = TestIndex.getNoRollupMMappedTestIndex();
+    final QueryableIndex mergedRealtimeIndex = TestIndex.mergedRealtimeIndex();
+    return ImmutableList.of(
+        makeSegmentQueryRunner(factory, segmentId, new IncrementalIndexSegment(rtIndex, segmentId)),
+        makeSegmentQueryRunner(factory, segmentId, new IncrementalIndexSegment(noRollupRtIndex, segmentId)),
+        makeSegmentQueryRunner(factory, segmentId, new QueryableIndexSegment(segmentId, mMappedTestIndex)),
+        makeSegmentQueryRunner(factory, segmentId, new QueryableIndexSegment(segmentId, noRollupMMappedTestIndex)),
+        makeSegmentQueryRunner(factory, segmentId, new QueryableIndexSegment(segmentId, mergedRealtimeIndex))
+    );
+  }
+
   @SuppressWarnings("unchecked")
   public static Collection<?> makeUnionQueryRunners(
       QueryRunnerFactory factory,
@@ -727,6 +747,18 @@ public class QueryRunnerTestHelper
     );
   }
 
+  public static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
+      QueryRunnerFactory<T, QueryType> factory,
+      String resourceFileName
+  )
+  {
+    return makeSegmentQueryRunner(
+        factory,
+        segmentId,
+        new IncrementalIndexSegment(TestIndex.makeRealtimeIndex(resourceFileName, true), segmentId)
+    );
+  }
+
   public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunner(
       QueryRunnerFactory<T, QueryType> factory,
       Segment adapter
@@ -736,6 +768,33 @@ public class QueryRunnerTestHelper
   }
 
   public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunner(
+      QueryRunnerFactory<T, QueryType> factory,
+      String segmentId,
+      Segment adapter
+  )
+  {
+    return toBrokerRunner(factory.getToolchest(), makeLocalQueryRunner(factory, segmentId, adapter));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> QueryRunner<T> toBrokerRunner(QueryToolChest toolChest, QueryRunner<T> runner)
+  {
+    return toolChest.finalQueryDecoration(
+        PostProcessingOperators.wrap(
+            toolChest.finalizeMetrics(
+                toolChest.postMergeQueryDecoration(
+                    toolChest.mergeResults(
+                        toolChest.preMergeQueryDecoration(
+                            deserialize(runner, toolChest)
+                        )
+                    )
+                )
+            ), TestHelper.JSON_MAPPER
+        )
+    );
+  }
+
+  private static <T, QueryType extends Query<T>> QueryRunner<T> makeLocalQueryRunner(
       QueryRunnerFactory<T, QueryType> factory,
       String segmentId,
       Segment adapter
@@ -752,22 +811,6 @@ public class QueryRunnerTestHelper
                     null
                 )
             )
-        )
-    );
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <T> QueryRunner<T> toBrokerRunner(QueryRunner<T> runner, QueryToolChest toolChest)
-  {
-    return toolChest.finalQueryDecoration(
-        PostProcessingOperators.wrap(
-            toolChest.finalizeMetrics(
-                toolChest.postMergeQueryDecoration(
-                    toolChest.mergeResults(
-                        toolChest.preMergeQueryDecoration(runner)
-                    )
-                )
-            ), TestHelper.JSON_MAPPER
         )
     );
   }
@@ -802,7 +845,7 @@ public class QueryRunnerTestHelper
     );
   }
 
-  private static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
+  public static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
       final QueryRunnerFactory<T, QueryType> factory,
       final String segmentId,
       final Segment segment
@@ -919,27 +962,50 @@ public class QueryRunnerTestHelper
     return toMergeRunner(factory, runner, query, false);
   }
 
+  @SuppressWarnings("unchecked")
   private static <T> QueryRunner<T> toMergeRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
-      QueryRunner<T> runner,
-      Query<T> query,
-      boolean subQuery
+      final QueryRunnerFactory<T, Query<T>> factory,
+      final QueryRunner<T> runner,
+      final Query<T> query,
+      final boolean subQuery
   )
   {
     QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    QueryRunner<T> baseRunner;
+    QueryRunner<T> resolved = subQuery ? runner : deserialize(runner, toolChest);
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      baseRunner = toolChest.handleSubQuery(
-          toMergeRunner(factory, runner, innerQuery, true), SCHEMA_ONLY, null, 5000);
+      resolved = toMergeRunner(factory, resolved, innerQuery, true);
+      resolved = toolChest.handleSubQuery(resolved, SCHEMA_ONLY, null, 5000);
     } else {
-      baseRunner = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)));
+      resolved = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(resolved)));
     }
     if (!subQuery) {
-      baseRunner = toolChest.finalizeMetrics(baseRunner);
+      resolved = toolChest.finalizeMetrics(resolved);
     }
-    return toolChest.finalQueryDecoration(baseRunner);
+    return toolChest.finalQueryDecoration(resolved);
+  }
+
+  private static <T> QueryRunner<T> deserialize(
+      final QueryRunner<T> runner,
+      final QueryToolChest<T, Query<T>> toolChest
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
+            query, MetricManipulatorFns.deserializing()
+        );
+        if (BaseQuery.getContextBySegment(query, false)) {
+          manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
+        }
+        return Sequences.map(runner.run(query, responseContext), manipulatorFn);
+      }
+    };
   }
 
 

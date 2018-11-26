@@ -31,8 +31,8 @@ public interface QueryContextKeys
   public static final String TIMEOUT = "timeout";
   public static final String CHUNK_PERIOD = "chunkPeriod";
   public static final String FINALIZE = "finalize";
-  public static final String BY_SEGMENT = "bySegment";
   public static final String FINAL_MERGE = "finalMerge";
+  public static final String BY_SEGMENT = "bySegment";
   public static final String LOCAL_POST_PROCESSING = "localPostProcessing";
   public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
   public static final String LOCAL_SPLIT_STRATEGY = "localSplitStrategy";
@@ -41,7 +41,6 @@ public interface QueryContextKeys
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
-  public static final String GBY_COMPACT_TRANSFER = "groupByCompactTransfer";
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
   public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
@@ -79,7 +78,6 @@ public interface QueryContextKeys
       GBY_MERGE_PARALLELISM,
       GBY_CONVERT_TIMESERIES,
       GBY_ESTIMATE_TOPN_FACTOR,
-      GBY_COMPACT_TRANSFER,
       GBY_PRE_ORDERING,
       GBY_REMOVE_ORDERING,
       GBY_LOCAL_SPLIT_NUM,
