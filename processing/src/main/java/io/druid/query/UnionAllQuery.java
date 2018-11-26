@@ -53,7 +53,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class UnionAllQuery<T> extends BaseQuery<T>
+public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQuery<T>
 {
   private static final Logger LOG = new Logger(UnionAllQuery.class);
 
@@ -261,8 +261,7 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   public String toString()
   {
     return "UnionAllQuery{" +
-           "query=" + query +
-           ", queries=" + queries +
+           (query != null ? "query=" + query : "queries=" + queries) +
            ", sortOnUnion=" + sortOnUnion +
            ", limit=" + limit +
            ", parallelism=" + parallelism +
@@ -422,5 +421,24 @@ public class UnionAllQuery<T> extends BaseQuery<T>
       );
     }
     return ready;
+  }
+
+  @Override
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  {
+    if (query != null && query.getDataSource() instanceof UnionDataSource) {
+      return withQueries(Lists.<Query>newArrayList(Iterables.transform(
+          ((UnionDataSource) query.getDataSource()).getDataSources(),
+          new Function<TableDataSource, Query<T>>()
+          {
+            @Override
+            public Query<T> apply(TableDataSource input)
+            {
+              return query.withDataSource(input);
+            }
+          }
+      )));
+    }
+    return this;
   }
 }

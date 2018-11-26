@@ -408,6 +408,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
              '}';
     }
 
+    @Override
+    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+    {
+      return this;
+    }
+
     public JoinDelegate toArrayJoin()
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);

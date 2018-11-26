@@ -305,6 +305,9 @@ public class QueryUtils
       // cannot be resolved before sub-query is executed
       return query;
     }
+    if (dataSource instanceof UnionDataSource) {
+      return query; // cannot
+    }
     ViewDataSource view = ViewDataSource.of("dummy");
     if (dataSource instanceof ViewDataSource) {
       view = (ViewDataSource) dataSource;
