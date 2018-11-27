@@ -22,6 +22,7 @@ package io.druid.query.groupby.orderby;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import io.druid.common.utils.Sequences;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -89,10 +90,14 @@ public class TopNSorterTest
   {
     List<String> expected = rawInput.subList(0, Math.min(limit, rawInput.size()));
     List<String> inputs = Lists.newArrayList(rawInput);
-    Collections.shuffle(inputs, new Random(2));
+    for (int i = 0; i < 100; i++) {
+      Collections.shuffle(inputs, new Random(System.currentTimeMillis()));
 
-    Iterable<String> result = new TopNSorter<String>(ordering).toTopN(inputs, limit);
+      Iterable<String> result = new TopNSorter<String>(ordering).toTopN(inputs, limit);
+      Assert.assertEquals(expected, Lists.newArrayList(result));
 
-    Assert.assertEquals(expected, Lists.newArrayList(result));
+      result = TopNSorter.topN(ordering, Sequences.simple(inputs), limit);
+      Assert.assertEquals(expected, Lists.newArrayList(result));
+    }
   }
 }

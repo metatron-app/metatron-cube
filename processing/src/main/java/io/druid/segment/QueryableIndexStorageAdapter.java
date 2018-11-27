@@ -33,6 +33,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -149,11 +150,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
     Map<String, Object> columnStats = timeColumn.getColumnStats();
     if (columnStats != null && columnStats.get("min") instanceof Number) {
-      return new DateTime(((Number)columnStats.get("min")).longValue());
+      return DateTimes.utc(((Number) columnStats.get("min")).longValue());
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
-      return new DateTime(column.getLongSingleValueRow(0));
+      return DateTimes.utc(column.getLongSingleValueRow(0));
     }
     finally {
       CloseQuietly.close(column);
@@ -166,11 +167,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
     Map<String, Object> columnStats = timeColumn.getColumnStats();
     if (columnStats != null && columnStats.get("max") instanceof Number) {
-      return new DateTime(((Number)columnStats.get("max")).longValue());
+      return DateTimes.utc(((Number)columnStats.get("max")).longValue());
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
-      return new DateTime(column.getLongSingleValueRow(column.length() - 1));
+      return DateTimes.utc(column.getLongSingleValueRow(column.length() - 1));
     }
     finally {
       CloseQuietly.close(column);
@@ -287,9 +288,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final Offset offset;
     if (baseBitmap == null) {
-      offset = new NoFilterOffset(0, context.getNumRows(), descending);
+      offset = descending ? new DescNoFilter(0, context.getNumRows()) : new AscNoFilter(0, context.getNumRows());
     } else {
-      LOG.debug("%s : %,d / %,d", DimFilters.and(bitmapFilter, valuesFilter), baseBitmap.size(), context.getNumRows());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(
+            "%s : %,d / %,d",
+            DimFilters.and(bitmapFilter, valuesFilter),
+            baseBitmap.size(),
+            context.getNumRows()
+        );
+      }
       offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
@@ -395,19 +403,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
                   }
 
-                  final Offset baseOffset = descending ?
-                                        new DescendingTimestampCheckingOffset(
-                                            offset,
-                                            timestamps,
-                                            timeStart,
-                                            minDataTimestamp >= timeStart
-                                        ) :
-                                        new AscendingTimestampCheckingOffset(
-                                            offset,
-                                            timestamps,
-                                            timeEnd,
-                                            maxDataTimestamp < timeEnd
-                                        );
+                  final Offset baseOffset =
+                      descending ?
+                      minDataTimestamp >= timeStart ? offset : new DescTimestampCheck(offset, timestamps, timeStart) :
+                      maxDataTimestamp < timeEnd ? offset : new AscTimestampCheck(offset, timestamps, timeEnd);
 
                   return new Cursor.ExprSupport()
                   {
@@ -1099,20 +1098,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     protected final Offset baseOffset;
     protected final GenericColumn timestamps;
     protected final long timeLimit;
-    protected final boolean allWithinThreshold;
 
-    public TimestampCheckingOffset(
-        Offset baseOffset,
-        GenericColumn timestamps,
-        long timeLimit,
-        boolean allWithinThreshold
-    )
+    public TimestampCheckingOffset(Offset baseOffset, GenericColumn timestamps, long timeLimit)
     {
       this.baseOffset = baseOffset;
       this.timestamps = timestamps;
       this.timeLimit = timeLimit;
-      // checks if all the values are within the Threshold specified, skips timestamp lookups and checks if all values are within threshold.
-      this.allWithinThreshold = allWithinThreshold;
     }
 
     @Override
@@ -1124,13 +1115,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public boolean withinBounds()
     {
-      if (!baseOffset.withinBounds()) {
-        return false;
-      }
-      if (allWithinThreshold) {
-        return true;
-      }
-      return timeInRange(timestamps.getLongSingleValueRow(baseOffset.getOffset()));
+      return baseOffset.withinBounds() && timeInRange(timestamps.getLongSingleValueRow(baseOffset.getOffset()));
     }
 
     protected abstract boolean timeInRange(long current);
@@ -1142,21 +1127,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    public Offset clone() {
-      throw new IllegalStateException("clone");
-    }
+    public abstract Offset clone();
   }
 
-  private static class AscendingTimestampCheckingOffset extends TimestampCheckingOffset
+  private static final class AscTimestampCheck extends TimestampCheckingOffset
   {
-    public AscendingTimestampCheckingOffset(
-        Offset baseOffset,
-        GenericColumn timestamps,
-        long timeLimit,
-        boolean allWithinThreshold
-    )
+    public AscTimestampCheck(Offset baseOffset, GenericColumn timestamps, long timeLimit)
     {
-      super(baseOffset, timestamps, timeLimit, allWithinThreshold);
+      super(baseOffset, timestamps, timeLimit);
     }
 
     @Override
@@ -1175,20 +1153,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public Offset clone()
     {
-      return new AscendingTimestampCheckingOffset(baseOffset.clone(), timestamps, timeLimit, allWithinThreshold);
+      return new AscTimestampCheck(baseOffset.clone(), timestamps, timeLimit);
     }
   }
 
-  private static class DescendingTimestampCheckingOffset extends TimestampCheckingOffset
+  private static final class DescTimestampCheck extends TimestampCheckingOffset
   {
-    public DescendingTimestampCheckingOffset(
-        Offset baseOffset,
-        GenericColumn timestamps,
-        long timeLimit,
-        boolean allWithinThreshold
-    )
+    public DescTimestampCheck(Offset baseOffset, GenericColumn timestamps, long timeLimit)
     {
-      super(baseOffset, timestamps, timeLimit, allWithinThreshold);
+      super(baseOffset, timestamps, timeLimit);
     }
 
     @Override
@@ -1208,21 +1181,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public Offset clone()
     {
-      return new DescendingTimestampCheckingOffset(baseOffset.clone(), timestamps, timeLimit, allWithinThreshold);
+      return new DescTimestampCheck(baseOffset.clone(), timestamps, timeLimit);
     }
   }
 
-  private static class NoFilterOffset implements Offset
+  private static final class AscNoFilter implements Offset
   {
     private final int rowCount;
-    private final boolean descending;
-    private volatile int currentOffset;
+    private int currentOffset;
 
-    NoFilterOffset(int currentOffset, int rowCount, boolean descending)
+    AscNoFilter(int currentOffset, int rowCount)
     {
       this.currentOffset = currentOffset;
       this.rowCount = rowCount;
-      this.descending = descending;
     }
 
     @Override
@@ -1240,19 +1211,61 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public Offset clone()
     {
-      return new NoFilterOffset(currentOffset, rowCount, descending);
+      return new AscNoFilter(currentOffset, rowCount);
     }
 
     @Override
     public int getOffset()
     {
-      return descending ? rowCount - currentOffset - 1 : currentOffset;
+      return currentOffset;
     }
 
     @Override
     public String toString()
     {
-      return currentOffset + "/" + rowCount + (descending ? "(DSC)" : "");
+      return currentOffset + "/" + rowCount;
+    }
+  }
+
+  private static final class DescNoFilter implements Offset
+  {
+    private final int rowCount;
+    private int currentOffset;
+
+    DescNoFilter(int currentOffset, int rowCount)
+    {
+      this.currentOffset = currentOffset;
+      this.rowCount = rowCount;
+    }
+
+    @Override
+    public boolean increment()
+    {
+      return ++currentOffset < rowCount;
+    }
+
+    @Override
+    public boolean withinBounds()
+    {
+      return currentOffset < rowCount;
+    }
+
+    @Override
+    public Offset clone()
+    {
+      return new DescNoFilter(currentOffset, rowCount);
+    }
+
+    @Override
+    public int getOffset()
+    {
+      return rowCount - currentOffset - 1;
+    }
+
+    @Override
+    public String toString()
+    {
+      return currentOffset + "/" + rowCount + "(DSC)";
     }
   }
 
