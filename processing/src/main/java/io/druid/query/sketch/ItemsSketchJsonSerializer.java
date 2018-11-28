@@ -17,21 +17,23 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches.theta;
+package io.druid.query.sketch;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.yahoo.sketches.theta.Union;
+import com.yahoo.sketches.ArrayOfStringsSerDe;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 
 import java.io.IOException;
 
-public class UnionJsonSerializer extends JsonSerializer<Union>
+public class ItemsSketchJsonSerializer extends JsonSerializer<ItemsSketch>
 {
   @Override
-  public void serialize(Union union, JsonGenerator jgen, SerializerProvider provider)
+  @SuppressWarnings("unchecked")
+  public void serialize(ItemsSketch sketch, JsonGenerator jgen, SerializerProvider provider)
       throws IOException
   {
-    jgen.writeBinary(union.getResult(true, null).toByteArray());
+    jgen.writeBinary(sketch.toByteArray(new ArrayOfStringsSerDe()));
   }
 }

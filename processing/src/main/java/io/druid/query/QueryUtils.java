@@ -19,12 +19,10 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -54,12 +52,10 @@ import io.druid.query.spec.QuerySegmentSpec;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  */
@@ -75,74 +71,13 @@ public class QueryUtils
     if (sequences.size() == 1) {
       return sequences.get(0);
     }
-    Ordering<T> ordering = query.getResultOrdering();
-    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, Sequences.simple(sequences));
+    return mergeSort(query, Sequences.simple(sequences));
   }
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
   {
     Ordering<T> ordering = query.getResultOrdering();
     return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
-  }
-
-  public static List<String> runSketchQuery(
-      Query baseQuery,
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper jsonMapper,
-      String column,
-      int slopedSpaced,
-      int evenCounted
-  )
-  {
-    DataSource dataSource = baseQuery.getDataSource();
-    // default.. regard skewed
-    Map<String, Object> postProc = ImmutableMap.<String, Object>of(
-        "type", "sketch.quantiles",
-        "op", "QUANTILES",
-        "slopedSpaced", slopedSpaced > 0 ? slopedSpaced + 1 : -1,
-        "evenCounted", evenCounted > 0 ? evenCounted : -1
-    );
-    Query.MetricSupport query = (Query.MetricSupport) Queries.toQuery(
-        ImmutableMap.<String, Object>builder()
-                    .put("queryType", "sketch")
-                    .put("dataSource", Queries.convert(dataSource, jsonMapper, Map.class))
-                    .put("intervals", baseQuery.getQuerySegmentSpec())
-                    .put("sketchOp", "QUANTILE")
-                    .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
-                    .build(), jsonMapper
-    );
-
-    if (query == null) {
-      return null;
-    }
-    if (BaseQuery.getDimFilter(baseQuery) != null) {
-      query = (Query.MetricSupport) query.withDimFilter(BaseQuery.getDimFilter(baseQuery));
-    }
-    query = query.withMetrics(Arrays.asList(column));
-
-    final Query runner = query.withId(UUID.randomUUID().toString());
-
-    log.info("Running sketch query on partition key %s.%s", dataSource, column);
-    log.debug("Running.. %s", runner);
-
-    @SuppressWarnings("unchecked")
-    final List<Result<Map<String, Object>>> res = Sequences.toList(
-        runner.run(segmentWalker, Maps.newHashMap()), Lists.<Result<Map<String, Object>>>newArrayList()
-    );
-    if (!res.isEmpty()) {
-      String prev = null;
-      String[] splits = (String[]) res.get(0).getValue().get(column);
-      log.info("Partition keys.. %s", Arrays.toString(splits));
-      List<String> partitions = Lists.newArrayList();
-      for (String split : splits) {
-        if (prev == null || !prev.equals(split)) {
-          partitions.add(split);
-        }
-        prev = split;
-      }
-      return partitions;
-    }
-    return null;
   }
 
   public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query<?> query)

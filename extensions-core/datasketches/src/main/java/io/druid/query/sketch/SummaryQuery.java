@@ -35,7 +35,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
@@ -54,7 +53,7 @@ import java.util.Map;
  */
 @JsonTypeName("summary")
 public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
-    implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
+    implements Query.RewritingQuery<Result<Map<String, Object>>>,
     Query.MetricSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
@@ -151,17 +150,18 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         Maps.newHashMap(sketchContext)
     );
 
-    Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of(
-            "type", "sketch.summary",
-            "round", round,
-            "includeTimeStats", includeTimeStats,
-            "includeCovariance", includeCovariance,
-            "typeDetail", typeDetail
-        )
+    Map<String, Object> summaryContext = computeOverriddenContext(
+        ImmutableMap.<String, Object>of(POST_PROCESSING, jsonMapper.convertValue(
+            ImmutableMap.of(
+                "type", "sketch.summary",
+                "round", round,
+                "includeTimeStats", includeTimeStats,
+                "includeCovariance", includeCovariance,
+                "typeDetail", typeDetail
+            )
+            , SummaryPostProcessor.class
+        ))
     );
-    Map<String, Object> summaryContext = computeOverriddenContext(postProcessor);
 
     return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, summaryContext);
   }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches;
+package io.druid.query.sketch;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -34,9 +34,6 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTest;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.ordering.OrderingSpec;
-import io.druid.query.sketch.GenericSketchAggregatorFactory;
-import io.druid.query.sketch.SketchOp;
-import io.druid.query.sketch.SketchQuantilesPostAggregator;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
@@ -52,7 +49,7 @@ import java.util.List;
 /**
  */
 @RunWith(Parameterized.class)
-public class SketchGroupByQueryTest
+public class SketchGroupByQueryRunnerTest
 {
   private final QueryRunner<Row> runner;
   private GroupByQueryRunnerFactory factory;
@@ -63,7 +60,7 @@ public class SketchGroupByQueryTest
     return GroupByQueryRunnerTest.constructorFeeder();
   }
 
-  public SketchGroupByQueryTest(GroupByQueryRunnerFactory factory, QueryRunner<Row> runner)
+  public SketchGroupByQueryRunnerTest(GroupByQueryRunnerFactory factory, QueryRunner<Row> runner)
   {
     this.factory = factory;
     this.runner = runner;

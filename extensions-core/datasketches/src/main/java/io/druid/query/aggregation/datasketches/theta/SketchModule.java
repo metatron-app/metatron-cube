@@ -23,31 +23,20 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
-import com.google.inject.multibindings.MapBinder;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
-import io.druid.guice.LazySingleton;
-import io.druid.guice.QueryToolBinders;
 import io.druid.initialization.DruidModule;
-import io.druid.query.Query;
-import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
-import io.druid.query.sketch.GenericSketchAggregatorFactory;
-import io.druid.query.sketch.SimilarityProcessingOperator;
-import io.druid.query.sketch.SketchFrequencyProcessor;
-import io.druid.query.sketch.SketchQuantilesPostAggregator;
-import io.druid.query.sketch.SketchQuantilesProcessor;
-import io.druid.query.sketch.SketchQuery;
-import io.druid.query.sketch.SketchQueryQueryToolChest;
-import io.druid.query.sketch.SketchQueryRunnerFactory;
-import io.druid.query.sketch.SketchSamplingProcessor;
-import io.druid.query.sketch.SketchThetaPostAggregator;
-import io.druid.query.sketch.SketchThetaProcessor;
+import io.druid.query.sketch.FrequencySketchJsonSerializer;
+import io.druid.query.sketch.ItemsSketchJsonSerializer;
+import io.druid.query.sketch.MemoryJsonSerializer;
+import io.druid.query.sketch.SamplingSketchJsonSerializer;
+import io.druid.query.sketch.SketchJsonSerializer;
 import io.druid.query.sketch.SummaryPostProcessor;
 import io.druid.query.sketch.SummaryQuery;
+import io.druid.query.sketch.UnionJsonSerializer;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.util.Arrays;
@@ -77,17 +66,6 @@ public class SketchModule implements DruidModule
     if (ComplexMetrics.getSerdeForType(THETA_SKETCH_BUILD_AGG) == null) {
       ComplexMetrics.registerSerde(THETA_SKETCH_BUILD_AGG, new SketchBuildComplexMetricSerde());
     }
-
-    if (binder != null) {
-      // binder == null for tests
-      MapBinder<Class<? extends Query>, QueryToolChest> toolChests = QueryToolBinders.queryToolChestBinder(binder);
-      toolChests.addBinding(SketchQuery.class).to(SketchQueryQueryToolChest.class);
-      binder.bind(SketchQueryQueryToolChest.class).in(LazySingleton.class);
-
-      MapBinder<Class<? extends Query>, QueryRunnerFactory> factories = QueryToolBinders.queryRunnerFactoryBinder(binder);
-      factories.addBinding(SketchQuery.class).to(SketchQueryRunnerFactory.class);
-      binder.bind(SketchQueryRunnerFactory.class).in(LazySingleton.class);
-    }
   }
 
   @Override
@@ -100,36 +78,9 @@ public class SketchModule implements DruidModule
                 new NamedType(SketchEstimatePostAggregator.class, THETA_SKETCH_ESTIMATE_POST_AGG),
                 new NamedType(SketchSetPostAggregator.class, THETA_SKETCH_SET_OP_POST_AGG)
             )
-            .registerSubtypes(SketchQuery.class)
             .registerSubtypes(SummaryQuery.class)
-            .registerSubtypes(SimilarityProcessingOperator.class)
-            .registerSubtypes(SketchThetaProcessor.class)
-            .registerSubtypes(SketchQuantilesProcessor.class)
-            .registerSubtypes(SketchFrequencyProcessor.class)
-            .registerSubtypes(SketchSamplingProcessor.class)
             .registerSubtypes(SummaryPostProcessor.class)
             .registerSubtypes(SketchEstimatePostProcessor.class)
-            .registerSubtypes(GenericSketchAggregatorFactory.class)
-            .registerSubtypes(SketchQuantilesPostAggregator.class)
-            .registerSubtypes(SketchThetaPostAggregator.class)
-            .addSerializer(
-                Sketch.class, new SketchJsonSerializer()
-            )
-            .addSerializer(
-                Union.class, new UnionJsonSerializer()
-            )
-            .addSerializer(
-                ItemsSketch.class, new ItemsSketchJsonSerializer()
-            )
-            .addSerializer(
-                com.yahoo.sketches.frequencies.ItemsSketch.class, new FrequencySketchJsonSerializer()
-            )
-            .addSerializer(
-                ReservoirItemsSketch.class, new SamplingSketchJsonSerializer()
-            )
-            .addSerializer(
-                Memory.class, new MemoryJsonSerializer()
-            )
     );
   }
 }

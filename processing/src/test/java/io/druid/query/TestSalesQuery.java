@@ -71,8 +71,44 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2014-01-01T00:00:00.000Z", "Office Supplies", 2008L, 321.3999999999948, 39773.0),
         array("2014-01-01T00:00:00.000Z", "Technology", 625L, 81.50000000000045, 50706.0)
     };
-    Iterable<Row> results = runQuery(query);
-    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    Iterable<Row> results;
+    List<Row> expectedResults;
+
+    results = runQuery(query);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    columnNames = new String[] {"__time", "State", "rows", "Discount", "Profit"};
+    objects = new Object[][]{
+        array("2011-01-01T00:00:00.000Z", "California", 2001L, 145.60000000000002, 76368.0),
+        array("2011-01-01T00:00:00.000Z", "New York", 1128L, 62.39999999999992, 74020.0),
+        array("2011-01-01T00:00:00.000Z", "Washington", 506L, 32.39999999999999, 33390.0),
+        array("2011-01-01T00:00:00.000Z", "Michigan", 255L, 1.8, 24458.0),
+        array("2011-01-01T00:00:00.000Z", "Virginia", 224L, 0.0, 18600.0),
+        array("2011-01-01T00:00:00.000Z", "Indiana", 149L, 0.0, 18382.0),
+        array("2011-01-01T00:00:00.000Z", "Georgia", 184L, 0.0, 16247.0),
+        array("2011-01-01T00:00:00.000Z", "Kentucky", 139L, 0.0, 11202.0),
+        array("2011-01-01T00:00:00.000Z", "Minnesota", 89L, 0.0, 10828.0),
+        array("2011-01-01T00:00:00.000Z", "Delaware", 96L, 0.6, 9979.0),
+        array("2011-01-01T00:00:00.000Z", "New Jersey", 130L, 0.6, 9771.0),
+        array("2011-01-01T00:00:00.000Z", "Wisconsin", 110L, 0.0, 8400.0),
+        array("2011-01-01T00:00:00.000Z", "Rhode Island", 56L, 1.2, 7286.0),
+        array("2011-01-01T00:00:00.000Z", "Maryland", 105L, 0.6, 7032.0),
+        array("2011-01-01T00:00:00.000Z", "Massachusetts", 135L, 2.1, 6782.0),
+        array("2011-01-01T00:00:00.000Z", "Missouri", 66L, 0.0, 6435.0),
+        array("2011-01-01T00:00:00.000Z", "Alabama", 61L, 0.0, 5785.0),
+        array("2011-01-01T00:00:00.000Z", "Oklahoma", 66L, 0.0, 4852.0),
+        array("2011-01-01T00:00:00.000Z", "Arkansas", 60L, 0.0, 4006.0),
+        array("2011-01-01T00:00:00.000Z", "Connecticut", 82L, 0.6, 3510.0)
+    };
+    query = query.withDimensionSpecs(DefaultDimensionSpec.toSpec("State"))
+                 .withGranularity(Granularities.ALL)
+                 .withLimitSpec(LimitSpec.of(20, OrderByColumnSpec.desc("Profit")));
+    results = runQuery(query);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_NUM, 3));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 

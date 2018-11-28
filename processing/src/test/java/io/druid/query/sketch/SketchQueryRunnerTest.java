@@ -22,7 +22,6 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import io.druid.query.CacheStrategy;
@@ -36,7 +35,6 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
@@ -57,9 +55,6 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
 
   static {
     ObjectMapper mapper = TestHelper.JSON_MAPPER.copy();
-    for (Module module : new SketchModule().getJacksonModules()) {
-      mapper = mapper.registerModule(module);
-    }
     mapper.setInjectableValues(
         new InjectableValues()
         {

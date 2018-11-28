@@ -46,7 +46,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Processing;
-import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.MetricValueExtractor;
 import io.druid.query.PostProcessingOperator;

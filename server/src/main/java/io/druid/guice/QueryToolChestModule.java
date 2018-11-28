@@ -51,6 +51,8 @@ import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.select.StreamRawQuery;
 import io.druid.query.select.StreamRawQueryToolChest;
+import io.druid.query.sketch.SketchQuery;
+import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -80,6 +82,7 @@ public class QueryToolChestModule implements Module
                   .put(TopNQuery.class, TopNQueryQueryToolChest.class)
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)
                   .put(FindNearestQuery.class, FindNearestQueryToolChest.class)
+                  .put(SketchQuery.class, SketchQueryQueryToolChest.class)
                   .build();
 
   @Override

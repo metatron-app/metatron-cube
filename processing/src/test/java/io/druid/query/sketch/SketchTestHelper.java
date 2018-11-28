@@ -17,27 +17,17 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches;
+package io.druid.query.sketch;
 
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.stats.DruidStatsModule;
-import io.druid.query.sketch.GenericSketchAggregatorFactory;
-import io.druid.query.sketch.SketchOp;
-import io.druid.query.sketch.SketchQuantilesPostAggregator;
-import io.druid.query.sketch.SketchThetaPostAggregator;
 
 /**
  */
 public class SketchTestHelper extends QueryRunnerTestHelper
 {
-  static {
-    DruidStatsModule module = new DruidStatsModule();
-    module.configure(null);
-  }
-
   public static final String indexSketchMetric = "index_sketch";
 
   public static final AggregatorFactory indexQuantileAggr = new GenericSketchAggregatorFactory(

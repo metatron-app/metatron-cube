@@ -33,7 +33,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
@@ -291,9 +290,6 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     Assert.assertEquals(1870, ((Number) sketch3.value().getMaxValue()).doubleValue(), 100);
 
     ObjectMapper mapper = new DefaultObjectMapper();
-    for (Module module : new SketchModule().getJacksonModules()) {
-      mapper = mapper.registerModule(module);
-    }
     byte[] serialized = mapper.writeValueAsBytes(result.get(0));
     Result<Object[]> deserialized = toolChest.makePreComputeManipulatorFn(query, null).apply(
         mapper.<Result<Object[]>>readValue(serialized, toolChest.getResultTypeReference())

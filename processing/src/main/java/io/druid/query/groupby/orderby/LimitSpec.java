@@ -52,6 +52,11 @@ import java.util.List;
 })
 public class LimitSpec extends OrderedLimitSpec implements Cacheable
 {
+  public static LimitSpec of(int limit, OrderByColumnSpec... orderings)
+  {
+    return new LimitSpec(Arrays.asList(orderings), limit);
+  }
+
   private static final byte CACHE_KEY = 0x1;
 
   static final Function<Sequence<Row>, List<Row>> SEQUENCE_TO_LIST = new Function<Sequence<Row>, List<Row>>()

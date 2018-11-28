@@ -65,7 +65,7 @@ public enum QuantileOperation
           // a = 2 * (total - (p + 1) * b) / (p * (p + 1))
           int p = quantileParam.number - 2;
           double total = sketch.getN();
-          double b = total / (p * 2);
+          double b = total / (p * 1.7);
           double a = (total - (p + 1) * b) * 2 / (p * (p + 1));
           double[] quantiles = new double[quantileParam.number];
           for (int i = 1; i <= p; i++) {

@@ -56,6 +56,8 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
+import io.druid.query.sketch.GenericSketchAggregatorFactory;
+import io.druid.query.sketch.SketchOp;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
@@ -459,15 +461,9 @@ public class Queries
       fieldName = DUMMY_VC;
     }
 
-    Map<String, Object> ag = ImmutableMap.<String, Object>builder()
-                                         .put("type", "sketch")
-                                         .put("name", "SKETCH")
-                                         .put("fieldName", fieldName)
-                                         .put("sourceType", type)
-                                         .put("orderingSpecs", orderingSpecs)
-                                         .put("sketchOp", "QUANTILE")
-                                         .put("sketchParam", 128)
-                                         .build();
+    AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
+        "SKETCH", fieldName, type, SketchOp.QUANTILE, 128, orderingSpecs, false
+    );
 
     Map<String, Object> pg = ImmutableMap.<String, Object>builder()
                                          .put("type", "sketch.quantiles")
@@ -477,8 +473,11 @@ public class Queries
                                          .put(splitType, numSplits + 1)
                                          .build();
 
-    AggregatorFactory aggregator = Queries.convert(ag, jsonMapper, AggregatorFactory.class);
     PostAggregator postAggregator = Queries.convert(pg, jsonMapper, PostAggregator.class);
+    if (postAggregator == null) {
+      LOG.info("Failed to convert map to 'sketch.quantiles' operator.. fix this");
+      return null;
+    }
 
     metaQuery = (TimeseriesQuery) metaQuery.withVirtualColumns(virtualColumns)
                                            .withAggregatorSpecs(Arrays.asList(aggregator))

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches.theta;
+package io.druid.query.sketch;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
