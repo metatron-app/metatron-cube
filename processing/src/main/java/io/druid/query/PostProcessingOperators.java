@@ -83,7 +83,7 @@ public class PostProcessingOperators
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Query append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
+  public static <T> Query<T> append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
   {
     PostProcessingOperator<T> existing = load(query, mapper);
     if (existing != null) {

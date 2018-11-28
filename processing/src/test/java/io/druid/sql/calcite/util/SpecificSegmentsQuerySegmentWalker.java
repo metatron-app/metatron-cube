@@ -395,7 +395,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       );
       QueryRunner runner = toQueryRunner(innerQuery, true);
       runner = toolChest.finalQueryDecoration(
-          toolChest.finalizeMetrics(
+          toolChest.finalizeResults(
               toolChest.handleSubQuery(runner, this, executor, maxRowCount)
           )
       );
@@ -485,7 +485,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         );
 
     QueryRunner<T> runner = toolChest.finalQueryDecoration(
-        toolChest.finalizeMetrics(
+        toolChest.finalizeResults(
             toolChest.postMergeQueryDecoration(
                 toolChest.mergeResults(
                     factory.mergeRunners(executor, queryRunners, optimizer)

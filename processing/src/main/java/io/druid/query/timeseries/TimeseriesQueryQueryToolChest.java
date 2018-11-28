@@ -32,7 +32,6 @@ import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
-import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
@@ -101,8 +100,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       {
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           query = query.removePostActions()
-                       .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false)
-                       .withOverriddenContext(BaseQuery.removeContext(QueryContextKeys.POST_PROCESSING));
+                       .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false);
         }
         return super.doRun(baseRunner, query, context);
       }

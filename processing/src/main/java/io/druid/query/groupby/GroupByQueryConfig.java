@@ -62,6 +62,9 @@ public class GroupByQueryConfig
   private int localSplitNum = -1;
 
   @JsonProperty
+  private int localSplitCardinality = -1;
+
+  @JsonProperty
   private int maxStreamSubQueryPage = 4;
 
   public boolean isSingleThreaded()
@@ -182,6 +185,16 @@ public class GroupByQueryConfig
   public void setLocalSplitNum(int localSplitNum)
   {
     this.localSplitNum = localSplitNum;
+  }
+
+  public int getLocalSplitCardinality()
+  {
+    return localSplitCardinality;
+  }
+
+  public void setLocalSplitCardinality(int localSplitCardinality)
+  {
+    this.localSplitCardinality = localSplitCardinality;
   }
 
   public int getMaxStreamSubQueryPage()

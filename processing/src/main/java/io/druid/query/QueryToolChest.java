@@ -193,7 +193,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   @SuppressWarnings("unchecked")
-  public QueryRunner<ResultType> finalizeMetrics(QueryRunner<ResultType> runner)
+  public QueryRunner<ResultType> finalizeResults(QueryRunner<ResultType> runner)
   {
     return new FinalizeResultsQueryRunner<>(runner, (QueryToolChest<ResultType, Query<ResultType>>) this);
   }

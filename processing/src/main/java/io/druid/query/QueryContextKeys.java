@@ -44,6 +44,7 @@ public interface QueryContextKeys
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
   public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
+  public static final String GBY_LOCAL_SPLIT_CARDINALITY = "groupByLocalSplitCardinality";
   public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 

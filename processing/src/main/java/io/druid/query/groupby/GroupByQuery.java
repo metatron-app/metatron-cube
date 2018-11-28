@@ -484,7 +484,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getLimitSpec().withNoProcessing(),
         null,
         null,
-        getContext()
+        computeOverriddenContext(removeContext(POST_PROCESSING))
     );
   }
 
@@ -840,7 +840,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
-  public Query toCardinalityEstimator(QueryConfig config, ObjectMapper mapper, boolean throwException)
+  public Query<Row> toCardinalityEstimator(QueryConfig config, ObjectMapper mapper, boolean throwException)
   {
     GroupByQuery query = this;
     if (query.getLateralView() != null ||
@@ -921,6 +921,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                 .withOutputColumns(null)
                 .withOverriddenContext(FINALIZE, true)
                 .withOverriddenContext(FINAL_MERGE, true)
+                .withOverriddenContext(GBY_CONVERT_TIMESERIES, true)
                 .withOverriddenContext(ALL_DIMENSIONS_FOR_EMPTY, false)
                 .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.Abstract<Row>()
                 {
@@ -955,7 +956,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                 });
   }
 
-  private Query toWorstCase(GroupByQuery query, ObjectMapper jsonMapper)
+  private Query<Row> toWorstCase(GroupByQuery query, ObjectMapper jsonMapper)
   {
     return PostProcessingOperators.append(
         query.withLimitSpec(query.getLimitSpec().withNoLimiting()), jsonMapper, SequenceCountingProcessor.INSTANCE

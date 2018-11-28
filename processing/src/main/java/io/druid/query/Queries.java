@@ -47,6 +47,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
@@ -409,6 +410,18 @@ public class Queries
       }
     }
     return function.apply(query);
+  }
+
+  public static long estimateCardinality(
+      GroupByQuery query,
+      QuerySegmentWalker segmentWalker,
+      QueryConfig config,
+      ObjectMapper mapper
+  )
+  {
+    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, mapper);
+    Row row = Iterables.getOnlyElement(Sequences.toList(counter.run(segmentWalker, Maps.<String, Object>newHashMap())));
+    return row.getLongMetric("cardinality");
   }
 
   private static final String DUMMY_VC = "$VC";

@@ -72,7 +72,7 @@ public class FluentQueryRunnerBuilder<T>
 
     public FluentQueryRunner applyFinalizeResults()
     {
-      return from(toolChest.finalizeMetrics(baseRunner));
+      return from(toolChest.finalizeResults(baseRunner));
     }
 
     public FluentQueryRunner applyPreMergeDecoration()

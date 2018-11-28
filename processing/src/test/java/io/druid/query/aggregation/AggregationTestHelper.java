@@ -419,7 +419,7 @@ public class AggregationTestHelper
   public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query<Row> query)
   {
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
-    final QueryRunner baseRunner = toolChest.finalizeMetrics(
+    final QueryRunner baseRunner = toolChest.finalizeResults(
         toolChest.postMergeQueryDecoration(
             toolChest.mergeResults(
                 toolChest.preMergeQueryDecoration(

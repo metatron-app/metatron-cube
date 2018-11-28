@@ -326,7 +326,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> removePostActions()
   {
-    return this;
+    return withOverriddenContext(POST_PROCESSING, null);
   }
 
   public int getContextIntWithMax(String key, int defaultValue)

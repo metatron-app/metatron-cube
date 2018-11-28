@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.common.utils.PropUtils;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 
@@ -42,23 +41,16 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       final ObjectMapper objectMapper
   )
   {
-    final QueryRunner<T> finalized = new FinalizeResultsQueryRunner<T>(baseRunner, toolChest);
     return new QueryRunner<T>()
     {
       @Override
       @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        QueryRunner<T> baseRunner = finalized;
-        if (PropUtils.parseBoolean(query.getContext(), Query.LOCAL_POST_PROCESSING, false)) {
-          // for parallel forwarding..
-          baseRunner = toolChest.finalQueryDecoration(baseRunner);
-          PostProcessingOperator<T> processor = PostProcessingOperators.load(query, objectMapper);
-          if (processor != null) {
-            baseRunner = processor.postProcess(baseRunner);
-          }
-        }
-        return baseRunner.run(query, responseContext);
+        QueryRunner<T> runner = PostProcessingOperators.wrap(
+            toolChest.finalQueryDecoration(toolChest.finalizeResults(baseRunner)), objectMapper
+        );
+        return runner.run(query, responseContext);
       }
     };
   }

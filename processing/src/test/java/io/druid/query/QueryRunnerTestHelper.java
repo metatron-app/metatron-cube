@@ -780,7 +780,7 @@ public class QueryRunnerTestHelper
   {
     return toolChest.finalQueryDecoration(
         PostProcessingOperators.wrap(
-            toolChest.finalizeMetrics(
+            toolChest.finalizeResults(
                 toolChest.postMergeQueryDecoration(
                     toolChest.mergeResults(
                         toolChest.preMergeQueryDecoration(
@@ -802,7 +802,7 @@ public class QueryRunnerTestHelper
     @SuppressWarnings("unchecked")
     QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
     return toolchest.finalQueryDecoration(
-        toolchest.finalizeMetrics(
+        toolchest.finalizeResults(
             toolchest.mergeResults(
                 factory.mergeRunners(
                     MoreExecutors.sameThreadExecutor(),
@@ -828,7 +828,7 @@ public class QueryRunnerTestHelper
     }
     return toolChest.finalQueryDecoration(
         PostProcessingOperators.wrap(
-            toolChest.finalizeMetrics(
+            toolChest.finalizeResults(
                 toolChest.postMergeQueryDecoration(
                     toolChest.mergeResults(
                         factory.mergeRunners(
@@ -980,7 +980,7 @@ public class QueryRunnerTestHelper
       resolved = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(resolved)));
     }
     if (!subQuery) {
-      resolved = toolChest.finalizeMetrics(resolved);
+      resolved = toolChest.finalizeResults(resolved);
     }
     return toolChest.finalQueryDecoration(resolved);
   }

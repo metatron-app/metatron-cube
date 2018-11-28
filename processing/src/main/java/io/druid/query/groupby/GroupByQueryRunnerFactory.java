@@ -76,6 +76,8 @@ public class GroupByQueryRunnerFactory
 {
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
+  private static final int MAX_LOCAL_SPLIT = 32;
+
   private final GroupByQueryEngine engine;
   private final QueryConfig config;
 
@@ -138,18 +140,27 @@ public class GroupByQueryRunnerFactory
   )
   {
     if (query.getLimitSpec().getSegmentLimit() != null) {
-      // disable
-      return null;
+      return null;  // not sure of this
     }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
-      return null;
+      return null;  // use timeseries query
     }
-    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.getGroupBy().getLocalSplitNum());
+    GroupByQueryConfig gbyConfig = config.getGroupBy();
+    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, gbyConfig.getLocalSplitNum());
+    if (numSplit < 0) {
+      int maxCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
+      if (maxCardinality > 1) {
+        long cardinality = Queries.estimateCardinality(query, segmentWalker, config, mapper);
+        numSplit = Math.min(MAX_LOCAL_SPLIT, (int) Math.ceil((double) cardinality / maxCardinality));
+      }
+    }
     if (numSplit < 2) {
       return null;
     }
 
+    // can split on all dimensions but it seemed not cost-effective
+    // todo use the highest cardinality-dimension if possible
     Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
 
