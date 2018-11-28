@@ -68,8 +68,8 @@ import java.util.concurrent.ExecutorService;
  */
 public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<TimeseriesResultValue>, TimeseriesQuery>
 {
-  private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
-      new TypeReference<Object>()
+  private static final TypeReference<List<Object>> OBJECT_TYPE_REFERENCE =
+      new TypeReference<List<Object>>()
       {
       };
   private static final TypeReference<Result<TimeseriesResultValue>> TYPE_REFERENCE =
@@ -143,9 +143,9 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public CacheStrategy<Result<TimeseriesResultValue>, Object, TimeseriesQuery> getCacheStrategy(final TimeseriesQuery query)
+  public CacheStrategy<Result<TimeseriesResultValue>, List<Object>, TimeseriesQuery> getCacheStrategy(final TimeseriesQuery query)
   {
-    return new CacheStrategy<Result<TimeseriesResultValue>, Object, TimeseriesQuery>()
+    return new CacheStrategy<Result<TimeseriesResultValue>, List<Object>, TimeseriesQuery>()
     {
       private final List<AggregatorFactory> aggs = query.getAggregatorSpecs();
 
@@ -178,18 +178,18 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       }
 
       @Override
-      public TypeReference<Object> getCacheObjectClazz()
+      public TypeReference<List<Object>> getCacheObjectClazz()
       {
         return OBJECT_TYPE_REFERENCE;
       }
 
       @Override
-      public Function<Result<TimeseriesResultValue>, Object> prepareForCache()
+      public Function<Result<TimeseriesResultValue>, List<Object>> prepareForCache()
       {
-        return new Function<Result<TimeseriesResultValue>, Object>()
+        return new Function<Result<TimeseriesResultValue>, List<Object>>()
         {
           @Override
-          public Object apply(final Result<TimeseriesResultValue> input)
+          public List<Object> apply(final Result<TimeseriesResultValue> input)
           {
             TimeseriesResultValue results = input.getValue();
             final List<Object> retVal = Lists.newArrayListWithCapacity(1 + aggs.size());
@@ -205,16 +205,15 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       }
 
       @Override
-      public Function<Object, Result<TimeseriesResultValue>> pullFromCache()
+      public Function<List<Object>, Result<TimeseriesResultValue>> pullFromCache()
       {
-        return new Function<Object, Result<TimeseriesResultValue>>()
+        return new Function<List<Object>, Result<TimeseriesResultValue>>()
         {
           private final Granularity granularity = query.getGranularity();
 
           @Override
-          public Result<TimeseriesResultValue> apply(Object input)
+          public Result<TimeseriesResultValue> apply(List<Object> results)
           {
-            List<Object> results = (List<Object>) input;
             Map<String, Object> retVal = Maps.newLinkedHashMap();
 
             Iterator<AggregatorFactory> aggsIter = aggs.iterator();

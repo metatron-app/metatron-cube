@@ -40,6 +40,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class TimeseriesQueryQueryToolChestTest
@@ -61,7 +62,7 @@ public class TimeseriesQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
 
-    CacheStrategy<Result<TimeseriesResultValue>, Object, TimeseriesQuery> strategy =
+    CacheStrategy<Result<TimeseriesResultValue>, List<Object>, TimeseriesQuery> strategy =
         new TimeseriesQueryQueryToolChest(null).getCacheStrategy(
             new TimeseriesQuery(
                 new TableDataSource("dummy"),
@@ -97,7 +98,7 @@ public class TimeseriesQueryQueryToolChestTest
     Object preparedValue = strategy.prepareForCache().apply(result);
 
     ObjectMapper objectMapper = new DefaultObjectMapper();
-    Object fromCacheValue = objectMapper.readValue(
+    List<Object> fromCacheValue = objectMapper.readValue(
         objectMapper.writeValueAsBytes(preparedValue),
         strategy.getCacheObjectClazz()
     );

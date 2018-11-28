@@ -20,7 +20,6 @@
 package io.druid.query.topn;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -67,7 +66,7 @@ public class TopNUnionQueryTest
                 new TopNQueryRunnerFactory(
                     TestQueryRunners.getPool(),
                     new TopNQueryQueryToolChest(
-                        Suppliers.ofInstance(new TopNQueryConfig()),
+                        new TopNQueryConfig(),
                         TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),
@@ -88,7 +87,7 @@ public class TopNUnionQueryTest
                         }
                     ),
                     new TopNQueryQueryToolChest(
-                        Suppliers.ofInstance(new TopNQueryConfig()),
+                        new TopNQueryConfig(),
                         TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),

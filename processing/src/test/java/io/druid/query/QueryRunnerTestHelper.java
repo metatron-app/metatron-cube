@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -279,9 +278,9 @@ public class QueryRunnerTestHelper
                       new GroupByQueryRunnerFactory(
                           GBY_ENGINE,
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-                          QUERY_CONFIG.getGroupBy(),
+                          QUERY_CONFIG,
                           new GroupByQueryQueryToolChest(
-                              QUERY_CONFIG.getGroupBy(),
+                              QUERY_CONFIG,
                               GBY_ENGINE,
                               GBY_POOL,
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -301,7 +300,7 @@ public class QueryRunnerTestHelper
                       SearchQuery.class,
                       new SearchQueryRunnerFactory(
                           new SearchQueryQueryToolChest(
-                              Suppliers.ofInstance(new SearchQueryConfig()),
+                              new SearchQueryConfig(),
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER

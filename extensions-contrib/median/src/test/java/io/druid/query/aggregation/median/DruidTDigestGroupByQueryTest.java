@@ -3,19 +3,18 @@ package io.druid.query.aggregation.median;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -29,7 +28,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -56,66 +54,61 @@ public class DruidTDigestGroupByQueryTest
         }
     );
 
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
+    QueryConfig config = new QueryConfig();
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            configSupplier, engine, pool,
+            config, engine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool
     );
 
-    GroupByQueryConfig singleThreadedConfig = new GroupByQueryConfig()
-    {
-      @Override
-      public boolean isSingleThreaded()
-      {
-        return true;
-      }
-    };
-    singleThreadedConfig.setMaxIntermediateRows(10000);
-
-    final Supplier<GroupByQueryConfig> singleThreadedConfigSupplier = Suppliers.ofInstance(singleThreadedConfig);
-    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(pool);
+    config = new QueryConfig();
+    config.getGroupBy().setSingleThreaded(true);
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
-        singleThreadEngine,
+        engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        singleThreadedConfigSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            singleThreadedConfigSupplier, singleThreadEngine, pool,
+            config, engine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool
     );
 
-
-    final Function<Object, Object[]> function = new Function<Object, Object[]>()
-    {
-      @Override
-      public Object[] apply(@Nullable Object input)
-      {
-        return new Object[]{factory, input};
-      }
-    };
 
     return Lists.newArrayList(
         Iterables.concat(
             Iterables.transform(
                 QueryRunnerTestHelper.makeQueryRunners(factory),
-                function
+                new Function<QueryRunner<Row>, Object[]>()
+                {
+                  @Override
+                  public Object[] apply(QueryRunner<Row> input)
+                  {
+                    return new Object[] {factory, input};
+                  }
+                }
             ),
             Iterables.transform(
                 QueryRunnerTestHelper.makeQueryRunners(singleThreadFactory),
-                function
+                new Function<QueryRunner<Row>, Object[]>()
+                {
+                  @Override
+                  public Object[] apply(QueryRunner<Row> input)
+                  {
+                    return new Object[] {singleThreadFactory, input};
+                  }
+                }
             )
         )
     );

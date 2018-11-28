@@ -20,7 +20,6 @@
 package io.druid.query.topn;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
@@ -69,7 +68,7 @@ public class TopNVirtualColumnTest
   {
     new DefaultObjectMapper();
     TopNQueryQueryToolChest toolChest = new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );

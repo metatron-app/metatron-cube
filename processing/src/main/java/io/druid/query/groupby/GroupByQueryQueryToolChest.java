@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -52,6 +51,7 @@ import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -98,7 +98,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   {
   };
 
-  private final Supplier<GroupByQueryConfig> configSupplier;
+  private final QueryConfig config;
 
   private final StupidPool<ByteBuffer> bufferPool;
   private final GroupByQueryEngine engine; // For running the outer query around a subquery
@@ -107,13 +107,13 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   @Inject
   public GroupByQueryQueryToolChest(
-      Supplier<GroupByQueryConfig> configSupplier,
+      QueryConfig config,
       GroupByQueryEngine engine,
       @Global StupidPool<ByteBuffer> bufferPool,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
-    this.configSupplier = configSupplier;
+    this.config = config;
     this.engine = engine;
     this.bufferPool = bufferPool;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
@@ -203,7 +203,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         }
         final int maxPage = outerQuery.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
-            configSupplier.get().getMaxStreamSubQueryPage()
+            config.getGroupBy().getMaxStreamSubQueryPage()
         );
         if (maxPage < 1) {
           return super.run(query, responseContext);
@@ -265,7 +265,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         final GroupByQuery groupBy = (GroupByQuery) outerQuery;
         final int maxPage = groupBy.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
-            configSupplier.get().getMaxStreamSubQueryPage()
+            config.getGroupBy().getMaxStreamSubQueryPage()
         );
         return new Function<Cursor, Sequence<Row>>()
         {
@@ -693,7 +693,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private Sequence<Row> finalDecoration(Query<Row> query, Sequence<Row> sequence)
   {
     GroupByQuery groupBy = (GroupByQuery) query;
-    sequence = groupBy.applyLimit(sequence, groupBy.isSortOnTimeForLimit(configSupplier.get().isSortOnTime()));
+    sequence = groupBy.applyLimit(sequence, groupBy.isSortOnTimeForLimit(config.getGroupBy().isSortOnTime()));
 
     final List<String> outputColumns = groupBy.getOutputColumns();
     final LateralViewSpec lateralViewSpec = groupBy.getLateralView();

@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -62,12 +61,12 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
 
   private final List<QueryRunner<Row>> queryables;
   private final ExecutorService exec;
-  private final Supplier<GroupByQueryConfig> configSupplier;
+  private final GroupByQueryConfig config;
   private final QueryWatcher queryWatcher;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
-      Supplier<GroupByQueryConfig> configSupplier,
+      GroupByQueryConfig config,
       QueryWatcher queryWatcher,
       Iterable<QueryRunner<Row>> queryables
   )
@@ -75,7 +74,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     this.exec = exec;
     this.queryWatcher = queryWatcher;
     this.queryables = Lists.newArrayList(Iterables.filter(queryables, Predicates.notNull()));
-    this.configSupplier = configSupplier;
+    this.config = config;
   }
 
   @Override
@@ -83,7 +82,6 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    final GroupByQueryConfig config = configSupplier.get();
     final int maxRowCount = config.getMaxResults();
 
     final ExecutorService executor;

@@ -68,7 +68,7 @@ public class QueryConfig
 
   public int getMaxResults()
   {
-    return maxResults <= 0 ? getGroupBy().get().getMaxResults() : maxResults;
+    return maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults;
   }
 
   public boolean useCustomSerdeForDateTime(Query query)
@@ -78,38 +78,38 @@ public class QueryConfig
     }
     if (query instanceof SelectQuery) {
       // events containing DateTime in Map (which means no type information)
-      return !getSelect().get().isUseDateTime();
+      return !getSelect().isUseDateTime();
     }
     return true;
   }
 
-  public Supplier<GroupByQueryConfig> getGroupBy()
+  public GroupByQueryConfig getGroupBy()
   {
-    return groupBy;
+    return groupBy.get();
   }
 
-  public Supplier<SearchQueryConfig> getSearch()
+  public SearchQueryConfig getSearch()
   {
-    return search;
+    return search.get();
   }
 
-  public Supplier<SelectQueryConfig> getSelect()
+  public SelectQueryConfig getSelect()
   {
-    return select;
+    return select.get();
   }
 
-  public Supplier<TopNQueryConfig> getTopN()
+  public TopNQueryConfig getTopN()
   {
-    return topN;
+    return topN.get();
   }
 
-  public Supplier<SegmentMetadataQueryConfig> getSegmentMeta()
+  public SegmentMetadataQueryConfig getSegmentMeta()
   {
-    return segmentMeta;
+    return segmentMeta.get();
   }
 
-  public Supplier<JoinQueryConfig> getJoin()
+  public JoinQueryConfig getJoin()
   {
-    return join;
+    return join.get();
   }
 }

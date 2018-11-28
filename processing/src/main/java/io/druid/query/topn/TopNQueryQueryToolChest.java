@@ -21,7 +21,6 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -74,17 +73,17 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   private static final TypeReference<Result<TopNResultValue>> TYPE_REFERENCE = new TypeReference<Result<TopNResultValue>>()
   {
   };
-  private static final TypeReference<Object> OBJECT_TYPE_REFERENCE = new TypeReference<Object>()
+  private static final TypeReference<List<Object>> OBJECT_TYPE_REFERENCE = new TypeReference<List<Object>>()
   {
   };
 
-  private final Supplier<TopNQueryConfig> config;
+  private final TopNQueryConfig config;
   private final TopNQueryEngine engine;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public TopNQueryQueryToolChest(
-      Supplier<TopNQueryConfig> config,
+      TopNQueryConfig config,
       TopNQueryEngine engine,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
@@ -295,9 +294,9 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   }
 
   @Override
-  public CacheStrategy<Result<TopNResultValue>, Object, TopNQuery> getCacheStrategy(final TopNQuery query)
+  public CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery> getCacheStrategy(final TopNQuery query)
   {
-    return new CacheStrategy<Result<TopNResultValue>, Object, TopNQuery>()
+    return new CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery>()
     {
       private final List<AggregatorFactory> aggs = Lists.newArrayList(query.getAggregatorSpecs());
       private final List<PostAggregator> postAggs = PostAggregators.decorate(
@@ -340,20 +339,20 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       }
 
       @Override
-      public TypeReference<Object> getCacheObjectClazz()
+      public TypeReference<List<Object>> getCacheObjectClazz()
       {
         return OBJECT_TYPE_REFERENCE;
       }
 
       @Override
-      public Function<Result<TopNResultValue>, Object> prepareForCache()
+      public Function<Result<TopNResultValue>, List<Object>> prepareForCache()
       {
-        return new Function<Result<TopNResultValue>, Object>()
+        return new Function<Result<TopNResultValue>, List<Object>>()
         {
           private final String[] aggFactoryNames = extractFactoryName(query.getAggregatorSpecs());
 
           @Override
-          public Object apply(final Result<TopNResultValue> input)
+          public List<Object> apply(final Result<TopNResultValue> input)
           {
             List<Map<String, Object>> results = Lists.newArrayList(input.getValue());
             final List<Object> retVal = Lists.newArrayListWithCapacity(results.size() + 1);
@@ -374,17 +373,16 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       }
 
       @Override
-      public Function<Object, Result<TopNResultValue>> pullFromCache()
+      public Function<List<Object>, Result<TopNResultValue>> pullFromCache()
       {
-        return new Function<Object, Result<TopNResultValue>>()
+        return new Function<List<Object>, Result<TopNResultValue>>()
         {
           private final Granularity granularity = query.getGranularity();
 
           @Override
           @SuppressWarnings("unchecked")
-          public Result<TopNResultValue> apply(Object input)
+          public Result<TopNResultValue> apply(List<Object> results)
           {
-            List<Object> results = (List<Object>) input;
             List<Map<String, Object>> retVal = Lists.newArrayListWithCapacity(results.size());
 
             Iterator<Object> inputIter = results.iterator();
@@ -515,11 +513,11 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   static class ThresholdAdjustingQueryRunner implements QueryRunner<Result<TopNResultValue>>
   {
     private final QueryRunner<Result<TopNResultValue>> runner;
-    private final Supplier<TopNQueryConfig> config;
+    private final TopNQueryConfig config;
 
     public ThresholdAdjustingQueryRunner(
         QueryRunner<Result<TopNResultValue>> runner,
-        Supplier<TopNQueryConfig> config
+        TopNQueryConfig config
     )
     {
       this.runner = runner;
@@ -537,7 +535,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       }
 
       final TopNQuery query = (TopNQuery) input;
-      final int minTopNThreshold = query.getContextValue("minTopNThreshold", config.get().getMinTopNThreshold());
+      final int minTopNThreshold = query.getContextValue("minTopNThreshold", config.getMinTopNThreshold());
       if (query.getThreshold() > minTopNThreshold) {
         return runner.run(query, responseContext);
       }

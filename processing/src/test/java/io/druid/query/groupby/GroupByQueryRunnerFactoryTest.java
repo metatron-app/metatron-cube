@@ -23,11 +23,9 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
@@ -38,11 +36,11 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.FinalizeResultsQueryRunner;
-import io.druid.query.Query;
+import io.druid.query.NoopQueryWatcher;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.QueryWatcher;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -154,7 +152,7 @@ public class GroupByQueryRunnerFactoryTest
 
   private GroupByQueryRunnerFactory createFactory()
   {
-    Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(new GroupByQueryConfig());
+    QueryConfig config = new QueryConfig();
     StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -165,24 +163,15 @@ public class GroupByQueryRunnerFactoryTest
           }
         });
 
-    QueryWatcher noopQueryWatcher = new QueryWatcher()
-    {
-      @Override
-      public void registerQuery(Query query, ListenableFuture future)
-      {
-
-      }
-    };
-
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        configSupplier, engine, pool,
+        config, engine, pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     return new GroupByQueryRunnerFactory(
         engine,
-        noopQueryWatcher,
-        configSupplier,
+        NoopQueryWatcher.instance(),
+        config,
         toolchest,
         pool
     );

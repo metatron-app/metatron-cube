@@ -43,6 +43,7 @@ import io.druid.guice.annotations.Global;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
@@ -76,13 +77,13 @@ public class GroupByQueryRunnerFactory
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
   private final GroupByQueryEngine engine;
-  private final Supplier<GroupByQueryConfig> config;
+  private final QueryConfig config;
 
   @Inject
   public GroupByQueryRunnerFactory(
       GroupByQueryEngine engine,
       QueryWatcher queryWatcher,
-      Supplier<GroupByQueryConfig> config,
+      QueryConfig config,
       GroupByQueryQueryToolChest toolChest,
       @Global StupidPool<ByteBuffer> computationBufferPool
   )
@@ -144,7 +145,7 @@ public class GroupByQueryRunnerFactory
     if (dimensionSpecs.isEmpty()) {
       return null;
     }
-    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
+    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.getGroupBy().getLocalSplitNum());
     if (numSplit < 2) {
       return null;
     }
@@ -246,7 +247,12 @@ public class GroupByQueryRunnerFactory
   )
   {
     // mergeRunners should take ListeningExecutorService at some point
-    return new GroupByMergedQueryRunner(MoreExecutors.listeningDecorator(exec), config, queryWatcher, queryRunners);
+    return new GroupByMergedQueryRunner(
+        MoreExecutors.listeningDecorator(exec),
+        config.getGroupBy(),
+        queryWatcher,
+        queryRunners
+    );
   }
 
   private static class GroupByQueryRunner implements QueryRunner<Row>

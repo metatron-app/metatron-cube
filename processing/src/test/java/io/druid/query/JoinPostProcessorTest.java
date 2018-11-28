@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.druid.collections.StupidPool;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.search.SearchQueryQueryToolChest;
@@ -47,7 +46,6 @@ public class JoinPostProcessorTest
 
   static {
     final QueryConfig queryConfig = new QueryConfig();
-    final Supplier<GroupByQueryConfig> supplier = queryConfig.getGroupBy();
     final StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -62,7 +60,7 @@ public class JoinPostProcessorTest
         ImmutableMap.<Class<? extends Query>, QueryToolChest>of(
             SearchQuery.class, new SearchQueryQueryToolChest(queryConfig.getSearch(), null),
             GroupByQuery.class, new GroupByQueryQueryToolChest(
-                supplier, new GroupByQueryEngine(pool), pool, null
+                queryConfig, new GroupByQueryEngine(pool), pool, null
             )
         );
     warehouse = new MapQueryToolChestWarehouse(queryConfig, mappings);

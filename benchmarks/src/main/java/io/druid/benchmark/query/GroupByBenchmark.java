@@ -20,8 +20,6 @@
 package io.druid.benchmark.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
@@ -41,6 +39,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.offheap.OffheapBufferPool;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
@@ -50,7 +49,6 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -66,7 +64,6 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
-
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -230,20 +227,19 @@ public class GroupByBenchmark
 
     OffheapBufferPool bufferPool = new OffheapBufferPool(250000000, Integer.MAX_VALUE);
     OffheapBufferPool bufferPool2 = new OffheapBufferPool(250000000, Integer.MAX_VALUE);
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setSingleThreaded(false);
-    config.setMaxIntermediateRows(1000000);
-    config.setMaxResults(1000000);
+    final QueryConfig config = new QueryConfig();
+    config.getGroupBy().setSingleThreaded(false);
+    config.getGroupBy().setMaxIntermediateRows(1000000);
+    config.getGroupBy().setMaxResults(1000000);
 
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
     final GroupByQueryEngine engine = new GroupByQueryEngine(bufferPool);
 
     factory = new GroupByQueryRunnerFactory(
         engine,
         QueryBenchmarkUtil.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            configSupplier, engine, bufferPool2,
+            config, engine, bufferPool2,
             QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         bufferPool2

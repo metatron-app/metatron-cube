@@ -75,7 +75,7 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
             } else if (valueId.equals(QueryToolChestWarehouse.class.getName())) {
               return segmentWalker;
             } else if (valueId.equals(JoinQueryConfig.class.getName())) {
-              return segmentWalker.getQueryConfig().getJoin().get();
+              return segmentWalker.getQueryConfig().getJoin();
             }
             return null;
           }

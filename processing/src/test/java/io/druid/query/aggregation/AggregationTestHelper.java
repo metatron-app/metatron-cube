@@ -29,12 +29,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
@@ -49,14 +47,14 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
-import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -135,7 +133,7 @@ public class AggregationTestHelper
   {
     ObjectMapper mapper = TestHelper.JSON_MAPPER;
 
-    Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(new GroupByQueryConfig());
+    QueryConfig config = new QueryConfig();
     StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -146,24 +144,15 @@ public class AggregationTestHelper
           }
         });
 
-    QueryWatcher noopQueryWatcher = new QueryWatcher()
-    {
-      @Override
-      public void registerQuery(Query query, ListenableFuture future)
-      {
-
-      }
-    };
-
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        configSupplier, engine, pool,
+        config, engine, pool,
         NoopIntervalChunkingQueryRunnerDecorator()
     );
     GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
-        noopQueryWatcher,
-        configSupplier,
+        NoopQueryWatcher.instance(),
+        config,
         toolchest,
         pool
     );
@@ -228,13 +217,13 @@ public class AggregationTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
 
     SearchQueryQueryToolChest toolchest = new SearchQueryQueryToolChest(
-        Suppliers.ofInstance(new SearchQueryConfig()),
+        new SearchQueryConfig(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 
     SearchQueryRunnerFactory factory = new SearchQueryRunnerFactory(
         new SearchQueryQueryToolChest(
-            Suppliers.ofInstance(new SearchQueryConfig()),
+            new SearchQueryConfig(),
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -44,6 +43,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -56,7 +56,6 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -722,16 +721,15 @@ public class RealtimeManagerTest
           }
         }
     );
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
+    final QueryConfig config = new QueryConfig();
+    config.getGroupBy().setMaxIntermediateRows(10000);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     return new GroupByQueryRunnerFactory(
         engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            configSupplier, engine, TestQueryRunners.pool,
+            config, engine, TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         TestQueryRunners.pool

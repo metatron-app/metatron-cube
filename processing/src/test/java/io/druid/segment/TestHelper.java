@@ -83,7 +83,7 @@ public class TestHelper
             } else if (valueId.equals(QueryToolChestWarehouse.class.getName())) {
               return TestIndex.segmentWalker;
             } else if (valueId.equals(JoinQueryConfig.class.getName())) {
-              return TestIndex.segmentWalker.getQueryConfig().getJoin().get();
+              return TestIndex.segmentWalker.getQueryConfig().getJoin();
             }
             return null;
           }

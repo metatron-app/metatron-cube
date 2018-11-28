@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -495,7 +494,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   )
   {
     GroupByQuery query = this;
-    GroupByQueryConfig groupByConfig = queryConfig.getGroupBy().get();
+    GroupByQueryConfig groupByConfig = queryConfig.getGroupBy();
     if (query.getContextBoolean(GBY_PRE_ORDERING, groupByConfig.isPreOrdering())) {
       query = query.tryPreOrdering();
     }
@@ -841,7 +840,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
-  public Query toCardinalityEstimator(Supplier<GroupByQueryConfig> config, ObjectMapper mapper, boolean throwException)
+  public Query toCardinalityEstimator(QueryConfig config, ObjectMapper mapper, boolean throwException)
   {
     GroupByQuery query = this;
     if (query.getLateralView() != null ||
@@ -905,7 +904,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     }
 
     // todo: is this right?
-    boolean sortOnTime = query.isSortOnTimeForLimit(config.get().isSortOnTime());
+    boolean sortOnTime = query.isSortOnTimeForLimit(config.getGroupBy().isSortOnTime());
     Granularity granularity = sortOnTime ? query.getGranularity() : Granularities.ALL;
 
     AggregatorFactory cardinality = new CardinalityAggregatorFactory(

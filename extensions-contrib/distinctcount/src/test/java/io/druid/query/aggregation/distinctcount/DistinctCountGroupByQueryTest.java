@@ -21,7 +21,6 @@ package io.druid.query.aggregation.distinctcount;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
@@ -29,13 +28,13 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -72,18 +71,17 @@ public class DistinctCountGroupByQueryTest
         }
     );
 
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
+    QueryConfig config = new QueryConfig();
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            configSupplier, engine, pool,
+            config, engine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool

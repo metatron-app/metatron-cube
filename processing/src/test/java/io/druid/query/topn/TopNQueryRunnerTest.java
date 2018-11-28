@@ -22,7 +22,6 @@ package io.druid.query.topn;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -108,7 +107,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
             new TopNQueryRunnerFactory(
                 TestQueryRunners.getPool(),
                 new TopNQueryQueryToolChest(
-                    Suppliers.ofInstance(new TopNQueryConfig()),
+                    new TopNQueryConfig(),
                     TestHelper.testTopNQueryEngine(),
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                 ),
@@ -130,7 +129,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     }
                 ),
                 new TopNQueryQueryToolChest(
-                    Suppliers.ofInstance(new TopNQueryConfig()),
+                    new TopNQueryConfig(),
                     TestHelper.testTopNQueryEngine(),
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                 ),
@@ -176,7 +175,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   )
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
@@ -239,7 +238,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     assertExpectedResults(expectedResults, query);
 
     QueryToolChest toolChest = new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
@@ -3513,7 +3512,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   private Sequence<Result<TopNResultValue>> runWithPreMergeAndMerge(TopNQuery query, Map<String, Object> context)
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );

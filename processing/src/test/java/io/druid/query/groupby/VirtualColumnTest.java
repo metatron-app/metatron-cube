@@ -20,7 +20,6 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
@@ -34,6 +33,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
@@ -103,20 +103,19 @@ public class VirtualColumnTest
         }
     );
 
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
+    final QueryConfig config = new QueryConfig();
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(
-        configSupplier, engine, TestQueryRunners.pool,
+        config, engine, TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         toolChest,
         TestQueryRunners.pool
     );

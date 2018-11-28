@@ -20,8 +20,6 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -49,6 +47,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class TopNQueryQueryToolChestTest
@@ -59,7 +58,7 @@ public class TopNQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
-    CacheStrategy<Result<TopNResultValue>, Object, TopNQuery> strategy =
+    CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery> strategy =
         new TopNQueryQueryToolChest(null, null, null).getCacheStrategy(
             new TopNQuery(
                 new TableDataSource("dummy"),
@@ -101,7 +100,7 @@ public class TopNQueryQueryToolChestTest
     );
 
     ObjectMapper objectMapper = new DefaultObjectMapper();
-    Object fromCacheValue = objectMapper.readValue(
+    List<Object> fromCacheValue = objectMapper.readValue(
         objectMapper.writeValueAsBytes(preparedValue),
         strategy.getCacheObjectClazz()
     );
@@ -114,7 +113,7 @@ public class TopNQueryQueryToolChestTest
   @Test
   public void testMinTopNThreshold() throws Exception
   {
-    Supplier<TopNQueryConfig> config = Suppliers.ofInstance(new TopNQueryConfig());
+    TopNQueryConfig config = new TopNQueryConfig();
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         config,
         TestHelper.testTopNQueryEngine(),

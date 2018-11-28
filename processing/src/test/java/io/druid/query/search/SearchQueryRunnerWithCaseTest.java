@@ -19,7 +19,6 @@
 
 package io.druid.query.search;
 
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -36,7 +35,6 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
-import org.bouncycastle.jcajce.provider.symmetric.TEA;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -72,7 +70,7 @@ public class SearchQueryRunnerWithCaseTest
   {
     SearchQueryRunnerFactory factory = new SearchQueryRunnerFactory(
         new SearchQueryQueryToolChest(
-            Suppliers.ofInstance(new SearchQueryConfig()),
+            new SearchQueryConfig(),
             NoopIntervalChunkingQueryRunnerDecorator()
         ),
         NOOP_QUERYWATCHER

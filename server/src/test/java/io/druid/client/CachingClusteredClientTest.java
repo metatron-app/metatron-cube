@@ -25,7 +25,6 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -59,9 +58,9 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValueClass;
@@ -91,7 +90,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.search.SearchQueryQueryToolChest;
@@ -214,7 +212,6 @@ public class CachingClusteredClientTest
   private static final Granularity PT1H_TZ_GRANULARITY = new PeriodGranularity(new Period("PT1H"), null, TIMEZONE);
   private static final String TOP_DIM = "a_dim";
   private static final QueryConfig QUERY_CONFIG = new QueryConfig();
-  private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = QUERY_CONFIG.getGroupBy();
   static final QueryToolChestWarehouse WAREHOUSE = new MapQueryToolChestWarehouse(
       QUERY_CONFIG,
       ImmutableMap.<Class<? extends Query>, QueryToolChest>builder()
@@ -226,14 +223,14 @@ public class CachingClusteredClientTest
                   )
                   .put(
                       TopNQuery.class, new TopNQueryQueryToolChest(
-                          Suppliers.ofInstance(new TopNQueryConfig()),
+                          new TopNQueryConfig(),
                           TestHelper.testTopNQueryEngine(),
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
                   )
                   .put(
                       SearchQuery.class, new SearchQueryQueryToolChest(
-                          Suppliers.ofInstance(new SearchQueryConfig()),
+                          new SearchQueryConfig(),
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
                   )
@@ -247,7 +244,7 @@ public class CachingClusteredClientTest
                   .put(
                       GroupByQuery.class,
                       new GroupByQueryQueryToolChest(
-                          GROUPBY_QUERY_CONFIG_SUPPLIER,
+                          QUERY_CONFIG,
                           new GroupByQueryEngine(
                               new StupidPool<>(
                                   new Supplier<ByteBuffer>()
@@ -791,7 +788,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -869,7 +866,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -948,7 +945,7 @@ public class CachingClusteredClientTest
                 .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("b")))
                 .build(),
             new TopNQueryQueryToolChest(
-                Suppliers.ofInstance(new TopNQueryConfig()),
+                new TopNQueryConfig(),
                 TestHelper.testTopNQueryEngine(),
                 QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
             ),
@@ -978,7 +975,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -1053,7 +1050,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        Suppliers.ofInstance(new TopNQueryConfig()),
+        new TopNQueryConfig(),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -1154,7 +1151,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new SearchQueryQueryToolChest(
-        Suppliers.ofInstance(new SearchQueryConfig()),
+        new SearchQueryConfig(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );
@@ -1322,18 +1319,10 @@ public class CachingClusteredClientTest
         )
     );
 
-    Supplier<GroupByQueryConfig> configSupplier = new Supplier<GroupByQueryConfig>()
-    {
-      @Override
-      public GroupByQueryConfig get()
-      {
-        return new GroupByQueryConfig();
-      }
-    };
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client,
         new GroupByQueryQueryToolChest(
-            configSupplier,
+            new QueryConfig(),
             new GroupByQueryEngine(
                 new StupidPool<>(
                     new Supplier<ByteBuffer>()
@@ -2590,18 +2579,10 @@ public class CachingClusteredClientTest
         )
     );
 
-    Supplier<GroupByQueryConfig> configSupplier = new Supplier<GroupByQueryConfig>()
-    {
-      @Override
-      public GroupByQueryConfig get()
-      {
-        return new GroupByQueryConfig();
-      }
-    };
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client,
         new GroupByQueryQueryToolChest(
-            configSupplier,
+            new QueryConfig(),
             new GroupByQueryEngine(
                 new StupidPool<>(
                     new Supplier<ByteBuffer>()

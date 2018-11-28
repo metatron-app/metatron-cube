@@ -22,7 +22,6 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -34,6 +33,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
@@ -69,66 +69,60 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         }
     );
 
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
+    QueryConfig config = new QueryConfig();
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
-    final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            configSupplier, engine, TestQueryRunners.pool,
+            config, engine, TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         TestQueryRunners.pool
     );
 
-    GroupByQueryConfig singleThreadedConfig = new GroupByQueryConfig()
-    {
-      @Override
-      public boolean isSingleThreaded()
-      {
-        return true;
-      }
-    };
-    singleThreadedConfig.setMaxIntermediateRows(10000);
-
-    final Supplier<GroupByQueryConfig> singleThreadedConfigSupplier = Suppliers.ofInstance(singleThreadedConfig);
-    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(pool);
+    config = new QueryConfig();
+    config.getGroupBy().setSingleThreaded(true);
+    config.getGroupBy().setMaxIntermediateRows(10000);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
-        singleThreadEngine,
+        engine,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        singleThreadedConfigSupplier,
+        config,
         new GroupByQueryQueryToolChest(
-            singleThreadedConfigSupplier, singleThreadEngine, pool,
+            config, engine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool
     );
 
-
-    Function<Object, Object> function = new Function<Object, Object>()
-    {
-      @Override
-      public Object apply(Object input)
-      {
-        return new Object[]{factory, input};
-      }
-    };
-
     return Lists.newArrayList(
         Iterables.concat(
             Iterables.transform(
                 QueryRunnerTestHelper.makeQueryRunners(factory),
-                function
+                new Function<QueryRunner<Row>, Object[]>()
+                {
+                  @Override
+                  public Object[] apply(QueryRunner<Row> input)
+                  {
+                    return new Object[] {factory, input};
+                  }
+                }
             ),
             Iterables.transform(
                 QueryRunnerTestHelper.makeQueryRunners(singleThreadFactory),
-                function
+                new Function<QueryRunner<Row>, Object[]>()
+                {
+                  @Override
+                  public Object[] apply(QueryRunner<Row> input)
+                  {
+                    return new Object[] {singleThreadFactory, input};
+                  }
+                }
             )
         )
     );
