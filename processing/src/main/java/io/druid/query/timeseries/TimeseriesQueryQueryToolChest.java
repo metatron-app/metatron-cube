@@ -432,7 +432,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
     return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
-      protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> function(
+      protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> query(
           final Query<Result<TimeseriesResultValue>> query, Map<String, Object> context,
           final Segment segment
       )

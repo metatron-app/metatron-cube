@@ -223,7 +223,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                                 ? customDateTimeMapper
                                 : objectMapper;
 
-    final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
+    final boolean isBySegment = BaseQuery.getContextBySegment(query);
     final JavaType typeRef = isBySegment ? types.rhs : types.lhs;
 
     Sequence<T> retVal = new BaseSequence<>(

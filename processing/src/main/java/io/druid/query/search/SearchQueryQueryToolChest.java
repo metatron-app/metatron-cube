@@ -157,7 +157,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
         {
           @Override
-          protected Function<Interval, Sequence<Result<SearchResultValue>>> function(
+          protected Function<Interval, Sequence<Result<SearchResultValue>>> query(
               final Query<Result<SearchResultValue>> query,
               final Map<String, Object> context,
               final Segment segment
@@ -354,7 +354,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
+      final boolean isBySegment = BaseQuery.getContextBySegment(query);
 
       return Sequences.map(
           runner.run(query.withLimit(maxSearchLimit), responseContext),

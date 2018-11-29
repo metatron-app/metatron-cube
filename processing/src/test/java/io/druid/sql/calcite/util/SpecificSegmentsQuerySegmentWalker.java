@@ -505,7 +505,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
         resolved, MetricManipulatorFns.deserializing()
     );
-    if (BaseQuery.getContextBySegment(query, false)) {
+    if (BaseQuery.getContextBySegment(query)) {
       manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
     }
     final QueryRunner<T> baseRunner = runner;

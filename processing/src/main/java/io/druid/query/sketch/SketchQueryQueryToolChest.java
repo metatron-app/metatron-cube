@@ -257,7 +257,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
     return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
-      protected Function<Interval, Sequence<Result<Object[]>>> function(
+      protected Function<Interval, Sequence<Result<Object[]>>> query(
           final Query<Result<Object[]>> query,
           final Map<String, Object> context,
           final Segment segment

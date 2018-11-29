@@ -124,7 +124,7 @@ public final class MergeIndex implements Closeable
         return Sequences.map(sequence, GroupByQueryEngine.arrayToRow(groupBy, compact));
       }
       List<Object[]> list = Sequences.toList(sequence);
-      Comparator[] comparators = DimensionSpecs.toComparatorWithDefault(groupBy.getDimensions());
+      Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions());
       Collections.sort(list, Comparators.toArrayComparator(comparators));
       return Sequences.simple(Iterables.transform(list, GroupByQueryEngine.arrayToRow(groupBy, compact)));
     }

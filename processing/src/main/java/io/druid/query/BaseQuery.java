@@ -31,11 +31,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
@@ -74,9 +74,9 @@ public abstract class BaseQuery<T> implements Query<T>
     return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);
   }
 
-  public static <T> boolean getContextBySegment(Query<T> query, boolean defaultValue)
+  public static <T> boolean getContextBySegment(Query<T> query)
   {
-    return PropUtils.parseBoolean(query.getContext(), BY_SEGMENT, defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), BY_SEGMENT, false);
   }
 
   public static <T> boolean getContextPopulateCache(Query<T> query, boolean defaultValue)
@@ -403,7 +403,7 @@ public abstract class BaseQuery<T> implements Query<T>
       overridden.putAll(context);
     }
     for (Map.Entry<String, Object> override : overrides.entrySet()) {
-      if (override.getValue() == null) {
+      if (StringUtils.isNullOrEmpty(override.getValue())) {
         overridden.remove(override.getKey());
       } else {
         overridden.put(override.getKey(), override.getValue());

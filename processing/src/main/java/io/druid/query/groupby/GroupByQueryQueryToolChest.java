@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -45,6 +44,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
+import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
@@ -125,59 +125,49 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     return new QueryRunner<Row>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        if (BaseQuery.getContextBySegment(query, false)) {
-          return runner.run(query.removePostActions(), responseContext);
+        GroupByQuery groupBy = (GroupByQuery) query;
+        if (groupBy.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+          Sequence<Row> sequence = runner.run(groupBy.removePostActions(), responseContext);
+          if (BaseQuery.getContextBySegment(groupBy)) {
+            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.deserializer(
+                Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy)))
+            );
+          }
+          sequence = CombiningSequence.create(sequence, groupBy.getRowOrdering(), new GroupByBinaryFnV2(groupBy));
+          sequence = Sequences.map(sequence, Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy)));
+          return sequence;
         }
-
-        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          return mergeGroupByResults(
-              (GroupByQuery) query,
-              runner,
-              responseContext
-          );
-        }
-        return runner.run(query, responseContext);
+        return runner.run(groupBy, responseContext);
       }
     };
   }
 
-  private Sequence<Row> mergeGroupByResults(
-      final GroupByQuery query,
-      final QueryRunner<Row> runner,
-      final Map<String, Object> context
-  )
+  private Function<Row, Row> toMapBasedRow(final GroupByQuery query)
   {
-    final Long fudgeTimestamp = GroupByQueryEngine.getUniversalTimestamp(query);
-    final GroupByQuery actualQuery = removePostActions(query)
-        .withOverriddenContext(
-            ImmutableMap.<String, Object>of(
-                GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
-                fudgeTimestamp == null ? "" : String.valueOf(fudgeTimestamp)
-            )
-        );
-    return postProcessing(query, mergeSequence(actualQuery, runner.run(actualQuery, context)));
-  }
+    return new Function<Row, Row>()
+    {
+      private final Granularity granularity = query.getGranularity();
+      private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+      private final List<String> metrics = AggregatorFactory.toNames(query.getAggregatorSpecs());
 
-  private GroupByQuery removePostActions(GroupByQuery query)
-  {
-    return query.removePostActions().withOverriddenContext(
-        ImmutableMap.<String, Object>of(
-            Query.FINALIZE, false,
-            Query.FINAL_MERGE, false,
-            Query.LOCAL_SPLIT_STRATEGY, query.getLocalSplitStrategy()
-        )
-    );
-  }
-
-  private CombiningSequence<Row> mergeSequence(GroupByQuery outerQuery, Sequence<Row> outerSequence)
-  {
-    return CombiningSequence.create(
-        outerSequence,
-        outerQuery.getRowOrdering(),
-        new GroupByBinaryFnV2(outerQuery)
-    );
+      @Override
+      public Row apply(Row input)
+      {
+        final Object[] values = ((CompactRow) input).getValues();
+        final Map<String, Object> event = Maps.newLinkedHashMap();
+        int x = 1;
+        for (String dimension : dimensions) {
+          event.put(dimension, values[x++]);
+        }
+        for (String metric : metrics) {
+          event.put(metric, values[x++]);
+        }
+        return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
+      }
+    };
   }
 
   @Override
@@ -224,21 +214,18 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         final Sequence<Row> outerSequence = super.runOuterQuery(query, context, segment);
         final GroupByQuery outerQuery = (GroupByQuery) query;
-        final IncrementalIndex<?> outerQueryResultIndex =
+        final IncrementalIndex<?> mergeIndex =
             outerSequence.accumulate(
                 GroupByQueryHelper.createIncrementalIndex(outerQuery, bufferPool, true, maxRowCount, null),
                 GroupByQueryHelper.<Row>newIndexAccumulator()
             );
         close(segment);
 
-        return Sequences.withBaggage(
-            postAggregate(outerQuery, outerQueryResultIndex),
-            outerQueryResultIndex
-        );
+        return Sequences.withBaggage(postAggregate(outerQuery, mergeIndex), mergeIndex);
       }
 
       @Override
-      protected Function<Interval, Sequence<Row>> function(
+      protected Function<Interval, Sequence<Row>> query(
           final Query<Row> query,
           final Map<String, Object> context,
           final Segment segment
@@ -260,10 +247,10 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
       
       @Override
-      protected Function<Cursor, Sequence<Row>> converter(final Query<Row> outerQuery, final Cursor cursor)
+      protected Function<Cursor, Sequence<Row>> streamQuery(final Query<Row> query, final Cursor cursor)
       {
-        final GroupByQuery groupBy = (GroupByQuery) outerQuery;
-        final int maxPage = groupBy.getContextIntWithMax(
+        final GroupByQuery groupBy = (GroupByQuery) query;
+        final int maxPages = groupBy.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
             config.getGroupBy().getMaxStreamSubQueryPage()
         );
@@ -273,50 +260,52 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           public Sequence<Row> apply(Cursor input)
           {
             final CloseableIterator<Object[]> iterator =
-                new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPage)
+                new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
                 {
                   @Override
                   protected void nextIteration(long start, List<int[]> unprocessedKeys)
                   {
                     if (unprocessedKeys != null) {
-                      throw new IllegalStateException("cannot handle in " + maxPage + " page");
+                      throw new ISE("Result of subquery is exceeding max pages [%d]", maxPages);
                     }
                   }
                 };
-            LOG.info("Running streaming subquery with max pages [%d]", maxPage);
-            return Sequences.<Row>once(GuavaUtils.map(iterator, GroupByQueryEngine.arrayToRow(groupBy)));
+            LOG.info("Running streaming subquery with max pages [%d]", maxPages);
+            return Sequences.<Row>once(
+                GuavaUtils.map(
+                    GuavaUtils.map(iterator, GroupByQueryEngine.arrayToRow(groupBy)),
+                    toPostAggregator(groupBy)
+                )
+            );
           }
         };
       }
     };
   }
 
-  private Sequence<Row> postProcessing(GroupByQuery query, Sequence<Row> mergedSequence)
+  private Function<Row, Row> toPostAggregator(GroupByQuery query)
   {
     final Granularity granularity = query.getGranularity();
     final List<PostAggregator> postAggregators = PostAggregators.decorate(
         query.getPostAggregatorSpecs(),
         query.getAggregatorSpecs()
     );
-    if (!postAggregators.isEmpty() || !granularity.isUTC()) {
-      mergedSequence = Sequences.map(
-          mergedSequence,
-          new Function<Row, Row>()
-          {
-            @Override
-            public Row apply(final Row row)
-            {
-              final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
-
-              for (PostAggregator postAggregator : postAggregators) {
-                newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
-              }
-              return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
-            }
-          }
-      );
+    if (postAggregators.isEmpty() && granularity.isUTC()) {
+      return Functions.identity();
     }
-    return mergedSequence;
+    return new Function<Row, Row>()
+    {
+      @Override
+      public Row apply(final Row row)
+      {
+        final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
+
+        for (PostAggregator postAggregator : postAggregators) {
+          newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
+        }
+        return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
+      }
+    };
   }
 
   private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
@@ -363,8 +352,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     }
     return new Function<Row, Row>()
     {
-      private final Granularity granularity = query.getGranularity();
-      private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+      private final int start = query.getDimensions().size() + 1;
       private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
 
       @Override
@@ -372,15 +360,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         if (input instanceof CompactRow) {
           final Object[] values = ((CompactRow) input).getValues();
-          final Map<String, Object> event = Maps.newLinkedHashMap();
-          int x = 1;
-          for (String dimension : dimensions) {
-            event.put(dimension, values[x++]);
-          }
+          int x = start;
           for (AggregatorFactory metric : metrics) {
-            event.put(metric.getName(), fn.manipulate(metric, values[x++]));
+            values[x] = fn.manipulate(metric, values[x++]);
           }
-          return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
+          return input;
         }
         final Row.Updatable updatable = Rows.toUpdatable(input);
         for (AggregatorFactory agg : metrics) {

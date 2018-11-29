@@ -144,8 +144,16 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
 
   public LimitSpec withNoProcessing()
   {
-    return segmentLimit == null && nodeLimit == null ?
-           NoopLimitSpec.INSTANCE : new LimitSpec(columns, null, segmentLimit, nodeLimit, null);
+    if (segmentLimit == null && nodeLimit == null) {
+      return NoopLimitSpec.INSTANCE;
+    }
+    return new LimitSpec(
+        null,
+        null,
+        segmentLimit == null ? null : segmentLimit.withOrderingSpec(columns),
+        nodeLimit == null ? null : nodeLimit.withOrderingSpec(columns),
+        null
+    );
   }
 
   public LimitSpec withNoLimiting()

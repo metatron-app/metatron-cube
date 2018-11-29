@@ -269,7 +269,7 @@ public class BrokerQueryResource extends QueryResource
       if (!(query instanceof SelectQuery || query instanceof StreamQuery)) {
         throw new IllegalArgumentException("parallel forwarding is supported only for select/stream query, for now");
       }
-      if (BaseQuery.getContextBySegment(query, false)) {
+      if (BaseQuery.getContextBySegment(query)) {
         throw new IllegalArgumentException("parallel forwarding cannot be used with 'bySegment'");
       }
       URI uri = new URI(BaseQuery.getResultForwardURL(query));

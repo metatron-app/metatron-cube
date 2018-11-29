@@ -20,19 +20,19 @@
 package io.druid.query.groupby;
 
 import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
-import io.druid.data.input.Rows;
 import io.druid.query.aggregation.AggregatorFactory;
-
-import java.util.List;
 
 public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 {
-  private final List<AggregatorFactory> aggregatorFactories;
+  private final int start;
+  private final AggregatorFactory[] aggregators;
 
   public GroupByBinaryFnV2(GroupByQuery query)
   {
-    aggregatorFactories = AggregatorFactory.toCombiner(query.getAggregatorSpecs());
+    start = query.getDimensions().size() + 1;
+    aggregators = AggregatorFactory.toCombiner(query.getAggregatorSpecs()).toArray(new AggregatorFactory[0]);
   }
 
   @Override
@@ -43,13 +43,13 @@ public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
     } else if (arg2 == null) {
       return arg1;
     }
-
-    Row.Updatable updatable = Rows.toUpdatable(arg1);
-    for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
-      final String name = aggregatorFactory.getName();
-      updatable.set(name, aggregatorFactory.combine(updatable.getRaw(name), arg2.getRaw(name)));
+    final Object[] values1 = ((CompactRow)arg1).getValues();
+    final Object[] values2 = ((CompactRow)arg2).getValues();
+    int index = start;
+    for (AggregatorFactory aggregator : aggregators) {
+      values1[index] = aggregator.combine(values1[index], values2[index]);
+      index++;
     }
-
-    return updatable;
+    return arg1;
   }
 }

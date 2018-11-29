@@ -64,6 +64,11 @@ public class OrderedLimitSpec implements Cacheable
     return limit;
   }
 
+  public OrderedLimitSpec withOrderingSpec(List<OrderByColumnSpec> columns)
+  {
+    return new OrderedLimitSpec(columns, limit);
+  }
+
   public boolean hasLimit()
   {
     return limit > 0 && limit < Integer.MAX_VALUE;

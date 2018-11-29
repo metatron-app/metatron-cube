@@ -73,7 +73,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
     if (query instanceof DelegateQuery) {
       return baseRunner.run(query, responseContext);
     }
-    final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
+    final boolean isBySegment = BaseQuery.getContextBySegment(query);
     final boolean shouldFinalize = BaseQuery.getContextFinalize(query, true);
 
     final Query<T> queryToRun;

@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class CombiningSequence<T> implements Sequence<T>
 {
-  public static <T> CombiningSequence<T> create(
+  public static <T> Sequence<T> create(
       Sequence<T> baseSequence,
       Ordering<T> ordering,
       BinaryFn<T, T, T> mergeFn

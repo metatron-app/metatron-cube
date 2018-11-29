@@ -102,7 +102,7 @@ public class GroupByQueryEngine
    *
    * @return universal timestamp, or null
    */
-  public static Long getUniversalTimestamp(final GroupByQuery query)
+  public static Long getUniversalTimestamp(final Query<?> query)
   {
     final Granularity gran = query.getGranularity();
     final String timestampStringFromContext = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
@@ -224,7 +224,6 @@ public class GroupByQueryEngine
 
     private final String[] dimNames;
     private final DimensionSelector[] dimensions;
-    private final Map<String, Integer> columnMapping;
 
     private final String[] metricNames;
     private final AggregatorFactory[] aggregatorSpecs;
@@ -290,15 +289,6 @@ public class GroupByQueryEngine
       postAggregators = PostAggregators.decorate(query.getPostAggregatorSpecs(), aggregatorSpecs);
       increment = increments[increments.length - 1];
 
-      int index = 0;
-      columnMapping = Maps.newHashMap();
-      columnMapping.put(Row.TIME_COLUMN_NAME, index++);
-      for (String dimName : dimNames) {
-        columnMapping.put(dimName, index++);
-      }
-      for (String metName : metricNames) {
-        columnMapping.put(metName, index++);
-      }
       delegate = Iterators.emptyIterator();
     }
 
@@ -518,20 +508,6 @@ public class GroupByQueryEngine
                       array[i++] = aggregators[x].get(metricValues[position[0]], position[1] + increments[x]);
                     }
 
-                    if (!postAggregators.isEmpty()) {
-                      final Map<String, Object> accessor = new PostAggregators.MapAccess()
-                      {
-                        @Override
-                        public Object get(Object key)
-                        {
-                          Integer index = columnMapping.get(key);
-                          return index == null || index < 0 ? null : array[index];
-                        }
-                      };
-                      for (PostAggregator postAggregator : postAggregators) {
-                        array[i++] = postAggregator.compute(timestamp, accessor);
-                      }
-                    }
                     array[0] = timestamp.getMillis();
                     return array;
                   }

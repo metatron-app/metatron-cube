@@ -540,7 +540,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
+      final boolean isBySegment = BaseQuery.getContextBySegment(query);
 
       return Sequences.map(
           runner.run(query.withThreshold(minTopNThreshold), responseContext),
@@ -684,7 +684,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
         {
           @Override
-          protected Function<Interval, Sequence<Result<TopNResultValue>>> function(
+          protected Function<Interval, Sequence<Result<TopNResultValue>>> query(
               final Query<Result<TopNResultValue>> query, Map<String, Object> context,
               final Segment segment
           )

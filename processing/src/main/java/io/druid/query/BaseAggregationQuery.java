@@ -182,13 +182,13 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return getContextBoolean(SORT_ON_TIME, defaultValue);
   }
 
-  public Sequence<Row> applyLimit(Sequence<Row> results, boolean sortOnTimeForLimit)
+  public Sequence<Row> applyLimit(Sequence<Row> sequence, boolean sortOnTimeForLimit)
   {
     if (havingSpec != null) {
       Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);
-      results = Sequences.filter(results, predicate);
+      sequence = Sequences.filter(sequence, predicate);
     }
-    return limitSpec.build(this, sortOnTimeForLimit).apply(results);
+    return limitSpec.build(this, sortOnTimeForLimit).apply(sequence);
   }
 
   @Override
@@ -227,9 +227,6 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   public List<OrderByColumnSpec> getLimitOrdering(OrderedLimitSpec limiting)
   {
     List<OrderByColumnSpec> ordering = limiting.getColumns();
-    if (GuavaUtils.isNullOrEmpty(ordering)) {
-      ordering = getLimitSpec().getColumns();
-    }
     if (GuavaUtils.isNullOrEmpty(ordering)) {
       ordering = DimensionSpecs.asOrderByColumnSpec(getDimensions());
     }

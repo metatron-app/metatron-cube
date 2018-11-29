@@ -99,7 +99,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     );
 
     final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
-    final boolean bySegment = BaseQuery.getContextBySegment(query, false);
+    final boolean bySegment = BaseQuery.getContextBySegment(query);
     final int priority = BaseQuery.getContextPriority(query, 0);
 
     final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(queryables.size(), parallelism));

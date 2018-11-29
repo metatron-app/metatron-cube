@@ -33,12 +33,12 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -90,6 +90,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+
+import static io.druid.query.groupby.GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP;
 
 /**
  */
@@ -384,7 +386,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @Override
-  public BaseAggregationQuery withLateralView(LateralViewSpec lateralView)
+  public GroupByQuery withLateralView(LateralViewSpec lateralView)
   {
     return new GroupByQuery(
         getDataSource(),
@@ -470,6 +472,13 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   @Override
   public GroupByQuery removePostActions()
   {
+    Map<String, Object> override = Maps.newHashMap();
+    override.put(FINALIZE, false);
+    override.put(FINAL_MERGE, false);
+    override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
+    override.put(POST_PROCESSING, null);
+    override.put(CTX_KEY_FUDGE_TIMESTAMP, Objects.toString(GroupByQueryEngine.getUniversalTimestamp(this), null));
+
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
@@ -484,7 +493,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getLimitSpec().withNoProcessing(),
         null,
         null,
-        computeOverriddenContext(removeContext(POST_PROCESSING))
+        computeOverriddenContext(override)
     );
   }
 
@@ -773,24 +782,19 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   @SuppressWarnings("unchecked")
   Ordering<Row> getRowOrdering()
   {
-    final String[] outputNames = DimensionSpecs.toOutputNamesAsArray(dimensions);
-    final Comparator[] comparators = DimensionSpecs.toComparatorWithDefault(dimensions);
-
     return Ordering.from(
         new Comparator<Row>()
         {
+          private final Comparator[] comparators = DimensionSpecs.toComparator(dimensions, true);
+
           @Override
           public int compare(Row lhs, Row rhs)
           {
-            int compare = Longs.compare(
-                lhs.getTimestampFromEpoch(),
-                rhs.getTimestampFromEpoch()
-            );
-            for (int i = 0; compare == 0 && i < outputNames.length; i++) {
-              compare = comparators[i].compare(
-                  lhs.getRaw(outputNames[i]),
-                  rhs.getRaw(outputNames[i])
-              );
+            final Object[] values1 = ((CompactRow) lhs).getValues();
+            final Object[] values2 = ((CompactRow) rhs).getValues();
+            int compare = 0;
+            for (int i = 0; compare == 0 && i < comparators.length; i++) {
+              compare = comparators[i].compare(values1[i], values2[i]);
             }
             return compare;
           }

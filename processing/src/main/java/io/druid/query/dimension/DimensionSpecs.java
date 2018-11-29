@@ -33,7 +33,6 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -114,16 +113,6 @@ public class DimensionSpecs
       }
     }
     return comparator;
-  }
-
-  public static Comparator[] toComparatorWithDefault(List<DimensionSpec> dimensionSpecs)
-  {
-    if (!isAllDefaultOrdering(dimensionSpecs)) {
-      return toComparator(dimensionSpecs);
-    }
-    Comparator[] comparators = new Comparator[dimensionSpecs.size()];
-    Arrays.fill(comparators, GuavaUtils.nullFirstNatural());
-    return comparators;
   }
 
   private static boolean isAllDefaultOrdering(List<DimensionSpec> dimensionSpecs)

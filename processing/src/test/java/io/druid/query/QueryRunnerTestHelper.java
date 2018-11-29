@@ -999,7 +999,7 @@ public class QueryRunnerTestHelper
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
             query, MetricManipulatorFns.deserializing()
         );
-        if (BaseQuery.getContextBySegment(query, false)) {
+        if (BaseQuery.getContextBySegment(query)) {
           manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
         }
         return Sequences.map(runner.run(query, responseContext), manipulatorFn);

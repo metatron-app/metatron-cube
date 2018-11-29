@@ -192,7 +192,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
 
       @Override
-      protected Function<Interval, Sequence<Result<SelectResultValue>>> function(
+      protected Function<Interval, Sequence<Result<SelectResultValue>>> query(
           final Query<Result<SelectResultValue>> query, Map<String, Object> context,
           final Segment segment
       )
@@ -213,12 +213,12 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
 
       @Override
-      protected Function<Cursor, Sequence<Result<SelectResultValue>>> converter(
-          final Query<Result<SelectResultValue>> outerQuery,
+      protected Function<Cursor, Sequence<Result<SelectResultValue>>> streamQuery(
+          final Query<Result<SelectResultValue>> query,
           final Cursor cursor
       )
       {
-        final SelectQuery select = (SelectQuery) outerQuery;
+        final SelectQuery select = (SelectQuery) query;
         final String concatString = select.getConcatString();
         final List<String> outputColumns = Lists.newArrayList();
         final List<ObjectColumnSelector> selectors = Lists.newArrayList();

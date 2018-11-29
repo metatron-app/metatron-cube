@@ -123,12 +123,12 @@ public class StreamRawQueryToolChest extends QueryToolChest<Object[], StreamRawQ
     return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
     {
       @Override
-      protected final Function<Cursor, Sequence<Object[]>> converter(
-          Query<Object[]> outerQuery,
+      protected final Function<Cursor, Sequence<Object[]>> streamQuery(
+          Query<Object[]> query,
           Cursor cursor
       )
       {
-        return StreamQueryEngine.converter((StreamRawQuery) outerQuery, new MutableInt());
+        return StreamQueryEngine.converter((StreamRawQuery) query, new MutableInt());
       }
     };
   }

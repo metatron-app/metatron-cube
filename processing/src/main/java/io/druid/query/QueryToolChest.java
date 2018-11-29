@@ -328,13 +328,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
     protected Sequence<ResultType> runOuterQuery(Query<ResultType> query, Map<String, Object> context, Segment segment)
     {
-      final Function<Interval, Sequence<ResultType>> function = function(query, context, segment);
+      final Function<Interval, Sequence<ResultType>> function = query(query, context, segment);
       return Sequences.withBaggage(
           Sequences.concat(Sequences.map(Sequences.simple(query.getIntervals()), function)), segment
       );
     }
 
-    protected abstract Function<Interval, Sequence<ResultType>> function(
+    protected abstract Function<Interval, Sequence<ResultType>> query(
         Query<ResultType> query, Map<String, Object> context, Segment segment
     );
 
@@ -354,10 +354,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       if (cursor == null) {
         return Sequences.empty();
       }
-      return Sequences.withBaggage(converter(query, cursor).apply(cursor), cursor);
+      return Sequences.withBaggage(streamQuery(query, cursor).apply(cursor), cursor);
     }
 
-    protected Function<Cursor, Sequence<ResultType>> converter(Query<ResultType> outerQuery, Cursor cursor)
+    protected Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query, Cursor cursor)
     {
       throw new UnsupportedOperationException("streaming sub-query handler");
     }
@@ -392,7 +392,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    protected Function<Interval, Sequence<ResultType>> function(
+    protected Function<Interval, Sequence<ResultType>> query(
         Query<ResultType> query, Map<String, Object> context, Segment segment
     )
     {
@@ -400,8 +400,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    protected abstract Function<Cursor, Sequence<ResultType>> converter(
-        Query<ResultType> outerQuery,
+    protected abstract Function<Cursor, Sequence<ResultType>> streamQuery(
+        Query<ResultType> query,
         Cursor cursor
     );
   }

@@ -103,7 +103,7 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
     return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
     {
       @Override
-      protected final Function<Cursor, Sequence<StreamQueryRow>> converter(
+      protected final Function<Cursor, Sequence<StreamQueryRow>> streamQuery(
           Query<StreamQueryRow> outerQuery,
           Cursor cursor
       )

@@ -190,7 +190,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                                   && strategy != null
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
-    final boolean explicitBySegment = BaseQuery.getContextBySegment(query, false);
+    final boolean explicitBySegment = BaseQuery.getContextBySegment(query);
 
 
     final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
@@ -490,7 +490,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           } else {
             sequence = runner.run(running, responseContext);
           }
-          if (!BaseQuery.getContextBySegment(running, false)) {
+          if (!BaseQuery.getContextBySegment(running)) {
             listOfSequences.add(sequence);
           } else if (!populateCache) {
             listOfSequences.add(Sequences.map(sequence, BySegmentResultValueClass.deserializer(deserializer)));
