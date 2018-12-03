@@ -148,12 +148,18 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
 
           final List<String> columns = sketchQuery.estimatedOutputColumns();
-          final Result<Object[]> values = Iterables.getOnlyElement(Sequences.toList(pair.rhs));
+          final Result<Object[]> values = Iterables.getOnlyElement(Sequences.toList(pair.rhs), null);
+          if (values == null) {
+            continue;   // invalid interval or not-existing
+          }
           final Object[] value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
             final Map<String, ValueType> primitiveColumns = Maps.newTreeMap();
             final Map<String, ValueType> numericColumns = Maps.newTreeMap();
             for (int i = 0; i < value.length; i++) {
+              if (value[i] == null) {
+                continue;   // empty or not-existing
+              }
               final String column = columns.get(i);
               final ValueDesc type = ((TypedSketch<ItemsSketch>) value[i]).type();
               if (type.isPrimitive()) {
@@ -193,6 +199,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 BaseQuery.copyContextForMeta(query.withOverriddenContext(Query.ALL_DIMENSIONS_FOR_EMPTY, false))
             );
             for (int i = 0; i < value.length; i++) {
+              if (value[i] == null) {
+                continue;   // empty or not-existing
+              }
               final String column = columns.get(i);
               final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) value[i];
               Map<String, Object> result = results.get(column);
@@ -333,6 +342,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
             for (int i = 0; i < value.length; i++) {
               final String column = columns.get(i);
               final TypedSketch<Sketch> sketch = ((TypedSketch<Sketch>) value[i]);
+              if (sketch == null) {
+                continue;
+              }
               Map<String, Object> result = results.get(column);
               if (result == null) {
                 results.put(column, result = Maps.newLinkedHashMap());

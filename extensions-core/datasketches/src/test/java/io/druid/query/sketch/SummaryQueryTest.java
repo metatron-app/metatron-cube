@@ -27,6 +27,7 @@ import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestIndex;
+import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -270,5 +271,33 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
     Assert.assertEquals(-0.398, indexStats.get("skewness"));
     Assert.assertEquals(0l, indexStats.get("outliers"));
     Assert.assertEquals(1199.0d, indexStats.get("cardinality"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testSummaryOnNotExisting() throws Exception
+  {
+    SummaryQuery query = new SummaryQuery(
+        TableDataSource.of(TestIndex.MMAPPED_SPLIT),
+        MultipleIntervalSegmentSpec.of(new Interval("2000-01-01/2001-01-01")),
+        null,
+        null,
+        Arrays.asList("index"),
+        null,
+        2,
+        false,
+        false,
+        null
+    );
+
+    List result = Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    Assert.assertEquals(1, result.size());
+    Assert.assertTrue(((Map<String, Map<String, Object>>) result.get(0)).isEmpty());
+
+    query = (SummaryQuery) query.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(TestIndex.INTERVAL))
+                                .withMetrics(Arrays.asList("not_existing"));
+    result = Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    Assert.assertEquals(1, result.size());
+    Assert.assertTrue(((Map<String, Map<String, Object>>) result.get(0)).isEmpty());
   }
 }
