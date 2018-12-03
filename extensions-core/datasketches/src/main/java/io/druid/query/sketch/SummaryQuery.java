@@ -27,10 +27,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -100,37 +98,27 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     for (Map.Entry<String, Map<ValueDesc, MutableInt>> entry : results.entrySet()) {
       String column = entry.getKey();
       Map<ValueDesc, MutableInt> value = Maps.newHashMap();
-      boolean containsComplex = false;
+      int majorCount = -1;
+      ValueDesc majorType = null;
       for (Map.Entry<ValueDesc, MutableInt> e : entry.getValue().entrySet()) {
         ValueDesc type = e.getKey();
         if (ValueDesc.isDimension(type)) {
           type = ValueDesc.STRING;
         }
         value.put(type, e.getValue());
-        containsComplex |= type.type() == ValueType.COMPLEX;
+        if (majorType == null || e.getValue().intValue() > majorCount) {
+          majorType = type;
+          majorCount = e.getValue().intValue();
+        }
       }
-      if (value.size() == 1) {
-        ValueDesc type = containsComplex ? ValueDesc.STRING : Iterables.getOnlyElement(value.keySet());
-        MutableInt count = Iterables.getOnlyElement(value.values());
-        majorTypes.put(column, type.typeName());
-        typeDetail.put(column, ImmutableMap.of(type.typeName(), count.intValue()));
+      if (majorType == null) {
         continue;
-      }
-      ValueDesc major;
-      if (containsComplex || value.containsKey(ValueDesc.STRING) || value.containsKey(ValueDesc.DATETIME)) {
-        major = ValueDesc.STRING;
-      } else if (value.containsKey(ValueDesc.DOUBLE)) {
-        major = ValueDesc.DOUBLE;
-      } else if (value.containsKey(ValueDesc.FLOAT)) {
-        major = ValueDesc.FLOAT;
-      } else {
-        major = ValueDesc.LONG;
       }
       Map<String, Integer> detail = Maps.newHashMap();
       for (Map.Entry<ValueDesc, MutableInt> e : value.entrySet()) {
         detail.put(e.getKey().typeName(), e.getValue().intValue());
       }
-      majorTypes.put(column, major.typeName());
+      majorTypes.put(column, majorType.typeName());
       typeDetail.put(column, detail);
     }
 

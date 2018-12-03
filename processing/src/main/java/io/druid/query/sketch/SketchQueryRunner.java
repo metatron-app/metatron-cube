@@ -249,7 +249,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
           TypedSketch union = prev.get(metric);
           ValueDesc type = cursor.getColumnType(metric);
           ValueDesc majorType = majorTypes.get(metric);
-          if (type == null) {
+          if (type == null || !type.isPrimitive()) {
             sketches.add(union);
             metricSelectors.add(null);
             continue;
