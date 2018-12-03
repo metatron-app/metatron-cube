@@ -137,6 +137,7 @@ public class DimensionSelectorHavingSpec implements HavingSpec
     return result;
   }
 
+  @Override
   public String toString()
   {
     StringBuilder sb = new StringBuilder();

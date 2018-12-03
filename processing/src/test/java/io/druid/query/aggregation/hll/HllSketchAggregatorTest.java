@@ -24,7 +24,6 @@ import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
-import io.druid.initialization.DruidModule;
 import io.druid.query.aggregation.AggregationTestHelper;
 import org.junit.Assert;
 import org.junit.Rule;

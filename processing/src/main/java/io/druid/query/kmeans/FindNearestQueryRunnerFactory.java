@@ -123,6 +123,6 @@ public class FindNearestQueryRunnerFactory
       final Future<Object> optimizer
   )
   {
-    return new ChainedExecutionQueryRunner<CentroidDesc>(queryExecutor, queryWatcher, queryRunners);
+    return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
   }
 }

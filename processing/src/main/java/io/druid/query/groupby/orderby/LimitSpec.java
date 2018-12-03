@@ -137,6 +137,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);
   }
 
+  @Override
   public LimitSpec withOrderingSpec(List<OrderByColumnSpec> columns)
   {
     return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);

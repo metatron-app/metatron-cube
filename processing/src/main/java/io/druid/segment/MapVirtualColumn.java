@@ -332,6 +332,7 @@ public class MapVirtualColumn implements VirtualColumn
     return valueMetric;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

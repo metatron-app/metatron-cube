@@ -215,7 +215,7 @@ public class RangeAggregatorFactory extends AggregatorFactory
   {
     return "RangeAggregatorFactory{" +
            "delegate=" + delegateFactory +
-           "rangeStart=" + rangeStart + "rangeCount=" + rangeCount +
+           ", rangeStart=" + rangeStart + ", rangeCount=" + rangeCount +
            "}";
   }
 }

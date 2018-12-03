@@ -265,7 +265,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         Sequences.simple(iterable),
         new Function<Interval, Cursor>()
         {
-          private EntryHolder currEntry = new EntryHolder();
+          private final EntryHolder currEntry = new EntryHolder();
 
           @Override
           public Cursor apply(final Interval interval)

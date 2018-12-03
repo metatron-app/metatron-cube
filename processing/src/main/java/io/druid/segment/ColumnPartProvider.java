@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import com.google.common.base.Supplier;
-import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.GenericIndexed;
 

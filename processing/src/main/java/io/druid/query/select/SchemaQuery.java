@@ -92,6 +92,7 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return metrics;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()

@@ -95,7 +95,7 @@ public class StringComparators
     public final int compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
-      if (s == s2) {
+      if (s.equals(s2)) {
         return 0;
       }
       // null first

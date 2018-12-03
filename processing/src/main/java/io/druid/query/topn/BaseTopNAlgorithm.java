@@ -159,8 +159,8 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
 
   protected class AggregatorArrayProvider extends BaseArrayProvider<Aggregator[][]>
   {
-    Aggregator[][] expansionAggs;
-    int cardinality;
+    final Aggregator[][] expansionAggs;
+    final int cardinality;
 
     public AggregatorArrayProvider(DimensionSelector dimSelector, TopNQuery query, int cardinality)
     {

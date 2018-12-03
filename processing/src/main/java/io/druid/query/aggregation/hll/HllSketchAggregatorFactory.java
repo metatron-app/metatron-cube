@@ -181,9 +181,9 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   {
     return getClass().getSimpleName() + " {"
            + "name=" + name
-           + "fieldName=" + fieldName
-           + "lgK=" + lgK
-           + "tgtHllType=" + tgtHllType
+           + ", fieldName=" + fieldName
+           + ", lgK=" + lgK
+           + ", tgtHllType=" + tgtHllType
            + "}";
   }
 

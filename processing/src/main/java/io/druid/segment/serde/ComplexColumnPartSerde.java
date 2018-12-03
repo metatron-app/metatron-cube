@@ -27,7 +27,6 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Map;
 
 /**
  */

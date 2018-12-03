@@ -83,6 +83,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return null;
   }
 
+  @Override
   public List<Row> apply(List<Row> input)
   {
     if (input.size() > 0) {

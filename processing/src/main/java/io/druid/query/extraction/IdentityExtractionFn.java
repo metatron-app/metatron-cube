@@ -102,7 +102,7 @@ public class IdentityExtractionFn implements ExtractionFn
   @Override
   public boolean equals(Object o)
   {
-     return o != null && o instanceof IdentityExtractionFn;
+     return o instanceof IdentityExtractionFn;
   }
 
   public static IdentityExtractionFn getInstance()

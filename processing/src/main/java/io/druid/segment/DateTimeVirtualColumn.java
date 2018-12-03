@@ -251,6 +251,7 @@ public class DateTimeVirtualColumn implements VirtualColumn
     return columnName;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

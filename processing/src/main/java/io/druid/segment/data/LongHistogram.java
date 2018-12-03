@@ -73,6 +73,7 @@ public class LongHistogram implements MetricHistogram.LongType
     this.zeros = factory.makeEmptyMutableBitmap();
   }
 
+  @Override
   public void offer(long d)
   {
     if (d < min) {
@@ -186,6 +187,7 @@ public class LongHistogram implements MetricHistogram.LongType
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
+  @Override
   public LongBitmaps snapshot()
   {
     return snapshot(numGroup);
@@ -313,11 +315,13 @@ public class LongHistogram implements MetricHistogram.LongType
     return bins;
   }
 
+  @Override
   public long getMin()
   {
     return min;
   }
 
+  @Override
   public long getMax()
   {
     return max;

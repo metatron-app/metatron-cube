@@ -151,6 +151,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     this.lenientAggregatorMerge = lenientAggregatorMerge == null ? false : lenientAggregatorMerge;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()

@@ -66,6 +66,7 @@ public class QueryDataSource implements DataSource
     return schema;
   }
 
+  @Override
   public String toString() { return query.toString(); }
 
   @Override

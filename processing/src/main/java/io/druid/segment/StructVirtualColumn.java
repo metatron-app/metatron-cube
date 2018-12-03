@@ -176,6 +176,7 @@ public class StructVirtualColumn implements VirtualColumn
     return columnName;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

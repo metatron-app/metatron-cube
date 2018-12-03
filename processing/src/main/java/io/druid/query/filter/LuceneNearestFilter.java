@@ -27,15 +27,12 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.TopFieldDocs;
 
 import java.nio.ByteBuffer;
 import java.util.EnumSet;

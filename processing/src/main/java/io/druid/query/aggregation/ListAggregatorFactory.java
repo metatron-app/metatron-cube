@@ -414,11 +414,11 @@ public class ListAggregatorFactory extends AggregatorFactory
   {
     return "ListAggregatorFactory{" +
            "name='" + name + '\'' +
-           "expression='" + expression + '\'' +
-           "inputType='" + inputType + '\'' +
-           "limit=" + limit +
-           "dedup=" + dedup +
-           "sort=" + sort +
+           ", expression='" + expression + '\'' +
+           ", inputType='" + inputType + '\'' +
+           ", limit=" + limit +
+           ", dedup=" + dedup +
+           ", sort=" + sort +
            '}';
   }
 

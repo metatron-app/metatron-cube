@@ -22,10 +22,8 @@ package io.druid.query.filter;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.NotFilter;
-import io.druid.segment.filter.OrFilter;
 
 import java.util.EnumSet;
 import java.util.List;

@@ -80,7 +80,7 @@ public class PartitionExpression implements Cacheable
           Objects.toString(map.get("expression"), null)
       );
     }
-    throw new IllegalArgumentException("invalid argument" + value);
+    throw new IllegalArgumentException("invalid argument " + value);
   }
 
   private final String condition;

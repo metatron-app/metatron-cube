@@ -26,8 +26,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -332,7 +332,7 @@ public class Druids
   {
     private TimeseriesQueryBuilder()
     {
-      granularity = QueryGranularities.ALL;
+      granularity = Granularities.ALL;
       aggregatorSpecs = Lists.newArrayList();
       postAggregatorSpecs = Lists.newArrayList();
     }
@@ -477,7 +477,7 @@ public class Druids
     {
       dataSource = null;
       dimFilter = null;
-      granularity = QueryGranularities.ALL;
+      granularity = Granularities.ALL;
       limit = 0;
       querySegmentSpec = null;
       dimensions = null;
@@ -848,7 +848,7 @@ public class Druids
     {
       final SegmentMetadataQuery.AnalysisType[] analysisTypesArray =
           analysisTypes != null
-          ? analysisTypes.toArray(new SegmentMetadataQuery.AnalysisType[analysisTypes.size()])
+          ? analysisTypes.toArray(new SegmentMetadataQuery.AnalysisType[0])
           : null;
       return new SegmentMetadataQueryBuilder()
           .dataSource(builder.dataSource)
@@ -982,7 +982,7 @@ public class Druids
       querySegmentSpec = null;
       context = null;
       dimFilter = null;
-      granularity = QueryGranularities.ALL;
+      granularity = Granularities.ALL;
       dimensions = Lists.newArrayList();
       metrics = Lists.newArrayList();
       pagingSpec = null;

@@ -22,10 +22,9 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -64,7 +63,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   {
     super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
-    this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
+    this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
@@ -84,12 +83,14 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
     return granularity;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getColumns()
@@ -110,6 +111,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
     return limit;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()

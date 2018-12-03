@@ -1693,6 +1693,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       this.clazz = clazz;
     }
 
+    @Override
     public int getId(T value)
     {
       synchronized (valueToId) {
@@ -1701,6 +1702,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
     }
 
+    @Override
     public T getValue(int id)
     {
       synchronized (valueToId) {
@@ -1708,6 +1710,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
     }
 
+    @Override
     public boolean contains(T value)
     {
       synchronized (valueToId) {
@@ -1715,6 +1718,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
     }
 
+    @Override
     public int size()
     {
       synchronized (valueToId) {
@@ -1722,6 +1726,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
     }
 
+    @Override
     public int add(T value)
     {
       synchronized (valueToId) {
@@ -1773,6 +1778,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       return 0;
     }
 
+    @Override
     public OnHeapDimLookup<T> sort()
     {
       synchronized (valueToId) {
@@ -1848,26 +1854,31 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
     }
 
+    @Override
     public int getId(String value)
     {
       return valueToId.get(value);
     }
 
+    @Override
     public String getValue(int id)
     {
       return idToValue[id];
     }
 
+    @Override
     public boolean contains(String value)
     {
       return valueToId.containsKey(value);
     }
 
+    @Override
     public int size()
     {
       return valueToId.size();
     }
 
+    @Override
     public int add(String value)
     {
       Integer prev = valueToId.get(value);
@@ -1901,6 +1912,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       return Ints.compare(lhsIdx, rhsIdx);
     }
 
+    @Override
     public SortedDimLookup<String> sort()
     {
       throw new UnsupportedOperationException("sort");

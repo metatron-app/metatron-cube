@@ -113,12 +113,14 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
     return granularity;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
@@ -126,6 +128,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return virtualColumns;
   }
 
+  @Override
   @JsonProperty("aggregations")
   @JsonInclude(Include.NON_EMPTY)
   public List<AggregatorFactory> getAggregatorSpecs()
@@ -133,6 +136,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return aggregatorSpecs;
   }
 
+  @Override
   @JsonProperty("postAggregations")
   @JsonInclude(Include.NON_EMPTY)
   public List<PostAggregator> getPostAggregatorSpecs()

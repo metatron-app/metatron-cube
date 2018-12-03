@@ -92,6 +92,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     }
   }
 
+  @Override
   public long getSerializedSize()
   {
     return 1 + // version

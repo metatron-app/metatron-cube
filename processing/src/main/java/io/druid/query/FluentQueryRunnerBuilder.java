@@ -45,7 +45,7 @@ public class FluentQueryRunnerBuilder<T>
 
   public class FluentQueryRunner implements QueryRunner<T>
   {
-    private QueryRunner<T> baseRunner;
+    private final QueryRunner<T> baseRunner;
 
     public FluentQueryRunner(QueryRunner<T> runner)
     {

@@ -423,7 +423,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<ReservoirItemsUnion> newUnion(int sketchParam, ValueDesc type, Comparator comparator)
     {
-      return TypedSketch.of(type, (ReservoirItemsUnion) ReservoirItemsUnion.newInstance(sketchParam));
+      return TypedSketch.of(type, ReservoirItemsUnion.newInstance(sketchParam));
     }
 
     @Override

@@ -387,6 +387,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return valueMetrics;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

@@ -74,9 +74,9 @@ public class SearchHit implements Comparable<SearchHit>
   @Override
   public int compareTo(SearchHit o)
   {
-    int retVal = dimension == o.dimension ? 0 : dimension.compareTo(o.dimension);
+    int retVal = dimension.equals(o.dimension) ? 0 : dimension.compareTo(o.dimension);
     if (retVal == 0) {
-      retVal = value == o.value ? 0 : value.compareTo(o.value);
+      retVal = value.equals(o.value) ? 0 : value.compareTo(o.value);
     }
     return retVal;
   }

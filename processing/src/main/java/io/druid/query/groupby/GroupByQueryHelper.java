@@ -26,7 +26,7 @@ import io.druid.collections.StupidPool;
 import io.druid.concurrent.Execs;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -68,8 +68,8 @@ public class GroupByQueryHelper
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(QueryGranularities.ALL)
-        .withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()]))
+        .withQueryGranularity(Granularities.ALL)
+        .withMetrics(aggs.toArray(new AggregatorFactory[0]))
         .withFixedSchema(true)
         .withRollup(true)
         .build();

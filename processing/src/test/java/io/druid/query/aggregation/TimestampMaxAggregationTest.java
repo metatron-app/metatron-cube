@@ -29,7 +29,6 @@ import io.druid.jackson.AggregatorsModule;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
 import org.easymock.EasyMock;
-import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;

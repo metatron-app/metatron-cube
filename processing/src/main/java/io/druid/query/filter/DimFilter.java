@@ -58,11 +58,6 @@ public interface DimFilter extends Expression, Cacheable
   final Expression.Factory<DimFilter> FACTORY = new Factory();
 
   /**
-   * @return return cache key
-   */
-  public byte[] getCacheKey();
-
-  /**
    * @return Returns an optimized filter.
    * returning the same filter can be a straightforward default implementation.
    */

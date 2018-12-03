@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -131,8 +130,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static java.lang.Double.NaN;
 

@@ -142,12 +142,14 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
     return granularity;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
@@ -168,6 +170,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return concatString;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
@@ -175,6 +178,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return metrics;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()

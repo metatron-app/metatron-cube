@@ -97,7 +97,7 @@ public class DimensionSpecs
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       comparators.add(toComparator(dimensionSpec));
     }
-    return comparators.toArray(new Comparator[comparators.size()]);
+    return comparators.toArray(new Comparator[0]);
   }
 
   public static Comparator toComparator(DimensionSpec dimensionSpec)

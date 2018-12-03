@@ -35,12 +35,12 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
 
   public DummyQuery()
   {
-    this(new TableDataSource("<NOT-EXISTING>"), null, false, null, Maps.<String, Object>newHashMap());
+    this(TableDataSource.of("<NOT-EXISTING>"), null, false, null, Maps.<String, Object>newHashMap());
   }
 
   public DummyQuery(Sequence<T> sequence)
   {
-    this(new TableDataSource("<NOT-EXISTING>"), null, false, sequence, Maps.<String, Object>newHashMap());
+    this(TableDataSource.of("<NOT-EXISTING>"), null, false, sequence, Maps.<String, Object>newHashMap());
   }
 
   private DummyQuery(

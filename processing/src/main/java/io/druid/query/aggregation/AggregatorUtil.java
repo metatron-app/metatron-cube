@@ -82,6 +82,6 @@ public class AggregatorUtil
         condensedAggs.add(aggregatorSpec);
       }
     }
-    return new Pair(condensedAggs, condensedPostAggs);
+    return new Pair<>(condensedAggs, condensedPostAggs);
   }
 }

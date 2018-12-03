@@ -156,6 +156,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     }
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
@@ -726,6 +727,12 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), groupingSets);
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (!super.equals(o)) {
@@ -750,7 +757,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
            (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
-           (lateralView == null ? "" : "lateralView" + lateralView) +
+           (lateralView == null ? "" : "lateralView=" + lateralView) +
            ", context=" + getContext() +
            '}';
   }

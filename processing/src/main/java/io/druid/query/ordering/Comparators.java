@@ -65,7 +65,7 @@ public class Comparators
 
   public static Comparator<Object[]> toArrayComparator(List<Comparator> comparators)
   {
-    return toArrayComparator(comparators.toArray(new Comparator[comparators.size()]));
+    return toArrayComparator(comparators.toArray(new Comparator[0]));
   }
 
   public static Comparator<Object[]> toArrayComparator(final Comparator[] cx)

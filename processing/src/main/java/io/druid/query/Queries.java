@@ -39,7 +39,6 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
@@ -159,7 +158,7 @@ public class Queries
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema.Builder builder = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(QueryGranularities.ALL)
+        .withQueryGranularity(Granularities.ALL)
         .withFixedSchema(true);
 
     // cannot handle lateral view, windowing, post-processing, etc.
@@ -532,6 +531,12 @@ public class Queries
                     Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
                     query = next.rhs;
                     return next.lhs;
+                  }
+
+                  @Override
+                  public void remove()
+                  {
+                    throw new UnsupportedOperationException("remove");
                   }
                 };
               }

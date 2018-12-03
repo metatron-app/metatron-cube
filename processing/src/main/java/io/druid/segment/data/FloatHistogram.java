@@ -73,6 +73,7 @@ public class FloatHistogram implements MetricHistogram.FloatType
     this.zeros = factory.makeEmptyMutableBitmap();
   }
 
+  @Override
   public void offer(float d)
   {
     if (d < min) {
@@ -188,6 +189,7 @@ public class FloatHistogram implements MetricHistogram.FloatType
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
+  @Override
   public FloatBitmaps snapshot()
   {
     return snapshot(numGroup);
@@ -315,11 +317,13 @@ public class FloatHistogram implements MetricHistogram.FloatType
     return bins;
   }
 
+  @Override
   public float getMin()
   {
     return min;
   }
 
+  @Override
   public float getMax()
   {
     return max;

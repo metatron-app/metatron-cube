@@ -248,7 +248,7 @@ public class PivotColumnSpec extends OrderingSpec
   @Override
   public boolean equals(Object o)
   {
-    if (o == null || !(o instanceof PivotColumnSpec)) {
+    if (!(o instanceof PivotColumnSpec)) {
       return false;
     }
     PivotColumnSpec other = (PivotColumnSpec) o;

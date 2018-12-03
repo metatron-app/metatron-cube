@@ -115,6 +115,7 @@ public class ExprVirtualColumn implements VirtualColumn
     return expression;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

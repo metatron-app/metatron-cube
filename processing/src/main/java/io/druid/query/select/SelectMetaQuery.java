@@ -149,6 +149,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     this.pagingSpec = pagingSpec;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
@@ -156,6 +157,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return dimensions;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
@@ -163,6 +165,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return metrics;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
@@ -183,6 +186,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
@@ -283,6 +287,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     );
   }
 
+  @Override
   public SelectMetaQuery withDimFilter(DimFilter filter)
   {
     return new SelectMetaQuery(

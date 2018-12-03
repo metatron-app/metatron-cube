@@ -47,8 +47,8 @@ import io.druid.data.Pair;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -109,7 +109,7 @@ public class GroupByQueryEngine
 
     if (!Strings.isNullOrEmpty(timestampStringFromContext)) {
       return Long.parseLong(timestampStringFromContext);
-    } else if (QueryGranularities.ALL.equals(gran)) {
+    } else if (Granularities.ALL.equals(gran)) {
       return query.getIntervals().get(0).getStartMillis();
     } else {
       return null;
@@ -355,6 +355,7 @@ public class GroupByQueryEngine
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public void close() throws IOException
     {
       rowUpdater.close();

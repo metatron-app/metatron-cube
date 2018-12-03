@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -54,7 +54,7 @@ import java.util.Map;
  */
 @JsonTypeName("covariance")
 public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
-    implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
+    implements Query.RewritingQuery<Result<Map<String, Object>>>,
     Query.DimFilterSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
@@ -105,7 +105,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         getQuerySegmentSpec(),
         false,
         null,
-        QueryGranularities.ALL,
+        Granularities.ALL,
         virtualColumns,
         aggregators,
         ImmutableList.<PostAggregator>of(),

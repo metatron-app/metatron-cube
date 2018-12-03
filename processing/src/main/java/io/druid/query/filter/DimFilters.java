@@ -147,7 +147,7 @@ public class DimFilters
         }
       };
     }
-  };
+  }
 
   public static class ALL implements DimFilter
   {
@@ -200,7 +200,7 @@ public class DimFilters
         }
       };
     }
-  };
+  }
 
   public static ImmutableBitmap makeTrue(BitmapFactory factory, int numRows)
   {

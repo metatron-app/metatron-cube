@@ -21,7 +21,6 @@ package io.druid.query.ordering;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.druid.common.Cacheable;
 
 import java.util.Comparator;
 

@@ -38,7 +38,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -385,7 +384,7 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
            (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
-           (lateralView == null ? "" : "lateralView" + lateralView) +
+           (lateralView == null ? "" : "lateralView=" + lateralView) +
            ", context=" + getContext() +
            '}';
   }

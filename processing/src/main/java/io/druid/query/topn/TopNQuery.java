@@ -115,6 +115,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return Arrays.asList(dimensionSpec);
   }
 
+  @Override
   @JsonProperty("virtualColumns")
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
@@ -153,12 +154,14 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
     return granularity;
   }
 
+  @Override
   @JsonProperty("aggregations")
   @JsonInclude(Include.NON_EMPTY)
   public List<AggregatorFactory> getAggregatorSpecs()
@@ -166,6 +169,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return aggregatorSpecs;
   }
 
+  @Override
   @JsonProperty("postAggregations")
   @JsonInclude(Include.NON_EMPTY)
   public List<PostAggregator> getPostAggregatorSpecs()

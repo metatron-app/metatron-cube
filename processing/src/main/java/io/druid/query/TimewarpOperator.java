@@ -147,7 +147,7 @@ public class TimewarpOperator<T> extends PostProcessingOperator.Abstract<T> impl
     long startOffset = start % periodMillis - originMillis % periodMillis;
     if(startOffset < 0) {
       startOffset += periodMillis;
-    };
+    }
     start -= startOffset;
 
     // tOffset is the offset time t within the last period

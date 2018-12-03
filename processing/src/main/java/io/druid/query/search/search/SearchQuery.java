@@ -153,6 +153,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     );
   }
 
+  @Override
   public SearchQuery withDimFilter(DimFilter dimFilter)
   {
     return new SearchQuery(
@@ -177,6 +178,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public Granularity getGranularity()
   {
@@ -189,6 +191,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     return limit;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
@@ -232,6 +235,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     );
   }
 
+  @Override
   @JsonProperty("searchDimensions")
   @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()

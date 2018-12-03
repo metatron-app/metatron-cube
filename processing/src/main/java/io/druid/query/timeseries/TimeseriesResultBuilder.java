@@ -22,7 +22,6 @@ package io.druid.query.timeseries;
 import com.google.common.collect.Maps;
 import io.druid.query.Result;
 import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
 import java.util.Map;

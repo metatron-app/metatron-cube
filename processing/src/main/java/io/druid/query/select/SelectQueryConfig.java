@@ -21,8 +21,6 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.validation.constraints.Min;
-
 /**
  */
 public class SelectQueryConfig

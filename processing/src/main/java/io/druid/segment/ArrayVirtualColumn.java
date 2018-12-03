@@ -177,6 +177,7 @@ public class ArrayVirtualColumn implements VirtualColumn
     return columnName;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

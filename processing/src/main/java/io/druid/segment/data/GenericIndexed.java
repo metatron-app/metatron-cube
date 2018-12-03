@@ -284,6 +284,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       return bufferAsReadOnly();
     }
 
+    @Override
     public final T get(final int index)
     {
       final ByteBuffer copyBuffer = reader();
@@ -393,6 +394,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return length;
   }
 
+  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{version, allowReverseLookup ? (byte) 0x1 : (byte) 0x0}));

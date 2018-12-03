@@ -104,6 +104,7 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
       return doubles[(int) (index % doubles.length)];
     }
 
+    @Override
     public void increment()
     {
       ++index;

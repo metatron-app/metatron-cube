@@ -148,6 +148,7 @@ public class KMeansQuery
     return "kmeans";
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public DimFilter getDimFilter()
@@ -155,6 +156,7 @@ public class KMeansQuery
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()

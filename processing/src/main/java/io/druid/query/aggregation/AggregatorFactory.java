@@ -143,8 +143,6 @@ public abstract class AggregatorFactory implements Cacheable
 
   public abstract List<String> requiredFields();
 
-  public abstract byte[] getCacheKey();
-
   public abstract String getTypeName();
 
   // this is type for ingestion, which can be different from typeName (which is output type from serde)
@@ -219,7 +217,7 @@ public abstract class AggregatorFactory implements Cacheable
       return null;
     }
 
-    return mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
+    return mergedAggregators.values().toArray(new AggregatorFactory[0]);
   }
 
   public static Map<String, AggregatorFactory> asMap(AggregatorFactory[] aggregators)

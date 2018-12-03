@@ -206,7 +206,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                     );
                     try {
                       queryWatcher.registerQuery(query, future);
-                      final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, (Number) null);
+                      final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, null);
                       return timeout == null ? future.get() : future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
                     }
                     catch (CancellationException e) {

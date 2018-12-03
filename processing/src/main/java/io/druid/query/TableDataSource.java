@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import java.util.Arrays;
@@ -55,7 +56,7 @@ public class TableDataSource implements DataSource
   @JsonCreator
   public TableDataSource(@JsonProperty("name") String name)
   {
-    this.name = (name == null ? null : name);
+    this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
   }
 
   @JsonProperty
@@ -70,6 +71,7 @@ public class TableDataSource implements DataSource
     return Arrays.asList(name);
   }
 
+  @Override
   public String toString() { return name; }
 
   @Override

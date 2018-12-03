@@ -77,7 +77,7 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
     if (this == o) {
       return true;
     }
-    if (o == null || !super.equals(o) || getClass() != o.getClass()) {
+    if (!super.equals(o) || getClass() != o.getClass()) {
       return false;
     }
 

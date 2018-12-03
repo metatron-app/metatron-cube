@@ -27,8 +27,6 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 
-import java.nio.ByteBuffer;
-
 /**
 */
 public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport

@@ -154,6 +154,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
     return dimensionSpec;
   }
 
+  @Override
   @JsonProperty
   public String getOutputName()
   {

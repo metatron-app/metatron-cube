@@ -42,7 +42,7 @@ public class AndHavingSpec implements HavingSpec
     return new AndHavingSpec(Arrays.asList(specs));
   }
 
-  private List<HavingSpec> havingSpecs;
+  private final List<HavingSpec> havingSpecs;
 
   @JsonCreator
   public AndHavingSpec(@JsonProperty("havingSpecs") List<HavingSpec> havingSpecs)

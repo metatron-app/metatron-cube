@@ -19,7 +19,6 @@
 
 package io.druid.segment;
 
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 
 import java.util.Arrays;

@@ -74,6 +74,7 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     this.objectsSorted = !(strategy instanceof ObjectStrategy.NotComparable);
   }
 
+  @Override
   public void open() throws IOException
   {
     headerOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("header")));
@@ -137,6 +138,7 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     }
   }
 
+  @Override
   public long getSerializedSize()
   {
     return Byte.BYTES +           // version

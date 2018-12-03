@@ -44,7 +44,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -332,7 +331,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                       return new Callable<Sequence<T>>()
                       {
                         @Override
-                        public Sequence<T> call() throws Exception
+                        public Sequence<T> call()
                         {
                           // removed eager loading.. especially bad for join query
                           Sequence<T> sequence = query.run(segmentWalker, responseContext);
@@ -357,7 +356,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
               new Closeable()
               {
                 @Override
-                public void close() throws IOException
+                public void close()
                 {
                   semaphore.destroy();
                 }

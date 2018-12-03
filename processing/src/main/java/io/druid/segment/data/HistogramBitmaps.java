@@ -297,11 +297,13 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
     return sizes;
   }
 
+  @Override
   public T getMin()
   {
     return breaks[0];
   }
 
+  @Override
   public T getMax()
   {
     return breaks[bins.length];

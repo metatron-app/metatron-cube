@@ -73,6 +73,7 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     this.zeros = factory.makeEmptyMutableBitmap();
   }
 
+  @Override
   public void offer(double d)
   {
     if (d < min) {
@@ -186,6 +187,7 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
+  @Override
   public DoubleBitmaps snapshot()
   {
     return snapshot(numGroup);
@@ -313,11 +315,13 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     return bins;
   }
 
+  @Override
   public double getMin()
   {
     return min;
   }
 
+  @Override
   public double getMax()
   {
     return max;

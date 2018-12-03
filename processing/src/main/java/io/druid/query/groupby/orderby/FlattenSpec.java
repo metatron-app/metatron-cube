@@ -143,6 +143,7 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
     return expressions;
   }
 
+  @Override
   public byte[] getCacheKey()
   {
     byte[] typeBytes = StringUtils.toUtf8WithNullToEmpty(getType());

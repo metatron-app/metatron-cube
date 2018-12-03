@@ -1,7 +1,6 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
-import io.druid.data.input.Row;
 
 import java.util.List;
 import java.util.Map;

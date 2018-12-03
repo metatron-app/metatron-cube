@@ -46,30 +46,35 @@ public class NoopLimitSpec extends LimitSpec
     return Functions.identity();
   }
 
+  @Override
   @JsonIgnore
   public List<OrderByColumnSpec> getColumns()
   {
     return super.getColumns();
   }
 
+  @Override
   @JsonIgnore
   public int getLimit()
   {
     return super.getLimit();
   }
 
+  @Override
   @JsonIgnore
   public OrderedLimitSpec getSegmentLimit()
   {
     return super.getSegmentLimit();
   }
 
+  @Override
   @JsonIgnore
   public OrderedLimitSpec getNodeLimit()
   {
     return super.getNodeLimit();
   }
 
+  @Override
   @JsonIgnore
   public List<WindowingSpec> getWindowingSpecs()
   {

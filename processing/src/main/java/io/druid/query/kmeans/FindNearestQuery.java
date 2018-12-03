@@ -19,11 +19,12 @@
 
 package io.druid.query.kmeans;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -45,6 +46,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
   private final List<Centroid> centroids;
   private final String measure;
 
+  @JsonCreator
   public FindNearestQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
@@ -77,6 +79,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
@@ -187,7 +190,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        QueryGranularities.ALL,
+        Granularities.ALL,
         getMetrics(),
         getVirtualColumns(),
         null,
