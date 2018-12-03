@@ -394,6 +394,26 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
     );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
+    selectQuery = selectQuery.withDimensionSpecs(DefaultDimensionSpec.toSpec(dataSource + ".market", "not-existing"));
+    rows = runQuery(selectQuery);
+    columns = new String[]{"__time", dataSource + ".market", "not-existing"};
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "spot", null),
+        array("2011-04-01T00:00:00.000Z", "total_market", null),
+        array("2011-04-01T00:00:00.000Z", "upfront", null),
+        array("2011-04-01T00:00:00.000Z", "upfront", null)
+    );
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+
     // group-by on join
     GroupByQuery groupByQuery = new GroupByQuery(
         new QueryDataSource(joinQuery), firstToThird, BoundDimFilter.between(dataSource + ".index", 120, 1200),

@@ -409,6 +409,9 @@ public class ColumnSelectorFactories
           }
         };
       }
+      if (resolved == null) {
+        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      }
       return resolver.resolveVC(columnName).asMetric(columnName, this);
     }
 
