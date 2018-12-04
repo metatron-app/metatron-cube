@@ -30,6 +30,7 @@ import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionSchema;
@@ -131,7 +132,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
       );
 
       List<? extends StructField> fields = oip.getAllStructFieldRefs();
-      final Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
+      Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
       for (StructField field : fields) {
         ObjectInspector objectInspector = field.getFieldObjectInspector();
         switch (objectInspector.getCategory()) {
@@ -154,6 +155,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
         }
       }
 
+      map = Rows.mergePartitions(map);
       DateTime timestamp = timestampSpec.extractTimestamp(map);
       return new MapBasedInputRow(timestamp, dimensions, map);
     }
