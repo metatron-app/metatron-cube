@@ -34,7 +34,7 @@
     <dependencies>
         <dependency>
             <groupId>io.druid</groupId>
-            <artifactId>druid-api</artifactId>
+            <artifactId>druid-common</artifactId>
             <version>0.9.1-SNAPSHOT</version>
         </dependency>
         <dependency>
