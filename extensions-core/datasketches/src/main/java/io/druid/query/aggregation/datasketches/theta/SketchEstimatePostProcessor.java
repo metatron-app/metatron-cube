@@ -28,9 +28,12 @@ import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.Union;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -81,6 +84,12 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
         if (targetColumns.isEmpty()) {
           return sequence;
         }
+        final boolean complexColumns;
+        if (query instanceof BaseAggregationQuery) {
+          complexColumns = !GuavaUtils.isNullOrEmpty(((BaseAggregationQuery)query).getLimitSpec().getWindowingSpecs());
+        } else {
+          complexColumns = false;
+        }
         if (query instanceof GroupByQuery) {
           return Sequences.map(
               sequence, new Function<Row, Row>()
@@ -89,13 +98,17 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                 public Row apply(Row input)
                 {
                   Row.Updatable updatable = Rows.toUpdatable(input);
-                  for (String column : targetColumns) {
-                    Sketch sketch = (Sketch) updatable.getRaw(column);
-                    updatable.set(column, sketch.getEstimate());
-                    updatable.set(column + ".estimation", sketch.isEstimationMode());
-                    if (sketch.isEstimationMode()) {
-                      updatable.set(column + ".upper95", sketch.getUpperBound(2));
-                      updatable.set(column + ".lower95", sketch.getLowerBound(2));
+                  Iterable<String> columns = complexColumns ? Lists.newArrayList(input.getColumns()) : targetColumns;
+                  for (String column : columns) {
+                    Object value = updatable.getRaw(column);
+                    if (value instanceof Sketch || value instanceof Union) {
+                      Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
+                      updatable.set(column, sketch.getEstimate());
+                      updatable.set(column + ".estimation", sketch.isEstimationMode());
+                      if (sketch.isEstimationMode()) {
+                        updatable.set(column + ".upper95", sketch.getUpperBound(2));
+                        updatable.set(column + ".lower95", sketch.getLowerBound(2));
+                      }
                     }
                   }
                   return updatable;
@@ -109,28 +122,34 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                 @Override
                 public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> input)
                 {
-                  TimeseriesResultValue resultValue = input.getValue();
-                  if (MapBasedRow.supportInplaceUpdate(resultValue.getBaseObject())) {
-                    Map<String, Object> updatable = resultValue.getBaseObject();
+                  Map<String, Object> resultValue = input.getValue().getBaseObject();
+                  Iterable<String> columns = complexColumns ? Lists.newArrayList(resultValue.keySet()) : targetColumns;
+                  if (MapBasedRow.supportInplaceUpdate(resultValue)) {
                     for (String column : targetColumns) {
-                      Sketch sketch = (Sketch) updatable.get(column);
+                      Object value = resultValue.get(column);
+                      if (value instanceof Sketch || value instanceof Union) {
+                        Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
+                        resultValue.put(column, sketch.getEstimate());
+                        resultValue.put(column + ".estimation", sketch.isEstimationMode());
+                        if (sketch.isEstimationMode()) {
+                          resultValue.put(column + ".upper95", sketch.getUpperBound(2));
+                          resultValue.put(column + ".lower95", sketch.getLowerBound(2));
+                        }
+                      }
+                    }
+                    return input;
+                  }
+                  Map<String, Object> updatable = Maps.newHashMap(resultValue);
+                  for (String column : targetColumns) {
+                    Object value = resultValue.get(column);
+                    if (value instanceof Sketch || value instanceof Union) {
+                      Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
                       updatable.put(column, sketch.getEstimate());
                       updatable.put(column + ".estimation", sketch.isEstimationMode());
                       if (sketch.isEstimationMode()) {
                         updatable.put(column + ".upper95", sketch.getUpperBound(2));
                         updatable.put(column + ".lower95", sketch.getLowerBound(2));
                       }
-                    }
-                    return input;
-                  }
-                  Map<String, Object> updatable = Maps.newHashMap(resultValue.getBaseObject());
-                  for (String column : targetColumns) {
-                    Sketch sketch = (Sketch) updatable.get(column);
-                    updatable.put(column, sketch.getEstimate());
-                    updatable.put(column + ".estimation", sketch.isEstimationMode());
-                    if (sketch.isEstimationMode()) {
-                      updatable.put(column + ".upper95", sketch.getUpperBound(2));
-                      updatable.put(column + ".lower95", sketch.getLowerBound(2));
                     }
                   }
                   return new Result<TimeseriesResultValue>(input.getTimestamp(), new TimeseriesResultValue(updatable));
@@ -148,13 +167,17 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                   List<Map<String, Object>> result = Lists.newArrayListWithExpectedSize(source.size());
                   for (Map<String, Object> row : source) {
                     Map<String, Object> updatable = MapBasedRow.supportInplaceUpdate(row) ? row : Maps.newHashMap(row);
-                    for (String column : targetColumns) {
-                      Sketch sketch = (Sketch) updatable.get(column);
-                      updatable.put(column, sketch.getEstimate());
-                      updatable.put(column + ".estimation", sketch.isEstimationMode());
-                      if (sketch.isEstimationMode()) {
-                        updatable.put(column + ".upper95", sketch.getUpperBound(2));
-                        updatable.put(column + ".lower95", sketch.getLowerBound(2));
+                    Iterable<String> columns = complexColumns ? Lists.newArrayList(updatable.keySet()) : targetColumns;
+                    for (String column : columns) {
+                      Object value = updatable.get(column);
+                      if (value instanceof Sketch || value instanceof Union) {
+                        Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
+                        updatable.put(column, sketch.getEstimate());
+                        updatable.put(column + ".estimation", sketch.isEstimationMode());
+                        if (sketch.isEstimationMode()) {
+                          updatable.put(column + ".upper95", sketch.getUpperBound(2));
+                          updatable.put(column + ".lower95", sketch.getLowerBound(2));
+                        }
                       }
                     }
                     result.add(updatable);

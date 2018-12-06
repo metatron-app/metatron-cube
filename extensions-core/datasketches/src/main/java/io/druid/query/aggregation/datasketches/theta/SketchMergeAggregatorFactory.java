@@ -22,6 +22,7 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -106,7 +107,7 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   public Object finalizeComputation(Object object)
   {
     if (shouldFinalize) {
-      Sketch sketch = (Sketch) object;
+      Sketch sketch = object instanceof Union ? ((Union) object).getResult() : (Sketch) object;
       if (errorBoundsStdDev != null) {
         SketchEstimateWithErrorBounds result = new SketchEstimateWithErrorBounds(
             sketch.getEstimate(),
