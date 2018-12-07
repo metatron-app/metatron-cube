@@ -1,34 +1,33 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
 
 package io.druid.sql.calcite.rel;
 
-import com.amazonaws.services.workspaces.model.ResourceLimitExceededException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
-import io.druid.common.utils.StringUtils;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
-import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.common.ResourceLimitExceededException;
+import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -43,13 +42,16 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import io.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -142,10 +144,10 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
 
   @Nullable
   @Override
-  public DruidQuery toDruidQuery()
+  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
     final DruidRel rel = getLeftRelWithFilter();
-    return rel != null ? rel.toDruidQuery() : null;
+    return rel != null ? rel.toDruidQuery(finalizeAggregations) : null;
   }
 
   @Override
@@ -287,6 +289,8 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
         new ArrayList<>(),
         new Accumulator<List<RexNode>, Object[]>()
         {
+          int numRows;
+
           @Override
           public List<RexNode> accumulate(final List<RexNode> theConditions, final Object[] row)
           {
@@ -294,30 +298,36 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
 
             for (int i : rightKeys) {
               final Object value = row[i];
-              final String stringValue = value != null ? String.valueOf(value) : "";
+              if (value == null) {
+                // NULLs are not supposed to match NULLs in a join. So ignore them.
+                continue;
+              }
+              final String stringValue = Objects.toString(value, null);
               values.add(stringValue);
-              if (values.size() > maxSemiJoinRowsInMemory) {
+            }
+
+            if (valuess.add(values)) {
+              if (++numRows > maxSemiJoinRowsInMemory) {
                 throw new ResourceLimitExceededException(
                     StringUtils.format("maxSemiJoinRowsInMemory[%,d] exceeded", maxSemiJoinRowsInMemory)
                 );
               }
-            }
-
-            if (valuess.add(values)) {
               final List<RexNode> subConditions = new ArrayList<>();
 
               for (int i = 0; i < values.size(); i++) {
                 final String value = values.get(i);
-                subConditions.add(
-                    getCluster().getRexBuilder().makeCall(
-                        SqlStdOperatorTable.EQUALS,
-                        leftExpressions.get(i),
-                        getCluster().getRexBuilder().makeLiteral(value)
-                    )
-                );
+                // NULLs are not supposed to match NULLs in a join. So ignore them.
+                if (value != null) {
+                  subConditions.add(
+                      getCluster().getRexBuilder().makeCall(
+                          SqlStdOperatorTable.EQUALS,
+                          leftExpressions.get(i),
+                          getCluster().getRexBuilder().makeLiteral(value)
+                      )
+                  );
+                }
+                theConditions.add(makeAnd(subConditions));
               }
-
-              theConditions.add(makeAnd(subConditions));
             }
             return theConditions;
           }
@@ -336,12 +346,15 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
         newWhereFilter = whereFilter.copy(
             whereFilter.getTraitSet(),
             whereFilter.getInput(),
-            makeAnd(ImmutableList.of(whereFilter.getCondition(), makeOr(conditions)))
+            RexUtil.flatten(
+                getCluster().getRexBuilder(),
+                makeAnd(ImmutableList.of(whereFilter.getCondition(), makeOr(conditions)))
+            )
         );
       } else {
         newWhereFilter = LogicalFilter.create(
             leftPartialQuery.getScan(),
-            makeOr(conditions)
+            makeOr(conditions) // already in flattened form
         );
       }
 
@@ -358,8 +371,12 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
         newPartialQuery = newPartialQuery.withHavingFilter(leftPartialQuery.getHavingFilter());
       }
 
-      if (leftPartialQuery.getPostProject() != null) {
-        newPartialQuery = newPartialQuery.withPostProject(leftPartialQuery.getPostProject());
+      if (leftPartialQuery.getAggregateProject() != null) {
+        newPartialQuery = newPartialQuery.withAggregateProject(leftPartialQuery.getAggregateProject());
+      }
+
+      if (leftPartialQuery.getSortProject() != null) {
+        newPartialQuery = newPartialQuery.withSortProject(leftPartialQuery.getSortProject());
       }
 
       if (leftPartialQuery.getSort() != null) {

@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -20,11 +20,10 @@
 package io.druid.sql.calcite.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.jackson.DefaultObjectMapper;
 import com.metamx.common.logger.Logger;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
 import org.apache.calcite.runtime.Hook;
 import org.junit.rules.TestRule;
@@ -32,6 +31,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * JUnit Rule that adds a Calcite hook to log and remember Druid queries.
@@ -78,22 +78,16 @@ public class QueryLogHook implements TestRule
       {
         clearRecordedQueries();
 
-        final Function<Object, Object> function = new Function<Object, Object>()
-        {
-          @Override
-          public Object apply(final Object query)
-          {
-            try {
-              recordedQueries.add((Query) query);
-              log.info(
-                  "Issued query: %s",
-                  objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(query)
-              );
-            }
-            catch (Exception e) {
-              log.warn(e, "Failed to serialize query: %s", query);
-            }
-            return null;
+        final Consumer<Object> function = query -> {
+          try {
+            recordedQueries.add((Query) query);
+            log.info(
+                "Issued query: %s",
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(query)
+            );
+          }
+          catch (Exception e) {
+            log.warn(e, "Failed to serialize query: %s", query);
           }
         };
 

@@ -36,6 +36,7 @@ import org.joda.time.chrono.WeekInMonthFieldType;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
+import org.joda.time.format.DateTimeParser;
 import sun.util.calendar.ZoneInfo;
 
 import java.util.ArrayList;
@@ -281,7 +282,7 @@ public class JodaUtils
   }
 
   // Z instead of ZZ (for compatible output with com.ibm.icu.SimpleDateFormat)
-  public static final String STANDARD_PARSER_FORMAT = "yyyy-MM-dd'T'HH:mm:ss[.SSS][Z]";
+  public static final String STANDARD_PARSER_FORMAT = "yyyy-MM-dd[('T'|' ')HH:mm:ss][.SSS][Z]";
   public static final DateTimeFormatter STANDARD_PARSER = toTimeFormatter(STANDARD_PARSER_FORMAT);
 
   public static final String STANDARD_PRINTER_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
@@ -340,6 +341,20 @@ public class JodaUtils
         }
         // there is no optional printer
         b.appendOptional(toTimeFormatter(formatString.substring(i + 1, seek), timeZone, locale).getParser());
+        prev = i = seek + 1;
+      } else if (c == '(') {
+        if (i > prev) {
+          b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
+        }
+        int seek = TypeUtils.seekWithEscape(formatString, i + 1, ')');  // don't support nested optionals
+        if (seek < 0) {
+          throw new IllegalArgumentException("not matching ']' in " + formatString);
+        }
+        List<DateTimeParser> formatters = Lists.newArrayList();
+        for (String element : formatString.substring(i + 1, seek).split("\\|")) {
+          formatters.add(toTimeFormatter(element, timeZone, locale).getParser());
+        }
+        b.append(null, formatters.toArray(new DateTimeParser[0]));
         prev = i = seek + 1;
       } else if (c == 'q' || c == 'Q') {
         if (i > prev) {

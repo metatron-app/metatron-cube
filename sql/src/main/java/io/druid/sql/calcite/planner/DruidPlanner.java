@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -23,8 +23,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.DataContext;
@@ -33,6 +34,7 @@ import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.interpreter.BindableRel;
 import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.linq4j.Enumerable;
+import org.apache.calcite.linq4j.Enumerator;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -53,6 +55,7 @@ import org.apache.calcite.util.Pair;
 import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class DruidPlanner implements Closeable
@@ -67,11 +70,6 @@ public class DruidPlanner implements Closeable
   {
     this.planner = planner;
     this.plannerContext = plannerContext;
-  }
-
-  public PlannerResult plan(final String sql) throws SqlParseException, ValidationException, RelConversionException
-  {
-    return plan(sql, null);
   }
 
   public PlannerResult plan(
@@ -197,16 +195,62 @@ public class DruidPlanner implements Closeable
     } else {
       final BindableRel theRel = bindableRel;
       final DataContext dataContext = plannerContext.createDataContext((JavaTypeFactory) planner.getTypeFactory());
-      final Supplier<Sequence<Object[]>> resultsSupplier = new Supplier<Sequence<Object[]>>()
-      {
-        @Override
-        public Sequence<Object[]> get()
-        {
-          final Enumerable enumerable = theRel.bind(dataContext);
-          return Sequences.simple(enumerable);
-        }
+      final Supplier<Sequence<Object[]>> resultsSupplier = () -> {
+        final Enumerable enumerable = theRel.bind(dataContext);
+        final Enumerator enumerator = enumerable.enumerator();
+        return Sequences.withBaggage(new BaseSequence<>(
+            new BaseSequence.IteratorMaker<Object[], EnumeratorIterator<Object[]>>()
+            {
+              @Override
+              public EnumeratorIterator make()
+              {
+                return new EnumeratorIterator(new Iterator<Object[]>()
+                {
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return enumerator.moveNext();
+                  }
+
+                  @Override
+                  public Object[] next()
+                  {
+                    return (Object[]) enumerator.current();
+                  }
+                });
+              }
+
+              @Override
+              public void cleanup(EnumeratorIterator iterFromMake)
+              {
+
+              }
+            }
+        ), () -> enumerator.close());
       };
       return new PlannerResult(resultsSupplier, root.validatedRowType);
+    }
+  }
+
+  private static class EnumeratorIterator<T> implements Iterator<T>
+  {
+    private final Iterator<T> it;
+
+    public EnumeratorIterator(Iterator<T> it)
+    {
+      this.it = it;
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return it.hasNext();
+    }
+
+    @Override
+    public T next()
+    {
+      return it.next();
     }
   }
 

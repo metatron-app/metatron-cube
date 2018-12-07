@@ -313,6 +313,12 @@ public class TopNQueryBuilder
     return this;
   }
 
+  public TopNQueryBuilder aggregators(AggregatorFactory... a)
+  {
+    aggregatorSpecs = Arrays.asList(a);
+    return this;
+  }
+
   public TopNQueryBuilder postAggregators(List<PostAggregator> p)
   {
     postAggregatorSpecs = p;

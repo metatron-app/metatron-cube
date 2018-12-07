@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.post;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -137,12 +138,14 @@ public class ArithmeticPostAggregator implements PostAggregator
   }
 
   @JsonProperty("fn")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFnName()
   {
     return fnName;
   }
 
   @JsonProperty("ordering")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getOrdering()
   {
     return ordering;

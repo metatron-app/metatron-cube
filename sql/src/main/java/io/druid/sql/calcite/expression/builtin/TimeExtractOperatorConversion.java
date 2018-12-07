@@ -1,25 +1,25 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.sql.calcite.expression.DruidExpression;
@@ -37,8 +37,6 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTimeZone;
 
-import java.util.Map;
-
 public class TimeExtractOperatorConversion implements SqlOperatorConversion
 {
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
@@ -49,44 +47,18 @@ public class TimeExtractOperatorConversion implements SqlOperatorConversion
       .functionCategory(SqlFunctionCategory.TIMEDATE)
       .build();
 
-  // Note that QUARTER is not supported here.
-  private static final Map<DateTimeFunctions.Unit, String> EXTRACT_FORMAT_MAP =
-      ImmutableMap.<DateTimeFunctions.Unit, String>builder()
-          .put(DateTimeFunctions.Unit.SECOND, "s")
-          .put(DateTimeFunctions.Unit.MINUTE, "m")
-          .put(DateTimeFunctions.Unit.HOUR, "H")
-          .put(DateTimeFunctions.Unit.DAY, "d")
-          .put(DateTimeFunctions.Unit.DOW, "e")
-          .put(DateTimeFunctions.Unit.DOY, "D")
-          .put(DateTimeFunctions.Unit.WEEK, "w")
-          .put(DateTimeFunctions.Unit.MONTH, "M")
-          .put(DateTimeFunctions.Unit.YEAR, "Y")
-          .build();
-
   public static DruidExpression applyTimeExtract(
       final DruidExpression timeExpression,
       final DateTimeFunctions.Unit unit,
       final DateTimeZone timeZone
   )
   {
-    return timeExpression.map(
-        simpleExtraction -> {
-          final String formatString = EXTRACT_FORMAT_MAP.get(unit);
-          if (formatString == null) {
-            return null;
-          } else {
-            return TimeFormatOperatorConversion.applyTimestampFormat(
-                simpleExtraction,
-                formatString,
-                timeZone
-            );
-          }
-        },
-        expression -> StringUtils.format(
-            "datetime_extract(%s,%s,%s)",
-            DruidExpression.stringLiteral(unit.name()),
-            expression,
-            DruidExpression.stringLiteral(timeZone.getID())
+    return DruidExpression.fromFunctionCall(
+        "timestamp_extract",
+        ImmutableList.of(
+            DruidExpression.fromExpression(DruidExpression.stringLiteral(unit.name())),
+            timeExpression,
+            DruidExpression.fromExpression(DruidExpression.stringLiteral(timeZone.getID()))
         )
     );
   }

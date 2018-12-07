@@ -494,7 +494,7 @@ public interface BuiltinFunctions extends Function.Library
           @SuppressWarnings("unchecked")
           Vector<String> names = vector.getNames();
           if (names != null) {
-            long attr = r.rniPutStringArray(names.toArray(new String[names.size()]));
+            long attr = r.rniPutStringArray(names.toArray(new String[0]));
             r.rniSetAttr(exp, "names", attr);
           }
           return exp;
@@ -1767,7 +1767,7 @@ public interface BuiltinFunctions extends Function.Library
     {
       StringBuilder b = new StringBuilder();
       for (Expr expr : args) {
-        b.append(expr.eval(bindings).asString());
+        b.append(Strings.nullToEmpty(expr.eval(bindings).asString()));
       }
       return ExprEval.of(b.toString());
     }

@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -22,19 +22,20 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
-import io.druid.data.Rows;
+import io.druid.common.Intervals;
+import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.math.expr.Evals;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.groupby.GroupByQuery;
@@ -58,14 +59,16 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.joda.time.DateTime;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class QueryMaker
 {
@@ -103,11 +106,16 @@ public class QueryMaker
 
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
-    Query query = druidQuery.getQuery();
-    if (query.getId() == null) {
-      query = query.withId(UUID.randomUUID().toString());
+    final Query query = druidQuery.getQuery();
+
+    final Query innerMostQuery = findInnerMostQuery(query);
+    if (plannerContext.getPlannerConfig().isRequireTimeCondition() &&
+        innerMostQuery.getIntervals().equals(Intervals.ONLY_ETERNITY)) {
+      throw new CannotBuildQueryException(
+          "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
+      );
     }
-    LOG.info("Running query : %s", query);
+
     if (query instanceof TimeseriesQuery) {
       return executeTimeseries(druidQuery, (TimeseriesQuery) query);
     } else if (query instanceof TopNQuery) {
@@ -121,6 +129,15 @@ public class QueryMaker
     } else {
       throw new ISE("Cannot run query of class[%s]", query.getClass().getName());
     }
+  }
+
+  private Query findInnerMostQuery(Query outerQuery)
+  {
+    Query query = outerQuery;
+    while (query.getDataSource() instanceof QueryDataSource) {
+      query = ((QueryDataSource) query.getDataSource()).getQuery();
+    }
+    return query;
   }
 
   private Sequence<Object[]> executeScan(
@@ -281,10 +298,6 @@ public class QueryMaker
   )
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
-    final String timeOutputName = druidQuery.getGrouping().getDimensions().isEmpty()
-                                  ? null
-                                  : Iterables.getOnlyElement(druidQuery.getGrouping().getDimensions())
-                                             .getOutputName();
 
     final List<String> rowOrder = druidQuery.getOutputRowSignature().getRowOrder();
 
@@ -300,11 +313,7 @@ public class QueryMaker
 
             for (final RelDataTypeField field : fieldList) {
               final String outputName = rowOrder.get(field.getIndex());
-              if (outputName.equals(timeOutputName)) {
-                retVal[field.getIndex()] = coerce(result.getTimestamp(), field.getType().getSqlTypeName());
-              } else {
-                retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
-              }
+              retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
             }
 
             return retVal;
@@ -391,6 +400,8 @@ public class QueryMaker
       return ColumnMetaData.Rep.of(Float.class);
     } else if (sqlType == SqlTypeName.DOUBLE || sqlType == SqlTypeName.DECIMAL) {
       return ColumnMetaData.Rep.of(Double.class);
+    } else if (sqlType == SqlTypeName.BOOLEAN) {
+      return ColumnMetaData.Rep.of(Boolean.class);
     } else if (sqlType == SqlTypeName.OTHER) {
       return ColumnMetaData.Rep.of(Object.class);
     } else {
@@ -404,11 +415,23 @@ public class QueryMaker
 
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
       if (value == null || value instanceof String) {
-        coercedValue = Strings.nullToEmpty((String) value);
+        coercedValue = StringUtils.nullToEmpty((String) value);
       } else if (value instanceof NlsString) {
         coercedValue = ((NlsString) value).getValue();
       } else if (value instanceof Number) {
         coercedValue = String.valueOf(value);
+      } else if (value instanceof Collection) {
+        // Iterate through the collection, coercing each value. Useful for handling selects of multi-value dimensions.
+        final List<String> valueStrings = ((Collection<?>) value).stream()
+                                                                 .map(v -> (String) coerce(v, sqlType))
+                                                                 .collect(Collectors.toList());
+
+        try {
+          coercedValue = jsonMapper.writeValueAsString(valueStrings);
+        }
+        catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }

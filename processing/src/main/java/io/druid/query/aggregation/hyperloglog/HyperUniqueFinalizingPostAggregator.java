@@ -31,6 +31,7 @@ import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -59,7 +60,6 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
     //Note that, in general, name shouldn't be null, we are defaulting
     //to fieldName here just to be backward compatible with 0.7.x
     this.name = name == null ? fieldName : name;
-
   }
 
   @Override
@@ -97,5 +97,34 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    HyperUniqueFinalizingPostAggregator that = (HyperUniqueFinalizingPostAggregator) o;
+    return Objects.equals(name, that.name) &&
+           Objects.equals(fieldName, that.fieldName);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(name, fieldName);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "HyperUniqueFinalizingPostAggregator{" +
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
+           '}';
   }
 }

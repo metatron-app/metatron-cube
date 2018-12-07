@@ -1209,6 +1209,12 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder columns(String... c)
+    {
+      columns = Arrays.asList(c);
+      return this;
+    }
+
     public SelectQueryBuilder metrics(List<String> m)
     {
       metrics = m;

@@ -92,7 +92,7 @@
         <lucene.version>6.2.0</lucene.version>
 
         <avatica.version>1.10.0</avatica.version>
-        <calcite.version>1.14.0</calcite.version>
+        <calcite.version>1.17.0</calcite.version>
         <netty.version>4.1.11.Final</netty.version>
     </properties>
 

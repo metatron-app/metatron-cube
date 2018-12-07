@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -21,15 +21,8 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.DateTimes;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.expression.ExtractionFns;
-import io.druid.sql.calcite.expression.OperatorConversions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -39,11 +32,19 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.expression.OperatorConversions;
+import io.druid.sql.calcite.expression.SqlOperatorConversion;
+import io.druid.sql.calcite.planner.Calcites;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class TimeFloorOperatorConversion implements SqlOperatorConversion
@@ -64,20 +65,39 @@ public class TimeFloorOperatorConversion implements SqlOperatorConversion
     Preconditions.checkNotNull(input, "input");
     Preconditions.checkNotNull(granularity, "granularity");
 
-    return input.map(
-        simpleExtraction -> simpleExtraction.cascade(ExtractionFns.fromQueryGranularity(granularity)),
-        expression -> DruidExpression.functionCall(
-            "timestamp_floor",
-            ImmutableList.of(
-                expression,
-                DruidExpression.stringLiteral(granularity.getPeriod().toString()),
-                DruidExpression.numberLiteral(
-                    granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis()
-                ),
-                DruidExpression.stringLiteral(granularity.getTimeZone().toString())
-            ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
-        )
+    // Collapse floor chains if possible. Useful for constructs like CAST(FLOOR(__time TO QUARTER) AS DATE).
+    if (granularity.getPeriod().equals(Period.days(1))) {
+      final PeriodGranularity inputGranularity = Expressions.asGranularity(input);
+
+      if (inputGranularity != null) {
+        if (Objects.equals(inputGranularity.getTimeZone(), granularity.getTimeZone())
+            && Objects.equals(inputGranularity.getOrigin(), granularity.getOrigin())
+            && periodIsDayMultiple(inputGranularity.getPeriod())) {
+          return input;
+        }
+      }
+    }
+
+    return DruidExpression.fromFunctionCall(
+        "timestamp_floor",
+        ImmutableList.of(
+            input.getExpression(),
+            DruidExpression.stringLiteral(granularity.getPeriod().toString()),
+            DruidExpression.numberLiteral(
+                granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis()
+            ),
+            DruidExpression.stringLiteral(granularity.getTimeZone().toString())
+        ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
     );
+  }
+
+  private static boolean periodIsDayMultiple(final Period period)
+  {
+    return period.getMillis() == 0
+           && period.getSeconds() == 0
+           && period.getMinutes() == 0
+           && period.getHours() == 0
+           && (period.getDays() > 0 || period.getWeeks() > 0 || period.getMonths() > 0 || period.getYears() > 0);
   }
 
   @Override

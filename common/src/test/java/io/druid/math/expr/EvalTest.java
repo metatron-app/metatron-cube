@@ -409,8 +409,15 @@ public class EvalTest
   public void testStandard() throws ParseException
   {
     testStandard("2018-03-05T08:09:24.432+0100", "2018-03-05T07:09:24.432+0000");
+    testStandard("2018-03-05 08:09:24.432+0100", "2018-03-05T07:09:24.432+0000");
+
     testStandard("2018-03-05T08:09:24.432", "2018-03-05T08:09:24.432+0000");
+    testStandard("2018-03-05 08:09:24.432", "2018-03-05T08:09:24.432+0000");
+
     testStandard("2018-03-05T08:09:24", "2018-03-05T08:09:24.000+0000");
+    testStandard("2018-03-05 08:09:24", "2018-03-05T08:09:24.000+0000");
+
+    testStandard("2018-03-05", "2018-03-05T00:00:00.000+0000");
   }
 
   private void testStandard(String time, String expected)

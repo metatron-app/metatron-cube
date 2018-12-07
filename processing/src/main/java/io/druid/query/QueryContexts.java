@@ -21,14 +21,12 @@ package io.druid.query;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 
 public class QueryContexts
 {
   public static final String PRIORITY_KEY = "priority";
   public static final String TIMEOUT_KEY = "timeout";
-  public static final String MAX_SCATTER_GATHER_BYTES_KEY = "maxScatterGatherBytes";
   public static final String DEFAULT_TIMEOUT_KEY = "defaultTimeout";
   public static final String CHUNK_PERIOD_KEY = "chunkPeriod";
 
@@ -108,36 +106,6 @@ public class QueryContexts
   public static <T> String getChunkPeriod(Query<T> query)
   {
     return query.getContextValue(CHUNK_PERIOD_KEY, "P0D");
-  }
-
-  public static <T> Query<T> withMaxScatterGatherBytes(Query<T> query, long maxScatterGatherBytesLimit)
-  {
-    Object obj = query.getContextValue(MAX_SCATTER_GATHER_BYTES_KEY);
-    if (obj == null) {
-      return query.withOverriddenContext(
-          ImmutableMap.<String, Object>of(
-              MAX_SCATTER_GATHER_BYTES_KEY,
-              maxScatterGatherBytesLimit
-          )
-      );
-    } else {
-      long curr = ((Number) obj).longValue();
-      if (curr > maxScatterGatherBytesLimit) {
-        throw new IAE(
-            "configured [%s = %s] is more than enforced limit of [%s].",
-            MAX_SCATTER_GATHER_BYTES_KEY,
-            curr,
-            maxScatterGatherBytesLimit
-        );
-      } else {
-        return query;
-      }
-    }
-  }
-
-  public static <T> long getMaxScatterGatherBytes(Query<T> query)
-  {
-    return parseLong(query, MAX_SCATTER_GATHER_BYTES_KEY, Long.MAX_VALUE);
   }
 
   public static <T> boolean hasTimeout(Query<T> query)

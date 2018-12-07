@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -20,9 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Throwables;
-import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.interpreter.BindableRel;
 import org.apache.calcite.interpreter.Node;
@@ -32,6 +30,7 @@ import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
+import io.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -46,6 +45,11 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
     this.queryMaker = queryMaker;
   }
 
+  /**
+   * Returns the PartialDruidQuery associated with this DruidRel, and which can be built on top of. Returns null
+   * if this rel cannot be built on top of.
+   */
+  @Nullable
   public abstract PartialDruidQuery getPartialDruidQuery();
 
   /**
@@ -76,12 +80,16 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    *
    * This method may return null if it knows that this rel will yield an empty result set.
    *
+   * @param finalizeAggregations true if this query should include explicit finalization for all of its
+   *                             aggregators, where required. Useful for subqueries where Druid's native query layer
+   *                             does not do this automatically.
+   *
    * @return query, or null if it is known in advance that this rel will yield an empty result set.
    *
    * @throws CannotBuildQueryException
    */
   @Nullable
-  public abstract DruidQuery toDruidQuery();
+  public abstract DruidQuery toDruidQuery(boolean finalizeAggregations);
 
   /**
    * Convert this DruidRel to a DruidQuery for purposes of explaining. This must be an inexpensive operation. For
@@ -124,31 +132,19 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   @Override
   public Node implement(InterpreterImplementor implementor)
   {
-    final Sink sink = implementor.interpreter.sink(this);
-    return new Node()
-    {
-      @Override
-      public void run() throws InterruptedException
-      {
-        runQuery().accumulate(
-            sink,
-            new Accumulator<Sink, Object[]>()
-            {
-              @Override
-              public Sink accumulate(final Sink theSink, final Object[] in)
-              {
-                try {
-                  theSink.send(Row.of(in));
-                }
-                catch (InterruptedException e) {
-                  throw Throwables.propagate(e);
-                }
-                return theSink;
-              }
-            }
-        );
-      }
-    };
+    final Sink sink = implementor.compiler.sink(this);
+    return () -> runQuery().accumulate(
+        sink,
+        (Sink theSink, Object[] in) -> {
+          try {
+            theSink.send(Row.of(in));
+          }
+          catch (InterruptedException e) {
+            throw Throwables.propagate(e);
+          }
+          return theSink;
+        }
+    );
   }
 
   @Override

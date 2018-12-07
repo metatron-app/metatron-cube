@@ -22,6 +22,7 @@ package io.druid.query.sql;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -208,9 +209,10 @@ public interface SQLFunctions extends Function.Library
       }
 
       final DateTimes.UtcFormatter formatter =
-          StringUtils.isNullOrEmpty(formatString)
-          ? DateTimes.ISO_DATE_OR_TIME
-          : DateTimes.wrapFormatter(DateTimeFormat.forPattern(formatString).withZone(timeZone));
+          DateTimes.wrapFormatter(
+              StringUtils.isNullOrEmpty(formatString) ?
+              JodaUtils.STANDARD_PARSER : DateTimeFormat.forPattern(formatString).withZone(timeZone)
+          );
 
       return new LongChild()
       {

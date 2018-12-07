@@ -1,52 +1,44 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
 
 package io.druid.sql.calcite.table;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.Pair;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.data.input.Row;
+import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
-import io.druid.segment.column.Column;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeComparability;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlCollation;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.ObjectSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,28 +47,17 @@ import java.util.Map;
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature implements io.druid.query.RowSignature, Function<String, ValueDesc>
+public class RowSignature
 {
-  public static RowSignature from(IncrementalIndexSchema schema)
-  {
-    RowSignature.Builder builder = RowSignature.builder();
-    for (DimensionSchema dimensionSchema : schema.getDimensionsSpec().getDimensions()) {
-      builder.add(dimensionSchema.getName(), ValueDesc.ofDimension(dimensionSchema.getValueType()));
-    }
-    for (AggregatorFactory factory : schema.getMetrics()) {
-      builder.add(factory.getName(), ValueDesc.of(factory.getTypeName()));
-    }
-    return builder.build();
-  }
-
   private final Map<String, ValueDesc> columnTypes;
   private final List<String> columnNames;
 
   private RowSignature(final List<Pair<String, ValueDesc>> columnTypeList)
   {
-    final Map<String, ValueDesc> columnTypes0 = Maps.newHashMap();
+    final Map<String, ValueDesc> columnTypes0 = new HashMap<>();
     final ImmutableList.Builder<String> columnNamesBuilder = ImmutableList.builder();
 
+    int i = 0;
     for (Pair<String, ValueDesc> pair : columnTypeList) {
       final ValueDesc existingType = columnTypes0.get(pair.lhs);
       if (existingType != null && existingType != pair.rhs) {
@@ -91,12 +72,6 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     this.columnNames = columnNamesBuilder.build();
   }
 
-  private RowSignature(final List<String> names, Map<String, ValueDesc> types)
-  {
-    this.columnTypes = ImmutableMap.copyOf(types);
-    this.columnNames = ImmutableList.copyOf(names);
-  }
-
   public static RowSignature from(final List<String> rowOrder, final RelDataType rowType)
   {
     if (rowOrder.size() != rowType.getFieldCount()) {
@@ -108,12 +83,14 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     for (int i = 0; i < rowOrder.size(); i++) {
       final RelDataTypeField field = rowType.getFieldList().get(i);
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
-      final ValueDesc valueDesc = Calcites.getValueDescForSqlTypeName(sqlTypeName);
-      if (valueDesc == null) {
+      final ValueDesc valueType;
+
+      valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      if (valueType == null) {
         throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, rowOrder.get(i));
       }
 
-      rowSignatureBuilder.add(rowOrder.get(i), valueDesc);
+      rowSignatureBuilder.add(rowOrder.get(i), valueType);
     }
 
     return rowSignatureBuilder.build();
@@ -129,24 +106,6 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     return columnTypes.get(name);
   }
 
-  public RowSignature addColumn(String name, ValueDesc type)
-  {
-    List<String> names = Lists.newArrayList(columnNames);
-    Map<String, ValueDesc> types = Maps.newHashMap(columnTypes);
-    int index = names.indexOf(name);
-    if (index < 0) {
-      names.add(name);
-    }
-    types.put(name, type);
-    return new RowSignature(names, types);
-  }
-
-  @Override
-  public ValueDesc apply(String input)
-  {
-    return getColumnType(input);
-  }
-
   /**
    * Returns the rowOrder for this signature, which is the list of column names in row order.
    *
@@ -158,7 +117,7 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
   }
 
   /**
-   * Return the "natural" comparator for an extraction from this row signature. This will be a
+   * Return the "natural" {@link StringComparator} for an extraction from this row signature. This will be a
    * lexicographic comparator for String types and a numeric comparator for Number types.
    *
    * @param simpleExtraction extraction from this kind of row
@@ -194,42 +153,30 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
       }
       final RelDataType type;
 
-      if (Column.TIME_COLUMN_NAME.equals(columnName)) {
-        type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
-      } else if (ValueDesc.isPrimitive(columnType)) {
+      if (Row.TIME_COLUMN_NAME.equals(columnName)) {
+        type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);
+      } else {
         switch (columnType.type()) {
           case STRING:
             // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
-            type = typeFactory.createTypeWithNullability(
-                typeFactory.createTypeWithCharsetAndCollation(
-                    typeFactory.createSqlType(SqlTypeName.VARCHAR),
-                    Calcites.defaultCharset(),
-                    SqlCollation.IMPLICIT
-                ),
-                true
-            );
+            type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.VARCHAR, true);
             break;
           case LONG:
-            type = typeFactory.createSqlType(SqlTypeName.BIGINT);
+            type = Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
             break;
           case FLOAT:
-            type = typeFactory.createSqlType(SqlTypeName.FLOAT);
+            type = Calcites.createSqlType(typeFactory, SqlTypeName.FLOAT);
             break;
           case DOUBLE:
-            type = typeFactory.createSqlType(SqlTypeName.DOUBLE);
+            type = Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);
             break;
           case COMPLEX:
             // Loses information about exactly what kind of complex column this is.
-            type = typeFactory.createSqlType(SqlTypeName.OTHER);
+            type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.OTHER, true);
             break;
           default:
-            throw new ISE("WTF?! ValueDesc[%s] not translatable?", columnType);
+            throw new ISE("WTF?! valueType[%s] not translatable?", columnType);
         }
-      } else {
-        type = new ObjectSqlType(
-            SqlTypeName.OTHER, new SqlIdentifier(columnType.typeName(), null, SqlParserPos.ZERO), true, null,
-            RelDataTypeComparability.NONE
-        );
       }
 
       builder.add(columnName, type);
@@ -278,25 +225,13 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     return s.append("}").toString();
   }
 
-  @Override
-  public List<String> getColumnNames()
-  {
-    return ImmutableList.copyOf(columnNames);
-  }
-
-  @Override
-  public List<ValueDesc> getColumnTypes()
-  {
-    return ImmutableList.copyOf(Lists.transform(columnNames, this));
-  }
-
   public static class Builder
   {
     private final List<Pair<String, ValueDesc>> columnTypeList;
 
     private Builder()
     {
-      this.columnTypeList = Lists.newArrayList();
+      this.columnTypeList = new ArrayList<>();
     }
 
     public Builder add(String columnName, ValueDesc columnType)

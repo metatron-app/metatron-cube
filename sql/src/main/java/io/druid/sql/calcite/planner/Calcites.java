@@ -1,24 +1,25 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
 
 package io.druid.sql.calcite.planner;
 
+import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import com.metamx.common.IAE;
@@ -30,10 +31,12 @@ import io.druid.query.ordering.StringComparators;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ConversionUtil;
@@ -92,7 +95,7 @@ public class Calcites
     return DEFAULT_CHARSET;
   }
 
-  public static SchemaPlus createRootSchema(final Schema druidSchema)
+  public static SchemaPlus createRootSchema(final DruidSchema druidSchema)
   {
     final SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
     rootSchema.add(DruidSchema.NAME, druidSchema);
@@ -102,26 +105,24 @@ public class Calcites
 
   public static String escapeStringLiteral(final String s)
   {
-    if (s == null) {
-      return "''";
-    } else {
-      boolean isPlainAscii = true;
-      final StringBuilder builder = new StringBuilder("'");
-      for (int i = 0; i < s.length(); i++) {
-        final char c = s.charAt(i);
-        if (Character.isLetterOrDigit(c) || c == ' ') {
-          builder.append(c);
-          if (c > 127) {
-            isPlainAscii = false;
-          }
-        } else {
-          builder.append("\\").append(BaseEncoding.base16().encode(Chars.toByteArray(c)));
+    Preconditions.checkNotNull(s);
+    boolean isPlainAscii = true;
+    final StringBuilder builder = new StringBuilder("'");
+    for (int i = 0; i < s.length(); i++) {
+      final char c = s.charAt(i);
+      if (Character.isLetterOrDigit(c) || c == ' ') {
+        builder.append(c);
+        if (c > 127) {
           isPlainAscii = false;
         }
+      } else {
+        builder.append("\\").append(BaseEncoding.base16().encode(Chars.toByteArray(c)));
+        isPlainAscii = false;
       }
-      builder.append("'");
-      return isPlainAscii ? builder.toString() : "U&" + builder.toString();
     }
+    builder.append("'");
+    return isPlainAscii ? builder.toString() : "U&" + builder.toString();
+
   }
 
   public static ValueDesc getValueDescForSqlTypeName(SqlTypeName sqlTypeName)
@@ -156,6 +157,46 @@ public class Calcites
     } else {
       throw new ISE("Unrecognized valueDesc[%s]", valueDesc);
     }
+  }
+
+  /**
+   * Like RelDataTypeFactory.createSqlType, but creates types that align best with how Druid represents them.
+   */
+  public static RelDataType createSqlType(final RelDataTypeFactory typeFactory, final SqlTypeName typeName)
+  {
+    return createSqlTypeWithNullability(typeFactory, typeName, false);
+  }
+
+  /**
+   * Like RelDataTypeFactory.createSqlTypeWithNullability, but creates types that align best with how Druid
+   * represents them.
+   */
+  public static RelDataType createSqlTypeWithNullability(
+      final RelDataTypeFactory typeFactory,
+      final SqlTypeName typeName,
+      final boolean nullable
+  )
+  {
+    final RelDataType dataType;
+
+    switch (typeName) {
+      case TIMESTAMP:
+        // Our timestamps are down to the millisecond (precision = 3).
+        dataType = typeFactory.createSqlType(typeName, 3);
+        break;
+      case CHAR:
+      case VARCHAR:
+        dataType = typeFactory.createTypeWithCharsetAndCollation(
+            typeFactory.createSqlType(typeName),
+            Calcites.defaultCharset(),
+            SqlCollation.IMPLICIT
+        );
+        break;
+      default:
+        dataType = typeFactory.createSqlType(typeName);
+    }
+
+    return typeFactory.createTypeWithNullability(dataType, nullable);
   }
 
   /**
@@ -292,21 +333,26 @@ public class Calcites
     return rexNode instanceof RexLiteral && SqlTypeName.INT_TYPES.contains(rexNode.getType().getSqlTypeName());
   }
 
-  public static String findOutputNamePrefix(final String basePrefix, final NavigableSet<String> strings)
+  public static String findUnusedPrefix(final String basePrefix, final NavigableSet<String> strings)
   {
     String prefix = basePrefix;
 
-    while (!isUsablePrefix(strings, prefix)) {
+    while (!isUnusedPrefix(prefix, strings)) {
       prefix = "_" + prefix;
     }
 
     return prefix;
   }
 
-  private static boolean isUsablePrefix(final NavigableSet<String> strings, final String prefix)
+  private static boolean isUnusedPrefix(final String prefix, final NavigableSet<String> strings)
   {
     // ":" is one character after "9"
     final NavigableSet<String> subSet = strings.subSet(prefix + "0", true, prefix + ":", false);
     return subSet.isEmpty();
+  }
+
+  public static String makePrefixedName(final String prefix, final String suffix)
+  {
+    return StringUtils.format("%s:%s", prefix, suffix);
   }
 }

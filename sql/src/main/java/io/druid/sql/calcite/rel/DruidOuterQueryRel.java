@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -23,11 +23,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -38,6 +37,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -88,7 +88,11 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public Sequence<Object[]> runQuery()
   {
-    final DruidQuery query = toDruidQuery();
+    // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
+    // is the outermost query and it will actually get run as a native query. Druid's native query layer will
+    // finalize aggregations for the outermost query even if we don't explicitly ask it to.
+
+    final DruidQuery query = toDruidQuery(false);
     if (query != null) {
       return getQueryMaker().runQuery(query);
     } else {
@@ -116,21 +120,22 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
 
   @Nullable
   @Override
-  public DruidQuery toDruidQuery()
+  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
-    final DruidQuery subQuery = ((DruidRel) sourceRel).toDruidQuery();
+    // Must finalize aggregations on subqueries.
+
+    final DruidQuery subQuery = ((DruidRel) sourceRel).toDruidQuery(true);
     if (subQuery == null) {
       return null;
     }
 
-    // todo relay expected signature to sub query handler (in toolchest)
-    // extract dimensions in grouping (for possible topN query) and make new signature (as dimension type)
     final RowSignature sourceRowSignature = subQuery.getOutputRowSignature();
     return partialQuery.build(
         new QueryDataSource(subQuery.getQuery()),
         sourceRowSignature,
         getPlannerContext(),
-        getCluster().getRexBuilder()
+        getCluster().getRexBuilder(),
+        finalizeAggregations
     );
   }
 
@@ -144,7 +149,8 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
             sourceRel.getRowType()
         ),
         getPlannerContext(),
-        getCluster().getRexBuilder()
+        getCluster().getRexBuilder(),
+        false
     );
   }
 

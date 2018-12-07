@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -22,10 +22,10 @@ package io.druid.sql.calcite.aggregation.builtin;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -52,6 +52,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ApproxCountDistinctSqlAggregator implements SqlAggregator
@@ -74,7 +75,8 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
       final String name,
       final AggregateCall aggregateCall,
       final Project project,
-      final List<Aggregation> existingAggregations
+      final List<Aggregation> existingAggregations,
+      final boolean finalizeAggregations
   )
   {
     // Don't use Aggregations.getArgumentsForSimpleAggregator, since it won't let us use direct column access
@@ -92,14 +94,15 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
 
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
     final AggregatorFactory aggregatorFactory;
+    final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
     if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.getColumnType(arg.getDirectColumn()), "hyperUnique")) {
-      aggregatorFactory = new HyperUniquesAggregatorFactory(name, arg.getDirectColumn(), null, true);
+      aggregatorFactory = new HyperUniquesAggregatorFactory(aggregatorName, arg.getDirectColumn(), null, true);
     } else {
       final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
       final ValueDesc inputType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
       if (inputType == null) {
-        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, name);
+        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, aggregatorName);
       }
 
       final DimensionSpec dimensionSpec;
@@ -108,14 +111,14 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
         dimensionSpec = arg.getSimpleExtraction().toDimensionSpec(null);
       } else {
         final ExprVirtualColumn virtualColumn = arg.toVirtualColumn(
-            StringUtils.format("%s:v", name)
+            Calcites.makePrefixedName(name, "v")
         );
         dimensionSpec = new DefaultDimensionSpec(virtualColumn.getOutputName(), null);
         virtualColumns.add(virtualColumn);
       }
 
       aggregatorFactory = new CardinalityAggregatorFactory(
-          name,
+          aggregatorName,
           null,
           ImmutableList.of(dimensionSpec),
           null,
@@ -125,7 +128,11 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
       );
     }
 
-    return Aggregation.create(virtualColumns, aggregatorFactory);
+    return Aggregation.create(
+        virtualColumns,
+        Collections.singletonList(aggregatorFactory),
+        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, aggregatorFactory.getName()) : null
+    );
   }
 
   private static class ApproxCountDistinctSqlAggFunction extends SqlAggFunction

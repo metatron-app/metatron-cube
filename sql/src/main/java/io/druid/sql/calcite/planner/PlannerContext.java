@@ -22,6 +22,7 @@ package io.druid.sql.calcite.planner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.druid.query.BaseAggregationQuery;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -60,6 +61,7 @@ public class PlannerContext
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
     this.queryStartTimeMillis = System.currentTimeMillis();
+    this.queryContext.put(BaseAggregationQuery.SORT_ON_TIME, false);
   }
 
   public static PlannerContext create(

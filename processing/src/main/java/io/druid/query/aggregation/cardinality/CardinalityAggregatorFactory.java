@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.cardinality;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -216,6 +217,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
   {
     return predicate;
@@ -237,12 +239,14 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getFieldNames()
   {
     return fieldNames;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<DimensionSpec> getFields()
   {
     return fields;

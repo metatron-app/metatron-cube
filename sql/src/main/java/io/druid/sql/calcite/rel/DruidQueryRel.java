@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -22,7 +22,6 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.metamx.common.guava.Sequence;
-import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -34,6 +33,7 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import io.druid.sql.calcite.table.DruidTable;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -93,20 +93,21 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
 
   @Override
   @Nonnull
-  public DruidQuery toDruidQuery()
+  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
     return partialQuery.build(
         druidTable.getDataSource(),
         druidTable.getRowSignature(),
         getPlannerContext(),
-        getCluster().getRexBuilder()
+        getCluster().getRexBuilder(),
+        finalizeAggregations
     );
   }
 
   @Override
   public DruidQuery toDruidQueryForExplaining()
   {
-    return toDruidQuery();
+    return toDruidQuery(false);
   }
 
   @Override
@@ -169,7 +170,11 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   @Override
   public Sequence<Object[]> runQuery()
   {
-    return getQueryMaker().runQuery(toDruidQuery());
+    // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
+    // is the outermost query and it will actually get run as a native query. Druid's native query layer will
+    // finalize aggregations for the outermost query even if we don't explicitly ask it to.
+
+    return getQueryMaker().runQuery(toDruidQuery(false));
   }
 
   @Override
@@ -220,12 +225,16 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
       cost += COST_PER_COLUMN * partialQuery.getAggregate().getAggCallList().size();
     }
 
-    if (partialQuery.getPostProject() != null) {
-      cost += COST_PER_COLUMN * partialQuery.getPostProject().getChildExps().size();
+    if (partialQuery.getAggregateProject() != null) {
+      cost += COST_PER_COLUMN * partialQuery.getAggregateProject().getChildExps().size();
     }
 
     if (partialQuery.getSort() != null && partialQuery.getSort().fetch != null) {
       cost *= COST_LIMIT_MULTIPLIER;
+    }
+
+    if (partialQuery.getSortProject() != null) {
+      cost += COST_PER_COLUMN * partialQuery.getSortProject().getChildExps().size();
     }
 
     if (partialQuery.getHavingFilter() != null) {

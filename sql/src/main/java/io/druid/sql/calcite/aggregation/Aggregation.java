@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -22,8 +22,6 @@ package io.druid.sql.calcite.aggregation;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -36,6 +34,9 @@ import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -112,7 +113,7 @@ public class Aggregation
 
   public static Aggregation create(final PostAggregator postAggregator)
   {
-    return new Aggregation(ImmutableList.of(), ImmutableList.of(), postAggregator);
+    return new Aggregation(Collections.emptyList(), Collections.emptyList(), postAggregator);
   }
 
   public static Aggregation create(
@@ -165,7 +166,7 @@ public class Aggregation
       // Verify that this Aggregation contains all input to its postAggregator.
       // If not, this "filter" call won't work right.
       final Set<String> dependentFields = postAggregator.getDependentFields();
-      final Set<String> aggregatorNames = Sets.newHashSet();
+      final Set<String> aggregatorNames = new HashSet<>();
       for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
         aggregatorNames.add(aggregatorFactory.getName());
       }
@@ -180,7 +181,7 @@ public class Aggregation
                                                     .optimizeFilterOnly(sourceRowSignature)
                                                     .getDimFilter();
 
-    final List<AggregatorFactory> newAggregators = Lists.newArrayList();
+    final List<AggregatorFactory> newAggregators = new ArrayList<>();
     for (AggregatorFactory agg : aggregatorFactories) {
       if (agg instanceof FilteredAggregatorFactory) {
         final FilteredAggregatorFactory filteredAgg = (FilteredAggregatorFactory) agg;

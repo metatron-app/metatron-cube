@@ -1,18 +1,18 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
- * or more contributor license agreements. See the NOTICE file
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -25,16 +25,16 @@ import com.metamx.common.ISE;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.expression.SqlOperatorConversion;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.joda.time.Period;
 
 import java.util.Map;
@@ -103,21 +103,21 @@ public class CastOperatorConversion implements SqlOperatorConversion
       return castDateTimeToChar(plannerContext, operandExpression, fromType);
     } else {
       // Handle other casts.
-      final ValueType fromValueDesc = EXPRESSION_TYPES.get(fromType);
-      final ValueType toValueDesc = EXPRESSION_TYPES.get(toType);
+      final ValueType fromExprType = EXPRESSION_TYPES.get(fromType);
+      final ValueType toExprType = EXPRESSION_TYPES.get(toType);
 
-      if (fromValueDesc == null || toValueDesc == null) {
+      if (fromExprType == null || toExprType == null) {
         // We have no runtime type for these SQL types.
         return null;
       }
 
       final DruidExpression typeCastExpression;
 
-      if (fromValueDesc != toValueDesc) {
+      if (fromExprType != toExprType) {
         // Ignore casts for simple extractions (use Function.identity) since it is ok in many cases.
         typeCastExpression = operandExpression.map(
             Function.identity(),
-            expression -> StringUtils.format("CAST(%s, '%s')", expression, toValueDesc.name())
+            expression -> StringUtils.format("CAST(%s, '%s')", expression, toExprType.toString())
         );
       } else {
         typeCastExpression = operandExpression;
@@ -141,12 +141,12 @@ public class CastOperatorConversion implements SqlOperatorConversion
       final SqlTypeName toType
   )
   {
-    // Cast strings to datetimes by parsin them from SQL format.
+    // Cast strings to datetimes by parsing them from SQL format.
     final DruidExpression timestampExpression = DruidExpression.fromFunctionCall(
         "timestamp_parse",
         ImmutableList.of(
             operand,
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(dateTimeFormatString(toType))),
+            DruidExpression.fromExpression(DruidExpression.nullLiteral()),
             DruidExpression.fromExpression(DruidExpression.stringLiteral(plannerContext.getTimeZone().getID()))
         )
     );
