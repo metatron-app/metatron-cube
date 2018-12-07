@@ -188,6 +188,9 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
 
                         final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.length);
                         for (int i = 0; i < result.length; i++) {
+                          if (result[i] == null) {
+                            continue;   // empty or not-existing
+                          }
                           TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
                           sketchMap.put(columns.get(i), sketch.value());
                         }
