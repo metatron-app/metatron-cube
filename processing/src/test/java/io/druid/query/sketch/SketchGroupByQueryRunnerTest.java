@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QueryRunnerTestHelper.RowBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -80,8 +81,7 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("alias", "index_quantiles"))
         .build();
 
-    SketchTestHelper.RowBuilder builder =
-        new SketchTestHelper.RowBuilder(new String[]{"alias", "index_quantiles"});
+    RowBuilder builder = new RowBuilder(new String[]{"alias", "index_quantiles"});
 
     List<Row> expectedResults = builder
         .add("1970-01-01", "automotive", new Double[]{93.00157165527344, 130.10498046875, 168.9884796142578})
@@ -163,8 +163,7 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("market", SketchTestHelper.quantilesOfQualityMetric))
         .build();
 
-    SketchTestHelper.RowBuilder builder =
-        new SketchTestHelper.RowBuilder(new String[]{"market", SketchTestHelper.quantilesOfQualityMetric});
+    RowBuilder builder = new RowBuilder(new String[]{"market", SketchTestHelper.quantilesOfQualityMetric});
 
     List<Row> expectedResults = builder
         .add("1970-01-01", "spot", new String[]{"automotive", "mezzanine", "travel"})
@@ -201,8 +200,7 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("alias", SketchTestHelper.cardinalityOfIndexMetric))
         .build();
 
-    SketchTestHelper.RowBuilder builder =
-        new SketchTestHelper.RowBuilder(new String[]{"alias", SketchTestHelper.cardinalityOfIndexMetric});
+    RowBuilder builder = new RowBuilder(new String[]{"alias", SketchTestHelper.cardinalityOfIndexMetric});
 
     List<Row> expectedResults = builder
         .add("1970-01-01", "automotive", 93.0)
@@ -251,8 +249,8 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("market", SketchTestHelper.cardinalityOfQualityMetric))
         .build();
 
-    SketchTestHelper.RowBuilder builder =
-        new SketchTestHelper.RowBuilder(new String[]{"market", SketchTestHelper.cardinalityOfQualityMetric});
+    RowBuilder builder =
+        new RowBuilder(new String[]{"market", SketchTestHelper.cardinalityOfQualityMetric});
 
     List<Row> expectedResults = builder
         .add("1970-01-01", "spot", 9.0)

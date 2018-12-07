@@ -42,7 +42,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  */
@@ -333,13 +332,13 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return Ordering
         .from(comparator)
         .onResultOf(
-            new Function<T, String>()
+            new Function<T, Comparable>()
             {
               @Override
-              public String apply(T input)
+              public Comparable apply(T input)
               {
                 // Multi-value dimensions have all been flattened at this point;
-                return Objects.toString(accessor.get(input), null);
+                return (Comparable) accessor.get(input);
               }
             }
         );

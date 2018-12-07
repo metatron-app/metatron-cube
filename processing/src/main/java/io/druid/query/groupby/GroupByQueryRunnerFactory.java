@@ -188,7 +188,7 @@ public class GroupByQueryRunnerFactory
       }
       if (!itemsUnion.isEmpty()) {
         thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1)
+            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
         );
       }
     }
@@ -240,6 +240,9 @@ public class GroupByQueryRunnerFactory
       splits.add(
           query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );
+    }
+    if (query.isDescending()) {
+      splits = Lists.reverse(splits);
     }
     return splits;
   }

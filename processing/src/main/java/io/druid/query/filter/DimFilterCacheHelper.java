@@ -44,6 +44,7 @@ public class DimFilterCacheHelper
   static final byte LUCENE_NEAREST_CACHE_ID = 0xE;
   static final byte LUCENE_GEOJSON_CACHE_ID = 0xF;
   static final byte LUCENE_SPATIAL_CACHE_ID = 0x10;
+  static final byte LIKE_CACHE_ID = 0x11;
 
   public static final byte STRING_SEPARATOR = (byte) 0xFF;
 

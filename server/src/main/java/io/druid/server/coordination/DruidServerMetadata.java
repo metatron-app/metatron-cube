@@ -92,6 +92,11 @@ public class DruidServerMetadata
     return getType().equalsIgnoreCase("historical") || getType().equalsIgnoreCase("bridge");
   }
 
+  public boolean isHistorical()
+  {
+    return getType().equalsIgnoreCase("historical");
+  }
+
   @Override
   public boolean equals(Object o)
   {

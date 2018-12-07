@@ -93,6 +93,21 @@ public interface Function
       }
     }
 
+    public abstract class HoldingChild<T> implements Function
+    {
+      private final T holder;
+
+      protected HoldingChild(T holder) {this.holder = holder;}
+
+      public T getHolder() { return holder; }
+
+      @Override
+      public final String name()
+      {
+        return name;
+      }
+    }
+
     public abstract class ExternalChild extends Child implements External
     {
       @Override

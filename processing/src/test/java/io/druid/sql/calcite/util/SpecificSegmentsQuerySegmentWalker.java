@@ -442,17 +442,17 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final List<Segment> targets = Lists
-      .newArrayList(
-          Iterables.filter(
-              Iterables.transform(
-                  segments,
-                  Pair.<SegmentDescriptor, Segment>rhsFn()
-              ), Predicates.notNull()
-          )
-      );
+
+    List<Segment> targets = Lists.newArrayList(
+        Iterables.filter(
+            Iterables.transform(segments, Pair.<SegmentDescriptor, Segment>rhsFn()), Predicates.notNull()
+        )
+    );
     if (targets.isEmpty()) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
+    }
+    if (query.isDescending()) {
+      targets = Lists.reverse(targets);
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);

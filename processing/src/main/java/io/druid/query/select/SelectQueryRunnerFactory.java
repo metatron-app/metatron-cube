@@ -20,15 +20,14 @@
 package io.druid.query.select;
 
 import com.google.common.base.Supplier;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
+import io.druid.common.utils.Sequences;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -86,14 +85,12 @@ public class SelectQueryRunnerFactory
       final SelectMetaQueryEngine metaQueryEngine = new SelectMetaQueryEngine();
 
       final Set<String> targets = Sets.newHashSet();
-      for (Segment segment : query.isDescending() ? Lists.reverse(segments) : segments) {
+      for (Segment segment : segments) {
         targets.add(segment.getIdentifier());
         SelectMetaQuery metaQuery = baseQuery.withQuerySegmentSpec(
             new MultipleIntervalSegmentSpec(Arrays.asList(segment.getDataInterval()))
         );
-        for (Result<SelectMetaResultValue> result : Sequences.toList(
-            metaQueryEngine.process(metaQuery, segment), Lists.<Result<SelectMetaResultValue>>newArrayList()
-        )) {
+        for (Result<SelectMetaResultValue> result : Sequences.toList(metaQueryEngine.process(metaQuery, segment))) {
           threshold -= result.getValue().getTotalCount();
           if (threshold < 0) {
             LOG.info(

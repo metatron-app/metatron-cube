@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 
+import java.lang.reflect.Array;
 import java.util.List;
 
 /**
@@ -35,6 +36,7 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
+      final Class<?> clazz = sketch.getMinValue().getClass();
       if (parameter == null) {
         return sketch.getQuantiles(DEFAULT_FRACTIONS);
       } else if (parameter instanceof Number) {
@@ -47,19 +49,18 @@ public enum QuantileOperation
         return sketch.getQuantiles((double[]) parameter);
       } else if (parameter instanceof QuantileParam) {
         QuantileParam quantileParam = (QuantileParam) parameter;
+        Object[] quantiles;
         if (quantileParam.evenSpaced) {
-          return sketch.getQuantiles(quantileParam.number); // even spaced
-        }
-        if (quantileParam.evenCounted) {
+          quantiles = sketch.getQuantiles(quantileParam.number); // even spaced
+        } else if (quantileParam.evenCounted) {
           final int limitNum = quantileParam.number;
-          double[] quantiles = new double[(int) (sketch.getN() / limitNum) + 1];
-          for (int i = 1; i < quantiles.length - 1; i++) {
-            quantiles[i] = (double) limitNum * i / sketch.getN();
+          double[] thresholds = new double[(int) (sketch.getN() / limitNum) + 1];
+          for (int i = 1; i < thresholds.length - 1; i++) {
+            thresholds[i] = (double) limitNum * i / sketch.getN();
           }
-          quantiles[quantiles.length - 1] = 1;
-          return sketch.getQuantiles(quantiles);
-        }
-        if (quantileParam.slopedSpaced) {
+          thresholds[thresholds.length - 1] = 1;
+          quantiles = sketch.getQuantiles(thresholds);
+        } else if (quantileParam.slopedSpaced) {
           // sigma(0 ~ p) of (ax + b) = total
           // ((p * (p + 1)) / 2) * a + (p + 1) * b = total
           // a = 2 * (total - (p + 1) * b) / (p * (p + 1))
@@ -67,17 +68,23 @@ public enum QuantileOperation
           double total = sketch.getN();
           double b = total / (p * 1.7);
           double a = (total - (p + 1) * b) * 2 / (p * (p + 1));
-          double[] quantiles = new double[quantileParam.number];
+          double[] thresholds = new double[quantileParam.number];
           for (int i = 1; i <= p; i++) {
-            quantiles[i] = (i > 1 ? quantiles[i - 1] : 0) + a * (i - 1) + b;
+            thresholds[i] = (i > 1 ? thresholds[i - 1] : 0) + a * (i - 1) + b;
           }
           for (int i = 1; i <= p; i++) {
-            quantiles[i] /= total;
+            thresholds[i] /= total;
           }
-          quantiles[0] = 0;
-          quantiles[quantiles.length - 1] = 1;
-          return sketch.getQuantiles(quantiles);
+          thresholds[0] = 0;
+          thresholds[thresholds.length - 1] = 1;
+          quantiles = sketch.getQuantiles(thresholds);
+        } else {
+          throw new IllegalArgumentException("Invalid quantile param " + quantileParam);
         }
+        if (quantileParam.dedup) {
+          quantiles = removeDuplicates(quantiles, clazz);
+        }
+        return quantiles;
       }
       throw new IllegalArgumentException("Not supported parameter " + parameter + "(" + parameter.getClass() + ")");
     }
@@ -122,8 +129,9 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
+      Class<?> clazz = sketch.getMinValue().getClass();
       QuantileRatioParam param = (QuantileRatioParam) parameter;
-      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam));
+      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam), clazz);
       return ImmutableMap.of("splits", splits, "cdf", CDF.calculate(sketch, ratioParam(splits, param.ratioAsCount)));
     }
   },
@@ -131,8 +139,9 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
+      Class<?> clazz = sketch.getMinValue().getClass();
       QuantileRatioParam param = (QuantileRatioParam) parameter;
-      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam));
+      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam), clazz);
       return ImmutableMap.of("splits", splits, "pmf", PMF.calculate(sketch, ratioParam(splits, param.ratioAsCount)));
     }
   },
@@ -151,9 +160,10 @@ public enum QuantileOperation
 
   public abstract Object calculate(ItemsSketch sketch, Object parameter);
 
-  private static Object[] removeDuplicates(Object[] splits)
+  @SuppressWarnings("unchecked")
+  public static <T> Object[] removeDuplicates(Object[] splits, Class<T> clazz)
   {
-    List<Object> result = Lists.newArrayList();
+    List result = Lists.newArrayList();
     Object prev = null;
     for (Object split : splits) {
       if (prev == null || !prev.equals(split)) {
@@ -161,7 +171,7 @@ public enum QuantileOperation
       }
       prev = split;
     }
-    return result.toArray();
+    return result.toArray((Object[]) Array.newInstance(clazz, result.size()));
   }
 
   private static long[] asCounts(double[] ratio, long n)
@@ -187,7 +197,7 @@ public enum QuantileOperation
 
   public static final double[] DEFAULT_FRACTIONS = new double[]{0d, 0.25d, 0.50d, 0.75d, 1.0d};
 
-  public static final QuantileParam DEFAULT_QUANTILE_PARAM = evenSpaced(11);
+  public static final QuantileParam DEFAULT_QUANTILE_PARAM = evenSpaced(11, false);
 
   private static class RatioParam
   {
@@ -212,38 +222,40 @@ public enum QuantileOperation
     final boolean evenSpaced;
     final boolean evenCounted;
     final boolean slopedSpaced;
+    final boolean dedup;
 
-    private QuantileParam(int number, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced)
+    private QuantileParam(int number, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced, boolean dedup)
     {
       this.number = number;
       this.evenSpaced = evenSpaced;
       this.evenCounted = evenCounted;
       this.slopedSpaced = slopedSpaced;
+      this.dedup = dedup;
     }
   }
 
-  public static QuantileParam evenSpaced(int partition)
+  public static QuantileParam evenSpaced(int partition, boolean dedup)
   {
-    return new QuantileParam(partition, true, false, false);
+    return new QuantileParam(partition, true, false, false, dedup);
   }
 
-  public static QuantileParam evenCounted(int partition)
+  public static QuantileParam evenCounted(int partition, boolean dedup)
   {
-    return new QuantileParam(partition, false, true, false);
+    return new QuantileParam(partition, false, true, false, dedup);
   }
 
-  public static QuantileParam slopedSpaced(int partition)
+  public static QuantileParam slopedSpaced(int partition, boolean dedup)
   {
-    return new QuantileParam(partition, false, false, true);
+    return new QuantileParam(partition, false, false, true, dedup);
   }
 
-  public static QuantileParam valueOf(String strategy, int partition)
+  public static QuantileParam valueOf(String strategy, int partition, boolean dedup)
   {
     switch (strategy) {
-      case "evenSpaced": return evenSpaced(partition);
-      case "evenCounted": return evenCounted(partition);
-      case "slopedSpaced": return slopedSpaced(partition);
-      default: return slopedSpaced(partition);
+      case "evenSpaced": return evenSpaced(partition, dedup);
+      case "evenCounted": return evenCounted(partition, dedup);
+      case "slopedSpaced": return slopedSpaced(partition, dedup);
+      default: return slopedSpaced(partition, dedup);
     }
   }
 

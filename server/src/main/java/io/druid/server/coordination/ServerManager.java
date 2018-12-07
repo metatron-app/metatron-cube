@@ -415,6 +415,9 @@ public class ServerManager implements QuerySegmentWalker
         targets.add(target);
       }
     }
+    if (query.isDescending()) {
+      targets = Lists.reverse(targets);
+    }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, objectMapper);

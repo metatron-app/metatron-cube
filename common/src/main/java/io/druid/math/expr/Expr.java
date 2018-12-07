@@ -290,6 +290,8 @@ final class FunctionExpr implements Expr, Expression.FuncExpression
     return "(" + name + " " + args + ")";
   }
 
+  public Function getFunction() { return function;}
+
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {

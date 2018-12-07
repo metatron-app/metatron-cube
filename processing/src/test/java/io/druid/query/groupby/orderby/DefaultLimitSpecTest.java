@@ -141,8 +141,9 @@ public class DefaultLimitSpecTest
                  ImmutableList.<PostAggregator>of(new ConstantPostAggregator("k3", 1L))),
         true
     );
+    // changed to use natural-ordering instead of toString & compare
     Assert.assertEquals(
-        ImmutableList.of(testRowsList.get(1), testRowsList.get(2)),
+        ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),
         Sequences.toList(limitFn.apply(testRowsSequence), new ArrayList<Row>())
     );
   }

@@ -90,6 +90,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -581,6 +582,9 @@ public class BrokerServerView implements TimelineServerView
       if (target != null) {
         targets.add(target);
       }
+    }
+    if (query.isDescending()) {
+      Collections.reverse(targets);
     }
     final ExecutorService exec = Execs.singleThreaded("BrokerLocalProcessor-%s");
 

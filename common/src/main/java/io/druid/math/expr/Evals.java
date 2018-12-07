@@ -164,6 +164,16 @@ public class Evals
     return arg instanceof IdentifierExpr;
   }
 
+  public static boolean isFunction(Expr arg)
+  {
+    return arg instanceof FunctionExpr;
+  }
+
+  public static io.druid.math.expr.Function getFunction(Expr arg)
+  {
+    return arg instanceof FunctionExpr ? ((FunctionExpr)arg).getFunction() : null;
+  }
+
   public static boolean isAssign(Expr arg)
   {
     return arg instanceof AssignExpr;

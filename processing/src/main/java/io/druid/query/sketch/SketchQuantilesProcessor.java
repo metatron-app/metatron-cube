@@ -51,6 +51,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
   private final Integer evenCounted;
   private final Integer slopedSpaced;
   private final Map<String, String[]> splitPoints;
+  private final boolean dedup;
 
   private final Object parameter;
 
@@ -61,7 +62,8 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("evenSpaced") Integer evenSpaced,
       @JsonProperty("evenCounted") Integer evenCounted,
       @JsonProperty("slopedSpaced") Integer slopedSpaced,
-      @JsonProperty("splitPoints") Map<String, String[]> splitPoints
+      @JsonProperty("splitPoints") Map<String, String[]> splitPoints,
+      @JsonProperty("dedup") boolean dedup
   )
   {
     this.op = op == null ? QuantileOperation.QUANTILES : op;
@@ -70,12 +72,13 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
     this.evenCounted = evenCounted;
     this.slopedSpaced = slopedSpaced;
     this.splitPoints = splitPoints;
+    this.dedup = dedup;
 
     if (op == null || op == QuantileOperation.QUANTILES) {
       parameter = fractions != null ? fractions :
-                  evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced) :
-                  evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted) :
-                  slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced) :
+                  evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced, dedup) :
+                  evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted, dedup) :
+                  slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced, dedup) :
                   QuantileOperation.DEFAULT_QUANTILE_PARAM;
     } else {
       parameter = splitPoints;
@@ -158,5 +161,11 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
   public Map<String, String[]> getSplitPoints()
   {
     return splitPoints;
+  }
+
+  @JsonProperty
+  public boolean isDedup()
+  {
+    return dedup;
   }
 }

@@ -131,7 +131,7 @@ public class StreamRawQueryRunnerFactory
       }
       if (!itemsUnion.isEmpty()) {
         thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1)
+            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
         );
       }
     }
@@ -161,6 +161,9 @@ public class StreamRawQueryRunnerFactory
           query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );
     }
+    if (query.isDescending()) {
+      splits = Lists.reverse(splits);
+    }
     return splits;
   }
 
@@ -172,7 +175,11 @@ public class StreamRawQueryRunnerFactory
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        return engine.process((StreamRawQuery) query, segment, optimizer, cache);
+        StreamRawQuery stream = (StreamRawQuery) query;
+        if (!GuavaUtils.isNullOrEmpty(stream.getSortOn())) {
+          stream = stream.withLimit(-1);   // should be done after merge
+        }
+        return engine.process(stream, segment, optimizer, cache);
       }
     };
   }

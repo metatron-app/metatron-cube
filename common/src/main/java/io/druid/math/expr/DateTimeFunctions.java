@@ -269,7 +269,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  static enum Unit
+  enum Unit
   {
     MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, WEEKOFWEEKYEAR, MONTH, YEAR, WEEKYEAR, DOW, DOY, QUARTER
   }
@@ -318,8 +318,9 @@ public interface DateTimeFunctions extends Function.Library
             case YEAR:
               return ExprEval.of(Years.yearsBetween(time1, time2).getYears());
             case MILLIS:
-            case EPOCH:
               return ExprEval.of(new Duration(time1, time2).getMillis());
+            case EPOCH:
+              return ExprEval.of(new Duration(time1, time2).getMillis() / 1000);
             default:
               throw new IllegalArgumentException("invalid time unit " + unit);
           }
@@ -791,8 +792,10 @@ public interface DateTimeFunctions extends Function.Library
           final DateTime dateTime = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
 
           switch (unit) {
-            case EPOCH:
+            case MILLIS:
               return ExprEval.of(dateTime.getMillis());
+            case EPOCH:
+              return ExprEval.of(dateTime.getMillis() / 1000);
             case SECOND:
               return ExprEval.of(dateTime.getSecondOfMinute());
             case MINUTE:

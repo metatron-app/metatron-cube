@@ -22,7 +22,10 @@ package io.druid.query.sql;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.DateTimeFunctions;
@@ -68,6 +71,34 @@ public interface SQLFunctions extends Function.Library
     }
   }
 
+  @Function.Named("timestamp_extract")
+  class TimestampExtractFunc extends DateTimeFunctions.DateTimeExtractFunc
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      final Function function = super.create(args);
+      final Function parameter = Evals.getFunction(args.get(1));
+      if (parameter instanceof HoldingChild) {
+        return new HoldingChild<Object>(((HoldingChild) parameter).getHolder())
+        {
+          @Override
+          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+          {
+            return ValueDesc.LONG;
+          }
+
+          @Override
+          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return function.apply(args, bindings);
+          }
+        };
+      }
+      return function;
+    }
+  }
+
   @Function.Named("timestamp_floor")
   class TimestampFloorExprMacro extends Function.AbstractFactory
   {
@@ -80,15 +111,37 @@ public interface SQLFunctions extends Function.Library
       if (!Evals.isAllConstants(args.subList(1, args.size()))) {
         throw new IAE("granularity should be constant value", name());
       }
-      final Granularity granularity = ExprUtils.toPeriodGranularity(args, 1);
+      final Expr timeParam = args.get(0);
+      final PeriodGranularity granularity = ExprUtils.toPeriodGranularity(args, 1);
+      if (Evals.isIdentifier(timeParam) && Row.TIME_COLUMN_NAME.equals(Evals.getIdentifier(timeParam))) {
+        return new HoldingChild<PeriodGranularity>(granularity)
+        {
+          @Override
+          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+          {
+            return ValueDesc.LONG;
+          }
+
+          @Override
+          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return evaluate(args.get(0).eval(bindings), granularity);
+          }
+        };
+      }
       return new LongChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(granularity.bucketStart(DateTimes.utc(args.get(0).eval(bindings).asLong())).getMillis());
+          return evaluate(args.get(0).eval(bindings), granularity);
         }
       };
+    }
+
+    private ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
+    {
+      return ExprEval.of(granularity.bucketStart(DateTimes.utc(timeParam.asLong())).getMillis());
     }
   }
 
@@ -155,7 +208,7 @@ public interface SQLFunctions extends Function.Library
       }
 
       final DateTimes.UtcFormatter formatter =
-          formatString == null
+          StringUtils.isNullOrEmpty(formatString)
           ? DateTimes.ISO_DATE_OR_TIME
           : DateTimes.wrapFormatter(DateTimeFormat.forPattern(formatString).withZone(timeZone));
 
@@ -180,11 +233,6 @@ public interface SQLFunctions extends Function.Library
         }
       };
     }
-  }
-
-  @Function.Named("timestamp_extract")
-  public class TimestampExtractExprMacro extends DateTimeFunctions.DateTimeExtractFunc
-  {
   }
 
   @Function.Named("timestamp_shift")

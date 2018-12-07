@@ -41,6 +41,7 @@ import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -87,6 +88,9 @@ public class StreamQueryEngine
       return result.rhs;
     }
     List<Object[]> sorted = Sequences.toList(result.rhs);
+    if (sorted.isEmpty()) {
+      return Sequences.empty();
+    }
     Collections.sort(sorted, query.getResultOrdering());
     return Sequences.simple(sorted);
   }

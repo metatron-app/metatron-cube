@@ -97,6 +97,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -430,6 +431,9 @@ public class AppenderatorImpl implements Appenderator
             )
         )
     );
+    if (query.isDescending()) {
+      Collections.reverse(segments);
+    }
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
     final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
     final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);

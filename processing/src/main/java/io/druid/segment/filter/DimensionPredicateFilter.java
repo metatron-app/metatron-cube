@@ -69,7 +69,7 @@ public class DimensionPredicateFilter implements Filter
 
   @Override
   public ImmutableBitmap getBitmapIndex(
-      final BitmapIndexSelector selector,
+      BitmapIndexSelector selector,
       EnumSet<BitmapType> using,
       ImmutableBitmap baseBitmap
   )

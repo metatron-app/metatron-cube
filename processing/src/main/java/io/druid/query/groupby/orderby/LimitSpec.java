@@ -52,6 +52,11 @@ import java.util.List;
 })
 public class LimitSpec extends OrderedLimitSpec implements Cacheable
 {
+  public static LimitSpec of(OrderByColumnSpec... orderings)
+  {
+    return of(Integer.MAX_VALUE, orderings);
+  }
+
   public static LimitSpec of(int limit, OrderByColumnSpec... orderings)
   {
     return new LimitSpec(Arrays.asList(orderings), limit);

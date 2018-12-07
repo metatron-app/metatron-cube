@@ -52,6 +52,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name="lucene.point", value=LucenePointFilter.class),
     @JsonSubTypes.Type(name="lucene.nearest", value=LuceneNearestFilter.class),
     @JsonSubTypes.Type(name="lucene.geojson", value=LuceneGeoJsonPolygonFilter.class),
+    @JsonSubTypes.Type(name="like", value=LikeDimFilter.class),
 })
 public interface DimFilter extends Expression, Cacheable
 {
