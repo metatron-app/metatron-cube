@@ -326,7 +326,16 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> removePostActions()
   {
-    return withOverriddenContext(POST_PROCESSING, null);
+    return withOverriddenContext(defaultPostActionContext());
+  }
+
+  protected final Map<String, Object> defaultPostActionContext()
+  {
+    Map<String, Object> override = Maps.newHashMap();
+    override.put(FINALIZE, false);
+    override.put(FINAL_MERGE, false);
+    override.put(POST_PROCESSING, null);
+    return override;
   }
 
   public int getContextIntWithMax(String key, int defaultValue)

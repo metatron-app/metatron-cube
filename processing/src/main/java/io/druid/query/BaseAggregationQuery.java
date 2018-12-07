@@ -686,6 +686,11 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
       return setPostAggregatorSpecs(postAggregatorSpecs);
     }
 
+    public Builder<T> postAggregators(PostAggregator... postAggregatorSpecs)
+    {
+      return setPostAggregatorSpecs(postAggregatorSpecs);
+    }
+
     public Builder<T> setContext(Map<String, Object> context)
     {
       this.context = context;

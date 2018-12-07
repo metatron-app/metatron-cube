@@ -21,7 +21,6 @@ package io.druid.query.sketch;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
@@ -118,14 +117,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
         return input;
       }
     };
-  }
-
-  @Override
-  public Function<Result<Object[]>, Result<Object[]>> makePostComputeManipulatorFn(
-      SketchQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

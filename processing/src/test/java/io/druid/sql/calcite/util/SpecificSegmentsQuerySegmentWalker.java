@@ -410,10 +410,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     if (factory == null) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
-    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
-    FluentQueryRunnerBuilder.FluentQueryRunner runner = builder.create(
-        new QueryRunner<T>()
+
+    FluentQueryRunnerBuilder<T> runner = FluentQueryRunnerBuilder.create(
+        factory.getToolchest(), new QueryRunner<T>()
         {
           @Override
           public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
@@ -432,7 +431,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     if (!subQuery) {
       runner = runner.applyFinalizeResults();
     }
-    return runner.applyPostProcess(objectMapper);
+    return runner.applyFinalQueryDecoration()
+                 .applyPostProcessingOperator(objectMapper)
+                 .build();
   }
 
   private <T> QueryRunner<T> toLocalQueryRunner(
@@ -506,7 +507,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         resolved, MetricManipulatorFns.deserializing()
     );
     if (BaseQuery.getContextBySegment(query)) {
-      manipulatorFn = BySegmentResultValueClass.deserializer(manipulatorFn);
+      manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
     }
     final QueryRunner<T> baseRunner = runner;
     final Function deserializer = manipulatorFn;

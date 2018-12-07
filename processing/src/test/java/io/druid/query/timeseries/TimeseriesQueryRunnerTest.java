@@ -34,10 +34,10 @@ import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -382,7 +382,9 @@ public class TimeseriesQueryRunnerTest
     assertExpectedResults(expected, results);
 
     // do post aggregation for inner query
-    subQuery = subQuery.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINAL_MERGE, false));
+    subQuery = subQuery.withOverriddenContext(
+        BaseQuery.removeContext(Query.FINALIZE, Query.FINAL_MERGE)
+    );
 
     TimeseriesQuery query = Druids
         .newTimeseriesQueryBuilder()

@@ -21,107 +21,87 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 
 import javax.annotation.Nullable;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FluentQueryRunnerBuilder<T>
 {
-  final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryRunner<T> baseRunner;
 
-  public FluentQueryRunner create(QueryRunner<T> baseRunner)
+  public static <T> FluentQueryRunnerBuilder create(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
   {
-    return new FluentQueryRunner(baseRunner);
+    return new FluentQueryRunnerBuilder<T>(toolChest, baseRunner);
   }
 
-  public FluentQueryRunnerBuilder(QueryToolChest<T, Query<T>> toolChest)
+  private FluentQueryRunnerBuilder(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
   {
     this.toolChest = toolChest;
+    this.baseRunner = baseRunner;
   }
 
-  public class FluentQueryRunner implements QueryRunner<T>
+  public QueryRunner<T> build()
   {
-    private final QueryRunner<T> baseRunner;
+    return baseRunner;
+  }
 
-    public FluentQueryRunner(QueryRunner<T> runner)
-    {
-      this.baseRunner = runner;
-    }
+  public FluentQueryRunnerBuilder from(QueryRunner<T> runner)
+  {
+    return new FluentQueryRunnerBuilder<T>(toolChest, runner);
+  }
 
-    @Override
-    public Sequence<T> run(
-        Query<T> query, Map<String, Object> responseContext
-    )
-    {
-      return baseRunner.run(query, responseContext);
-    }
+  public FluentQueryRunnerBuilder applyPreMergeDecoration()
+  {
+    return from(new UnionQueryRunner<T>(toolChest.preMergeQueryDecoration(baseRunner)));
+  }
 
-    public FluentQueryRunner from(QueryRunner<T> runner)
-    {
-      return new FluentQueryRunner(runner);
-    }
+  public FluentQueryRunnerBuilder applyMergeResults()
+  {
+    return from(toolChest.mergeResults(baseRunner));
+  }
 
-    public FluentQueryRunner applyPostMergeDecoration()
-    {
-      return from(toolChest.postMergeQueryDecoration(baseRunner));
-    }
+  public FluentQueryRunnerBuilder applyPostMergeDecoration()
+  {
+    return from(toolChest.postMergeQueryDecoration(baseRunner));
+  }
 
-    public FluentQueryRunner applyFinalizeResults()
-    {
-      return from(toolChest.finalizeResults(baseRunner));
-    }
+  public FluentQueryRunnerBuilder applyFinalizeResults()
+  {
+    return from(toolChest.finalizeResults(baseRunner));
+  }
 
-    public FluentQueryRunner applyPreMergeDecoration()
-    {
-      return from(
-          new UnionQueryRunner<T>(
-              toolChest.preMergeQueryDecoration(
-                  baseRunner
-              )
-          )
-      );
-    }
+  @SuppressWarnings("unchecked")
+  public FluentQueryRunnerBuilder applyFinalQueryDecoration()
+  {
+    return from(toolChest.finalQueryDecoration(baseRunner));
+  }
 
-    public FluentQueryRunner emitCPUTimeMetric(ServiceEmitter emitter)
-    {
-      return from(
-          CPUTimeMetricQueryRunner.safeBuild(
-              baseRunner,
-              new Function<Query<T>, ServiceMetricEvent.Builder>()
+  public FluentQueryRunnerBuilder applyPostProcessingOperator(ObjectMapper mapper)
+  {
+    return from(PostProcessingOperators.wrap(baseRunner, mapper));
+  }
+
+  public FluentQueryRunnerBuilder emitCPUTimeMetric(ServiceEmitter emitter)
+  {
+    return from(
+        CPUTimeMetricQueryRunner.safeBuild(
+            baseRunner,
+            new Function<Query<T>, ServiceMetricEvent.Builder>()
+            {
+              @Nullable
+              @Override
+              public ServiceMetricEvent.Builder apply(Query<T> tQuery)
               {
-                @Nullable
-                @Override
-                public ServiceMetricEvent.Builder apply(Query<T> tQuery)
-                {
-                  return toolChest.makeMetricBuilder(tQuery);
-                }
-              },
-              emitter,
-              new AtomicLong(0L),
-              true
-          )
-      );
-    }
-
-    @SuppressWarnings("unchecked")
-    public FluentQueryRunner applyPostProcess(ObjectMapper mapper)
-    {
-      return from(
-          PostProcessingOperators.wrap(
-              toolChest.finalQueryDecoration(baseRunner), mapper
-          )
-      );
-    }
-
-    public FluentQueryRunner applyMergeResults()
-    {
-      return from(
-          toolChest.mergeResults(baseRunner)
-      );
-    }
+                return toolChest.makeMetricBuilder(tQuery);
+              }
+            },
+            emitter,
+            new AtomicLong(0L),
+            true
+        )
+    );
   }
 }

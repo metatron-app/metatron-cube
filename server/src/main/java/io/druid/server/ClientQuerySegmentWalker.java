@@ -84,17 +84,17 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    return makeRunner(query, false);
+    return makeRunner(query, true);
   }
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
-    return makeRunner(query, false);
+    return makeRunner(query, true);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean subQuery)
+  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean finalize)
   {
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
@@ -107,7 +107,9 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
           maxResult
       );
       QueryRunner<T> runner = toolChest.finalQueryDecoration(
-          toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec, maxRowCount)
+          toolChest.finalizeResults(
+              toolChest.handleSubQuery(makeRunner(innerQuery, false), this, exec, maxRowCount)
+          )
       );
       return PostProcessingOperators.wrap(runner, objectMapper);
     }
@@ -120,18 +122,19 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
     }
 
-    FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
-    FluentQueryRunnerBuilder.FluentQueryRunner runner = builder.create(
-        new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper)
+    FluentQueryRunnerBuilder<T> runner = FluentQueryRunnerBuilder.create(
+        toolChest, new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper)
     );
 
     runner = runner.applyPreMergeDecoration()
                    .applyMergeResults()
                    .applyPostMergeDecoration();
-    if (!subQuery) {
+    if (finalize) {
       runner = runner.applyFinalizeResults()
                      .emitCPUTimeMetric(emitter);
     }
-    return runner.applyPostProcess(objectMapper);
+    return runner.applyFinalQueryDecoration()
+                 .applyPostProcessingOperator(objectMapper)
+                 .build();
   }
 }

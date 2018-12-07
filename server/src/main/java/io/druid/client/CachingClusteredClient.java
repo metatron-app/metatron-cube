@@ -493,7 +493,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           if (!BaseQuery.getContextBySegment(running)) {
             listOfSequences.add(sequence);
           } else if (!populateCache) {
-            listOfSequences.add(Sequences.map(sequence, BySegmentResultValueClass.deserializer(deserializer)));
+            listOfSequences.add(Sequences.map(sequence, BySegmentResultValueClass.applyAll(deserializer)));
           } else {
             needPostProcessing.add(sequence);
           }

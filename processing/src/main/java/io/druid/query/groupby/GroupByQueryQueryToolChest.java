@@ -132,7 +132,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         if (groupBy.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           Sequence<Row> sequence = runner.run(groupBy.removePostActions(), responseContext);
           if (BaseQuery.getContextBySegment(groupBy)) {
-            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.deserializer(
+            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(
                 Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy)))
             );
           }

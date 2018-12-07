@@ -473,11 +473,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   @Override
   public GroupByQuery removePostActions()
   {
-    Map<String, Object> override = Maps.newHashMap();
-    override.put(FINALIZE, false);
-    override.put(FINAL_MERGE, false);
+    Map<String, Object> override = defaultPostActionContext();
     override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
-    override.put(POST_PROCESSING, null);
     override.put(CTX_KEY_FUDGE_TIMESTAMP, Objects.toString(GroupByQueryEngine.getUniversalTimestamp(this), null));
 
     return new GroupByQuery(

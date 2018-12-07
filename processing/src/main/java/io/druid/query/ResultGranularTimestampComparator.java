@@ -45,6 +45,11 @@ public class ResultGranularTimestampComparator<T> implements Comparator<Result<T
     );
   }
 
+  public static <T> Ordering<Result<T>> create(Query<Result<T>> query)
+  {
+    return create(query.getGranularity(), query.isDescending());
+  }
+
   public static <T> Ordering<Result<T>> create(Granularity granularity, boolean descending) {
     Comparator<Result<T>> comparator = new ResultGranularTimestampComparator<>(granularity);
     return descending ? Ordering.from(comparator).reverse() : Ordering.from(comparator);

@@ -365,7 +365,7 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
         limitSpec.withNoProcessing(),
         null,
         null,
-        computeOverriddenContext(removeContext(POST_PROCESSING))
+        computeOverriddenContext(defaultPostActionContext())
     );
   }
 

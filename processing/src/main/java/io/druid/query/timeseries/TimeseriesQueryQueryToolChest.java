@@ -21,17 +21,20 @@ package io.druid.query.timeseries;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
-import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IdentityFunction;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseQuery;
+import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
@@ -45,10 +48,10 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
-import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.groupby.orderby.LimitSpecs;
@@ -86,41 +89,61 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
 
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> mergeResults(
-      QueryRunner<Result<TimeseriesResultValue>> queryRunner
+      final QueryRunner<Result<TimeseriesResultValue>> runner
   )
   {
-    return new ResultMergeQueryRunner<Result<TimeseriesResultValue>>(queryRunner)
+    return new QueryRunner<Result<TimeseriesResultValue>>()
     {
       @Override
-      public Sequence<Result<TimeseriesResultValue>> doRun(
-          QueryRunner<Result<TimeseriesResultValue>> baseRunner,
+      @SuppressWarnings("unchecked")
+      public Sequence<Result<TimeseriesResultValue>> run(
           Query<Result<TimeseriesResultValue>> query,
-          Map<String, Object> context
+          Map<String, Object> responseContext
       )
       {
-        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          query = query.removePostActions()
-                       .withOverriddenContext(QueryContextKeys.FINAL_MERGE, false);
+        TimeseriesQuery timeseries = (TimeseriesQuery) query;
+        if (timeseries.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+          Sequence<Result<TimeseriesResultValue>> sequence = runner.run(
+              timeseries.removePostActions(),
+              responseContext
+          );
+          if (BaseQuery.getContextBySegment(timeseries)) {
+            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(
+                toPostAggregator(timeseries))
+            );
+          }
+          sequence = CombiningSequence.create(
+              sequence, ResultGranularTimestampComparator.create(timeseries), new TimeseriesBinaryFn(timeseries));
+          sequence = Sequences.map(sequence, toPostAggregator(timeseries));
+          return sequence;
         }
-        return super.doRun(baseRunner, query, context);
+        return runner.run(timeseries, responseContext);
       }
+    };
+  }
 
-      @Override
-      protected Ordering<Result<TimeseriesResultValue>> makeOrdering(Query<Result<TimeseriesResultValue>> query)
-      {
-        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
-      }
+  @SuppressWarnings("unchecked")
+  private IdentityFunction<Result<TimeseriesResultValue>> toPostAggregator(TimeseriesQuery timeseries)
+  {
+    if (GuavaUtils.isNullOrEmpty(timeseries.getPostAggregatorSpecs())) {
+      return IdentityFunction.INSTANCE;
+    }
+    final List<PostAggregator> postAggregators = PostAggregators.decorate(
+        timeseries.getPostAggregatorSpecs(),
+        timeseries.getAggregatorSpecs()
+    );
 
+    return new IdentityFunction<Result<TimeseriesResultValue>>()
+    {
       @Override
-      protected BinaryFn<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>, Result<TimeseriesResultValue>> createMergeFn(
-          Query<Result<TimeseriesResultValue>> input
-      )
+      public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> input)
       {
-        TimeseriesQuery query = (TimeseriesQuery) input;
-        return new TimeseriesBinaryFn(
-            query.getGranularity(),
-            query.getAggregatorSpecs()
-        );
+        final TimeseriesResultValue holder = input.getValue();
+        final Map<String, Object> values = holder.getBaseObject();
+        for (PostAggregator postAgg : postAggregators) {
+          values.put(postAgg.getName(), postAgg.compute(input.getTimestamp(), values));
+        }
+        return new Result<TimeseriesResultValue>(input.getTimestamp(), new TimeseriesResultValue(values));
       }
     };
   }
@@ -257,10 +280,10 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
 
   @Override
   public Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>> makePreComputeManipulatorFn(
-      final TimeseriesQuery query, final MetricManipulationFn fn
+      TimeseriesQuery query, MetricManipulationFn fn
   )
   {
-    return makeComputeManipulatorFn(query, fn, false);
+    return makeComputeManipulatorFn(query, fn);
   }
 
   @Override
@@ -268,42 +291,27 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       TimeseriesQuery query, MetricManipulationFn fn
   )
   {
-    return makeComputeManipulatorFn(query, fn, true);
+    return makeComputeManipulatorFn(query, fn);
   }
 
   private Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>> makeComputeManipulatorFn(
-      final TimeseriesQuery query, final MetricManipulationFn fn, final boolean calculatePostAggs
+      final TimeseriesQuery query, final MetricManipulationFn fn
   )
   {
-    final List<PostAggregator> postAggregators = PostAggregators.decorate(
-        query.getPostAggregatorSpecs(),
-        query.getAggregatorSpecs()
-    );
-
+    if (fn == MetricManipulatorFns.identity() || GuavaUtils.isNullOrEmpty(query.getAggregatorSpecs())) {
+      return Functions.identity();
+    }
     return new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
     {
       @Override
       public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> result)
       {
         final TimeseriesResultValue holder = result.getValue();
-        final Map<String, Object> values = Maps.newLinkedHashMap(holder.getBaseObject());
-        if (calculatePostAggs) {
-          // put non finalized aggregators for calculating dependent post Aggregators
-          for (AggregatorFactory agg : query.getAggregatorSpecs()) {
-            values.put(agg.getName(), holder.getMetric(agg.getName()));
-          }
-          for (PostAggregator postAgg : postAggregators) {
-            values.put(postAgg.getName(), postAgg.compute(result.getTimestamp(), values));
-          }
-        }
+        final Map<String, Object> values = holder.getBaseObject();
         for (AggregatorFactory agg : query.getAggregatorSpecs()) {
           values.put(agg.getName(), fn.manipulate(agg, holder.getMetric(agg.getName())));
         }
-
-        return new Result<TimeseriesResultValue>(
-            result.getTimestamp(),
-            new TimeseriesResultValue(values)
-        );
+        return new Result<TimeseriesResultValue>(result.getTimestamp(), new TimeseriesResultValue(values));
       }
     };
   }
@@ -325,7 +333,8 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         Sequence<Result<TimeseriesResultValue>> sequence;
         if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
           sequence = Sequences.map(
-              runner.run(query, responseContext), new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
+              runner.run(query, responseContext),
+              new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
               {
                 @Override
                 public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> input)
@@ -444,10 +453,9 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           @Override
           public Sequence<Result<TimeseriesResultValue>> apply(Interval interval)
           {
-            return engine.process(
-                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                segment,
-                null
+            return Sequences.map(
+                engine.process(outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)), segment),
+                toPostAggregator(outerQuery)
             );
           }
         };

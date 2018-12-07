@@ -37,10 +37,12 @@ public class TimeseriesBinaryFn
   private final Granularity gran;
   private final List<AggregatorFactory> aggregations;
 
-  public TimeseriesBinaryFn(
-      Granularity granularity,
-      List<AggregatorFactory> aggregations
-  )
+  public TimeseriesBinaryFn(TimeseriesQuery timeseriesQuery)
+  {
+    this(timeseriesQuery.getGranularity(), timeseriesQuery.getAggregatorSpecs());
+  }
+
+  public TimeseriesBinaryFn(Granularity granularity, List<AggregatorFactory> aggregations)
   {
     this.gran = granularity;
     this.aggregations = AggregatorFactory.toCombiner(aggregations);

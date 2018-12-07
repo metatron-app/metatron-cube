@@ -111,18 +111,18 @@ public class BySegmentResultValueClass<T> implements BySegmentResultValue<T>
     return result;
   }
 
-  public static <T> IdentityFunction<Result<BySegmentResultValueClass<T>>> deserializer(final Function<T, T> deserializer)
+  public static <T> IdentityFunction<Result<BySegmentResultValueClass<T>>> applyAll(final Function<T, T> function)
   {
     return new IdentityFunction<Result<BySegmentResultValueClass<T>>>()
     {
       @Override
       public Result<BySegmentResultValueClass<T>> apply(Result<BySegmentResultValueClass<T>> input)
       {
-        final BySegmentResultValueClass<T> bySegmentValue = input.getValue();
+        final BySegmentResultValue<T> bySegmentValue = input.getValue();
         return new Result<>(
             input.getTimestamp(),
             new BySegmentResultValueClass<T>(
-                Lists.transform(bySegmentValue.getResults(), deserializer),
+                Lists.transform(bySegmentValue.getResults(), function),
                 bySegmentValue.getSegmentId(),
                 bySegmentValue.getInterval()
             )
