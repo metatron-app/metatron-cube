@@ -205,14 +205,12 @@ public class TestHelper
   private static <T> void assertObjects(Iterable<T> expectedResults, Iterable<T> actualResults, String msg)
   {
     Iterator resultsIter = actualResults.iterator();
-    Iterator resultsIter2 = actualResults.iterator();
     Iterator expectedResultsIter = expectedResults.iterator();
 
     int index = 0;
-    while (resultsIter.hasNext() && resultsIter2.hasNext() && expectedResultsIter.hasNext()) {
+    while (resultsIter.hasNext() && expectedResultsIter.hasNext()) {
       Object expectedNext = expectedResultsIter.next();
       final Object next = resultsIter.next();
-      final Object next2 = resultsIter2.next();
 
       String failMsg = msg + "-" + index++;
       String failMsg2 = String.format("%s: Second iterator bad, multiple calls to iterator() should be safe", failMsg);
@@ -220,22 +218,14 @@ public class TestHelper
       if (expectedNext instanceof Row) {
         // HACK! Special casing for groupBy
         assertRow(failMsg, (Row) expectedNext, (Row) next);
-        assertRow(failMsg2, (Row) expectedNext, (Row) next2);
       } else {
         Assert.assertEquals(failMsg, expectedNext, next);
-        Assert.assertEquals(failMsg2, expectedNext, next2);
       }
     }
 
     if (resultsIter.hasNext()) {
       Assert.fail(
           String.format("%s: Expected resultsIter to be exhausted, next element was %s", msg, resultsIter.next())
-      );
-    }
-
-    if (resultsIter2.hasNext()) {
-      Assert.fail(
-          String.format("%s: Expected resultsIter2 to be exhausted, next element was %s", msg, resultsIter.next())
       );
     }
 

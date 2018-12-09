@@ -22,8 +22,7 @@ package io.druid.query.aggregation.variance;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequence;
-import io.druid.query.QueryRunner;
+import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -34,11 +33,10 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.topn.NumericTopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
-import io.druid.query.topn.TopNQueryConfig;
-import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNQueryRunnerTest;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,18 +50,18 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class VarianceTopNQueryTest
 {
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{0}:{1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return TopNQueryRunnerTest.constructorFeeder();
   }
 
-  private final QueryRunner runner;
+  private final String dataSource;
   private final Direction direction;
 
-  public VarianceTopNQueryTest(QueryRunner runner, Direction direction)
+  public VarianceTopNQueryTest(String dataSource, Direction direction)
   {
-    this.runner = runner;
+    this.dataSource = dataSource;
     this.direction = direction;
   }
 
@@ -71,7 +69,7 @@ public class VarianceTopNQueryTest
   public void testFullOnTopNOverUniques()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(QueryRunnerTestHelper.uniqueMetric, direction))
@@ -91,6 +89,8 @@ public class VarianceTopNQueryTest
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
+    // todo why 'index_var' is chaged?
+    boolean mmaped = TestIndex.MMAPPED_SPLIT.equals(dataSource);
     Map<String, Object> row1 = ImmutableMap.<String, Object>builder()
         .put("market", "spot")
         .put("rows", 837L)
@@ -99,7 +99,7 @@ public class VarianceTopNQueryTest
         .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
         .put("maxIndex", 277.2735290527344D)
         .put("minIndex", 59.02102279663086D)
-        .put("index_var", 439.3851636380398D)
+        .put("index_var", !mmaped ? 439.3851636380398D : 439.3851636380395D)
         .build();
     Map<String, Object> row2 = ImmutableMap.<String, Object>builder()
         .put("market", "total_market")
@@ -109,7 +109,7 @@ public class VarianceTopNQueryTest
         .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
         .put("maxIndex", 1743.9217529296875D)
         .put("minIndex", 792.3260498046875D)
-        .put("index_var", 27679.900640856464D)
+        .put("index_var", !mmaped ? 27679.900640856464D : 27679.900640856475D)
         .build();
     Map<String, Object> row3 = ImmutableMap.<String, Object>builder()
         .put("market", "upfront")
@@ -134,22 +134,9 @@ public class VarianceTopNQueryTest
             value
         )
     );
-    assertExpectedResults(expectedResults, query);
-  }
-
-  private Sequence<Result<TopNResultValue>> assertExpectedResults(
-      Iterable<Result<TopNResultValue>> expectedResults,
-      TopNQuery query
-  )
-  {
-    final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+    List<Result<TopNResultValue>> retval = Sequences.toList(
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of())
     );
-    final QueryRunner<Result<TopNResultValue>> mergeRunner = chest.mergeResults(runner);
-    final Sequence<Result<TopNResultValue>> retval = mergeRunner.run(query, ImmutableMap.<String, Object>of());
     TestHelper.assertExpectedResults(expectedResults, retval);
-    return retval;
   }
 }

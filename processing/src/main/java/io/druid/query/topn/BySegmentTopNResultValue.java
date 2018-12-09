@@ -28,6 +28,7 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -78,6 +79,31 @@ public class BySegmentTopNResultValue extends TopNResultValue implements BySegme
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    BySegmentTopNResultValue maps = (BySegmentTopNResultValue) o;
+    return Objects.equals(results, maps.results) &&
+           Objects.equals(segmentId, maps.segmentId) &&
+           Objects.equals(interval, maps.interval);
+  }
+
+  @Override
+  public int hashCode()
+  {
+
+    return Objects.hash(super.hashCode(), results, segmentId, interval);
   }
 
   @Override

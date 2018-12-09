@@ -21,28 +21,24 @@ package io.druid.query.topn;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.IAE;
-import com.metamx.common.ISE;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
-import io.druid.collections.StupidPool;
+import com.google.common.collect.Sets;
+import io.druid.common.DateTimes;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
-import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
-import io.druid.query.QueryRunner;
+import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
-import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -64,7 +60,6 @@ import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.ordering.Direction;
@@ -73,6 +68,7 @@ import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -82,105 +78,59 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
 @RunWith(Parameterized.class)
 public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 {
-  @Parameterized.Parameters(name = "direction={1}")
+  public static final Map<String, Object> CONTEXT = ImmutableMap.of();
+
+  @Parameterized.Parameters(name = "{0}:{1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    List<QueryRunner<Result<TopNResultValue>>> retVal = Lists.newArrayList();
-    retVal.addAll(
-        QueryRunnerTestHelper.makeQueryRunners(
-            new TopNQueryRunnerFactory(
-                TestQueryRunners.getPool(),
-                new TopNQueryQueryToolChest(
-                    new TopNQueryConfig(),
-                    TestHelper.testTopNQueryEngine(),
-                    QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                ),
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
+    return Collections2.transform(
+        Sets.cartesianProduct(
+            Arrays.<Set<Object>>asList(
+                Sets.<Object>newHashSet(TestIndex.DS_NAMES),
+                Sets.<Object>newHashSet(Direction.ASCENDING, Direction.DESCENDING)
             )
-        )
+        ), new Function<List<Object>, Object[]>()
+        {
+          @Override
+          public Object[] apply(List<Object> input)
+          {
+            return input.toArray();
+          }
+        }
     );
-    retVal.addAll(
-        QueryRunnerTestHelper.makeQueryRunners(
-            new TopNQueryRunnerFactory(
-                new StupidPool<ByteBuffer>(
-                    new Supplier<ByteBuffer>()
-                    {
-                      @Override
-                      public ByteBuffer get()
-                      {
-                        return ByteBuffer.allocate(20000);
-                      }
-                    }
-                ),
-                new TopNQueryQueryToolChest(
-                    new TopNQueryConfig(),
-                    TestHelper.testTopNQueryEngine(),
-                    QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                ),
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
-            )
-        )
-    );
-
-    return QueryRunnerTestHelper.cartesian(retVal, Arrays.asList(Direction.DESCENDING, Direction.ASCENDING));
   }
 
-  private final QueryRunner<Result<TopNResultValue>> runner;
+  private final String dataSource;
   private final Direction direction;
 
-  public TopNQueryRunnerTest(
-      QueryRunner<Result<TopNResultValue>> runner,
-      Direction direction
-  )
+  public TopNQueryRunnerTest(String dataSource, Direction direction)
   {
-    this.runner = runner;
+    this.dataSource = dataSource;
     this.direction = direction;
   }
 
-  private Sequence<Result<TopNResultValue>> assertExpectedResults(
+  private List<Result<TopNResultValue>> assertExpectedResults(
       Iterable<Result<TopNResultValue>> expectedResults,
       TopNQuery query
   )
   {
-    final Sequence<Result<TopNResultValue>> retval = runWithMerge(query);
-    TestHelper.assertExpectedResults(expectedResults, retval);
-    return retval;
-  }
-
-  private Sequence<Result<TopNResultValue>> runWithMerge(
-      TopNQuery query
-  )
-  {
-    return runWithMerge(query, ImmutableMap.<String, Object>of());
-  }
-
-  private Sequence<Result<TopNResultValue>> runWithMerge(
-      TopNQuery query, Map<String, Object> context
-  )
-  {
-    final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    );
-    final QueryRunner<Result<TopNResultValue>> mergeRunner = chest.mergeResults(runner);
-    return mergeRunner.run(query, context);
+    List<Result<TopNResultValue>> results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
+    TestHelper.assertExpectedResults(expectedResults, results);
+    return results;
   }
 
   private List<Map<String, Object>> createExpectedRows(String[] columnNames, Object[]... values)
@@ -201,7 +151,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testFullOnTopN()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(indexMetric, direction))
@@ -257,14 +207,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(new DateTime("2011-01-12T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, ImmutableMap.<String, Object>of()));
+    assertExpectedResults(expectedResults, query);
   }
 
   @Test
   public void testFullOnTopNOverPostAggs()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(addRowsIndexConstantMetric, direction))
@@ -305,7 +255,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testFullOnTopNOverUniques()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(uniqueMetric, direction))
@@ -353,7 +303,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverMissingUniques()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.uniqueMetric)
@@ -392,7 +342,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverHyperUniqueFinalizingPostAggregator()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
@@ -436,7 +386,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverHyperUniqueExpression()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
@@ -481,7 +431,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverHyperUniqueExpressionRounded()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
@@ -523,13 +473,11 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testTopNBySegment()
   {
-
-    final HashMap<String, Object> specialContext = new HashMap<String, Object>();
-    specialContext.put("bySegment", "true");
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(indexMetric, direction))
@@ -537,9 +485,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .intervals(QueryRunnerTestHelper.firstToThird)
         .aggregators(QueryRunnerTestHelper.commonAggregators)
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
-        .context(specialContext)
         .build();
-
 
     List<Map<String, Object>> expectedRows = createExpectedRows(
         new String[]{"market", "index", "addRowsIndexConstant", "rows", "uniques"},
@@ -550,76 +496,34 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     if (direction == Direction.ASCENDING) {
       Collections.reverse(expectedRows);
     }
-
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
         new Result<TopNResultValue>(new DateTime("2011-04-01T00:00:00.000Z"), new TopNResultValue(expectedRows))
     );
+    assertExpectedResults(expectedResults, query);
 
-    Sequence<Result<TopNResultValue>> results = runWithMerge(
-        query,
-        specialContext
+    boolean mmapedSplit = dataSource.equals(TestIndex.MMAPPED_SPLIT);
+    DateTime timestamp = DateTimes.of(mmapedSplit ? "2011-03-01" : "2011-01-12");
+    String segmentId = mmapedSplit ?
+                       dataSource + "_2011-03-01T00:00:00.000Z_2011-05-01T00:00:00.000Z_0" :
+                       dataSource + "_2011-01-12T00:00:00.000Z_2011-05-01T00:00:00.000Z_0";
+    List<Result<BySegmentResultValueClass>> expected = Arrays.asList(
+        new Result<BySegmentResultValueClass>(
+            timestamp,
+            new BySegmentResultValueClass<>(expectedResults, segmentId, new Interval("2011-04-01/2011-04-03"))
+        )
     );
-    List<Result<BySegmentTopNResultValue>> resultList = Sequences.toList(
-        Sequences.map(
-            results,
-            new Function<Result<TopNResultValue>, Result<BySegmentTopNResultValue>>()
-            {
-              @Nullable
-              @Override
-              public Result<BySegmentTopNResultValue> apply(
-                  Result<TopNResultValue> input
-              )
-              {
-                // Stupid type erasure
-                Object val = input.getValue();
-                if (val instanceof BySegmentResultValue) {
-                  BySegmentResultValue bySegVal = (BySegmentResultValue) val;
-                  List<?> results = bySegVal.getResults();
-                  return new Result<BySegmentTopNResultValue>(
-                      input.getTimestamp(),
-                      new BySegmentTopNResultValue(
-                          Lists.transform(
-                              results,
-                              new Function<Object, Result<TopNResultValue>>()
-                              {
-                                @Nullable
-                                @Override
-                                public Result<TopNResultValue> apply(@Nullable Object input)
-                                {
-                                  if (Preconditions.checkNotNull(input) instanceof Result) {
-                                    Result result = (Result) input;
-                                    Object resVal = result.getValue();
-                                    if (resVal instanceof TopNResultValue) {
-                                      return new Result<TopNResultValue>(
-                                          result.getTimestamp(),
-                                          (TopNResultValue) resVal
-                                      );
-                                    }
-                                  }
-                                  throw new IAE("Bad input: [%s]", input);
-                                }
-                              }
-                          ),
-                          bySegVal.getSegmentId(),
-                          bySegVal.getInterval()
-                      )
-                  );
-                }
-                throw new ISE("Bad type");
-              }
-            }
-        ),
-        Lists.<Result<BySegmentTopNResultValue>>newArrayList()
+    Query bySegmentQuery = query.withOverriddenContext("bySegment", true);
+    List<Result<BySegmentResultValueClass>> bySegment = Sequences.toList(
+        bySegmentQuery.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
     );
-    Result<BySegmentTopNResultValue> result = resultList.get(0);
-    TestHelper.assertExpectedResults(expectedResults, result.getValue().getResults());
+    TestHelper.assertExpectedResults(expected, bySegment);
   }
 
   @Test
   public void testTopN()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -669,7 +573,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     // cannot do this, currently.. use group-by query
     new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .virtualColumn(new ExprVirtualColumn("index", "metric"))
         .dimension("metric")
@@ -684,7 +588,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNByUniques()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec("uniques"))
@@ -732,7 +636,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithOrFilter1()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront", "spot")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -780,7 +684,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithOrFilter2()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -821,7 +725,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithFilter1()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "upfront")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -855,7 +759,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithFilter2()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -903,7 +807,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithFilter2OneDay()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -955,7 +859,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithNonExistentFilterInOr()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront", "billyblank")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -996,7 +900,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithNonExistentFilter()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "billyblank")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -1008,7 +912,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .build();
     HashMap<String, Object> context = new HashMap<String, Object>();
     assertExpectedResults(
-        Lists.<Result<TopNResultValue>>newArrayList(
+        Arrays.asList(
             new Result<TopNResultValue>(
                 new DateTime("2011-04-01T00:00:00.000Z"),
                 new TopNResultValue(Lists.<Map<String, Object>>newArrayList())
@@ -1034,7 +938,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                                           )
                                       ).build();
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(andDimFilter)
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -1045,7 +949,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
     assertExpectedResults(
-        Lists.<Result<TopNResultValue>>newArrayList(
+        Arrays.asList(
             new Result<TopNResultValue>(
                 new DateTime("2011-04-01T00:00:00.000Z"),
                 new TopNResultValue(Lists.<Map<String, Object>>newArrayList())
@@ -1058,7 +962,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithMultiValueDimFilter1()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.placementishDimension, "m")
         .dimension(QueryRunnerTestHelper.marketDimension)
@@ -1069,30 +973,29 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    assertExpectedResults(
-        Sequences.toList(
-            runWithMerge(
-                new TopNQueryBuilder()
-                    .dataSource(QueryRunnerTestHelper.dataSource)
-                    .granularity(QueryRunnerTestHelper.allGran)
-                    .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
-                    .dimension(QueryRunnerTestHelper.marketDimension)
-                    .metric(QueryRunnerTestHelper.indexMetric)
-                    .threshold(4)
-                    .intervals(QueryRunnerTestHelper.firstToThird)
-                    .aggregators(QueryRunnerTestHelper.commonAggregators)
-                    .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
-                    .build()
-            ), Lists.<Result<TopNResultValue>>newArrayList()
-        ), query
+    final List<Result<TopNResultValue>> expected = Sequences.toList(
+        new TopNQueryBuilder()
+            .dataSource(dataSource)
+            .granularity(QueryRunnerTestHelper.allGran)
+            .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
+            .dimension(QueryRunnerTestHelper.marketDimension)
+            .metric(QueryRunnerTestHelper.indexMetric)
+            .threshold(4)
+            .intervals(QueryRunnerTestHelper.firstToThird)
+            .aggregators(QueryRunnerTestHelper.commonAggregators)
+            .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+            .build()
+            .run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
     );
+
+    assertExpectedResults(expected, query);
   }
 
   @Test
   public void testTopNWithMultiValueDimFilter2()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.placementishDimension, "m", "a", "b")
         .dimension(QueryRunnerTestHelper.qualityDimension)
@@ -1103,30 +1006,28 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    assertExpectedResults(
-        Sequences.toList(
-            runWithMerge(
-                new TopNQueryBuilder()
-                    .dataSource(QueryRunnerTestHelper.dataSource)
-                    .granularity(QueryRunnerTestHelper.allGran)
-                    .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine", "automotive", "business")
-                    .dimension(QueryRunnerTestHelper.qualityDimension)
-                    .metric(QueryRunnerTestHelper.indexMetric)
-                    .threshold(4)
-                    .intervals(QueryRunnerTestHelper.firstToThird)
-                    .aggregators(QueryRunnerTestHelper.commonAggregators)
-                    .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
-                    .build()
-            ), Lists.<Result<TopNResultValue>>newArrayList()
-        ), query
+    List<Result<TopNResultValue>> expected = Sequences.toList(
+        new TopNQueryBuilder()
+            .dataSource(dataSource)
+            .granularity(QueryRunnerTestHelper.allGran)
+            .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine", "automotive", "business")
+            .dimension(QueryRunnerTestHelper.qualityDimension)
+            .metric(QueryRunnerTestHelper.indexMetric)
+            .threshold(4)
+            .intervals(QueryRunnerTestHelper.firstToThird)
+            .aggregators(QueryRunnerTestHelper.commonAggregators)
+            .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+            .build()
+            .run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
     );
+    assertExpectedResults(expected, query);
   }
 
   @Test
   public void testTopNWithMultiValueDimFilter3()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.placementishDimension, "a")
         .dimension(QueryRunnerTestHelper.placementishDimension)
@@ -1137,7 +1038,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    final ArrayList<Result<TopNResultValue>> expectedResults = Lists.newArrayList(
+    final List<Result<TopNResultValue>> expectedResults = Arrays.asList(
         new Result<>(
             new DateTime("2011-04-01T00:00:00.000Z"),
             new TopNResultValue(
@@ -1167,7 +1068,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithMultiValueDimFilter4()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.placementishDimension, "a", "b")
         .dimension(QueryRunnerTestHelper.placementishDimension)
@@ -1178,7 +1079,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    final ArrayList<Result<TopNResultValue>> expectedResults = Lists.newArrayList(
+    final List<Result<TopNResultValue>> expectedResults = Arrays.asList(
         new Result<>(
             new DateTime("2011-04-01T00:00:00.000Z"),
             new TopNResultValue(
@@ -1215,7 +1116,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithMultiValueDimFilter5()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.placementishDimension, "preferred")
         .dimension(QueryRunnerTestHelper.placementishDimension)
@@ -1226,7 +1127,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    final ArrayList<Result<TopNResultValue>> expectedResults = Lists.newArrayList(
+    final List<Result<TopNResultValue>> expectedResults = Arrays.asList(
         new Result<>(
             new DateTime("2011-04-01T00:00:00.000Z"),
             new TopNResultValue(
@@ -1270,7 +1171,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithNonExistentDimension()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension("doesn't exist")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1304,7 +1205,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithNonExistentDimensionAndActualFilter()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters(QueryRunnerTestHelper.marketDimension, "upfront")
         .dimension("doesn't exist")
@@ -1339,7 +1240,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithNonExistentDimensionAndNonExistentFilter()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .filters("doesn't exist", null)
         .dimension("doesn't exist")
@@ -1374,7 +1275,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographic()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec(""))
@@ -1421,7 +1322,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicWithPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec("spot"))
@@ -1461,7 +1362,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicWithNonExistingPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec("t"))
@@ -1501,7 +1402,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNInvertedLexicographicWithPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new InvertedTopNMetricSpec(new LexicographicTopNMetricSpec("upfront")))
@@ -1541,7 +1442,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNInvertedLexicographicWithNonExistingPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new InvertedTopNMetricSpec(new LexicographicTopNMetricSpec("u")))
@@ -1582,7 +1483,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtractionToOne() throws IOException
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1601,7 +1502,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Granularity gran = QueryGranularities.DAY;
     TimeseriesQuery tsQuery = Druids.newTimeseriesQueryBuilder()
-                                    .dataSource(QueryRunnerTestHelper.dataSource)
+                                    .dataSource(dataSource)
                                     .granularity(gran)
                                     .intervals(QueryRunnerTestHelper.fullOnInterval)
                                     .aggregators(
@@ -1630,8 +1531,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         )
     );
     List<Result<TopNResultValue>> list = Sequences.toList(
-        runWithMerge(query),
-        new ArrayList<Result<TopNResultValue>>()
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(list.size(), 1);
     Assert.assertEquals("Didn't merge results", list.get(0).getValue().getValue().size(), 1);
@@ -1642,7 +1542,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNCollapsingDimExtraction()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1711,7 +1611,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtraction()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1766,7 +1666,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtractionFastTopNOptimalWithReplaceMissing()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1831,7 +1731,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtractionFastTopNUnOptimalWithReplaceMissing()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1897,7 +1797,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtractionFastTopNOptimal()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -1962,7 +1862,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDimExtractionFastTopNUnOptimal()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2029,7 +1929,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtractionOptimalNamespace()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2096,7 +1996,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtractionUnOptimalNamespace()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2164,7 +2064,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtractionOptimalNamespaceWithRunner()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2231,7 +2131,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtraction()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2285,7 +2185,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testInvertedTopNLexicographicDimExtraction2()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2339,7 +2239,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtractionWithPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2386,7 +2286,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNLexicographicDimExtractionWithSortingPreservedAndPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2457,7 +2357,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testInvertedTopNLexicographicDimExtractionWithPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2504,7 +2404,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testInvertedTopNLexicographicDimExtractionWithPreviousStop2()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -2578,7 +2478,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     };
 
     final TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .metric("rows")
         .threshold(4)
@@ -2632,12 +2532,12 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
   }
 
-  @Test
   /**
    * This test exists only to show what the current behavior is and not necessarily to define that this is
    * correct behavior.  In fact, the behavior when returning the empty string from a DimExtractionFn is, by
    * contract, undefined, so this can do anything.
    */
+  @Test
   public void testTopNWithEmptyStringProducingDimExtractionFn()
   {
     final ExtractionFn emptyStringDimExtraction = new DimExtractionFn()
@@ -2668,7 +2568,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     };
 
     final TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .metric("rows")
         .threshold(4)
@@ -2726,7 +2626,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query =
         new TopNQueryBuilder()
-            .dataSource(QueryRunnerTestHelper.dataSource)
+            .dataSource(dataSource)
             .granularity(QueryRunnerTestHelper.allGran)
             .dimension(QueryRunnerTestHelper.marketDimension)
             .metric(new InvertedTopNMetricSpec(new NumericTopNMetricSpec(QueryRunnerTestHelper.indexMetric)))
@@ -2774,7 +2674,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query =
         new TopNQueryBuilder()
-            .dataSource(QueryRunnerTestHelper.dataSource)
+            .dataSource(dataSource)
             .granularity(QueryRunnerTestHelper.allGran)
             .dimension(QueryRunnerTestHelper.marketDimension)
             .metric(new NumericTopNMetricSpec("numVals"))
@@ -2825,7 +2725,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     TopNQuery query =
         new TopNQueryBuilder()
-            .dataSource(QueryRunnerTestHelper.dataSource)
+            .dataSource(dataSource)
             .granularity(QueryRunnerTestHelper.allGran)
             .dimension(dimSpec)
             .metric(new NumericTopNMetricSpec("numVals"))
@@ -2870,7 +2770,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNDependentPostAgg()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.dependentPostAggMetric)
@@ -2954,7 +2854,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNBySegmentResults()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.dependentPostAggMetric)
@@ -3017,8 +2917,8 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     List<Result<BySegmentResultValueClass>> expectedResults = Collections.singletonList(
         new Result<BySegmentResultValueClass>(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new BySegmentResultValueClass(
-                Collections.singletonList(
+            new BySegmentResultValueClass<>(
+                Arrays.asList(
                     new Result<TopNResultValue>(
                         new DateTime("2011-01-12T00:00:00.000Z"),
                         topNResult
@@ -3029,8 +2929,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
             )
         )
     );
-    Sequence<Result<TopNResultValue>> results = runWithMerge(query);
-    for (Result<TopNResultValue> result : Sequences.toList(results, new ArrayList<Result<TopNResultValue>>())) {
+    List<Result<TopNResultValue>> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    for (Result<TopNResultValue> result : results) {
       Assert.assertEquals(result.getValue(), result.getValue()); // TODO: fix this test
     }
   }
@@ -3039,7 +2941,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNWithTimeColumn()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .intervals(QueryRunnerTestHelper.firstToThird)
         .aggregators(
             Arrays.asList(
@@ -3097,7 +2999,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testNumericDimensionTopNWithNullPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC_NAME))
@@ -3122,14 +3024,17 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
             )
         )
     );
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, new HashMap<String, Object>()));
+    List<Result<TopNResultValue>> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    TestHelper.assertExpectedResults(expectedResults, results);
   }
 
   @Test
   public void testTopNTimeExtraction()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension(
             new ExtractionDimensionSpec(
@@ -3179,7 +3084,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverNullDimension()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -3224,7 +3129,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverNullDimensionWithFilter()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension("null_column")
         .filters(
@@ -3272,7 +3177,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverPartialNullDimension()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension("partial_null_column")
         .metric(QueryRunnerTestHelper.uniqueMetric)
@@ -3309,7 +3214,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverPartialNullDimensionWithFilterOnNullValue()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension("partial_null_column")
         .metric(QueryRunnerTestHelper.uniqueMetric)
@@ -3341,7 +3246,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testTopNOverPartialNullDimensionWithFilterOnNOTNullValue()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension("partial_null_column")
         .metric(QueryRunnerTestHelper.uniqueMetric)
@@ -3373,7 +3278,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   public void testAlphaNumericTopNWithNullPreviousStop()
   {
     TopNQuery query = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new AlphaNumericTopNMetricSpec(null))
@@ -3398,7 +3303,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
             )
         )
     );
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, new HashMap<String, Object>()));
+    List<Result<TopNResultValue>> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    TestHelper.assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -3409,7 +3317,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
 
-    TopNQuery query = new TopNQueryBuilder().dataSource(QueryRunnerTestHelper.dataSource)
+    TopNQuery query = new TopNQueryBuilder().dataSource(dataSource)
                                             .granularity(QueryRunnerTestHelper.allGran)
                                             .dimension(QueryRunnerTestHelper.marketDimension)
                                             .metric("rows")
@@ -3418,11 +3326,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                                             .aggregators(QueryRunnerTestHelper.commonAggregators)
                                             .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                             .filters(
-                                                new ExtractionDimFilter(
+                                                new SelectorDimFilter(
                                                     QueryRunnerTestHelper.marketDimension,
                                                     "spot0",
-                                                    lookupExtractionFn,
-                                                    null
+                                                    lookupExtractionFn
                                                 )
                                             )
                                             .build();
@@ -3445,9 +3352,6 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     );
 
     assertExpectedResults(expectedResults, query);
-    // Assert the optimization path as well
-    final Sequence<Result<TopNResultValue>> retval = runWithPreMergeAndMerge(query);
-    TestHelper.assertExpectedResults(expectedResults, retval);
   }
 
   @Test
@@ -3458,9 +3362,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
-    DimFilter extractionFilter = new ExtractionDimFilter("null_column", "NULL", lookupExtractionFn, null);
+    DimFilter extractionFilter = new SelectorDimFilter("null_column", "NULL", lookupExtractionFn);
     TopNQueryBuilder topNQueryBuilder = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -3505,21 +3409,6 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     assertExpectedResults(expectedResults, topNQueryWithNULLValueExtraction);
   }
 
-  private Sequence<Result<TopNResultValue>> runWithPreMergeAndMerge(TopNQuery query){
-    return runWithPreMergeAndMerge(query, ImmutableMap.<String, Object>of());
-  }
-
-  private Sequence<Result<TopNResultValue>> runWithPreMergeAndMerge(TopNQuery query, Map<String, Object> context)
-  {
-    final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    );
-    final QueryRunner<Result<TopNResultValue>> Runner = chest.mergeResults(chest.preMergeQueryDecoration(runner));
-    return Runner.run(query, context);
-  }
-
   @Test
   public void testTopNWithExtractionFilterNoExistingValue()
   {
@@ -3528,9 +3417,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, true);
-    DimFilter extractionFilter = new ExtractionDimFilter("null_column", "NULL", lookupExtractionFn, null);
+    DimFilter extractionFilter = new SelectorDimFilter("null_column", "NULL", lookupExtractionFn);
     TopNQueryBuilder topNQueryBuilder = new TopNQueryBuilder()
-        .dataSource(QueryRunnerTestHelper.dataSource)
+        .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -3565,8 +3454,5 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         )
     );
     assertExpectedResults(expectedResults, topNQueryWithNULLValueExtraction);
-    // Assert the optimization path as well
-    final Sequence<Result<TopNResultValue>> retval = runWithPreMergeAndMerge(topNQueryWithNULLValueExtraction);
-    TestHelper.assertExpectedResults(expectedResults, retval);
   }
 }
