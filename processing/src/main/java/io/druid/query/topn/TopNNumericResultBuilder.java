@@ -85,7 +85,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
     this.timestamp = timestamp;
     this.dimSpec = dimSpec;
     this.metricName = metricName;
-    this.aggFactoryNames = TopNQueryQueryToolChest.extractFactoryName(aggFactories);
+    this.aggFactoryNames = AggregatorFactory.toNamesAsArray(aggFactories);
 
     this.postAggs = PostAggregators.decorate(
         AggregatorUtil.pruneDependentPostAgg(postAggs, metricName),

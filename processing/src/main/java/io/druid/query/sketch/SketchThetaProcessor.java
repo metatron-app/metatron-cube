@@ -62,11 +62,13 @@ public class SketchThetaProcessor extends PostProcessingOperator.Abstract
               @Override
               public Object apply(Object input)
               {
-                Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
-                Map<String, Object> result = element.getValue();
-                for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
-                  entry.setValue(SketchThetaPostAggregator.toMap(sketch.value(), 2, false));
+                Result<Object[]> element = (Result<Object[]>) input;
+                Object[] result = element.getValue();
+                for (int i = 0; i < result.length; i++) {
+                  if (result[i] instanceof TypedSketch) {
+                    TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
+                    result[i] = SketchThetaPostAggregator.toMap(sketch.value(), 2, false);
+                  }
                 }
                 return input;
               }

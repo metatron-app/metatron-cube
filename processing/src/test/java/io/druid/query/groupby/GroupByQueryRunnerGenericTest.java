@@ -3284,6 +3284,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(QueryRunnerTestHelper.allGran)
         .build();
 
+    String[] columnNames = {"__time", "alias", "rows", "idx", "uniq"};
+
     List<Row> expectedResults = Arrays.asList(
         createExpectedRow(
             "2011-04-01",

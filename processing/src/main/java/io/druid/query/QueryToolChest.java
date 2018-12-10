@@ -47,7 +47,6 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.  This API is still undergoing
@@ -238,48 +237,33 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   @SuppressWarnings("unchecked")
-  public <I> Query<I> prepareSubQuery(QueryType outerQuery, Query<I> innerQuery)
+  public <I> Query<I> prepareSubQuery(Query<ResultType> outerQuery, Query<I> innerQuery)
   {
     innerQuery = innerQuery.withOverriddenContext(BaseQuery.copyContextForMeta(outerQuery.getContext()));
     if (innerQuery instanceof Query.DimFilterSupport) {
       // todo pushdown predicate if possible (need input schema)
     }
-    return innerQuery;
+    // don't finalize result of sub-query
+    return innerQuery.withOverriddenContext(Query.FINALIZE, false);
   }
 
   /**
-   * @param subQueryRunner
    * @param segmentWalker
-   * @param executor
    * @param maxRowCount
    */
-  public <I> QueryRunner<ResultType> handleSubQuery(
-      QueryRunner<I> subQueryRunner,
-      QuerySegmentWalker segmentWalker,
-      ExecutorService executor,
-      int maxRowCount
-  )
+  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
     throw new UnsupportedOperationException("handleSourceQuery");
   }
 
   protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
   {
-    protected final QueryRunner<I> subQueryRunner;
     protected final QuerySegmentWalker segmentWalker;
-    protected final ExecutorService executor;
     protected final int maxRowCount;
 
-    protected SubQueryRunner(
-        QueryRunner<I> subQueryRunner,
-        QuerySegmentWalker segmentWalker,
-        ExecutorService executor,
-        int maxRowCount
-    )
+    protected SubQueryRunner(QuerySegmentWalker segmentWalker, int maxRowCount)
     {
-      this.subQueryRunner = subQueryRunner;
       this.segmentWalker = segmentWalker;
-      this.executor = executor;
       this.maxRowCount = maxRowCount;
     }
 
@@ -307,8 +291,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       long start = System.currentTimeMillis();
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
 
-      Query<I> subQuery = dataSource.getQuery();
-      Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQueryRunner.run(subQuery, responseContext));
+      Query<I> subQuery = prepareSubQuery(query, (Query<I>) dataSource.getQuery());
+      Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
       IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
       LOG.info(
           "Accumulating into intermediate index with dimensions %s and metrics %s",
@@ -343,13 +327,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
 
-      Query<I> subQuery = dataSource.getQuery();
+      Query<I> subQuery = prepareSubQuery(query, (Query<I>) dataSource.getQuery());
       Schema schema = Queries.relaySchema(subQuery, segmentWalker).asSchema(false);
       dataSource.setSchema(schema);   // will be used to resolve schema of outer query
 
       query = QueryUtils.resolveQuery(query, segmentWalker);
 
-      Sequence<Row> sequence = Queries.convertToRow(subQuery, subQueryRunner.run(subQuery, responseContext));
+      Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
       Cursor.WithResource cursor = ColumnSelectorFactories.toCursor(sequence, schema, query);
       if (cursor == null) {
         return Sequences.empty();
@@ -376,13 +360,9 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   // streaming only version
   public abstract class StreamingSubQueryRunner<I> extends SubQueryRunner<I>
   {
-    protected StreamingSubQueryRunner(
-        QueryRunner<I> subQueryRunner,
-        QuerySegmentWalker segmentWalker,
-        ExecutorService executor
-    )
+    protected StreamingSubQueryRunner(QuerySegmentWalker segmentWalker, int maxRowCount)
     {
-      super(subQueryRunner, segmentWalker, executor, -1);
+      super(segmentWalker, maxRowCount);
     }
 
     @Override

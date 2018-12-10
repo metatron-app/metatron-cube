@@ -84,7 +84,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -171,14 +170,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public <I> QueryRunner<Row> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)

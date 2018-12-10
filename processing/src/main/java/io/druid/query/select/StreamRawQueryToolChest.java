@@ -35,7 +35,6 @@ import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -113,20 +112,12 @@ public class StreamRawQueryToolChest extends QueryToolChest<Object[], StreamRawQ
   }
 
   @Override
-  public <I> QueryRunner<Object[]> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
+    return new StreamingSubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
-      protected final Function<Cursor, Sequence<Object[]>> streamQuery(
-          Query<Object[]> query,
-          Cursor cursor
-      )
+      protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query, Cursor cursor)
       {
         return StreamQueryEngine.converter((StreamRawQuery) query, new MutableInt());
       }

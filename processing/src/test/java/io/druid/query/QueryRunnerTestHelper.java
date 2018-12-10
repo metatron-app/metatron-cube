@@ -950,36 +950,21 @@ public class QueryRunnerTestHelper
     };
   }
 
-  public static <T> QueryRunner<T> toMergeRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
-      QueryRunner<T> runner,
-      Query<T> query
-  )
-  {
-    return toMergeRunner(factory, runner, query, false);
-  }
-
   @SuppressWarnings("unchecked")
-  private static <T> QueryRunner<T> toMergeRunner(
+  public static <T> QueryRunner<T> toMergeRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
       final QueryRunner<T> runner,
-      final Query<T> query,
-      final boolean subQuery
+      final Query<T> query
   )
   {
     QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    QueryRunner<T> resolved = subQuery ? runner : deserialize(runner, toolChest);
+    QueryRunner<T> resolved = deserialize(runner, toolChest);
     if (query.getDataSource() instanceof QueryDataSource) {
-      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      resolved = toMergeRunner(factory, resolved, innerQuery, true);
-      resolved = toolChest.handleSubQuery(resolved, SCHEMA_ONLY, null, 5000);
-    } else {
-      resolved = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(resolved)));
+      throw new UnsupportedOperationException("sub-query");
     }
-    if (!subQuery) {
-      resolved = toolChest.finalizeResults(resolved);
-    }
+    resolved = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(resolved)));
+    resolved = toolChest.finalizeResults(resolved);
     return toolChest.finalQueryDecoration(resolved);
   }
 

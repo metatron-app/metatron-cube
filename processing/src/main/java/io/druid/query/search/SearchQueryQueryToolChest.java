@@ -60,7 +60,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -97,7 +96,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       @Override
       protected Ordering<Result<SearchResultValue>> makeOrdering(Query<Result<SearchResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
+        return ResultGranularTimestampComparator.create(query);
       }
 
       @Override
@@ -146,15 +145,10 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   }
 
   @Override
-  public <I> QueryRunner<Result<SearchResultValue>> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Result<SearchResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
     return new SearchThresholdAdjustingQueryRunner(
-        new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+        new SubQueryRunner<I>(segmentWalker, maxRowCount)
         {
           @Override
           protected Function<Interval, Sequence<Result<SearchResultValue>>> query(

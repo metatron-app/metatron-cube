@@ -32,7 +32,7 @@ public class FluentQueryRunnerBuilder<T>
   private final QueryToolChest<T, Query<T>> toolChest;
   private final QueryRunner<T> baseRunner;
 
-  public static <T> FluentQueryRunnerBuilder create(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
+  public static <T> FluentQueryRunnerBuilder<T> create(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
   {
     return new FluentQueryRunnerBuilder<T>(toolChest, baseRunner);
   }
@@ -48,43 +48,47 @@ public class FluentQueryRunnerBuilder<T>
     return baseRunner;
   }
 
-  public FluentQueryRunnerBuilder from(QueryRunner<T> runner)
+  public FluentQueryRunnerBuilder<T> from(QueryRunner<T> runner)
   {
     return new FluentQueryRunnerBuilder<T>(toolChest, runner);
   }
 
-  public FluentQueryRunnerBuilder applyPreMergeDecoration()
+  public FluentQueryRunnerBuilder<T> applyRetry(RetryQueryRunnerConfig config, ObjectMapper jsonMapper)
+  {
+    return from(new RetryQueryRunner<T>(baseRunner, config, jsonMapper));
+  }
+
+  public FluentQueryRunnerBuilder<T> applyPreMergeDecoration()
   {
     return from(new UnionQueryRunner<T>(toolChest.preMergeQueryDecoration(baseRunner)));
   }
 
-  public FluentQueryRunnerBuilder applyMergeResults()
+  public FluentQueryRunnerBuilder<T> applyMergeResults()
   {
     return from(toolChest.mergeResults(baseRunner));
   }
 
-  public FluentQueryRunnerBuilder applyPostMergeDecoration()
+  public FluentQueryRunnerBuilder<T> applyPostMergeDecoration()
   {
     return from(toolChest.postMergeQueryDecoration(baseRunner));
   }
 
-  public FluentQueryRunnerBuilder applyFinalizeResults()
+  public FluentQueryRunnerBuilder<T> applyFinalizeResults()
   {
     return from(toolChest.finalizeResults(baseRunner));
   }
 
-  @SuppressWarnings("unchecked")
-  public FluentQueryRunnerBuilder applyFinalQueryDecoration()
+  public FluentQueryRunnerBuilder<T> applyFinalQueryDecoration()
   {
     return from(toolChest.finalQueryDecoration(baseRunner));
   }
 
-  public FluentQueryRunnerBuilder applyPostProcessingOperator(ObjectMapper mapper)
+  public FluentQueryRunnerBuilder<T> applyPostProcessingOperator(ObjectMapper mapper)
   {
     return from(PostProcessingOperators.wrap(baseRunner, mapper));
   }
 
-  public FluentQueryRunnerBuilder emitCPUTimeMetric(ServiceEmitter emitter)
+  public FluentQueryRunnerBuilder<T> emitCPUTimeMetric(ServiceEmitter emitter)
   {
     return from(
         CPUTimeMetricQueryRunner.safeBuild(

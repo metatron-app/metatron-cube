@@ -47,7 +47,6 @@ import org.joda.time.Interval;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -82,10 +81,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
       @Override
       protected Ordering<Result<Object[]>> makeOrdering(Query<Result<Object[]>> query)
       {
-        return ResultGranularTimestampComparator.create(
-            QueryGranularities.ALL,
-            query.isDescending()
-        );
+        return ResultGranularTimestampComparator.create(QueryGranularities.ALL, query.isDescending());
       }
 
       @Override
@@ -238,14 +234,9 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
   }
 
   @Override
-  public <I> QueryRunner<Result<Object[]>> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Result<Object[]>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
       protected Function<Interval, Sequence<Result<Object[]>>> query(

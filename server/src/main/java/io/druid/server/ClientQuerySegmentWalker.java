@@ -25,7 +25,6 @@ import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.FluentQueryRunnerBuilder;
-import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -34,7 +33,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.query.RetryQueryRunner;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.UnionAllQuery;
@@ -84,34 +82,32 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    return makeRunner(query, true);
+    return makeRunner(query);
   }
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
-    return makeRunner(query, true);
+    return makeRunner(query);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean finalize)
+  private <T> QueryRunner<T> makeRunner(Query<T> query)
   {
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
-      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-      Query innerQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
       int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult
       );
-      QueryRunner<T> runner = toolChest.finalQueryDecoration(
-          toolChest.finalizeResults(
-              toolChest.handleSubQuery(makeRunner(innerQuery, false), this, exec, maxRowCount)
-          )
-      );
-      return PostProcessingOperators.wrap(runner, objectMapper);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this, maxRowCount);
+      return FluentQueryRunnerBuilder.create(toolChest, runner)
+                                     .applyFinalizeResults()
+                                     .applyFinalQueryDecoration()
+                                     .applyPostProcessingOperator(objectMapper)
+                                     .build();
     }
 
     if (query instanceof UnionAllQuery) {
@@ -122,19 +118,15 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
     }
 
-    FluentQueryRunnerBuilder<T> runner = FluentQueryRunnerBuilder.create(
-        toolChest, new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper)
-    );
-
-    runner = runner.applyPreMergeDecoration()
-                   .applyMergeResults()
-                   .applyPostMergeDecoration();
-    if (finalize) {
-      runner = runner.applyFinalizeResults()
-                     .emitCPUTimeMetric(emitter);
-    }
-    return runner.applyFinalQueryDecoration()
-                 .applyPostProcessingOperator(objectMapper)
-                 .build();
+    return FluentQueryRunnerBuilder.create(toolChest, baseClient)
+                                   .applyRetry(retryConfig, objectMapper)
+                                   .applyPreMergeDecoration()
+                                   .applyMergeResults()
+                                   .applyPostMergeDecoration()
+                                   .applyFinalizeResults()
+                                   .applyFinalQueryDecoration()
+                                   .applyPostProcessingOperator(objectMapper)
+                                   .emitCPUTimeMetric(emitter)
+                                   .build();
   }
 }

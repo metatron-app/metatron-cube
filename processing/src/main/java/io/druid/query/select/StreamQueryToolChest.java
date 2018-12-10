@@ -33,7 +33,6 @@ import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -93,14 +92,9 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   }
 
   @Override
-  public <I> QueryRunner<StreamQueryRow> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<StreamQueryRow> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
+    return new StreamingSubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
       protected final Function<Cursor, Sequence<StreamQueryRow>> streamQuery(

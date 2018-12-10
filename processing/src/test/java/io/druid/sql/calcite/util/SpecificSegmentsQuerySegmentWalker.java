@@ -288,7 +288,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   private <T> QueryRunner<T> makeQueryRunner(Query<T> query)
   {
     final Query<T> prepared = prepareQuery(query);
-    final QueryRunner<T> runner = toQueryRunner(prepared, false);
+    final QueryRunner<T> runner = toQueryRunner(prepared);
     return new QueryRunner<T>()
     {
       @Override
@@ -379,27 +379,24 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> toQueryRunner(Query<T> query, boolean subQuery)
+  private <T> QueryRunner<T> toQueryRunner(Query<T> query)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, query + " does not supports nested query");
-      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-      Query innerQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
 
       int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult
       );
-      QueryRunner runner = toQueryRunner(innerQuery, true);
-      runner = toolChest.finalQueryDecoration(
-          toolChest.finalizeResults(
-              toolChest.handleSubQuery(runner, this, executor, maxRowCount)
-          )
-      );
-      return PostProcessingOperators.wrap(runner, objectMapper);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this, maxRowCount);
+      return FluentQueryRunnerBuilder.create(toolChest, runner)
+                                     .applyFinalizeResults()
+                                     .applyFinalQueryDecoration()
+                                     .applyPostProcessingOperator(objectMapper)
+                                     .build();
     }
     if (query instanceof Query.IteratingQuery) {
       return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
@@ -411,35 +408,28 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
 
-    FluentQueryRunnerBuilder<T> runner = FluentQueryRunnerBuilder.create(
-        factory.getToolchest(), new QueryRunner<T>()
-        {
-          @Override
-          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-          {
-            return QueryUtils.mergeSort(query, Arrays.asList(
-                toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
-                toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
-            ));
-          }
-        }
-    );
-
-    runner = runner.applyPreMergeDecoration()
-                   .applyMergeResults()
-                   .applyPostMergeDecoration();
-    if (!subQuery) {
-      runner = runner.applyFinalizeResults();
-    }
-    return runner.applyFinalQueryDecoration()
-                 .applyPostProcessingOperator(objectMapper)
-                 .build();
+    QueryRunner<T> runner = new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return QueryUtils.mergeSort(query, Arrays.asList(
+            toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
+            toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+        ));
+      }
+    };
+    return FluentQueryRunnerBuilder.create(factory.getToolchest(), runner)
+                                   .applyPreMergeDecoration()
+                                   .applyMergeResults()
+                                   .applyPostMergeDecoration()
+                                   .applyFinalizeResults()
+                                   .applyFinalQueryDecoration()
+                                   .applyPostProcessingOperator(objectMapper)
+                                   .build();
   }
 
-  private <T> QueryRunner<T> toLocalQueryRunner(
-      Query<T> query,
-      Iterable<Pair<SegmentDescriptor, Segment>> segments
-  )
+  private <T> QueryRunner<T> toLocalQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
@@ -487,10 +477,8 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
 
     QueryRunner<T> runner = toolChest.finalQueryDecoration(
         toolChest.finalizeResults(
-            toolChest.postMergeQueryDecoration(
-                toolChest.mergeResults(
-                    factory.mergeRunners(executor, queryRunners, optimizer)
-                )
+            toolChest.mergeResults(
+                factory.mergeRunners(executor, queryRunners, optimizer)
             )
         )
     );

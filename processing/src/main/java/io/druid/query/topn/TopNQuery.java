@@ -434,6 +434,25 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
+  public TopNQuery removePostActions()
+  {
+    return new TopNQuery(
+        getDataSource(),
+        getVirtualColumns(),
+        getDimensionSpec(),
+        getTopNMetricSpec(),
+        getThreshold(),
+        getQuerySegmentSpec(),
+        getDimensionsFilter(),
+        getGranularity(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        null,
+        computeOverriddenContext(defaultPostActionContext())
+    );
+  }
+
+  @Override
   public String toString()
   {
     return "TopNQuery{" +

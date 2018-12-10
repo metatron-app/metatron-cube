@@ -64,7 +64,6 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -431,18 +430,14 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public <I> QueryRunner<Result<TimeseriesResultValue>> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Result<TimeseriesResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
       protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> query(
-          final Query<Result<TimeseriesResultValue>> query, Map<String, Object> context,
+          final Query<Result<TimeseriesResultValue>> query,
+          final Map<String, Object> context,
           final Segment segment
       )
       {

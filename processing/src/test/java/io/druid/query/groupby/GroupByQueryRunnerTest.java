@@ -2550,6 +2550,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
   // A subquery identical to the query should yield identical results
   @Test
+  @Ignore("sub-query")
   public void testIdenticalSubquery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2615,6 +2616,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithMultipleIntervalsInOuterQuery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2687,6 +2689,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithExtractionFnInOuterQuery()
   {
     //https://github.com/druid-io/druid/issues/2556
@@ -2766,6 +2769,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testDifferentGroupingSubquery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2830,6 +2834,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testDifferentGroupingSubqueryMultipleAggregatorsOnSameField()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2890,6 +2895,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
 
   @Test
+  @Ignore("sub-query")
   public void testDifferentGroupingSubqueryWithFilter()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2943,6 +2949,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testDifferentIntervalSubquery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -2980,6 +2987,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testEmptySubquery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -3013,6 +3021,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubquery()
   {
     GroupByQuery subquery = GroupByQuery
@@ -3050,6 +3059,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithPostAggregators()
   {
     final GroupByQuery subquery = GroupByQuery
@@ -3318,6 +3328,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithPostAggregatorsAndHaving()
   {
     final GroupByQuery subquery = GroupByQuery
@@ -3584,6 +3595,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithMultiColumnAggregators()
   {
     final GroupByQuery subquery = GroupByQuery
@@ -3765,6 +3777,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithHyperUniques()
   {
     GroupByQuery subquery = GroupByQuery
@@ -3905,6 +3918,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  @Ignore("sub-query")
   public void testSubqueryWithHyperUniquesPostAggregator()
   {
     GroupByQuery subquery = GroupByQuery

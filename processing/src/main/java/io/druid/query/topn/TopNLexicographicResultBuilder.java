@@ -59,7 +59,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
     this.dimSpec = dimSpec;
     this.previousStop = previousStop;
     this.comparator = comparator;
-    this.aggFactoryNames = TopNQueryQueryToolChest.extractFactoryName(aggFactories);
+    this.aggFactoryNames = AggregatorFactory.toNamesAsArray(aggFactories);
     this.threshold = threshold;
 
     @SuppressWarnings("unchecked")

@@ -80,7 +80,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -142,7 +141,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       @Override
       protected Ordering<Result<SelectResultValue>> makeOrdering(Query<Result<SelectResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
+        return ResultGranularTimestampComparator.create(query);
       }
 
       @Override
@@ -161,14 +160,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(
-      final QueryRunner<I> subQueryRunner,
-      final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor,
-      final int maxRowCount
-  )
+  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
     {
       @Override
       public Sequence<Result<SelectResultValue>> run(
@@ -193,7 +187,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
       @Override
       protected Function<Interval, Sequence<Result<SelectResultValue>>> query(
-          final Query<Result<SelectResultValue>> query, Map<String, Object> context,
+          final Query<Result<SelectResultValue>> query,
+          final Map<String, Object> context,
           final Segment segment
       )
       {
