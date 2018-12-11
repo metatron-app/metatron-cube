@@ -75,8 +75,6 @@ public class Schema implements TypeResolver, RowSignature
     this.columnTypes = Preconditions.checkNotNull(columnTypes);
     this.aggregators = Preconditions.checkNotNull(aggregators);
     this.descriptors = Preconditions.checkNotNull(descriptors);
-    Preconditions.checkArgument(dimensionNames.size() == Sets.newHashSet(dimensionNames).size());
-    Preconditions.checkArgument(metricNames.size() == Sets.newHashSet(metricNames).size());
     Preconditions.checkArgument(dimensionNames.size() + metricNames.size() == columnTypes.size());
     Preconditions.checkArgument(metricNames.size() == aggregators.size());
   }

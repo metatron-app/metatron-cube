@@ -651,7 +651,7 @@ public class CalciteQueryTest
         ImmutableList.of(
             newScanQueryBuilder()
                 .dataSource(CalciteTests.DATASOURCE1)
-                .columns(Arrays.asList("dim2"))
+                .columns(Arrays.asList("dim2", "dim2"))
                 .limit(2)
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
@@ -1174,6 +1174,7 @@ public class CalciteQueryTest
   @Test
   public void testColumnComparison() throws Exception
   {
+    // we compares double to string as two strings not like apache druid.. so empty result returned
     testQuery(
         "SELECT dim1, m1, COUNT(*) FROM druid.foo WHERE m1 - 1 = dim1 GROUP BY dim1, m1",
         ImmutableList.of(
@@ -1191,8 +1192,8 @@ public class CalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{"", 1.0f, 1L},
-            new Object[]{"2", 3.0f, 1L}
+//            new Object[]{"", 1.0f, 1L},
+//            new Object[]{"2", 3.0f, 1L}
         )
     );
   }
@@ -3625,6 +3626,7 @@ public class CalciteQueryTest
   {
     // When HLL is disabled, do exact count distinct through a nested query.
 
+    // we consider explicit null as valid groupBy key
     testQuery(
         PLANNER_CONFIG_NO_HLL,
         "SELECT COUNT(distinct dim2) FROM druid.foo",
@@ -3653,7 +3655,8 @@ public class CalciteQueryTest
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{2L}
+//            new Object[]{2L}
+            new Object[]{3L}
         )
     );
   }
