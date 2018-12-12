@@ -232,6 +232,9 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   {
     List<OrderByColumnSpec> ordering = limiting.getColumns();
     if (GuavaUtils.isNullOrEmpty(ordering)) {
+      ordering = getLimitSpec().getColumns();
+    }
+    if (GuavaUtils.isNullOrEmpty(ordering)) {
       ordering = DimensionSpecs.asOrderByColumnSpec(getDimensions());
     }
     return ordering;
