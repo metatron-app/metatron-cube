@@ -26,6 +26,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -36,6 +37,7 @@ import io.druid.collections.StupidPool;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -71,7 +73,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
-import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -178,18 +179,15 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         final GroupByQuery outerQuery = (GroupByQuery) query;
-        if (outerQuery.getGranularity() != Granularities.ALL) {
-          return super.run(query, responseContext);
-        }
-        final Query<I> innerQuery = ((QueryDataSource) outerQuery.getDataSource()).getQuery();
-        if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
-          return super.run(query, responseContext);
-        }
         final int maxPage = outerQuery.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
             config.getGroupBy().getMaxStreamSubQueryPage()
         );
-        if (maxPage < 1) {
+        if (outerQuery.getGranularity() != Granularities.ALL || maxPage < 1) {
+          return super.run(query, responseContext);
+        }
+        final Query<I> innerQuery = ((QueryDataSource) outerQuery.getDataSource()).getQuery();
+        if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
           return super.run(query, responseContext);
         }
         query = query.withOverriddenContext(
@@ -197,25 +195,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             Objects.toString(GroupByQueryEngine.getUniversalTimestamp(outerQuery), "")
         );
         return runStreaming(query, responseContext);
-      }
-
-      @Override
-      protected Sequence<Row> runOuterQuery(
-          Query<Row> query,
-          Map<String, Object> context,
-          Segment segment
-      )
-      {
-        final Sequence<Row> outerSequence = super.runOuterQuery(query, context, segment);
-        final GroupByQuery outerQuery = (GroupByQuery) query;
-        final IncrementalIndex<?> mergeIndex =
-            outerSequence.accumulate(
-                GroupByQueryHelper.createIncrementalIndex(outerQuery, bufferPool, true, maxRowCount, null),
-                GroupByQueryHelper.<Row>newIndexAccumulator()
-            );
-        close(segment);
-
-        return Sequences.withBaggage(postAggregate(outerQuery, mergeIndex), mergeIndex);
       }
 
       @Override
@@ -234,12 +213,29 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
                 segment,
-                false
+                true
             );
           }
         };
       }
-      
+
+      @Override
+      protected Sequence<Row> runOuterQuery(Query<Row> query, Map<String, Object> context, Segment segment)
+      {
+        final Sequence<Row> outerSequence = super.runOuterQuery(query, context, segment);
+        final GroupByQuery outerQuery = (GroupByQuery) query;
+        final MergeIndex mergeIndex = outerSequence.accumulate(
+            GroupByQueryHelper.createMergeIndex(outerQuery, config.getMaxResults(), 1),
+            GroupByQueryHelper.<Row>newMergeAccumulator(new Execs.Semaphore(1))
+        );
+        close(segment);
+
+        return Sequences.map(
+            Sequences.withBaggage(mergeIndex.toMergeStream(false), mergeIndex),
+            toPostAggregator(outerQuery)
+        );
+      }
+
       @Override
       protected Function<Cursor, Sequence<Row>> streamQuery(final Query<Row> query, final Cursor cursor)
       {
@@ -265,12 +261,10 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                   }
                 };
             LOG.info("Running streaming subquery with max pages [%d]", maxPages);
-            return Sequences.<Row>once(
-                GuavaUtils.map(
-                    GuavaUtils.map(iterator, GroupByQueryEngine.arrayToRow(groupBy)),
-                    toPostAggregator(groupBy)
-                )
+            Sequence<Row> sequence = Sequences.once(
+                Iterators.transform(iterator, GroupByQueryEngine.arrayToRow(groupBy))
             );
+            return Sequences.map(Sequences.withBaggage(sequence, iterator), toPostAggregator(groupBy));
           }
         };
       }
@@ -300,28 +294,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
       }
     };
-  }
-
-  private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
-  {
-    final Granularity granularity = query.getGranularity();
-    final List<PostAggregator> postAggregators = query.getPostAggregatorSpecs();  // decorated inside of index
-    Iterable<Row> sequence = index.iterableWithPostAggregations(postAggregators, query.isDescending());
-    if (!granularity.isUTC()) {
-      sequence = Iterables.transform(
-          sequence,
-          new Function<Row, Row>()
-          {
-            @Override
-            public Row apply(Row input)
-            {
-              final MapBasedRow row = (MapBasedRow) input;
-              return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), row.getEvent());
-            }
-          }
-      );
-    }
-    return Sequences.simple(sequence);
   }
 
   @Override

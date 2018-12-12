@@ -94,9 +94,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       parallelism = 1;
     }
 
-    final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, maxRowCount, parallelism
-    );
+    final MergeIndex mergeIndex = GroupByQueryHelper.createMergeIndex(query, maxRowCount, parallelism);
 
     final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query);
@@ -127,7 +125,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
                           if (bySegment) {
                             sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                           } else {
-                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<Row>newMergeAccumulator(semaphore));
+                            sequence.accumulate(mergeIndex, GroupByQueryHelper.<Row>newMergeAccumulator(semaphore));
                           }
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
@@ -155,7 +153,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
           public void close() throws IOException
           {
             semaphore.destroy();
-            incrementalIndex.close();
+            mergeIndex.close();
             Execs.cancelQuietly(future);
           }
         }
@@ -166,7 +164,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     }
 
     boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
-    return Sequences.withBaggage(incrementalIndex.toMergeStream(compact), new AsyncCloser(incrementalIndex, executor));
+    return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(mergeIndex, executor));
   }
 
   private void waitForFutureCompletion(
