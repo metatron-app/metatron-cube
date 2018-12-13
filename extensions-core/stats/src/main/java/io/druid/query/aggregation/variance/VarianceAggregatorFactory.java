@@ -208,9 +208,17 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return VarianceAggregatorCollector.combineValues(lhs, rhs);
+    return new Combiner<Object>()
+    {
+      @Override
+      public Object combine(Object param1, Object param2)
+      {
+        return VarianceAggregatorCollector.combineValues(param1, param2);
+      }
+    };
   }
 
   @Override

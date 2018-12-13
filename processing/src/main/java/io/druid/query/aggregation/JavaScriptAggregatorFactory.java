@@ -137,9 +137,18 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Number> combiner()
   {
-    return getCompiledScript().combine(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
+    final JavaScriptAggregator.ScriptAggregator compiledScript = getCompiledScript();
+    return new Combiner<Number>()
+    {
+      @Override
+      public Number combine(Number param1, Number param2)
+      {
+        return compiledScript.combine(param1.doubleValue(), param2.doubleValue());
+      }
+    };
   }
 
   @Override

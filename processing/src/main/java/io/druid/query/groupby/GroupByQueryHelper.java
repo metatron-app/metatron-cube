@@ -63,7 +63,7 @@ public class GroupByQueryHelper
   )
   {
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-    final List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(query.getAggregatorSpecs());
+    final List<AggregatorFactory> aggs = AggregatorFactory.toCombinerFactory(query.getAggregatorSpecs());
 
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()

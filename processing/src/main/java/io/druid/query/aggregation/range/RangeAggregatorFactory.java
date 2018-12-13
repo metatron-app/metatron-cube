@@ -103,9 +103,10 @@ public class RangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return delegateFactory.combine(lhs, rhs);
+    return delegateFactory.combiner();
   }
 
   @Override

@@ -63,9 +63,17 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<DocumentsColumn> combiner()
   {
-    return DocumentsColumnAggregator.combine(lhs, rhs);
+    return new Combiner<DocumentsColumn>()
+    {
+      @Override
+      public DocumentsColumn combine(DocumentsColumn param1, DocumentsColumn param2)
+      {
+        return param1.add(param2);
+      }
+    };
   }
 
   @Override

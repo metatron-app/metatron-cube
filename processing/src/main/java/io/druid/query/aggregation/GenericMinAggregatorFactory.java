@@ -134,8 +134,15 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public final Object combine(Object lhs, Object rhs)
+  public final Combiner combiner()
   {
-    return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object lhs, Object rhs)
+      {
+        return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
+      }
+    };
   }
 }

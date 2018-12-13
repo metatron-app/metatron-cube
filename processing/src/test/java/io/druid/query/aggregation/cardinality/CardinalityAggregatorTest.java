@@ -399,7 +399,7 @@ public class CardinalityAggregatorTest
     Assert.assertEquals(
         9.0,
         (Double) rowAggregatorFactory.finalizeComputation(
-            rowAggregatorFactory.combine(
+            rowAggregatorFactory.combiner().combine(
                 agg1.get(),
                 agg2.get()
             )
@@ -430,7 +430,7 @@ public class CardinalityAggregatorTest
     Assert.assertEquals(
         7.0,
         (Double) rowAggregatorFactory.finalizeComputation(
-            rowAggregatorFactory.combine(
+            rowAggregatorFactory.combiner().combine(
                 agg1.get(),
                 agg2.get()
             )

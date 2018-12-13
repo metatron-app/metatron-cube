@@ -50,7 +50,7 @@ public final class MergeIndex implements Closeable
 {
   private final GroupByQuery groupBy;
 
-  private final AggregatorFactory[] metrics;
+  private final AggregatorFactory.Combiner[] metrics;
   private final int metricStart;
 
   private final Map<MergeKey, Object[]> mapping;
@@ -64,7 +64,7 @@ public final class MergeIndex implements Closeable
   )
   {
     this.groupBy = groupBy;
-    this.metrics = AggregatorFactory.toCombiner(groupBy.getAggregatorSpecs()).toArray(new AggregatorFactory[0]);
+    this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
     this.metricStart = groupBy.getDimensions().size() + 1;
     this.groupings = groupBy.getGroupings();
     this.mapping = parallelism == 1 ?
@@ -74,10 +74,11 @@ public final class MergeIndex implements Closeable
     this.populator = new BiFunction<MergeKey, Object[], Object[]>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Object[] apply(final MergeKey key, final Object[] prevValue)
       {
         if (prevValue == null) {
-          if (prevValue == null && mapping.size() >= maxRowCount) {
+          if (mapping.size() >= maxRowCount) {
             throw new ISE("Maximum number of rows [%d] reached", maxRowCount);
           }
           return key.values;

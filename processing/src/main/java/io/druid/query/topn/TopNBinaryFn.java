@@ -47,6 +47,8 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
   private final TopNMetricSpec topNMetricSpec;
   private final int threshold;
   private final List<AggregatorFactory> aggregations;
+  private final String[] metrics;
+  private final AggregatorFactory.Combiner[] combiners;
   private final List<PostAggregator> postAggregations;
   private final Comparator comparator;
 
@@ -66,7 +68,8 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
     this.topNMetricSpec = topNMetricSpec;
     this.threshold = threshold;
     this.aggregations = aggregatorSpecs;
-
+    this.metrics = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
+    this.combiners = AggregatorFactory.toCombinerArray(aggregatorSpecs);
     this.postAggregations = PostAggregators.decorate(
         AggregatorUtil.pruneDependentPostAgg(
             postAggregatorSpecs,
@@ -80,6 +83,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Result<TopNResultValue> apply(Result<TopNResultValue> arg1, Result<TopNResultValue> arg2)
   {
     if (arg1 == null) {
@@ -106,9 +110,8 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         Map<String, Object> retVal = new LinkedHashMap<>(aggregations.size() + 2);
 
         retVal.put(dimension, dimensionValue);
-        for (AggregatorFactory factory : aggregations) {
-          final String metricName = factory.getName();
-          retVal.put(metricName, factory.combine(arg1Val.get(metricName), arg2Val.get(metricName)));
+        for (int i = 0; i < metrics.length; i++) {
+          retVal.put(metrics[i], combiners[i].combine(arg1Val.get(metrics[i]), arg2Val.get(metrics[i])));
         }
 
         for (PostAggregator pf : postAggregations) {

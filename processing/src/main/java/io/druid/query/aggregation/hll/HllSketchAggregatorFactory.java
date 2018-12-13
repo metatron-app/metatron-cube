@@ -111,12 +111,20 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public HllSketch combine(final Object objectA, final Object objectB)
+  @SuppressWarnings("unchecked")
+  public Combiner<HllSketch> combiner()
   {
-    final Union union = new Union(lgK);
-    union.update((HllSketch) objectA);
-    union.update((HllSketch) objectB);
-    return union.getResult(tgtHllType);
+    return new Combiner<HllSketch>()
+    {
+      @Override
+      public HllSketch combine(HllSketch param1, HllSketch param2)
+      {
+        final Union union = new Union(lgK);
+        union.update(param1);
+        union.update(param2);
+        return union.getResult(tgtHllType);
+      }
+    };
   }
 
   @Override

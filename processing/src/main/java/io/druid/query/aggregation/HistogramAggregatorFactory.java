@@ -89,9 +89,17 @@ public class HistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Histogram> combiner()
   {
-    return HistogramAggregator.combineHistograms(lhs, rhs);
+    return new Combiner<Histogram>()
+    {
+      @Override
+      public Histogram combine(Histogram param1, Histogram param2)
+      {
+        return param1.fold(param2);
+      }
+    };
   }
 
   @Override

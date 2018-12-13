@@ -35,9 +35,9 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.sketch.ThetaOperations;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
-import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -116,21 +116,29 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    final Union union;
-    if (lhs instanceof Union) {
-      union = (Union) lhs;
-      updateUnion(union, rhs);
-    } else if (rhs instanceof Union) {
-      union = (Union) rhs;
-      updateUnion(union, lhs);
-    } else {
-      union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
-      updateUnion(union, lhs);
-      updateUnion(union, rhs);
-    }
-    return union;
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object lhs, Object rhs)
+      {
+        final Union union;
+        if (lhs instanceof Union) {
+          union = (Union) lhs;
+          updateUnion(union, rhs);
+        } else if (rhs instanceof Union) {
+          union = (Union) rhs;
+          updateUnion(union, lhs);
+        } else {
+          union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
+          updateUnion(union, lhs);
+          updateUnion(union, rhs);
+        }
+        return union;
+      }
+    };
   }
 
   private void updateUnion(Union union, Object obj)

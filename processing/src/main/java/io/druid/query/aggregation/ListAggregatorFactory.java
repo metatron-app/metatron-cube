@@ -277,23 +277,30 @@ public class ListAggregatorFactory extends AggregatorFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public Object combine(Object lhs, Object rhs)
+  public Combiner<List> combiner()
   {
-    if (lhs == null) {
-      return rhs;
-    }
-    if (rhs == null) {
-      return lhs;
-    }
-    if (dedup) {
-      Set set = Sets.newHashSet();
-      set.addAll((List)lhs);
-      set.addAll((List)rhs);
-      return Lists.newArrayList(set);
-    } else {
-      ((List) lhs).addAll((List) rhs);
-      return lhs;
-    }
+    return new Combiner<List>()
+    {
+      @Override
+      public List combine(List param1, List param2)
+      {
+        if (param1 == null) {
+          return param2;
+        }
+        if (param2 == null) {
+          return param1;
+        }
+        if (dedup) {
+          Set set = Sets.newHashSet();
+          set.addAll(param1);
+          set.addAll(param2);
+          return Lists.newArrayList(set);
+        } else {
+          param1.addAll(param2);
+          return param1;
+        }
+      }
+    };
   }
 
   @Override

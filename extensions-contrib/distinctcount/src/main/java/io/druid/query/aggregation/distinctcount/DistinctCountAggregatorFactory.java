@@ -119,18 +119,23 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Number> combiner()
   {
-    if (lhs == null && rhs == null) {
-      return 0L;
-    }
-    if (rhs == null) {
-      return ((Number) lhs).longValue();
-    }
-    if (lhs == null) {
-      return ((Number) rhs).longValue();
-    }
-    return ((Number) lhs).longValue() + ((Number) rhs).longValue();
+    return new Combiner<Number>()
+    {
+      @Override
+      public Number combine(Number param1, Number param2)
+      {
+        if (param1 == null) {
+          return param2;
+        }
+        if (param2 == null) {
+          return param1;
+        }
+        return param1.longValue() + param2.longValue();
+      }
+    };
   }
 
   @Override

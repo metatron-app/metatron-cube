@@ -131,15 +131,23 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    if (rhs == null) {
-      return lhs;
-    }
-    if (lhs == null) {
-      return rhs;
-    }
-    return ((HyperLogLogCollector) lhs).fold((HyperLogLogCollector) rhs);
+    return new Combiner<HyperLogLogCollector>()
+    {
+      @Override
+      public HyperLogLogCollector combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
+      {
+        if (param2 == null) {
+          return param1;
+        }
+        if (param1 == null) {
+          return param2;
+        }
+        return param1.fold(param2);
+      }
+    };
   }
 
   @Override

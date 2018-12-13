@@ -134,9 +134,17 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<ApproximateHistogramHolder> combiner()
   {
-    return ApproximateHistogramAggregator.combineHistograms(lhs, rhs);
+    return new Combiner<ApproximateHistogramHolder>()
+    {
+      @Override
+      public ApproximateHistogramHolder combine(ApproximateHistogramHolder param1, ApproximateHistogramHolder param2)
+      {
+        return param1.foldFast(param2);
+      }
+    };
   }
 
   @Override

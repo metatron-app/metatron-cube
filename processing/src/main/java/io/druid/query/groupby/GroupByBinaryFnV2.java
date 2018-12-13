@@ -27,15 +27,16 @@ import io.druid.query.aggregation.AggregatorFactory;
 public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 {
   private final int start;
-  private final AggregatorFactory[] aggregators;
+  private final AggregatorFactory.Combiner[] combiners;
 
   public GroupByBinaryFnV2(GroupByQuery query)
   {
     start = query.getDimensions().size() + 1;
-    aggregators = AggregatorFactory.toCombiner(query.getAggregatorSpecs()).toArray(new AggregatorFactory[0]);
+    combiners = AggregatorFactory.toCombinerArray(query.getAggregatorSpecs());
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Row apply(final Row arg1, final Row arg2)
   {
     if (arg1 == null) {
@@ -46,8 +47,8 @@ public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
     final Object[] values1 = ((CompactRow)arg1).getValues();
     final Object[] values2 = ((CompactRow)arg2).getValues();
     int index = start;
-    for (AggregatorFactory aggregator : aggregators) {
-      values1[index] = aggregator.combine(values1[index], values2[index]);
+    for (AggregatorFactory.Combiner combiner : combiners) {
+      values1[index] = combiner.combine(values1[index], values2[index]);
       index++;
     }
     return arg1;

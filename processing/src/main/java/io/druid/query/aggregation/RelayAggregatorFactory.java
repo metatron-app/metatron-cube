@@ -96,7 +96,7 @@ public class RelayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  public <T> Combiner<T> combiner()
   {
     throw new UnsupportedOperationException("combine");
   }

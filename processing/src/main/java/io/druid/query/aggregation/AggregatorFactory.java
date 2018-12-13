@@ -70,12 +70,14 @@ public abstract class AggregatorFactory implements Cacheable
    * allow for mutation of the input objects.  Thus, any use of lhs or rhs after calling this method is
    * highly discouraged.
    *
+   * Mostly, it's not dependent to inner state of AggregatorFactory. So I've changed to return function
+   *
    * @param lhs The left hand side of the combine
    * @param rhs The right hand side of the combine
    *
    * @return an object representing the combination of lhs and rhs, this can be a new object or a mutation of the inputs
    */
-  public abstract Object combine(Object lhs, Object rhs);
+  public abstract <T> Combiner<T> combiner();
 
   /**
    * Returns an AggregatorFactory that can be used to combine the output of aggregators from this factory.  This
@@ -284,22 +286,45 @@ public abstract class AggregatorFactory implements Cacheable
     return Maps.newHashMap();
   }
 
-  public static AggregatorFactory[] toCombiner(AggregatorFactory[] aggregators)
+  public static AggregatorFactory[] toCombinerFactory(AggregatorFactory[] aggregators)
   {
-    AggregatorFactory[] combiningAggregators = new AggregatorFactory[aggregators.length];
-    for (int i = 0; i < aggregators.length; i++) {
-      combiningAggregators[i] = aggregators[i].getCombiningFactory();
+    AggregatorFactory[] combiners = new AggregatorFactory[aggregators.length];
+    for (int i = 0; i < combiners.length; i++) {
+      combiners[i] = aggregators[i].getCombiningFactory();
     }
-    return combiningAggregators;
+    return combiners;
   }
 
-  public static List<AggregatorFactory> toCombiner(List<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory> toCombinerFactory(List<AggregatorFactory> aggregators)
   {
     List<AggregatorFactory> combiners = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
       combiners.add(aggregator.getCombiningFactory());
     }
     return combiners;
+  }
+
+  public static AggregatorFactory.Combiner[] toCombiner(AggregatorFactory[] aggregators)
+  {
+    AggregatorFactory.Combiner[] combiners = new AggregatorFactory.Combiner[aggregators.length];
+    for (int i = 0; i < aggregators.length; i++) {
+      combiners[i] = aggregators[i].combiner();
+    }
+    return combiners;
+  }
+
+  public static List<AggregatorFactory.Combiner> toCombiner(List<AggregatorFactory> aggregators)
+  {
+    List<AggregatorFactory.Combiner> combiners = Lists.newArrayList();
+    for (AggregatorFactory aggregator : aggregators) {
+      combiners.add(aggregator.combiner());
+    }
+    return combiners;
+  }
+
+  public static AggregatorFactory.Combiner[] toCombinerArray(List<AggregatorFactory> aggregators)
+  {
+    return toCombiner(aggregators).toArray(new Combiner[0]);
   }
 
   public static List<AggregatorFactory> toRelay(List<AggregatorFactory> aggregators)
@@ -358,4 +383,9 @@ public abstract class AggregatorFactory implements Cacheable
           return Pair.of(input.getName(), ValueDesc.of(input.getTypeName()));
         }
       };
+
+  public static interface Combiner<T>
+  {
+    T combine(T param1, T param2);
+  }
 }

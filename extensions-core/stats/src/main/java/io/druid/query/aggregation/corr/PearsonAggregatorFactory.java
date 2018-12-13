@@ -182,9 +182,17 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return PearsonAggregatorCollector.combineValues(lhs, rhs);
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object param1, Object param2)
+      {
+        return PearsonAggregatorCollector.combineValues(param1, param2);
+      }
+    };
   }
 
   @Override

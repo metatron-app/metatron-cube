@@ -93,7 +93,7 @@ public class LongMaxAggregationTest
   @Test
   public void testCombine()
   {
-    Assert.assertEquals(9223372036854775803L, longMaxAggFactory.combine(9223372036854775800L, 9223372036854775803L));
+    Assert.assertEquals(9223372036854775803L, longMaxAggFactory.combiner().combine(9223372036854775800L, 9223372036854775803L));
   }
 
   @Test

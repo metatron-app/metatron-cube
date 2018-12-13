@@ -92,9 +92,17 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Number> combiner()
   {
-    return LongMaxAggregator.combineValues(lhs, rhs);
+    return new Combiner<Number>()
+    {
+      @Override
+      public Number combine(Number param1, Number param2)
+      {
+        return Math.max(param1.longValue(), param2.longValue());
+      }
+    };
   }
 
   @Override

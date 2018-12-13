@@ -56,9 +56,17 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return MetricRangeAggregator.combine(lhs, rhs);
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object param1, Object param2)
+      {
+        return MetricRangeAggregator.combine(param1, param2);
+      }
+    };
   }
 
   @Override

@@ -402,22 +402,26 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
 
   @Override
   @SuppressWarnings("unchecked")
-  public Object combine(Object lhs, Object rhs)
+  public Combiner<TypedSketch> combiner()
   {
-    TypedSketch object1 = (TypedSketch) lhs;
-    TypedSketch object2 = (TypedSketch) rhs;
-    Preconditions.checkArgument(
-        object1.type().equals(object2.type()),
-        "Type mismatch.. " + object1.type() + " with " + object2.type()
-    );
-    // hack to get consistent sketch from cached segment
-    ItemsSketch.rand.setSeed(0);
+    return new Combiner<TypedSketch>() {
+      @Override
+      public TypedSketch combine(TypedSketch param1, TypedSketch param2)
+      {
+        Preconditions.checkArgument(
+            param1.type().equals(param2.type()),
+            "Type mismatch.. " + param1.type() + " with " + param2.type()
+        );
+        // hack to get consistent sketch from cached segment
+        ItemsSketch.rand.setSeed(0);
 //    ItemsSketch.rand.get().setSeed(0);    // pending PR (https://github.com/DataSketches/sketches-core/pull/190)
-    SketchHandler<?> handler = sketchOp.handler();
-    TypedSketch union = handler.newUnion(sketchParam, object1.type(), sourceComparator());
-    handler.updateWithSketch(union, object1.value());
-    handler.updateWithSketch(union, object2.value());
-    return handler.toSketch(union);
+        SketchHandler<?> handler = sketchOp.handler();
+        TypedSketch union = handler.newUnion(sketchParam, param1.type(), sourceComparator());
+        handler.updateWithSketch(union, param1.value());
+        handler.updateWithSketch(union, param2.value());
+        return handler.toSketch(union);
+      }
+    };
   }
 
   @Override

@@ -471,7 +471,7 @@ public class IndexMerger
                   boats
               ),
               GuavaUtils.<Rowboat>nullFirstNatural(),
-              new RowboatMergeFunction(sortedMetricAggs)
+              new RowboatMergeFunction(AggregatorFactory.toCombiner(sortedMetricAggs))
           );
         } else {
           return new MergeIterable<Rowboat>(
@@ -1497,14 +1497,15 @@ public class IndexMerger
 
   public static class RowboatMergeFunction implements BinaryFn<Rowboat, Rowboat, Rowboat>
   {
-    private final AggregatorFactory[] metricAggs;
+    private final AggregatorFactory.Combiner[] metricAggs;
 
-    public RowboatMergeFunction(AggregatorFactory[] metricAggs)
+    public RowboatMergeFunction(AggregatorFactory.Combiner[] metricAggs)
     {
       this.metricAggs = metricAggs;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Rowboat apply(Rowboat lhs, Rowboat rhs)
     {
       if (lhs == null) {

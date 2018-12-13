@@ -93,9 +93,17 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Number> combiner()
   {
-    return DoubleMinAggregator.combineValues(lhs, rhs);
+    return new Combiner<Number>()
+    {
+      @Override
+      public Number combine(Number param1, Number param2)
+      {
+        return Math.min(param1.doubleValue(), param2.doubleValue());
+      }
+    };
   }
 
   @Override

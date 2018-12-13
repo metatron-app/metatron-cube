@@ -93,20 +93,27 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  public Combiner combiner()
   {
-    List<Object> left = (List<Object>) lhs;
-    List<Object> right = (List<Object>) rhs;
-    int min = Math.min(left.size(), right.size());
-    int i = 0;
-    for (; i < min; i++) {
-      left.set(i, delegate.combine(left.get(i), right.get(i)));
-    }
-    for (; i < right.size(); i++) {
-      left.add(right.get(i));
-    }
+    return new Combiner<List<Object>>()
+    {
+      final Combiner<Object> combinder = delegate.combiner();
 
-    return left;
+      @Override
+      public List<Object> combine(final List<Object> left, final List<Object> right)
+      {
+        int min = Math.min(left.size(), right.size());
+        int i = 0;
+        for (; i < min; i++) {
+          left.set(i, combinder.combine(left.get(i), right.get(i)));
+        }
+        for (; i < right.size(); i++) {
+          left.add(right.get(i));
+        }
+
+        return left;
+      }
+    };
   }
 
   @Override

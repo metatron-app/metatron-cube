@@ -93,7 +93,7 @@ public class DoubleMinAggregationTest
   @Test
   public void testCombine()
   {
-    Assert.assertEquals(1.2d, ((Double) doubleMinAggFactory.combine(1.2, 3.4)).doubleValue(), 0.0001);
+    Assert.assertEquals(1.2d, (Double) doubleMinAggFactory.combiner().combine(1.2, 3.4), 0.0001);
   }
 
   @Test

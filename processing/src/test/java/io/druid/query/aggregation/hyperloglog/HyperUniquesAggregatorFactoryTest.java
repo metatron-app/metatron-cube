@@ -41,7 +41,7 @@ public class HyperUniquesAggregatorFactoryTest
   public void testCombineStartValueV0() throws Exception
   {
     Object combined = aggregatorFactory.getAggregatorStartValue();
-    aggregatorFactory.combine(combined, aggregatorFactory.deserialize(V0_BASE64));
+    aggregatorFactory.combiner().combine(combined, aggregatorFactory.deserialize(V0_BASE64));
   }
 
 

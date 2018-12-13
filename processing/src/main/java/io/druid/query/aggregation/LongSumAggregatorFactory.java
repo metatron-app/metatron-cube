@@ -108,9 +108,17 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return LongSumAggregator.combineValues(lhs, rhs);
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object lhs, Object rhs)
+      {
+        return LongSumAggregator.combineValues(lhs, rhs);
+      }
+    };
   }
 
   @Override

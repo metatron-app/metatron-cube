@@ -262,7 +262,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     this.maxRowCount = maxRowCount;
 
     this.metadata = new Metadata()
-        .setAggregators(AggregatorFactory.toCombiner(metrics))
+        .setAggregators(AggregatorFactory.toCombinerFactory(metrics))
         .setQueryGranularity(gran)
         .setSegmentGranularity(incrementalIndexSchema.getSegmentGran());
 

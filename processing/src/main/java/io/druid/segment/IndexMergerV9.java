@@ -138,7 +138,7 @@ public class IndexMergerV9 extends IndexMerger
 
     AggregatorFactory[] combiningMetricAggs = null;
     if (metricAggs != null) {
-      combiningMetricAggs = AggregatorFactory.toCombiner(metricAggs);
+      combiningMetricAggs = AggregatorFactory.toCombinerFactory(metricAggs);
     }
     Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 

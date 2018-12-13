@@ -182,16 +182,38 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public final Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public final Combiner combiner()
   {
     switch (outputType.type()) {
       case FLOAT:
       case DOUBLE:
-        return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
+        return new Combiner<Number>()
+        {
+          @Override
+          public Number combine(Number param1, Number param2)
+          {
+            return param1.doubleValue() + param2.doubleValue();
+          }
+        };
       case LONG:
-        return ((Number) lhs).longValue() + ((Number) rhs).longValue();
+        return new Combiner<Number>()
+        {
+          @Override
+          public Number combine(Number param1, Number param2)
+          {
+            return param1.longValue() + param2.longValue();
+          }
+        };
       case COMPLEX:
-        return ((BigDecimal) lhs).add((BigDecimal) rhs);
+        return new Combiner<BigDecimal>()
+        {
+          @Override
+          public BigDecimal combine(BigDecimal param1, BigDecimal param2)
+          {
+            return param1.add(param2);
+          }
+        };
     }
     throw new IllegalStateException();
   }

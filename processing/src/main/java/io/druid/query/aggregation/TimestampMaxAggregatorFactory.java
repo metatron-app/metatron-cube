@@ -28,6 +28,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
+import org.python.antlr.ast.Num;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -80,9 +81,17 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner<Number> combiner()
   {
-    return TimestampMaxAggregator.combineValues(lhs, rhs);
+    return new Combiner<Number>()
+    {
+      @Override
+      public Number combine(Number param1, Number param2)
+      {
+        return Math.max(param1.longValue(), param2.longValue());
+      }
+    };
   }
 
   @Override

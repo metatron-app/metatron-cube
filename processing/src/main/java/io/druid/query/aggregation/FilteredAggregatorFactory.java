@@ -74,9 +74,10 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
   {
-    return delegate.combine(lhs, rhs);
+    return delegate.combiner();
   }
 
   @Override

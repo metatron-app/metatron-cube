@@ -35,7 +35,8 @@ public class TimeseriesBinaryFn
     implements BinaryFn<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>
 {
   private final Granularity gran;
-  private final List<AggregatorFactory> aggregations;
+  private final String[] metrics;
+  private final AggregatorFactory.Combiner[] combiners;
 
   public TimeseriesBinaryFn(TimeseriesQuery timeseriesQuery)
   {
@@ -45,10 +46,12 @@ public class TimeseriesBinaryFn
   public TimeseriesBinaryFn(Granularity granularity, List<AggregatorFactory> aggregations)
   {
     this.gran = granularity;
-    this.aggregations = AggregatorFactory.toCombiner(aggregations);
+    this.metrics = AggregatorFactory.toNamesAsArray(aggregations);
+    this.combiners = AggregatorFactory.toCombinerArray(aggregations);
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> arg1, Result<TimeseriesResultValue> arg2)
   {
     if (arg1 == null) {
@@ -64,9 +67,8 @@ public class TimeseriesBinaryFn
 
     Map<String, Object> retVal = new LinkedHashMap<String, Object>();
 
-    for (AggregatorFactory factory : aggregations) {
-      final String metricName = factory.getName();
-      retVal.put(metricName, factory.combine(arg1Val.getMetric(metricName), arg2Val.getMetric(metricName)));
+    for (int i = 0; i < metrics.length; i++) {
+      retVal.put(metrics[i], combiners[i].combine(arg1Val.getMetric(metrics[i]), arg2Val.getMetric(metrics[i])));
     }
 
     return (gran instanceof AllGranularity) ?
