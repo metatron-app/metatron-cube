@@ -132,7 +132,7 @@ public class JoinPostProcessorTest
   {
     Set<String> dataSources = ImmutableSet.of("ds1", "ds2");
     JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
-    JoinElement element2 = new JoinElement(type, "ds1.a = ds2.c && ds1.b = ds2.d").rewrite(dataSources);
+    JoinElement element2 = JoinElement.of(type, "ds1.a = ds2.c && ds1.b = ds2.d").rewrite(dataSources);
     Assert.assertEquals(element1, element2);
     return new JoinPostProcessor(
         new JoinQueryConfig(),

@@ -21,7 +21,10 @@ package io.druid.query.join;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
+import com.metamx.common.ISE;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -32,6 +35,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
+import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
@@ -128,17 +132,14 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testJoin()
   {
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
-            JOIN_DS, ViewDataSource.of(JOIN_DS)
-        ),
-        Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSource(dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"))
+        .dataSource(JOIN_DS, ViewDataSource.of(JOIN_DS))
+        .intervals(firstToThird)
+        .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -226,17 +227,14 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         null, null, null, null, null, null
     );
 
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            "X", new QueryDataSource(groupByQuery),
-            "Y", ViewDataSource.of(JOIN_DS)
-        ),
-        Arrays.asList(new JoinElement(JoinType.INNER, "X.market = Y.market")),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSource("X", new QueryDataSource(groupByQuery))
+        .dataSource("Y", ViewDataSource.of(JOIN_DS))
+        .intervals(firstToThird)
+        .element(JoinElement.inner("X.market = Y.market"))
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
     String[] columns = new String[]{"__time", "market", "COUNT", "SUM", "market_month", "value"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -252,25 +250,24 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testJoin3way()
   {
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
-            "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin"),
-            "Z", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
-        ),
-        Arrays.asList(
-            new JoinElement(JoinType.INNER, "X.market = Y.market"),
-            new JoinElement(JoinType.INNER, "Y.market = Z.market")
-        ),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSources(
+            ImmutableMap.<String, DataSource>of(
+                "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
+                "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin"),
+                "Z", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
+            )
+        )
+        .intervals(firstToThird)
+        .element(JoinElement.inner("X.market = Y.market"))
+        .element(JoinElement.inner("Y.market = Z.market"))
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-        columns, 
+        columns,
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 168.74722290039062),
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 176.01605224609375),
         array("2011-04-01", "spot", 158.74722290039062, 166.01605, 168.74722290039062),
@@ -297,31 +294,31 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testJoinOnJoin()
   {
-    JoinQuery joinQuery1 = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
-            "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin")
-        ),
-        Arrays.asList( new JoinElement(JoinType.INNER, "X.market = Y.market")),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery1 = Druids
+        .newJoinQueryBuilder()
+        .dataSources(
+            ImmutableMap.<String, DataSource>of(
+                "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
+                "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin")
+            )
+        )
+        .intervals(firstToThird)
+        .element(JoinElement.inner("X.market = Y.market"))
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            "A", new QueryDataSource(joinQuery1),
-            "B", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
-        ),
-        Arrays.asList(
-            new JoinElement(JoinType.INNER, "A.market = B.market")
-        ),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSources(
+            ImmutableMap.<String, DataSource>of(
+                "A", new QueryDataSource(joinQuery1),
+                "B", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
+            )
+        )
+        .intervals(firstToThird)
+        .element(JoinElement.inner("A.market = B.market"))
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -352,17 +349,19 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testQueryOnJoin()
   {
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
-            JOIN_DS, ViewDataSource.of(JOIN_DS)
-        ),
-        Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
-        true,
-        false,
-        null,
-        firstToThird, 0, 0, ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSources(
+            ImmutableMap.<String, DataSource>of(
+                dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
+                JOIN_DS, ViewDataSource.of(JOIN_DS)
+            )
+        )
+        .intervals(firstToThird)
+        .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
+        .prefixAlias(true)
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
 
     // select on join
     SelectQuery selectQuery = new SelectQuery(
@@ -449,5 +448,25 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         array("2011-04-01T00:00:00.000Z", "total_market", 1L, 1193.5562744140625)
     );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
+  }
+
+  @Test(expected = ISE.class)
+  public void testJoinMaxGroup()
+  {
+    JoinQuery query = Druids
+        .newJoinQueryBuilder()
+        .dataSources(
+            ImmutableMap.<String, DataSource>of(
+                dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
+                JOIN_DS, ViewDataSource.of(JOIN_DS)
+            )
+        )
+        .intervals(firstToThird)
+        .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
+        .maxRowsInGroup(10)
+        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .build();
+
+    Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 }

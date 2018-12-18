@@ -19,7 +19,6 @@
 
 package io.druid.query.join;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.io.CharSource;
 import io.druid.data.input.Row;
@@ -29,7 +28,7 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.query.DataSource;
+import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
@@ -112,17 +111,13 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
   @Test
   public void testJoin()
   {
-    JoinQuery joinQuery = new JoinQuery(
-        ImmutableMap.<String, DataSource>of(
-            dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
-            JOIN_DS_P, TableDataSource.of(JOIN_DS_P)
-        ),
-        Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".quality = " + JOIN_DS_P + ".quality")),
-        false,
-        false,
-        null,
-        firstToThird, 0, 0, null
-    );
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSource(dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"))
+        .dataSource(JOIN_DS_P, TableDataSource.of(JOIN_DS_P))
+        .intervals(firstToThird)
+        .element(JoinElement.inner(dataSource + ".quality = " + JOIN_DS_P + ".quality"))
+        .build();
 
     String[] columns = new String[]{"__time", "quality", "market", "index", "quality_month", "value"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(

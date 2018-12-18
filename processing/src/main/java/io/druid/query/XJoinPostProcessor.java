@@ -30,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.util.concurrent.Futures;
+import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
@@ -60,22 +61,28 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 {
   private static final Logger log = new Logger(XJoinPostProcessor.class);
 
+  private final JoinQueryConfig config;
   private final JoinElement[] elements;
   private final boolean prefixAlias;
   private final boolean asArray;
+  private final int maxRowsInGroup;
   private final ExecutorService exec;
 
   @JsonCreator
   @SuppressWarnings("unchecked")
   public XJoinPostProcessor(
+      @JacksonInject JoinQueryConfig config,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("maxRowsInGroup") int maxRowsInGroup,
       @JacksonInject @Processing ExecutorService exec
   )
   {
-    this.elements = elements.toArray(new JoinElement[elements.size()]);
+    this.config = config;
+    this.elements = elements.toArray(new JoinElement[0]);
     this.asArray = asArray;
+    this.maxRowsInGroup = Math.min(config.getMaxRowsInGroup(), maxRowsInGroup);
     this.prefixAlias = prefixAlias;
     this.exec = exec;
   }
@@ -87,7 +94,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 
   public XJoinPostProcessor withAsArray(boolean asArray)
   {
-    return new XJoinPostProcessor(Arrays.asList(elements), prefixAlias, asArray, exec);
+    return new XJoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, maxRowsInGroup, exec);
   }
 
   @Override
@@ -443,6 +450,9 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
   {
     if (left.isEmpty() || right.isEmpty()) {
       return Iterators.emptyIterator();
+    }
+    if (maxRowsInGroup > 0 && left.size() * right.size() > maxRowsInGroup) {
+      throw new ISE("Exceeding max number of single group %d, %d", maxRowsInGroup, left.size() * right.size());
     }
 
     return new Iterator<Object[]>()

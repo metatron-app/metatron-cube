@@ -36,6 +36,16 @@ import java.util.Set;
  */
 public class JoinElement
 {
+  public static JoinElement inner(String expression)
+  {
+    return new JoinElement(JoinType.INNER, expression);
+  }
+
+  public static JoinElement of(JoinType type, String expression)
+  {
+    return new JoinElement(type, expression);
+  }
+
   public static List<String> getAliases(List<JoinElement> elements)
   {
     List<String> aliases = Lists.newArrayList();

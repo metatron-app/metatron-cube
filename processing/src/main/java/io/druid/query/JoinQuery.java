@@ -51,17 +51,19 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean asArray;
   private final int limit;
   private final int parallelism;
+  private final int maxRowsInGroup;
 
   @JsonCreator
   public JoinQuery(
       @JsonProperty("dataSources") Map<String, DataSource> dataSources,
+      @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
       @JsonProperty("timeColumnName") String timeColumnName,
-      @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("limit") int limit,
       @JsonProperty("parallelism") int parallelism,
+      @JsonProperty("maxRowsInGroup") int maxRowsInGroup,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -73,6 +75,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.limit = limit;
     this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
+    this.maxRowsInGroup = maxRowsInGroup;
   }
 
   // dummy datasource for authorization
@@ -222,13 +225,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     return new JoinQuery(
         dataSources,
-        elements,
+        getQuerySegmentSpec(), elements,
         prefixAlias,
         asArray,
         timeColumnName,
-        getQuerySegmentSpec(),
         limit,
         parallelism,
+        maxRowsInGroup,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -250,10 +253,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     XJoinPostProcessor joinProcessor = jsonMapper.convertValue(
-        ImmutableMap.of("type", "join", "elements", elements, "asArray", asArray, "prefixAlias", prefixAlias),
-        new TypeReference<XJoinPostProcessor>()
-        {
-        }
+        ImmutableMap.of(
+            "type", "join",
+            "elements", elements,
+            "asArray", asArray,
+            "prefixAlias", prefixAlias,
+            "maxRowsInGroup", maxRowsInGroup
+        ),
+        new TypeReference<XJoinPostProcessor>() {}
     );
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
@@ -293,13 +300,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     return new JoinQuery(
         getDataSources(),
-        getElements(),
+        getQuerySegmentSpec(), getElements(),
         prefixAlias,
         asArray,
         getTimeColumnName(),
-        getQuerySegmentSpec(),
         limit,
         parallelism,
+        maxRowsInGroup,
         getContext()
     );
   }
@@ -313,6 +320,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            ", prefixAlias=" + prefixAlias +
            ", asArray=" + asArray +
            ", parallelism=" + parallelism +
+           ", maxRowsInGroup=" + maxRowsInGroup +
            ", limit=" + limit +
            '}';
   }

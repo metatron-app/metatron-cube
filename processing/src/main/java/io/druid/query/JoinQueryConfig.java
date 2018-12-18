@@ -28,6 +28,9 @@ public class JoinQueryConfig
   @JsonProperty
   private int maxRows = 1_000000;
 
+  @JsonProperty
+  private int maxRowsInGroup = 1_000000;
+
   public int getMaxRows()
   {
     return maxRows;
@@ -36,5 +39,15 @@ public class JoinQueryConfig
   public void setMaxRows(int maxRows)
   {
     this.maxRows = maxRows;
+  }
+
+  public int getMaxRowsInGroup()
+  {
+    return maxRowsInGroup;
+  }
+
+  public void setMaxRowsInGroup(int maxRowsInGroup)
+  {
+    this.maxRowsInGroup = maxRowsInGroup;
   }
 }

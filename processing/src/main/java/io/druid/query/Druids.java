@@ -1354,4 +1354,152 @@ public class Druids
   {
     return new DataSourceMetadataQueryBuilder();
   }
+
+  public static class JoinQueryBuilder
+  {
+    private Map<String, DataSource> dataSources = Maps.newHashMap();
+    private QuerySegmentSpec querySegmentSpec;
+    private List<JoinElement> elements = Lists.newArrayList();
+    private boolean prefixAlias;
+    private boolean asArray;
+    private String timeColumnName;
+    private int limit;
+    private int parallelism;
+    private int maxRowsInGroup;
+    private Map<String, Object> context = Maps.newHashMap();
+
+    public JoinQuery build()
+    {
+      return new JoinQuery(
+          dataSources,
+          querySegmentSpec,
+          elements,
+          prefixAlias,
+          asArray,
+          timeColumnName,
+          limit,
+          parallelism,
+          maxRowsInGroup,
+          context
+      );
+    }
+
+    public JoinQueryBuilder dataSources(Map<String, DataSource> dataSources)
+    {
+      this.dataSources = dataSources;
+      return this;
+    }
+
+    public JoinQueryBuilder dataSource(String alias, DataSource ds)
+    {
+      dataSources.put(alias, ds);
+      return this;
+    }
+
+    public JoinQueryBuilder interval(Interval interval)
+    {
+      querySegmentSpec = new LegacySegmentSpec(interval);
+      return this;
+    }
+
+    public JoinQueryBuilder intervals(QuerySegmentSpec q)
+    {
+      querySegmentSpec = q;
+      return this;
+    }
+
+    public JoinQueryBuilder intervals(String s)
+    {
+      querySegmentSpec = new LegacySegmentSpec(s);
+      return this;
+    }
+
+    public JoinQueryBuilder intervals(List<Interval> l)
+    {
+      querySegmentSpec = new LegacySegmentSpec(l);
+      return this;
+    }
+
+    public JoinQueryBuilder elements(List<JoinElement> elements)
+    {
+      this.elements = elements;
+      return this;
+    }
+
+    public JoinQueryBuilder element(JoinElement element)
+    {
+      elements.add(element);
+      return this;
+    }
+
+    public JoinQueryBuilder context(Map<String, Object> c)
+    {
+      context = c;
+      return this;
+    }
+
+    public JoinQueryBuilder context(String key, Object value)
+    {
+      context.put(key, value);
+      return this;
+    }
+
+    public JoinQueryBuilder addContext(String key, Object value)
+    {
+      context.put(key, value);
+      return this;
+    }
+
+    public JoinQueryBuilder addContext(Map<String, Object> c)
+    {
+      if (context == null) {
+        context = c;
+      } else {
+        context = Maps.newHashMap(context);
+        context.putAll(c);
+      }
+      return this;
+    }
+
+    public JoinQueryBuilder prefixAlias(boolean prefixAlias)
+    {
+      this.prefixAlias = prefixAlias;
+      return this;
+    }
+
+    public JoinQueryBuilder asArray(boolean asArray)
+    {
+      this.asArray = asArray;
+      return this;
+    }
+
+    public JoinQueryBuilder timeColumnName(String timeColumnName)
+    {
+      this.timeColumnName = timeColumnName;
+      return this;
+    }
+
+    public JoinQueryBuilder limit(int limit)
+    {
+      this.limit = limit;
+      return this;
+    }
+
+    public JoinQueryBuilder parallelism(int parallelism)
+    {
+      this.parallelism = parallelism;
+      return this;
+    }
+
+    public JoinQueryBuilder maxRowsInGroup(int maxRowsInGroup)
+    {
+      this.maxRowsInGroup = maxRowsInGroup;
+      return this;
+    }
+  }
+
+  public static JoinQueryBuilder newJoinQueryBuilder()
+  {
+    return new JoinQueryBuilder();
+  }
 }

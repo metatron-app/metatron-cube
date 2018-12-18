@@ -205,9 +205,11 @@ public class XJoinPostProcessorTest
     JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
     JoinElement element2 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"));
     return new XJoinPostProcessor(
+        new JoinQueryConfig(),
         Arrays.asList(element1, element2),
         false,
         false,
+        0,
         Executors.newSingleThreadExecutor()
     );
   }
