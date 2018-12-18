@@ -119,9 +119,7 @@ public class GroupByQueryEngine
   private final StupidPool<ByteBuffer> intermediateResultsBufferPool;
 
   @Inject
-  public GroupByQueryEngine(
-      @Global StupidPool<ByteBuffer> intermediateResultsBufferPool
-  )
+  public GroupByQueryEngine(@Global StupidPool<ByteBuffer> intermediateResultsBufferPool)
   {
     this.intermediateResultsBufferPool = intermediateResultsBufferPool;
   }
@@ -222,13 +220,8 @@ public class GroupByQueryEngine
     private final boolean useRawUTF8;
     private final DateTime fixedTimeForAllGranularity;
 
-    private final String[] dimNames;
     private final DimensionSelector[] dimensions;
-
-    private final String[] metricNames;
-    private final AggregatorFactory[] aggregatorSpecs;
     private final BufferAggregator[] aggregators;
-    private final List<PostAggregator> postAggregators;
 
     private final int[] increments;
     private final int increment;
@@ -256,14 +249,12 @@ public class GroupByQueryEngine
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];
-      dimNames = new String[dimensionSpecs.size()];
 
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
       for (int i = 0; i < dimensions.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
         dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
-        dimNames[i] = dimensionSpec.getOutputName();
         if (dimensions[i] instanceof IndexProvidingSelector) {
           IndexProvidingSelector provider = (IndexProvidingSelector) dimensions[i];
           if (indexedColumns.removeAll(provider.targetColumns())) {
@@ -275,18 +266,13 @@ public class GroupByQueryEngine
       }
 
       final ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
-
-      aggregatorSpecs = query.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
-      aggregators = new BufferAggregator[aggregatorSpecs.length];
-      metricNames = new String[aggregatorSpecs.length];
-      increments = new int[aggregatorSpecs.length + 1];
-      for (int i = 0; i < aggregatorSpecs.length; ++i) {
-        aggregators[i] = aggregatorSpecs[i].factorizeBuffered(factory);
-        metricNames[i] = aggregatorSpecs[i].getName();
-        increments[i + 1] = increments[i] + aggregatorSpecs[i].getMaxIntermediateSize();
+      final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
+      aggregators = new BufferAggregator[aggregatorSpecs.size()];
+      increments = new int[aggregatorSpecs.size() + 1];
+      for (int i = 0; i < aggregatorSpecs.size(); ++i) {
+        aggregators[i] = aggregatorSpecs.get(i).factorizeBuffered(factory);
+        increments[i + 1] = increments[i] + aggregatorSpecs.get(i).getMaxIntermediateSize();
       }
-
-      postAggregators = PostAggregators.decorate(query.getPostAggregatorSpecs(), aggregatorSpecs);
       increment = increments[increments.length - 1];
 
       delegate = Iterators.emptyIterator();
@@ -487,7 +473,7 @@ public class GroupByQueryEngine
                   private final DateTime timestamp =
                       fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
 
-                  private final int numColumns = dimNames.length + metricNames.length + postAggregators.size() + 1;
+                  private final int numColumns = dimensions.length + aggregators.length + 1;
 
                   @Override
                   public Object[] apply(final Map.Entry<IntArray, int[]> input)
@@ -636,11 +622,6 @@ public class GroupByQueryEngine
         return Sequences.simple(TopNSorter.topN(ordering, sequence, limiting.getLimit()));
       }
     };
-  }
-
-  public static Function<Object[], Row> arrayToRow(final Query.AggregationsSupport<?> query)
-  {
-    return arrayToRow(query, false);
   }
 
   public static Function<Object[], Row> arrayToRow(final Query.AggregationsSupport<?> query, final boolean compact)

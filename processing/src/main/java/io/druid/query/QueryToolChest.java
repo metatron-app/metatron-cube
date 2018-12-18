@@ -23,11 +23,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.groupby.GroupByQueryHelper;
@@ -274,15 +273,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       if (accumulated.isEmpty()) {
         return Sequences.empty();
       }
-      List<String> dataSources = query.getDataSource().getNames();
-      query = query.withDataSource(TableDataSource.of(StringUtils.join(dataSources, '_')));
-
-      String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
-      StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(dataSource, accumulated);
+      String sources = StringUtils.join(query.getDataSource().getNames(), '_');
+      StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(sources, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
 
       Query<ResultType> resolved = QueryUtils.resolveQuery(query, segmentWalker);
-      return runOuterQuery(resolved, responseContext, segment);
+      Sequence<Sequence<ResultType>> sequences = Sequences.map(
+          Sequences.simple(resolved.getIntervals()),
+          query(resolved, segment)
+      );
+      return mergeQuery(resolved, sequences, segment);
     }
 
     @SuppressWarnings("unchecked")
@@ -310,17 +310,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       return accumulated;
     }
 
-    protected Sequence<ResultType> runOuterQuery(Query<ResultType> query, Map<String, Object> context, Segment segment)
-    {
-      final Function<Interval, Sequence<ResultType>> function = query(query, context, segment);
-      return Sequences.withBaggage(
-          Sequences.concat(Sequences.map(Sequences.simple(query.getIntervals()), function)), segment
-      );
-    }
+    protected abstract Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment);
 
-    protected abstract Function<Interval, Sequence<ResultType>> query(
-        Query<ResultType> query, Map<String, Object> context, Segment segment
-    );
+    protected Sequence<ResultType> mergeQuery(
+        Query<ResultType> query,
+        Sequence<Sequence<ResultType>> sequences,
+        Segment segment
+    )
+    {
+      return Sequences.withBaggage(Sequences.concat(sequences), segment);
+    }
 
     @SuppressWarnings("unchecked")
     public Sequence<ResultType> runStreaming(Query<ResultType> query, Map<String, Object> responseContext)
@@ -334,16 +333,18 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       query = QueryUtils.resolveQuery(query, segmentWalker);
 
       Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
-      Cursor.WithResource cursor = ColumnSelectorFactories.toCursor(sequence, schema, query);
-      if (cursor == null) {
-        return Sequences.empty();
-      }
-      return Sequences.withBaggage(streamQuery(query, cursor).apply(cursor), cursor);
+      Sequence<Cursor> cursors = ColumnSelectorFactories.toCursor(sequence, schema, query);
+      return streamMerge(Sequences.map(cursors, streamQuery(query)));
     }
 
-    protected Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query, Cursor cursor)
+    protected Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query)
     {
       throw new UnsupportedOperationException("streaming sub-query handler");
+    }
+
+    protected Sequence<ResultType> streamMerge(Sequence<Sequence<ResultType>> sequences)
+    {
+      return Sequences.concat(sequences);
     }
 
     protected final void close(Segment segment)
@@ -373,16 +374,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
     @Override
     protected Function<Interval, Sequence<ResultType>> query(
-        Query<ResultType> query, Map<String, Object> context, Segment segment
+        Query<ResultType> query, Segment segment
     )
     {
-      throw new UnsupportedOperationException("sub-query handler");
+      throw new UnsupportedOperationException("streaming only sub-query handler");
     }
 
     @Override
-    protected abstract Function<Cursor, Sequence<ResultType>> streamQuery(
-        Query<ResultType> query,
-        Cursor cursor
-    );
+    protected abstract Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query);
   }
 }

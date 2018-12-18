@@ -59,7 +59,7 @@ public class DimFilterHavingSpec implements HavingSpec
     final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
     final ValueMatcher matcher =
         dimFilter.toFilter().makeMatcher(
-            new ColumnSelectorFactories.FromRow(supplier, resolver)
+            new ColumnSelectorFactories.FromRowSupplier(supplier, resolver)
         );
     return new Predicate<Row>()
     {

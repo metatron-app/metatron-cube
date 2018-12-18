@@ -598,6 +598,12 @@ public class GuavaUtils
     };
   }
 
+  // null for EOF version for simplification.. cannot use on null containing iterator
+  public static <T> T peek(PeekingIterator<T> peeker)
+  {
+    return peeker.hasNext() ? peeker.peek() : null;
+  }
+
   public static File createTemporaryDirectory(String prefix, String suffix) throws IOException
   {
     File output = File.createTempFile(prefix, suffix);

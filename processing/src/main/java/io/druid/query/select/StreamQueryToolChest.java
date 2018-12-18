@@ -98,8 +98,7 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
     {
       @Override
       protected final Function<Cursor, Sequence<StreamQueryRow>> streamQuery(
-          Query<StreamQueryRow> outerQuery,
-          Cursor cursor
+          Query<StreamQueryRow> outerQuery
       )
       {
         final StreamQuery query = (StreamQuery) outerQuery;

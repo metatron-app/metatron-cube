@@ -631,7 +631,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
           @Override
           protected Function<Interval, Sequence<Result<TopNResultValue>>> query(
               final Query<Result<TopNResultValue>> query,
-              final Map<String, Object> context,
               final Segment segment
           )
           {

@@ -46,7 +46,6 @@ import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 
 /**
  */
@@ -241,7 +240,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
       @Override
       protected Function<Interval, Sequence<Result<Object[]>>> query(
           final Query<Result<Object[]>> query,
-          final Map<String, Object> context,
           final Segment segment
       )
       {
@@ -253,7 +251,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, 
           public Sequence<Result<Object[]>> apply(Interval interval)
           {
             return runner.run(
-                sketchQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)), context
+                sketchQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)), null
             );
           }
         };

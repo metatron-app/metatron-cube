@@ -51,7 +51,7 @@ public class GroupByQueryHelper
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
-    return new MergeIndex(query, maxRowCount, parallelism);
+    return new MergeIndex(query.withPostAggregatorSpecs(null), maxRowCount, parallelism);
   }
 
   public static IncrementalIndex createIncrementalIndex(

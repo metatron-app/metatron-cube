@@ -153,7 +153,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
           @Override
           protected Function<Interval, Sequence<Result<SearchResultValue>>> query(
               final Query<Result<SearchResultValue>> query,
-              final Map<String, Object> context,
               final Segment segment
           )
           {

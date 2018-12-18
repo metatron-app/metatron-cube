@@ -188,7 +188,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       @Override
       protected Function<Interval, Sequence<Result<SelectResultValue>>> query(
           final Query<Result<SelectResultValue>> query,
-          final Map<String, Object> context,
           final Segment segment
       )
       {
@@ -209,43 +208,42 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
       @Override
       protected Function<Cursor, Sequence<Result<SelectResultValue>>> streamQuery(
-          final Query<Result<SelectResultValue>> query,
-          final Cursor cursor
+          final Query<Result<SelectResultValue>> query
       )
       {
-        final SelectQuery select = (SelectQuery) query;
-        final String concatString = select.getConcatString();
-        final List<String> outputColumns = Lists.newArrayList();
-        final List<ObjectColumnSelector> selectors = Lists.newArrayList();
-        for (DimensionSpec dimensionSpec : select.getDimensions()) {
-          DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
-          selector = dimensionSpec.decorate(selector);
-          if (concatString != null) {
-            selectors.add(ColumnSelectors.asConcatValued(selector, concatString));
-          } else {
-            selectors.add(ColumnSelectors.asMultiValued(selector));
-          }
-          outputColumns.add(dimensionSpec.getOutputName());
-        }
-        for (String metric : select.getMetrics()) {
-          selectors.add(cursor.makeObjectColumnSelector(metric));
-          outputColumns.add(metric);
-        }
-        final Interval interval = JodaUtils.umbrellaInterval(select.getQuerySegmentSpec().getIntervals());
-        final String segmentId = DataSegment.makeDataSegmentIdentifier(
-            org.apache.commons.lang.StringUtils.join(select.getDataSource().getNames(), '_'),
-            interval.getStart(),
-            interval.getEnd(),
-            "temporary",
-            NoneShardSpec.instance()
-        );
-
-        final int limit = select.getPagingSpec().getThreshold();
         return new Function<Cursor, Sequence<Result<SelectResultValue>>>()
         {
           @Override
-          public Sequence<Result<SelectResultValue>> apply(Cursor input)
+          public Sequence<Result<SelectResultValue>> apply(Cursor cursor)
           {
+            final SelectQuery select = (SelectQuery) query;
+            final String concatString = select.getConcatString();
+            final List<String> outputColumns = Lists.newArrayList();
+            final List<ObjectColumnSelector> selectors = Lists.newArrayList();
+            for (DimensionSpec dimensionSpec : select.getDimensions()) {
+              DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
+              selector = dimensionSpec.decorate(selector);
+              if (concatString != null) {
+                selectors.add(ColumnSelectors.asConcatValued(selector, concatString));
+              } else {
+                selectors.add(ColumnSelectors.asMultiValued(selector));
+              }
+              outputColumns.add(dimensionSpec.getOutputName());
+            }
+            for (String metric : select.getMetrics()) {
+              selectors.add(cursor.makeObjectColumnSelector(metric));
+              outputColumns.add(metric);
+            }
+            final Interval interval = JodaUtils.umbrellaInterval(select.getQuerySegmentSpec().getIntervals());
+            final String segmentId = DataSegment.makeDataSegmentIdentifier(
+                org.apache.commons.lang.StringUtils.join(select.getDataSource().getNames(), '_'),
+                interval.getStart(),
+                interval.getEnd(),
+                "temporary",
+                NoneShardSpec.instance()
+            );
+
+            final int limit = select.getPagingSpec().getThreshold();
             final List<EventHolder> events = Lists.newArrayList();
             for (; !cursor.isDone() && limit < 0 || events.size() < limit; cursor.advance()) {
               Map<String, Object> event = Maps.newHashMap();

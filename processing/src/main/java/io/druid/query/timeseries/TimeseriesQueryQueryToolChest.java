@@ -437,7 +437,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> query(
           final Query<Result<TimeseriesResultValue>> query,
-          final Map<String, Object> context,
           final Segment segment
       )
       {

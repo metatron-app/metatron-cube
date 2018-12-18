@@ -19,6 +19,7 @@
 
 package io.druid.common.utils;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -27,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Comparators;
 import io.druid.data.TypeUtils;
+import io.druid.granularity.Granularity;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -196,6 +198,22 @@ public class JodaUtils
     return current.getStartMillis() == current.getEndMillis() ? null : current;
   }
 
+  public static Iterable<Interval> split(final Granularity granularity, final Iterable<Interval> intervals)
+  {
+    if (granularity == null) {
+      return intervals;
+    }
+    return Iterables.concat(Iterables.transform(
+          intervals, new Function<Interval, Iterable<Interval>>()
+          {
+            @Override
+            public Iterable<Interval> apply(Interval input)
+            {
+              return granularity.getIterable(input);
+            }
+          })
+      );
+  }
   public static DateTime minDateTime(DateTime... times)
   {
     if (times == null) {

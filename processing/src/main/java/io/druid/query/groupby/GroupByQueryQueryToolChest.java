@@ -26,12 +26,10 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.CombiningSequence;
@@ -42,7 +40,6 @@ import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
@@ -71,6 +68,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import org.joda.time.DateTime;
@@ -81,6 +79,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -178,66 +177,54 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        final GroupByQuery outerQuery = (GroupByQuery) query;
-        final int maxPage = outerQuery.getContextIntWithMax(
+        final GroupByQuery groupBy = (GroupByQuery) query.withOverriddenContext(
+            GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
+            Objects.toString(GroupByQueryEngine.getUniversalTimestamp(query), "")
+        );
+        final int maxPage = groupBy.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
             config.getGroupBy().getMaxStreamSubQueryPage()
         );
-        if (outerQuery.getGranularity() != Granularities.ALL || maxPage < 1) {
-          return super.run(query, responseContext);
+        final Query<I> innerQuery = ((QueryDataSource) groupBy.getDataSource()).getQuery();
+        if (maxPage < 1 || !QueryUtils.coveredBy(innerQuery, groupBy)) {
+          return super.run(groupBy, responseContext);
         }
-        final Query<I> innerQuery = ((QueryDataSource) outerQuery.getDataSource()).getQuery();
-        if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
-          return super.run(query, responseContext);
-        }
-        query = query.withOverriddenContext(
-            GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
-            Objects.toString(GroupByQueryEngine.getUniversalTimestamp(outerQuery), "")
-        );
-        return runStreaming(query, responseContext);
+        // this is about using less heap, not about performance
+        return runStreaming(groupBy, responseContext);
       }
 
       @Override
-      protected Function<Interval, Sequence<Row>> query(
-          final Query<Row> query,
-          final Map<String, Object> context,
-          final Segment segment
-      )
+      protected Function<Interval, Sequence<Row>> query(Query<Row> query, final Segment segment)
       {
-        final GroupByQuery outerQuery = (GroupByQuery) query;
+        final GroupByQuery groupBy = ((GroupByQuery) query).withPostAggregatorSpecs(null);
         return new Function<Interval, Sequence<Row>>()
         {
           @Override
           public Sequence<Row> apply(Interval interval)
           {
-            return engine.process(
-                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                segment,
-                true
-            );
+            QuerySegmentSpec segmentSpec = MultipleIntervalSegmentSpec.of(interval);
+            return engine.process(groupBy.withQuerySegmentSpec(segmentSpec), segment, true);
           }
         };
       }
 
       @Override
-      protected Sequence<Row> runOuterQuery(Query<Row> query, Map<String, Object> context, Segment segment)
+      protected Sequence<Row> mergeQuery(Query<Row> query, Sequence<Sequence<Row>> sequences, Segment segment)
       {
-        final Sequence<Row> outerSequence = super.runOuterQuery(query, context, segment);
-        final GroupByQuery outerQuery = (GroupByQuery) query;
-        final MergeIndex mergeIndex = outerSequence.accumulate(
-            GroupByQueryHelper.createMergeIndex(outerQuery, config.getMaxResults(), 1),
+        GroupByQuery groupBy = (GroupByQuery) query;
+        Sequence<Row> sequence = super.mergeQuery(query, sequences, segment);
+        MergeIndex mergeIndex = sequence.accumulate(
+            GroupByQueryHelper.createMergeIndex(groupBy, config.getMaxResults(), 1),
             GroupByQueryHelper.<Row>newMergeAccumulator(new Execs.Semaphore(1))
         );
-        close(segment);
-
+        sequence = Sequences.withBaggage(mergeIndex.toMergeStream(true), mergeIndex);
         return Sequences.map(
-            Sequences.withBaggage(mergeIndex.toMergeStream(false), mergeIndex),
-            toPostAggregator(outerQuery)
+            sequence, Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy))
         );
       }
 
       @Override
-      protected Function<Cursor, Sequence<Row>> streamQuery(final Query<Row> query, final Cursor cursor)
+      protected Function<Cursor, Sequence<Row>> streamQuery(final Query<Row> query)
       {
         final GroupByQuery groupBy = (GroupByQuery) query;
         final int maxPages = groupBy.getContextIntWithMax(
@@ -247,24 +234,27 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         return new Function<Cursor, Sequence<Row>>()
         {
           @Override
-          public Sequence<Row> apply(Cursor input)
+          public Sequence<Row> apply(Cursor cursor)
           {
-            final CloseableIterator<Object[]> iterator =
-                new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
-                {
-                  @Override
-                  protected void nextIteration(long start, List<int[]> unprocessedKeys)
-                  {
-                    if (unprocessedKeys != null) {
-                      throw new ISE("Result of subquery is exceeding max pages [%d]", maxPages);
-                    }
-                  }
-                };
+            Iterator<Object[]> iterator = new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
+            {
+              @Override
+              protected void nextIteration(long start, List<int[]> unprocessedKeys)
+              {
+                if (unprocessedKeys != null) {
+                  // todo: fall back to incremanl index?
+                  throw new ISE("Result of subquery is exceeding max pages [%d]", maxPages);
+                }
+              }
+            };
             LOG.info("Running streaming subquery with max pages [%d]", maxPages);
-            Sequence<Row> sequence = Sequences.once(
-                Iterators.transform(iterator, GroupByQueryEngine.arrayToRow(groupBy))
+            return Sequences.map(
+                Sequences.once(iterator),
+                Functions.compose(
+                    toPostAggregator(groupBy),
+                    GroupByQueryEngine.arrayToRow(groupBy.withPostAggregatorSpecs(null), false)
+                )
             );
-            return Sequences.map(Sequences.withBaggage(sequence, iterator), toPostAggregator(groupBy));
           }
         };
       }

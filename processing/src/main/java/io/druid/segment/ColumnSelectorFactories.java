@@ -21,17 +21,22 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularity;
 import io.druid.math.expr.Expr;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -48,6 +53,7 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -118,7 +124,7 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static class Delegated implements ColumnSelectorFactory
+  public static class Delegated extends ColumnSelectorFactory.ExprSupport
   {
     protected final ColumnSelectorFactory delegate;
 
@@ -185,6 +191,53 @@ public class ColumnSelectorFactories
     public Iterable<String> getColumnNames()
     {
       return delegate.getColumnNames();
+    }
+  }
+
+  public static class DelegatedCursor extends Delegated implements Cursor
+  {
+    private final RowResolver resolver;
+
+    public DelegatedCursor(ColumnSelectorFactory delegate, RowResolver resolver)
+    {
+      super(delegate);
+      this.resolver = resolver;
+    }
+
+    @Override
+    public void advance()
+    {
+      throw new UnsupportedOperationException("advance");
+    }
+
+    @Override
+    public void advanceTo(int offset)
+    {
+      throw new UnsupportedOperationException("advanceTo");
+    }
+
+    @Override
+    public DateTime getTime()
+    {
+      throw new UnsupportedOperationException("getTime");
+    }
+
+    @Override
+    public boolean isDone()
+    {
+      return true;
+    }
+
+    @Override
+    public RowResolver resolver()
+    {
+      return resolver;
+    }
+
+    @Override
+    public void reset()
+    {
+      throw new UnsupportedOperationException("reset");
     }
   }
 
@@ -342,14 +395,12 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static final class FromRow extends ColumnSelectorFactory.ExprSupport
+  public static abstract class FromRow extends ColumnSelectorFactory.ExprSupport
   {
-    private final Supplier<Row> in;
     private final RowResolver resolver;
 
-    public FromRow(Supplier<Row> in, RowResolver resolver)
+    public FromRow(RowResolver resolver)
     {
-      this.in = in;
       this.resolver = resolver;
     }
 
@@ -399,7 +450,7 @@ public class ColumnSelectorFactories
           @Override
           public Object get()
           {
-            return in.get().getRaw(columnName);
+            return current().getRaw(columnName);
           }
 
           @Override
@@ -419,6 +470,26 @@ public class ColumnSelectorFactories
     public ValueDesc getColumnType(String columnName)
     {
       return resolver.resolve(columnName);
+    }
+
+    protected abstract Row current();
+  }
+
+  public static final class FromRowSupplier extends FromRow
+  {
+    private final Supplier<Row> in;
+    private final RowResolver resolver;
+
+    public FromRowSupplier(Supplier<Row> in, RowResolver resolver)
+    {
+      super(resolver);
+      this.in = in;
+      this.resolver = resolver;
+    }
+
+    protected Row current()
+    {
+      return in.get();
     }
   }
 
@@ -816,143 +887,105 @@ public class ColumnSelectorFactories
   }
 
   @SuppressWarnings("unchecked")
-  public static Cursor.WithResource toCursor(Sequence<Row> sequence, Schema schema, Query query)
+  public static Sequence<Cursor> toCursor(Sequence<Row> sequence, Schema schema, Query query)
   {
     final CloseableIterator<Row> iterator = Sequences.toIterator(sequence);
     if (!iterator.hasNext()) {
-      return null;
+      return Sequences.empty();
     }
+    // todo: this is semantically not consistent with others
     final RowResolver resolver = RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
     final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<Row>();
-    final ColumnSelectorFactory factory = new ColumnSelectorFactories.FromRow(supplier, resolver);
+    final ColumnSelectorFactory factory = new FromRowSupplier(supplier, resolver);
 
     final ValueMatcher matcher;
-    DimFilter filter = BaseQuery.getDimFilter(query);
+    final DimFilter filter = BaseQuery.getDimFilter(query);
     if (filter == null) {
       matcher = ValueMatcher.TRUE;
     } else {
       matcher = filter.toFilter().makeMatcher(factory);
     }
-    supplier.set(iterator.next());
-    while (!matcher.matches() && iterator.hasNext()) {
-      supplier.set(iterator.next());
-    }
-    if (!matcher.matches()) {
-      return null;
-    }
+    final PeekingIterator<Row> peeker = Iterators.peekingIterator(iterator);
 
-    return new Cursor.WithResource()
-    {
-      @Override
-      public void close() throws IOException
-      {
-        iterator.close();
-      }
+    final Granularity granularity = query.getGranularity();
+    final Iterable<Interval> intervals = JodaUtils.split(query.getGranularity(), query.getIntervals());
+    return Sequences.withBaggage(Sequences.map(
+        Sequences.simple(intervals),
+        new com.google.common.base.Function<Interval, Cursor>()
+        {
+          @Override
+          public Cursor apply(final Interval input)
+          {
+            // isDone() + advance() is a really stupid idea, IMHO
+            final Iterator<Row> termIterator = new Iterator<Row>()
+            {
+              {
+                Row current = GuavaUtils.peek(peeker);
+                for (; current != null && input.isAfter(current.getTimestamp()); current = GuavaUtils.peek(peeker)) {
+                  peeker.next();
+                }
+              }
 
-      private boolean done;
+              @Override
+              public boolean hasNext()
+              {
+                Row current = GuavaUtils.peek(peeker);
+                for (;current != null && input.contains(current.getTimestamp()); current = GuavaUtils.peek(peeker)) {
+                  supplier.set(peeker.next());
+                  if (matcher.matches()) {
+                    return true;
+                  }
+                }
+                supplier.set(null);
+                return false;
+              }
 
-      @Override
-      public DateTime getTime()
-      {
-        // todo: this is semantically not consistent with others
-        return supplier.get().getTimestamp();
-      }
+              @Override
+              public Row next()
+              {
+                // it's not called
+                return supplier.get();
+              }
+            };
 
-      @Override
-      public void advance()
-      {
-        while (iterator.hasNext()) {
-          supplier.set(iterator.next());
-          if (matcher.matches()) {
-            return;
+            if (!termIterator.hasNext()) {
+              return new DelegatedCursor(factory, resolver)
+              {
+                @Override
+                public boolean isDone()
+                {
+                  return true;
+                }
+              };
+            }
+
+            return new DelegatedCursor(factory, resolver)
+            {
+              private boolean done;
+
+              @Override
+              public DateTime getTime()
+              {
+                final DateTime timestamp = input.getStart();
+                return granularity == null ? timestamp : granularity.bucketStart(timestamp);
+              }
+
+              @Override
+              public void advance()
+              {
+                if (!termIterator.hasNext()) {
+                  done = true;
+                }
+              }
+
+              @Override
+              public boolean isDone()
+              {
+                return done;
+              }
+            };
           }
         }
-        done = true;
-      }
-
-      @Override
-      public void advanceTo(int offset)
-      {
-        throw new UnsupportedOperationException("advanceTo");
-      }
-
-      @Override
-      public boolean isDone()
-      {
-        return done;
-      }
-
-      @Override
-      public void reset()
-      {
-        throw new UnsupportedOperationException("reset");
-      }
-
-      @Override
-      public RowResolver resolver()
-      {
-        return resolver;
-      }
-
-      @Override
-      public Iterable<String> getColumnNames()
-      {
-        return factory.getColumnNames();
-      }
-
-      @Override
-      public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-      {
-        return factory.makeDimensionSelector(dimensionSpec);
-      }
-
-      @Override
-      public FloatColumnSelector makeFloatColumnSelector(String columnName)
-      {
-        return factory.makeFloatColumnSelector(columnName);
-      }
-
-      @Override
-      public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-      {
-        return factory.makeDoubleColumnSelector(columnName);
-      }
-
-      @Override
-      public LongColumnSelector makeLongColumnSelector(String columnName)
-      {
-        return factory.makeLongColumnSelector(columnName);
-      }
-
-      @Override
-      public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
-      {
-        return factory.makeObjectColumnSelector(columnName);
-      }
-
-      @Override
-      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-      {
-        return factory.makeMathExpressionSelector(expression);
-      }
-
-      @Override
-      public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression)
-      {
-        return factory.makeMathExpressionSelector(expression);
-      }
-
-      @Override
-      public ValueMatcher makePredicateMatcher(DimFilter filter)
-      {
-        return factory.makePredicateMatcher(filter);
-      }
-
-      @Override
-      public ValueDesc getColumnType(String columnName)
-      {
-        return factory.getColumnType(columnName);
-      }
-    };
+    ), iterator);
   }
 }

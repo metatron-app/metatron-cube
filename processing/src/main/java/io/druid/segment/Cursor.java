@@ -22,8 +22,6 @@ package io.druid.segment;
 import io.druid.query.RowResolver;
 import org.joda.time.DateTime;
 
-import java.io.Closeable;
-
 /**
  */
 
@@ -37,9 +35,5 @@ public interface Cursor extends ColumnSelectorFactory
   public RowResolver resolver();
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor {
-  }
-
-  interface WithResource extends Cursor, Closeable
-  {
   }
 }

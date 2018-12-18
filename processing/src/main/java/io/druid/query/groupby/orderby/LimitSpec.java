@@ -244,7 +244,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
         Arrays.parallelSort(array, ordering);
         sorted = Arrays.asList(array);
       }
-      return Sequences.simple(Iterables.transform(sorted, GroupByQueryEngine.arrayToRow(query)));
+      return Sequences.simple(Iterables.transform(sorted, GroupByQueryEngine.arrayToRow(query, false)));
     }
   }
 
