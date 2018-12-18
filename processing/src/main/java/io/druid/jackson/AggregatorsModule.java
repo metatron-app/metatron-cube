@@ -34,6 +34,7 @@ import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
+import io.druid.query.aggregation.AverageAggregatorFactory;
 import io.druid.query.aggregation.CollectionCountPostAggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DecimalMetricSerde;
@@ -129,16 +130,18 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMax", value = LongMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMin", value = LongMinAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "max", value = GenericMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "sum", value = GenericSumAggregatorFactory.class),
       @JsonSubTypes.Type(name = "min", value = GenericMinAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "max", value = GenericMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "avg", value = AverageAggregatorFactory.class),
+
       @JsonSubTypes.Type(name = "list", value = ListAggregatorFactory.class),
       @JsonSubTypes.Type(name = "listFold", value = ListFoldingAggregatorFactory.class),
       @JsonSubTypes.Type(name = "set", value = SetAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "relay", value = RelayAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "relay", value = RelayAggregatorFactory.class)
   })
   public static interface AggregatorFactoryMixin
   {

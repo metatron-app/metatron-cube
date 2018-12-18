@@ -50,7 +50,7 @@ import java.util.Set;
 @JsonTypeName("list")
 public class ListAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x0F;
+  private static final byte CACHE_TYPE_ID = 0x10;
 
   private final String name;
   private final String expression;

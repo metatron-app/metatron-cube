@@ -30,7 +30,7 @@ import io.druid.segment.ColumnSelectors;
  */
 public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x0B;
+  private static final byte CACHE_TYPE_ID = 0x0E;
 
   @JsonCreator
   public GenericMinAggregatorFactory(

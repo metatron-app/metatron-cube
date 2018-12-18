@@ -39,7 +39,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     return new GenericSumAggregatorFactory(name, null, expression, null, inputType);
   }
 
-  private static final byte CACHE_TYPE_ID = 0x0A;
+  private static final byte CACHE_TYPE_ID = 0x0D;
 
   @JsonCreator
   public GenericSumAggregatorFactory(

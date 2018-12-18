@@ -52,6 +52,7 @@ import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.RowToArray;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AverageAggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -6635,5 +6636,46 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
+  }
+
+  @Test
+  public void testAverage()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(firstToThird)
+        .setDimensions(new DefaultDimensionSpec("quality", "alias"))
+        .setAggregatorSpecs(
+            new AverageAggregatorFactory("idx1", "index", null),
+            new AverageAggregatorFactory("idx2", "indexMaxPlusTen", null)
+        )
+        .setGranularity(dayGran)
+        .build();
+
+    String[] columnNames = {"__time", "alias", "idx1", "idx2"};
+    Object[][] objects = {
+        array("2011-04-01T00:00:00.000Z", "automotive", 135.88510131835938, 145.88510131835938),
+        array("2011-04-01T00:00:00.000Z", "business", 118.57034301757812, 128.57034301757812),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 158.74722290039062, 168.74722290039062),
+        array("2011-04-01T00:00:00.000Z", "health", 120.13470458984375, 130.13470458984375),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 957.2955754597982, 967.2955754597982),
+        array("2011-04-01T00:00:00.000Z", "news", 121.58358001708984, 131.58358764648438),
+        array("2011-04-01T00:00:00.000Z", "premium", 966.9328765869141, 976.9328765869141),
+        array("2011-04-01T00:00:00.000Z", "technology", 78.62254333496094, 88.62254333496094),
+        array("2011-04-01T00:00:00.000Z", "travel", 119.92274475097656, 129.92274475097656),
+        array("2011-04-02T00:00:00.000Z", "automotive", 147.42593383789062, 157.42593383789062),
+        array("2011-04-02T00:00:00.000Z", "business", 112.98703002929688, 122.98703002929688),
+        array("2011-04-02T00:00:00.000Z", "entertainment", 166.01605224609375, 176.01605224609375),
+        array("2011-04-02T00:00:00.000Z", "health", 113.44600677490234, 123.44600677490234),
+        array("2011-04-02T00:00:00.000Z", "mezzanine", 816.2768707275391, 826.2768707275391),
+        array("2011-04-02T00:00:00.000Z", "news", 114.2901382446289, 124.2901382446289),
+        array("2011-04-02T00:00:00.000Z", "premium", 835.4716746012369, 845.4716746012369),
+        array("2011-04-02T00:00:00.000Z", "technology", 97.38743591308594, 107.38743591308594),
+        array("2011-04-02T00:00:00.000Z", "travel", 126.41136169433594, 136.41136169433594)
+    };
+    Iterable<Row> results = runQuery(query, true);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }
