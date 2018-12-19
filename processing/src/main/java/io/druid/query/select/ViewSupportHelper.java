@@ -21,19 +21,11 @@ package io.druid.query.select;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.DimFilter;
-import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Map;
@@ -84,36 +76,6 @@ public class ViewSupportHelper
         query = metricSupport.withMetrics(Lists.newArrayList(resolver.getMetricNames()));
       }
     }
-    if (query instanceof Query.DimFilterSupport) {
-      Query.DimFilterSupport<T> filterSupport = (Query.DimFilterSupport<T>) query;
-      if (filterSupport.getDimFilter() != null) {
-        Map<String, String> aliasMapping = aliasMapping(query.getVirtualColumns());
-        if (!aliasMapping.isEmpty()) {
-          DimFilter optimized = filterSupport.getDimFilter().withRedirection(aliasMapping);
-          if (filterSupport.getDimFilter() != optimized) {
-            query = filterSupport.withDimFilter(optimized);
-          }
-        }
-      }
-    }
     return query;
-  }
-
-  // some queries uses expression vc as alias.. which disables effective filtering
-  private static Map<String, String> aliasMapping(List<VirtualColumn> virtualColumns)
-  {
-    if (virtualColumns == null || virtualColumns.isEmpty()) {
-      return ImmutableMap.of();
-    }
-    Map<String, String> mapping = Maps.newHashMap();
-    for (VirtualColumn vc : virtualColumns) {
-      if (vc instanceof ExprVirtualColumn) {
-        Expr expr = Parser.parse(((ExprVirtualColumn) vc).getExpression());
-        if (Evals.isIdentifier(expr) && !Evals.getIdentifier(expr).equals(vc.getOutputName())) {
-          mapping.put(vc.getOutputName(), Evals.getIdentifier(expr));
-        }
-      }
-    }
-    return mapping;
   }
 }

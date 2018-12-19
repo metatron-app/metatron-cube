@@ -986,6 +986,12 @@ public class Filters
     return constants;
   }
 
+  // used by other libraries
+  public static DimFilter convertToCNF(DimFilter current)
+  {
+    return DimFilters.convertToCNF(current);
+  }
+
   public static Filter convertToCNF(Filter current)
   {
     return Expressions.convertToCNF(current, new Filter.Factory());

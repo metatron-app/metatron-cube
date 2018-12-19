@@ -37,8 +37,13 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.BaseFilteredDimensionSpec;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -49,6 +54,8 @@ import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
@@ -294,6 +301,30 @@ public class QueryUtils
       }
     }
     return query;
+  }
+
+  // some queries uses expression vc as alias.. which disables effective filtering
+  // also default dimension spec
+  public static Map<String, String> aliasMapping(Query<?> query)
+  {
+    Map<String, String> mapping = Maps.newHashMap();
+    for (VirtualColumn vc : BaseQuery.getVirtualColumns(query)) {
+      if (vc instanceof ExprVirtualColumn) {
+        Expr expr = Parser.parse(((ExprVirtualColumn) vc).getExpression());
+        if (Evals.isIdentifier(expr) && !Evals.getIdentifier(expr).equals(vc.getOutputName())) {
+          mapping.put(vc.getOutputName(), Evals.getIdentifier(expr));
+        }
+      }
+    }
+    for (DimensionSpec dimension : BaseQuery.getDimensions(query)) {
+      if (dimension instanceof BaseFilteredDimensionSpec) {
+        dimension = ((BaseFilteredDimensionSpec)dimension).getDelegate();
+      }
+      if (dimension instanceof DefaultDimensionSpec) {
+        mapping.put(dimension.getOutputName(), dimension.getDimension());
+      }
+    }
+    return mapping;
   }
 
   public static Supplier<Schema> schemaSupplier(

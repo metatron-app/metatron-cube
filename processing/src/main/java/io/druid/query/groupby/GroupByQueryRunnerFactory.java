@@ -47,9 +47,9 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.filter.BoundDimFilter;
@@ -160,7 +160,6 @@ public class GroupByQueryRunnerFactory
     }
 
     // can split on all dimensions but it seemed not cost-effective
-    // todo use the highest cardinality-dimension if possible
     Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
 
@@ -209,12 +208,10 @@ public class GroupByQueryRunnerFactory
     OrderingSpec orderingSpec = OrderingSpec.create(null);
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
-      dimensionSpec = explicit.getDelegate();
       orderingSpec = explicit.asOrderingSpec();
     }
-    String dimension = dimensionSpec instanceof DefaultDimensionSpec
-                       ? dimensionSpec.getDimension()
-                       : dimensionSpec.getOutputName();
+    Map<String, String> mapping = QueryUtils.aliasMapping(query);
+    String dimension = mapping.getOrDefault(dimensionSpec.getOutputName(), dimensionSpec.getOutputName());
 
     Direction direction = orderingSpec.getDirection();
     List<GroupByQuery> splits = Lists.newArrayList();

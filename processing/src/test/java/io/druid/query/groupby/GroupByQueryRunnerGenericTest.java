@@ -6677,4 +6677,35 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
+
+  @Test
+  public void testAliasMapping()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(firstToThird)
+        .setVirtualColumns(new ExprVirtualColumn("quality", "VC"))
+        .setDimensions(new DefaultDimensionSpec("quality", "alias"))
+        .setAggregatorSpecs(
+            new AverageAggregatorFactory("idx1", "index", null),
+            new AverageAggregatorFactory("idx2", "indexMaxPlusTen", null)
+        )
+        .setDimFilter(SelectorDimFilter.of("alias", "automotive"))
+        .setGranularity(dayGran)
+        .build();
+
+    String[] columnNames = {"__time", "alias", "idx1", "idx2"};
+    Object[][] objects = {
+        array("2011-04-01T00:00:00.000Z", "automotive", 135.88510131835938, 145.88510131835938),
+        array("2011-04-02T00:00:00.000Z", "automotive", 147.42593383789062, 157.42593383789062)
+    };
+    Iterable<Row> results = runQuery(query, true);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withDimFilter(SelectorDimFilter.of("VC", "automotive")), true);
+    expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
 }

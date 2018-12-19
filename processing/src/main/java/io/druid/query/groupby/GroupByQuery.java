@@ -55,6 +55,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SequenceCountingProcessor;
 import io.druid.query.TimeseriesToRow;
@@ -918,6 +919,12 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     AggregatorFactory cardinality = new CardinalityAggregatorFactory(
         "$cardinality", null, fields, groupingSet, null, true, true
     );
+    if (query.getDimFilter() != null) {
+      Map<String, String> mapping = QueryUtils.aliasMapping(this);
+      if (!mapping.isEmpty()) {
+        query = query.withDimFilter(query.getDimFilter().withRedirection(mapping));
+      }
+    }
 
     return query.withGroupingSet(null)
                 .withPostAggregatorSpecs(null)

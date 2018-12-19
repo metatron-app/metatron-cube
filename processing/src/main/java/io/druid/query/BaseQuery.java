@@ -38,6 +38,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -46,6 +47,7 @@ import io.druid.segment.VirtualColumns;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -219,7 +221,13 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static DimFilter getDimFilter(Query query)
   {
-    return query instanceof DimFilterSupport ? ((DimFilterSupport)query).getDimFilter() : null;
+    return query instanceof DimFilterSupport ? ((DimFilterSupport) query).getDimFilter() : null;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static List<DimensionSpec> getDimensions(Query query)
+  {
+    return query instanceof DimensionSupport ? ((DimensionSupport) query).getDimensions() : Arrays.asList();
   }
 
   @Override
@@ -250,6 +258,10 @@ public abstract class BaseQuery<T> implements Query<T>
     if (query instanceof DimFilterSupport && ((DimFilterSupport) query).getDimFilter() != null) {
       DimFilterSupport<T> dimFilterSupport = (DimFilterSupport) query;
       DimFilter optimized = dimFilterSupport.getDimFilter().optimize();
+      Map<String, String> aliasMapping  = QueryUtils.aliasMapping(this);
+      if (!aliasMapping.isEmpty()) {
+        optimized = optimized.withRedirection(aliasMapping);
+      }
       if (optimized != dimFilterSupport.getDimFilter()) {
         query = dimFilterSupport.withDimFilter(optimized);
       }
