@@ -24,8 +24,8 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.druid.indexer.hadoop.QueryBasedInputFormat;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.select.EventHolder;
 import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.StringUtils;
@@ -115,14 +115,14 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
       if (typeInfo.getCategory() == ObjectInspector.Category.PRIMITIVE &&
           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.STRING) {
         String dimension = uppercase ? entry.getKey().toUpperCase() : entry.getKey();
-        DimFilter filter = Filters.toFilter(dimension, entry.getValue());
+        DimFilter filter = DimFilters.toFilter(dimension, entry.getValue());
         if (filter != null) {
           filters.add(filter);
         }
       }
     }
     if (!filters.isEmpty()) {
-      configuration.set(CONF_DRUID_FILTERS, mapper.writeValueAsString(new AndDimFilter(filters).optimize()));
+      configuration.set(CONF_DRUID_FILTERS, mapper.writeValueAsString(DimFilters.and(filters).optimize()));
     }
     return configuration;
   }

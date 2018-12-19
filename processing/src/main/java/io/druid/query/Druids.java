@@ -33,12 +33,8 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
-import io.druid.query.filter.NoopDimFilter;
-import io.druid.query.filter.NotDimFilter;
-import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
@@ -83,153 +79,6 @@ public class Druids
   private Druids()
   {
     throw new AssertionError();
-  }
-
-  /**
-   * A Builder for AndDimFilter.
-   * <p/>
-   * Required: fields() must be called before build()
-   * <p/>
-   * Usage example:
-   * <pre><code>
-   *   AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-   *                                        .fields(listOfDimFilterFields)
-   *                                        .build();
-   * </code></pre>
-   *
-   * @see AndDimFilter
-   */
-  public static class AndDimFilterBuilder
-  {
-    private List<DimFilter> fields;
-
-    public AndDimFilterBuilder()
-    {
-      fields = Lists.newArrayList();
-    }
-
-    public AndDimFilter build()
-    {
-      return new AndDimFilter(fields);
-    }
-
-    public AndDimFilterBuilder copy(AndDimFilterBuilder builder)
-    {
-      return new AndDimFilterBuilder()
-          .fields(builder.fields);
-    }
-
-    public AndDimFilterBuilder fields(List<DimFilter> f)
-    {
-      fields.addAll(f);
-      return this;
-    }
-  }
-
-  public static AndDimFilterBuilder newAndDimFilterBuilder()
-  {
-    return new AndDimFilterBuilder();
-  }
-
-  /**
-   * A Builder for OrDimFilter.
-   * <p/>
-   * Required: fields() must be called before build()
-   * <p/>
-   * Usage example:
-   * <pre><code>
-   *   OrDimFilter orDimFilter = Druids.newOrDimFilterBuilder()
-   *                                        .fields(listOfDimFilterFields)
-   *                                        .build();
-   * </code></pre>
-   *
-   * @see OrDimFilter
-   */
-  public static class OrDimFilterBuilder
-  {
-    private List<DimFilter> fields;
-
-    public OrDimFilterBuilder()
-    {
-      fields = Lists.newArrayList();
-    }
-
-    public OrDimFilter build()
-    {
-      return new OrDimFilter(fields);
-    }
-
-    public OrDimFilterBuilder copy(OrDimFilterBuilder builder)
-    {
-      return new OrDimFilterBuilder()
-          .fields(builder.fields);
-    }
-
-    public OrDimFilterBuilder fields(String dimensionName, String value, String... values)
-    {
-      fields = Lists.<DimFilter>newArrayList(new SelectorDimFilter(dimensionName, value, null));
-      for (String val : values) {
-        fields.add(new SelectorDimFilter(dimensionName, val, null));
-      }
-      return this;
-    }
-
-    public OrDimFilterBuilder fields(List<DimFilter> f)
-    {
-      fields.addAll(f);
-      return this;
-    }
-  }
-
-  public static OrDimFilterBuilder newOrDimFilterBuilder()
-  {
-    return new OrDimFilterBuilder();
-  }
-
-  /**
-   * A Builder for NotDimFilter.
-   * <p/>
-   * Required: field() must be called before build()
-   * <p/>
-   * Usage example:
-   * <pre><code>
-   *   NotDimFilter notDimFilter = Druids.newNotDimFilterBuilder()
-   *                                        .field(dimFilterField)
-   *                                        .build();
-   * </code></pre>
-   *
-   * @see NotDimFilter
-   */
-  public static class NotDimFilterBuilder
-  {
-    private DimFilter field;
-
-    public NotDimFilterBuilder()
-    {
-      field = null;
-    }
-
-    public NotDimFilter build()
-    {
-      return new NotDimFilter(field);
-    }
-
-    public NotDimFilterBuilder copy(NotDimFilterBuilder builder)
-    {
-      return new NotDimFilterBuilder()
-          .field(builder.field);
-    }
-
-    public NotDimFilterBuilder field(DimFilter f)
-    {
-      field = f;
-      return this;
-    }
-  }
-
-  public static NotDimFilterBuilder newNotDimFilterBuilder()
-  {
-    return new NotDimFilterBuilder();
   }
 
   /**
@@ -286,29 +135,6 @@ public class Druids
   public static SelectorDimFilterBuilder newSelectorDimFilterBuilder()
   {
     return new SelectorDimFilterBuilder();
-  }
-
-  /**
-   * A Builder for NoopDimFilter.
-   * Usage example:
-   * <pre><code>
-   *   NoopDimFilter noopDimFilter = Druids.newNoopDimFilterBuilder()
-   *                                       .build();
-   * </code></pre>
-   *
-   * @see NotDimFilter
-   */
-  public static class NoopDimFilterBuilder
-  {
-    public NoopDimFilter build()
-    {
-      return new NoopDimFilter();
-    }
-  }
-
-  public static NoopDimFilterBuilder newNoopDimFilterBuilder()
-  {
-    return new NoopDimFilterBuilder();
   }
 
   /**

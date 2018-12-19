@@ -53,6 +53,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
@@ -1145,20 +1146,16 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithMultiDimFilterAndOr()
   {
-    AndDimFilter andDimFilter = Druids
-        .newAndDimFilterBuilder()
-        .fields(
-            Arrays.<DimFilter>asList(
-                Druids.newSelectorDimFilterBuilder()
-                      .dimension(QueryRunnerTestHelper.marketDimension)
-                      .value("spot")
-                      .build(),
-                Druids.newOrDimFilterBuilder()
-                      .fields(QueryRunnerTestHelper.qualityDimension, "automotive", "business")
-                      .build()
-            )
+    DimFilter andDimFilter = DimFilters.and(
+        Druids.newSelectorDimFilterBuilder()
+              .dimension(QueryRunnerTestHelper.marketDimension)
+              .value("spot")
+              .build(),
+        DimFilters.or(
+            new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "automotive", null),
+            new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "business", null)
         )
-        .build();
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -1204,20 +1201,16 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithMultiDimFilter()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("spot")
-                                                    .build(),
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.qualityDimension)
-                                                    .value("automotive")
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        Druids.newSelectorDimFilterBuilder()
+              .dimension(QueryRunnerTestHelper.marketDimension)
+              .value("spot")
+              .build(),
+        Druids.newSelectorDimFilterBuilder()
+              .dimension(QueryRunnerTestHelper.qualityDimension)
+              .value("automotive")
+              .build()
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -1328,20 +1321,16 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithOtherMultiDimFilter()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("spot")
-                                                    .build(),
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.qualityDimension)
-                                                    .value("business")
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        Druids.newSelectorDimFilterBuilder()
+              .dimension(QueryRunnerTestHelper.marketDimension)
+              .value("spot")
+              .build(),
+        Druids.newSelectorDimFilterBuilder()
+              .dimension(QueryRunnerTestHelper.qualityDimension)
+              .value("business")
+              .build()
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -1507,24 +1496,10 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithNonExistentFilterAndMultiDimAndOr()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("spot")
-                                                    .build(),
-                                              Druids.newOrDimFilterBuilder()
-                                                    .fields(
-                                                        QueryRunnerTestHelper.qualityDimension,
-                                                        "automotive",
-                                                        "business",
-                                                        "billyblank"
-                                                    )
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.or(QueryRunnerTestHelper.qualityDimension, "automotive", "business", "billyblank")
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -1773,20 +1748,10 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithNonExistentFilterAndMultiDim()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("billy")
-                                                    .build(),
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.qualityDimension)
-                                                    .value("business")
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "billy"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "business")
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -1978,20 +1943,10 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithMultiValueDimFilterAndOr1()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("spot")
-                                                    .build(),
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.placementishDimension)
-                                                    .value("a")
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.placementishDimension, "a")
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -2002,20 +1957,10 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    AndDimFilter andDimFilter2 = Druids.newAndDimFilterBuilder()
-                                       .fields(
-                                           Arrays.<DimFilter>asList(
-                                               Druids.newSelectorDimFilterBuilder()
-                                                     .dimension(QueryRunnerTestHelper.marketDimension)
-                                                     .value("spot")
-                                                     .build(),
-                                               Druids.newSelectorDimFilterBuilder()
-                                                     .dimension(QueryRunnerTestHelper.qualityDimension)
-                                                     .value("automotive")
-                                                     .build()
-                                           )
-                                       )
-                                       .build();
+    DimFilter andDimFilter2 = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
+    );
 
     Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()
@@ -2039,19 +1984,10 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testTimeseriesWithMultiValueDimFilterAndOr2()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Arrays.<DimFilter>asList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("spot")
-                                                    .build(),
-                                              Druids.newOrDimFilterBuilder()
-                                                    .fields(QueryRunnerTestHelper.placementishDimension, "a", "b")
-                                                    .build()
-                                          )
-                                      )
-                                      .build();
+    DimFilter andDimFilter = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.or(QueryRunnerTestHelper.placementishDimension, "a", "b")
+    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -2062,23 +1998,10 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    AndDimFilter andDimFilter2 = Druids.newAndDimFilterBuilder()
-                                       .fields(
-                                           Arrays.<DimFilter>asList(
-                                               Druids.newSelectorDimFilterBuilder()
-                                                     .dimension(QueryRunnerTestHelper.marketDimension)
-                                                     .value("spot")
-                                                     .build(),
-                                               Druids.newOrDimFilterBuilder()
-                                                     .fields(
-                                                         QueryRunnerTestHelper.qualityDimension,
-                                                         "automotive",
-                                                         "business"
-                                                     )
-                                                     .build()
-                                           )
-                                       )
-                                       .build();
+    DimFilter andDimFilter2 = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.or(QueryRunnerTestHelper.qualityDimension, "automotive", "business")
+    );
 
     Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()

@@ -54,6 +54,7 @@ import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -64,6 +65,7 @@ import java.util.Map;
 
 /**
  */
+@Ignore
 public class SchemalessTestFull
 {
   final double UNIQUES_2 = 2.000977198748901d;

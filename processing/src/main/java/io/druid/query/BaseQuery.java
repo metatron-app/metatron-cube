@@ -223,11 +223,11 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
   {
     Query<T> query = ViewSupportHelper.rewrite(this, resolver);
     if (query instanceof AggregationsSupport) {
-      @SuppressWarnings("unchecked")
       AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
       boolean changed = false;
       List<AggregatorFactory> resolved = Lists.newArrayList();
@@ -245,6 +245,13 @@ public abstract class BaseQuery<T> implements Query<T>
       }
       if (changed) {
         query = aggregationsSupport.withAggregatorSpecs(resolved);
+      }
+    }
+    if (query instanceof DimFilterSupport && ((DimFilterSupport) query).getDimFilter() != null) {
+      DimFilterSupport<T> dimFilterSupport = (DimFilterSupport) query;
+      DimFilter optimized = dimFilterSupport.getDimFilter().optimize();
+      if (optimized != dimFilterSupport.getDimFilter()) {
+        query = dimFilterSupport.withDimFilter(optimized);
       }
     }
     return query;

@@ -24,6 +24,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -164,10 +165,8 @@ public class GroupByQueryEngine
                   throw new IAE("Should only have one interval, got[%s]", intervals);
                 }
 
-                DimFilter filter = Filters.convertToCNF(query.getDimFilter());
-
                 return storageAdapter.makeCursors(
-                    filter,
+                    query.getDimFilter(),
                     intervals.get(0),
                     resolver,
                     query.getGranularity(),

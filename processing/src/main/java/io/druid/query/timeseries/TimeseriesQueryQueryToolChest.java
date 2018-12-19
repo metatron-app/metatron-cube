@@ -257,24 +257,9 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public QueryRunner<Result<TimeseriesResultValue>> preMergeQueryDecoration(final QueryRunner<Result<TimeseriesResultValue>> runner)
+  public QueryRunner<Result<TimeseriesResultValue>> preMergeQueryDecoration(QueryRunner<Result<TimeseriesResultValue>> runner)
   {
-    return intervalChunkingQueryRunnerDecorator.decorate(
-        new QueryRunner<Result<TimeseriesResultValue>>()
-        {
-          @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query, Map<String, Object> responseContext
-          )
-          {
-            TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
-            if (timeseriesQuery.getDimFilter() != null) {
-              timeseriesQuery = timeseriesQuery.withDimFilter(timeseriesQuery.getDimFilter().optimize());
-            }
-            return runner.run(timeseriesQuery, responseContext);
-          }
-        }, this
-    );
+    return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
   @Override

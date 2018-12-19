@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
-import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -41,7 +40,6 @@ import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.IntPredicate;
-import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
@@ -56,19 +54,15 @@ import io.druid.math.expr.Expression.OrExpression;
 import io.druid.math.expr.Expression.RelationExpression;
 import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
-import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
-import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
-import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
-import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -98,7 +92,6 @@ import java.util.BitSet;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -168,7 +161,7 @@ public class Filters
    */
   public static Filter toFilter(DimFilter dimFilter)
   {
-    return dimFilter == null ? null : dimFilter.optimize().toFilter();
+    return dimFilter == null ? null : dimFilter.toFilter();
   }
 
   @SuppressWarnings("unchecked")
@@ -993,95 +986,9 @@ public class Filters
     return constants;
   }
 
-  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final RowResolver resolver)
-  {
-    current = Filters.convertToCNF(current);
-    if (current == null) {
-      return null;
-    }
-    return partitionFilterWith(
-        current, new Predicate<DimFilter>()
-        {
-          @Override
-          public boolean apply(DimFilter input)
-          {
-            return resolver.supportsBitmap(input, BitmapType.EXACT);
-          }
-        }
-    );
-  }
-
-  private static DimFilter[] partitionFilterWith(DimFilter current, Predicate<DimFilter> predicate)
-  {
-    if (current == null) {
-      return null;
-    }
-    List<DimFilter> bitmapIndexSupported = Lists.newArrayList();
-    List<DimFilter> bitmapIndexNotSupported = Lists.newArrayList();
-
-    traverse(current, predicate, bitmapIndexSupported, bitmapIndexNotSupported);
-
-    return new DimFilter[]{DimFilters.and(bitmapIndexSupported), DimFilters.and(bitmapIndexNotSupported)};
-  }
-
-  private static void traverse(
-      DimFilter current,
-      Predicate<DimFilter> predicate,
-      List<DimFilter> support,
-      List<DimFilter> notSupport
-  )
-  {
-    if (current instanceof AndDimFilter) {
-      for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-        traverse(child, predicate, support, notSupport);
-      }
-    } else {
-      if (predicate.apply(current)) {
-        support.add(current);
-      } else {
-        notSupport.add(current);
-      }
-    }
-  }
-
-  public static DimFilter convertToCNF(DimFilter current)
-  {
-    return current == null ? null : Expressions.convertToCNF(current.optimize(), DimFilter.FACTORY);
-  }
-
   public static Filter convertToCNF(Filter current)
   {
     return Expressions.convertToCNF(current, new Filter.Factory());
-  }
-
-  // should be string type
-  public static DimFilter toFilter(String dimension, List<Range> ranges)
-  {
-    Iterable<Range> filtered = Iterables.filter(ranges, Ranges.VALID);
-    List<String> equalValues = Lists.newArrayList();
-    List<DimFilter> dimFilters = Lists.newArrayList();
-    for (Range range : filtered) {
-      String lower = range.hasLowerBound() ? (String) range.lowerEndpoint() : null;
-      String upper = range.hasUpperBound() ? (String) range.upperEndpoint() : null;
-      if (lower == null && upper == null) {
-        return null;
-      }
-      if (Objects.equals(lower, upper)) {
-        equalValues.add(lower);
-        continue;
-      }
-      boolean lowerStrict = range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN;
-      boolean upperStrict = range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN;
-      dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
-    }
-    if (equalValues.size() > 1) {
-      dimFilters.add(new InDimFilter(dimension, equalValues, null));
-    } else if (equalValues.size() == 1) {
-      dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
-    }
-    DimFilter dimFilter = new OrDimFilter(dimFilters).optimize();
-    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, dimFilter);
-    return dimFilter;
   }
 
   public static ImmutableBitmap intersection(

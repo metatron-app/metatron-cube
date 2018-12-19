@@ -421,24 +421,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public QueryRunner<Result<SelectResultValue>> preMergeQueryDecoration(final QueryRunner<Result<SelectResultValue>> runner)
+  public QueryRunner<Result<SelectResultValue>> preMergeQueryDecoration(QueryRunner<Result<SelectResultValue>> runner)
   {
-    return intervalChunkingQueryRunnerDecorator.decorate(
-        new QueryRunner<Result<SelectResultValue>>()
-        {
-          @Override
-          public Sequence<Result<SelectResultValue>> run(
-              Query<Result<SelectResultValue>> query, Map<String, Object> responseContext
-          )
-          {
-            SelectQuery selectQuery = (SelectQuery) query;
-            if (selectQuery.getDimensionsFilter() != null) {
-              selectQuery = selectQuery.withDimFilter(selectQuery.getDimensionsFilter().optimize());
-            }
-            return runner.run(selectQuery, responseContext);
-          }
-        }, this
-    );
+    return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
   @Override

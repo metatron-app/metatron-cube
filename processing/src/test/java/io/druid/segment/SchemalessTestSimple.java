@@ -53,6 +53,7 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -66,6 +67,7 @@ import java.util.Map;
 
 /**
  */
+@Ignore
 @RunWith(Parameterized.class)
 public class SchemalessTestSimple
 {

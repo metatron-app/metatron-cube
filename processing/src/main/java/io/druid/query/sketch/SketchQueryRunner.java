@@ -101,7 +101,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 
     final List<DimensionSpec> dimensions = Lists.newArrayList(query.getDimensions());
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
-    final DimFilter filter = Filters.convertToCNF(query.getFilter());
+    final DimFilter filter = query.getFilter();
     final SketchOp sketchOp = query.getSketchOp();
     final int sketchParam = query.getSketchParamWithDefault();
     final SketchHandler<?> handler = sketchOp.handler();

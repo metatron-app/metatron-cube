@@ -41,7 +41,6 @@ import io.druid.math.expr.Parser;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.Druids;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
@@ -6179,7 +6178,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index")
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
-        .setDimFilter(Druids.newOrDimFilterBuilder().fields(dimFilters).build())
+        .setDimFilter(DimFilters.or(dimFilters))
         .build();
     List<Row> expectedResults = Arrays.asList(
         createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),

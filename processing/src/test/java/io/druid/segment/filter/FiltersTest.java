@@ -60,7 +60,7 @@ public class FiltersTest
     DimFilter dim2 = BoundDimFilter.lt("market", "b");
     DimFilter dim3 = BoundDimFilter.gt("market", "s");
 
-    DimFilter cnf = Filters.convertToCNF(DimFilters.or(DimFilters.and(dim1, dim2), dim3));
+    DimFilter cnf = DimFilters.convertToCNF(DimFilters.or(DimFilters.and(dim1, dim2), dim3));
     assertEquals(DimFilters.and(DimFilters.or(dim3, dim1), DimFilters.or(dim3, dim2)), cnf);
   }
 
@@ -74,7 +74,7 @@ public class FiltersTest
     DimFilter complex = DimFilters.and(dim1, DimFilters.and(dim2, DimFilters.or(dim3, dim4)));
 
     DimFilter expected = DimFilters.and(dim1, dim2, DimFilters.or(dim3, dim4));
-    Assert.assertEquals(expected, Filters.convertToCNF(complex));
+    Assert.assertEquals(expected, DimFilters.convertToCNF(complex));
   }
 
   @Test
@@ -93,30 +93,30 @@ public class FiltersTest
 
     DimFilter[] filters;
 
-    filters = Filters.partitionWithBitmapSupport(null, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(null, resolver);
     Assert.assertNull(filters);
 
-    filters = Filters.partitionWithBitmapSupport(dim1, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim1, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim2, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim2, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim2, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim3, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim3, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim3, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim4, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim4, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim4, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim5, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim5, resolver);
     Assert.assertNotNull(filters);
     assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1), NotDimFilter.of(dim2)), filters[0]);
     Assert.assertNull(filters[1]);
@@ -138,30 +138,30 @@ public class FiltersTest
 
     DimFilter[] filters;
 
-    filters = Filters.partitionWithBitmapSupport(null, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(null, resolver);
     Assert.assertNull(filters);
 
-    filters = Filters.partitionWithBitmapSupport(dim1, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim1, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim2, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim2, resolver);
     Assert.assertNotNull(filters);
     Assert.assertNull(filters[0]);
     assertEquals(dim2, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim3, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim3, resolver);
     Assert.assertNotNull(filters);
     assertEquals(dim1, filters[0]);
     assertEquals(dim2, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim4, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim4, resolver);
     Assert.assertNotNull(filters);
     Assert.assertNull(filters[0]);
     assertEquals(dim4, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim5, resolver);
+    filters = DimFilters.partitionWithBitmapSupport(dim5, resolver);
     Assert.assertNotNull(filters);
     assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
     assertEquals(NotDimFilter.of(dim2), filters[1]);
@@ -171,7 +171,7 @@ public class FiltersTest
   public void testAllFilter()
   {
     DimFilters.ALL all = new DimFilters.ALL();
-    Assert.assertSame(all, Filters.convertToCNF(all));
+    Assert.assertSame(all, DimFilters.convertToCNF(all));
   }
 
   private void assertEquals(DimFilter expected, DimFilter result)

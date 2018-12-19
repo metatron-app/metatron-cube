@@ -386,9 +386,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
           )
           {
             TopNQuery topNQuery = (TopNQuery) query;
-            if (topNQuery.getDimensionsFilter() != null) {
-              topNQuery = topNQuery.withDimFilter(topNQuery.getDimensionsFilter().optimize());
-            }
             if (TopNQueryEngine.canApplyExtractionInPost(topNQuery)) {
               DimensionSpec dimensionSpec = topNQuery.getDimensionSpec();
               topNQuery = topNQuery.withDimensionSpec(

@@ -25,7 +25,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression.OrExpression;
-import io.druid.query.Druids;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
 
@@ -66,8 +65,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public DimFilter optimize()
   {
-    List<DimFilter> elements = DimFilters.optimize(fields);
-    return elements.size() == 1 ? elements.get(0) : Druids.newOrDimFilterBuilder().fields(elements).build();
+    return DimFilters.or(DimFilters.optimize(fields));
   }
 
   @Override

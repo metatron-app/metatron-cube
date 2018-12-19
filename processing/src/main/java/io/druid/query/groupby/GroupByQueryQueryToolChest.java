@@ -406,14 +406,10 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
               {
                 GroupByQuery groupByQuery = (GroupByQuery) query;
-                if (groupByQuery.getDimFilter() != null) {
-                  groupByQuery = groupByQuery.withDimFilter(groupByQuery.getDimFilter().optimize());
-                }
-                final GroupByQuery delegateGroupByQuery = groupByQuery;
                 ArrayList<DimensionSpec> dimensionSpecs = new ArrayList<>();
                 Set<String> optimizedDimensions = ImmutableSet.copyOf(
                     Iterables.transform(
-                        extractionsToRewrite(delegateGroupByQuery),
+                        extractionsToRewrite(groupByQuery),
                         new Function<DimensionSpec, String>()
                         {
                           @Override
@@ -424,7 +420,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                         }
                     )
                 );
-                for (DimensionSpec dimensionSpec : delegateGroupByQuery.getDimensions()) {
+                for (DimensionSpec dimensionSpec : groupByQuery.getDimensions()) {
                   if (optimizedDimensions.contains(dimensionSpec.getDimension())) {
                     dimensionSpecs.add(
                         new DefaultDimensionSpec(dimensionSpec.getDimension(), dimensionSpec.getOutputName())
@@ -434,7 +430,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                   }
                 }
                 return runner.run(
-                    delegateGroupByQuery.withDimensionSpecs(dimensionSpecs),
+                    groupByQuery.withDimensionSpecs(dimensionSpecs),
                     responseContext
                 );
               }

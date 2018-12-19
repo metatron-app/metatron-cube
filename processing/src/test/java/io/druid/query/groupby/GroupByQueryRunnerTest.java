@@ -39,7 +39,6 @@ import io.druid.js.JavaScriptConfig;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.Druids;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -6874,7 +6873,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
-        .setDimFilter(Druids.newOrDimFilterBuilder().fields(dimFilters).build())
+        .setDimFilter(DimFilters.or(dimFilters))
         .build();
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),

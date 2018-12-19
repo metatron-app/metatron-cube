@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.common.StringUtils;
 import io.druid.common.utils.Ranges;
@@ -46,6 +49,24 @@ import java.util.Set;
  */
 public class SelectorDimFilter implements DimFilter.RangeFilter
 {
+  public static DimFilter or(final String dimension, String... values)
+  {
+    return DimFilters.or(
+        Lists.newArrayList(Iterables.transform(Arrays.asList(values), new Function<String, DimFilter>()
+        {
+          @Override
+          public DimFilter apply(String input)
+          {
+            return of(dimension, input);
+          }
+        })));
+  }
+
+  public static SelectorDimFilter of(String dimension, String value)
+  {
+    return new SelectorDimFilter(dimension, value, null);
+  }
+
   private final String dimension;
   private final String value;
   private final ExtractionFn extractionFn;

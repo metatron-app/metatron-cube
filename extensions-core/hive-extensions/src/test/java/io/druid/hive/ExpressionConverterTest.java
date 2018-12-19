@@ -27,8 +27,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.column.Column;
-import io.druid.segment.filter.Filters;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -303,7 +303,7 @@ public class ExpressionConverterTest
     for (Map.Entry<String, List<Range>> entry : converted.entrySet()) {
       System.out.println(
           mapper.readValue(
-              mapper.writeValueAsString(Filters.toFilter(entry.getKey(), entry.getValue())), DimFilter.class
+              mapper.writeValueAsString(DimFilters.toFilter(entry.getKey(), entry.getValue())), DimFilter.class
           )
       );
     }

@@ -20,11 +20,18 @@
 package io.druid.query.filter;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.common.logger.Logger;
+import io.druid.common.utils.Ranges;
+import io.druid.math.expr.Expressions;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.Filters;
 
@@ -32,12 +39,15 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  */
 public class DimFilters
 {
+  private static final Logger logger = new Logger(DimFilters.class);
+
   public static SelectorDimFilter dimEquals(String dimension, String value)
   {
     return new SelectorDimFilter(dimension, value, null);
@@ -77,7 +87,7 @@ public class DimFilters
 
   public static List<DimFilter> optimize(List<DimFilter> filters)
   {
-    return filterNulls(
+    return Lists.newArrayList(
         Lists.transform(
             filters, new Function<DimFilter, DimFilter>()
             {
@@ -94,6 +104,92 @@ public class DimFilters
   public static List<DimFilter> filterNulls(List<DimFilter> optimized)
   {
     return Lists.newArrayList(Iterables.filter(optimized, Predicates.notNull()));
+  }
+
+  public static DimFilter convertToCNF(DimFilter current)
+  {
+    return current == null ? null : Expressions.convertToCNF(current, DimFilter.FACTORY);
+  }
+
+  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final RowResolver resolver)
+  {
+    if (current == null) {
+      return null;
+    }
+    return partitionFilterWith(
+        DimFilters.convertToCNF(current), new Predicate<DimFilter>()
+        {
+          @Override
+          public boolean apply(DimFilter input)
+          {
+            return resolver.supportsBitmap(input, BitmapType.EXACT);
+          }
+        }
+    );
+  }
+
+  private static DimFilter[] partitionFilterWith(DimFilter current, Predicate<DimFilter> predicate)
+  {
+    // current should be CNF form
+    if (current == null) {
+      return null;
+    }
+    List<DimFilter> bitmapIndexSupported = Lists.newArrayList();
+    List<DimFilter> bitmapIndexNotSupported = Lists.newArrayList();
+
+    traverse(current, predicate, bitmapIndexSupported, bitmapIndexNotSupported);
+
+    return new DimFilter[]{DimFilters.and(bitmapIndexSupported), DimFilters.and(bitmapIndexNotSupported)};
+  }
+
+  private static void traverse(
+      DimFilter current,
+      Predicate<DimFilter> predicate,
+      List<DimFilter> support,
+      List<DimFilter> notSupport
+  )
+  {
+    if (current instanceof AndDimFilter) {
+      for (DimFilter child : ((AndDimFilter) current).getChildren()) {
+        traverse(child, predicate, support, notSupport);
+      }
+    } else {
+      if (predicate.apply(current)) {
+        support.add(current);
+      } else {
+        notSupport.add(current);
+      }
+    }
+  }
+
+  // should be string type
+  public static DimFilter toFilter(String dimension, List<Range> ranges)
+  {
+    Iterable<Range> filtered = Iterables.filter(ranges, Ranges.VALID);
+    List<String> equalValues = Lists.newArrayList();
+    List<DimFilter> dimFilters = Lists.newArrayList();
+    for (Range range : filtered) {
+      String lower = range.hasLowerBound() ? (String) range.lowerEndpoint() : null;
+      String upper = range.hasUpperBound() ? (String) range.upperEndpoint() : null;
+      if (lower == null && upper == null) {
+        return null;
+      }
+      if (Objects.equals(lower, upper)) {
+        equalValues.add(lower);
+        continue;
+      }
+      boolean lowerStrict = range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN;
+      boolean upperStrict = range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN;
+      dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
+    }
+    if (equalValues.size() > 1) {
+      dimFilters.add(new InDimFilter(dimension, equalValues, null));
+    } else if (equalValues.size() == 1) {
+      dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
+    }
+    DimFilter dimFilter = DimFilters.or(dimFilters).optimize();
+    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, dimFilter);
+    return dimFilter;
   }
 
   public static class NONE implements DimFilter

@@ -58,8 +58,8 @@ import io.druid.query.extraction.JavaScriptExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.extraction.TimeFormatExtractionFn;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.ordering.Direction;
@@ -924,19 +924,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testTopNWithNonExistentFilterMultiDim()
   {
-    AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
-                                      .fields(
-                                          Lists.<DimFilter>newArrayList(
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.marketDimension)
-                                                    .value("billyblank")
-                                                    .build(),
-                                              Druids.newSelectorDimFilterBuilder()
-                                                    .dimension(QueryRunnerTestHelper.qualityDimension)
-                                                    .value("mezzanine")
-                                                    .build()
-                                          )
-                                      ).build();
+    DimFilter andDimFilter = DimFilters.and(
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "billyblank"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "mezzanine")
+    );
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
         .granularity(QueryRunnerTestHelper.allGran)
