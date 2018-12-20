@@ -32,7 +32,6 @@ import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -44,7 +43,7 @@ import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BySegmentQueryRunner;
-import io.druid.query.CPUTimeMetricQueryRunner;
+import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
@@ -86,7 +85,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -433,66 +431,46 @@ public class ServerManager implements QuerySegmentWalker
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
-    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
+    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest.makeMetricBuilder(), emitter);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
     {
       @Override
       public QueryRunner<T> apply(Iterable<Segment> segments)
       {
-        Iterable<QueryRunner<T>> runners = Iterables.transform(segments, new Function<Segment, QueryRunner<T>>()
-        {
-          @Override
-          public QueryRunner<T> apply(Segment segment)
-          {
-            return buildAndDecorateQueryRunner(
-                factory,
-                segment,
-                optimizer,
-                builderFn,
-                cpuTimeAccumulator
-            );
-          }
-        });
-        return CPUTimeMetricQueryRunner.safeBuild(
-            FinalizeResultsQueryRunner.finalize(
-                toolChest.mergeResults(
-                    factory.mergeRunners(exec, runners, optimizer)
-                ),
-                toolChest,
-                objectMapper
+        Iterable<QueryRunner<T>> runners = Iterables.transform(
+            segments, buildAndDecorateQueryRunner(factory, optimizer, reporter)
+        );
+        return FinalizeResultsQueryRunner.finalize(
+            toolChest.mergeResults(
+                factory.mergeRunners(exec, runners, optimizer)
             ),
-            builderFn,
-            emitter,
-            cpuTimeAccumulator,
-            true
+            toolChest,
+            objectMapper
         );
       }
     };
     if (splitable != null) {
-      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this, objectMapper);
+      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         log.info("Split segments into %d groups", splits.size());
-        return QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)));
+        return reporter.report(
+            QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+        );
       }
     }
 
     QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
-      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
+      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return toConcatRunner(splits, runner);
+        return reporter.report(toConcatRunner(splits, runner));
       }
     }
-    return QueryRunners.runWith(runner, resolved);
+    return QueryRunners.runWith(resolved, reporter.report(runner));
   }
 
-  private <T> QueryRunner<T> toConcatRunner(
-      final Iterable<Query<T>> queries,
-      final QueryRunner<T> runner
-  )
+  private <T> QueryRunner<T> toConcatRunner(final Iterable<Query<T>> queries, final QueryRunner<T> runner)
   {
     return new QueryRunner<T>()
     {
@@ -521,76 +499,57 @@ public class ServerManager implements QuerySegmentWalker
     };
   }
 
-  private <T> QueryRunner<T> buildAndDecorateQueryRunner(
+  private <T> Function<Segment, QueryRunner<T>> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
-      final Segment segment,
       final Future<Object> optimizer,
-      final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
-      final AtomicLong cpuTimeAccumulator
+      final CPUTimeMetricBuilder<T> reporter
   )
   {
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final Segment adapter = ((Segment.WithDescriptor) segment).getSegment();
-    final SegmentDescriptor descriptor = ((Segment.WithDescriptor) segment).getDescriptor();
-    final SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
-    return CPUTimeMetricQueryRunner.safeBuild(
-        new SpecificSegmentQueryRunner<T>(
-            new MetricsEmittingQueryRunner<T>(
-                emitter,
-                builderFn,
-                new BySegmentQueryRunner<T>(
-                    adapter.getIdentifier(),
-                    adapter.getDataInterval().getStart(),
-                    new CachingQueryRunner<T>(
-                        adapter.getIdentifier(),
-                        descriptor,
-                        objectMapper,
-                        cache,
-                        toolChest,
-                        new MetricsEmittingQueryRunner<T>(
-                            emitter,
-                            new Function<Query<T>, ServiceMetricEvent.Builder>()
-                            {
-                              @Override
-                              public ServiceMetricEvent.Builder apply(@Nullable final Query<T> input)
-                              {
-                                return toolChest.makeMetricBuilder(input);
-                              }
-                            },
-                            new ReferenceCountingSegmentQueryRunner<T>(
-                                factory,
-                                (ReferenceCountingSegment) adapter,
-                                descriptor,
-                                optimizer
-                            ),
-                            "query/segment/time",
-                            ImmutableMap.of("segment", adapter.getIdentifier())
-                        ),
-                        cachingExec,
-                        cacheConfig
-                    )
-                ),
-                "query/segmentAndCache/time",
-                ImmutableMap.of("segment", adapter.getIdentifier())
-            ).withWaitMeasuredFromNow(),
-            segmentSpec
-        ),
-        builderFn,
-        emitter,
-        cpuTimeAccumulator,
-        false
-    );
-  }
-
-  private static <T> Function<Query<T>, ServiceMetricEvent.Builder> getBuilderFn(final QueryToolChest<T, Query<T>> toolChest)
-  {
-    return new Function<Query<T>, ServiceMetricEvent.Builder>()
+    return new Function<Segment, QueryRunner<T>>()
     {
-      @Nullable
       @Override
-      public ServiceMetricEvent.Builder apply(@Nullable Query<T> input)
+      public QueryRunner<T> apply(final Segment segment)
       {
-        return toolChest.makeMetricBuilder(input);
+        final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+        final Segment adapter = ((Segment.WithDescriptor) segment).getSegment();
+        final SegmentDescriptor descriptor = ((Segment.WithDescriptor) segment).getDescriptor();
+        final SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
+        return reporter.accumulate(
+            new SpecificSegmentQueryRunner<T>(
+                new MetricsEmittingQueryRunner<T>(
+                    emitter,
+                    reporter,
+                    new BySegmentQueryRunner<T>(
+                        adapter.getIdentifier(),
+                        adapter.getDataInterval().getStart(),
+                        new CachingQueryRunner<T>(
+                            adapter.getIdentifier(),
+                            descriptor,
+                            objectMapper,
+                            cache,
+                            toolChest,
+                            new MetricsEmittingQueryRunner<T>(
+                                emitter,
+                                toolChest.makeMetricBuilder(),
+                                new ReferenceCountingSegmentQueryRunner<T>(
+                                    factory,
+                                    (ReferenceCountingSegment) adapter,
+                                    descriptor,
+                                    optimizer
+                                ),
+                                "query/segment/time",
+                                ImmutableMap.of("segment", adapter.getIdentifier())
+                            ),
+                            cachingExec,
+                            cacheConfig
+                        )
+                    ),
+                    "query/segmentAndCache/time",
+                    ImmutableMap.of("segment", adapter.getIdentifier())
+                ).withWaitMeasuredFromNow(),
+                segmentSpec
+            )
+        );
       }
     };
   }

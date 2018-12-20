@@ -182,14 +182,22 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(TopNQuery query)
+  public Function<TopNQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-    return super.makeMetricBuilder(query)
-                .setDimension("threshold", String.valueOf(query.getThreshold()))
-                .setDimension("dimension", query.getDimensionSpec().getDimension())
-                .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                .setDimension("numComplexMetrics", String.valueOf(DruidMetrics.findNumComplexAggs(aggregators)));
+    return new Function<TopNQuery, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(TopNQuery query)
+      {
+        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
+        final int numComplexAggs = DruidMetrics.findNumComplexAggs(aggregators);
+        return DruidMetrics.makePartialQueryTimeMetric(query)
+                           .setDimension("threshold", String.valueOf(query.getThreshold()))
+                           .setDimension("dimension", query.getDimensionSpec().getDimension())
+                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
+                           .setDimension("numComplexMetrics", String.valueOf(numComplexAggs));
+      }
+    };
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.query.datasourcemetadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -98,11 +99,18 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(DataSourceMetadataQuery query)
+  public Function<DataSourceMetadataQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    return new ServiceMetricEvent.Builder()
-        .setDimension("dataSource", DataSourceUtil.getMetricName(query.getDataSource()))
-        .setDimension("type", query.getType());
+    return new Function<DataSourceMetadataQuery, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(DataSourceMetadataQuery query)
+      {
+        return new ServiceMetricEvent.Builder()
+            .setDimension("dataSource", DataSourceUtil.getMetricName(query.getDataSource()))
+            .setDimension("type", query.getType());
+      }
+    };
   }
 
   @Override

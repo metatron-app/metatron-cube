@@ -19,7 +19,6 @@
 
 package io.druid.query.groupby;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -147,8 +146,7 @@ public class GroupByQueryRunnerFactory
       List<Segment> segments,
       Future<Object> optimizer,
       Supplier<RowResolver> resolver,
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper mapper
+      QuerySegmentWalker segmentWalker
   )
   {
     // this possibly does not reduce total cardinality to handle..
@@ -229,8 +227,7 @@ public class GroupByQueryRunnerFactory
       List<Segment> segments,
       Future<Object> optimizer,
       Supplier<RowResolver> resolver,
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper mapper
+      QuerySegmentWalker segmentWalker
   )
   {
     if (!Granularities.ALL.equals(query.getGranularity())) {
@@ -248,7 +245,7 @@ public class GroupByQueryRunnerFactory
     if (numSplit < 0) {
       int maxCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
       if (maxCardinality > 1) {
-        long cardinality = Queries.estimateCardinality(query, segmentWalker, config, mapper);
+        long cardinality = Queries.estimateCardinality(query, segmentWalker, config);
         numSplit = Math.min(MAX_LOCAL_SPLIT, (int) Math.ceil((double) cardinality / maxCardinality));
       }
     }
@@ -290,7 +287,7 @@ public class GroupByQueryRunnerFactory
     }
     if (thresholds == null) {
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
+          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
       );
     }
     if (thresholds == null || thresholds.length < 3) {

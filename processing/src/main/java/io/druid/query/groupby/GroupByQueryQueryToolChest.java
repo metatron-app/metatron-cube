@@ -287,14 +287,22 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(GroupByQuery query)
+  public Function<GroupByQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    final List<DimensionSpec> dimensions = query.getDimensions();
-    final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-    return super.makeMetricBuilder(query)
-                .setDimension("numDimensions", String.valueOf(dimensions.size()))
-                .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                .setDimension("numComplexMetrics", String.valueOf(DruidMetrics.findNumComplexAggs(aggregators)));
+    return new Function<GroupByQuery, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(GroupByQuery query)
+      {
+        final List<DimensionSpec> dimensions = query.getDimensions();
+        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
+        final int complexAggs = DruidMetrics.findNumComplexAggs(aggregators);
+        return DruidMetrics.makePartialQueryTimeMetric(query)
+                           .setDimension("numDimensions", String.valueOf(dimensions.size()))
+                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
+                           .setDimension("numComplexMetrics", String.valueOf(complexAggs));
+      }
+    };
   }
 
   @Override

@@ -375,16 +375,6 @@ public class AppenderatorImpl implements Appenderator
     }
 
     final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn =
-        new Function<Query<T>, ServiceMetricEvent.Builder>()
-        {
-
-          @Override
-          public ServiceMetricEvent.Builder apply(@Nullable Query<T> input)
-          {
-            return toolchest.makeMetricBuilder(query);
-          }
-        };
     final boolean skipIncrementalSegment = query.getContextValue(CONTEXT_SKIP_INCREMENTAL_SEGMENT, false);
 
     final List<SegmentDescriptor> descriptors = Lists.newArrayList(specs);
@@ -464,7 +454,7 @@ public class AppenderatorImpl implements Appenderator
                         return new SpecificSegmentQueryRunner<>(
                             new MetricsEmittingQueryRunner<>(
                                 emitter,
-                                builderFn,
+                                toolchest.makeMetricBuilder(),
                                 new BySegmentQueryRunner<T>(
                                     theSink.getSegment().getIdentifier(),
                                     descriptor.getInterval().getStart(),

@@ -39,7 +39,6 @@ import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -88,7 +87,6 @@ import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FilenameFilter;
@@ -321,17 +319,6 @@ public class RealtimePlumber implements Plumber
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
 
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn =
-        new Function<Query<T>, ServiceMetricEvent.Builder>()
-        {
-
-          @Override
-          public ServiceMetricEvent.Builder apply(@Nullable Query<T> input)
-          {
-            return toolchest.makeMetricBuilder(query);
-          }
-        };
-
     List<TimelineObjectHolder<String, Sink>> querySinks = Lists.newArrayList();
     for (Interval interval : query.getIntervals()) {
       querySinks.addAll(sinkTimeline.lookup(interval));
@@ -368,7 +355,7 @@ public class RealtimePlumber implements Plumber
                         return new SpecificSegmentQueryRunner<T>(
                             new MetricsEmittingQueryRunner<T>(
                                 emitter,
-                                builderFn,
+                                toolchest.makeMetricBuilder(),
                                 factory.mergeRunners(
                                     MoreExecutors.sameThreadExecutor(),
                                     Iterables.transform(

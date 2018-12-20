@@ -37,7 +37,6 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.StatusResponseHandler;
@@ -53,7 +52,7 @@ import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BySegmentQueryRunner;
-import io.druid.query.CPUTimeMetricQueryRunner;
+import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
@@ -63,6 +62,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
@@ -86,7 +86,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
@@ -99,7 +98,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -592,91 +590,64 @@ public class BrokerServerView implements TimelineServerView
     final Query<T> resolved = query.resolveQuery(resolver, jsonMapper);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
+    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest.makeMetricBuilder(), emitter);
 
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
-    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
-
-    final Iterable<QueryRunner<T>> queryRunners = Iterables.concat(
-        Iterables.transform(
-            segments,
-            new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
-            {
-              @Override
-              @SuppressWarnings("unchecked")
-              public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
-              {
-                if (input.rhs == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
-                }
-                return Arrays.asList(
-                    buildAndDecorateQueryRunner(
-                        factory,
-                        toolChest,
-                        input.rhs,
-                        input.lhs,
-                        optimizer,
-                        builderFn,
-                        cpuTimeAccumulator
-                    )
-                );
-              }
+    final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(
+        segments,
+        new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, QueryRunner<T>>()
+        {
+          @Override
+          public QueryRunner<T> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
+          {
+            if (input.rhs == null) {
+              return new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs);
             }
+            return buildAndDecorateQueryRunner(
+                factory,
+                input.rhs,
+                input.lhs,
+                optimizer,
+                reporter
+            );
+          }
+        }
+    );
+
+    return QueryRunners.runWith(
+        resolved,
+        reporter.report(
+            FinalizeResultsQueryRunner.finalize(
+                toolChest.mergeResults(
+                    factory.mergeRunners(exec, queryRunners, optimizer)
+                ),
+                toolChest,
+                smileMapper
+            )
         )
     );
-
-    final QueryRunner<T> runner = CPUTimeMetricQueryRunner.safeBuild(
-        FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(
-                factory.mergeRunners(exec, queryRunners, optimizer)
-            ),
-            toolChest,
-            smileMapper
-        ),
-        builderFn,
-        emitter,
-        cpuTimeAccumulator,
-        true
-    );
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return runner.run(resolved, responseContext);
-      }
-    };
   }
 
   // copied from server manager, except cache populator
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
-      final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
       final SegmentDescriptor segmentDescriptor,
       final Future<Object> optimizer,
-      final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
-      final AtomicLong cpuTimeAccumulator
+      final CPUTimeMetricBuilder<T> reporter
   )
   {
     SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(segmentDescriptor);
-    return CPUTimeMetricQueryRunner.safeBuild(
+    return reporter.accumulate(
         new SpecificSegmentQueryRunner<T>(
             new MetricsEmittingQueryRunner<T>(
                 emitter,
-                builderFn,
+                reporter,
                 new BySegmentQueryRunner<T>(
                     adapter.getIdentifier(),
                     adapter.getDataInterval().getStart(),
                         new MetricsEmittingQueryRunner<T>(
                             emitter,
-                            new Function<Query<T>, ServiceMetricEvent.Builder>()
-                            {
-                              @Override
-                              public ServiceMetricEvent.Builder apply(@Nullable final Query<T> input)
-                              {
-                                return toolChest.makeMetricBuilder(input);
-                              }
-                            },
+                            reporter,
                             new ReferenceCountingSegmentQueryRunner<T>(
                                 factory, adapter, segmentDescriptor, optimizer
                             ),
@@ -688,24 +659,8 @@ public class BrokerServerView implements TimelineServerView
                 ImmutableMap.of("segment", adapter.getIdentifier())
             ).withWaitMeasuredFromNow(),
             segmentSpec
-        ),
-        builderFn,
-        emitter,
-        cpuTimeAccumulator,
-        false
+        )
     );
-  }
-
-  private static <T> Function<Query<T>, ServiceMetricEvent.Builder> getBuilderFn(final QueryToolChest<T, Query<T>> toolChest)
-  {
-    return new Function<Query<T>, ServiceMetricEvent.Builder>()
-    {
-      @Override
-      public ServiceMetricEvent.Builder apply(Query<T> input)
-      {
-        return toolChest.makeMetricBuilder(input);
-      }
-    };
   }
 
   @Override

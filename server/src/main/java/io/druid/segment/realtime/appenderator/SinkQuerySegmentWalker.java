@@ -60,7 +60,6 @@ import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -175,15 +174,6 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
     }
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn =
-        new Function<Query<T>, ServiceMetricEvent.Builder>()
-        {
-          @Override
-          public ServiceMetricEvent.Builder apply(@Nullable Query<T> input)
-          {
-            return toolChest.makeMetricBuilder(query);
-          }
-        };
     final boolean skipIncrementalSegment = query.getContextValue(CONTEXT_SKIP_INCREMENTAL_SEGMENT, false);
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
@@ -272,7 +262,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                                             null
                                         )
                                     ),
-                                    builderFn,
+                                    toolChest.makeMetricBuilder(),
                                     sinkSegmentIdentifier,
                                     cpuTimeAccumulator
                                 ),
@@ -284,7 +274,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                 null
             )
         ),
-        builderFn,
+        toolChest.makeMetricBuilder(),
         emitter,
         cpuTimeAccumulator,
         true

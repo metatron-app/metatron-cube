@@ -158,7 +158,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
       log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
 
-      final ServiceMetricEvent.Builder builder = toolChest.makeMetricBuilder(query);
+      final ServiceMetricEvent.Builder builder = toolChest.makeMetricBuilder().apply(query);
       builder.setDimension("server", host);
       builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
 

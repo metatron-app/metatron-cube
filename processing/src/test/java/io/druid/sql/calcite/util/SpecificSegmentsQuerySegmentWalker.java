@@ -505,7 +505,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     };
 
     if (splitable != null) {
-      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this, objectMapper);
+      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         return QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)));
       }
@@ -513,7 +513,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
 
     QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
-      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
+      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
         return QueryRunners.concat(runner, splits);
       }

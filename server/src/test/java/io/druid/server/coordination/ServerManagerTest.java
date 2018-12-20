@@ -20,6 +20,7 @@
 package io.druid.server.coordination;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -584,9 +585,16 @@ public class ServerManagerTest
     }
 
     @Override
-    public ServiceMetricEvent.Builder makeMetricBuilder(QueryType query)
+    public Function<QueryType, ServiceMetricEvent.Builder> makeMetricBuilder()
     {
-      return new ServiceMetricEvent.Builder();
+      return new Function<QueryType, ServiceMetricEvent.Builder>()
+      {
+        @Override
+        public ServiceMetricEvent.Builder apply(QueryType query)
+        {
+          return new ServiceMetricEvent.Builder();
+        }
+      };
     }
 
     @Override

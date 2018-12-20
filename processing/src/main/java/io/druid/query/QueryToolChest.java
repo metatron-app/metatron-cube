@@ -84,13 +84,18 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * meaningful dimensions for metrics given this query type.  Examples might be the topN threshold for
    * a TopN query or the number of dimensions included for a groupBy query.
    *
-   * @param query The query that is being processed
-   *
    * @return A MetricEvent.Builder that can be used to make metrics for the provided query
    */
-  public ServiceMetricEvent.Builder makeMetricBuilder(QueryType query)
+  public Function<QueryType, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
+    return new Function<QueryType, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(QueryType query)
+      {
+        return DruidMetrics.makePartialQueryTimeMetric(query);
+      }
+    };
   }
 
   /**

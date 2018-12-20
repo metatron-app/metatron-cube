@@ -51,7 +51,7 @@ public class QueryRunners
     };
   }
 
-  public static <T> QueryRunner<T> runWith(final QueryRunner<T> runner, final Query<T> query)
+  public static <T> QueryRunner<T> runWith(final Query<T> query, final QueryRunner<T> runner)
   {
     return new QueryRunner<T>()
     {

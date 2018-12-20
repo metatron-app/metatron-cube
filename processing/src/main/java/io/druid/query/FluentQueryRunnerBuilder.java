@@ -20,11 +20,8 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 
-import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FluentQueryRunnerBuilder<T>
@@ -93,15 +90,7 @@ public class FluentQueryRunnerBuilder<T>
     return from(
         CPUTimeMetricQueryRunner.safeBuild(
             baseRunner,
-            new Function<Query<T>, ServiceMetricEvent.Builder>()
-            {
-              @Nullable
-              @Override
-              public ServiceMetricEvent.Builder apply(Query<T> tQuery)
-              {
-                return toolChest.makeMetricBuilder(tQuery);
-              }
-            },
+            toolChest.makeMetricBuilder(),
             emitter,
             new AtomicLong(0L),
             true

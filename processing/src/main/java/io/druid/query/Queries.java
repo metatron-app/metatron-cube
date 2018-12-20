@@ -416,11 +416,11 @@ public class Queries
   public static long estimateCardinality(
       GroupByQuery query,
       QuerySegmentWalker segmentWalker,
-      QueryConfig config,
-      ObjectMapper mapper
+      QueryConfig config
   )
   {
-    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, mapper);
+    ObjectMapper objectMapper = segmentWalker.getObjectMapper();
+    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, objectMapper);
     Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
     return row.getLongMetric("cardinality");
   }
@@ -430,7 +430,6 @@ public class Queries
   public static Object[] makeColumnHistogramOn(
       Supplier<RowResolver> supplier,
       QuerySegmentWalker segmentWalker,
-      ObjectMapper jsonMapper,
       TimeseriesQuery metaQuery,
       DimensionSpec dimensionSpec,
       int numSplits,
@@ -472,29 +471,23 @@ public class Queries
                                          .put(splitType, numSplits + 1)
                                          .build();
 
-    PostAggregator postAggregator = Queries.convert(pg, jsonMapper, PostAggregator.class);
+    PostAggregator postAggregator = Queries.convert(pg, segmentWalker.getObjectMapper(), PostAggregator.class);
     if (postAggregator == null) {
       LOG.info("Failed to convert map to 'sketch.quantiles' operator.. fix this");
       return null;
     }
 
-    metaQuery = (TimeseriesQuery) metaQuery.withVirtualColumns(virtualColumns)
-                                           .withAggregatorSpecs(Arrays.asList(aggregator))
-                                           .withPostAggregatorSpecs(Arrays.asList(postAggregator))
-                                           .withOutputColumns(Arrays.asList("SPLIT"))
-                                           .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
+    metaQuery = metaQuery.withVirtualColumns(virtualColumns)
+                         .withAggregatorSpecs(Arrays.asList(aggregator))
+                         .withPostAggregatorSpecs(Arrays.asList(postAggregator))
+                         .withOutputColumns(Arrays.asList("SPLIT"))
+                         .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
 
-    Result<TimeseriesResultValue> result = Iterables.getOnlyElement(
-        Sequences.toList(
-            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
-            Lists.<Result<TimeseriesResultValue>>newArrayList()
-        ), null
+    Result<TimeseriesResultValue> result = Sequences.only(
+        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()), null
     );
-    if (result == null) {
-      return null;
-    }
 
-    return (Object[]) result.getValue().getMetric("SPLIT");
+    return result == null ? null : (Object[]) result.getValue().getMetric("SPLIT");
   }
 
 

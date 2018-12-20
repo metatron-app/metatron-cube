@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.PeriodGranularity;
@@ -104,14 +103,7 @@ public class IntervalChunkingQueryRunner<T> implements QueryRunner<T>
                         toolChest.mergeResults(
                             new MetricsEmittingQueryRunner<T>(
                                 emitter,
-                                new Function<Query<T>, ServiceMetricEvent.Builder>()
-                                {
-                                  @Override
-                                  public ServiceMetricEvent.Builder apply(Query<T> input)
-                                  {
-                                    return toolChest.makeMetricBuilder(input);
-                                  }
-                                },
+                                toolChest.makeMetricBuilder(),
                                 baseRunner,
                                 "query/intervalChunk/time",
                                 ImmutableMap.of("chunkInterval", singleInterval.toString())

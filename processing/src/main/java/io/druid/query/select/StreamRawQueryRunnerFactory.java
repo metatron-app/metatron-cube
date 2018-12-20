@@ -19,7 +19,6 @@
 
 package io.druid.query.select;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -95,8 +94,7 @@ public class StreamRawQueryRunnerFactory
       List<Segment> targets,
       Future<Object> optimizer,
       Supplier<RowResolver> resolver,
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper mapper
+      QuerySegmentWalker segmentWalker
   )
   {
     return null;
@@ -108,8 +106,7 @@ public class StreamRawQueryRunnerFactory
       List<Segment> segments,
       Future<Object> optimizer,
       Supplier<RowResolver> resolver,
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper mapper
+      QuerySegmentWalker segmentWalker
   )
   {
     int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 5);
@@ -151,7 +148,7 @@ public class StreamRawQueryRunnerFactory
     if (thresholds == null) {
       DimensionSpec dimensionSpec = DefaultDimensionSpec.of(sortColumn);
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, mapper, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
+          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
       );
     }
     if (thresholds == null || thresholds.length < 3) {

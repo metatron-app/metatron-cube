@@ -148,12 +148,20 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(TimeseriesQuery query)
+  public Function<TimeseriesQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-    return super.makeMetricBuilder(query)
-                .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                .setDimension("numComplexMetrics", String.valueOf(DruidMetrics.findNumComplexAggs(aggregators)));
+    return new Function<TimeseriesQuery, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(TimeseriesQuery query)
+      {
+        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
+        final int numComplexAggs = DruidMetrics.findNumComplexAggs(aggregators);
+        return DruidMetrics.makePartialQueryTimeMetric(query)
+                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
+                           .setDimension("numComplexMetrics", String.valueOf(numComplexAggs));
+      }
+    };
   }
 
   @Override

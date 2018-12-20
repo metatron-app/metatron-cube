@@ -103,11 +103,18 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(TimeBoundaryQuery query)
+  public Function<TimeBoundaryQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
-    return new ServiceMetricEvent.Builder()
+    return new Function<TimeBoundaryQuery, ServiceMetricEvent.Builder>()
+    {
+      @Override
+      public ServiceMetricEvent.Builder apply(TimeBoundaryQuery query)
+      {
+        return new ServiceMetricEvent.Builder()
             .setDimension(DruidMetrics.DATASOURCE, DataSourceUtil.getMetricName(query.getDataSource()))
             .setDimension(DruidMetrics.TYPE, query.getType());
+      }
+    };
   }
 
   @Override
