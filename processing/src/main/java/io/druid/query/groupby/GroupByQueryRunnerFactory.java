@@ -21,7 +21,9 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -35,21 +37,28 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.common.utils.Sequences;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
+import io.druid.query.Result;
 import io.druid.query.RowResolver;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.filter.BoundDimFilter;
@@ -57,6 +66,9 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.sketch.QuantileOperation;
+import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -130,6 +142,88 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
+  public List<List<Segment>> splitSegments(
+      GroupByQuery query,
+      List<Segment> segments,
+      Future<Object> optimizer,
+      Supplier<RowResolver> resolver,
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper mapper
+  )
+  {
+    // this possibly does not reduce total cardinality to handle..
+    if (Granularities.ALL.equals(query.getGranularity())) {
+      return null;  // cannot split on time
+    }
+    if (query.getDimensions().isEmpty()) {
+      return null;  // use timeseries query
+    }
+    if (segments.size() <= 1) {
+      return null;  // nothing to split (actually can.. later)
+    }
+    GroupByQueryConfig gbyConfig = config.getGroupBy();
+    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, gbyConfig.getLocalSplitNum());
+    List<List<Segment>> segmentGroups = Lists.newArrayList();
+    if (numSplit <= 0) {
+      int maxCardinality = query.getContextInt(
+          Query.GBY_LOCAL_SPLIT_CARDINALITY,
+          gbyConfig.getLocalSplitCardinality()
+      );
+      if (maxCardinality < 0) {
+        return null;
+      }
+      AggregatorFactory cardinality = new CardinalityAggregatorFactory(
+          "cardinality", null, query.getDimensions(), query.getGroupingSets(), null, true, true
+      );
+      TimeseriesQuery timeseries = query.asTimeseriesQuery()
+                                        .withPostAggregatorSpecs(null)
+                                        .withAggregatorSpecs(Arrays.asList(cardinality))
+                                        .withGranularity(Granularities.ALL)
+                                        .withOverriddenContext(QueryContextKeys.FINALIZE, false);
+      List<Segment> current = Lists.newArrayList();
+      HyperLogLogCollector prev = null;
+      for (int i = 0; i < segments.size(); i++) {
+        Segment segment = segments.get(i);
+        SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor());
+        Result<TimeseriesResultValue> result = Sequences.only(
+            timeseries.withQuerySegmentSpec(segmentSpec)
+                      .run(segmentWalker, Maps.<String, Object>newHashMap())
+        );
+        HyperLogLogCollector collector = (HyperLogLogCollector) result.getValue().getMetric("cardinality");
+        if (prev != null) {
+          collector = collector.fold(prev);
+        }
+        if (collector.estimateCardinalityRound() > maxCardinality) {
+          if (current.isEmpty()) {
+            current.add(segment);
+            segmentGroups.add(current);
+            current = Lists.newArrayList();
+          } else {
+            segmentGroups.add(current);
+            current = Lists.newArrayList(segment);
+          }
+          prev = null;
+        } else {
+          current.add(segment);
+          prev = collector;
+        }
+        if (i > 0 && segmentGroups.isEmpty() &&
+            prev.estimateCardinality() / maxCardinality < (double) i * 2 / segments.size()) {
+          // early exiting
+          return null;
+        }
+      }
+      if (!current.isEmpty()) {
+        segmentGroups.add(current);
+      }
+    } else {
+      int segmentSize = segments.size() / numSplit;
+      segmentGroups = segmentSize <= 1 ? ImmutableList.<List<Segment>>of() : Lists.partition(segments, segmentSize);
+    }
+    return segmentGroups.size() <= 1 ? null : segmentGroups;
+  }
+
+  @Override
   public Iterable<GroupByQuery> splitQuery(
       GroupByQuery query,
       List<Segment> segments,
@@ -139,6 +233,9 @@ public class GroupByQueryRunnerFactory
       ObjectMapper mapper
   )
   {
+    if (!Granularities.ALL.equals(query.getGranularity())) {
+      return null;  // cannot split on column
+    }
     if (query.getLimitSpec().getSegmentLimit() != null) {
       return null;  // not sure of this
     }

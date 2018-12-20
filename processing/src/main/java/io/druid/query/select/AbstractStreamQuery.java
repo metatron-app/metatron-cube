@@ -42,7 +42,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
     implements Query.ColumnsSupport<T>, Query.ArrayOutputSupport<T>
 {
   private final DimFilter dimFilter;
-  private final Granularity granularity;
   private final List<String> columns;
   private final List<VirtualColumn> virtualColumns;
   private final String concatString;
@@ -53,7 +52,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
       QuerySegmentSpec querySegmentSpec,
       boolean descending,
       DimFilter dimFilter,
-      Granularity granularity,
       List<String> columns,
       List<VirtualColumn> virtualColumns,
       String concatString,
@@ -63,7 +61,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   {
     super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
-    this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
@@ -87,7 +84,7 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   @JsonProperty
   public Granularity getGranularity()
   {
-    return granularity;
+    return Granularities.ALL;
   }
 
   @Override
@@ -133,7 +130,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec())
         .append(", descending=").append(isDescending())
-        .append(", granularity=").append(granularity)
         .append(", limit=").append(limit);
 
     if (dimFilter != null) {
@@ -170,9 +166,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
     if (!Objects.equals(dimFilter, that.dimFilter)) {
       return false;
     }
-    if (!Objects.equals(granularity, that.granularity)) {
-      return false;
-    }
     if (!Objects.equals(columns, that.columns)) {
       return false;
     }
@@ -194,7 +187,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   {
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
-    result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (columns != null ? columns.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);

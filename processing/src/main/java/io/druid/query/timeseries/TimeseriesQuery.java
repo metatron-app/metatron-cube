@@ -143,6 +143,12 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
   }
 
   @Override
+  public TimeseriesQuery withOverriddenContext(String contextKey, Object contextValue)
+  {
+    return (TimeseriesQuery) super.withOverriddenContext(contextKey, contextValue);
+  }
+
+  @Override
   public TimeseriesQuery withOverriddenContext(Map<String, Object> contextOverrides)
   {
     return new TimeseriesQuery(

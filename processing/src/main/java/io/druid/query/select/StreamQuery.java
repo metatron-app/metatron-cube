@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
@@ -46,7 +45,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
@@ -59,7 +57,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         querySegmentSpec,
         descending,
         dimFilter,
-        granularity,
         columns,
         virtualColumns,
         concatString,
@@ -82,7 +79,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         querySegmentSpec,
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -99,7 +95,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -116,7 +111,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -133,7 +127,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         isDescending(),
         dimFilter,
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -150,7 +143,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         virtualColumns,
         getConcatString(),
@@ -167,7 +159,6 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         columns,
         getVirtualColumns(),
         getConcatString(),

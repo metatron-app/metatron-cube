@@ -222,6 +222,7 @@ public class TimeseriesQueryRunnerTest
                                   .build();
 
     DateTime expectedEarliest = new DateTime("2011-01-12");
+    DateTime expectedSplit = new DateTime("2011-03-01");
     DateTime expectedLast = new DateTime("2011-04-15");
 
     Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
@@ -230,7 +231,8 @@ public class TimeseriesQueryRunnerTest
     );
     Result<TimeseriesResultValue> result = results.iterator().next();
 
-    Assert.assertEquals(expectedEarliest, result.getTimestamp());
+    DateTime expected = descending && dataSource.equals("mmapped-split") ? expectedSplit : expectedEarliest;
+    Assert.assertEquals(expected, result.getTimestamp());
     Assert.assertFalse(
         String.format("Timestamp[%s] > expectedLast[%s]", result.getTimestamp(), expectedLast),
         result.getTimestamp().isAfter(expectedLast)

@@ -70,17 +70,24 @@ public class Comparators
 
   public static Comparator<Object[]> toArrayComparator(final Comparator[] cx)
   {
+    return toArrayComparator(cx, 0);
+  }
+
+  public static Comparator<Object[]> toArrayComparator(final Comparator[] cx, final int from)
+  {
     return new Comparator<Object[]>()
     {
       @Override
       @SuppressWarnings("unchecked")
       public int compare(Object[] o1, Object[] o2)
       {
-        int compare = 0;
-        for (int i = 0; compare == 0 && i < cx.length; i++) {
-          compare = cx[i].compare(o1[i], o2[i]);
+        for (int i = from; i < cx.length; i++) {
+          final int compare = cx[i].compare(o1[i], o2[i]);
+          if (compare != 0) {
+            return compare;
+          }
         }
-        return compare;
+        return 0;
       }
     };
   }

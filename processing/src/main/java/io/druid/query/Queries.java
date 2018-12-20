@@ -421,7 +421,7 @@ public class Queries
   )
   {
     Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, mapper);
-    Row row = Iterables.getOnlyElement(Sequences.toList(counter.run(segmentWalker, Maps.<String, Object>newHashMap())));
+    Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
     return row.getLongMetric("cardinality");
   }
 

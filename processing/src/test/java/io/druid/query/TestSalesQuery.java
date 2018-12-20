@@ -110,6 +110,93 @@ public class TestSalesQuery extends QueryRunnerTestHelper
 
     results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_NUM, 3));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, 10));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testTimeSplits()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2014-01-01"))
+        .setDimensions(DefaultDimensionSpec.of("Sub-Category"))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("rows"),
+            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
+            new GenericSumAggregatorFactory("Profit", "Profit", "double")
+        )
+        .setGranularity(Granularities.YEAR)
+        .build();
+
+    String[] columnNames = {"__time", "Sub-Category", "rows", "Discount", "Profit"};
+    Object[][] objects = {
+        array("2011-01-01T00:00:00.000Z", "Accessories", 148L, 11.59999999999999, 6401.0),
+        array("2011-01-01T00:00:00.000Z", "Appliances", 93L, 15.299999999999997, 2457.0),
+        array("2011-01-01T00:00:00.000Z", "Art", 164L, 11.99999999999999, 1409.0),
+        array("2011-01-01T00:00:00.000Z", "Binders", 290L, 109.00000000000018, 4728.0),
+        array("2011-01-01T00:00:00.000Z", "Bookcases", 37L, 7.610000000000003, -347.0),
+        array("2011-01-01T00:00:00.000Z", "Chairs", 128L, 22.499999999999986, 6949.0),
+        array("2011-01-01T00:00:00.000Z", "Copiers", 10L, 2.1999999999999997, 2913.0),
+        array("2011-01-01T00:00:00.000Z", "Envelopes", 54L, 5.600000000000002, 1493.0),
+        array("2011-01-01T00:00:00.000Z", "Fasteners", 50L, 5.200000000000002, 180.0),
+        array("2011-01-01T00:00:00.000Z", "Furnishings", 184L, 27.6, 1977.0),
+        array("2011-01-01T00:00:00.000Z", "Labels", 76L, 5.000000000000002, 1289.0),
+        array("2011-01-01T00:00:00.000Z", "Machines", 26L, 8.5, 370.0),
+        array("2011-01-01T00:00:00.000Z", "Paper", 273L, 22.399999999999952, 6369.0),
+        array("2011-01-01T00:00:00.000Z", "Phones", 171L, 26.199999999999946, 11806.0),
+        array("2011-01-01T00:00:00.000Z", "Storage", 177L, 12.999999999999986, 4166.0),
+        array("2011-01-01T00:00:00.000Z", "Supplies", 40L, 2.8000000000000003, 489.0),
+        array("2011-01-01T00:00:00.000Z", "Tables", 71L, 18.949999999999996, -3129.0),
+        array("2012-01-01T00:00:00.000Z", "Accessories", 166L, 14.59999999999998, 10194.0),
+        array("2012-01-01T00:00:00.000Z", "Appliances", 94L, 16.899999999999995, 2507.0),
+        array("2012-01-01T00:00:00.000Z", "Art", 167L, 12.799999999999986, 1487.0),
+        array("2012-01-01T00:00:00.000Z", "Binders", 318L, 120.80000000000031, 7601.0),
+        array("2012-01-01T00:00:00.000Z", "Bookcases", 61L, 13.94, -2760.0),
+        array("2012-01-01T00:00:00.000Z", "Chairs", 133L, 21.19999999999999, 6229.0),
+        array("2012-01-01T00:00:00.000Z", "Copiers", 20L, 2.6, 9930.0),
+        array("2012-01-01T00:00:00.000Z", "Envelopes", 67L, 4.400000000000001, 1957.0),
+        array("2012-01-01T00:00:00.000Z", "Fasteners", 44L, 3.800000000000001, 172.0),
+        array("2012-01-01T00:00:00.000Z", "Furnishings", 200L, 27.399999999999988, 3054.0),
+        array("2012-01-01T00:00:00.000Z", "Labels", 77L, 6.000000000000003, 1327.0),
+        array("2012-01-01T00:00:00.000Z", "Machines", 24L, 6.7, 2978.0),
+        array("2012-01-01T00:00:00.000Z", "Paper", 272L, 17.39999999999997, 6573.0),
+        array("2012-01-01T00:00:00.000Z", "Phones", 199L, 27.99999999999994, 10391.0),
+        array("2012-01-01T00:00:00.000Z", "Storage", 171L, 13.599999999999984, 3501.0),
+        array("2012-01-01T00:00:00.000Z", "Supplies", 31L, 3.2000000000000006, -24.0),
+        array("2012-01-01T00:00:00.000Z", "Tables", 58L, 13.750000000000002, -3511.0),
+        array("2013-01-01T00:00:00.000Z", "Accessories", 186L, 14.79999999999998, 9663.0),
+        array("2013-01-01T00:00:00.000Z", "Appliances", 114L, 16.29999999999999, 5302.0),
+        array("2013-01-01T00:00:00.000Z", "Art", 181L, 12.399999999999988, 1404.0),
+        array("2013-01-01T00:00:00.000Z", "Binders", 413L, 147.69999999999987, 10146.0),
+        array("2013-01-01T00:00:00.000Z", "Bookcases", 54L, 10.270000000000003, 210.0),
+        array("2013-01-01T00:00:00.000Z", "Chairs", 165L, 29.499999999999996, 5764.0),
+        array("2013-01-01T00:00:00.000Z", "Copiers", 16L, 2.8000000000000007, 17743.0),
+        array("2013-01-01T00:00:00.000Z", "Envelopes", 62L, 4.200000000000001, 2067.0),
+        array("2013-01-01T00:00:00.000Z", "Fasteners", 59L, 4.600000000000001, 294.0),
+        array("2013-01-01T00:00:00.000Z", "Furnishings", 257L, 36.60000000000003, 3936.0),
+        array("2013-01-01T00:00:00.000Z", "Labels", 97L, 6.800000000000003, 1194.0),
+        array("2013-01-01T00:00:00.000Z", "Machines", 32L, 10.1, 2909.0),
+        array("2013-01-01T00:00:00.000Z", "Paper", 365L, 26.19999999999994, 9069.0),
+        array("2013-01-01T00:00:00.000Z", "Phones", 224L, 34.799999999999955, 9425.0),
+        array("2013-01-01T00:00:00.000Z", "Storage", 209L, 14.59999999999998, 6241.0),
+        array("2013-01-01T00:00:00.000Z", "Supplies", 60L, 4.400000000000001, -697.0),
+        array("2013-01-01T00:00:00.000Z", "Tables", 86L, 23.049999999999986, -2949.0)
+    };
+    Iterable<Row> results;
+    List<Row> expectedResults;
+
+    results = runQuery(query);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_NUM, 3));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, 10));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

@@ -41,7 +41,6 @@ import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;

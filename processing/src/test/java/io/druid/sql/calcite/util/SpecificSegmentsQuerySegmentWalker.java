@@ -22,7 +22,6 @@ package io.druid.sql.calcite.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -31,9 +30,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
@@ -48,6 +47,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -408,17 +408,33 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
 
+    // things done in CCC
     QueryRunner<T> runner = new QueryRunner<T>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        return QueryUtils.mergeSort(query, Arrays.asList(
-            toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
-            toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
-        ));
+        QueryRunner<T> runner = new QueryRunner<T>()
+        {
+          @Override
+          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+          {
+            return QueryUtils.mergeSort(query, Arrays.asList(
+                toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
+                toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+            ));
+          }
+        };
+        QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+        Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
+        if (BaseQuery.getContextBySegment(query)) {
+          manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
+        }
+        return Sequences.map(runner.run(query, responseContext), manipulatorFn);
       }
     };
+
     return FluentQueryRunnerBuilder.create(factory.getToolchest(), runner)
                                    .applyPreMergeDecoration()
                                    .applyMergeResults()
@@ -433,107 +449,76 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    QueryRunnerFactory.Splitable<T, Query<T>> splitable = null;
+    if (factory instanceof QueryRunnerFactory.Splitable) {
+      splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+    }
 
-    List<Segment> targets = Lists.newArrayList(
-        Iterables.filter(
-            Iterables.transform(segments, Pair.<SegmentDescriptor, Segment>rhsFn()), Predicates.notNull()
-        )
-    );
-    if (targets.isEmpty()) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
+    List<Segment> targets = Lists.newArrayList();
+    List<QueryRunner<T>> missingSegments = Lists.newArrayList();
+    for (Pair<SegmentDescriptor, Segment> segment : segments) {
+      if (segment.rhs != null) {
+        targets.add(new Segment.WithDescriptor(segment.rhs, segment.lhs));
+      } else {
+        missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
+      }
     }
     if (query.isDescending()) {
       targets = Lists.reverse(targets);
     }
 
+    if (targets.isEmpty()) {
+      return PostProcessingOperators.wrap(QueryRunners.<T>empty(), objectMapper);
+    }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
 
-    Iterable<QueryRunner<T>> queryRunners = FunctionalIterable
-        .create(segments)
-        .transformCat(
-            new Function<Pair<SegmentDescriptor, Segment>, Iterable<QueryRunner<T>>>()
-            {
-              @Override
-              public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, Segment> input)
-              {
-                if (input.rhs == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
-                }
-                return Arrays.<QueryRunner<T>>asList(
-                    new SpecificSegmentQueryRunner<T>(
-                        new BySegmentQueryRunner<T>(
-                            input.rhs.getIdentifier(),
-                            input.rhs.getDataInterval().getStart(),
-                            factory.createRunner(input.rhs, optimizer)
-                        ),
-                        new SpecificSegmentSpec(input.lhs)
-                    )
-                );
-              }
-            }
-        );
-
-    QueryRunner<T> runner = toolChest.finalQueryDecoration(
-        toolChest.finalizeResults(
-            toolChest.mergeResults(
-                factory.mergeRunners(executor, queryRunners, optimizer)
-            )
-        )
-    );
-
-    if (factory instanceof QueryRunnerFactory.Splitable) {
-      QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
-      Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
-      if (queries != null) {
-        runner = toConcatRunner(queries, runner);
-      }
-    }
-
-    Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
-        resolved, MetricManipulatorFns.deserializing()
-    );
-    if (BaseQuery.getContextBySegment(query)) {
-      manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
-    }
-    final QueryRunner<T> baseRunner = runner;
-    final Function deserializer = manipulatorFn;
-    return new QueryRunner<T>()
+    final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
     {
       @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      public QueryRunner<T> apply(Iterable<Segment> segments)
       {
-        return Sequences.map(baseRunner.run(resolved, responseContext), deserializer);
-      }
-    };
-  }
-
-  private <T> QueryRunner<T> toConcatRunner(
-      final Iterable<Query<T>> queries,
-      final QueryRunner<T> runner
-  )
-  {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
-      {
-        return Sequences.concat(
-            Iterables.transform(
-                queries, new Function<Query<T>, Sequence<T>>()
-                {
-                  @Override
-                  public Sequence<T> apply(final Query<T> splitQuery)
-                  {
-                    return runner.run(splitQuery, responseContext);
-                  }
-                }
+        Iterable<QueryRunner<T>> runners = Iterables.transform(segments, new Function<Segment, QueryRunner<T>>()
+        {
+          @Override
+          public QueryRunner<T> apply(Segment segment)
+          {
+            return new SpecificSegmentQueryRunner<T>(
+                new BySegmentQueryRunner<T>(
+                    segment.getIdentifier(),
+                    segment.getDataInterval().getStart(),
+                    factory.createRunner(segment, optimizer)
+                ),
+                new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor())
+            );
+          }
+        });
+        return toolChest.finalQueryDecoration(
+            toolChest.finalizeResults(
+                toolChest.mergeResults(
+                    factory.mergeRunners(executor, runners, optimizer)
+                )
             )
         );
       }
     };
+
+    if (splitable != null) {
+      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this, objectMapper);
+      if (!GuavaUtils.isNullOrEmpty(splits)) {
+        return QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)));
+      }
+    }
+
+    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
+    if (splitable != null) {
+      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
+      if (splits != null) {
+        return QueryRunners.concat(runner, splits);
+      }
+    }
+    return runner;
   }
 
   @Override

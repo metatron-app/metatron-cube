@@ -148,7 +148,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
 
           final List<String> columns = sketchQuery.estimatedOutputColumns();
-          final Result<Object[]> values = Iterables.getOnlyElement(Sequences.toList(pair.rhs), null);
+          final Result<Object[]> values = Sequences.only(pair.rhs, null);
           if (values == null) {
             continue;   // invalid interval or not-existing
           }

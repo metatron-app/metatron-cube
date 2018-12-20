@@ -190,7 +190,6 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        Granularities.ALL,
         getMetrics(),
         getVirtualColumns(),
         null,

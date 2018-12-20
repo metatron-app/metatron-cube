@@ -827,7 +827,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         limitSpec,
         outputColumns,
         lateralView,
-        Queries.extractContext(this, BaseQuery.QUERYID)
+        BaseQuery.copyContextForMeta(this)
     );
   }
 
@@ -845,7 +845,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
-        Queries.extractContext(this, BaseQuery.QUERYID)
+        BaseQuery.copyContextForMeta(this)
     );
   }
 

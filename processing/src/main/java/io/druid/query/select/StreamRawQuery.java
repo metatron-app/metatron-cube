@@ -29,7 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
-import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
@@ -59,7 +58,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
@@ -73,7 +71,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         querySegmentSpec,
         descending,
         dimFilter,
-        granularity,
         columns,
         virtualColumns,
         concatString,
@@ -154,7 +151,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -172,7 +168,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         spec,
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -190,7 +185,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -208,7 +202,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         filter,
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
@@ -226,7 +219,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         virtualColumns,
         getConcatString(),
@@ -244,7 +236,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         columns,
         getVirtualColumns(),
         getConcatString(),
@@ -261,7 +252,6 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getDimFilter(),
-        getGranularity(),
         getColumns(),
         getVirtualColumns(),
         getConcatString(),

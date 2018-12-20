@@ -19,10 +19,11 @@
 
 package io.druid.segment;
 
-import io.druid.query.RowResolver;
+import io.druid.query.SegmentDescriptor;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 /**
  */
@@ -34,9 +35,60 @@ public interface Segment extends Closeable
   public StorageAdapter asStorageAdapter(boolean forQuery);
   public long getLastAccessTime();
 
-  // for minimizing changes in factory
-  public interface WithResolver extends Segment
+  class WithDescriptor implements Segment
   {
-    RowResolver resolver();
+    private final Segment segment;
+    private final SegmentDescriptor descriptor;
+
+    public WithDescriptor(Segment segment, SegmentDescriptor descriptor) {
+      this.segment = segment;
+      this.descriptor = descriptor;
+    }
+
+    public Segment getSegment()
+    {
+      return segment;
+    }
+
+    public SegmentDescriptor getDescriptor()
+    {
+      return descriptor;
+    }
+
+    @Override
+    public String getIdentifier()
+    {
+      return segment.getIdentifier();
+    }
+
+    @Override
+    public Interval getDataInterval()
+    {
+      return segment.getDataInterval();
+    }
+
+    @Override
+    public QueryableIndex asQueryableIndex(boolean forQuery)
+    {
+      return segment.asQueryableIndex(forQuery);
+    }
+
+    @Override
+    public StorageAdapter asStorageAdapter(boolean forQuery)
+    {
+      return segment.asStorageAdapter(forQuery);
+    }
+
+    @Override
+    public long getLastAccessTime()
+    {
+      return segment.getLastAccessTime();
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      segment.close();
+    }
   }
 }

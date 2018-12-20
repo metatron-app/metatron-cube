@@ -24,6 +24,7 @@ import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
+import io.druid.data.Pair;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -90,6 +91,15 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 
   interface Splitable<T, QueryType extends Query<T>> extends QueryRunnerFactory<T, QueryType>
   {
+    public List<List<Segment>> splitSegments(
+        QueryType query,
+        List<Segment> targets,
+        Future<Object> optimizer,
+        Supplier<RowResolver> resolver,
+        QuerySegmentWalker segmentWalker,
+        ObjectMapper mapper
+    );
+
     public Iterable<QueryType> splitQuery(
         QueryType query,
         List<Segment> targets,

@@ -23,10 +23,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.LimitSpecs;
@@ -48,6 +50,8 @@ import java.util.function.BiFunction;
  */
 public final class MergeIndex implements Closeable
 {
+  private static final Logger LOG = new Logger(MergeIndex.class);
+
   private final GroupByQuery groupBy;
 
   private final AggregatorFactory.Combiner[] metrics;
@@ -131,21 +135,14 @@ public final class MergeIndex implements Closeable
     }
 
     // sort all
-    final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
     final Object[][] array = mapping.values().toArray(new Object[0][]);
-    Arrays.parallelSort(array, new Comparator<Object[]>()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public int compare(final Object[] o1, final Object[] o2)
-      {
-        int compare = 0;
-        for (int i = 0; compare == 0 && i < comparators.length; i++) {
-          compare = comparators[i].compare(o1[i], o2[i]);
-        }
-        return compare;
-      }
-    });
+    final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
+    long start = System.currentTimeMillis();
+    Arrays.parallelSort(
+        array, Comparators.toArrayComparator(comparators, groupBy.getGranularity() == Granularities.ALL ? 1 : 0)
+    );
+    LOG.info("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
+
     return Sequences.simple(
         Iterables.transform(Arrays.asList(array), GroupByQueryEngine.arrayToRow(groupBy, compact))
     );

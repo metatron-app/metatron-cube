@@ -82,7 +82,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    final int maxRowCount = config.getMaxResults();
+    final int maxRowCount = config.getMaxIntermediateRows();
 
     final ExecutorService executor;
     int parallelism = query.getContextIntWithMax(Query.GBY_MERGE_PARALLELISM, config.getMaxMergeParallelism());

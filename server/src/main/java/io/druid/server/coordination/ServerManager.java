@@ -37,6 +37,7 @@ import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
 import io.druid.collections.CountingMap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
@@ -53,6 +54,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
@@ -76,7 +78,6 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -407,12 +408,19 @@ public class ServerManager implements QuerySegmentWalker
          .emit();
       return new NoopQueryRunner<T>();
     }
+    QueryRunnerFactory.Splitable<T, Query<T>> splitable = null;
+    if (factory instanceof QueryRunnerFactory.Splitable) {
+      splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+    }
 
     List<Segment> targets = Lists.newArrayList();
+    List<QueryRunner<T>> missingSegments = Lists.newArrayList();
     for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
-        targets.add(target);
+        targets.add(new Segment.WithDescriptor(segment.rhs, segment.lhs));
+      } else {
+        missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }
     }
     if (query.isDescending()) {
@@ -429,63 +437,56 @@ public class ServerManager implements QuerySegmentWalker
     final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    final Iterable<QueryRunner<T>> queryRunners = Iterables.concat(
-        Iterables.transform(
-            segments,
-            new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
-            {
-              @Override
-              @SuppressWarnings("unchecked")
-              public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
-              {
-                if (input.rhs == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
-                }
-                return Arrays.asList(
-                    buildAndDecorateQueryRunner(
-                        factory,
-                        toolChest,
-                        input.rhs,
-                        input.lhs,
-                        optimizer,
-                        builderFn,
-                        cpuTimeAccumulator
-                    )
-                );
-              }
-            }
-        )
-    );
-
-    final QueryRunner<T> runner = CPUTimeMetricQueryRunner.safeBuild(
-        FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(
-                factory.mergeRunners(exec, queryRunners, optimizer)
-            ),
-            toolChest,
-            objectMapper
-        ),
-        builderFn,
-        emitter,
-        cpuTimeAccumulator,
-        true
-    );
-
-    if (factory instanceof QueryRunnerFactory.Splitable) {
-      QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
-      Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
-      if (queries != null) {
-        return toConcatRunner(queries, runner);
-      }
-    }
-    return new QueryRunner<T>()
+    final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
     {
       @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      public QueryRunner<T> apply(Iterable<Segment> segments)
       {
-        return runner.run(resolved, responseContext);
+        Iterable<QueryRunner<T>> runners = Iterables.transform(segments, new Function<Segment, QueryRunner<T>>()
+        {
+          @Override
+          public QueryRunner<T> apply(Segment segment)
+          {
+            return buildAndDecorateQueryRunner(
+                factory,
+                segment,
+                optimizer,
+                builderFn,
+                cpuTimeAccumulator
+            );
+          }
+        });
+        return CPUTimeMetricQueryRunner.safeBuild(
+            FinalizeResultsQueryRunner.finalize(
+                toolChest.mergeResults(
+                    factory.mergeRunners(exec, runners, optimizer)
+                ),
+                toolChest,
+                objectMapper
+            ),
+            builderFn,
+            emitter,
+            cpuTimeAccumulator,
+            true
+        );
       }
     };
+    if (splitable != null) {
+      List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this, objectMapper);
+      if (!GuavaUtils.isNullOrEmpty(splits)) {
+        log.info("Split segments into %d groups", splits.size());
+        return QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)));
+      }
+    }
+
+    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
+    if (splitable != null) {
+      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
+      if (splits != null) {
+        return toConcatRunner(splits, runner);
+      }
+    }
+    return QueryRunners.runWith(runner, resolved);
   }
 
   private <T> QueryRunner<T> toConcatRunner(
@@ -522,15 +523,16 @@ public class ServerManager implements QuerySegmentWalker
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
-      final QueryToolChest<T, Query<T>> toolChest,
-      final ReferenceCountingSegment adapter,
-      final SegmentDescriptor segmentDescriptor,
+      final Segment segment,
       final Future<Object> optimizer,
       final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
       final AtomicLong cpuTimeAccumulator
   )
   {
-    SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(segmentDescriptor);
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final Segment adapter = ((Segment.WithDescriptor) segment).getSegment();
+    final SegmentDescriptor descriptor = ((Segment.WithDescriptor) segment).getDescriptor();
+    final SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
     return CPUTimeMetricQueryRunner.safeBuild(
         new SpecificSegmentQueryRunner<T>(
             new MetricsEmittingQueryRunner<T>(
@@ -541,7 +543,7 @@ public class ServerManager implements QuerySegmentWalker
                     adapter.getDataInterval().getStart(),
                     new CachingQueryRunner<T>(
                         adapter.getIdentifier(),
-                        segmentDescriptor,
+                        descriptor,
                         objectMapper,
                         cache,
                         toolChest,
@@ -557,8 +559,8 @@ public class ServerManager implements QuerySegmentWalker
                             },
                             new ReferenceCountingSegmentQueryRunner<T>(
                                 factory,
-                                adapter,
-                                segmentDescriptor,
+                                (ReferenceCountingSegment) adapter,
+                                descriptor,
                                 optimizer
                             ),
                             "query/segment/time",

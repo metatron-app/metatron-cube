@@ -22,6 +22,7 @@ package io.druid.common.utils;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Accumulator;
@@ -95,6 +96,16 @@ public class Sequences extends com.metamx.common.guava.Sequences
   public static <T> Sequence<T> of(T... elements)
   {
     return BaseSequence.simple(Arrays.asList(elements));
+  }
+
+  public static <T> T only(Sequence<T> seq)
+  {
+    return Iterables.getOnlyElement(toList(seq));
+  }
+
+  public static <T> T only(Sequence<T> seq, T defaultValue)
+  {
+    return Iterables.getOnlyElement(toList(seq), defaultValue);
   }
 
   public static <T> List<T> toList(Sequence<T> seq)

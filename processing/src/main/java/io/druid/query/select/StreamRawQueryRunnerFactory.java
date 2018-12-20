@@ -90,6 +90,19 @@ public class StreamRawQueryRunnerFactory
   }
 
   @Override
+  public List<List<Segment>> splitSegments(
+      StreamRawQuery query,
+      List<Segment> targets,
+      Future<Object> optimizer,
+      Supplier<RowResolver> resolver,
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper mapper
+  )
+  {
+    return null;
+  }
+
+  @Override
   public Iterable<StreamRawQuery> splitQuery(
       StreamRawQuery query,
       List<Segment> segments,

@@ -933,7 +933,6 @@ public class DruidQuery
         filtration.getQuerySegmentSpec(),
         descending,
         filtration.getDimFilter(),
-        Granularities.ALL,
         columns,
         selectProjection != null ? selectProjection.getVirtualColumns() : null,
         null,
