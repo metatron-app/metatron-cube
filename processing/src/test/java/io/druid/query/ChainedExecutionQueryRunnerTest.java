@@ -102,6 +102,9 @@ public class ChainedExecutionQueryRunnerTest
             )
             .once();
 
+    watcher.remainingTime(EasyMock.anyString());
+    EasyMock.expectLastCall().andReturn(100L).once();
+
     EasyMock.replay(watcher);
 
     ArrayBlockingQueue<DyingQueryRunner> interrupted = new ArrayBlockingQueue<>(3);
@@ -229,6 +232,8 @@ public class ChainedExecutionQueryRunnerTest
             )
             .once();
 
+    watcher.remainingTime(EasyMock.anyString());
+    EasyMock.expectLastCall().andReturn(100L).once();
     EasyMock.replay(watcher);
 
 

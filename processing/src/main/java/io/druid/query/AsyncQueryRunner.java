@@ -68,12 +68,8 @@ public class AsyncQueryRunner<T> implements QueryRunner<T>
       public Sequence<T> get()
       {
         try {
-          Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT);
-          if (timeout == null) {
-            return future.get();
-          } else {
-            return future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
-          }
+          final long timeout = queryWatcher.remainingTime(query.getId());
+          return timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException ex) {
           throw Throwables.propagate(ex);
         }

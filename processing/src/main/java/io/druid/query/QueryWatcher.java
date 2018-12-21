@@ -43,5 +43,16 @@ public interface QueryWatcher
    * @param query a query, which may be a subset of a larger query, as long as the underlying queryId is unchanged
    * @param future the future holding the execution status of the query
    */
-  public void registerQuery(Query query, ListenableFuture future);
+  void registerQuery(Query query, ListenableFuture future);
+
+  long remainingTime(String queryId);
+
+  class Abstract implements QueryWatcher
+  {
+    @Override
+    public void registerQuery(Query query, ListenableFuture future) {}
+
+    @Override
+    public long remainingTime(String queryId) { return 0;}
+  }
 }

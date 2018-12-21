@@ -232,7 +232,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           @Override
           public JsonParserIterator<T> make()
           {
-            return new JsonParserIterator.FromFutureStream<T>(mapper, typeRef, url, type, future);
+            long remaining = queryWatcher.remainingTime(query.getId());
+            return new JsonParserIterator.FromFutureStream<T>(mapper, typeRef, url, type, future, remaining);
           }
 
           @Override

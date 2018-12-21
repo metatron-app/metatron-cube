@@ -254,4 +254,9 @@ public class StringUtils extends com.metamx.common.StringUtils
     }
     return sb.toString();
   }
+
+  public static String limit(String text, int limit)
+  {
+    return text == null || text.length() < limit ? text : text.substring(limit) + "...";
+  }
 }

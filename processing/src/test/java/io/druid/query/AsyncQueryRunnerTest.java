@@ -97,7 +97,13 @@ public class AsyncQueryRunnerTest
     };
     
     AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER);
+        new QueryWatcher.Abstract() {
+          @Override
+          public long remainingTime(String queryId)
+          {
+            return 1L;
+          }
+        });
 
     Sequence lazy = asyncRunner.run(
         query.withOverriddenContext(ImmutableMap.<String,Object>of(QueryContextKeys.TIMEOUT, 1)),

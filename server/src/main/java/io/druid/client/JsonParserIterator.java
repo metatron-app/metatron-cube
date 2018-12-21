@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.metamx.common.IAE;
 import com.metamx.common.RE;
 import com.metamx.common.guava.CloseQuietly;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryInterruptedException;
 
 import java.io.IOException;
@@ -36,6 +37,7 @@ import java.net.URL;
 import java.util.Iterator;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -97,6 +99,8 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
           throw jp.getCodec().readValue(jp, QueryInterruptedException.class);
+        } else if (nextToken == JsonToken.VALUE_STRING) {
+          throw new IAE("Next token wasn't a START_ARRAY, was string [%s]", StringUtils.limit(jp.getText(), 32));
         } else if (nextToken != JsonToken.START_ARRAY) {
           throw new IAE("Next token wasn't a START_ARRAY, was[%s]", jp.getCurrentToken());
         } else {
@@ -126,19 +130,22 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     private final URL url;
     private final String type;
     private final Future<InputStream> future;
+    private final long timeout;
 
     public FromFutureStream(
         ObjectMapper mapper,
         JavaType typeRef,
         URL url,
         String type,
-        Future<InputStream> future
+        Future<InputStream> future,
+        long timeout
     )
     {
       super(mapper, typeRef);
       this.url = url;
       this.type = type;
       this.future = future;
+      this.timeout = timeout;
     }
 
     @Override
@@ -148,6 +155,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
           ex instanceof InterruptedException ||
           ex instanceof QueryInterruptedException ||
           ex instanceof CancellationException) {
+        // todo should retry to other replica if exists?
         throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
       }
       throw new RE(ex, "Failure getting results from[%s] because of [%s]", url, ex.getMessage());
@@ -155,7 +163,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
 
     protected JsonParser createParser(JsonFactory factory) throws Exception
     {
-      return factory.createParser(future.get());
+      return factory.createParser(timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS));
     }
   }
 }

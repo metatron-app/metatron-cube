@@ -19,11 +19,11 @@
 
 package io.druid.benchmark.query;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -67,12 +67,5 @@ public class QueryBenchmarkUtil
     };
   }
 
-  public static final QueryWatcher NOOP_QUERYWATCHER = new QueryWatcher()
-  {
-    @Override
-    public void registerQuery(Query query, ListenableFuture future)
-    {
-
-    }
-  };
+  public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
 }

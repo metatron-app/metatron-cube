@@ -19,25 +19,12 @@
 
 package io.druid.query;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
-public class NoopQueryWatcher implements QueryWatcher
+public class NoopQueryWatcher extends QueryWatcher.Abstract
 {
   private static final NoopQueryWatcher INSTANCE = new NoopQueryWatcher();
 
   public static NoopQueryWatcher instance()
   {
     return INSTANCE;
-  }
-
-  private NoopQueryWatcher()
-  {
-    // No instantiation
-  }
-
-  @Override
-  public void registerQuery(Query query, ListenableFuture future)
-  {
-    // Do nothing
   }
 }

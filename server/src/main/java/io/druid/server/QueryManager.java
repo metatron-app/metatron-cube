@@ -90,13 +90,13 @@ public class QueryManager implements QueryWatcher, Runnable
       LOG.warn("Query id for %s is null.. fix that", query.getType());
       return;
     }
-    final int timeout = query.getContextInt(QueryContextKeys.TIMEOUT, -1);
     final QueryStatus status = queries.computeIfAbsent(
         id, new Function<String, QueryStatus>()
         {
           @Override
           public QueryStatus apply(String s)
           {
+            int timeout = query.getContextInt(QueryContextKeys.TIMEOUT, -1);
             return new QueryStatus(query.getType(), timeout);
           }
         }
@@ -121,6 +121,13 @@ public class QueryManager implements QueryWatcher, Runnable
         },
         MoreExecutors.sameThreadExecutor()
     );
+  }
+
+  @Override
+  public long remainingTime(String queryId)
+  {
+    QueryStatus status = queries.get(queryId);
+    return status == null ? -1 : status.remaining();
   }
 
   public Set<String> getQueryDatasources(final String queryId)
@@ -233,6 +240,11 @@ public class QueryManager implements QueryWatcher, Runnable
       futures.clear();
       dataSources.clear();
       return success;
+    }
+
+    private long remaining()
+    {
+      return timeout <= 0 ? timeout : Math.max(1000, timeout - (System.currentTimeMillis() - start));
     }
 
     private boolean isExpired(long expire)

@@ -130,9 +130,12 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   public static final String CONF_DRUID_SELECT_THRESHOLD = "druid.select.threshold";
   public static final String CONF_DRUID_STREAM_THRESHOLD = "druid.stream.threshold";
 
+  public static final String CONF_DRUID_QUERY_TIMEOUT = "druid.query.timeout";
+
   public static final int DEFAULT_SELECT_THRESHOLD = 10000;   // page num
   public static final int DEFAULT_STREAM_THRESHOLD = 10;      // chunk num
   public static final int DEFAULT_MAX_SPLIT_SIZE = -1;        // -1 : split per segment
+  public static final int DEFAULT_QUERY_TIMEOUT = 180_000;     // 3M
 
   public static final String DEFAULT_INTERVAL = "0000-01-01/3000-01-01";
 
@@ -742,7 +745,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
             ),
             request.getUrl(),
             "input-format",
-            submitQuery(query, streamHandler)
+            submitQuery(query, streamHandler),
+            configuration.getLong(CONF_DRUID_QUERY_TIMEOUT, DEFAULT_QUERY_TIMEOUT)
         );
       }
 

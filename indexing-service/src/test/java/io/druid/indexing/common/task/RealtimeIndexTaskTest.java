@@ -77,12 +77,12 @@ import io.druid.metadata.EntryExistsException;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.Druids;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
-import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -1144,14 +1144,7 @@ public class RealtimeIndexTaskTest
                     }
                 ),
                 new TimeseriesQueryEngine(),
-                new QueryWatcher()
-                {
-                  @Override
-                  public void registerQuery(Query query, ListenableFuture future)
-                  {
-                    // do nothing
-                  }
-                }
+                NoopQueryWatcher.instance()
             )
         )
     );

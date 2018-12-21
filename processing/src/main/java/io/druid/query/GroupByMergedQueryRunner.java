@@ -173,13 +173,13 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       Closeable closeOnFailure
   )
   {
+    queryWatcher.registerQuery(query, future);
     try {
-      queryWatcher.registerQuery(query, future);
-      final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, null);
-      if (timeout == null) {
+      long timeout = queryWatcher.remainingTime(query.getId());
+      if (timeout <= 0) {
         future.get();
       } else {
-        future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
+        future.get(timeout, TimeUnit.MILLISECONDS);
       }
     }
     catch (CancellationException e) {
