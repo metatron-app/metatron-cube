@@ -93,8 +93,14 @@ public class EvaluationTest
         new Evaluation("met1", "if (met1=='NULL', -100, met1)"),
         new Evaluation("met1", "if (met1=='NULL', -100, met1)")
     );
-    InputRowParser<Object[]> wrapped = InputRowParsers.wrap(parser, aggregators, evaluations, Arrays.<Validation>asList());
-    InputRow row = wrapped.parse(new Object[] {new DateTime("2018-08-07"), "x", "y", "NULL"});
+    InputRowParser<Object[]> wrapped = InputRowParsers.wrap(
+        parser,
+        aggregators,
+        evaluations,
+        Arrays.<Validation>asList(),
+        false
+    );
+    InputRow row = wrapped.parse(new Object[]{new DateTime("2018-08-07"), "x", "y", "NULL"});
     Assert.assertEquals(-100L, row.getRaw("met1"));
   }
 }

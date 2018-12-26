@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
@@ -52,14 +53,34 @@ public class InputRowParsers
       final InputRowParser<T> parser,
       final AggregatorFactory[] aggregators,
       final List<Evaluation> evaluations,
-      final List<Validation> validations
+      final List<Validation> validations,
+      final boolean enforceType
   )
   {
-    if (GuavaUtils.isNullOrEmpty(evaluations) && GuavaUtils.isNullOrEmpty(validations)) {
+    if (GuavaUtils.isNullOrEmpty(evaluations) && GuavaUtils.isNullOrEmpty(validations) && !enforceType) {
       return parser;
     }
 
+    final List<RowEvaluator<InputRow>> evaluators = Lists.newArrayList();
     final Map<String, ValueDesc> mapping = AggregatorFactory.toExpectedInputType(aggregators);
+    if (enforceType && !mapping.isEmpty()) {
+      for (Map.Entry<String, ValueDesc> entry : mapping.entrySet()) {
+        final String column = entry.getKey();
+        final ValueDesc type = entry.getValue();
+        if (type.isPrimitive()) {
+          evaluators.add(new RowEvaluator<InputRow>()
+          {
+            @Override
+            public InputRow evaluate(InputRow inputRow)
+            {
+              final Row.Updatable updatable = Rows.toUpdatable(inputRow);
+              updatable.set(column, type.cast(updatable.getRaw(column)));
+              return (InputRow) updatable;
+            }
+          });
+        }
+      }
+    }
     for (DimensionSchema dimension : parser.getDimensionsSpec().getDimensions()) {
       mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType()));
     }
@@ -67,7 +88,9 @@ public class InputRowParsers
       mapping.remove(evaluation.getOutputName());
     }
     final TypeResolver resolver = new TypeResolver.WithMap(mapping);
-    final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations, resolver);
+    for (Evaluation evaluation : evaluations) {
+      evaluators.add(evaluation.toEvaluator(resolver));
+    }
     final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations, resolver);
 
     return new InputRowParser.Delegated<T>()

@@ -21,12 +21,10 @@ package io.druid.query.aggregation.hyperloglog;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -38,6 +36,7 @@ import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -214,12 +213,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    List<String> required = Lists.newArrayList();
-    required.add(fieldName);
-    if (predicate != null) {
-      required.addAll(Parser.findRequiredBindings(predicate));
-    }
-    return required;
+    return Arrays.asList(fieldName);
   }
 
   @JsonProperty

@@ -27,11 +27,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
@@ -126,20 +124,8 @@ public class DataSchema
       log.warn("No parser has been specified");
       return null;
     }
-    List<Evaluation> evaluations = getEvaluations();
-    if (enforceType && aggregators.length > 0) {
-      evaluations = Lists.newArrayList();
-      for (Map.Entry<String, ValueDesc> mapping : AggregatorFactory.toExpectedInputType(aggregators).entrySet()) {
-        String column = mapping.getKey();
-        ValueDesc type = mapping.getValue();
-        if (type.isPrimitive()) {
-          evaluations.add(new Evaluation(column, String.format("cast(%s, '%s')", column, type)));
-        }
-      }
-      evaluations.addAll(getEvaluations());
-    }
     final InputRowParser parser = createInputRowParser();
-    return InputRowParsers.wrap(parser, aggregators, evaluations, validations);
+    return InputRowParsers.wrap(parser, aggregators, evaluations, validations, enforceType);
   }
 
   private InputRowParser createInputRowParser()

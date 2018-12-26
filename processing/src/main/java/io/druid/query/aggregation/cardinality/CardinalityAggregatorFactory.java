@@ -27,7 +27,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Parser;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -239,9 +238,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       required.addAll(fieldNames);
     } else {
       required.addAll(Lists.transform(fields, DimensionSpecs.INPUT_NAME));
-    }
-    if (predicate != null) {
-      required.addAll(Parser.findRequiredBindings(predicate));
     }
     return required;
   }

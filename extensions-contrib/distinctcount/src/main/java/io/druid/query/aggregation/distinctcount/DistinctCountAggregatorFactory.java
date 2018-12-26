@@ -22,11 +22,9 @@ package io.druid.query.aggregation.distinctcount;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -38,6 +36,7 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -184,12 +183,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    List<String> required = Lists.newArrayList();
-    required.add(fieldName);
-    if (predicate != null) {
-      required.addAll(Parser.findRequiredBindings(predicate));
-    }
-    return required;
+    return Arrays.asList(fieldName);
   }
 
   @Override

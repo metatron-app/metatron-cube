@@ -177,9 +177,6 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
     } else {
       required.addAll(Parser.findRequiredBindings(fieldExpression));
     }
-    if (predicate != null) {
-      required.addAll(Parser.findRequiredBindings(predicate));
-    }
     return Lists.newArrayList(required);
   }
 
