@@ -339,9 +339,10 @@ public class ListAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public String getInputType()
+  @Override
+  public ValueDesc getInputType()
   {
-    return inputType.typeName();
+    return inputType;
   }
 
   @JsonProperty
@@ -393,15 +394,9 @@ public class ListAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getInputTypeName()
+  public ValueDesc getOutputType()
   {
-    return inputType.typeName();
-  }
-
-  @Override
-  public String getTypeName()
-  {
-    return outputType.typeName();
+    return outputType;
   }
 
   @Override

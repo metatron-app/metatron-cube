@@ -21,6 +21,7 @@ package io.druid.segment.incremental;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
@@ -47,7 +48,7 @@ public class IncrementalIndexSchemaTest
     Assert.assertEquals(Arrays.asList("dim1", "dim2", "dim3"), schema.getDimensionsSpec().getDimensionNames());
     AggregatorFactory[] factories = schema.getMetrics();
     Assert.assertEquals(2, factories.length);
-    Assert.assertEquals(new GenericMinAggregatorFactory("min", "min", "double"), factories[0]);
-    Assert.assertEquals(new GenericMaxAggregatorFactory("max", "max", "double"), factories[1]);
+    Assert.assertEquals(new GenericMinAggregatorFactory("min", "min", ValueDesc.DOUBLE), factories[0]);
+    Assert.assertEquals(new GenericMaxAggregatorFactory("max", "max", ValueDesc.DOUBLE), factories[1]);
   }
 }

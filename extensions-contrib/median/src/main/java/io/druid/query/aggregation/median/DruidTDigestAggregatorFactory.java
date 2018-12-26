@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -139,8 +140,9 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   }
 
   @Override
-  public String getTypeName() {
-    return "DruidTDigest";
+  public ValueDesc getOutputType()
+  {
+    return ValueDesc.of("DruidTDigest");
   }
 
   @Override

@@ -147,9 +147,9 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "docColumn";
+    return ValueDesc.of("docColumn");
   }
 
   @Override

@@ -43,6 +43,7 @@ import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
@@ -172,26 +173,14 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return new RowResolver(schema, virtualColumns);
   }
 
-  public static RowResolver outOf(Query.DimensionSupport<?> query)
+  public static RowResolver of(Query<?> query, QueryStage stage)
   {
     Preconditions.checkArgument(!(query.getDataSource() instanceof ViewDataSource), "fix this");
-    List<AggregatorFactory> aggregatorFactories = Lists.newArrayList();
-    List<PostAggregator> postAggregators = Lists.newArrayList();
-    if (query instanceof Query.AggregationsSupport) {
-      aggregatorFactories = ((Query.AggregationsSupport<?>)query).getAggregatorSpecs();
-      postAggregators = ((Query.AggregationsSupport<?>)query).getPostAggregatorSpecs();
-    }
-    return outOf(query.getVirtualColumns(), query.getDimensions(), aggregatorFactories, postAggregators);
-  }
-
-  public static RowResolver outOf(
-      List<VirtualColumn> virtualColumns,
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> metrics,
-      List<PostAggregator> postAggregators
-  )
-  {
-    return new RowResolver(dimensions, metrics, postAggregators, VirtualColumns.valueOf(virtualColumns));
+    VirtualColumns virtualColumns = BaseQuery.getVirtualColumns(query);
+    List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
+    List<AggregatorFactory> aggregators = BaseQuery.getAggregators(query);
+    List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
+    return new RowResolver(dimensions, aggregators, postAggregators, virtualColumns, stage);
   }
 
   public static Class<?> toClass(ValueDesc valueDesc)
@@ -274,7 +263,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   private final VirtualColumns virtualColumns;
   private final Map<String, AggregatorFactory> aggregators;
 
-  private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
+  private final Map<String, ValueDesc> columnTypes = Maps.newLinkedHashMap();
   private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
   private final Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
@@ -333,7 +322,8 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> metrics,
       List<PostAggregator> postAggregators,
-      VirtualColumns virtualColumns
+      VirtualColumns virtualColumns,
+      QueryStage stage
   )
   {
     this.dimensionNames = Lists.newArrayList();
@@ -342,25 +332,38 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     this.virtualColumns = virtualColumns;
 
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    for (DimensionSpec dimension : dimensions) {
-      if (dimension.getExtractionFn() != null) {
-        columnTypes.put(dimension.getOutputName(), ValueDesc.ofDimension(ValueType.STRING));
-      }
-    }
     for (AggregatorFactory metric : metrics) {
-      columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
+      columnTypes.put(metric.getName(), metric.getInputType());
+    }
+    for (DimensionSpec dimension : dimensions) {
+      columnTypes.put(dimension.getOutputName(), ValueDesc.STRING);
+      if (dimension.getExtractionFn() == null) {
+        ValueDesc resolved = dimension.resolve(this);
+        if (!resolved.isUnknown()) {
+          columnTypes.put(dimension.getOutputName(), resolved);
+        }
+      }
     }
     virtualColumns.addImplicitVCs(this);
 
-    for (DimensionSpec dimension : dimensions) {
-      if (dimension.getExtractionFn() == null) {
-        ValueDesc resolved = dimension.resolve(this);
-        columnTypes.put(dimension.getOutputName(), resolved.isUnknown() ? ValueDesc.STRING : resolved);
+    for (AggregatorFactory metric : metrics) {
+      metric = metric.resolveIfNeeded(Suppliers.ofInstance(this));
+      switch (stage) {
+        case LOCAL:
+          columnTypes.put(metric.getName(), metric.getInputType());
+          break;
+        case BEFORE_FINALIZE:
+          columnTypes.put(metric.getName(), metric.getOutputType());
+          break;
+        case FINALIZED:
+          columnTypes.put(metric.getName(), metric.finalizedType());
+          break;
       }
     }
-
-    for (PostAggregator postAggregator : postAggregators) {
-      columnTypes.put(postAggregator.getName(), postAggregator.resolve(this));
+    if (stage != QueryStage.LOCAL && !postAggregators.isEmpty()) {
+      for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, metrics)) {
+        columnTypes.put(postAggregator.getName(), postAggregator.resolve(this));
+      }
     }
   }
 
@@ -678,5 +681,31 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public List<ValueDesc> resolveColumns(List<String> columns)
   {
     return Lists.newArrayList(Iterables.transform(columns, this));
+  }
+
+  public List<ValueDesc> tryDimensionTypes(List<DimensionSpec> dimensionSpecs)
+  {
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      ValueDesc resolved = dimensionSpec.resolve(this);
+      if (resolved == null || resolved.isUnknown()) {
+        return null;
+      }
+      dimensionTypes.add(resolved);
+    }
+    return dimensionTypes;
+  }
+
+  public List<ValueDesc> tryColumnTypes(List<String> columns)
+  {
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    for (String column : columns) {
+      ValueDesc resolved = resolve(column);
+      if (resolved == null || resolved.isUnknown()) {
+        return null;
+      }
+      columnTypes.add(resolved);
+    }
+    return columnTypes;
   }
 }

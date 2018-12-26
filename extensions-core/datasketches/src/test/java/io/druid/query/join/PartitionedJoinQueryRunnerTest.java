@@ -21,6 +21,7 @@ package io.druid.query.join;
 
 import com.google.common.collect.Iterables;
 import com.google.common.io.CharSource;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -31,7 +32,6 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
-import io.druid.query.JoinType;
 import io.druid.query.TableDataSource;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -60,7 +60,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
   static final String JOIN_DS_P = "join_test_p";
 
   static {
-    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
+    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", ValueDesc.LONG);
     DimensionsSpec dimensions = new DimensionsSpec(
         StringDimensionSchema.ofNames("quality", "quality_month"), null, null
     );

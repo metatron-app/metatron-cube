@@ -127,12 +127,6 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
     return object;
   }
 
-  @Override
-  public ValueDesc finalizedType()
-  {
-    return ValueDesc.LONG;
-  }
-
   @JsonProperty
   public String getFieldName()
   {
@@ -169,9 +163,9 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "long";
+    return ValueDesc.LONG;
   }
 
   @Override

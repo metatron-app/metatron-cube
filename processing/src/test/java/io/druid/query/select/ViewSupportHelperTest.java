@@ -80,10 +80,10 @@ public class ViewSupportHelperTest
         typesMap.put(dimension, ValueDesc.ofDimension(ValueType.STRING));
       }
       for (AggregatorFactory factory : aggregators) {
-        typesMap.put(factory.getName(), ValueDesc.of(factory.getTypeName()));
+        typesMap.put(factory.getName(), factory.getOutputType());
         metrics.add(factory.getName());
       }
-      metadata.setAggregators(aggregators.toArray(new AggregatorFactory[aggregators.size()]));
+      metadata.setAggregators(aggregators.toArray(new AggregatorFactory[0]));
     }
 
     @Override

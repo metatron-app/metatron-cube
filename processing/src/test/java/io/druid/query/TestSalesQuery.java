@@ -18,6 +18,7 @@
 package io.druid.query;
 
 import io.druid.common.Intervals;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -51,8 +52,8 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setDimensions(new DefaultDimensionSpec("Category", "City"))
         .setAggregatorSpecs(
             new CountAggregatorFactory("rows"),
-            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
-            new GenericSumAggregatorFactory("Profit", "Profit", "double")
+            new GenericSumAggregatorFactory("Discount", "Discount", ValueDesc.DOUBLE),
+            new GenericSumAggregatorFactory("Profit", "Profit", ValueDesc.DOUBLE)
         )
         .setGranularity(Granularities.YEAR)
         .build();
@@ -125,8 +126,8 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.of("Sub-Category"))
         .setAggregatorSpecs(
             new CountAggregatorFactory("rows"),
-            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
-            new GenericSumAggregatorFactory("Profit", "Profit", "double")
+            new GenericSumAggregatorFactory("Discount", "Discount", ValueDesc.DOUBLE),
+            new GenericSumAggregatorFactory("Profit", "Profit", ValueDesc.DOUBLE)
         )
         .setGranularity(Granularities.YEAR)
         .build();
@@ -209,8 +210,8 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.of("PostalCode"))
         .setAggregatorSpecs(
             new CountAggregatorFactory("rows"),
-            new GenericSumAggregatorFactory("Discount", "Discount", "double"),
-            new GenericSumAggregatorFactory("Profit", "Profit", "double")
+            new GenericSumAggregatorFactory("Discount", "Discount", ValueDesc.DOUBLE),
+            new GenericSumAggregatorFactory("Profit", "Profit", ValueDesc.DOUBLE)
         )
         .setGranularity(Granularities.ALL)
         .build();

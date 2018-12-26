@@ -144,9 +144,9 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "metricRange";
+    return ValueDesc.of("metricRange");
   }
 
   @Override

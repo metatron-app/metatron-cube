@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.variance;
 
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -42,7 +43,7 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
   public static final VarianceAggregatorFactory indexVarianceAggr = new VarianceAggregatorFactory(
       indexVarianceMetric,
       indexMetric,
-      "double"
+      ValueDesc.DOUBLE
   );
 
   public static final VarianceAggregatorFactory indexDiv2VarianceAggr = new VarianceAggregatorFactory(
@@ -51,7 +52,7 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
       "index / 2",
       null,
       null,
-      "double"
+      ValueDesc.DOUBLE
   );
 
   public static final String stddevOfIndexMetric = "index_stddev";

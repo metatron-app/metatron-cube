@@ -81,7 +81,6 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   }
 
   @Override
-  @JsonProperty
   public Granularity getGranularity()
   {
     return Granularities.ALL;

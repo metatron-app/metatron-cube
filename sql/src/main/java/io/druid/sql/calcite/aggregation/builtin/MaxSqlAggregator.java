@@ -88,6 +88,6 @@ public class MaxSqlAggregator implements SqlAggregator
       expression = arg.getExpression();
     }
 
-    return Aggregation.create(new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc.typeName()));
+    return Aggregation.create(new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc));
   }
 }

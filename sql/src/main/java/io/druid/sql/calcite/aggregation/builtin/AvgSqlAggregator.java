@@ -21,16 +21,10 @@ package io.druid.sql.calcite.aggregation.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.druid.data.ValueType;
-import io.druid.query.aggregation.GenericSumAggregatorFactory;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeName;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.sql.calcite.aggregation.Aggregation;
@@ -40,6 +34,12 @@ import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -81,13 +81,13 @@ public class AvgSqlAggregator implements SqlAggregator
     }
 
     final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueType sumType;
+    final ValueDesc sumType;
 
     // Use 64-bit sum regardless of the type of the AVG aggregator.
     if (SqlTypeName.INT_TYPES.contains(aggregateCall.getType().getSqlTypeName())) {
-      sumType = ValueType.LONG;
+      sumType = ValueDesc.LONG;
     } else {
-      sumType = ValueType.DOUBLE;
+      sumType = ValueDesc.DOUBLE;
     }
 
     final String fieldName;
@@ -103,7 +103,7 @@ public class AvgSqlAggregator implements SqlAggregator
 
     final String sumName = Calcites.makePrefixedName(name, "sum");
     final String countName = Calcites.makePrefixedName(name, "count");
-    final AggregatorFactory sum = new GenericSumAggregatorFactory(sumName, fieldName, expression, null, sumType.name());
+    final AggregatorFactory sum = new GenericSumAggregatorFactory(sumName, fieldName, expression, null, sumType);
 
     final AggregatorFactory count = new CountAggregatorFactory(countName);
 

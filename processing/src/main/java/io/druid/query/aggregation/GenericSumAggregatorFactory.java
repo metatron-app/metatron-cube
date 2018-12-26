@@ -34,7 +34,7 @@ import java.math.BigDecimal;
  */
 public class GenericSumAggregatorFactory extends GenericAggregatorFactory
 {
-  public static GenericSumAggregatorFactory expr(String name, String expression, String inputType)
+  public static GenericSumAggregatorFactory expr(String name, String expression, ValueDesc inputType)
   {
     return new GenericSumAggregatorFactory(name, null, expression, null, inputType);
   }
@@ -47,14 +47,14 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("fieldExpression") String fieldExpression,
       @JsonProperty("predicate") String predicate,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") ValueDesc inputType
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
     Preconditions.checkArgument(outputType == null || outputType.isNumeric(), "unsupported type " + outputType);
   }
 
-  public GenericSumAggregatorFactory(String name, String fieldName, String inputType)
+  public GenericSumAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, inputType);
   }
@@ -161,7 +161,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
+  protected final AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
   {
     return new GenericSumAggregatorFactory(name, fieldName, inputType);
   }

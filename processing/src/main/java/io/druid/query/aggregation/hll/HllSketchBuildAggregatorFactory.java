@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
@@ -48,9 +49,9 @@ public class HllSketchBuildAggregatorFactory extends HllSketchAggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return HllSketchModule.BUILD_TYPE_NAME;
+    return ValueDesc.of(HllSketchModule.BUILD_TYPE_NAME);
   }
 
   @Override

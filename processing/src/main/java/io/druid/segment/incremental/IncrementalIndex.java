@@ -1129,7 +1129,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     {
       this.index = index;
       this.name = factory.getName();
-      this.type = ValueDesc.of(factory.getTypeName());
+      this.type = factory.getOutputType();
       this.capabilities = ColumnCapabilitiesImpl.of(type.type());
       if (type.type() == ValueType.COMPLEX) {
         capabilities.setTypeName(type.typeName());

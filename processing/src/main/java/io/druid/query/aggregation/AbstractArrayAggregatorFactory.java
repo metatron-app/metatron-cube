@@ -50,7 +50,7 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
     this.delegate = delegate;
     this.column = column == null ? Iterables.getOnlyElement(delegate.requiredFields()) : column;
     this.limit = limit <= 0 ? DEFAULT_LIMIT : limit;
-    this.elementType = ValueDesc.of(delegate.getTypeName());
+    this.elementType = delegate.getOutputType();
   }
 
   @JsonProperty("column")
@@ -170,15 +170,15 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   protected abstract byte cacheTypeID();
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "array." + delegate.getTypeName();
+    return ValueDesc.ofArray(delegate.getOutputType());
   }
 
   @Override
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return "array." + delegate.getInputTypeName();
+    return ValueDesc.ofArray(delegate.getInputType());
   }
 
   @Override

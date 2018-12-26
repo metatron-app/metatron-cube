@@ -22,7 +22,6 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
@@ -61,7 +60,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
 
   private final int sketchParam;
   private final SketchOp sketchOp;
-  private final ValueDesc sourceType;
+  private final ValueDesc inputType;
   private final boolean merge;
 
   private final List<OrderingSpec> orderingSpecs;
@@ -72,7 +71,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public GenericSketchAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("sourceType") ValueDesc sourceType,
+      @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("sketchParam") Integer sketchParam,
       @JsonProperty("orderingSpecs") List<OrderingSpec> orderingSpecs,
@@ -81,22 +80,17 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = fieldName == null ? name : fieldName;
-    this.sourceType = sourceType;
+    this.inputType = inputType;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
     this.orderingSpecs = orderingSpecs;
     this.merge = merge;
   }
 
-  private ValueDesc sourceType()
-  {
-    return sourceType == null ? ValueDesc.STRING : sourceType;
-  }
-
   private Comparator sourceComparator()
   {
     if (sourceComparator == null) {
-      sourceComparator = StringComparators.makeComparator(sourceType(), orderingSpecs);
+      sourceComparator = StringComparators.makeComparator(inputType, orderingSpecs);
     }
     return sourceComparator;
   }
@@ -110,7 +104,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       if (selector == null) {
         return Aggregator.NULL;
       }
-      return new BaseAggregator(sourceType())
+      return new BaseAggregator(inputType)
       {
         @Override
         public void aggregate()
@@ -184,32 +178,32 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public boolean needResolving()
   {
-    return sourceType == null;
+    return inputType == null;
   }
 
   @Override
-  public AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  public AggregatorFactory resolve(Supplier<RowResolver> resolver)
   {
-    ValueDesc sourceType = resolver.get().resolve(fieldName);
-    if (sourceType.isDimension()) {
-      sourceType = ValueDesc.STRING;
+    ValueDesc inputType = resolver.get().resolve(fieldName);
+    if (inputType.isDimension()) {
+      inputType = ValueDesc.STRING;
     }
-    return new GenericSketchAggregatorFactory(name, fieldName, sourceType, sketchOp, sketchParam, orderingSpecs, merge);
+    return new GenericSketchAggregatorFactory(name, fieldName, inputType, sketchOp, sketchParam, orderingSpecs, merge);
   }
 
   @SuppressWarnings("unchecked")
   abstract class BaseAggregator extends Aggregator.Abstract
   {
     private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
-    private final TypedSketch sketch = handler.newUnion(sketchParam, sourceType(), sourceComparator());
+    private final TypedSketch sketch = handler.newUnion(sketchParam, inputType, sourceComparator());
 
     protected BaseAggregator(ValueDesc type)
     {
       if (!handler.supports(type)) {
         throw new UnsupportedOperationException("not supported type " + type);
       }
-      if (!ValueDesc.isSameCategory(sourceType(), type)) {
-        throw new UnsupportedOperationException("type mismatch.. " + sourceType() + " with real type " + type);
+      if (!ValueDesc.isSameCategory(inputType, type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + inputType + " with real type " + type);
       }
     }
 
@@ -265,7 +259,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
             final int index = buf.getInt(position);
             TypedSketch union = sketches.get(index);
             if (union == null) {
-              sketches.set(index, union = handler.newUnion(sketchParam, sourceType(), sourceComparator()));
+              sketches.set(index, union = handler.newUnion(sketchParam, inputType, sourceComparator()));
             }
             handler.updateWithSketch(union, sketch.value());
           }
@@ -349,8 +343,8 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       if (!handler.supports(type)) {
         throw new UnsupportedOperationException("not supported type " + type);
       }
-      if (!ValueDesc.isSameCategory(sourceType(), type)) {
-        throw new UnsupportedOperationException("type mismatch.. " + sourceType() + " with real type " + type);
+      if (!ValueDesc.isSameCategory(inputType, type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + inputType + " with real type " + type);
       }
     }
 
@@ -358,7 +352,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     public void init(ByteBuffer buf, int position)
     {
       buf.putInt(position, sketches.size());
-      sketches.add(handler.newUnion(sketchParam, sourceType(), sourceComparator()));
+      sketches.add(handler.newUnion(sketchParam, inputType, sourceComparator()));
     }
 
     final void updateWithValue(ByteBuffer buf, int position, Object value)
@@ -389,6 +383,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public Object finalizeComputation(Object object)
   {
     return sketchOp == SketchOp.THETA ? ((TypedSketch<Sketch>) object).value().getEstimate() : object;
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return sketchOp == SketchOp.THETA ? ValueDesc.DOUBLE : getOutputType();
   }
 
   @Override
@@ -427,7 +427,14 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new GenericSketchAggregatorFactory(name, name, sourceType, sketchOp, sketchParam, orderingSpecs, true);
+    return new GenericSketchAggregatorFactory(name, name, inputType, sketchOp, sketchParam, orderingSpecs, true);
+  }
+
+  @Override
+  @JsonProperty
+  public ValueDesc getInputType()
+  {
+    return inputType;
   }
 
   @Override
@@ -441,12 +448,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public String getFieldName()
   {
     return fieldName;
-  }
-
-  @JsonProperty
-  public ValueDesc getSourceType()
-  {
-    return sourceType;
   }
 
   @JsonProperty
@@ -489,14 +490,14 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = QueryCacheHelper.computeCacheBytes(fieldName);
-    byte[] sourceTypeBytes = QueryCacheHelper.computeCacheBytes(sourceType == null  ? null : sourceType.typeName());
+    byte[] inputTypeBytes = QueryCacheHelper.computeCacheBytes(inputType);
     byte[] orderingSpecsBytes = QueryCacheHelper.computeCacheKeys(orderingSpecs);
-    int length = 7 + fieldNameBytes.length + sourceTypeBytes.length + orderingSpecsBytes.length;
+    int length = 7 + fieldNameBytes.length + inputTypeBytes.length + orderingSpecsBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
-                     .put(sourceTypeBytes)
+                     .put(inputTypeBytes)
                      .put((byte) sketchOp.ordinal())
                      .putInt(sketchParam)
                      .put(orderingSpecsBytes)
@@ -505,9 +506,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "sketch." + sketchOp;
+    return ValueDesc.of("sketch." + sketchOp);
   }
 
   @Override
@@ -516,7 +517,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     return getClass().getSimpleName() + "{"
            + "name='" + name + '\''
            + ", fieldName='" + fieldName + '\''
-           + ", sourceType=" + sourceType
+           + ", inputType=" + inputType
            + ", sketchOp=" + sketchOp
            + ", sketchParam=" + sketchParam
            + ", orderingSpecs=" + orderingSpecs
@@ -543,7 +544,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (!fieldName.equals(that.fieldName)) {
       return false;
     }
-    if (!Objects.equals(sourceType, that.sourceType)) {
+    if (!Objects.equals(inputType, that.inputType)) {
       return false;
     }
     if (sketchOp != that.sketchOp) {
@@ -563,7 +564,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     int result = name.hashCode();
     result = 31 * result + fieldName.hashCode();
-    result = 31 * result + Objects.hashCode(sourceType);
+    result = 31 * result + Objects.hashCode(inputType);
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;
     result = 31 * result + Objects.hashCode(orderingSpecs);

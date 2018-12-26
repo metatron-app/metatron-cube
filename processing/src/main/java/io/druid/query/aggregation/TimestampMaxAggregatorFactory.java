@@ -28,7 +28,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
-import org.python.antlr.ast.Num;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -163,9 +162,9 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "long";
+    return ValueDesc.LONG;
   }
 
   @Override

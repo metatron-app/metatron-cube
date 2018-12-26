@@ -38,14 +38,14 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("fieldExpression") String fieldExpression,
       @JsonProperty("predicate") String predicate,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") ValueDesc inputType
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
     Preconditions.checkArgument(outputType == null || outputType.isPrimitive(), "cannot min on complex type");
   }
 
-  public GenericMinAggregatorFactory(String name, String fieldName, String inputType)
+  public GenericMinAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, inputType);
   }
@@ -121,7 +121,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
+  protected final AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
   {
     return new GenericMinAggregatorFactory(name, fieldName, inputType);
   }

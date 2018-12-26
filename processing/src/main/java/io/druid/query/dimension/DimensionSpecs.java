@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -60,22 +59,12 @@ public class DimensionSpecs
     return toOutputNames(dimensionSpecs).toArray(new String[0]);
   }
 
-  public static List<ValueDesc> toOutputTypes(Query.DimensionSupport<?> query)
-  {
-    RowResolver resolver = RowResolver.outOf(query);
-    List<ValueDesc> dimensionTypes = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      dimensionTypes.add(dimensionSpec.resolve(resolver));
-    }
-    return dimensionTypes;
-  }
-
   public static List<OrderByColumnSpec> asOrderByColumnSpec(List<DimensionSpec> dimensionSpecs)
   {
     List<OrderByColumnSpec> orderingSpecs = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        orderingSpecs.add(((DimensionSpecWithOrdering)dimensionSpec).asOrderByColumnSpec());
+        orderingSpecs.add(((DimensionSpecWithOrdering) dimensionSpec).asOrderByColumnSpec());
       } else {
         orderingSpecs.add(OrderByColumnSpec.asc(dimensionSpec.getOutputName()));
       }
@@ -138,8 +127,8 @@ public class DimensionSpecs
     List<Direction> directions = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        directions.add(((DimensionSpecWithOrdering)dimensionSpec).getDirection());
-      } else{
+        directions.add(((DimensionSpecWithOrdering) dimensionSpec).getDirection());
+      } else {
         directions.add(Direction.ASCENDING);
       }
     }

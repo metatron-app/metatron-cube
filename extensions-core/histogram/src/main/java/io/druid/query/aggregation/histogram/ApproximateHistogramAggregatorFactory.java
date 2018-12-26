@@ -293,12 +293,12 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return compact ?
-                      base64 ? "approximateBase64CompactHistogram" : "approximateCompactHistogram"
-                   :
-                      base64 ? "approximateBase64Histogram" : "approximateHistogram";
+    return ValueDesc.of(
+        compact ? base64 ? "approximateBase64CompactHistogram" : "approximateCompactHistogram" :
+        base64 ? "approximateBase64Histogram" : "approximateHistogram"
+    );
   }
 
   @Override

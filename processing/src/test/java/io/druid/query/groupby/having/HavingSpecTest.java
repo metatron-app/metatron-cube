@@ -27,7 +27,6 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.RowResolver;
-import io.druid.query.aggregation.AggregatorFactory;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -106,7 +105,7 @@ public class HavingSpecTest
   @Test
   public void testGreaterThanHavingSpec() {
     GreaterThanHavingSpec spec = new GreaterThanHavingSpec("metric", Long.valueOf(Long.MAX_VALUE - 10));
-    Predicate<Row> predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    Predicate<Row> predicate = spec.toEvaluator(null);
     assertFalse(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 10))));
     assertFalse(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 15))));
     assertTrue(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 5))));
@@ -114,7 +113,7 @@ public class HavingSpecTest
     assertFalse(predicate.apply(getTestRow(100.05f)));
 
     spec = new GreaterThanHavingSpec("metric", 100.56f);
-    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    predicate = spec.toEvaluator(null);
     assertFalse(predicate.apply(getTestRow(100.56f)));
     assertFalse(predicate.apply(getTestRow(90.53f)));
     assertFalse(predicate.apply(getTestRow("90.53f")));
@@ -125,7 +124,7 @@ public class HavingSpecTest
   @Test
   public void testLessThanHavingSpec() {
     LessThanHavingSpec spec = new LessThanHavingSpec("metric", Long.valueOf(Long.MAX_VALUE - 10));
-    Predicate<Row> predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    Predicate<Row> predicate = spec.toEvaluator(null);
     assertFalse(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 10))));
     assertTrue(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 15))));
     assertTrue(predicate.apply(getTestRow(String.valueOf(Long.MAX_VALUE - 15))));
@@ -133,7 +132,7 @@ public class HavingSpecTest
     assertTrue(predicate.apply(getTestRow(100.05f)));
 
     spec = new LessThanHavingSpec("metric", 100.56f);
-    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    predicate = spec.toEvaluator(null);
     assertFalse(predicate.apply(getTestRow(100.56f)));
     assertTrue(predicate.apply(getTestRow(90.53f)));
     assertFalse(predicate.apply(getTestRow(101.34f)));
@@ -149,13 +148,13 @@ public class HavingSpecTest
   @Test
   public void testEqualHavingSpec() {
     EqualToHavingSpec spec = new EqualToHavingSpec("metric", Long.valueOf(Long.MAX_VALUE - 10));
-    Predicate<Row> predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    Predicate<Row> predicate = spec.toEvaluator(null);
     assertTrue(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 10))));
     assertFalse(predicate.apply(getTestRow(Long.valueOf(Long.MAX_VALUE - 5))));
     assertFalse(predicate.apply(getTestRow(100.05f)));
 
     spec = new EqualToHavingSpec("metric", 100.56f);
-    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
+    predicate = spec.toEvaluator(null);
     assertTrue(predicate.apply(getTestRow(100.56f)));
     assertFalse(predicate.apply(getTestRow(90.53f)));
     assertFalse(predicate.apply(getTestRow(Long.MAX_VALUE)));
@@ -172,7 +171,7 @@ public class HavingSpecTest
     }
 
     @Override
-    public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+    public Predicate<Row> toEvaluator(RowResolver resolver)
     {
       return new Predicate<Row>()
       {
@@ -196,7 +195,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, false)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(2, counter.get());
   }
@@ -211,7 +210,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, true)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(4, counter.get());
 
@@ -223,7 +222,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, true)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(1, counter.get());
   }
@@ -238,7 +237,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, false)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(1, counter.get());
   }
@@ -253,7 +252,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, false)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(4, counter.get());
 
@@ -265,7 +264,7 @@ public class HavingSpecTest
       new CountingHavingSpec(counter, true)
     ));
 
-    spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW);
+    spec.toEvaluator(null).apply(ROW);
 
     assertEquals(4, counter.get());
   }
@@ -273,10 +272,10 @@ public class HavingSpecTest
   @Test
   public void testNotHavingSepc() {
     NotHavingSpec spec = new NotHavingSpec(HavingSpec.NEVER);
-    assertTrue(spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW));
+    assertTrue(spec.toEvaluator(null).apply(ROW));
 
     spec = new NotHavingSpec(HavingSpec.ALWAYS);
-    assertFalse(spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of()).apply(ROW));
+    assertFalse(spec.toEvaluator(null).apply(ROW));
 
   }
 }

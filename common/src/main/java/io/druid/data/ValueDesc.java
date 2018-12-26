@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.Cacheable;
+import io.druid.common.utils.StringUtils;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -33,7 +35,7 @@ import java.util.Objects;
 
 /**
  */
-public class ValueDesc implements Serializable
+public class ValueDesc implements Serializable, Cacheable
 {
   // primitives (should be conform with JsonValue of ValueType)
   public static final String STRING_TYPE = "string";
@@ -96,6 +98,11 @@ public class ValueDesc implements Serializable
   public static ValueDesc ofArray(String typeName)
   {
     return ValueDesc.of(ARRAY_PREFIX + typeName);
+  }
+
+  public static ValueDesc ofStruct(String elements)
+  {
+    return of(STRUCT_TYPE + "(" + elements + ")");
   }
 
   public static ValueDesc ofDimension(ValueType valueType)
@@ -508,5 +515,11 @@ public class ValueDesc implements Serializable
   public Comparable cast(Object value)
   {
     return type.cast(value);
+  }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    return type.isPrimitive() ? new byte[] {(byte) type.ordinal()} : StringUtils.toUtf8(typeName);
   }
 }

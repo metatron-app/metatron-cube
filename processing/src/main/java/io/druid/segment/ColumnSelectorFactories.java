@@ -509,7 +509,7 @@ public class ColumnSelectorFactories
     {
       this.in = in;
       this.deserializeComplexMetrics = deserializeComplexMetrics;
-      this.valueDesc = ValueDesc.of(factory.getInputTypeName());
+      this.valueDesc = factory.getInputType();
       this.required = Sets.newHashSet(factory.requiredFields());
     }
 

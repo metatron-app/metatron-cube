@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.kurtosis;
 
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.stats.DruidStatsModule;
@@ -41,7 +42,7 @@ public class KurtosisTestHelper extends QueryRunnerTestHelper
       indexKurtosisMetric,
       "index",
       null,
-      "float"
+      ValueDesc.FLOAT
   );
 
   public static final List<AggregatorFactory> commonPlusCorrAggregators = Arrays.asList(

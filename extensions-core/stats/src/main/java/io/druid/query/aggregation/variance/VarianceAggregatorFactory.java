@@ -54,7 +54,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
       @JsonProperty("fieldExpression") String fieldExpression,
       @JsonProperty("predicate") String predicate,
       @JsonProperty("estimator") String estimator,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") ValueDesc inputType
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
@@ -62,14 +62,14 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
   }
 
-  public VarianceAggregatorFactory(String name, String fieldName, String inputType)
+  public VarianceAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, null, inputType);
   }
 
   public VarianceAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, ValueDesc.DOUBLE_TYPE);
+    this(name, fieldName, ValueDesc.DOUBLE);
   }
 
   @Override
@@ -190,7 +190,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected AggregatorFactory withValue(String name, String fieldName, String inputType)
+  protected AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
   {
     return new VarianceAggregatorFactory(name, fieldName, null, null, estimator, inputType);
   }

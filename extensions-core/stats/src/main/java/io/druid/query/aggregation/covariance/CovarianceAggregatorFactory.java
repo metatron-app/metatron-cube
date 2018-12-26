@@ -87,16 +87,16 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "covariance";
+    return ValueDesc.of("covariance");
   }
 
   @Override
   @JsonProperty
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return inputType.typeName();
+    return inputType;
   }
 
   @JsonProperty

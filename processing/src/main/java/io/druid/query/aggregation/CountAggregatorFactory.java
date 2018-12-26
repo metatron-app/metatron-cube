@@ -103,12 +103,6 @@ public class CountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ValueDesc finalizedType()
-  {
-    return ValueDesc.LONG;
-  }
-
-  @Override
   @JsonProperty
   public String getName()
   {
@@ -135,9 +129,9 @@ public class CountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "long";
+    return ValueDesc.LONG;
   }
 
   @Override

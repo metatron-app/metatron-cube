@@ -21,6 +21,7 @@ package io.druid.query.aggregation.variance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.data.ValueDesc;
 
 /**
  */
@@ -35,6 +36,6 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
       @JsonProperty("estimator") String estimator
   )
   {
-    super(name, fieldName, fieldExpression, predicate, estimator, "variance");
+    super(name, fieldName, fieldExpression, predicate, estimator, ValueDesc.of("variance"));
   }
 }

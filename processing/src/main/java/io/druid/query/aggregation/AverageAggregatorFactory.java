@@ -161,28 +161,6 @@ public class AverageAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object finalizeComputation(Object object)
-  {
-    if (object == null) {
-      return null;
-    } else if (object instanceof long[]) {
-      long[] param = (long[]) object;
-      return param[0] == 0 ? null : Double.longBitsToDouble(param[1]) / param[0];
-    } else {
-      List param = (List) object;
-      long p1 = Rows.parseLong(param.get(0));
-      long p2 = Rows.parseLong(param.get(1));
-      return p1 == 0 ? null : Double.longBitsToDouble(p2) / p1;
-    }
-  }
-
-  @Override
-  public ValueDesc finalizedType()
-  {
-    return ValueDesc.DOUBLE;
-  }
-
-  @Override
   @JsonProperty
   public String getName()
   {
@@ -219,9 +197,37 @@ public class AverageAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getInputType()
   {
-    return ValueDesc.STRUCT_TYPE + "(long,double)";
+    return ValueDesc.DOUBLE;
+  }
+
+  @Override
+  public ValueDesc getOutputType()
+  {
+    return ValueDesc.ofStruct("long,double");
+  }
+
+  @Override
+  public ValueDesc finalizedType()
+  {
+    return ValueDesc.DOUBLE;
+  }
+
+  @Override
+  public Object finalizeComputation(Object object)
+  {
+    if (object == null) {
+      return null;
+    } else if (object instanceof long[]) {
+      long[] param = (long[]) object;
+      return param[0] == 0 ? null : Double.longBitsToDouble(param[1]) / param[0];
+    } else {
+      List param = (List) object;
+      long p1 = Rows.parseLong(param.get(0));
+      long p2 = Rows.parseLong(param.get(1));
+      return p1 == 0 ? null : Double.longBitsToDouble(p2) / p1;
+    }
   }
 
   @Override

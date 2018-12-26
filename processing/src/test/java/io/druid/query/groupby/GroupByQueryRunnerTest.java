@@ -31,6 +31,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
@@ -162,7 +163,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
                 new LongSumAggregatorFactory("idx", "index"),
-                new GenericSumAggregatorFactory("idx2", "indexDecimal", "decimal")
+                new GenericSumAggregatorFactory("idx2", "indexDecimal", ValueDesc.DECIMAL)
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3366,7 +3367,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -3641,7 +3642,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -7064,7 +7065,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx", "index"), filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx2", "index"), new MathExprFilter("1 == 0")),
-            new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", "long")
+            new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", ValueDesc.LONG)
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();

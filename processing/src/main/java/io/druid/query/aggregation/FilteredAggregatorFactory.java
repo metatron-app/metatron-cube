@@ -140,15 +140,15 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return delegate.getTypeName();
+    return delegate.getOutputType();
   }
 
   @Override
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return delegate.getInputTypeName();
+    return delegate.getInputType();
   }
 
   @Override

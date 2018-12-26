@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -91,8 +92,8 @@ public class CalciteTests
   private static final IncrementalIndexSchema INDEX_SCHEMA = new IncrementalIndexSchema.Builder()
       .withMetrics(
           new CountAggregatorFactory("cnt"),
-          new GenericSumAggregatorFactory("m1", "m1", "float"),
-          new GenericSumAggregatorFactory("m2", "m2", "double"),
+          new GenericSumAggregatorFactory("m1", "m1", ValueDesc.FLOAT),
+          new GenericSumAggregatorFactory("m2", "m2", ValueDesc.DOUBLE),
           new HyperUniquesAggregatorFactory("unique_dim1", "dim1")
       )
       .withRollup(false)

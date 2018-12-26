@@ -118,12 +118,12 @@ public class PostAggregationsPostProcessor
       if (metricNames.indexOf(outputName) >= 0) {
         aggregatorFactories.set(
             metricNames.indexOf(outputName),
-            new RelayAggregatorFactory(outputName, valueDesc.typeName())
+            new RelayAggregatorFactory(outputName, valueDesc)
         );
       } else {
         aggregatorFactories.add(
             metricNames.indexOf(outputName),
-            new RelayAggregatorFactory(outputName, valueDesc.typeName())
+            new RelayAggregatorFactory(outputName, valueDesc)
         );
       }
     }

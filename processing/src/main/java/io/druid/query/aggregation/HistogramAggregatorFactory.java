@@ -174,9 +174,9 @@ public class HistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "histogram";
+    return ValueDesc.of("histogram");
   }
 
   @Override

@@ -26,6 +26,7 @@ import com.google.common.io.CharSource;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
@@ -396,9 +397,9 @@ public class VirtualColumnTest
         .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new GenericSumAggregatorFactory("sum_of_array", "array", "array.long"),
-                new GenericMinAggregatorFactory("min_of_array", "array", "array.long"),
-                new GenericMaxAggregatorFactory("max_of_array", "array", "array.long")
+                new GenericSumAggregatorFactory("sum_of_array", "array", ValueDesc.ofArray("long")),
+                new GenericMinAggregatorFactory("min_of_array", "array", ValueDesc.ofArray("long")),
+                new GenericMaxAggregatorFactory("max_of_array", "array", ValueDesc.ofArray("long"))
             )
         )
         .build();

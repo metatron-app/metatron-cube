@@ -1,8 +1,6 @@
 package io.druid.query.aggregation.median;
 
 import io.druid.query.aggregation.BufferAggregator;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;

@@ -56,13 +56,13 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("predicate") String predicate,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") ValueDesc inputType
   )
   {
     this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName1 should not be null");
     this.predicate = predicate;
-    this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
+    this.inputType = inputType == null ? ValueDesc.DOUBLE : inputType;
   }
 
   @Override
@@ -79,16 +79,16 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "kurtosis";
+    return ValueDesc.of("kurtosis");
   }
 
   @Override
   @JsonProperty
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return inputType.typeName();
+    return inputType;
   }
 
   @JsonProperty

@@ -21,6 +21,7 @@ package io.druid.query.kmeans;
 
 import com.google.common.io.CharSource;
 import io.druid.common.Intervals;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -59,8 +60,8 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
   static {
     Parser.register(ModuleBuiltinFunctions.class);
 
-    AggregatorFactory x = new RelayAggregatorFactory("x", "double");
-    AggregatorFactory y = new RelayAggregatorFactory("y", "double");
+    AggregatorFactory x = new RelayAggregatorFactory("x", ValueDesc.DOUBLE);
+    AggregatorFactory y = new RelayAggregatorFactory("y", ValueDesc.DOUBLE);
     DimensionsSpec dimensions = new DimensionsSpec(
         StringDimensionSchema.ofNames("index"), null, null
     );

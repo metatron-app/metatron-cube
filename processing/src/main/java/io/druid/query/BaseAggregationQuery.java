@@ -189,10 +189,13 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   public Sequence<Row> applyLimit(Sequence<Row> sequence, boolean sortOnTimeForLimit)
   {
     if (havingSpec != null) {
-      Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);
+      Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this, QueryStage.FINALIZED));
       sequence = Sequences.filter(sequence, predicate);
     }
-    return limitSpec.build(this, sortOnTimeForLimit).apply(sequence);
+    Query.AggregationsSupport<?> query = withPostAggregatorSpecs(
+        PostAggregators.decorate(getPostAggregatorSpecs(), getAggregatorSpecs())
+    );
+    return limitSpec.build(query, sortOnTimeForLimit).apply(sequence);
   }
 
   @Override

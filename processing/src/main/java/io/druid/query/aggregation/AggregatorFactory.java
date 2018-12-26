@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
@@ -29,13 +28,10 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
-import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -138,19 +134,19 @@ public abstract class AggregatorFactory implements Cacheable
 
   public ValueDesc finalizedType()
   {
-    return ValueDesc.of(getTypeName());
+    return getOutputType();
   }
 
   public abstract String getName();
 
   public abstract List<String> requiredFields();
 
-  public abstract String getTypeName();
+  public abstract ValueDesc getOutputType();
 
   // this is type for ingestion, which can be different from typeName (which is output type from serde)
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return getTypeName();
+    return getOutputType();
   }
 
   /**
@@ -175,7 +171,18 @@ public abstract class AggregatorFactory implements Cacheable
   {
     public abstract boolean needResolving();
 
-    public abstract AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper);
+    public abstract AggregatorFactory resolve(Supplier<RowResolver> resolver);
+  }
+
+  public AggregatorFactory resolveIfNeeded(Supplier<RowResolver> resolver)
+  {
+    if (this instanceof TypeResolving) {
+      TypeResolving resolving = (TypeResolving) this;
+      if (resolving.needResolving()) {
+        return resolving.resolve(resolver);
+      }
+    }
+    return this;
   }
 
   /**
@@ -254,6 +261,13 @@ public abstract class AggregatorFactory implements Cacheable
     );
   }
 
+  public static List<String> toNames(List<AggregatorFactory> aggregators, List<PostAggregator> postAggregators)
+  {
+    return Lists.newArrayList(Sets.newLinkedHashSet(
+        Iterables.concat(toNames(aggregators), PostAggregators.toNames(postAggregators)))
+    );
+  }
+
   public static String[] toNamesAsArray(List<AggregatorFactory> aggregators)
   {
     return toNames(aggregators).toArray(new String[aggregators.size()]);
@@ -266,7 +280,7 @@ public abstract class AggregatorFactory implements Cacheable
       Set<String> required = Sets.newHashSet(factory.requiredFields());
       if (required.size() == 1) {
         String column = Iterables.getOnlyElement(required);
-        ValueDesc type = ValueDesc.of(factory.getInputTypeName());
+        ValueDesc type = factory.getInputType();
         ValueDesc prev = types.put(column, type);
         if (prev != null && !prev.equals(type)) {
           // conflicting..
@@ -332,7 +346,7 @@ public abstract class AggregatorFactory implements Cacheable
     List<AggregatorFactory> relay = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
       AggregatorFactory combiner = aggregator.getCombiningFactory();
-      relay.add(new RelayAggregatorFactory(combiner.getName(), combiner.getTypeName()));
+      relay.add(new RelayAggregatorFactory(combiner.getName(), combiner.getOutputType()));
     }
     return relay;
   }
@@ -341,35 +355,7 @@ public abstract class AggregatorFactory implements Cacheable
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
     for (int i = 0; i < names.size(); i++) {
-      relay.add(new RelayAggregatorFactory(names.get(i), types.get(i).typeName()));
-    }
-    return relay;
-  }
-
-  public static Map<String, ValueDesc> createTypeMap(
-      List<VirtualColumn> virtualColumns,
-      List<DimensionSpec> dimensionSpecs,
-      List<AggregatorFactory> aggregators,
-      List<PostAggregator> postAggregators
-  )
-  {
-    return RowResolver.outOf(virtualColumns, dimensionSpecs, aggregators, postAggregators).getResolvedColumnTypes();
-  }
-
-  public static List<AggregatorFactory> toRelayAndMerge(
-      List<DimensionSpec> dimensionSpecs,
-      List<AggregatorFactory> aggregators,
-      List<PostAggregator> postAggregators
-  )
-  {
-    List<AggregatorFactory> relay = toRelay(aggregators);
-    if (GuavaUtils.isNullOrEmpty(postAggregators)) {
-      return relay;
-    }
-    Map<String, ValueDesc> resolved = createTypeMap(null, dimensionSpecs, relay, postAggregators);
-    for (PostAggregator postAggregator : postAggregators) {
-      String name = postAggregator.getName();
-      relay.add(new RelayAggregatorFactory(name, resolved.get(name).typeName()));
+      relay.add(new RelayAggregatorFactory(names.get(i), types.get(i)));
     }
     return relay;
   }
@@ -380,7 +366,7 @@ public abstract class AggregatorFactory implements Cacheable
         @Override
         public Pair<String, ValueDesc> apply(AggregatorFactory input)
         {
-          return Pair.of(input.getName(), ValueDesc.of(input.getTypeName()));
+          return Pair.of(input.getName(), input.getOutputType());
         }
       };
 

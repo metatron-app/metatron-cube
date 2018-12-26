@@ -30,7 +30,7 @@ import io.druid.segment.ColumnSelectors;
  */
 public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
 {
-  public static GenericMaxAggregatorFactory expr(String name, String expression, String inputType)
+  public static GenericMaxAggregatorFactory expr(String name, String expression, ValueDesc inputType)
   {
     return new GenericMaxAggregatorFactory(name, null, expression, null, inputType);
   }
@@ -43,14 +43,14 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("fieldExpression") String fieldExpression,
       @JsonProperty("predicate") String predicate,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") ValueDesc inputType
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
     Preconditions.checkArgument(outputType == null || outputType.isPrimitive(), "cannot max on complex type");
   }
 
-  public GenericMaxAggregatorFactory(String name, String fieldName, String inputType)
+  public GenericMaxAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, inputType);
   }
@@ -126,7 +126,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
+  protected final AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
   {
     return new GenericMaxAggregatorFactory(name, fieldName, inputType);
   }

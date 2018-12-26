@@ -140,9 +140,9 @@ public class RangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return delegateFactory.getInputTypeName();
+    return delegateFactory.getInputType();
   }
 
   @Override
@@ -166,9 +166,9 @@ public class RangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return delegateFactory.getTypeName();
+    return delegateFactory.getOutputType();
   }
 
   @Override

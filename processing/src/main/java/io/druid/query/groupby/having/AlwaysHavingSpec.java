@@ -23,9 +23,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import io.druid.data.input.Row;
 import io.druid.query.RowResolver;
-import io.druid.query.aggregation.AggregatorFactory;
-
-import java.util.List;
 
 /**
  * A "having" spec that always evaluates to true
@@ -33,7 +30,7 @@ import java.util.List;
 public class AlwaysHavingSpec implements HavingSpec
 {
   @Override
-  public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+  public Predicate<Row> toEvaluator(RowResolver resolver)
   {
     return Predicates.alwaysTrue();
   }

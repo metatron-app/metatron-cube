@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
 import com.metamx.common.ISE;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -38,7 +39,6 @@ import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
-import io.druid.query.JoinType;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
@@ -81,7 +81,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   static {
     Parser.register(ModuleBuiltinFunctions.class);
 
-    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", "long");
+    AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", ValueDesc.LONG);
     DimensionsSpec dimensions = new DimensionsSpec(
         StringDimensionSchema.ofNames("market", "market_month"), null, null
     );
@@ -222,7 +222,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         Granularities.ALL, DefaultDimensionSpec.toSpec("market"), null, null,
         Arrays.<AggregatorFactory>asList(
             new CountAggregatorFactory("COUNT"),
-            new GenericSumAggregatorFactory("SUM", "index", "double")
+            new GenericSumAggregatorFactory("SUM", "index", ValueDesc.DOUBLE)
         ),
         null, null, null, null, null, null
     );
@@ -419,7 +419,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         Granularities.ALL, DefaultDimensionSpec.toSpec(dataSource + ".market"), null, null,
         Arrays.<AggregatorFactory>asList(
             new CountAggregatorFactory("COUNT"),
-            new GenericSumAggregatorFactory("SUM", dataSource + ".index", "double")
+            new GenericSumAggregatorFactory("SUM", dataSource + ".index", ValueDesc.DOUBLE)
         ),
         null, null, null, null, null, null
     );

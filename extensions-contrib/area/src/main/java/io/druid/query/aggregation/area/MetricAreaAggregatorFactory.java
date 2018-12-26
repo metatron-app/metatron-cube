@@ -145,9 +145,9 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "metricArea";
+    return ValueDesc.of("metricArea");
   }
 
   @Override

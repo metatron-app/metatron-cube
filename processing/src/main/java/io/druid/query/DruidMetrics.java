@@ -25,7 +25,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.joda.time.Interval;
 
@@ -53,7 +52,7 @@ public class DruidMetrics
     int retVal = 0;
     for (AggregatorFactory agg : aggs) {
       // This needs to change when we have support column types better
-      if (!ValueDesc.of(agg.getTypeName()).isPrimitive()) {
+      if (!agg.getOutputType().isPrimitive()) {
         retVal++;
       }
     }

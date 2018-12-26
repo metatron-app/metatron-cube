@@ -445,7 +445,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
     }
 
     if (type.isPrimitiveNumeric()) {
-      String inputType = type.typeName();
+      ValueDesc inputType = ValueDesc.of(type.typeName());
       double q1 = ((Number) lower).doubleValue();
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;

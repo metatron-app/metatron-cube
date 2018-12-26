@@ -163,10 +163,11 @@ public class Queries
 
     // cannot handle lateral view, windowing, post-processing, etc.
     // throw exception ?
-    Supplier<RowResolver> supplier = QueryUtils.resolverSupplier(subQuery, segmentWalker);
     if (subQuery instanceof Query.ColumnsSupport) {
+      // no type information in query
       Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) subQuery;
-      Schema schema = supplier.get().toSubSchema(columnsSupport.getColumns());
+      RowResolver resolver = QueryUtils.toResolver(subQuery, segmentWalker);
+      Schema schema = resolver.toSubSchema(columnsSupport.getColumns());
       if (!GuavaUtils.isNullOrEmpty(schema.getDimensionNames())) {
         builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
       }
@@ -175,39 +176,25 @@ public class Queries
       }
       return builder.withRollup(false).build();
     }
+    RowResolver instance = RowResolver.of(subQuery, QueryStage.BEFORE_FINALIZE);
     if (subQuery instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) subQuery;
-      List<DimensionSpec> dimensionSpecs = dimSupport.getDimensions();
-      if (dimensionSpecs.isEmpty() && dimSupport.allDimensionsForEmpty()) {
-        builder.withDimensions(supplier.get().getDimensionNames(), supplier.get().getDimensionTypes());
-      } else if (!dimensionSpecs.isEmpty()) {
-        List<String> dimensions = DimensionSpecs.toOutputNames(dimensionSpecs);
-        List<ValueDesc> types = DimensionSpecs.toOutputTypes(dimSupport);
-        if (GuavaUtils.containsNull(types)) {
-          types = supplier.get().resolveDimensions(dimSupport.getDimensions());
-        }
-        builder.withDimensions(dimensions, types);
-      }
+      List<DimensionSpec> dimensionSpecs = ((Query.DimensionSupport<?>) subQuery).getDimensions();
+      List<ValueDesc> types = instance.tryDimensionTypes(dimensionSpecs);
+      builder.withDimensions(DimensionSpecs.toOutputNames(dimensionSpecs), Preconditions.checkNotNull(types));
     }
     if (subQuery instanceof Query.MetricSupport) {
-      Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
-      List<String> metrics = metricSupport.getMetrics();
-      if (metrics.isEmpty() && metricSupport.allMetricsForEmpty()) {
-        builder.withMetrics(AggregatorFactory.toRelay(supplier.get().getMetricNames(), supplier.get().getMetricTypes()));
-      } else if (!metrics.isEmpty()) {
-        builder.withMetrics(AggregatorFactory.toRelay(metrics, supplier.get().resolveColumns(metrics)));
-      }
-      return builder.withRollup(false).build();
+      List<String> metrics = ((Query.MetricSupport<?>) subQuery).getMetrics();
+      List<ValueDesc> types = instance.tryColumnTypes(metrics);
+      return builder.withMetrics(AggregatorFactory.toRelay(metrics, Preconditions.checkNotNull(types)))
+                    .withRollup(false)
+                    .build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
       List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
-      if (aggregators.isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        aggregators = supplier.get().getAggregatorsList() ;
-      }
-      List<AggregatorFactory> metrics = AggregatorFactory.toRelayAndMerge(
-          aggrSupport.getDimensions(), aggregators, aggrSupport.getPostAggregatorSpecs()
-      );
-      return builder.withMetrics(metrics)
+      List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
+      List<String> metrics = AggregatorFactory.toNames(aggregators, postAggregators);
+      List<ValueDesc> types = instance.tryColumnTypes(metrics);
+      return builder.withMetrics(AggregatorFactory.toRelay(metrics, Preconditions.checkNotNull(types)))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
@@ -228,7 +215,7 @@ public class Queries
         AggregatorFactory[] aggregators = schema.getMetrics();
         for (AggregatorFactory aggregator : aggregators) {
           Preconditions.checkArgument(aggregator instanceof RelayAggregatorFactory);
-          metrics.add(new RelayAggregatorFactory(prefix + aggregator.getName(), aggregator.getTypeName()));
+          metrics.add(new RelayAggregatorFactory(prefix + aggregator.getName(), aggregator.getOutputType()));
         }
       }
       return builder.withDimensions(dimensions)

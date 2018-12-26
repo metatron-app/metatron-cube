@@ -112,10 +112,10 @@ public class RowMappingPostProcessor
           tindex = metricNames.indexOf(to);
           if (tindex >= 0) {
             metricNames.set(tindex, to);
-            aggregatorFactories.add(tindex, new RelayAggregatorFactory(to, ValueDesc.STRING_TYPE));
+            aggregatorFactories.add(tindex, new RelayAggregatorFactory(to, ValueDesc.STRING));
           } else {
             metricNames.add(to);
-            aggregatorFactories.add(new RelayAggregatorFactory(to, ValueDesc.STRING_TYPE));
+            aggregatorFactories.add(new RelayAggregatorFactory(to, ValueDesc.STRING));
           }
         }
         continue;

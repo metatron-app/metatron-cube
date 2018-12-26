@@ -32,6 +32,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
@@ -180,7 +181,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             Arrays.asList(
                 rowsCount,
                 new LongSumAggregatorFactory("idx", "index"),
-                new GenericSumAggregatorFactory("idx2", "indexDecimal", "decimal")
+                new GenericSumAggregatorFactory("idx2", "indexDecimal", ValueDesc.DECIMAL)
             )
         )
         .setGranularity(dayGran)
@@ -2016,6 +2017,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 //    expectedException.expect(ParseException.class);
 //    expectedException.expectMessage("Unknown type[class io.druid.query.aggregation.hyperloglog.HLLCV1]");
     Iterable<Row> results = runQuery(query);
+    for (Object x : results) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -3085,7 +3089,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -3189,7 +3193,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -6332,7 +6336,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx", "index"), filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx2", "index"), new MathExprFilter("1 == 0")),
-            new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", "long")
+            new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", ValueDesc.LONG)
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();

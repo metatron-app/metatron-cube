@@ -129,16 +129,16 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     if (shouldFinalize) {
       return errorBoundsStdDev != null ? ValueDesc.of("sketchEstimateWithErrorBounds") : ValueDesc.DOUBLE;
     }
-    return ValueDesc.of(getTypeName());
+    return getOutputType();
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
     if (isInputThetaSketch) {
-      return SketchModule.THETA_SKETCH_MERGE_AGG;
+      return ValueDesc.of(SketchModule.THETA_SKETCH_MERGE_AGG);
     } else {
-      return SketchModule.THETA_SKETCH_BUILD_AGG;
+      return ValueDesc.of(SketchModule.THETA_SKETCH_BUILD_AGG);
     }
   }
 

@@ -40,7 +40,6 @@ public interface BufferAggregator
    *
    * This method must not exceed the number of bytes returned by {@link AggregatorFactory#getMaxIntermediateSize()}
    * in the corresponding {@link AggregatorFactory}
-   *
    * @param buf byte buffer to initialize
    * @param position offset within the byte buffer for initialization
    */
@@ -80,7 +79,7 @@ public interface BufferAggregator
    * <b>Implementations must not change the position, limit or mark of the given buffer</b>
    *
    * Implementations are only required to support this method if they are aggregations which
-   * have an {@link AggregatorFactory#getTypeName()} of "float".
+   * have an {@link AggregatorFactory#getOutputType()} of "float".
    * If unimplemented, throwing an {@link UnsupportedOperationException} is common and recommended.
    *
    * @param buf byte buffer storing the byte array representation of the aggregate
@@ -99,7 +98,7 @@ public interface BufferAggregator
    * <b>Implementations must not change the position, limit or mark of the given buffer</b>
    *
    * Implementations are only required to support this method if they are aggregations which
-   * have an {@link AggregatorFactory#getTypeName()} of "long".
+   * have an {@link AggregatorFactory#getOutputType()} of "long".
    * If unimplemented, throwing an {@link UnsupportedOperationException} is common and recommended.
    *
    * @param buf byte buffer storing the byte array representation of the aggregate

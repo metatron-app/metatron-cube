@@ -22,6 +22,7 @@ package io.druid.query.aggregation.kurtosis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.data.ValueDesc;
 
 /**
  */
@@ -35,6 +36,6 @@ public class KurtosisFoldingAggregatorFactory extends KurtosisAggregatorFactory
       @JsonProperty("predicate") String predicate
   )
   {
-    super(name, fieldName, predicate, "kurtosis");
+    super(name, fieldName, predicate, ValueDesc.of("kurtosis"));
   }
 }

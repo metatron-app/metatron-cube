@@ -60,9 +60,9 @@ public class RelayAggregatorFactory extends AggregatorFactory
     this.typeName = Preconditions.checkNotNull(typeName);
   }
 
-  public RelayAggregatorFactory(String name, String typeName)
+  public RelayAggregatorFactory(String name, ValueDesc type)
   {
-    this(name, name, typeName);
+    this(name, name, type.typeName());
   }
 
   @Override
@@ -128,9 +128,9 @@ public class RelayAggregatorFactory extends AggregatorFactory
 
   @Override
   @JsonProperty
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return typeName;
+    return ValueDesc.of(typeName);
   }
 
   @Override

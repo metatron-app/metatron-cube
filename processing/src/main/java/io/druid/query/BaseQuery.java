@@ -38,6 +38,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
@@ -230,6 +231,18 @@ public abstract class BaseQuery<T> implements Query<T>
     return query instanceof DimensionSupport ? ((DimensionSupport) query).getDimensions() : Arrays.asList();
   }
 
+  @SuppressWarnings("unchecked")
+  public static List<AggregatorFactory> getAggregators(Query query)
+  {
+    return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getAggregatorSpecs() : Arrays.asList();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static List<PostAggregator> getPostAggregators(Query query)
+  {
+    return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getPostAggregatorSpecs() : Arrays.asList();
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
@@ -240,16 +253,11 @@ public abstract class BaseQuery<T> implements Query<T>
       boolean changed = false;
       List<AggregatorFactory> resolved = Lists.newArrayList();
       for (AggregatorFactory factory : aggregationsSupport.getAggregatorSpecs()) {
-        if (!(factory instanceof AggregatorFactory.TypeResolving)) {
-          resolved.add(factory);
-          continue;
-        }
-        AggregatorFactory.TypeResolving resolving = (AggregatorFactory.TypeResolving) factory;
-        if (resolving.needResolving()) {
-          factory = resolving.resolve(resolver, mapper);
+        AggregatorFactory resolving = factory.resolveIfNeeded(resolver);
+        if (factory != resolving) {
           changed = true;
         }
-        resolved.add(factory);
+        resolved.add(resolving);
       }
       if (changed) {
         query = aggregationsSupport.withAggregatorSpecs(resolved);

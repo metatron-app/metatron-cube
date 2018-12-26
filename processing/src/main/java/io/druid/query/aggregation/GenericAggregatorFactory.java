@@ -21,7 +21,6 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
@@ -33,6 +32,7 @@ import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
@@ -62,7 +62,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
       String fieldName,
       String fieldExpression,
       String predicate,
-      String inputType
+      ValueDesc inputType
   )
   {
     if (name == null && (fieldName != null || fieldExpression != null)) {
@@ -75,16 +75,16 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
         fieldName == null ^ fieldExpression == null,
         "Must have a valid, non-null fieldName or fieldExpression"
     );
-    this.inputType = inputType == null ? null : ValueDesc.of(inputType);
+    this.inputType = inputType;
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
-    this.outputType = inputType == null ? null : toOutputType(this.inputType);
+    this.outputType = inputType == null ? null : toOutputType(inputType);
     this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : null;
   }
 
-  public GenericAggregatorFactory(String name, String fieldName, String inputType)
+  public GenericAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, inputType);
   }
@@ -96,16 +96,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   }
 
   @Override
-  public AggregatorFactory resolve(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  public AggregatorFactory resolve(Supplier<RowResolver> resolver)
   {
     ValueDesc sourceType = resolver.get().resolve(fieldName);
-    return withValue(name, fieldName, sourceType.typeName());
-  }
-
-  @Override
-  public String getInputTypeName()
-  {
-    return inputType.typeName();
+    return withValue(name, fieldName, sourceType);
   }
 
   protected ValueDesc toOutputType(ValueDesc inputType)
@@ -169,7 +163,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
 
   protected abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType);
 
-  protected abstract AggregatorFactory withValue(String name, String fieldName, String inputType);
+  protected abstract AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType);
 
   protected abstract byte cacheTypeID();
 
@@ -182,7 +176,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return withValue(name, name, getTypeName());
+    return withValue(name, name, getOutputType());
   }
 
   @Override
@@ -234,10 +228,11 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return name;
   }
 
+  @Override
   @JsonProperty
-  public String getInputType()
+  public ValueDesc getInputType()
   {
-    return inputType == null ? null : inputType.typeName();
+    return inputType;
   }
 
   @Override
@@ -262,7 +257,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(getInputType());
+    byte[] inputTypeBytes = QueryCacheHelper.computeCacheBytes(inputType);
 
     int length = 1 + nameBytes.length
                    + fieldNameBytes.length
@@ -280,9 +275,9 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return outputType.typeName();
+    return outputType;
   }
 
   @Override

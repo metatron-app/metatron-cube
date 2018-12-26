@@ -130,7 +130,7 @@ public class IncrementalIndexSchema
   {
     List<String> metricTypes = Lists.newArrayListWithCapacity(metrics.length);
     for (AggregatorFactory aggregatorFactory : metrics) {
-      metricTypes.add(aggregatorFactory.getName() + ":" + aggregatorFactory.getTypeName());
+      metricTypes.add(aggregatorFactory.getName() + ":" + aggregatorFactory.getOutputType());
     }
     return metricTypes;
   }
@@ -146,7 +146,7 @@ public class IncrementalIndexSchema
       }
     }
     for (AggregatorFactory aggregatorFactory : metrics) {
-      types.add(ValueDesc.of(aggregatorFactory.getTypeName()));
+      types.add(aggregatorFactory.getOutputType());
     }
     return new Schema(
         dimensionsSpec.getDimensionNames(), getMetricNames(), types, Arrays.asList(metrics),
@@ -261,7 +261,7 @@ public class IncrementalIndexSchema
 
     public Builder withMetrics(List<AggregatorFactory> metrics)
     {
-      this.metrics = metrics.toArray(new AggregatorFactory[metrics.size()]);
+      this.metrics = metrics.toArray(new AggregatorFactory[0]);
       return this;
     }
 

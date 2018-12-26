@@ -293,9 +293,9 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "hyperUnique";
+    return ValueDesc.of("hyperUnique");
   }
 
   @Override

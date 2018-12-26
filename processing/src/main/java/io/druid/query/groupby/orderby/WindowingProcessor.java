@@ -24,9 +24,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
+import io.druid.query.QueryStage;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -54,13 +55,10 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       List<WindowingSpec> windowingSpecs
   )
   {
-    Map<String, ValueDesc> expectedTypes = AggregatorFactory.createTypeMap(
-        query.getVirtualColumns(), query.getDimensions(), query.getAggregatorSpecs(), query.getPostAggregatorSpecs()
-    );
-
+    RowResolver resolver = RowResolver.of(query, QueryStage.FINALIZED);
     WindowContext context = WindowContext.newInstance(
         DimensionSpecs.toOutputNames(query.getDimensions()),
-        expectedTypes
+        resolver.getResolvedColumnTypes()
     );
 
     for (WindowingSpec windowingSpec : windowingSpecs) {
@@ -110,7 +108,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
         PartitionEvaluator evaluator
     )
     {
-      this.partColumns = partColumns.toArray(new String[partColumns.size()]);
+      this.partColumns = partColumns.toArray(new String[0]);
       this.orderingSpecs = orderingSpecs;
       this.ordering = ordering;
       this.evaluator = evaluator;

@@ -21,6 +21,7 @@ package io.druid.query.sketch;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -128,7 +129,7 @@ public class SketchGroupByQueryRunnerTest
             new GenericSketchAggregatorFactory(
                 "SKETCH",
                 "VC",
-                null,
+                ValueDesc.STRING,
                 SketchOp.QUANTILE,
                 null,
                 OrderingSpec.toOrderingSpecs("stringarray(\u0001)"),

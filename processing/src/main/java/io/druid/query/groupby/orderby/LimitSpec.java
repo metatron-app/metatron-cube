@@ -175,10 +175,6 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
       return new LimitingFn(limit);
     }
-    query = query.withPostAggregatorSpecs(PostAggregators.decorate(
-        query.getPostAggregatorSpecs(),
-        query.getAggregatorSpecs()
-    ));
     if (windowingSpecs.isEmpty()) {
       Ordering<Object[]> ordering = WindowingProcessor.makeArrayComparator(query, columns, sortOnTimeForLimit);
       return new SortingFn(query, ordering, limit);

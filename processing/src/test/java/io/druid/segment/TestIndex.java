@@ -109,11 +109,11 @@ public class TestIndex
   public static final Interval INTERVAL_BOTTOM = new Interval("2011-03-01T00:00:00.000Z/2011-05-01T00:00:00.000Z");
 
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
-      new GenericSumAggregatorFactory("index", "index", ValueDesc.FLOAT_TYPE),
-      new GenericMinAggregatorFactory("indexMin", "index", ValueDesc.FLOAT_TYPE),
+      new GenericSumAggregatorFactory("index", "index", ValueDesc.FLOAT),
+      new GenericMinAggregatorFactory("indexMin", "index", ValueDesc.FLOAT),
       new DoubleMaxAggregatorFactory("indexMaxPlusTen", null, "index + 10"),
       new HyperUniquesAggregatorFactory("quality_uniques", "quality"),
-      new GenericSumAggregatorFactory("indexDecimal", "index", "decimal")
+      new GenericSumAggregatorFactory("indexDecimal", "index", ValueDesc.DECIMAL)
   };
   private static final IndexSpec indexSpec = new IndexSpec();
 

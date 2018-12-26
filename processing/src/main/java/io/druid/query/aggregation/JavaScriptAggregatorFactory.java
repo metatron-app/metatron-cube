@@ -185,12 +185,6 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
     return object;
   }
 
-  @Override
-  public ValueDesc finalizedType()
-  {
-    return ValueDesc.UNKNOWN;
-  }
-
   @JsonProperty
   @Override
   public String getName()
@@ -248,9 +242,9 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "float";
+    return ValueDesc.FLOAT;
   }
 
   @Override

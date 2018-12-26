@@ -132,12 +132,6 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
     return object;
   }
 
-  @Override
-  public ValueDesc finalizedType()
-  {
-    return ValueDesc.DOUBLE;
-  }
-
   @JsonProperty
   public String getFieldName()
   {
@@ -174,9 +168,9 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "double";
+    return ValueDesc.DOUBLE;
   }
 
   @Override

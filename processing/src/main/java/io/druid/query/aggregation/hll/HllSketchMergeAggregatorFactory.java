@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
@@ -39,7 +40,6 @@ import javax.annotation.Nullable;
  */
 public class HllSketchMergeAggregatorFactory extends HllSketchAggregatorFactory
 {
-
   @JsonCreator
   public HllSketchMergeAggregatorFactory(
       @JsonProperty("name") final String name,
@@ -52,9 +52,9 @@ public class HllSketchMergeAggregatorFactory extends HllSketchAggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return HllSketchModule.MERGE_TYPE_NAME;
+    return ValueDesc.of(HllSketchModule.MERGE_TYPE_NAME);
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -52,9 +53,9 @@ public class EvaluationTest
     final List<String> dimensionNames = parseSpec.getDimensionsSpec().getDimensionNames();
     final AggregatorFactory[] aggregators = new AggregatorFactory[] {
         new CountAggregatorFactory("count"),
-        new GenericSumAggregatorFactory("sum", "met1", "double"),
-        new GenericMinAggregatorFactory("min", "met1", "double"),
-        new GenericMaxAggregatorFactory("max", "met1", "double")
+        new GenericSumAggregatorFactory("sum", "met1", ValueDesc.DOUBLE),
+        new GenericMinAggregatorFactory("min", "met1", ValueDesc.DOUBLE),
+        new GenericMaxAggregatorFactory("max", "met1", ValueDesc.DOUBLE)
     };
     InputRowParser<Object[]> parser = new InputRowParser<Object[]>()
     {

@@ -84,7 +84,7 @@ public class InFilter implements Filter
   public ImmutableBitmap getBitmapIndex(
       final BitmapIndexSelector selector,
       final EnumSet<BitmapType> using,
-      ImmutableBitmap baseBitmap
+      final ImmutableBitmap baseBitmap
   )
   {
     Preconditions.checkArgument(

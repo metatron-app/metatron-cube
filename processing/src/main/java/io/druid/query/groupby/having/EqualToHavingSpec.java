@@ -24,9 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
 import io.druid.data.input.Row;
 import io.druid.query.RowResolver;
-import io.druid.query.aggregation.AggregatorFactory;
-
-import java.util.List;
 
 /**
  * The "=" operator in a "having" clause. This is similar to SQL's "having aggregation = value",
@@ -44,7 +41,7 @@ public class EqualToHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
+  public Predicate<Row> toEvaluator(RowResolver resolver)
   {
     return new Predicate<Row>()
     {

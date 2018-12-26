@@ -206,9 +206,9 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "distinctCount";
+    return ValueDesc.of("distinctCount");
   }
 
   @Override

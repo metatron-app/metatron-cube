@@ -87,16 +87,16 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getOutputType()
   {
-    return "pearson";
+    return ValueDesc.of("pearson");
   }
 
   @Override
   @JsonProperty
-  public String getInputTypeName()
+  public ValueDesc getInputType()
   {
-    return inputType.typeName();
+    return inputType;
   }
 
   @JsonProperty

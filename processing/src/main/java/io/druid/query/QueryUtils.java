@@ -344,9 +344,7 @@ public class QueryUtils
     );
   }
 
-  public static Supplier<RowResolver> resolverSupplier(
-      final Query query,
-      final QuerySegmentWalker segmentWalker)
+  public static Supplier<RowResolver> resolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)
   {
     return Suppliers.memoize(
         new Supplier<RowResolver>()
@@ -354,11 +352,16 @@ public class QueryUtils
           @Override
           public RowResolver get()
           {
-            final Schema schema = retrieveSchema(query, segmentWalker);
-            return RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
+            return toResolver(query, segmentWalker);
           }
         }
     );
+  }
+
+  public static RowResolver toResolver(Query query, QuerySegmentWalker segmentWalker)
+  {
+    final Schema schema = retrieveSchema(query, segmentWalker);
+    return RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
   }
 
   public static Schema retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)

@@ -180,10 +180,10 @@ public class AnomalyPostProcessor
     }
     List<AggregatorFactory> metrics = Lists.newArrayList(Arrays.asList(input.getMetrics()));
     if (predictColumn != null) {
-      metrics.add(new RelayAggregatorFactory(predictColumn, ValueDesc.FLOAT_TYPE));
+      metrics.add(new RelayAggregatorFactory(predictColumn, ValueDesc.FLOAT));
     }
     if (tsModelColumn != null) {
-      metrics.add(new RelayAggregatorFactory(tsModelColumn, ValueDesc.MAP_TYPE));
+      metrics.add(new RelayAggregatorFactory(tsModelColumn, ValueDesc.MAP));
     }
     return input.withMetrics(metrics.toArray(new AggregatorFactory[0]));
   }

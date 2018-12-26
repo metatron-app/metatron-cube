@@ -213,7 +213,7 @@ public class Schema implements TypeResolver, RowSignature
       } else {
         try {
           AggregatorFactory factory = factory1.getMergingFactory(factory2);
-          merged.put(metric, ValueDesc.of(factory.getTypeName()));
+          merged.put(metric, factory.getOutputType());
           mergedAggregators.add(factory);
         }
         catch (AggregatorFactoryNotMergeableException e) {
