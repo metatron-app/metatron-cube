@@ -253,7 +253,7 @@ public class BrokerQueryResource extends QueryResource
   @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query baseQuery) throws Exception
   {
-    Query query = baseQuery;
+    Query query = super.prepareQuery(baseQuery);
     query = rewriteDataSource(query);
     query = rewriteQuery(query);
     query = QueryUtils.resolveRecursively(query, texasRanger);
@@ -297,7 +297,7 @@ public class BrokerQueryResource extends QueryResource
     if (query != baseQuery) {
       log.info("Base query is rewritten to %s", query);
     }
-    return super.prepareQuery(query);
+    return query;
   }
 
   private Query rewriteDataSource(Query query)

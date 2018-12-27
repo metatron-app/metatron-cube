@@ -153,7 +153,7 @@ public class ColumnBuilder
     Preconditions.checkState(type != null, "Type must be set.");
 
     return new SimpleColumn(
-        new ColumnCapabilitiesImpl()
+        new ColumnCapabilities()
             .setType(type.type())
             .setTypeName(type.typeName())
             .setDictionaryEncoded(dictionaryEncodedColumn != null)

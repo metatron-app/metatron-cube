@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
@@ -48,7 +47,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 
 import java.util.Collections;
 import java.util.List;
@@ -80,13 +78,13 @@ public class Schema implements TypeResolver, RowSignature
       ValueDesc type = entry.getValue();
       if (column.equals(Column.TIME_COLUMN_NAME)) {
         dimensions.add(column);
-        capabilities.put(column, ColumnCapabilitiesImpl.of(ValueType.LONG));
+        capabilities.put(column, ColumnCapabilities.of(ValueType.LONG));
         columnTypes.add(ValueDesc.LONG);
         continue;
       }
       if (type.isDimension()) {
         dimensions.add(column);
-        capabilities.put(column, ColumnCapabilitiesImpl.of(ValueType.STRING).setHasBitmapIndexes(true));
+        capabilities.put(column, ColumnCapabilities.of(ValueType.STRING).setHasBitmapIndexes(true));
       } else {
         metrics.add(column);
       }
@@ -179,7 +177,8 @@ public class Schema implements TypeResolver, RowSignature
     return aggregators;
   }
 
-  @JsonIgnore
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, ColumnCapabilities> getCapabilities()
   {
     return capabilities;

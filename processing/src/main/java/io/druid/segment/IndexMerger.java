@@ -64,7 +64,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
@@ -649,23 +648,23 @@ public class IndexMerger
     }
 
     final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
-    final Map<String, ColumnCapabilitiesImpl> columnCapabilities = Maps.newHashMap();
+    final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
 
     for (IndexableAdapter adapter : indexes) {
       for (String dimension : adapter.getDimensionNames()) {
-        ColumnCapabilitiesImpl mergedCapabilities = columnCapabilities.get(dimension);
+        ColumnCapabilities mergedCapabilities = columnCapabilities.get(dimension);
         ColumnCapabilities capabilities = adapter.getCapabilities(dimension);
         if (mergedCapabilities == null) {
-          mergedCapabilities = new ColumnCapabilitiesImpl();
+          mergedCapabilities = new ColumnCapabilities();
           mergedCapabilities.setType(ValueType.STRING);
         }
         columnCapabilities.put(dimension, mergedCapabilities.merge(capabilities));
       }
       for (String metric : adapter.getMetricNames()) {
-        ColumnCapabilitiesImpl mergedCapabilities = columnCapabilities.get(metric);
+        ColumnCapabilities mergedCapabilities = columnCapabilities.get(metric);
         ColumnCapabilities capabilities = adapter.getCapabilities(metric);
         if (mergedCapabilities == null) {
-          mergedCapabilities = new ColumnCapabilitiesImpl();
+          mergedCapabilities = new ColumnCapabilities();
         }
         columnCapabilities.put(metric, mergedCapabilities.merge(capabilities));
         metricTypeNames.put(metric, adapter.getMetricType(metric));

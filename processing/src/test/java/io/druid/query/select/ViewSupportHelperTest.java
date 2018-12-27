@@ -53,7 +53,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.StorageAdapterSegment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.DateTime;
@@ -156,8 +155,8 @@ public class ViewSupportHelperTest
     {
       ValueDesc desc = typesMap.get(column);
       return desc == null ? null :
-             ValueDesc.isDimension(desc) ? ColumnCapabilitiesImpl.of(ValueDesc.typeOfDimension(desc)) :
-             ColumnCapabilitiesImpl.of(desc.type());
+             ValueDesc.isDimension(desc) ? ColumnCapabilities.of(ValueDesc.typeOfDimension(desc)) :
+             ColumnCapabilities.of(desc.type());
     }
 
     @Override

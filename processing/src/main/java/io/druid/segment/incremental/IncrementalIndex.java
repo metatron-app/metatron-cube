@@ -62,7 +62,6 @@ import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -204,7 +203,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   private final Map<String, MetricDesc> metricDescs;
 
   private final Map<String, DimensionDesc> dimensionDescs;
-  private final Map<String, ColumnCapabilitiesImpl> columnCapabilities;
+  private final Map<String, ColumnCapabilities> columnCapabilities;
   private final List<DimDim> dimValues;
 
   // looks need a configuration
@@ -284,7 +283,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     this.dimValues = Collections.synchronizedList(Lists.<DimDim>newArrayList());
 
     for (DimensionSchema dimSchema : dimensionsSpec.getDimensions()) {
-      ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
+      ColumnCapabilities capabilities = new ColumnCapabilities();
       ValueType type = dimSchema.getValueType();
       capabilities.setType(type);
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
@@ -479,7 +478,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       for (String dimension : rowDimensions) {
         List<Comparable> dimensionValues;
 
-        ColumnCapabilitiesImpl capabilities;
+        ColumnCapabilities capabilities;
         final ValueType valType;
         DimensionDesc desc = dimensionDescs.get(dimension);
         if (desc != null) {
@@ -487,7 +486,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
         } else {
           capabilities = columnCapabilities.get(dimension);
           if (capabilities == null) {
-            capabilities = new ColumnCapabilitiesImpl();
+            capabilities = new ColumnCapabilities();
             // For schemaless type discovery, assume everything is a String for now, can change later.
             capabilities.setType(ValueType.STRING);
             columnCapabilities.put(dimension, capabilities);
@@ -584,7 +583,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     Preconditions.checkArgument(types == null || dimensions.size() == types.size());
     for (int i = 0; i < dimensions.size(); i++) {
       ValueType type = types == null ? ValueType.STRING : types.get(i);
-      addNewDimension(dimensions.get(i), ColumnCapabilitiesImpl.of(type), MultiValueHandling.ARRAY, -1);
+      addNewDimension(dimensions.get(i), ColumnCapabilities.of(type), MultiValueHandling.ARRAY, -1);
     }
   }
 
@@ -781,7 +780,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       }
       for (String dim : oldDimensionOrder) {
         if (dimensionDescs.get(dim) == null) {
-          ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
+          ColumnCapabilities capabilities = new ColumnCapabilities();
           capabilities.setType(ValueType.STRING);
           columnCapabilities.put(dim, capabilities);
           addNewDimension(dim, capabilities, null, -1);
@@ -793,7 +792,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   @GuardedBy("dimensionDescs")
   private DimensionDesc addNewDimension(
       String dim,
-      ColumnCapabilitiesImpl capabilities,
+      ColumnCapabilities capabilities,
       MultiValueHandling multiValueHandling,
       int compareCacheEntry
       )
@@ -1101,13 +1100,13 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     private final int index;
     private final String name;
     private final DimDim values;
-    private final ColumnCapabilitiesImpl capabilities;
+    private final ColumnCapabilities capabilities;
     private final MultiValueHandling multiValueHandling;
 
     public DimensionDesc(int index,
                          String name,
                          DimDim values,
-                         ColumnCapabilitiesImpl capabilities,
+                         ColumnCapabilities capabilities,
                          MultiValueHandling multiValueHandling
     )
     {
@@ -1134,7 +1133,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       return values;
     }
 
-    public ColumnCapabilitiesImpl getCapabilities()
+    public ColumnCapabilities getCapabilities()
     {
       return capabilities;
     }
@@ -1150,14 +1149,14 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     private final int index;
     private final String name;
     private final ValueDesc type;
-    private final ColumnCapabilitiesImpl capabilities;
+    private final ColumnCapabilities capabilities;
 
     public MetricDesc(int index, AggregatorFactory factory)
     {
       this.index = index;
       this.name = factory.getName();
       this.type = factory.getOutputType();
-      this.capabilities = ColumnCapabilitiesImpl.of(type.type());
+      this.capabilities = ColumnCapabilities.of(type.type());
       if (type.type() == ValueType.COMPLEX) {
         capabilities.setTypeName(type.typeName());
       }
@@ -1178,7 +1177,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       return type;
     }
 
-    public ColumnCapabilitiesImpl getCapabilities()
+    public ColumnCapabilities getCapabilities()
     {
       return capabilities;
     }

@@ -53,7 +53,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
@@ -174,7 +173,7 @@ public class IndexMergerV9 extends IndexMerger
 
       progress.progress();
       final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
-      final List<ColumnCapabilitiesImpl> dimCapabilities = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final List<ColumnCapabilities> dimCapabilities = Lists.newArrayListWithCapacity(mergedDimensions.size());
       mergeCapabilities(adapters, mergedDimensions, metricTypeNames, dimCapabilities);
 
       /************* Setup Dim Conversions **************/
@@ -349,7 +348,7 @@ public class IndexMergerV9 extends IndexMerger
       final IndexSpec indexSpec,
       final List<String> mergedDimensions,
       final ArrayList<Boolean> dimensionSkipFlag,
-      final List<ColumnCapabilitiesImpl> dimCapabilities,
+      final List<ColumnCapabilities> dimCapabilities,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
       final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters,
       final ArrayList<ColumnPartWriter> dimWriters,
@@ -607,7 +606,7 @@ public class IndexMergerV9 extends IndexMerger
       final IOPeon ioPeon,
       final List<String> mergedDimensions,
       final IndexSpec indexSpec,
-      final List<ColumnCapabilitiesImpl> dimCapabilities
+      final List<ColumnCapabilities> dimCapabilities
   ) throws IOException
   {
     ArrayList<ColumnPartWriter<ImmutableRTree>> writers = Lists.newArrayListWithCapacity(mergedDimensions.size());
@@ -749,7 +748,7 @@ public class IndexMergerV9 extends IndexMerger
   private ArrayList<ColumnPartWriter> setupDimensionWriters(
       final IOPeon ioPeon,
       final List<String> mergedDimensions,
-      final List<ColumnCapabilitiesImpl> dimCapabilities,
+      final List<ColumnCapabilities> dimCapabilities,
       final Map<String, Integer> dimCardinalities,
       final IndexSpec indexSpec
   ) throws IOException
@@ -759,7 +758,7 @@ public class IndexMergerV9 extends IndexMerger
     for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
       String dim = mergedDimensions.get(dimIndex);
       int cardinality = dimCardinalities.get(dim);
-      ColumnCapabilitiesImpl capabilities = dimCapabilities.get(dimIndex);
+      ColumnCapabilities capabilities = dimCapabilities.get(dimIndex);
       String filenameBase = String.format("%s.forward_dim", dim);
       ColumnPartWriter writer;
       if (capabilities.hasMultipleValues()) {
@@ -926,26 +925,26 @@ public class IndexMergerV9 extends IndexMerger
       final List<IndexableAdapter> adapters,
       final List<String> mergedDimensions,
       final Map<String, ValueDesc> metricTypeNames,
-      final List<ColumnCapabilitiesImpl> dimCapabilities
+      final List<ColumnCapabilities> dimCapabilities
   )
   {
-    final Map<String, ColumnCapabilitiesImpl> capabilitiesMap = Maps.newHashMap();
+    final Map<String, ColumnCapabilities> capabilitiesMap = Maps.newHashMap();
     for (IndexableAdapter adapter : adapters) {
       for (String dimension : adapter.getDimensionNames()) {
-        ColumnCapabilitiesImpl previous = capabilitiesMap.get(dimension);
-        ColumnCapabilitiesImpl merged;
+        ColumnCapabilities previous = capabilitiesMap.get(dimension);
+        ColumnCapabilities merged;
         if (previous == null) {
-          merged = (ColumnCapabilitiesImpl) adapter.getCapabilities(dimension);
+          merged = adapter.getCapabilities(dimension);
         } else {
           merged = previous.merge(adapter.getCapabilities(dimension));
         }
         capabilitiesMap.put(dimension, Preconditions.checkNotNull(merged));
       }
       for (String metric : adapter.getMetricNames()) {
-        ColumnCapabilitiesImpl mergedCapabilities = capabilitiesMap.get(metric);
+        ColumnCapabilities mergedCapabilities = capabilitiesMap.get(metric);
         ColumnCapabilities capabilities = adapter.getCapabilities(metric);
         if (mergedCapabilities == null) {
-          mergedCapabilities = new ColumnCapabilitiesImpl();
+          mergedCapabilities = new ColumnCapabilities();
         }
         capabilitiesMap.put(metric, mergedCapabilities.merge(capabilities));
         metricTypeNames.put(metric, adapter.getMetricType(metric));

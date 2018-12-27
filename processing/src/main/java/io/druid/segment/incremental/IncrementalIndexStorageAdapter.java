@@ -57,7 +57,6 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -535,7 +534,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (metricIndexInt == null) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
-                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
                     if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
                       throw new IllegalArgumentException("cannot make float selector from dimension " + columnName);
                     }
@@ -573,7 +572,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (metricIndexInt == null) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
-                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
                     if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
                       throw new IllegalArgumentException("cannot make double selector from dimension " + columnName);
                     }
@@ -621,7 +620,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (metricIndexInt == null) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
-                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
                     if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
                       throw new IllegalArgumentException("cannot make long selector from dimension " + columnName);
                     }
@@ -709,7 +708,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return null;
                 }
 
-                final ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                final ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
                 final ValueDesc valueType = capabilities.hasMultipleValues()
                                             ? ValueDesc.ofMultiValued(capabilities.getType())
                                             : ValueDesc.of(capabilities.getType());

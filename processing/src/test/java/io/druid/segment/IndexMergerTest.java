@@ -37,7 +37,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
@@ -2139,7 +2139,7 @@ public class IndexMergerTest
     final long timestamp = System.currentTimeMillis();
     IncrementalIndex toPersist = IncrementalIndexTest.createIndex(null);
     IncrementalIndexTest.populateIndex(timestamp, toPersist);
-    ColumnCapabilitiesImpl capabilities = (ColumnCapabilitiesImpl) toPersist.getCapabilities("dim1");
+    ColumnCapabilities capabilities = toPersist.getCapabilities("dim1");
     capabilities.setHasSpatialIndexes(true);
 
     final File tempDir = temporaryFolder.newFolder();
