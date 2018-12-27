@@ -229,8 +229,11 @@ public class JoinElement
         }
         return delegate.toArrayJoin();  // keep array for output
       }
-      if (!(query instanceof Query.ArrayOutputSupport) ||
-          GuavaUtils.isNullOrEmpty(((Query.ArrayOutputSupport) query).estimatedOutputColumns())) {
+      if (!(query instanceof Query.ArrayOutputSupport)) {
+        throw new UnsupportedOperationException("todo: cannot resolve output column names..");
+      }
+      Query.ArrayOutputSupport array = (Query.ArrayOutputSupport) query;
+      if (GuavaUtils.isNullOrEmpty(array.estimatedOutputColumns())) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
       if (query instanceof GroupByQuery) {

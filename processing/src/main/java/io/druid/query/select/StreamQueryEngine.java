@@ -110,7 +110,7 @@ public class StreamQueryEngine
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
-    final RowResolver resolver = RowResolver.of(segment, query);
+    final Schema schema = segment.asSchema(false);
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
@@ -119,7 +119,7 @@ public class StreamQueryEngine
         QueryRunnerHelper.makeCursorBasedQuery(
             adapter,
             Iterables.getOnlyElement(intervals),
-            resolver,
+            RowResolver.of(schema, query.getVirtualColumns()),
             query.getDimensionsFilter(),
             cache,
             query.isDescending(),
@@ -128,7 +128,7 @@ public class StreamQueryEngine
         )
     );
 
-    return Pair.of(resolver.toSubSchema(query.getColumns()), sequence);
+    return Pair.of(schema.resolve(query, false), sequence);
   }
 
   public static Function<Cursor, Sequence<Object[]>> converter(

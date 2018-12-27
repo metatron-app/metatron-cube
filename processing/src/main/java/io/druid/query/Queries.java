@@ -28,10 +28,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import com.yahoo.sketches.Family;
+import com.yahoo.sketches.quantiles.ItemsUnion;
+import com.yahoo.sketches.theta.SetOperation;
+import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -56,6 +61,7 @@ import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
+import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
@@ -64,6 +70,7 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.joda.time.DateTime;
 
@@ -161,40 +168,50 @@ public class Queries
         .withQueryGranularity(Granularities.ALL)
         .withFixedSchema(true);
 
-    // cannot handle lateral view, windowing, post-processing, etc.
-    // throw exception ?
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
       Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) subQuery;
-      RowResolver resolver = QueryUtils.toResolver(subQuery, segmentWalker);
-      Schema schema = resolver.toSubSchema(columnsSupport.getColumns());
-      if (!GuavaUtils.isNullOrEmpty(schema.getDimensionNames())) {
-        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
+      Schema instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+      if (!GuavaUtils.isNullOrEmpty(instance.getDimensionNames())) {
+        builder.withDimensions(instance.getDimensionNames(), instance.getDimensionTypes());
       }
-      if (!GuavaUtils.isNullOrEmpty(schema.getMetricNames())) {
-        builder.withMetrics(AggregatorFactory.toRelay(schema.getMetricNames(), schema.getMetricTypes()));
+      if (!GuavaUtils.isNullOrEmpty(instance.getMetricNames())) {
+        builder.withMetrics(AggregatorFactory.toRelay(instance.getMetricNames(), instance.getMetricTypes()));
       }
       return builder.withRollup(false).build();
     }
-    RowResolver instance = RowResolver.of(subQuery, QueryStage.BEFORE_FINALIZE);
+    Schema instance = Schema.EMPTY.resolve(subQuery, false);
     if (subQuery instanceof Query.DimensionSupport) {
-      List<DimensionSpec> dimensionSpecs = ((Query.DimensionSupport<?>) subQuery).getDimensions();
-      List<ValueDesc> types = instance.tryDimensionTypes(dimensionSpecs);
-      builder.withDimensions(DimensionSpecs.toOutputNames(dimensionSpecs), Preconditions.checkNotNull(types));
+      List<String> dimensions = DimensionSpecs.toOutputNames(((Query.DimensionSupport<?>) subQuery).getDimensions());
+      List<ValueDesc> types = instance.tryColumnTypes(dimensions);
+      if (types == null) {
+        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = instance.tryColumnTypes(dimensions);
+      }
+      builder.withDimensions(dimensions, Preconditions.checkNotNull(types));
     }
     if (subQuery instanceof Query.MetricSupport) {
       List<String> metrics = ((Query.MetricSupport<?>) subQuery).getMetrics();
       List<ValueDesc> types = instance.tryColumnTypes(metrics);
-      return builder.withMetrics(AggregatorFactory.toRelay(metrics, Preconditions.checkNotNull(types)))
+      if (types == null) {
+        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = instance.tryColumnTypes(metrics);
+      }
+      return builder.withMetrics(metrics, Preconditions.checkNotNull(types))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
+      // todo: cannot handle lateral view, windowing, post-processing, etc. should throw exception ?
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
       List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
       List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       List<String> metrics = AggregatorFactory.toNames(aggregators, postAggregators);
       List<ValueDesc> types = instance.tryColumnTypes(metrics);
-      return builder.withMetrics(AggregatorFactory.toRelay(metrics, Preconditions.checkNotNull(types)))
+      if (types == null) {
+        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = instance.tryColumnTypes(metrics);
+      }
+      return builder.withMetrics(metrics, Preconditions.checkNotNull(types))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
@@ -224,7 +241,6 @@ public class Queries
                     .build();
     } else {
       // todo union-all (partitioned-join, etc.)
-      // todo timeseries topN query
       throw new UnsupportedOperationException("Cannot extract metric from query " + subQuery);
     }
   }
@@ -410,6 +426,33 @@ public class Queries
     Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, objectMapper);
     Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
     return row.getLongMetric("cardinality");
+  }
+
+  public static int getNumSplits(List<DictionaryEncodedColumn> dictionaries, int numSplit)
+  {
+    Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
+    for (DictionaryEncodedColumn dictionary : dictionaries) {
+      union.update(dictionary.getTheta());
+    }
+    int cardinality = (int) union.getResult().getEstimate();
+    if (cardinality > 0) {
+      return Math.max(numSplit, 1 + (cardinality >> 18));
+    }
+    return numSplit;
+  }
+
+  public static Object[] getThresholds(List<DictionaryEncodedColumn> dictionaries, int numSplit, String strategy)
+  {
+    ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
+    for (DictionaryEncodedColumn dictionary : dictionaries) {
+      itemsUnion.update(dictionary.getQuantile());
+    }
+    if (!itemsUnion.isEmpty()) {
+      return (Object[]) QuantileOperation.QUANTILES.calculate(
+          itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
+      );
+    }
+    return null;
   }
 
   private static final String DUMMY_VC = "$VC";

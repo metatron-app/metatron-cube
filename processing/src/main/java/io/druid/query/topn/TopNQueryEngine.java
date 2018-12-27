@@ -73,7 +73,7 @@ public class TopNQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    final RowResolver resolver = RowResolver.of(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
     final List<Interval> queryIntervals = query.getQuerySegmentSpec().getIntervals();
     final DimFilter filter = query.getDimensionsFilter();
     final Granularity granularity = query.getGranularity();

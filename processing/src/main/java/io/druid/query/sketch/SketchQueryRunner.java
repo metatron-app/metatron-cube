@@ -57,6 +57,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
+import org.apache.commons.io.IOUtils;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -89,7 +90,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
       throw new ISE("Got a [%s] which isn't a %s", baseQuery.getClass(), SketchQuery.class);
     }
     final SketchQuery query = (SketchQuery) baseQuery;
-    final RowResolver resolver = RowResolver.of(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
     final Map<String, String> contextTypes = query.getContextValue(
         Query.MAJOR_TYPES, ImmutableMap.<String, String>of()
@@ -131,6 +132,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
                 dimensions.set(index, null);
               }
             }
+            IOUtils.closeQuietly(dictionary);
           }
         }
         index++;
@@ -145,7 +147,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
     if (!sketchOp.isCardinalitySensitive()
         && queryable != null
         && metrics.isEmpty()
-        && resolver.supportsExactBitmap(columns, filter)) {
+        && resolver.supportsExact(columns, filter)) {
       // Closing this will cause segfaults in unit tests.
       final BitmapFactory bitmapFactory = queryable.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, queryable);

@@ -28,19 +28,19 @@ import java.io.IOException;
 
 /**
  */
-public interface QueryableIndex extends ColumnSelector, Closeable
+public interface QueryableIndex extends SchemaProvider, ColumnSelector, Closeable
 {
-  public Interval getDataInterval();
-  public int getNumRows();
-  public Indexed<String> getAvailableDimensions();
-  public BitmapFactory getBitmapFactoryForDimensions();
-  public Iterable<String> getAvailableMetrics();
-  public Metadata getMetadata();
+  Interval getDataInterval();
+  int getNumRows();
+  Indexed<String> getAvailableDimensions();
+  BitmapFactory getBitmapFactoryForDimensions();
+  Iterable<String> getAvailableMetrics();
+  Metadata getMetadata();
 
   /**
    * The close method shouldn't actually be here as this is nasty. We will adjust it in the future.
    * @throws java.io.IOException if an exception was thrown closing the index
    */
   //@Deprecated // This is still required for SimpleQueryableIndex. It should not go away unitl SimpleQueryableIndex is fixed
-  public void close() throws IOException;
+  void close() throws IOException;
 }

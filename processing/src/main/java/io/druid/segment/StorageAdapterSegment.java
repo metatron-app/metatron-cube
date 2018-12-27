@@ -19,26 +19,23 @@
 
 package io.druid.segment;
 
+import io.druid.query.select.Schema;
 import org.joda.time.Interval;
-
-import java.io.IOException;
 
 /**
  */
 public class StorageAdapterSegment extends AbstractSegment
 {
-  private final String identifier;
   private final StorageAdapter adapter;
 
-  public StorageAdapterSegment(String identifier, StorageAdapter adapter) {
-    this.identifier = identifier;
+  public StorageAdapterSegment(StorageAdapter adapter) {
     this.adapter = adapter;
   }
 
   @Override
   public String getIdentifier()
   {
-    return identifier;
+    return adapter.getSegmentIdentifier();
   }
 
   @Override
@@ -61,7 +58,8 @@ public class StorageAdapterSegment extends AbstractSegment
   }
 
   @Override
-  public void close() throws IOException
+  public Schema asSchema(boolean prependTime)
   {
+    return adapter.asSchema(prependTime);
   }
 }

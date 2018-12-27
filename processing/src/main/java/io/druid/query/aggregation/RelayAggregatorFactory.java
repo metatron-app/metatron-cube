@@ -126,8 +126,13 @@ public class RelayAggregatorFactory extends AggregatorFactory
     return columnName;
   }
 
-  @Override
   @JsonProperty
+  public String getTypeName()
+  {
+    return typeName;
+  }
+
+  @Override
   public ValueDesc getOutputType()
   {
     return ValueDesc.of(typeName);

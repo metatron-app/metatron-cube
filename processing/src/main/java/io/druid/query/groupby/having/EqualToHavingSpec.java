@@ -22,8 +22,8 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
-import io.druid.query.RowResolver;
 
 /**
  * The "=" operator in a "having" clause. This is similar to SQL's "having aggregation = value",
@@ -41,7 +41,7 @@ public class EqualToHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(RowResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
     return new Predicate<Row>()
     {

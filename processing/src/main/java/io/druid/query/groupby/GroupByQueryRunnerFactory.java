@@ -23,19 +23,15 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
-import com.yahoo.sketches.Family;
-import com.yahoo.sketches.quantiles.ItemsUnion;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Union;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
@@ -64,7 +60,6 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
-import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
@@ -258,32 +253,18 @@ public class GroupByQueryRunnerFactory
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
 
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
-    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, dimensionSpec.getDimension());
-    if (!dictionaries.isEmpty()) {
-      Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
-      for (DictionaryEncodedColumn dictionary : dictionaries) {
-        if (dictionary.hasSketch()) {
-          union.update(dictionary.getTheta());
-        }
-      }
-      int cardinality = (int) union.getResult().getEstimate();
-      if (cardinality > 0) {
-        numSplit = Math.max(numSplit, 1 + (cardinality >> 18));
+    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, dimensionSpec.getDimension());
+    try {
+      if (dictionaries.size() << 2 > segments.size()) {
+        numSplit = Queries.getNumSplits(dictionaries, numSplit);
         if (numSplit < 2) {
           return null;
         }
+        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy);
       }
-      ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
-      for (DictionaryEncodedColumn dictionary : dictionaries) {
-        if (dictionary.hasSketch()) {
-          itemsUnion.update(dictionary.getQuantile());
-        }
-      }
-      if (!itemsUnion.isEmpty()) {
-        thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
-        );
-      }
+    }
+    finally {
+      GuavaUtils.closeQuietly(dictionaries);
     }
     if (thresholds == null) {
       thresholds = Queries.makeColumnHistogramOn(

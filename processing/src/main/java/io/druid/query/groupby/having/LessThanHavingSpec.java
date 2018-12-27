@@ -21,8 +21,8 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
-import io.druid.query.RowResolver;
 
 /**
  * The "&lt;" operator in a "having" clause. This is similar to SQL's "having aggregation &lt; value",
@@ -39,7 +39,7 @@ public class LessThanHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(RowResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
     return new Predicate<Row>()
     {

@@ -101,8 +101,7 @@ public class SearchQueryEngine
       );
     }
     final String segmentId = segment.getIdentifier();
-
-    final RowResolver resolver = RowResolver.of(segment, query);
+    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
     final DimFilter filter = query.getDimensionsFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();
@@ -117,8 +116,8 @@ public class SearchQueryEngine
     final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
 
     final DateTime timestamp = segment.getDataInterval().getStart();
-    final Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (index != null && resolver.supportsExactBitmap(columns, filter)) {
+    final List<String> columns = DimensionSpecs.toInputNames(dimensions);
+    if (index != null && resolver.supportsExact(columns, filter)) {
       final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();

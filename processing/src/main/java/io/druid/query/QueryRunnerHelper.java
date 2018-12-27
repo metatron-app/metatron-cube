@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -31,8 +30,6 @@ import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.granularity.Granularity;
-import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.StorageAdapter;
@@ -40,7 +37,6 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -51,44 +47,23 @@ public class QueryRunnerHelper
 {
   private static final Logger log = new Logger(QueryRunnerHelper.class);
 
-  public static Aggregator[] makeAggregators(Cursor cursor, List<AggregatorFactory> aggregatorSpecs)
-  {
-    Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
-    int aggregatorIndex = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      aggregators[aggregatorIndex] = spec.factorize(cursor);
-      ++aggregatorIndex;
-    }
-    return aggregators;
-  }
-
-  public static String[] makeAggregatorNames(List<AggregatorFactory> aggregatorSpecs)
-  {
-    String[] aggregators = new String[aggregatorSpecs.size()];
-    int aggregatorIndex = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      aggregators[aggregatorIndex++] = spec.getName();
-    }
-    return aggregators;
-  }
-
-  public static <T> Sequence<Result<T>> makeCursorBasedQuery(
-      StorageAdapter adapter,
-      List<Interval> queryIntervals,
-      RowResolver resolver,
-      DimFilter filter,
-      Cache cache,
-      boolean descending,
-      Granularity granularity,
-      final Function<Cursor, Result<T>> mapFn
+  public static <T> Sequence<T> makeCursorBasedQuery(
+      final StorageAdapter adapter,
+      final Query<?> query,
+      final Cache cache,
+      final Function<Cursor, T> mapFn
   )
   {
-    Preconditions.checkArgument(
-        queryIntervals.size() == 1, "Can only handle a single interval, got[%s]", queryIntervals
+    return makeCursorBasedQuery(
+        adapter,
+        Iterables.getOnlyElement(query.getIntervals()),
+        RowResolver.of(adapter, BaseQuery.getVirtualColumns(query)),
+        BaseQuery.getDimFilter(query),
+        cache,
+        query.isDescending(),
+        query.getGranularity(),
+        mapFn
     );
-
-    Interval interval = Iterables.getOnlyElement(queryIntervals);
-    return makeCursorBasedQuery(adapter, interval, resolver, filter, cache, descending, granularity, mapFn);
   }
 
   public static <T> Sequence<T> makeCursorBasedQuery(
@@ -110,7 +85,7 @@ public class QueryRunnerHelper
               @Override
               public T apply(Cursor input)
               {
-                log.debug("Running over cursor[%s]", adapter.getInterval(), input.getTime());
+                log.debug("Running over cursor[%s/%s]", input.getTime(), adapter.getInterval());
                 return mapFn.apply(input);
               }
             }
@@ -148,18 +123,6 @@ public class QueryRunnerHelper
         toolChest,
         mapper
     );
-  }
-
-  public static <T> QueryRunner<T> toEmptyQueryRunner()
-  {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return Sequences.empty();
-      }
-    };
   }
 
   public static <T> Iterable<Callable<Sequence<T>>> asCallable(

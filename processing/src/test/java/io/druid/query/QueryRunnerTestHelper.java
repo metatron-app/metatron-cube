@@ -851,7 +851,7 @@ public class QueryRunnerTestHelper
           public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
           {
             // this should be done at the most outer side (see server manager).. but who cares?
-            final Supplier<RowResolver> resolver = RowResolver.supplier(segment, query);
+            final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
             final QueryType resolved = (QueryType) query.resolveQuery(resolver, TestHelper.JSON_MAPPER);
             final Future<Object> optimizer = factory.preFactoring(
                 resolved,

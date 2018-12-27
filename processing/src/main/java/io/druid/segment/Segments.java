@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.Indexed;
+import org.apache.commons.io.IOUtils;
 
 import java.util.List;
 
@@ -38,16 +39,20 @@ public class Segments
     return segment.asStorageAdapter(false).getAvailableDimensions();
   }
 
-  public static List<DictionaryEncodedColumn> findDictionaryIndexed(List<Segment> segments, String columnName)
+  public static List<DictionaryEncodedColumn> findDictionaryWithSketch(List<Segment> segments, String columnName)
   {
     List<DictionaryEncodedColumn> found = Lists.newArrayList();
     for (Segment segment : Lists.reverse(segments)) {
       QueryableIndex index = segment.asQueryableIndex(false);
       if (index != null) {
         Column column = index.getColumn(columnName);
-        DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
-        if (dictionary != null) {
-          found.add(dictionary);
+        if (column != null) {
+          DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
+          if (dictionary != null && dictionary.hasSketch()) {
+            found.add(dictionary);
+          } else {
+            IOUtils.closeQuietly(dictionary);
+          }
         }
       }
     }

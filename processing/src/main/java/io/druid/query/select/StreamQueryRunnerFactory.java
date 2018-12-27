@@ -30,6 +30,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -87,7 +88,7 @@ public class StreamQueryRunnerFactory
   {
     final List<QueryRunner<StreamQueryRow>> runners = Lists.newArrayList(queryRunners);
     if (runners.isEmpty()) {
-      return QueryRunnerHelper.toEmptyQueryRunner();
+      return QueryRunners.empty();
     }
     if (runners.size() == 1) {
       return new QueryRunner<StreamQueryRow>()

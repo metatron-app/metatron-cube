@@ -49,6 +49,7 @@ import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.Schema;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -189,7 +190,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   public Sequence<Row> applyLimit(Sequence<Row> sequence, boolean sortOnTimeForLimit)
   {
     if (havingSpec != null) {
-      Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this, QueryStage.FINALIZED));
+      Predicate<Row> predicate = havingSpec.toEvaluator(Schema.EMPTY.resolve(this, true));
       sequence = Sequences.filter(sequence, predicate);
     }
     Query.AggregationsSupport<?> query = withPostAggregatorSpecs(
@@ -206,7 +207,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
       return outputColumns;
     }
     if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) && lateralView == null) {
-      outputColumns = Lists.newArrayList();
+      outputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
       outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
       for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
         if (!outputColumns.contains(aggregator)) {

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import io.druid.query.select.Schema;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -61,6 +62,12 @@ public class QueryableIndexSegment extends AbstractSegment
   {
     accessed(forQuery);
     return new QueryableIndexStorageAdapter(index, identifier);
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    return index.asSchema(prependTime);
   }
 
   @Override

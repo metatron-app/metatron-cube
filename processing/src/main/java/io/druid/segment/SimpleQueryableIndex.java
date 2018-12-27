@@ -20,17 +20,25 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.common.io.smoosh.SmooshedFileMapper;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.Row;
+import io.druid.query.select.Schema;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -135,5 +143,28 @@ public class SimpleQueryableIndex implements QueryableIndex
   public Metadata getMetadata()
   {
     return metadata;
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    List<String> dimensionNames = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, getAvailableDimensions()) :
+                                  Lists.newArrayList(getAvailableDimensions());
+    List<String> metricNames = Lists.newArrayList(getAvailableMetrics());
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+
+    Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
+    Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
+    for (String columnName : Iterables.concat(dimensionNames, metricNames)) {
+      Column column = getColumn(columnName);
+      columnTypes.add(getColumnType(columnName));
+      columnCapabilities.put(columnName, column.getCapabilities());
+      Map<String, String> descs = column.getColumnDescs();
+      if (!GuavaUtils.isNullOrEmpty(descs)) {
+        columnDescriptors.put(columnName, descs);
+      }
+    }
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(metadata);
+    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
   }
 }

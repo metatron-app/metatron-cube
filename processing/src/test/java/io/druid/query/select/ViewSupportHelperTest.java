@@ -19,13 +19,16 @@
 
 package io.druid.query.select;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
@@ -49,7 +52,6 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.StorageAdapterSegment;
 import io.druid.segment.VirtualColumn;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.Indexed;
@@ -71,6 +73,7 @@ public class ViewSupportHelperTest
     private final List<String> dimensions;
     private final List<String> metrics = Lists.newArrayList();
     private final Map<String, ValueDesc> typesMap = Maps.newHashMap();
+    private final List<ValueDesc> types = Lists.newArrayList();
     private final Metadata metadata = new Metadata();
 
     public TestStorageAdapter(List<String> dimensions, List<AggregatorFactory> aggregators)
@@ -78,9 +81,11 @@ public class ViewSupportHelperTest
       this.dimensions = dimensions;
       for (String dimension : dimensions) {
         typesMap.put(dimension, ValueDesc.ofDimension(ValueType.STRING));
+        types.add(ValueDesc.ofDimension(ValueType.STRING));
       }
       for (AggregatorFactory factory : aggregators) {
         typesMap.put(factory.getName(), factory.getOutputType());
+        types.add(factory.getOutputType());
         metrics.add(factory.getName());
       }
       metadata.setAggregators(aggregators.toArray(new AggregatorFactory[0]));
@@ -198,6 +203,14 @@ public class ViewSupportHelperTest
     }
 
     @Override
+    public Schema asSchema(boolean prependTime)
+    {
+      List<String> dimensions = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, this.dimensions) : this.dimensions;
+      List<ValueDesc> types = prependTime ? GuavaUtils.concat(ValueDesc.LONG, this.types) : this.types;
+      return new Schema(dimensions, metrics, types, AggregatorFactory.asMap(metadata.getAggregators()), null, null);
+    }
+
+    @Override
     public Sequence<Cursor> makeCursors(
         DimFilter filter,
         Interval interval,
@@ -226,12 +239,12 @@ public class ViewSupportHelperTest
   @Test
   public void testRowResolverMerge()
   {
-    Segment segment1 = new StorageAdapterSegment("id1", adapter);
+    Segment segment1 = new StorageAdapterSegment(adapter);
     Segment segment2 = new StorageAdapterSegment(
-        "id2", new TestStorageAdapter(Arrays.asList("dim1", "dim3"), Arrays.asList(met1, met2, met3))
+        new TestStorageAdapter(Arrays.asList("dim1", "dim3"), Arrays.asList(met1, met2, met3))
     );
-    RowResolver merged = RowResolver.of(Arrays.asList(segment1, segment2), VirtualColumns.empty());
-    Assert.assertEquals(Arrays.asList("dim1", "dim2", "dim3"), merged.getDimensionNames());
+    RowResolver merged = RowResolver.of(Arrays.asList(segment1, segment2), ImmutableList.<VirtualColumn>of());
+    Assert.assertEquals(Arrays.asList("__time", "dim1", "dim2", "dim3"), merged.getDimensionNames());
     Assert.assertEquals(Arrays.asList("met1", "met2", "met3"), merged.getMetricNames());
   }
 
@@ -253,7 +266,7 @@ public class ViewSupportHelperTest
         .setGranularity(Granularities.ALL)
         .build();
 
-    RowResolver resolver = RowResolver.of(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+    RowResolver resolver = RowResolver.of(adapter, view.getVirtualColumns());
     GroupByQuery x = (GroupByQuery) ViewSupportHelper.rewrite(base, resolver);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
@@ -264,7 +277,7 @@ public class ViewSupportHelperTest
     GroupByQuery q0 = base.withOverriddenContext(
         ImmutableMap.<String, Object>of(QueryContextKeys.ALL_DIMENSIONS_FOR_EMPTY, true)
     );
-    RowResolver r0 = RowResolver.of(adapter, VirtualColumns.valueOf(q0.getVirtualColumns()));
+    RowResolver r0 = RowResolver.of(adapter, q0.getVirtualColumns());
 
     x = (GroupByQuery) ViewSupportHelper.rewrite(q0, r0);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);

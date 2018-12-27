@@ -30,10 +30,10 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -96,7 +96,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   }
 
   @Override
-  public AggregatorFactory resolve(Supplier<RowResolver> resolver)
+  public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
   {
     ValueDesc sourceType = resolver.get().resolve(fieldName);
     return withValue(name, fieldName, sourceType);

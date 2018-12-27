@@ -34,7 +34,6 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.select.Schema;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.Arrays;
@@ -90,7 +89,6 @@ public class RowMappingPostProcessor
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return input;
     }
-    Schema schema = input.asSchema(true);
     List<String> dimensionNames = input.getDimensionsSpec().getDimensionNames();
     List<DimensionSchema> dimensionSchemas = input.getDimensionsSpec().getDimensions();
     List<String> metricNames = input.getMetricNames();

@@ -20,12 +20,11 @@
 package io.druid.query.timeseries;
 
 import com.google.common.base.Function;
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
-import io.druid.query.BaseQuery;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
@@ -34,6 +33,7 @@ import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -56,31 +56,26 @@ public class TimeseriesQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    RowResolver resolver = RowResolver.of(adapter, BaseQuery.getVirtualColumns(query));
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
-        query.getQuerySegmentSpec().getIntervals(),
-        resolver,
-        query.getDimFilter(),
+        query,
         cache,
-        query.isDescending(),
-        query.getGranularity(),
         new Function<Cursor, Result<TimeseriesResultValue>>()
         {
           private final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
           private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
+          private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
 
           @Override
           public Result<TimeseriesResultValue> apply(Cursor cursor)
           {
-            final String[] aggregatorNames = QueryRunnerHelper.makeAggregatorNames(aggregatorSpecs);
-            final Aggregator[] aggregators = QueryRunnerHelper.makeAggregators(cursor, aggregatorSpecs);
 
             if (skipEmptyBuckets && cursor.isDone()) {
               return null;
             }
 
+            final Aggregator[] aggregators = AggregatorFactory.toAggregatorsAsArray(cursor, aggregatorSpecs);
             try {
               while (!cursor.isDone()) {
                 for (Aggregator aggregator : aggregators) {
@@ -89,13 +84,12 @@ public class TimeseriesQueryEngine
                 cursor.advance();
               }
 
-              TimeseriesResultBuilder bob = new TimeseriesResultBuilder(cursor.getTime());
-
+              final Map<String, Object> event = Maps.newLinkedHashMap();
               for (int i = 0; i < aggregators.length; i++) {
-                bob.addMetric(aggregatorNames[i], aggregators[i]);
+                event.put(aggregatorNames[i], aggregators[i].get());
               }
 
-              return bob.build();
+              return new Result<>(cursor.getTime(), new TimeseriesResultValue(event));
             }
             finally {
               // cleanup

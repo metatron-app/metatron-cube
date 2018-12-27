@@ -21,6 +21,7 @@ package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -50,7 +51,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.data.IndexedInts;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -257,7 +258,7 @@ public class IncrementalIndexStorageAdapterTest
       Sequence<Cursor> cursorSequence = adapter.makeCursors(
           new SelectorDimFilter("sally", "bo", null),
           interval,
-          RowResolver.of(adapter, VirtualColumns.empty()),
+          RowResolver.of(adapter, ImmutableList.<VirtualColumn>of()),
           QueryGranularities.NONE,
           null, descending
       );
@@ -400,7 +401,7 @@ public class IncrementalIndexStorageAdapterTest
     Sequence<Cursor> cursors = sa.makeCursors(
         null,
         new Interval(timestamp - 60_000, timestamp + 60_000),
-        RowResolver.of(sa, VirtualColumns.empty()),
+        RowResolver.of(sa, ImmutableList.<VirtualColumn>of()),
         QueryGranularities.ALL,
         null,
         false

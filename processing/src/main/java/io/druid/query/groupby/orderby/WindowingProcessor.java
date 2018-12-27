@@ -24,10 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
-import io.druid.query.QueryStage;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -37,6 +36,7 @@ import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.Schema;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,10 +55,10 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       List<WindowingSpec> windowingSpecs
   )
   {
-    RowResolver resolver = RowResolver.of(query, QueryStage.FINALIZED);
+    Schema schema = Schema.EMPTY.resolve(query, true);
     WindowContext context = WindowContext.newInstance(
         DimensionSpecs.toOutputNames(query.getDimensions()),
-        resolver.getResolvedColumnTypes()
+        GuavaUtils.asMap(schema.columnAndTypes())
     );
 
     for (WindowingSpec windowingSpec : windowingSpecs) {

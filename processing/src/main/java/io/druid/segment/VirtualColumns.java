@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
@@ -34,11 +35,11 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +91,28 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return map;
   }
 
+  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns, Schema schema)
+  {
+    Map<String, VirtualColumn> mapping = Maps.newLinkedHashMap();
+    for (VirtualColumn vc : virtualColumns) {
+      if (mapping.put(vc.getOutputName(), vc.duplicate()) != null) {
+        throw new IAE("conflicting output names %s in virtualColumns", vc.getOutputName());
+      }
+    }
+    for (String metric : schema.getMetricNames()) {
+      if (mapping.containsKey(metric)) {
+        continue;
+      }
+      ValueDesc valueType = schema.resolve(metric, ValueDesc.UNKNOWN);
+      if (valueType.isArray()) {
+        mapping.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
+      } else if (valueType.isStruct()) {
+        mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
+      }
+    }
+    return new VirtualColumns(mapping);
+  }
+
   public static List<VirtualColumn> override(List<VirtualColumn> original, List<VirtualColumn> overriding)
   {
     if (GuavaUtils.isNullOrEmpty(overriding)) {
@@ -100,19 +123,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       vcs.put(vc.getOutputName(), vc);    // override
     }
     return Lists.newArrayList(vcs.values());
-  }
-
-  public static VirtualColumns valueOf(VirtualColumn virtualColumn)
-  {
-    return virtualColumn == null ? empty() : valueOf(Arrays.asList(virtualColumn));
-  }
-
-  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns)
-  {
-    if (virtualColumns == null || virtualColumns.isEmpty()) {
-      return empty();
-    }
-    return new VirtualColumns(asMap(virtualColumns));
   }
 
   public static DimensionSelector toDimensionSelector(final LongColumnSelector selector)
@@ -483,20 +493,5 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public Set<String> getVirtualColumnNames()
   {
     return ImmutableSet.copyOf(virtualColumns.keySet());
-  }
-
-  public void addImplicitVCs(RowResolver resolver)
-  {
-    for (String metric : resolver.getMetricNames()) {
-      if (virtualColumns.containsKey(metric)) {
-        continue;
-      }
-      ValueDesc valueType = resolver.resolve(metric, ValueDesc.UNKNOWN);
-      if (ValueDesc.isArray(valueType)) {
-        virtualColumns.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
-      } else if (valueType.isStruct()) {
-        virtualColumns.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
-      }
-    }
   }
 }

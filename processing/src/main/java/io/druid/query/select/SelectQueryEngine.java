@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,7 +27,6 @@ import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -68,22 +66,16 @@ public class SelectQueryEngine
   {
     // at the point where this code is called, only one datasource should exist.
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
-
-    List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
-    Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
+    Interval interval = Iterables.getOnlyElement(query.getIntervals());
 
     // should be rewritten with given interval
     final StorageAdapter adapter = segment.asStorageAdapter(true);
-    final String segmentId = DataSegmentUtils.withInterval(dataSource, adapter.getSegmentIdentifier(), intervals.get(0));
+    final String segmentId = DataSegmentUtils.withInterval(dataSource, adapter.getSegmentIdentifier(), interval);
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
-        intervals,
-        RowResolver.of(segment, query),
-        query.getDimensionsFilter(),
+        query,
         cache,
-        query.isDescending(),
-        query.getGranularity(),
         new Function<Cursor, Result<SelectResultValue>>()
         {
           @Override

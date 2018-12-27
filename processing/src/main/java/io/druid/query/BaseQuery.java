@@ -44,7 +44,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
-import io.druid.segment.VirtualColumns;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
@@ -208,16 +207,9 @@ public abstract class BaseQuery<T> implements Query<T>
     return BaseQuery.allMetricsForEmpty(this, true);
   }
 
-  public static VirtualColumns getVirtualColumns(Query query)
+  public static List<VirtualColumn> getVirtualColumns(Query query)
   {
-    List<VirtualColumn> vcs = Lists.newArrayList();
-    if (query instanceof VCSupport) {
-      vcs.addAll(((VCSupport<?>) query).getVirtualColumns());
-    }
-    if (query.getDataSource() instanceof ViewDataSource) {
-      vcs.addAll(((ViewDataSource)query.getDataSource()).getVirtualColumns());
-    }
-    return VirtualColumns.valueOf(vcs);
+    return query instanceof VCSupport ? ((VCSupport<?>) query).getVirtualColumns() : ImmutableList.<VirtualColumn>of();
   }
 
   public static DimFilter getDimFilter(Query query)
@@ -229,6 +221,11 @@ public abstract class BaseQuery<T> implements Query<T>
   public static List<DimensionSpec> getDimensions(Query query)
   {
     return query instanceof DimensionSupport ? ((DimensionSupport) query).getDimensions() : Arrays.asList();
+  }
+
+  public static List<String> getMetrics(Query query)
+  {
+    return query instanceof MetricSupport ? ((MetricSupport<?>) query).getMetrics() : Arrays.<String>asList();
   }
 
   @SuppressWarnings("unchecked")

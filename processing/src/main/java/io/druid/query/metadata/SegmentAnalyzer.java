@@ -46,7 +46,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.joda.time.Interval;
 
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -63,7 +62,7 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final RowResolver resolver = RowResolver.of(segment, query);
+    final RowResolver resolver = RowResolver.of(segment.asSchema(true), query.getVirtualColumns());
 
     final List<String> columns;
     if (GuavaUtils.isNullOrEmpty(query.getColumns())) {
@@ -326,11 +325,7 @@ public class SegmentAnalyzer
       Accumulator<T, Cursor> accumulator
   )
   {
-    Interval interval = new Interval(
-        storageAdapter.getMinTime().getMillis(),
-        storageAdapter.getMaxTime().getMillis() + 1
-    );
-    return storageAdapter.makeCursors(null, interval, resolver, QueryGranularities.ALL, null, false)
+    return storageAdapter.makeCursors(null, null, resolver, QueryGranularities.ALL, null, false)
                          .accumulate(initial, accumulator);
   }
 }

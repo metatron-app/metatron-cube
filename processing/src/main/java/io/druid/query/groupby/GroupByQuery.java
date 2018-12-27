@@ -991,7 +991,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
           {
             final Object[] array = new Object[columns.length];
             for (int i = 0; i < columns.length; i++) {
-              array[i] = input.getRaw(columns[i]);
+              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
+                         input.getTimestampFromEpoch() : input.getRaw(columns[i]);
             }
             return array;
           }

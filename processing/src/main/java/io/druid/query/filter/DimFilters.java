@@ -122,7 +122,7 @@ public class DimFilters
           @Override
           public boolean apply(DimFilter input)
           {
-            return resolver.supportsBitmap(input, BitmapType.EXACT);
+            return resolver.supports(input, BitmapType.EXACT);
           }
         }
     );

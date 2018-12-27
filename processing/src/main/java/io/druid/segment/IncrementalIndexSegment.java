@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.select.Schema;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.joda.time.Interval;
@@ -27,7 +28,7 @@ import org.joda.time.Interval;
  */
 public class IncrementalIndexSegment extends AbstractSegment
 {
-  private final IncrementalIndex index;
+  private final IncrementalIndex<?> index;
   private final String segmentIdentifier;
 
   public IncrementalIndexSegment(
@@ -62,6 +63,12 @@ public class IncrementalIndexSegment extends AbstractSegment
   {
     accessed(forQuery);
     return new IncrementalIndexStorageAdapter(segmentIdentifier, index);
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    return index.asSchema(prependTime);
   }
 
   @Override

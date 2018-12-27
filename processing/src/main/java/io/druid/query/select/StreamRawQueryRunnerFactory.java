@@ -22,15 +22,10 @@ package io.druid.query.select;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
-import com.yahoo.sketches.Family;
-import com.yahoo.sketches.quantiles.ItemsUnion;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -40,6 +35,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.RowResolver;
@@ -47,7 +43,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.sketch.QuantileOperation;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -118,32 +113,18 @@ public class StreamRawQueryRunnerFactory
 
     Object[] thresholds = null;
     String sortColumn = query.getOrderBySpecs().get(0).getDimension();
-    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryIndexed(segments, sortColumn);
-    if (!dictionaries.isEmpty()) {
-      Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
-      for (DictionaryEncodedColumn dictionary : dictionaries) {
-        if (dictionary.hasSketch()) {
-          union.update(dictionary.getTheta());
-        }
-      }
-      int cardinality = (int) union.getResult().getEstimate();
-      if (cardinality > 0) {
-        numSplit = Math.max(numSplit, 1 + (cardinality >> 20));
+    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, sortColumn);
+    try {
+      if (dictionaries.size() << 2 > segments.size()) {
+        numSplit = Queries.getNumSplits(dictionaries, numSplit);
         if (numSplit < 2) {
           return null;
         }
+        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy);
       }
-      ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
-      for (DictionaryEncodedColumn dictionary : dictionaries) {
-        if (dictionary.hasSketch()) {
-          itemsUnion.update(dictionary.getQuantile());
-        }
-      }
-      if (!itemsUnion.isEmpty()) {
-        thresholds = (Object[]) QuantileOperation.QUANTILES.calculate(
-            itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
-        );
-      }
+    }
+    finally {
+      GuavaUtils.closeQuietly(dictionaries);
     }
     if (thresholds == null) {
       DimensionSpec dimensionSpec = DefaultDimensionSpec.of(sortColumn);
@@ -203,7 +184,7 @@ public class StreamRawQueryRunnerFactory
   {
     final List<QueryRunner<Object[]>> runners = Lists.newArrayList(queryRunners);
     if (runners.isEmpty()) {
-      return QueryRunnerHelper.toEmptyQueryRunner();
+      return QueryRunners.empty();
     }
     if (runners.size() == 1) {
       return new QueryRunner<Object[]>()

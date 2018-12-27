@@ -155,7 +155,7 @@ public class GroupByQueryEngine
                       "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
                   );
                 }
-                final RowResolver resolver = RowResolver.of(segment, query);
+                final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
                 final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
                 if (intervals.size() != 1) {

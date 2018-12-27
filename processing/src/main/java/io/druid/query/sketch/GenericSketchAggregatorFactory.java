@@ -29,9 +29,9 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -182,7 +182,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
-  public AggregatorFactory resolve(Supplier<RowResolver> resolver)
+  public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
   {
     ValueDesc inputType = resolver.get().resolve(fieldName);
     if (inputType.isDimension()) {

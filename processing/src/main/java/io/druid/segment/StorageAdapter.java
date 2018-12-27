@@ -29,12 +29,12 @@ import java.util.Map;
 
 /**
  */
-public interface StorageAdapter extends CursorFactory
+public interface StorageAdapter extends SchemaProvider, CursorFactory
 {
-  public String getSegmentIdentifier();
-  public Interval getInterval();
-  public Indexed<String> getAvailableDimensions();
-  public Iterable<String> getAvailableMetrics();
+  String getSegmentIdentifier();
+  Interval getInterval();
+  Indexed<String> getAvailableDimensions();
+  Iterable<String> getAvailableMetrics();
 
   /**
    * Returns the number of distinct values for the given dimension column
@@ -44,24 +44,24 @@ public interface StorageAdapter extends CursorFactory
    * @param column
    * @return
    */
-  public int getDimensionCardinality(String column);
-  public DateTime getMinTime();
-  public DateTime getMaxTime();
-  public Comparable getMinValue(String column);
-  public Comparable getMaxValue(String column);
-  public Capabilities getCapabilities();
-  public ColumnCapabilities getColumnCapabilities(String column);
+  int getDimensionCardinality(String column);
+  DateTime getMinTime();
+  DateTime getMaxTime();
+  Comparable getMinValue(String column);
+  Comparable getMaxValue(String column);
+  Capabilities getCapabilities();
+  ColumnCapabilities getColumnCapabilities(String column);
 
   /**
    * Like {@link ColumnCapabilities#getType()}, but may return a more descriptive string for complex columns.
    * @param column column name
    * @return type name
    */
-  public ValueDesc getColumnType(String column);
-  public Map<String, String> getColumnDescriptor(String column);
-  public long getSerializedSize(String column);
-  public float getAverageSize(String column);
-  public int getNumRows();
-  public DateTime getMaxIngestedEventTime();
-  public Metadata getMetadata();
+  ValueDesc getColumnType(String column);
+  Map<String, String> getColumnDescriptor(String column);
+  long getSerializedSize(String column);
+  float getAverageSize(String column);
+  int getNumRows();
+  DateTime getMaxIngestedEventTime();
+  Metadata getMetadata();
 }

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Throwables;
+import io.druid.query.select.Schema;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Interval;
@@ -65,6 +66,12 @@ public class ReferenceCountingSegmentTest
 
           @Override
           public StorageAdapter asStorageAdapter(boolean forQuery)
+          {
+            return null;
+          }
+
+          @Override
+          public Schema asSchema(boolean prependTime)
           {
             return null;
           }

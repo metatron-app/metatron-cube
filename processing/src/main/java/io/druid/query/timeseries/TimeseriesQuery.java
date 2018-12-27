@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
@@ -406,10 +407,11 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
           @Override
           public Object[] apply(Result<TimeseriesResultValue> input)
           {
-            final TimeseriesResultValue value = input.getValue();
             final Object[] array = new Object[columns.length];
+            final TimeseriesResultValue value = input.getValue();
             for (int i = 0; i < columns.length; i++) {
-              array[i] = value.getMetric(columns[i]);
+              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
+                         input.getTimestamp().getMillis() : value.getMetric(columns[i]);
             }
             return array;
           }

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.metamx.emitter.EmittingLogger;
+import io.druid.query.select.Schema;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -71,6 +72,21 @@ public class ReferenceCountingSegment implements Segment
   public long getLastAccessTime()
   {
     return baseSegment.getLastAccessTime();
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    synchronized (lock) {
+      if (isClosed) {
+        return null;
+      }
+      QueryableIndex index = baseSegment.asQueryableIndex(false);
+      if (index != null) {
+        return index.asSchema(prependTime);
+      }
+      return baseSegment.asStorageAdapter(false).asSchema(prependTime);
+    }
   }
 
   @Override

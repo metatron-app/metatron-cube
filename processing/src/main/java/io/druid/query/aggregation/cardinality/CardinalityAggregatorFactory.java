@@ -237,7 +237,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (fieldNames != null) {
       required.addAll(fieldNames);
     } else {
-      required.addAll(Lists.transform(fields, DimensionSpecs.INPUT_NAME));
+      required.addAll(DimensionSpecs.toInputNames(fields));
     }
     return required;
   }

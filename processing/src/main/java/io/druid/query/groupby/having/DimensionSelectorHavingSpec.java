@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
-import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
 
@@ -69,7 +69,7 @@ public class DimensionSelectorHavingSpec implements HavingSpec
 
   @Override
   public Predicate<Row> toEvaluator(
-      RowResolver resolver
+      TypeResolver resolver
   )
   {
     return new Predicate<Row>()

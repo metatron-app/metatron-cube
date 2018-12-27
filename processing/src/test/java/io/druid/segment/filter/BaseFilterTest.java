@@ -46,7 +46,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.TestHelper;
-import io.druid.segment.VirtualColumns;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IndexedInts;
@@ -277,7 +277,7 @@ public abstract class BaseFilterTest
     return adapter.makeCursors(
         filter,
         new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT),
-        RowResolver.of(adapter, VirtualColumns.empty()),
+        RowResolver.of(adapter, ImmutableList.<VirtualColumn>of()),
         QueryGranularities.ALL,
         null,
         false

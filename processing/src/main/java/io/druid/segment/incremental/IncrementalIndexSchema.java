@@ -30,11 +30,10 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.select.Schema;
+import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -119,11 +118,7 @@ public class IncrementalIndexSchema
 
   public List<String> getMetricNames()
   {
-    List<String> metricNames = Lists.newArrayListWithCapacity(metrics.length);
-    for (AggregatorFactory aggregatorFactory : metrics) {
-      metricNames.add(aggregatorFactory.getName());
-    }
-    return metricNames;
+    return AggregatorFactory.toNames(Arrays.asList(metrics));
   }
 
   public List<String> getMetricNameTypes()
@@ -148,10 +143,9 @@ public class IncrementalIndexSchema
     for (AggregatorFactory aggregatorFactory : metrics) {
       types.add(aggregatorFactory.getOutputType());
     }
-    return new Schema(
-        dimensionsSpec.getDimensionNames(), getMetricNames(), types, Arrays.asList(metrics),
-        Collections.<String, Map<String, String>>emptyMap()
-    );
+    List<String> dimensions = dimensionsSpec.getDimensionNames();
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.asMap(metrics);
+    return new Schema(dimensions, getMetricNames(), types, aggregators, null, null);
   }
 
   public IncrementalIndexSchema withRollup(boolean rollup)
@@ -257,6 +251,11 @@ public class IncrementalIndexSchema
       }
       this.dimensionsSpec = new DimensionsSpec(dimensionSchemas, null, null);
       return this;
+    }
+
+    public Builder withMetrics(List<String> columns, List<ValueDesc> type)
+    {
+      return withMetrics(AggregatorFactory.toRelay(columns, type));
     }
 
     public Builder withMetrics(List<AggregatorFactory> metrics)

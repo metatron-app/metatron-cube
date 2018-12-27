@@ -39,6 +39,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
@@ -53,6 +54,7 @@ import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.Granularity;
+import io.druid.query.select.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -1067,6 +1069,31 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   public boolean isSorted()
   {
     return sortFacts;
+  }
+
+  public Schema asSchema(boolean prependTime)
+  {
+    List<String> dimensionNames = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, getDimensionNames()) :
+                                  getDimensionNames();
+    List<String> metricNames = Lists.newArrayList(getMetricNames());
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
+    Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
+    for (String dimension : dimensionNames) {
+      if (dimension.equals(Row.TIME_COLUMN_NAME)) {
+        columnTypes.add(ValueDesc.LONG);
+        continue;
+      }
+      ColumnCapabilities capabilities = getCapabilities(dimension);
+      columnTypes.add(ValueDesc.ofDimension(capabilities.getType()));
+      columnCapabilities.put(dimension, capabilities);
+    }
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
+    for (String metric : metricNames) {
+      columnTypes.add(aggregators.get(metric).getOutputType());
+      columnCapabilities.put(metric, getCapabilities(metric));
+    }
+    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
   }
 
   public static final class DimensionDesc

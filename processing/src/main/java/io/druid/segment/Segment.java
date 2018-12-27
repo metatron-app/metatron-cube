@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.select.Schema;
 import io.druid.query.SegmentDescriptor;
 import org.joda.time.Interval;
 
@@ -27,13 +28,13 @@ import java.io.IOException;
 
 /**
  */
-public interface Segment extends Closeable
+public interface Segment extends SchemaProvider, Closeable
 {
-  public String getIdentifier();
-  public Interval getDataInterval();
-  public QueryableIndex asQueryableIndex(boolean forQuery);
-  public StorageAdapter asStorageAdapter(boolean forQuery);
-  public long getLastAccessTime();
+  String getIdentifier();
+  Interval getDataInterval();
+  QueryableIndex asQueryableIndex(boolean forQuery);
+  StorageAdapter asStorageAdapter(boolean forQuery);
+  long getLastAccessTime();
 
   class WithDescriptor implements Segment
   {
@@ -83,6 +84,12 @@ public interface Segment extends Closeable
     public long getLastAccessTime()
     {
       return segment.getLastAccessTime();
+    }
+
+    @Override
+    public Schema asSchema(boolean prependTime)
+    {
+      return segment.asSchema(prependTime);
     }
 
     @Override

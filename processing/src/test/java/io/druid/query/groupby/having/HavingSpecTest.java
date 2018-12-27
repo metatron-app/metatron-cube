@@ -23,10 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.RowResolver;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -171,7 +171,7 @@ public class HavingSpecTest
     }
 
     @Override
-    public Predicate<Row> toEvaluator(RowResolver resolver)
+    public Predicate<Row> toEvaluator(TypeResolver resolver)
     {
       return new Predicate<Row>()
       {

@@ -84,7 +84,7 @@ public class DataSegmentUtils
     );
   }
 
-  public static String withInterval(final String dataSource, final String identifier, Interval newInterval)
+  public static String withInterval(String dataSource, String identifier, Interval newInterval)
   {
     SegmentIdentifierParts segmentDesc = DataSegmentUtils.parse(dataSource, identifier);
     if (segmentDesc == null) {

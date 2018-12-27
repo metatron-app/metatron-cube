@@ -28,8 +28,8 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -83,7 +83,7 @@ public class SelectMetaQueryRunnerTest
   {
     boolean incremental = dataSource.equals(TestIndex.REALTIME) || dataSource.equals(TestIndex.REALTIME_NOROLLUP);
     List<String> dimensions = Arrays.asList("market");
-    List<String> metrics = Arrays.asList("__time", "index", "indexMin", "indexMaxPlusTen", "quality_uniques", "indexDecimal");
+    List<String> metrics = Arrays.asList("index", "indexMin", "indexMaxPlusTen", "quality_uniques", "indexDecimal");
 
     Interval interval = dataSource.equals(TestIndex.MMAPPED_SPLIT) ? TestIndex.INTERVAL_TOP : TestIndex.INTERVAL;
     String segmentId = getSegmentId(interval);
@@ -233,9 +233,11 @@ public class SelectMetaQueryRunnerTest
   @Test
   public void testSchema()
   {
-    SelectMetaQuery query = new SchemaQuery(
+    SelectMetaQuery query = new SelectMetaQuery(
         TableDataSource.of(dataSource),
         MultipleIntervalSegmentSpec.of(new Interval("2011-01-12/2011-01-14")),
+        null,
+        Granularities.ALL,
         Arrays.asList(
             DefaultDimensionSpec.of("time"),
             DefaultDimensionSpec.of("market"),
@@ -247,8 +249,10 @@ public class SelectMetaQueryRunnerTest
         Arrays.<VirtualColumn>asList(
             new ExprVirtualColumn("cast(__time, 'datetime')", "time")
         ),
+        true,
+        null,
         Maps.<String, Object>newHashMap()
-    ).rewriteQuery(null, new QueryConfig(), null);
+    );
 
     Schema schema = Iterables.getOnlyElement(
         Sequences.toList(

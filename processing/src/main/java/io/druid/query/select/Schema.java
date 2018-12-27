@@ -20,28 +20,40 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnCapabilitiesImpl;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 
 /**
  */
@@ -51,14 +63,43 @@ public class Schema implements TypeResolver, RowSignature
       Collections.<String>emptyList(),
       Collections.<String>emptyList(),
       Collections.<ValueDesc>emptyList(),
-      Collections.<AggregatorFactory>emptyList(),
+      Collections.<String, AggregatorFactory>emptyMap(),
+      Collections.<String, ColumnCapabilities>emptyMap(),
       Collections.<String, Map<String, String>>emptyMap()
   );
+
+  @VisibleForTesting
+  public static Schema of(Map<String, ValueDesc> columnAndTypes)
+  {
+    List<String> dimensions = Lists.newArrayList();
+    List<String> metrics = Lists.newArrayList();
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    Map<String, ColumnCapabilities> capabilities = Maps.newHashMap();
+    for (Map.Entry<String, ValueDesc> entry : columnAndTypes.entrySet()) {
+      String column = entry.getKey();
+      ValueDesc type = entry.getValue();
+      if (column.equals(Column.TIME_COLUMN_NAME)) {
+        dimensions.add(column);
+        capabilities.put(column, ColumnCapabilitiesImpl.of(ValueType.LONG));
+        columnTypes.add(ValueDesc.LONG);
+        continue;
+      }
+      if (type.isDimension()) {
+        dimensions.add(column);
+        capabilities.put(column, ColumnCapabilitiesImpl.of(ValueType.STRING).setHasBitmapIndexes(true));
+      } else {
+        metrics.add(column);
+      }
+      columnTypes.add(type);
+    }
+    return new Schema(dimensions, metrics, columnTypes, null, capabilities, null);
+  }
 
   private final List<String> dimensionNames;
   private final List<String> metricNames;
   private final List<ValueDesc> columnTypes;
-  private final List<AggregatorFactory> aggregators;
+  private final Map<String, AggregatorFactory> aggregators;
+  private final Map<String, ColumnCapabilities> capabilities;
   private final Map<String, Map<String, String>> descriptors;
 
   @JsonCreator
@@ -66,17 +107,23 @@ public class Schema implements TypeResolver, RowSignature
       @JsonProperty("dimensionNames") List<String> dimensionNames,
       @JsonProperty("metricNames") List<String> metricNames,
       @JsonProperty("columnTypes") List<ValueDesc> columnTypes,
-      @JsonProperty("aggregators") List<AggregatorFactory> aggregators,
+      @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
+      @JsonProperty("capabilities") Map<String, ColumnCapabilities> capabilities,
       @JsonProperty("descriptors") Map<String, Map<String, String>> descriptors
   )
   {
     this.dimensionNames = Preconditions.checkNotNull(dimensionNames);
     this.metricNames = Preconditions.checkNotNull(metricNames);
     this.columnTypes = Preconditions.checkNotNull(columnTypes);
-    this.aggregators = Preconditions.checkNotNull(aggregators);
-    this.descriptors = Preconditions.checkNotNull(descriptors);
+    this.aggregators = aggregators == null ? ImmutableMap.<String, AggregatorFactory>of() : aggregators;
+    this.capabilities = capabilities == null ? ImmutableMap.<String, ColumnCapabilities>of() : capabilities;
+    this.descriptors = descriptors == null ? ImmutableMap.<String, Map<String, String>>of() : descriptors;
     Preconditions.checkArgument(dimensionNames.size() + metricNames.size() == columnTypes.size());
-    Preconditions.checkArgument(metricNames.size() == aggregators.size());
+  }
+
+  public Schema(List<String> dimensions, List<String> metrics, List<ValueDesc> types)
+  {
+    this(dimensions, metrics, types, null, null, null);
   }
 
   @JsonProperty
@@ -101,26 +148,45 @@ public class Schema implements TypeResolver, RowSignature
     return columnTypes.subList(dimensionNames.size(), columnTypes.size());
   }
 
+  public List<ValueDesc> getColumnTypes(List<String> columns)
+  {
+    List<ValueDesc> types = Lists.newArrayList();
+    List<String> columnNames = getColumnNames();
+    for (String column : columns) {
+      final int index = columnNames.indexOf(column);
+      types.add(index >= 0 ? columnTypes.get(index) : ValueDesc.UNKNOWN);
+    }
+    return types;
+  }
+
   @Override
   public List<String> getColumnNames()
   {
     return Lists.newArrayList(Iterables.concat(dimensionNames, metricNames));
   }
 
-  @JsonProperty
   @Override
+  @JsonProperty
   public List<ValueDesc> getColumnTypes()
   {
     return columnTypes;
   }
 
   @JsonProperty
-  public List<AggregatorFactory> getAggregators()
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, AggregatorFactory> getAggregators()
   {
     return aggregators;
   }
 
+  @JsonIgnore
+  public Map<String, ColumnCapabilities> getCapabilities()
+  {
+    return capabilities;
+  }
+
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Map<String, String>> getDescriptors()
   {
     return descriptors;
@@ -146,25 +212,17 @@ public class Schema implements TypeResolver, RowSignature
     return GuavaUtils.zip(metricNames, columnTypes.subList(dimensionNames.size(), columnTypes.size()));
   }
 
-  public Iterable<Pair<String, AggregatorFactory>> metricAndAggregators()
-  {
-    return GuavaUtils.zip(metricNames, aggregators);
-  }
-
-  public AggregatorFactory getAggregatorOfName(String metric)
-  {
-    int index = metricNames.indexOf(metric);
-    return index < 0 ? null : aggregators.get(index);
-  }
-
   @Override
   public ValueDesc resolve(String column)
   {
     int index = dimensionNames.indexOf(column);
     if (index < 0) {
-      index = metricNames.indexOf(column) + dimensionNames.size();
+      index = metricNames.indexOf(column);
+      if (index >= 0) {
+        index += dimensionNames.size();
+      }
     }
-    return columnTypes.get(index);
+    return index < 0 ? null : columnTypes.get(index);
   }
 
   @Override
@@ -173,18 +231,14 @@ public class Schema implements TypeResolver, RowSignature
     return Optional.fromNullable(resolve(column)).or(defaultType);
   }
 
-  public Schema appendTime()
+  public ColumnCapabilities getColumnCapability(String column)
   {
-    if (metricNames.contains(Column.TIME_COLUMN_NAME)) {
-      return this;
-    }
-    return new Schema(
-        Lists.newArrayList(dimensionNames),
-        GuavaUtils.concat(metricNames, Column.TIME_COLUMN_NAME),
-        GuavaUtils.concat(columnTypes, ValueDesc.LONG),
-        GuavaUtils.concat(aggregators, RelayAggregatorFactory.ofTime()),
-        descriptors
-    );
+    return capabilities.get(column);
+  }
+
+  public Map<String, String> getColumnDescriptor(String column)
+  {
+    return descriptors.get(column);
   }
 
   public Schema merge(Schema other)
@@ -202,23 +256,25 @@ public class Schema implements TypeResolver, RowSignature
       }
     }
     Map<String, ValueDesc> merged = Maps.newHashMap();
-    List<AggregatorFactory> mergedAggregators = Lists.newArrayList();
+    Map<String, AggregatorFactory> mergedAggregators = Maps.newHashMap();
     for (String metric : mergedMetrics) {
-      AggregatorFactory factory1 = getAggregatorOfName(metric);
-      AggregatorFactory factory2 = other.getAggregatorOfName(metric);
+      AggregatorFactory factory1 = aggregators.get(metric);
+      AggregatorFactory factory2 = other.aggregators.get(metric);
+      if (factory1 == null && factory2 == null) {
+        continue;
+      }
       if (factory1 == null) {
-        mergedAggregators.add(factory2);
+        mergedAggregators.put(metric, factory2);
       } else if (factory2 == null) {
-        mergedAggregators.add(factory1);
+        mergedAggregators.put(metric, factory1);
       } else {
         try {
           AggregatorFactory factory = factory1.getMergingFactory(factory2);
           merged.put(metric, factory.getOutputType());
-          mergedAggregators.add(factory);
+          mergedAggregators.put(metric, factory);
         }
         catch (AggregatorFactoryNotMergeableException e) {
           // fucked
-          mergedAggregators.add(null);
         }
       }
     }
@@ -226,11 +282,27 @@ public class Schema implements TypeResolver, RowSignature
     for (String columnName : Iterables.concat(mergedDimensions, mergedMetrics)) {
       ValueDesc type1 = resolve(columnName);
       ValueDesc type2 = other.resolve(columnName);
-      if (!type1.equals(type2)) {
-        ValueDesc type = merged.get(columnName);
-        mergedTypes.add(type == null ? ValueDesc.UNKNOWN : type);
-      } else {
+      if (Objects.equals(type1, type2)) {
         mergedTypes.add(type1);
+      } else if (type1 != null && type2 == null) {
+        mergedTypes.add(merged.getOrDefault(columnName, type1));
+      } else if (type1 == null && type2 != null) {
+        mergedTypes.add(merged.getOrDefault(columnName, type2));
+      } else {
+        mergedTypes.add(merged.getOrDefault(columnName, ValueDesc.UNKNOWN));
+      }
+    }
+    Map<String, ColumnCapabilities> capabilitiesMap = Maps.newHashMap();
+    for (String columnName : GuavaUtils.concat(mergedDimensions, mergedMetrics)) {
+      ColumnCapabilities cap1 = capabilities.get(columnName);
+      ColumnCapabilities cap2 = other.capabilities.get(columnName);
+      if (cap1 == null && cap2 == null) {
+        continue;
+      }
+      if (cap1 == null) {
+        capabilitiesMap.put(columnName, cap2);
+      } else if (cap2 == null || cap1.equals(cap2)) {
+        capabilitiesMap.put(columnName, cap1);
       }
     }
     Map<String, Map<String, String>> mergedDescs = Maps.newLinkedHashMap();
@@ -247,7 +319,66 @@ public class Schema implements TypeResolver, RowSignature
       }
     }
 
-    return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators, mergedDescs);
+    return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators, capabilitiesMap, mergedDescs);
+  }
+
+  public Schema resolve(Query<?> query, boolean finalzed)
+  {
+    List<String> dimensions = Lists.newArrayList();
+    List<String> metrics = Lists.newArrayList();
+    List<ValueDesc> types = Lists.newArrayList();
+
+    Schema schema = columnTypes.isEmpty() ? new Schema(dimensions, metrics, types) : this;
+
+    List<VirtualColumn> virtualColumns = BaseQuery.getVirtualColumns(query);
+    TypeResolver resolver = GuavaUtils.isNullOrEmpty(virtualColumns) ? schema : RowResolver.of(schema, virtualColumns);
+
+    if (query instanceof Query.ColumnsSupport) {
+      for (String column : ((Query.ColumnsSupport<?>) query).getColumns()) {
+        ValueDesc resolved = resolver.resolve(column);
+        types.add(resolved);
+        if (resolved != null && resolved.isDimension()) {
+          dimensions.add(column);
+        } else {
+          metrics.add(column);
+        }
+      }
+      return new Schema(dimensions, metrics, types);
+    }
+    for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
+      types.add(dimensionSpec.resolve(resolver));
+      dimensions.add(dimensionSpec.getOutputName());
+    }
+    for (String metric : BaseQuery.getMetrics(query)) {
+      types.add(resolver.resolve(metric));
+      metrics.add(metric);
+    }
+    List<AggregatorFactory> aggregators = BaseQuery.getAggregators(query);
+    List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
+    for (AggregatorFactory metric : aggregators) {
+      types.add(finalzed ? metric.finalizedType() : metric.getOutputType());
+      metric = metric.resolveIfNeeded(Suppliers.ofInstance(resolver));
+      metrics.add(metric.getName());
+    }
+    for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, aggregators)) {
+      types.add(postAggregator.resolve(resolver));
+      metrics.add(postAggregator.getName());
+    }
+    return new Schema(dimensions, metrics, types);
+  }
+
+  // all of nothing
+  public List<ValueDesc> tryColumnTypes(List<String> columns)
+  {
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    for (String column : columns) {
+      ValueDesc resolved = resolve(column);
+      if (resolved == null || resolved.isUnknown()) {
+        return null;
+      }
+      columnTypes.add(resolved);
+    }
+    return columnTypes;
   }
 
   @Override
@@ -262,16 +393,13 @@ public class Schema implements TypeResolver, RowSignature
 
     Schema schema = (Schema) o;
 
-    if (!aggregators.equals(schema.aggregators)) {
-      return false;
-    }
-    if (!columnTypes.equals(schema.columnTypes)) {
-      return false;
-    }
     if (!dimensionNames.equals(schema.dimensionNames)) {
       return false;
     }
     if (!metricNames.equals(schema.metricNames)) {
+      return false;
+    }
+    if (!columnTypes.equals(schema.columnTypes)) {
       return false;
     }
 
@@ -284,7 +412,6 @@ public class Schema implements TypeResolver, RowSignature
     int result = dimensionNames.hashCode();
     result = 31 * result + metricNames.hashCode();
     result = 31 * result + columnTypes.hashCode();
-    result = 31 * result + aggregators.hashCode();
     return result;
   }
 
@@ -297,60 +424,7 @@ public class Schema implements TypeResolver, RowSignature
            ", columnTypes=" + columnTypes +
            ", aggregators=" + aggregators +
            ", descriptors=" + descriptors +
+           ", capabilities=" + capabilities +
            '}';
-  }
-
-  public Schema nonStringDimensionAsMetric() {
-    List<String> dimensionNames = getDimensionNames();
-    List<ValueDesc> dimensionTypes = getDimensionTypes();
-    Set<Integer> moving = Sets.newLinkedHashSet();
-    for (int i = 0; i < dimensionTypes.size(); i++) {
-      if (!dimensionTypes.get(i).isStringOrDimension()) {
-        moving.add(i);
-      }
-    }
-    if (moving.isEmpty()) {
-      return this;
-    }
-    List<String> newDimensionNames = Lists.newArrayList();
-    List<ValueDesc> newDimensionTypes = getDimensionTypes();
-    List<String> newMetricNames = Lists.newArrayList(getMetricNames());
-    List<ValueDesc> newMetricTypes = Lists.newArrayList(getMetricTypes());
-    List<AggregatorFactory> newAggregators = Lists.newArrayList(getAggregators());
-    for (int i = 0; i < dimensionNames.size(); i++) {
-      if (moving.contains(i)) {
-        newMetricNames.add(dimensionNames.get(i));
-        newMetricTypes.add(dimensionTypes.get(i));
-        newAggregators.add(RelayAggregatorFactory.of(dimensionNames.get(i), dimensionTypes.get(i)));
-      } else {
-        newDimensionNames.add(dimensionNames.get(i));
-        newDimensionTypes.add(dimensionTypes.get(i));
-      }
-    }
-    return new Schema(
-        newDimensionNames,
-        newMetricNames,
-        GuavaUtils.concat(newDimensionTypes, newMetricTypes),
-        newAggregators,
-        getDescriptors()
-    );
-  }
-
-  public static Schema from(RowResolver resolver)
-  {
-    List<String> dimensionNames = Lists.newArrayList();
-    List<String> metricNames = Lists.newArrayList();
-    List<ValueDesc> columnTypes = Lists.newArrayList();
-    List<AggregatorFactory> aggregators = Lists.newArrayList();
-    for (String dimension : resolver.getDimensionNames()) {
-      dimensionNames.add(dimension);
-      columnTypes.add(resolver.resolve(dimension));
-    }
-    for (String metric : resolver.getMetricNames()) {
-      metricNames.add(metric);
-      columnTypes.add(resolver.resolve(metric));
-      aggregators.add(resolver.getAggregators().get(metric));
-    }
-    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, resolver.getDescriptors());
   }
 }

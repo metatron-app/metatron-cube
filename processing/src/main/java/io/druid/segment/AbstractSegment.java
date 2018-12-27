@@ -19,6 +19,8 @@
 
 package io.druid.segment;
 
+import java.io.IOException;
+
 public abstract class AbstractSegment implements Segment
 {
   protected volatile long lastAccessTime;
@@ -35,4 +37,6 @@ public abstract class AbstractSegment implements Segment
   {
     return lastAccessTime;
   }
+
+  public void close() throws IOException {}
 }

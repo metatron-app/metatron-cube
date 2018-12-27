@@ -25,8 +25,8 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
-import io.druid.query.RowResolver;
 
 import java.util.Arrays;
 import java.util.List;
@@ -56,7 +56,7 @@ public class OrHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(RowResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
     List<Predicate<Row>> predicates = Lists.newArrayList();
     for (HavingSpec havingSpec : havingSpecs) {

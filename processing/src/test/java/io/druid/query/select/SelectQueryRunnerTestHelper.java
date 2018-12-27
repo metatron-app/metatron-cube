@@ -100,9 +100,9 @@ public class SelectQueryRunnerTestHelper
         Assert.assertEquals(eh.getOffset(), rh.getOffset());
         Map<String, Object> em = eh.getEvent();
         Map<String, Object> rm = rh.getEvent();
-        Assert.assertEquals(j + "th event in " + i + "th result", em.size(), rm.size());
+        Assert.assertEquals(em + " vs " + rm, em.size(), rm.size());
         for (String columnName : columnNames) {
-          Assert.assertEquals(j + "th event in " + i + "th result", em.get(columnName), rm.get(columnName));
+          Assert.assertEquals(j + " th event in " + i + " th result", em.get(columnName), rm.get(columnName));
         }
       }
       if (es.size() > rs.size()) {

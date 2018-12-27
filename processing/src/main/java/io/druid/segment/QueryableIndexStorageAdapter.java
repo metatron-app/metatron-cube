@@ -40,6 +40,7 @@ import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.select.Schema;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapType;
@@ -247,24 +248,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       final boolean descending
   )
   {
-    Interval actualInterval = interval;
-
     DateTime minTime = getMinTime();
     long minDataTimestamp = minTime.getMillis();
     DateTime maxTime = getMaxTime();
     long maxDataTimestamp = maxTime.getMillis();
     final Interval dataInterval = new Interval(minTime, gran.bucketEnd(maxTime));
 
-    if (!actualInterval.overlaps(dataInterval)) {
+    if (interval != null && !interval.overlaps(dataInterval)) {
       return Sequences.empty();
     }
-
-    if (actualInterval.getStart().isBefore(dataInterval.getStart())) {
-      actualInterval = actualInterval.withStart(dataInterval.getStart());
-    }
-    if (actualInterval.getEnd().isAfter(dataInterval.getEnd())) {
-      actualInterval = actualInterval.withEnd(dataInterval.getEnd());
-    }
+    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
     final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
 
@@ -320,6 +313,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         ),
         context
     );
+  }
+
+  @Override
+  public Metadata getMetadata()
+  {
+    return index.getMetadata();
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    return index.asSchema(prependTime);
   }
 
   private static class CursorSequenceBuilder
@@ -1267,11 +1272,5 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     {
       return currentOffset + "/" + rowCount + "(DSC)";
     }
-  }
-
-  @Override
-  public Metadata getMetadata()
-  {
-    return index.getMetadata();
   }
 }

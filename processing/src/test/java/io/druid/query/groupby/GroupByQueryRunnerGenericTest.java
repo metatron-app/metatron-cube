@@ -32,6 +32,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -49,7 +50,6 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.RowToArray;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AverageAggregatorFactory;
@@ -3089,7 +3089,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver)
+              public Predicate<Row> toEvaluator(TypeResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -3193,7 +3193,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(RowResolver resolver)
+              public Predicate<Row> toEvaluator(TypeResolver resolver)
               {
                 return new Predicate<Row>()
                 {

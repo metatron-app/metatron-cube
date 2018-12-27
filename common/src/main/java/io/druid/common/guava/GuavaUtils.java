@@ -215,6 +215,15 @@ public class GuavaUtils
     );
   }
 
+  public static <A, B> Map<A, B> asMap(Iterable<Pair<A, B>> pairs)
+  {
+    Map<A, B> map = Maps.newLinkedHashMap();
+    for (Pair<A, B> pair : pairs) {
+      map.put(pair.lhs, pair.rhs);
+    }
+    return map;
+  }
+
   public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
   {
     if (name == null) {
@@ -250,6 +259,11 @@ public class GuavaUtils
   public static <T> List<T> concat(T element, List<T> list2)
   {
     return concat(Arrays.asList(element), list2);
+  }
+
+  public static <T> List<T> concat(T element, Iterable<T> list2)
+  {
+    return concat(Arrays.asList(element), Lists.newArrayList(list2));
   }
 
   public static <T> List<T> concat(List<T> list1, List<T> list2)
@@ -426,6 +440,13 @@ public class GuavaUtils
       }
     }
     return retaining;
+  }
+
+  public static void closeQuietly(List<? extends Closeable> resources)
+  {
+    for (Closeable resource : resources) {
+      IOUtils.closeQuietly(resource);
+    }
   }
 
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {

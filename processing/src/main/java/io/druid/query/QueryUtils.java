@@ -292,12 +292,11 @@ public class QueryUtils
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport aggrSupport = (Query.AggregationsSupport) query;
       if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        List<AggregatorFactory> factories = schema.get().getAggregatorsList();
+        Map<String, AggregatorFactory> factories = schema.get().getAggregators();
         if (!factories.isEmpty() && !GuavaUtils.isNullOrEmpty(view.getColumns())) {
-          Map<String, AggregatorFactory> map = AggregatorFactory.asMap(factories);
-          factories = Lists.newArrayList(GuavaUtils.retain(map, view.getColumns()).values());
+          factories = GuavaUtils.retain(factories, view.getColumns());
         }
-        query = aggrSupport.withDimensionSpecs(factories);
+        query = aggrSupport.withAggregatorSpecs(Lists.newArrayList(factories.values()));
       }
     }
     return query;

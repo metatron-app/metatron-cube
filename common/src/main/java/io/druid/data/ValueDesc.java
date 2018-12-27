@@ -239,6 +239,9 @@ public class ValueDesc implements Serializable, Cacheable
     if (type1 == null) {
       return type2;
     }
+    if (type2 == null) {
+      return type1;
+    }
     if (type1.equals(type2)) {
       return type1;
     }

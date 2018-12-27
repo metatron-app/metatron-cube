@@ -36,6 +36,7 @@ import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.select.Schema;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
@@ -235,6 +236,18 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public Metadata getMetadata()
+  {
+    return index.getMetadata();
+  }
+
+  @Override
+  public Schema asSchema(boolean prependTime)
+  {
+    return index.asSchema(prependTime);
+  }
+
+  @Override
   public Sequence<Cursor> makeCursors(
       final DimFilter filter,
       final Interval interval,
@@ -250,11 +263,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
     final Interval dataInterval = new Interval(getMinTime(), gran.bucketEnd(getMaxTime()));
 
-    if (!interval.overlaps(dataInterval)) {
+    if (interval != null && !interval.overlaps(dataInterval)) {
       return Sequences.empty();
     }
 
-    final Interval actualInterval = interval.overlap(dataInterval);
+    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
     Iterable<Interval> iterable = gran.getIterable(actualInterval);
     if (descending) {
@@ -775,12 +788,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     {
       return currEntry.getValue();
     }
-  }
-
-  @Override
-  public Metadata getMetadata()
-  {
-    return index.getMetadata();
   }
 
   public static class Temporary extends IncrementalIndexStorageAdapter

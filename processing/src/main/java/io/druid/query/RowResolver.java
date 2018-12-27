@@ -25,16 +25,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Expression;
@@ -42,21 +38,16 @@ import io.druid.math.expr.Expression.RelationExpression;
 import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.select.Schema;
-import io.druid.segment.QueryableIndex;
+import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -87,100 +78,24 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     );
   }
 
-  public static Supplier<RowResolver> supplier(final Segment segment, final Query query)
-  {
-    return Suppliers.memoize(
-        new Supplier<RowResolver>()
-        {
-          @Override
-          public RowResolver get()
-          {
-            return RowResolver.of(segment, query);
-          }
-        }
-    );
-  }
-
-  public static RowResolver of(List<Segment> segments, VirtualColumns virtualColumns)
+  public static RowResolver of(List<Segment> segments, List<VirtualColumn> virtualColumns)
   {
     Preconditions.checkArgument(!segments.isEmpty());
-    RowResolver resolver = of(segments.get(0), virtualColumns);
+    Schema schema = segments.get(0).asSchema(true);
     for (int i = 1; i < segments.size(); i++) {
-      RowResolver other = of(segments.get(i), virtualColumns);
-      if (!resolver.columnTypes.equals(other.columnTypes)) {
-        MapDifference<String, ValueDesc> difference = Maps.difference(resolver.columnTypes, other.columnTypes);
-        if (difference.areEqual()) {
-          continue;
-        }
-        for (Map.Entry<String, ValueDesc> entry : difference.entriesOnlyOnRight().entrySet()) {
-          String columnName = entry.getKey();
-          resolver.columnTypes.put(columnName, entry.getValue());
-          resolver.columnCapabilities.put(columnName, other.getColumnCapabilities(columnName));
-          if (!resolver.dimensionNames.contains(columnName) && other.isDimension(columnName)) {
-            resolver.dimensionNames.add(columnName);
-          } else if (!resolver.metricNames.contains(columnName) && other.isMetric(columnName)) {
-            resolver.metricNames.add(columnName);
-            resolver.aggregators.put(columnName, other.aggregators.get(columnName));
-          }
-        }
-        for (Map.Entry<String, ValueDifference<ValueDesc>> entry : difference.entriesDiffering().entrySet()) {
-          ValueDifference<ValueDesc> value = entry.getValue();
-          ValueDesc left = value.leftValue();
-          ValueDesc right = value.rightValue();
-          resolver.columnTypes.put(entry.getKey(), ValueDesc.toCommonType(left, right));
-        }
-      }
-      MapDifference<String, Map<String, String>> difference = Maps.difference(
-          resolver.columnDescriptors,
-          other.columnDescriptors
-      );
+      schema = schema.merge(segments.get(i).asSchema(true));
     }
-    virtualColumns.addImplicitVCs(resolver);
-    return resolver;
+    return of(schema, virtualColumns);
   }
 
-  public static RowResolver of(Segment segment, Query query)
+  public static RowResolver of(SchemaProvider segment, List<VirtualColumn> virtualColumns)
   {
-    VirtualColumns virtualColumns = BaseQuery.getVirtualColumns(query);
-    RowResolver resolver = of(segment.asQueryableIndex(false), virtualColumns);
-    if (resolver == null) {
-      resolver = of(segment.asStorageAdapter(false), virtualColumns);
-    }
-    return resolver;
+    return of(segment.asSchema(true), virtualColumns);
   }
 
-  public static RowResolver of(Segment segment, VirtualColumns virtualColumns)
-  {
-    RowResolver resolver = of(segment.asQueryableIndex(false), virtualColumns);
-    if (resolver == null) {
-      resolver = of(segment.asStorageAdapter(false), virtualColumns);
-    }
-    return resolver;
-  }
-
-  public static RowResolver of(QueryableIndex index, VirtualColumns virtualColumns)
-  {
-    return index == null ? null : new RowResolver(index, virtualColumns);
-  }
-
-  public static RowResolver of(StorageAdapter adapter, VirtualColumns virtualColumns)
-  {
-    return new RowResolver(adapter, virtualColumns);
-  }
-
-  public static RowResolver of(Schema schema, VirtualColumns virtualColumns)
+  public static RowResolver of(Schema schema, List<VirtualColumn> virtualColumns)
   {
     return new RowResolver(schema, virtualColumns);
-  }
-
-  public static RowResolver of(Query<?> query, QueryStage stage)
-  {
-    Preconditions.checkArgument(!(query.getDataSource() instanceof ViewDataSource), "fix this");
-    VirtualColumns virtualColumns = BaseQuery.getVirtualColumns(query);
-    List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
-    List<AggregatorFactory> aggregators = BaseQuery.getAggregators(query);
-    List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
-    return new RowResolver(dimensions, aggregators, postAggregators, virtualColumns, stage);
   }
 
   public static Class<?> toClass(ValueDesc valueDesc)
@@ -258,190 +173,66 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return ValueDesc.UNKNOWN;
   }
 
-  private final List<String> dimensionNames;
-  private final List<String> metricNames;
+  private final Schema schema;
   private final VirtualColumns virtualColumns;
-  private final Map<String, AggregatorFactory> aggregators;
 
-  private final Map<String, ValueDesc> columnTypes = Maps.newLinkedHashMap();
-  private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
-  private final Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
+  private final Map<String, ValueDesc> columnTypes;
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
-  private RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
+  private RowResolver(Schema schema, List<VirtualColumn> virtualColumns)
   {
-    this.dimensionNames = Lists.newArrayList(adapter.getAvailableDimensions());
-    this.metricNames = Lists.newArrayList(adapter.getAvailableMetrics());
-    this.virtualColumns = virtualColumns;
-    this.aggregators = AggregatorFactory.getAggregatorsFromMeta(adapter.getMetadata());
-
-    for (String dimension : adapter.getAvailableDimensions()) {
-      columnTypes.put(dimension, adapter.getColumnType(dimension));
-      columnCapabilities.put(dimension, adapter.getColumnCapabilities(dimension));
-      Map<String, String> descs = adapter.getColumnDescriptor(dimension);
-      if (!GuavaUtils.isNullOrEmpty(descs)) {
-        columnDescriptors.put(dimension, descs);
-      }
-    }
-    for (String metric : adapter.getAvailableMetrics()) {
-      columnTypes.put(metric, adapter.getColumnType(metric));
-      columnCapabilities.put(metric, adapter.getColumnCapabilities(metric));
-      Map<String, String> descs = adapter.getColumnDescriptor(metric);
-      if (!GuavaUtils.isNullOrEmpty(descs)) {
-        columnDescriptors.put(metric, descs);
-      }
-    }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilitiesImpl.of(ValueType.LONG));
-    virtualColumns.addImplicitVCs(this);
-  }
-
-  private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
-  {
-    this.dimensionNames = Lists.newArrayList(index.getAvailableDimensions());
-    this.metricNames = Lists.newArrayList(index.getAvailableMetrics());
-    this.virtualColumns = virtualColumns;
-    this.aggregators = AggregatorFactory.getAggregatorsFromMeta(index.getMetadata());
-
-    for (String columnName : index.getColumnNames()) {
-      Column column = index.getColumn(columnName);
-      columnTypes.put(columnName, index.getColumnType(columnName));
-      columnCapabilities.put(columnName, column.getCapabilities());
-      Map<String, String> descs = column.getColumnDescs();
-      if (!GuavaUtils.isNullOrEmpty(descs)) {
-        columnDescriptors.put(columnName, descs);
-      }
-    }
-    columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
-    columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
-    virtualColumns.addImplicitVCs(this);
-  }
-
-  // for output schema.. does not provide column descriptor
-  private RowResolver(
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> metrics,
-      List<PostAggregator> postAggregators,
-      VirtualColumns virtualColumns,
-      QueryStage stage
-  )
-  {
-    this.dimensionNames = Lists.newArrayList();
-    this.metricNames = Lists.newArrayList();
-    this.aggregators = Maps.newHashMap();
-    this.virtualColumns = virtualColumns;
-
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    for (AggregatorFactory metric : metrics) {
-      columnTypes.put(metric.getName(), metric.getInputType());
-    }
-    for (DimensionSpec dimension : dimensions) {
-      columnTypes.put(dimension.getOutputName(), ValueDesc.STRING);
-      if (dimension.getExtractionFn() == null) {
-        ValueDesc resolved = dimension.resolve(this);
-        if (!resolved.isUnknown()) {
-          columnTypes.put(dimension.getOutputName(), resolved);
-        }
-      }
-    }
-    virtualColumns.addImplicitVCs(this);
-
-    for (AggregatorFactory metric : metrics) {
-      metric = metric.resolveIfNeeded(Suppliers.ofInstance(this));
-      switch (stage) {
-        case LOCAL:
-          columnTypes.put(metric.getName(), metric.getInputType());
-          break;
-        case BEFORE_FINALIZE:
-          columnTypes.put(metric.getName(), metric.getOutputType());
-          break;
-        case FINALIZED:
-          columnTypes.put(metric.getName(), metric.finalizedType());
-          break;
-      }
-    }
-    if (stage != QueryStage.LOCAL && !postAggregators.isEmpty()) {
-      for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, metrics)) {
-        columnTypes.put(postAggregator.getName(), postAggregator.resolve(this));
-      }
-    }
-  }
-
-  private RowResolver(Schema schema, VirtualColumns virtualColumns)
-  {
-    this.dimensionNames = schema.getDimensionNames();
-    this.metricNames = schema.getMetricNames();
-    this.virtualColumns = virtualColumns;
-    this.aggregators = Maps.newHashMap();
-    for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
-      columnTypes.put(pair.lhs, pair.rhs);
-    }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    virtualColumns.addImplicitVCs(this);
+    this.schema = schema;
+    this.virtualColumns = VirtualColumns.valueOf(virtualColumns, schema);
+    this.columnTypes = GuavaUtils.asMap(schema.columnAndTypes());
+    this.columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
   }
 
   @VisibleForTesting
   public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
   {
-    this.dimensionNames = Lists.newArrayList();
-    this.metricNames = Lists.newArrayList();
-    this.aggregators = Maps.newHashMap();
+    this.schema = Schema.of(columnTypes);
     this.virtualColumns = virtualColumns;
-    this.columnTypes.putAll(columnTypes);
-    for (Map.Entry<String, ValueDesc> entry : columnTypes.entrySet()) {
-      if (entry.getValue().isDimension()) {
-        columnCapabilities.put(
-            entry.getKey(),
-            new ColumnCapabilitiesImpl().setType(ValueType.STRING).setHasBitmapIndexes(true)
-        );
-      }
-    }
-    virtualColumns.addImplicitVCs(this);
+    this.columnTypes = columnTypes;
   }
 
   public List<String> getDimensionNames()
   {
-    return dimensionNames;
+    return schema.getDimensionNames();
   }
 
   public List<ValueDesc> getDimensionTypes()
   {
-    return resolveColumns(dimensionNames);
+    return schema.getDimensionTypes();
   }
 
   public List<String> getMetricNames()
   {
-    return metricNames;
+    return schema.getMetricNames();
   }
 
   public List<ValueDesc> getMetricTypes()
   {
-    return resolveColumns(metricNames);
+    return schema.getMetricTypes();
   }
 
   public List<String> getColumnNames()
   {
-    return GuavaUtils.concat(dimensionNames, metricNames);
+    return schema.getColumnNames();
   }
 
   public boolean isDimension(String columnName)
   {
-    return dimensionNames.contains(columnName);
+    return schema.getDimensionNames().indexOf(columnName) >= 0;
   }
 
   public boolean isMetric(String columnName)
   {
-    return metricNames.contains(columnName);
+    return schema.getMetricNames().indexOf(columnName) >= 0;
   }
 
   public Map<String, AggregatorFactory> getAggregators()
   {
-    return aggregators;
-  }
-
-  public List<AggregatorFactory> getAggregatorsList()
-  {
-    return Lists.newArrayList(aggregators.values());
+    return schema.getAggregators();
   }
 
   public VirtualColumns getVirtualColumns()
@@ -451,17 +242,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   public ColumnCapabilities getColumnCapabilities(String column)
   {
-    return columnCapabilities.get(column);
-  }
-
-  public Map<String, Map<String, String>> getDescriptors()
-  {
-    return columnDescriptors;
+    return schema.getColumnCapability(column);
   }
 
   public Map<String, String> getDescriptor(String column)
   {
-    return columnDescriptors.get(column);
+    return schema.getColumnDescriptor(column);
   }
 
   public VirtualColumn getVirtualColumn(String columnName)
@@ -527,11 +313,11 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return names;
   }
 
-  public boolean supportsBitmap(DimFilter filter, EnumSet<BitmapType> using)
+  public boolean supports(DimFilter filter, EnumSet<BitmapType> using)
   {
     if (filter instanceof RelationExpression) {
       for (Expression child : ((RelationExpression) filter).getChildren()) {
-        if (!supportsBitmap((DimFilter) child, using)) {
+        if (!supports((DimFilter) child, using)) {
           return false;
         }
       }
@@ -539,21 +325,21 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     }
     if (filter instanceof MathExprFilter) {
       Expr root = Parser.parse(((MathExprFilter) filter).getExpression());
-      return supportsBitmap(Expressions.convertToCNF(root, Parser.EXPR_FACTORY), using);
+      return supports(Expressions.convertToCNF(root, Parser.EXPR_FACTORY), using);
     }
     Set<String> dependents = Filters.getDependents(filter);
     if (dependents.size() != 1) {
       return false;
     }
     final String column = Iterables.getOnlyElement(dependents);
-    if (using.contains(BitmapType.DIMENSIONAL) && supportsBitmap(column, BitmapType.DIMENSIONAL)) {
+    if (using.contains(BitmapType.DIMENSIONAL) && supports(column, BitmapType.DIMENSIONAL)) {
       return true;
     }
-    if (using.contains(BitmapType.LUCENE_INDEX) && supportsBitmap(column, BitmapType.LUCENE_INDEX)) {
+    if (using.contains(BitmapType.LUCENE_INDEX) && supports(column, BitmapType.LUCENE_INDEX)) {
       return filter instanceof DimFilter.LuceneFilter;
     }
-    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && supportsBitmap(column, BitmapType.HISTOGRAM_BITMAP) ||
-        using.contains(BitmapType.BSB) && supportsBitmap(column, BitmapType.BSB)) {
+    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && supports(column, BitmapType.HISTOGRAM_BITMAP) ||
+        using.contains(BitmapType.BSB) && supports(column, BitmapType.BSB)) {
       return filter instanceof DimFilter.RangeFilter && ((DimFilter.RangeFilter)filter).possible(this);
     }
     return false;
@@ -561,11 +347,11 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between", "isNull");
 
-  private boolean supportsBitmap(Expr expr, EnumSet<BitmapType> using)
+  private boolean supports(Expr expr, EnumSet<BitmapType> using)
   {
     if (expr instanceof RelationExpression) {
       for (Expression child : ((RelationExpression) expr).getChildren()) {
-        if (!supportsBitmap((Expr) child, using)) {
+        if (!supports((Expr) child, using)) {
           return false;
         }
       }
@@ -578,7 +364,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
         return false;
       }
       final Expr arg = (Expr) children.get(0);
-      if (!Evals.isIdentifier(arg) || !supportsBitmap(arg.toString(), using)) {
+      if (!Evals.isIdentifier(arg) || !supports(arg.toString(), using)) {
         return false;
       }
       for (int i = 1; i < children.size(); i++) {
@@ -591,24 +377,24 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return false;
   }
 
-  private boolean supportsBitmap(String column, BitmapType type, BitmapType... types)
+  private boolean supports(String column, BitmapType type, BitmapType... types)
   {
-    return supportsBitmap(column, EnumSet.of(type, types));
+    return supports(column, EnumSet.of(type, types));
   }
 
-  private boolean supportsBitmap(String column, EnumSet<BitmapType> using)
+  private boolean supports(String column, EnumSet<BitmapType> using)
   {
     String field = null;
-    ColumnCapabilities capabilities = columnCapabilities.get(column);
+    ColumnCapabilities capabilities = schema.getColumnCapability(column);
     if (capabilities == null && column.indexOf('.') > 0) {
       // struct type (mostly for lucene)
       int index = column.indexOf('.');
       field = column.substring(index + 1);
       column = column.substring(0, index);
-      capabilities = columnCapabilities.get(column);
+      capabilities = schema.getColumnCapability(column);
     }
     if (capabilities == null) {
-      return false;   // dimension type does not asserts existence of bitmap (incremental index, for example)
+      return false;   // dimension type does not assert existence of bitmap (incremental index, for example)
     }
     if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
       return true;
@@ -626,86 +412,13 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return false;
   }
 
-  public boolean supportsExactBitmap(Iterable<String> columns, DimFilter filter)
+  public boolean supportsExact(Iterable<String> columns, DimFilter filter)
   {
     for (String column : columns) {
-      if (!supportsBitmap(column, BitmapType.EXACT)) {
+      if (!supports(column, BitmapType.EXACT)) {
         return false;
       }
     }
-    return filter == null || supportsBitmap(filter, BitmapType.EXACT);
-  }
-
-  public Schema toSubSchema(List<String> columns)
-  {
-    final List<String> dimensions = Lists.newArrayList();
-    final List<ValueDesc> dimensionTypes = Lists.newArrayList();
-    final List<String> metrics = Lists.newArrayList();
-    final List<ValueDesc> metricTypes = Lists.newArrayList();
-    final List<AggregatorFactory> aggregators = Lists.newArrayList();
-    final Map<String, Map<String, String>> descriptors = Maps.newHashMap();
-    for (String column : columns) {
-      ValueDesc resolved = resolve(column, ValueDesc.UNKNOWN);
-      if (ValueDesc.isDimension(resolved)) {
-        dimensions.add(column);
-        dimensionTypes.add(resolved);
-      } else {
-        metrics.add(column);
-        metricTypes.add(resolved);
-        aggregators.add(getAggregators().get(column));  // can be null
-      }
-      Map<String, String> descriptor = getDescriptor(column);
-      if (!GuavaUtils.isNullOrEmpty(descriptor)) {
-        descriptors.put(column, descriptor);
-      }
-    }
-    return new Schema(
-        dimensions,
-        metrics,
-        GuavaUtils.concat(dimensionTypes, metricTypes),
-        aggregators,
-        descriptors
-    );
-  }
-
-
-  public List<ValueDesc> resolveDimensions(List<DimensionSpec> dimensionSpecs)
-  {
-    List<ValueDesc> types = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      types.add(dimensionSpec.resolve(this));
-    }
-    return types;
-  }
-
-  public List<ValueDesc> resolveColumns(List<String> columns)
-  {
-    return Lists.newArrayList(Iterables.transform(columns, this));
-  }
-
-  public List<ValueDesc> tryDimensionTypes(List<DimensionSpec> dimensionSpecs)
-  {
-    List<ValueDesc> dimensionTypes = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      ValueDesc resolved = dimensionSpec.resolve(this);
-      if (resolved == null || resolved.isUnknown()) {
-        return null;
-      }
-      dimensionTypes.add(resolved);
-    }
-    return dimensionTypes;
-  }
-
-  public List<ValueDesc> tryColumnTypes(List<String> columns)
-  {
-    List<ValueDesc> columnTypes = Lists.newArrayList();
-    for (String column : columns) {
-      ValueDesc resolved = resolve(column);
-      if (resolved == null || resolved.isUnknown()) {
-        return null;
-      }
-      columnTypes.add(resolved);
-    }
-    return columnTypes;
+    return filter == null || supports(filter, BitmapType.EXACT);
   }
 }

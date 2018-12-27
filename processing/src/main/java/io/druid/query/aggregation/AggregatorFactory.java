@@ -28,8 +28,8 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 
@@ -171,10 +171,10 @@ public abstract class AggregatorFactory implements Cacheable
   {
     public abstract boolean needResolving();
 
-    public abstract AggregatorFactory resolve(Supplier<RowResolver> resolver);
+    public abstract AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver);
   }
 
-  public AggregatorFactory resolveIfNeeded(Supplier<RowResolver> resolver)
+  public AggregatorFactory resolveIfNeeded(Supplier<? extends TypeResolver> resolver)
   {
     if (this instanceof TypeResolving) {
       TypeResolving resolving = (TypeResolving) this;
@@ -297,7 +297,7 @@ public abstract class AggregatorFactory implements Cacheable
     if (metadata != null && metadata.getAggregators() != null) {
       return asMap(metadata.getAggregators());
     }
-    return Maps.newHashMap();
+    return null;
   }
 
   public static AggregatorFactory[] toCombinerFactory(AggregatorFactory[] aggregators)
@@ -358,6 +358,17 @@ public abstract class AggregatorFactory implements Cacheable
       relay.add(new RelayAggregatorFactory(names.get(i), types.get(i)));
     }
     return relay;
+  }
+
+  public static Aggregator[] toAggregatorsAsArray(ColumnSelectorFactory cursor, List<AggregatorFactory> aggregatorSpecs)
+  {
+    Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
+    int aggregatorIndex = 0;
+    for (AggregatorFactory spec : aggregatorSpecs) {
+      aggregators[aggregatorIndex] = spec.factorize(cursor);
+      ++aggregatorIndex;
+    }
+    return aggregators;
   }
 
   public static Function<AggregatorFactory, Pair<String, ValueDesc>> NAME_TYPE =

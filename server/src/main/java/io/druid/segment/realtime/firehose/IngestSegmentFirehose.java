@@ -20,6 +20,7 @@
 package io.druid.segment.realtime.firehose;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -39,7 +40,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.VirtualColumns;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.utils.Runnables;
@@ -76,7 +77,7 @@ public class IngestSegmentFirehose implements Firehose
                         adapter.getAdapter().makeCursors(
                             dimFilter,
                             adapter.getInterval(),
-                            RowResolver.of(adapter.getAdapter(), VirtualColumns.empty()),
+                            RowResolver.of(adapter.getAdapter(), ImmutableList.<VirtualColumn>of()),
                             granularity,
                             null, false
                         ), new Function<Cursor, Sequence<InputRow>>()

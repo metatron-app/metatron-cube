@@ -81,6 +81,7 @@ import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
+import org.eclipse.jetty.io.EofException;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
@@ -409,7 +410,7 @@ public class QueryResource
   private void handleException(Query query, String remote, long start, Throwable e)
       throws IOException
   {
-    boolean interrupted = e instanceof QueryInterruptedException;
+    boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
     if (interrupted) {
       log.info("%s [%s]", e.toString(), query.getId());
     } else {

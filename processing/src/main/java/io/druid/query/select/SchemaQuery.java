@@ -20,10 +20,9 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
@@ -33,71 +32,35 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  */
 public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
-    implements Query.RewritingQuery<Result<SelectMetaResultValue>>, Query.VCSupport<Result<SelectMetaResultValue>>
+    implements Query.RewritingQuery<Result<SelectMetaResultValue>>
 {
   public static SchemaQuery of(String dataSource)
   {
     return new SchemaQuery(
         TableDataSource.of(dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT))),
-        null, null, null, null
+        ImmutableMap.<String, Object>of("allDimensionsForEmpty", false, "allMetricsForEmpty", false)
     );
   }
-
-  private final List<DimensionSpec> dimensions;
-  private final List<String> metrics;
-  private final List<VirtualColumn> virtualColumns;
 
   @JsonCreator
   public SchemaQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("metrics") List<String> metrics,
-      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimensions = dimensions;
-    this.metrics = metrics;
-    this.virtualColumns = virtualColumns;
-  }
-
-  @JsonProperty
-  @JsonInclude(Include.NON_EMPTY)
-  public List<DimensionSpec> getDimensions()
-  {
-    return dimensions;
-  }
-
-  @JsonProperty
-  @JsonInclude(Include.NON_EMPTY)
-  public List<String> getMetrics()
-  {
-    return metrics;
-  }
-
-  @Override
-  @JsonProperty
-  @JsonInclude(Include.NON_EMPTY)
-  public List<VirtualColumn> getVirtualColumns()
-  {
-    return virtualColumns;
   }
 
   @Override
@@ -116,9 +79,9 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         null,
         Granularities.ALL,
-        dimensions,
-        metrics,
-        virtualColumns,
+        null,
+        null,
+        null,
         true,
         null,
         getContext()
@@ -128,7 +91,7 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   @Override
   public SchemaQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SchemaQuery(getDataSource(), spec, getDimensions(), getMetrics(), getVirtualColumns(), getContext());
+    return new SchemaQuery(getDataSource(), spec, getContext());
   }
 
   @Override
@@ -137,9 +100,6 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SchemaQuery(
         dataSource,
         getQuerySegmentSpec(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
         getContext()
     );
   }
@@ -150,23 +110,7 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SchemaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
         computeOverriddenContext(contextOverride)
-    );
-  }
-
-  @Override
-  public VCSupport<Result<SelectMetaResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
-  {
-    return new SchemaQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimensions(),
-        getMetrics(),
-        virtualColumns,
-        getContext()
     );
   }
 
@@ -176,9 +120,6 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return "SchemaQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", dimensions=" + dimensions +
-           ", metrics=" + metrics +
-           ", virtualColumns=" + virtualColumns +
            '}';
   }
 
@@ -191,31 +132,12 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    if (!super.equals(o)) {
-      return false;
-    }
-
-    SchemaQuery that = (SchemaQuery) o;
-
-    if (!Objects.equals(dimensions, that.dimensions)) {
-      return false;
-    }
-    if (!Objects.equals(metrics, that.metrics)) {
-      return false;
-    }
-    if (!Objects.equals(virtualColumns, that.virtualColumns)) {
-      return false;
-    }
-    return true;
+    return super.equals(o);
   }
 
   @Override
   public int hashCode()
   {
-    int result = super.hashCode();
-    result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
-    result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
-    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
-    return result;
+    return super.hashCode();
   }
 }
