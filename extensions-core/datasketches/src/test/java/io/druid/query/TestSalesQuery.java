@@ -59,4 +59,42 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
+
+  @Test
+  public void test1167()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .setDimensions(DefaultDimensionSpec.toSpec("Category"))
+        .setAggregatorSpecs(new SketchMergeAggregatorFactory("MEASURE_1", "City", 512, true, false, null))
+        .setGranularity(Granularities.ALL)
+        .setLimitSpec(
+            new LimitSpec(
+                Arrays.<OrderByColumnSpec>asList(),
+                1000,
+                Arrays.asList(
+                    new WindowingSpec(
+                        Arrays.asList("Category"), null, null,
+                        PivotSpec.tabular(Arrays.<PivotColumnSpec>asList(), "MEASURE_1")
+                                 .withPartitionExpressions("#_ = $sum(_)", "concat(_, '.percent') = case (#_ == 0, 0.0, cast(_, 'double') / #_ * 100)")
+                                 .withAppendValueColumn(true)
+                    )
+                )
+            )
+        )
+        .addContext(QueryContextKeys.POST_PROCESSING, new SketchEstimatePostProcessor())
+        .build();
+
+    String[] columnNames = {"__time", "Category", "MEASURE_1.percent", "MEASURE_1"};
+    Object[][] objects = {
+        array("2011-01-01T00:00:00.000Z", "Furniture", 30.96828046744574, 371.0),
+        array("2011-01-01T00:00:00.000Z", "Office Supplies", 40.40066777963272, 484.0),
+        array("2011-01-01T00:00:00.000Z", "Technology", 28.63105175292154, 343.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
 }
