@@ -325,6 +325,9 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
   @Override
   public List<String> estimatedOutputColumns()
   {
+    if (dimensions.isEmpty() && allDimensionsForEmpty() || metrics.isEmpty() && allMetricsForEmpty()) {
+      return null;
+    }
     return GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
   }
 

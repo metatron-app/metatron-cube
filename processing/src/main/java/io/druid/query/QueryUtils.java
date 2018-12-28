@@ -56,6 +56,7 @@ import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
@@ -257,7 +258,9 @@ public class QueryUtils
     }
     if (query instanceof Query.VCSupport && !view.getVirtualColumns().isEmpty()) {
       Query.VCSupport<T> vcSupport = (Query.VCSupport) query;
-      query = vcSupport.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), vcSupport.getVirtualColumns()));
+      query = vcSupport.withVirtualColumns(
+          VirtualColumns.override(view.getVirtualColumns(), vcSupport.getVirtualColumns())
+      );
     }
     if (query instanceof Query.DimFilterSupport && view.getFilter() != null) {
       Query.DimFilterSupport<T> filterSupport = (Query.DimFilterSupport) query;
@@ -283,19 +286,16 @@ public class QueryUtils
       }
     }
     if (query instanceof Query.MetricSupport) {
-      Query.MetricSupport metricSupport = (Query.MetricSupport) query;
+      Query.MetricSupport<T> metricSupport = (Query.MetricSupport) query;
       if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
         List<String> metrics = GuavaUtils.retain(schema.get().getMetricNames(), view.getColumns());
         query = metricSupport.withMetrics(metrics);
       }
     }
     if (query instanceof Query.AggregationsSupport) {
-      Query.AggregationsSupport aggrSupport = (Query.AggregationsSupport) query;
+      Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport) query;
       if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        Map<String, AggregatorFactory> factories = schema.get().getAggregators();
-        if (!factories.isEmpty() && !GuavaUtils.isNullOrEmpty(view.getColumns())) {
-          factories = GuavaUtils.retain(factories, view.getColumns());
-        }
+        Map<String, AggregatorFactory> factories = GuavaUtils.retain(schema.get().getAggregators(), view.getColumns());
         query = aggrSupport.withAggregatorSpecs(Lists.newArrayList(factories.values()));
       }
     }

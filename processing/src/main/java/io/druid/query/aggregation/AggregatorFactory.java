@@ -309,7 +309,7 @@ public abstract class AggregatorFactory implements Cacheable
     return combiners;
   }
 
-  public static List<AggregatorFactory> toCombinerFactory(List<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory> toCombinerFactory(Iterable<AggregatorFactory> aggregators)
   {
     List<AggregatorFactory> combiners = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
@@ -327,7 +327,7 @@ public abstract class AggregatorFactory implements Cacheable
     return combiners;
   }
 
-  public static List<AggregatorFactory.Combiner> toCombiner(List<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory.Combiner> toCombiner(Iterable<AggregatorFactory> aggregators)
   {
     List<AggregatorFactory.Combiner> combiners = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
@@ -336,12 +336,12 @@ public abstract class AggregatorFactory implements Cacheable
     return combiners;
   }
 
-  public static AggregatorFactory.Combiner[] toCombinerArray(List<AggregatorFactory> aggregators)
+  public static AggregatorFactory.Combiner[] toCombinerArray(Iterable<AggregatorFactory> aggregators)
   {
     return toCombiner(aggregators).toArray(new Combiner[0]);
   }
 
-  public static List<AggregatorFactory> toRelay(List<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory> toRelay(Iterable<AggregatorFactory> aggregators)
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {

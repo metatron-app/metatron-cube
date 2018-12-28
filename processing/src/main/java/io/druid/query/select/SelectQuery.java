@@ -39,6 +39,7 @@ import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -482,12 +483,19 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return outputColumns;
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+      return outputColumns;
+    }
+    if (dimensions.isEmpty() && allDimensionsForEmpty() || metrics.isEmpty() && allMetricsForEmpty()) {
+      return null;
+    }
+    return GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
   }
 
   @Override
   public Sequence<Object[]> array(Sequence<Result<SelectResultValue>> sequence)
   {
+    final List<String> outputColumns = estimatedOutputColumns();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputColumns));
 
     return Sequences.concat(

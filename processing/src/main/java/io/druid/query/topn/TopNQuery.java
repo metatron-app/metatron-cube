@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
@@ -39,6 +40,7 @@ import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -48,6 +50,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -187,13 +190,20 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return outputColumns;
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+      return outputColumns;
+    }
+    Set<String> outputNames = Sets.newLinkedHashSet();
+    outputNames.addAll(AggregatorFactory.toNames(aggregatorSpecs));
+    outputNames.addAll(PostAggregators.toNames(postAggregatorSpecs));
+    return GuavaUtils.concat(dimensionSpec.getOutputName(), outputNames);
   }
 
   @Override
   public Sequence<Object[]> array(Sequence<Result<TopNResultValue>> sequence)
   {
-    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputColumns));
+    final List<String> outputNames = estimatedOutputColumns();
+    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputNames));
     return Sequences.concat(
         Sequences.map(
             sequence,
