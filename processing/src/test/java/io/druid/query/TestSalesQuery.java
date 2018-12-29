@@ -34,6 +34,7 @@ import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import org.junit.Test;
 
@@ -335,6 +336,53 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01T00:00:00.000Z", "Technology", 1847L, 420L, 535L, 293L, 599L, 18.482938056639647, 18.080068876452863, 18.79171057253249, 18.086419753086417, 18.701217608492037),
     };
     Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testSelectOnJoin()
+  {
+    JoinQuery joinQuery = Druids
+        .newJoinQueryBuilder()
+        .dataSource("sales", TableDataSource.of("sales"))
+        .dataSource("category_alias", TableDataSource.of("category_alias"))
+        .interval(Intervals.of("2011-01-01/2015-01-01"))
+        .element(JoinElement.inner("sales.Category = category_alias.Category"))
+        .prefixAlias(true)
+        .build();
+
+    Druids.SelectQueryBuilder builder = Druids
+        .newSelectQueryBuilder()
+        .dataSource(QueryDataSource.of(joinQuery))
+        .intervals(joinQuery.getQuerySegmentSpec())
+        .virtualColumns(
+            new ExprVirtualColumn(
+                "time_format(category_alias.__time,out.format='yyyy-MM-dd HH:mm:ss',out.timezone='UTC',out.locale='en')",
+                "category_alias.current_datetime"
+            ),
+            new ExprVirtualColumn(
+                "time_format(sales.__time,out.format='yyyy-MM-dd HH:mm:ss',out.timezone='UTC',out.locale='en')",
+                "sales.OrderDate"
+            )
+        )
+        .dimensions("category_alias.current_datetime", "sales.OrderDate")
+        .metrics("sales.SalesperCustomer", "category_alias.Alias")
+        .limit(5)
+        .addContext(Query.POST_PROCESSING, new SelectToRow());
+
+    String[] columnNames = {
+        "__time", "sales.SalesperCustomer", "sales.OrderDate", "category_alias.current_datetime", "category_alias.Alias"
+    };
+    Object[][] objects = new Object[][] {
+        array("2011-01-01T00:00:00.000Z", 173.94, "2013-01-02 00:00:00", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01T00:00:00.000Z", 2573.82, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01T00:00:00.000Z", 1592.85, "2013-01-03 00:00:00", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01T00:00:00.000Z", 310.74, "2014-01-02 00:00:00", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01T00:00:00.000Z", 23.08, "2013-01-07 00:00:00", "2011-01-01 00:00:00", "F")
+    };
+    Iterable<Row> results = runQuery(builder.build());
+    GroupByQueryRunnerTestHelper.printToExpected(columnNames, results);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

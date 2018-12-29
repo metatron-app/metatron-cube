@@ -203,11 +203,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   public boolean hasFilters()
   {
     for (DataSource dataSource : dataSources.values()) {
-      if (dataSource instanceof QueryDataSource) {
-        Query query = ((QueryDataSource) dataSource).getQuery();
-        if (query.hasFilters()) {
-          return true;
-        }
+      if (DataSources.hasFilter(dataSource)) {
+        return true;
       }
     }
     return false;
@@ -225,7 +222,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     return new JoinQuery(
         dataSources,
-        getQuerySegmentSpec(), elements,
+        getQuerySegmentSpec(),
+        elements,
         prefixAlias,
         asArray,
         timeColumnName,
@@ -300,7 +298,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     return new JoinQuery(
         getDataSources(),
-        getQuerySegmentSpec(), getElements(),
+        getQuerySegmentSpec(),
+        getElements(),
         prefixAlias,
         asArray,
         getTimeColumnName(),
@@ -461,9 +460,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
       if (processor instanceof ListPostProcessingOperator) {
-        processor = ((ListPostProcessingOperator)processor).getLast();
+        processor = ((ListPostProcessingOperator) processor).getLast();
       }
-      if (((XJoinPostProcessor)processor).asArray()) {
+      if (((XJoinPostProcessor) processor).asArray()) {
         return sequence;
       }
       return Sequences.map(

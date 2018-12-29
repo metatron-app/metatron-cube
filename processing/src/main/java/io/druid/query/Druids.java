@@ -1021,6 +1021,11 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder dimensions(String... d)
+    {
+      return dimensions(Arrays.asList(d));
+    }
+
     public SelectQueryBuilder dimensions(List<String> d)
     {
       dimensions = DefaultDimensionSpec.toSpec(d);
@@ -1037,6 +1042,11 @@ public class Druids
     {
       columns = Arrays.asList(c);
       return this;
+    }
+
+    public SelectQueryBuilder metrics(String... m)
+    {
+      return metrics(Arrays.asList(m));
     }
 
     public SelectQueryBuilder metrics(List<String> m)

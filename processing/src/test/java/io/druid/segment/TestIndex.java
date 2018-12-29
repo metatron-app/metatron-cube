@@ -160,6 +160,7 @@ public class TestIndex
     getNoRollupMMappedTestIndex();
     mergedRealtimeIndex();
     addSalesIndex();
+    addCategoryAliasIndex();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
@@ -200,25 +201,39 @@ public class TestIndex
     return noRollupMmappedIndex;
   }
 
-  private static synchronized void addSalesIndex()
+  private static void addSalesIndex()
+  {
+    String[] columns = new String[]{
+        "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
+        "Quantity", "Region", "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus",
+        "orderprofitable", "SalesAboveTarget", "latitude", "longitude", "Discount", "Profit", "Sales",
+        "DaystoShipActual", "SalesForecast", "DaystoShipScheduled", "SalesperCustomer", "ProfitRatio"
+    };
+    addIndex("sales", columns, "OrderDate", "sales_incremental_schema.json", "sales_tab_delimiter.csv");
+  }
+
+  private static void addCategoryAliasIndex()
+  {
+    String[] columns = {"OrderDate", "Category", "Alias"};
+    addIndex("category_alias", columns, "OrderDate", "category_alias_schema.json", "category_alias.tsv");
+  }
+
+  private static synchronized void addIndex(
+      final String ds,
+      final String[] columnNames,
+      final String time,
+      final String schemaFile,
+      final String sourceFile
+  )
   {
     segmentWalker.addPopulator(
-        "sales",
+        ds,
         new Supplier<List<Pair<DataSegment, Segment>>>()
         {
           @Override
           public List<Pair<DataSegment, Segment>> get()
           {
-            final List<String> columnNames = Arrays.asList(
-                "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
-                "Quantity", "Region", "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus",
-                "orderprofitable", "SalesAboveTarget", "latitude", "longitude", "Discount", "Profit", "Sales",
-                "DaystoShipActual", "SalesForecast", "DaystoShipScheduled", "SalesperCustomer", "ProfitRatio"
-            );
-            final IncrementalIndexSchema schema = loadJson(
-                "sales_incremental_schema.json",
-                new TypeReference<IncrementalIndexSchema>() {}
-            );
+            final IncrementalIndexSchema schema = loadJson(schemaFile, new TypeReference<IncrementalIndexSchema>() {});
             final Granularity granularity = schema.getSegmentGran();
             final StringInputRowParser parser = new StringInputRowParser(
                 new DelimitedParseSpec(
@@ -226,13 +241,13 @@ public class TestIndex
                     schema.getDimensionsSpec(),
                     "\t",
                     null,
-                    columnNames
+                    Arrays.asList(columnNames)
                 ), "utf8"
             );
 
             List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
             try {
-              for (Map.Entry<Long, IncrementalIndex> entry : asCharSource("sales_tab_delimiter.csv").readLines(
+              for (Map.Entry<Long, IncrementalIndex> entry : asCharSource(sourceFile).readLines(
                   new LineProcessor<Map<Long, IncrementalIndex>>()
                   {
                     private final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
@@ -266,7 +281,7 @@ public class TestIndex
               ).entrySet()) {
                 Interval interval = new Interval(entry.getKey(), granularity.next(entry.getKey()));
                 DataSegment segment = new DataSegment(
-                    "sales", interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
+                    ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
                 segments.add(Pair.of(segment, (Segment) new QueryableIndexSegment(
                     segment.getIdentifier(), persistRealtimeAndLoadMMapped(entry.getValue())))

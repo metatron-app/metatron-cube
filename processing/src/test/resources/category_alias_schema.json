@@ -1,0 +1,11 @@
+{
+  "dimensionsSpec": {
+    "dimensions": [
+      "Category", "Alias"
+    ]
+  },
+  "gran": "DAY",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": true
+}

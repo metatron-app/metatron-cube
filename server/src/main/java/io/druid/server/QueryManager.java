@@ -126,6 +126,9 @@ public class QueryManager implements QueryWatcher, Runnable
   @Override
   public long remainingTime(String queryId)
   {
+    if (queryId == null) {
+      return -1L;  // bug
+    }
     QueryStatus status = queries.get(queryId);
     return status == null ? -1 : status.remaining();
   }

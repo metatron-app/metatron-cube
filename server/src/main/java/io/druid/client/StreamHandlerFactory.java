@@ -27,6 +27,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import com.metamx.http.client.response.ClientResponse;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -53,8 +54,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
-  protected static final Logger debug = new Logger(StreamHandlerFactory.class);
-
   private static final TypeReference<Map<String, Object>> CONTEXT_TYPE = new TypeReference<Map<String, Object>>()
   {
   };
@@ -212,7 +211,6 @@ public class StreamHandlerFactory
       final ChannelBuffer channelBuffer = chunk.getContent();
       final int bytes = channelBuffer.readableBytes();
       if (bytes > 0) {
-        debug.debug("Chunk arrived from url[%s] for queryId[%s] with length[%d]", url, queryId, bytes);
         try {
           queue.put(new ChannelBufferInputStream(channelBuffer));
         }
@@ -231,12 +229,12 @@ public class StreamHandlerFactory
     {
       long stopTime = System.currentTimeMillis();
       log.debug(
-          "Completed queryId[%s] request to url[%s] with %,d bytes returned in %,d millis [%,f b/s].",
+          "Completed queryId[%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
           queryId,
           url,
           byteCount.get(),
           stopTime - responseStartTime,
-          byteCount.get() / (0.0001 * (stopTime - responseStartTime))
+          StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, stopTime - responseStartTime))
       );
       finished(responseStartTime, stopTime, byteCount.get());
       synchronized (done) {
