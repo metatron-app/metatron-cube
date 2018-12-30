@@ -23,6 +23,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
@@ -39,7 +41,6 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.SearchHit;
@@ -49,7 +50,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
@@ -213,101 +213,93 @@ public class AppendTest
   @Test
   public void testTimeSeries()
   {
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 8L)
-                            .put("index", 700.0D)
-                            .put("addRowsIndexConstant", 709.0D)
-                            .put("uniques", 1.0002442201269182D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 8L)
+                .put("index", 700.0D)
+                .put("addRowsIndexConstant", 709.0D)
+                .put("uniques", 1.0002442201269182D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
     TimeseriesQuery query = makeTimeseriesQuery();
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
   @Test
   public void testTimeSeries2()
   {
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 7L)
-                            .put("index", 500.0D)
-                            .put("addRowsIndexConstant", 508.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 7L)
+                .put("index", 500.0D)
+                .put("addRowsIndexConstant", 508.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
     TimeseriesQuery query = makeTimeseriesQuery();
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
   @Test
   public void testFilteredTimeSeries()
   {
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 5L)
-                            .put("index", 500.0D)
-                            .put("addRowsIndexConstant", 506.0D)
-                            .put("uniques", 1.0002442201269182D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 5L)
+                .put("index", 500.0D)
+                .put("addRowsIndexConstant", 506.0D)
+                .put("uniques", 1.0002442201269182D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
     TimeseriesQuery query = makeFilteredTimeseriesQuery();
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
   @Test
   public void testFilteredTimeSeries2()
   {
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 4L)
-                            .put("index", 400.0D)
-                            .put("addRowsIndexConstant", 405.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 4L)
+                .put("index", 400.0D)
+                .put("addRowsIndexConstant", 405.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
     TimeseriesQuery query = makeFilteredTimeseriesQuery();
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
   @Test
@@ -541,19 +533,17 @@ public class AppendTest
   @Test
   public void testRowFiltering()
   {
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 5L)
-                            .put("index", 500.0D)
-                            .put("addRowsIndexConstant", 506.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 5L)
+                .put("index", 500.0D)
+                .put("addRowsIndexConstant", 506.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -577,7 +567,7 @@ public class AppendTest
                                   .build();
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment3);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
   private TimeseriesQuery makeTimeseriesQuery()

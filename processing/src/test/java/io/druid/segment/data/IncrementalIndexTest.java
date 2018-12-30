@@ -43,7 +43,6 @@ import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -53,7 +52,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.CloserRule;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
@@ -394,29 +392,29 @@ public class IncrementalIndexTest
         new TimeseriesQueryEngine(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
-    final QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
+    final QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
         factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
 
 
-    List<Result<TimeseriesResultValue>> results = Sequences.toList(
+    List<Row> results = Sequences.toList(
         runner.run(query, new HashMap<String, Object>()),
-        new LinkedList<Result<TimeseriesResultValue>>()
+        new LinkedList<Row>()
     );
-    Result<TimeseriesResultValue> result = Iterables.getOnlyElement(results);
+    Row result = Iterables.getOnlyElement(results);
     boolean isRollup = index.isRollup();
-    Assert.assertEquals(rows * (isRollup ? 1 : 2), result.getValue().getLongMetric("rows").intValue());
+    Assert.assertEquals(rows * (isRollup ? 1 : 2), result.getLongMetric("rows"));
     for (int i = 0; i < dimensionCount; ++i) {
       Assert.assertEquals(
           String.format("Failed long sum on dimension %d", i),
           2*rows,
-          result.getValue().getLongMetric(String.format("sumResult%s", i)).intValue()
+          result.getLongMetric(String.format("sumResult%s", i))
       );
       Assert.assertEquals(
           String.format("Failed double sum on dimension %d", i),
           2*rows,
-          result.getValue().getDoubleMetric(String.format("doubleSumResult%s", i)).intValue()
+          result.getDoubleMetric(String.format("doubleSumResult%s", i))
       );
     }
   }
@@ -554,27 +552,27 @@ public class IncrementalIndexTest
                     throw Throwables.propagate(e);
                   }
                   while (concurrentlyRan.get() == 0) {
-                    QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
+                    QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
                         factory.createRunner(incrementalIndexSegment, null),
                         factory.getToolchest()
                     );
                     Map<String, Object> context = new HashMap<String, Object>();
-                    Sequence<Result<TimeseriesResultValue>> sequence = runner.run(query, context);
+                    Sequence<Row> sequence = runner.run(query, context);
 
                     for (Double result :
                         sequence.accumulate(
-                            new Double[0], new Accumulator<Double[], Result<TimeseriesResultValue>>()
+                            new Double[0], new Accumulator<Double[], Row>()
                             {
                               @Override
                               public Double[] accumulate(
-                                  Double[] accumulated, Result<TimeseriesResultValue> in
+                                  Double[] accumulated, Row in
                               )
                               {
                                 if (currentlyRunning.get() > 0) {
                                   concurrentlyRan.incrementAndGet();
                                 }
                                 queriesAccumualted.incrementAndGet();
-                                return Lists.asList(in.getValue().getDoubleMetric("doubleSumResult0"), accumulated)
+                                return Lists.asList(in.getDoubleMetric("doubleSumResult0"), accumulated)
                                             .toArray(new Double[accumulated.length + 1]);
                               }
                             }
@@ -606,7 +604,7 @@ public class IncrementalIndexTest
     Assert.assertTrue("Did not hit concurrency, please try again", concurrentlyRan.get() > 0);
     queryExecutor.shutdown();
     indexExecutor.shutdown();
-    QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
+    QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
         factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
@@ -617,26 +615,26 @@ public class IncrementalIndexTest
                                   .aggregators(queryAggregatorFactories)
                                   .build();
     Map<String, Object> context = new HashMap<String, Object>();
-    List<Result<TimeseriesResultValue>> results = Sequences.toList(
+    List<Row> results = Sequences.toList(
         runner.run(query, context),
-        new LinkedList<Result<TimeseriesResultValue>>()
+        new LinkedList<Row>()
     );
     boolean isRollup = index.isRollup();
-    for (Result<TimeseriesResultValue> result : results) {
+    for (Row result : results) {
       Assert.assertEquals(
           elementsPerThread * (isRollup ? 1 : concurrentThreads),
-          result.getValue().getLongMetric("rows").intValue()
+          result.getLongMetric("rows")
       );
       for (int i = 0; i < dimensionCount; ++i) {
         Assert.assertEquals(
             String.format("Failed long sum on dimension %d", i),
             elementsPerThread * concurrentThreads,
-            result.getValue().getLongMetric(String.format("sumResult%s", i)).intValue()
+            result.getLongMetric(String.format("sumResult%s", i))
         );
         Assert.assertEquals(
             String.format("Failed double sum on dimension %d", i),
             elementsPerThread * concurrentThreads,
-            result.getValue().getDoubleMetric(String.format("doubleSumResult%s", i)).intValue()
+            result.getDoubleMetric(String.format("doubleSumResult%s", i))
         );
       }
     }

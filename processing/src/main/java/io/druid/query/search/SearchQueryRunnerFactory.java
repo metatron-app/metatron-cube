@@ -21,7 +21,6 @@ package io.druid.query.search;
 
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -29,7 +28,6 @@ import io.druid.query.Result;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.Segment;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -59,16 +57,5 @@ public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   public QueryRunner<Result<SearchResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SearchQueryRunner(segment, cache);
-  }
-
-  @Override
-  public QueryRunner<Result<SearchResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Result<SearchResultValue>>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 }

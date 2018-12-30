@@ -23,8 +23,10 @@ import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.query.QueryRunnerHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
@@ -39,14 +41,15 @@ import java.util.Map;
  */
 public class TimeseriesQueryEngine
 {
-  public Sequence<Result<TimeseriesResultValue>> process(final TimeseriesQuery query, final Segment segment)
+  public Sequence<Row> process(TimeseriesQuery query, Segment segment, boolean compact)
   {
-    return process(query, segment, null);
+    return process(query, segment, compact, null);
   }
 
-  public Sequence<Result<TimeseriesResultValue>> process(
+  public Sequence<Row> process(
       final TimeseriesQuery query,
       final Segment segment,
+      final boolean compact,
       final Cache cache
   )
   {
@@ -61,14 +64,14 @@ public class TimeseriesQueryEngine
         adapter,
         query,
         cache,
-        new Function<Cursor, Result<TimeseriesResultValue>>()
+        new Function<Cursor, Row>()
         {
           private final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
           private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
           private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
 
           @Override
-          public Result<TimeseriesResultValue> apply(Cursor cursor)
+          public Row apply(Cursor cursor)
           {
 
             if (skipEmptyBuckets && cursor.isDone()) {
@@ -84,12 +87,21 @@ public class TimeseriesQueryEngine
                 cursor.advance();
               }
 
-              final Map<String, Object> event = Maps.newLinkedHashMap();
-              for (int i = 0; i < aggregators.length; i++) {
-                event.put(aggregatorNames[i], aggregators[i].get());
-              }
+              if (compact) {
+                final Object[] array = new Object[aggregators.length + 1];
+                for (int i = 1; i < array.length; i++) {
+                  array[i] = aggregators[i - 1].get();
+                }
+                array[0] = cursor.getTime().getMillis();
+                return new CompactRow(array);
+              } else {
+                final Map<String, Object> event = Maps.newLinkedHashMap();
+                for (int i = 0; i < aggregators.length; i++) {
+                  event.put(aggregatorNames[i], aggregators[i].get());
+                }
 
-              return new Result<>(cursor.getTime(), new TimeseriesResultValue(event));
+                return new MapBasedRow(cursor.getTime(), event);
+              }
             }
             finally {
               // cleanup

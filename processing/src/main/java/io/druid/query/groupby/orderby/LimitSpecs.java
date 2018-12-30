@@ -73,7 +73,7 @@ public class LimitSpecs
     return getColumns(orderByColumnSpecs).toArray(new String[orderByColumnSpecs.size()]);
   }
 
-  public static boolean inGroupByOrdering(BaseAggregationQuery<?> query, OrderedLimitSpec ordering)
+  public static boolean inGroupByOrdering(BaseAggregationQuery query, OrderedLimitSpec ordering)
   {
     return inGroupByOrdering(query.getLimitOrdering(ordering), query.getDimensions());
   }

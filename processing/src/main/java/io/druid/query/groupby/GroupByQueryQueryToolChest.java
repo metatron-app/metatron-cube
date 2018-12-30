@@ -19,50 +19,35 @@
 
 package io.druid.query.groupby;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
-import io.druid.common.guava.CombiningSequence;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.CompactRow;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
-import io.druid.query.BaseQuery;
-import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.CacheStrategy;
+import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
-import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
-import io.druid.query.QueryToolChest;
 import io.druid.query.QueryUtils;
-import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
-import io.druid.query.aggregation.MetricManipulatorFns;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
@@ -71,13 +56,11 @@ import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -87,22 +70,12 @@ import java.util.Set;
 
 /**
  */
-public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery>
+public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<GroupByQuery>
 {
-  private static final TypeReference<Object[]> OBJECT_TYPE_REFERENCE =
-      new TypeReference<Object[]>()
-      {
-      };
-  private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
-  {
-  };
-
   private final QueryConfig config;
 
   private final StupidPool<ByteBuffer> bufferPool;
   private final GroupByQueryEngine engine; // For running the outer query around a subquery
-
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public GroupByQueryQueryToolChest(
@@ -112,61 +85,40 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
+    super(intervalChunkingQueryRunnerDecorator);
     this.config = config;
     this.engine = engine;
     this.bufferPool = bufferPool;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }
 
   @Override
-  public QueryRunner<Row> mergeResults(final QueryRunner<Row> runner)
+  protected byte queryCode()
   {
-    return new QueryRunner<Row>()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
-      {
-        GroupByQuery groupBy = (GroupByQuery) query;
-        if (groupBy.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          Sequence<Row> sequence = runner.run(groupBy.removePostActions(), responseContext);
-          if (BaseQuery.getContextBySegment(groupBy)) {
-            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(
-                Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy)))
-            );
-          }
-          sequence = CombiningSequence.create(sequence, groupBy.getRowOrdering(), new GroupByBinaryFnV2(groupBy));
-          sequence = Sequences.map(sequence, Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy)));
-          return sequence;
-        }
-        return runner.run(groupBy, responseContext);
-      }
-    };
+    return GROUPBY_QUERY;
   }
 
-  private Function<Row, Row> toMapBasedRow(final GroupByQuery query)
+  @Override
+  protected Ordering<Row> getMergeOrdering(final GroupByQuery groupBy)
   {
-    return new Function<Row, Row>()
-    {
-      private final Granularity granularity = query.getGranularity();
-      private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-      private final List<String> metrics = AggregatorFactory.toNames(query.getAggregatorSpecs());
+    return Ordering.from(
+        new Comparator<Row>()
+        {
+          private final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
 
-      @Override
-      public Row apply(Row input)
-      {
-        final Object[] values = ((CompactRow) input).getValues();
-        final Map<String, Object> event = Maps.newLinkedHashMap();
-        int x = 1;
-        for (String dimension : dimensions) {
-          event.put(dimension, values[x++]);
+          @Override
+          @SuppressWarnings("unchecked")
+          public int compare(Row lhs, Row rhs)
+          {
+            final Object[] values1 = ((CompactRow) lhs).getValues();
+            final Object[] values2 = ((CompactRow) rhs).getValues();
+            int compare = 0;
+            for (int i = 0; compare == 0 && i < comparators.length; i++) {
+              compare = comparators[i].compare(values1[i], values2[i]);
+            }
+            return compare;
+          }
         }
-        for (String metric : metrics) {
-          event.put(metric, values[x++]);
-        }
-        return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
-      }
-    };
+    );
   }
 
   @Override
@@ -261,31 +213,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     };
   }
 
-  private Function<Row, Row> toPostAggregator(GroupByQuery query)
-  {
-    final Granularity granularity = query.getGranularity();
-    final List<PostAggregator> postAggregators = PostAggregators.decorate(
-        query.getPostAggregatorSpecs(),
-        query.getAggregatorSpecs()
-    );
-    if (postAggregators.isEmpty() && granularity.isUTC()) {
-      return Functions.identity();
-    }
-    return new Function<Row, Row>()
-    {
-      @Override
-      public Row apply(final Row row)
-      {
-        final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
-
-        for (PostAggregator postAggregator : postAggregators) {
-          newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
-        }
-        return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
-      }
-    };
-  }
-
   @Override
   public Function<GroupByQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
   {
@@ -306,66 +233,17 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public Function<Row, Row> makePreComputeManipulatorFn(
-      final GroupByQuery query,
-      final MetricManipulationFn fn
-  )
+  public Function<Row, Row> makePostComputeManipulatorFn(final GroupByQuery query, final MetricManipulationFn fn)
   {
-    if (fn == MetricManipulatorFns.identity()) {
-      return Functions.identity();
-    }
-    return new Function<Row, Row>()
-    {
-      private final int start = query.getDimensions().size() + 1;
-      private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
-
-      @Override
-      public Row apply(Row input)
-      {
-        if (input instanceof CompactRow) {
-          final Object[] values = ((CompactRow) input).getValues();
-          int x = start;
-          for (AggregatorFactory metric : metrics) {
-            values[x] = fn.manipulate(metric, values[x++]);
-          }
-          return input;
-        }
-        final Row.Updatable updatable = Rows.toUpdatable(input);
-        for (AggregatorFactory agg : metrics) {
-          final String name = agg.getName();
-          updatable.set(name, fn.manipulate(agg, input.getRaw(name)));
-        }
-        return updatable;
-      }
-    };
-  }
-
-  @Override
-  public Function<Row, Row> makePostComputeManipulatorFn(
-      final GroupByQuery query,
-      final MetricManipulationFn fn
-  )
-  {
+    final Function<Row, Row> preCompute = super.makePostComputeManipulatorFn(query, fn);
     final Set<String> optimizedDims = ImmutableSet.copyOf(
-        Iterables.transform(
-            extractionsToRewrite(query),
-            new Function<DimensionSpec, String>()
-            {
-              @Override
-              public String apply(DimensionSpec input)
-              {
-                return input.getOutputName();
-              }
-            }
-        )
+        DimensionSpecs.toOutputNames(extractionsToRewrite(query))
     );
-    final Function<Row, Row> preCompute = makePreComputeManipulatorFn(query, fn);
     if (optimizedDims.isEmpty()) {
       return preCompute;
     }
 
     // If we have optimizations that can be done at this level, we apply them here
-
     final Map<String, ExtractionFn> extractionFnMap = new HashMap<>();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       final String dimension = dimensionSpec.getOutputName();
@@ -374,188 +252,49 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
     }
 
-    // cannot inplace update (see GroupByQueryRunnerTest#testBySegmentResultsWithAllFiltersWithExtractionFns)
     return new Function<Row, Row>()
     {
-      @Nullable
       @Override
       public Row apply(Row input)
       {
-        Row preRow = preCompute.apply(input);
-        if (preRow instanceof MapBasedRow) {
-          MapBasedRow preMapRow = (MapBasedRow) preRow;
-          Map<String, Object> event = Maps.newHashMap(preMapRow.getEvent());
-          for (String dim : optimizedDims) {
-            final Object eventVal = event.get(dim);
-            event.put(dim, extractionFnMap.get(dim).apply(eventVal));
-          }
-          return new MapBasedRow(preMapRow.getTimestamp(), event);
-        } else {
-          return preRow;
+        final Row.Updatable updatable = Rows.toUpdatable(preCompute.apply(input));
+        for (String dim : optimizedDims) {
+          final Object eventVal = updatable.getRaw(dim);
+          updatable.set(dim, extractionFnMap.get(dim).apply(eventVal));
         }
+        return updatable;
       }
     };
-  }
-
-  @Override
-  public TypeReference<Row> getResultTypeReference()
-  {
-    return TYPE_REFERENCE;
   }
 
   @Override
   public QueryRunner<Row> preMergeQueryDecoration(final QueryRunner<Row> runner)
   {
-    return
-        intervalChunkingQueryRunnerDecorator.decorate(
-            new QueryRunner<Row>()
-            {
-              @Override
-              public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
-              {
-                GroupByQuery groupByQuery = (GroupByQuery) query;
-                ArrayList<DimensionSpec> dimensionSpecs = new ArrayList<>();
-                Set<String> optimizedDimensions = ImmutableSet.copyOf(
-                    Iterables.transform(
-                        extractionsToRewrite(groupByQuery),
-                        new Function<DimensionSpec, String>()
-                        {
-                          @Override
-                          public String apply(DimensionSpec input)
-                          {
-                            return input.getDimension();
-                          }
-                        }
-                    )
-                );
-                for (DimensionSpec dimensionSpec : groupByQuery.getDimensions()) {
-                  if (optimizedDimensions.contains(dimensionSpec.getDimension())) {
-                    dimensionSpecs.add(
-                        new DefaultDimensionSpec(dimensionSpec.getDimension(), dimensionSpec.getOutputName())
-                    );
-                  } else {
-                    dimensionSpecs.add(dimensionSpec);
-                  }
+    return super.preMergeQueryDecoration(
+        new QueryRunner<Row>()
+        {
+          @Override
+          public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+          {
+            GroupByQuery groupBy = (GroupByQuery) query;
+            List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
+            Set<String> optimizedDimensions = ImmutableSet.copyOf(
+                DimensionSpecs.toInputNames(extractionsToRewrite(groupBy))
+            );
+            if (!optimizedDimensions.isEmpty()) {
+              for (DimensionSpec dimensionSpec : groupBy.getDimensions()) {
+                if (optimizedDimensions.contains(dimensionSpec.getDimension())) {
+                  dimensionSpec = DefaultDimensionSpec.of(dimensionSpec.getDimension(), dimensionSpec.getOutputName());
                 }
-                return runner.run(
-                    groupByQuery.withDimensionSpecs(dimensionSpecs),
-                    responseContext
-                );
+                dimensionSpecs.add(dimensionSpec);
               }
-            }, this
+              groupBy = groupBy.withDimensionSpecs(dimensionSpecs);
+            }
+            return runner.run(groupBy, responseContext);
+          }
+        }
     );
   }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public CacheStrategy<Row, Object[], GroupByQuery> getCacheStrategy(final GroupByQuery query)
-  {
-    return new CacheStrategy<Row, Object[], GroupByQuery>()
-    {
-      private static final byte CACHE_STRATEGY_VERSION = 0x1;
-      private final List<AggregatorFactory> aggs = query.getAggregatorSpecs();
-      private final List<DimensionSpec> dims = query.getDimensions();
-
-
-      @Override
-      public byte[] computeCacheKey(GroupByQuery query)
-      {
-        final byte[] granularityBytes = QueryCacheHelper.computeCacheBytes(query.getGranularity());
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
-        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        final byte[] dimensionsBytes = QueryCacheHelper.computeCacheKey(query.getDimensions());
-        final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
-
-        return ByteBuffer
-            .allocate(
-                2
-                + granularityBytes.length
-                + filterBytes.length
-                + vcBytes.length
-                + dimensionsBytes.length
-                + aggregatorBytes.length
-            )
-            .put(GROUPBY_QUERY)
-            .put(CACHE_STRATEGY_VERSION)
-            .put(granularityBytes)
-            .put(filterBytes)
-            .put(vcBytes)
-            .put(dimensionsBytes)
-            .put(aggregatorBytes)
-            .array();
-      }
-
-      @Override
-      public TypeReference<Object[]> getCacheObjectClazz()
-      {
-        return OBJECT_TYPE_REFERENCE;
-      }
-
-      @Override
-      public Function<Row, Object[]> prepareForCache()
-      {
-        return new Function<Row, Object[]>()
-        {
-          private final List<String> dimensions = DimensionSpecs.toOutputNames(dims);
-
-          @Override
-          public Object[] apply(Row input)
-          {
-            if (input instanceof CompactRow) {
-              return ((CompactRow) input).getValues();
-            }
-            if (input instanceof MapBasedRow) {
-              final MapBasedRow row = (MapBasedRow) input;
-              final Map<String, Object> event = row.getEvent();
-
-              Object[] values = new Object[1 + dims.size() + aggs.size()];
-              int x = 0;
-              values[x++] = row.getTimestampFromEpoch();
-              for (String dimension : dimensions) {
-                values[x++] = event.get(dimension);
-              }
-              for (AggregatorFactory agg : aggs) {
-                values[x++] = event.get(agg.getName());
-              }
-              return values;
-            }
-
-            throw new ISE("Don't know how to cache input rows of type[%s]", input.getClass());
-          }
-        };
-      }
-
-      @Override
-      public Function<Object[], Row> pullFromCache()
-      {
-        return new Function<Object[], Row>()
-        {
-          private final List<String> dimensions = DimensionSpecs.toOutputNames(dims);
-          private final Granularity granularity = query.getGranularity();
-
-          @Override
-          public Row apply(final Object[] input)
-          {
-            if (input.length != 1 + dimensions.size() + aggs.size()) {
-              throw new ISE("invalid cached object (length mismatch)");
-            }
-            int x = 0;
-            DateTime timestamp = granularity.toDateTime(((Number) input[x++]).longValue());
-
-            Map<String, Object> event = Maps.newLinkedHashMap();
-            for (String dimension : dimensions) {
-              event.put(dimension, input[x++]);
-            }
-            for (final AggregatorFactory metric : aggs) {
-              event.put(metric.getName(), metric.deserialize(input[x++]));
-            }
-            return new MapBasedRow(timestamp, event);
-          }
-        };
-      }
-    };
-  }
-
 
   /**
    * This function checks the query for dimensions which can be optimized by applying the dimension extraction
@@ -565,7 +304,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
    *
    * @return A collection of DimensionsSpec which can be extracted at the last second upon query completion.
    */
-  public static Collection<DimensionSpec> extractionsToRewrite(GroupByQuery query)
+  private Collection<DimensionSpec> extractionsToRewrite(GroupByQuery query)
   {
     return Collections2.filter(
         query.getDimensions(), new Predicate<DimensionSpec>()
@@ -573,122 +312,15 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           @Override
           public boolean apply(DimensionSpec input)
           {
-            return input.getExtractionFn() != null
-                   && ExtractionFn.ExtractionType.ONE_TO_ONE.equals(
-                input.getExtractionFn().getExtractionType()
-            );
+            return DimensionSpecs.isOneToOneExtraction(input);
           }
         }
     );
   }
 
   @Override
-  public TabularFormat toTabularFormat(
-      final GroupByQuery query,
-      final Sequence<Row> sequence,
-      final String timestampColumn
-  )
+  protected boolean isSortOnTime()
   {
-    return new TabularFormat()
-    {
-      @Override
-      public Sequence<Map<String, Object>> getSequence()
-      {
-        return Sequences.map(
-            sequence, new Function<Row, Map<String, Object>>()
-            {
-              @Override
-              public Map<String, Object> apply(Row input)
-              {
-                Map<String, Object> event = ((MapBasedRow) input).getEvent();
-                if (timestampColumn != null) {
-                  if (!MapBasedRow.supportInplaceUpdate(event)) {
-                    event = Maps.newLinkedHashMap(event);
-                  }
-                  event.put(timestampColumn, input.getTimestamp());
-                }
-                return event;
-              }
-            }
-        );
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return null;
-      }
-    };
-  }
-
-  @Override
-  public QueryRunner<Row> finalQueryDecoration(final QueryRunner<Row> runner)
-  {
-    return new QueryRunner<Row>()
-    {
-      @Override
-      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
-      {
-        return finalDecoration(query, runner.run(query, responseContext));
-      }
-    };
-  }
-
-  private Sequence<Row> finalDecoration(Query<Row> query, Sequence<Row> sequence)
-  {
-    GroupByQuery groupBy = (GroupByQuery) query;
-    sequence = groupBy.applyLimit(sequence, groupBy.isSortOnTimeForLimit(config.getGroupBy().isSortOnTime()));
-
-    final List<String> outputColumns = groupBy.getOutputColumns();
-    final LateralViewSpec lateralViewSpec = groupBy.getLateralView();
-    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-      sequence = Sequences.map(
-          sequence, new Function<Row, Row>()
-          {
-            @Override
-            public Row apply(Row input)
-            {
-              DateTime timestamp = input.getTimestamp();
-              Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
-              for (String retain : outputColumns) {
-                retained.put(retain, input.getRaw(retain));
-              }
-              return new MapBasedRow(timestamp, retained);
-            }
-          }
-      );
-    }
-    return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
-  }
-
-  Sequence<Row> toLateralView(Sequence<Row> result, final LateralViewSpec lateralViewSpec)
-  {
-    return Sequences.concat(
-        Sequences.map(
-            result, new Function<Row, Sequence<Row>>()
-            {
-              @Override
-              @SuppressWarnings("unchecked")
-              public Sequence<Row> apply(Row input)
-              {
-                final DateTime timestamp = input.getTimestamp();
-                final Map<String, Object> event = ((MapBasedRow) input).getEvent();
-                return Sequences.simple(
-                    Iterables.transform(
-                        lateralViewSpec.apply(event),
-                        new Function<Map<String, Object>, Row>()
-                        {
-                          @Override
-                          public Row apply(Map<String, Object> input)
-                          {
-                            return new MapBasedRow(timestamp, input);
-                          }
-                        }
-                    )
-                );
-              }
-            }
-        )
-    );
+    return config.getGroupBy().isSortOnTime();
   }
 }

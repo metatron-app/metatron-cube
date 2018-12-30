@@ -35,14 +35,13 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -52,7 +51,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
@@ -335,7 +333,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
                 @Override
                 public void run()
                 {
-                  QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
+                  QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
                       factory.createRunner(incrementalIndexSegment, null),
                       factory.getToolchest()
                   );
@@ -346,14 +344,14 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
                                                 .aggregators(queryAggregatorFactories)
                                                 .build();
                   Map<String, Object> context = new HashMap<String, Object>();
-                  for (Result<TimeseriesResultValue> result :
+                  for (Row row :
                       Sequences.toList(
                           runner.run(query, context),
-                          new LinkedList<Result<TimeseriesResultValue>>()
+                          new LinkedList<Row>()
                       )
                       ) {
                     if (someoneRan.get()) {
-                      Assert.assertTrue(result.getValue().getDoubleMetric("doubleSumResult0") > 0);
+                      Assert.assertTrue(row.getDoubleMetric("doubleSumResult0") > 0);
                     }
                   }
                   if (currentlyRunning.get() > 0) {
@@ -372,7 +370,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
     //Assert.assertTrue("Did not hit concurrency, please try again", concurrentlyRan.get());
     queryExecutor.shutdown();
     indexExecutor.shutdown();
-    QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
+    QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
         factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
@@ -383,23 +381,23 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
                                   .aggregators(queryAggregatorFactories)
                                   .build();
     Map<String, Object> context = new HashMap<String, Object>();
-    List<Result<TimeseriesResultValue>> results = Sequences.toList(
+    List<Row> results = Sequences.toList(
         runner.run(query, context),
-        new LinkedList<Result<TimeseriesResultValue>>()
+        new LinkedList<Row>()
     );
     final int expectedVal = elementsPerThread * taskCount;
-    for (Result<TimeseriesResultValue> result : results) {
-      Assert.assertEquals(elementsPerThread, result.getValue().getLongMetric("rows").intValue());
+    for (Row row : results) {
+      Assert.assertEquals(elementsPerThread, row.getLongMetric("rows"));
       for (int i = 0; i < dimensionCount; ++i) {
         Assert.assertEquals(
             String.format("Failed long sum on dimension %d", i),
             expectedVal,
-            result.getValue().getLongMetric(String.format("sumResult%s", i)).intValue()
+            row.getLongMetric(String.format("sumResult%s", i))
         );
         Assert.assertEquals(
             String.format("Failed double sum on dimension %d", i),
             expectedVal,
-            result.getValue().getDoubleMetric(String.format("doubleSumResult%s", i)).intValue()
+            row.getDoubleMetric(String.format("doubleSumResult%s", i))
         );
       }
     }

@@ -1112,10 +1112,10 @@ public class SegmentMetadataQueryTest
                                                 .toInclude(new ListColumnIncluderator(Arrays.asList("fo", "o")))
                                                 .build();
 
-    final byte[] oneColumnQueryCacheKey = new SegmentMetadataQueryQueryToolChest(null).getCacheStrategy(oneColumnQuery)
+    final byte[] oneColumnQueryCacheKey = new SegmentMetadataQueryQueryToolChest(null).getCacheStrategyIfExists(oneColumnQuery)
                                                                                       .computeCacheKey(oneColumnQuery);
 
-    final byte[] twoColumnQueryCacheKey = new SegmentMetadataQueryQueryToolChest(null).getCacheStrategy(twoColumnQuery)
+    final byte[] twoColumnQueryCacheKey = new SegmentMetadataQueryQueryToolChest(null).getCacheStrategyIfExists(twoColumnQuery)
                                                                                       .computeCacheKey(twoColumnQuery);
 
     Assert.assertFalse(Arrays.equals(oneColumnQueryCacheKey, twoColumnQueryCacheKey));

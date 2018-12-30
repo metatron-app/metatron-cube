@@ -63,7 +63,8 @@ import java.util.Map;
 
 /**
  */
-public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResultValue>, SearchQuery>
+public class SearchQueryQueryToolChest
+    extends QueryToolChest.CacheSupport<Result<SearchResultValue>, Object, SearchQuery>
 {
   private static final TypeReference<Result<SearchResultValue>> TYPE_REFERENCE = new TypeReference<Result<SearchResultValue>>()
   {

@@ -45,7 +45,6 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamRawQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.column.Column;
@@ -303,17 +302,16 @@ public class QueryMaker
 
     return Sequences.map(
         runQuery(query),
-        new Function<Result<TimeseriesResultValue>, Object[]>()
+        new Function<Row, Object[]>()
         {
           @Override
-          public Object[] apply(final Result<TimeseriesResultValue> result)
+          public Object[] apply(final Row row)
           {
-            final Map<String, Object> row = result.getValue().getBaseObject();
             final Object[] retVal = new Object[fieldList.size()];
 
             for (final RelDataTypeField field : fieldList) {
               final String outputName = rowOrder.get(field.getIndex());
-              retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
+              retVal[field.getIndex()] = coerce(row.getRaw(outputName), field.getType().getSqlTypeName());
             }
 
             return retVal;

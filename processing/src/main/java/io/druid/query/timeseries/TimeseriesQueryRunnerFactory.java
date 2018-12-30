@@ -19,29 +19,23 @@
 
 package io.druid.query.timeseries;
 
-import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
-import io.druid.granularity.QueryGranularities;
-import io.druid.query.ChainedExecutionQueryRunner;
+import io.druid.data.input.Row;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
-import io.druid.query.Result;
 import io.druid.segment.Segment;
 
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class TimeseriesQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Result<TimeseriesResultValue>, TimeseriesQuery>
+public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row, TimeseriesQuery>
 {
   private final TimeseriesQueryEngine engine;
 
@@ -49,41 +43,20 @@ public class TimeseriesQueryRunnerFactory
   public TimeseriesQueryRunnerFactory(
       TimeseriesQueryQueryToolChest toolChest,
       TimeseriesQueryEngine engine,
-      QueryWatcher queryWatcher) {
+      QueryWatcher queryWatcher
+  )
+  {
     super(toolChest, queryWatcher);
     this.engine = engine;
   }
 
   @Override
-  public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Row> createRunner(Segment segment, Future<Object> optimizer)
   {
     return new TimeseriesQueryRunner(engine, segment, cache);
   }
 
-  @Override
-  public QueryRunner<Result<TimeseriesResultValue>> mergeRunners(
-      ExecutorService queryExecutor,
-      Iterable<QueryRunner<Result<TimeseriesResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(queryExecutor, queryWatcher, queryRunners)
-    {
-      @Override
-      protected Iterable<Result<TimeseriesResultValue>> mergeResults(
-          Query<Result<TimeseriesResultValue>> query,
-          List<Iterable<Result<TimeseriesResultValue>>> results
-      )
-      {
-        if (QueryGranularities.ALL.equals(query.getGranularity())) {
-          return Iterables.concat(results);
-        }
-        return super.mergeResults(query, results);
-      }
-    };
-  }
-
-  private static class TimeseriesQueryRunner implements QueryRunner<Result<TimeseriesResultValue>>
+  private static class TimeseriesQueryRunner implements QueryRunner<Row>
   {
     private final TimeseriesQueryEngine engine;
     private final Segment segment;
@@ -97,16 +70,12 @@ public class TimeseriesQueryRunnerFactory
     }
 
     @Override
-    public Sequence<Result<TimeseriesResultValue>> run(
-        Query<Result<TimeseriesResultValue>> input,
-        Map<String, Object> responseContext
-    )
+    public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
     {
       if (!(input instanceof TimeseriesQuery)) {
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TimeseriesQuery.class);
       }
-
-      return engine.process((TimeseriesQuery) input, segment, cache);
+      return engine.process((TimeseriesQuery) input, segment, true, cache);
     }
   }
 }

@@ -22,6 +22,7 @@ package io.druid.query.timeseries;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -32,10 +33,10 @@ import io.druid.query.Druids;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -121,9 +122,9 @@ public class TimeseriesQueryExplodeTest
     );
   }
 
-  private final QueryRunner<Result<TimeseriesResultValue>> runner;
+  private final QueryRunner<Row> runner;
 
-  public TimeseriesQueryExplodeTest(QueryRunner<Result<TimeseriesResultValue>> runner)
+  public TimeseriesQueryExplodeTest(QueryRunner<Row> runner)
   {
     this.runner = runner;
   }
@@ -160,13 +161,13 @@ public class TimeseriesQueryExplodeTest
                   )
               );
 
-    List<Result<TimeseriesResultValue>> expectedResults;
-    List<Result<TimeseriesResultValue>> results;
+    List<Row> expectedResults;
+    List<Row> results;
     String[] columnNames;
 
     // retain timestamp
-    columnNames = new String[]{"market", "quality", "count"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "quality", "count"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", "automotive", 10L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", "mezzanine", 50L),
@@ -197,8 +198,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T03:00:00.000Z"), "upfront", "mezzanine", 240L),
         array(new DateTime("2011-04-01T03:00:00.000Z"), "upfront", "premium", 280L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element
     builder.lateralViewSpec(
@@ -213,8 +214,8 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"market", "mezzanine", "premium", "automotive"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "mezzanine", "premium", "automotive"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", 50L, 90L, 10L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "total_market", 130L, 170L, null),
@@ -229,8 +230,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T03:00:00.000Z"), "total_market", 160L, 200L, null),
         array(new DateTime("2011-04-01T03:00:00.000Z"), "upfront", 240L, 280L, null)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, selective
     builder.lateralViewSpec(
@@ -245,8 +246,8 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"market", "mezzanine", "premium", "automotive"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "mezzanine", "premium", "automotive"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "total_market", 130L, 170L, null),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "upfront", 210L, 250L, null),
@@ -257,8 +258,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T03:00:00.000Z"), "total_market", 160L, 200L, null),
         array(new DateTime("2011-04-01T03:00:00.000Z"), "upfront", 240L, 280L, null)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd
     builder.lateralViewSpec(
@@ -274,8 +275,8 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"quality", "spot", "total_market", "upfront"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "quality", "spot", "total_market", "upfront"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "automotive", 10L, null, null),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "mezzanine", 50L, 130L, 210L),
@@ -290,8 +291,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T03:00:00.000Z"), "mezzanine", 80L, 160L, 240L),
         array(new DateTime("2011-04-01T03:00:00.000Z"), "premium", 120L, 200L, 280L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd, selective
     builder.lateralViewSpec(
@@ -307,8 +308,8 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"quality", "spot", "total_market"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "quality", "spot", "total_market"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "mezzanine", 50L, 130L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "premium", 90L, 170L),
@@ -319,8 +320,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T03:00:00.000Z"), "mezzanine", 80L, 160L),
         array(new DateTime("2011-04-01T03:00:00.000Z"), "premium", 120L, 200L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -355,13 +356,13 @@ public class TimeseriesQueryExplodeTest
                   )
               );
 
-    List<Result<TimeseriesResultValue>> expectedResults;
-    List<Result<TimeseriesResultValue>> results;
+    List<Row> expectedResults;
+    List<Row> results;
     String[] columnNames;
 
     // retain timestamp
-    columnNames = new String[]{"market", "quality", "count"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "quality", "count"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", "automotive", 100L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", "mezzanine", 260L),
@@ -371,8 +372,8 @@ public class TimeseriesQueryExplodeTest
         array(new DateTime("2011-04-01T00:00:00.000Z"), "upfront", "mezzanine", 900L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "upfront", "premium", 1060L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element
     builder.lateralViewSpec(
@@ -387,15 +388,15 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"market", "mezzanine", "premium", "automotive"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "mezzanine", "premium", "automotive"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "spot", 260L, 420L, 100L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "total_market", 580L, 740L, null),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "upfront", 900L, 1060L, null)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, selective
     builder.lateralViewSpec(
@@ -410,14 +411,14 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"market", "mezzanine", "premium", "automotive"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "market", "mezzanine", "premium", "automotive"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "total_market", 580L, 740L, null),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "upfront", 900L, 1060L, null)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd
     builder.lateralViewSpec(
@@ -433,15 +434,15 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"quality", "spot", "total_market", "upfront"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "quality", "spot", "total_market", "upfront"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "automotive", 100L, null, null),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "mezzanine", 260L, 580L, 900L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "premium", 420L, 740L, 1060L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd, selective
     builder.lateralViewSpec(
@@ -457,14 +458,14 @@ public class TimeseriesQueryExplodeTest
         )
     );
 
-    columnNames = new String[]{"quality", "spot", "total_market"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "quality", "spot", "total_market"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(new DateTime("2011-04-01T00:00:00.000Z"), "mezzanine", 260L, 580L),
         array(new DateTime("2011-04-01T00:00:00.000Z"), "premium", 420L, 740L)
     );
-    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<TimeseriesResultValue>>newArrayList());
-    TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = Sequences.toList(runner.run(builder.build(), null), Lists.<Row>newArrayList());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
   private Object[] array(Object... objects)

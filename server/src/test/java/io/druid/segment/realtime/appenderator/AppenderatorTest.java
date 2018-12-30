@@ -29,6 +29,8 @@ import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.Result;
@@ -37,7 +39,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.plumber.Committers;
 import io.druid.timeline.DataSegment;
@@ -217,14 +218,14 @@ public class AppenderatorTest
                                            .granularity(QueryGranularities.DAY)
                                            .build();
 
-      final List<Result<TimeseriesResultValue>> results1 = Lists.newArrayList();
+      final List<Row> results1 = Lists.newArrayList();
       Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
       Assert.assertEquals(
           "query1",
           ImmutableList.of(
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2000"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 3L, "met", 7L))
+                  ImmutableMap.<String, Object>of("count", 3L, "met", 7L)
               )
           ),
           results1
@@ -243,18 +244,18 @@ public class AppenderatorTest
                                            .granularity(QueryGranularities.DAY)
                                            .build();
 
-      final List<Result<TimeseriesResultValue>> results2 = Lists.newArrayList();
+      final List<Row> results2 = Lists.newArrayList();
       Sequences.toList(query2.run(appenderator, ImmutableMap.<String, Object>of()), results2);
       Assert.assertEquals(
           "query2",
           ImmutableList.of(
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2000"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 3L, "met", 7L))
+                  ImmutableMap.<String, Object>of("count", 3L, "met", 7L)
               ),
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2001"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 3L, "met", 56L))
+                  ImmutableMap.<String, Object>of("count", 3L, "met", 56L)
               )
           ),
           results2
@@ -273,17 +274,17 @@ public class AppenderatorTest
                                            .granularity(QueryGranularities.DAY)
                                            .build();
 
-      final List<Result<TimeseriesResultValue>> results3 = Lists.newArrayList();
+      final List<Row> results3 = Lists.newArrayList();
       Sequences.toList(query3.run(appenderator, ImmutableMap.<String, Object>of()), results3);
       Assert.assertEquals(
           ImmutableList.of(
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2000"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 3L, "met", 7L))
+                  ImmutableMap.<String, Object>of("count", 3L, "met", 7L)
               ),
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2001"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 1L, "met", 8L))
+                  ImmutableMap.<String, Object>of("count", 1L, "met", 8L)
               )
           ),
           results3
@@ -327,14 +328,14 @@ public class AppenderatorTest
                                            )
                                            .build();
 
-      final List<Result<TimeseriesResultValue>> results1 = Lists.newArrayList();
+      final List<Row> results1 = Lists.newArrayList();
       Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
       Assert.assertEquals(
           "query1",
           ImmutableList.of(
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2001"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 2L, "met", 24L))
+                  ImmutableMap.<String, Object>of("count", 2L, "met", 24L)
               )
           ),
           results1
@@ -363,14 +364,14 @@ public class AppenderatorTest
                                            )
                                            .build();
 
-      final List<Result<TimeseriesResultValue>> results2 = Lists.newArrayList();
+      final List<Row> results2 = Lists.newArrayList();
       Sequences.toList(query2.run(appenderator, ImmutableMap.<String, Object>of()), results2);
       Assert.assertEquals(
           "query2",
           ImmutableList.of(
-              new Result<>(
+              new MapBasedRow(
                   new DateTime("2001"),
-                  new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 1L, "met", 8L))
+                  ImmutableMap.<String, Object>of("count", 1L, "met", 8L)
               )
           ),
           results2

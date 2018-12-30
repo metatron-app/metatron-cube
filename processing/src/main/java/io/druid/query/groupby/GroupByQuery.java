@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -58,7 +57,6 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SequenceCountingProcessor;
-import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.PostAggregator;
@@ -96,14 +94,14 @@ import static io.druid.query.groupby.GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP;
 
 /**
  */
-public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.RewritingQuery<Row>
+public class GroupByQuery extends BaseAggregationQuery implements Query.RewritingQuery<Row>
 {
   public static Builder builder()
   {
     return new Builder();
   }
 
-  public static Builder builder(BaseAggregationQuery<?> aggregationQuery)
+  public static Builder builder(BaseAggregationQuery aggregationQuery)
   {
     return new Builder(aggregationQuery);
   }
@@ -603,8 +601,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (!dimensions.isEmpty()) {
       return null;
     }
-    TimeseriesQuery timeseries = Druids.newTimeseriesQueryBuilder().copy(this).build();
-    return PostProcessingOperators.prepend(timeseries, jsonMapper, new TimeseriesToRow());
+    return Druids.newTimeseriesQueryBuilder().copy(this).build();
   }
 
   private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper, int estimationFactor)
@@ -686,7 +683,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
 
     public Builder() { }
 
-    public Builder(BaseAggregationQuery<?> aggregationQuery)
+    public Builder(BaseAggregationQuery aggregationQuery)
     {
       super(aggregationQuery);
     }
@@ -761,36 +758,18 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Ordering getResultOrdering()
+  public Ordering<Row> getResultOrdering()
   {
-    final Comparator naturalNullsFirst = Ordering.natural().nullsFirst();
-    final Ordering<Row> rowOrdering = getRowOrdering();
-
-    return Ordering.from(
-        new Comparator<Object>()
-        {
-          @Override
-          public int compare(Object lhs, Object rhs)
-          {
-            if (lhs instanceof Row) {
-              return rowOrdering.compare((Row) lhs, (Row) rhs);
-            } else {
-              // Probably bySegment queries
-              return naturalNullsFirst.compare(lhs, rhs);
-            }
-          }
-        }
-    );
+    return getContextBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
   }
 
   @SuppressWarnings("unchecked")
-  Ordering<Row> getRowOrdering()
+  private Ordering<Row> getRowOrdering()
   {
     return Ordering.from(
         new Comparator<Row>()
         {
-          private final Comparator[] comparators = DimensionSpecs.toComparator(dimensions, true);
+          private final Comparator[] comparators = DimensionSpecs.toComparator(getDimensions(), true);
 
           @Override
           public int compare(Row lhs, Row rhs)
@@ -975,28 +954,6 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   {
     return PostProcessingOperators.append(
         query.withLimitSpec(query.getLimitSpec().withNoLimiting()), jsonMapper, SequenceCountingProcessor.INSTANCE
-    );
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Row> sequence)
-  {
-    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
-    return Sequences.map(
-        sequence,
-        new Function<Row, Object[]>()
-        {
-          @Override
-          public Object[] apply(Row input)
-          {
-            final Object[] array = new Object[columns.length];
-            for (int i = 0; i < columns.length; i++) {
-              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
-                         input.getTimestampFromEpoch() : input.getRaw(columns[i]);
-            }
-            return array;
-          }
-        }
     );
   }
 }

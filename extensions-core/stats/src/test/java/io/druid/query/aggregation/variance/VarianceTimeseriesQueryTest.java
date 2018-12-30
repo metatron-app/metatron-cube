@@ -21,12 +21,12 @@ package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.query.Druids;
-import io.druid.query.Result;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryRunnerTest;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
@@ -75,47 +75,43 @@ public class VarianceTimeseriesQueryTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                VarianceTestHelper.of(
-                    "rows", 13L,
-                    "index", 6626.151596069336,
-                    "addRowsIndexConstant", 6640.151596069336,
-                    "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 368885.6915300076 : 368885.6915300076,
-                    "index_stddev", descending ? 607.3596064359298 : 607.3596064359298
-                )
+            VarianceTestHelper.of(
+                "rows", 13L,
+                "index", 6626.151596069336,
+                "addRowsIndexConstant", 6640.151596069336,
+                "uniques", VarianceTestHelper.UNIQUES_9,
+                "index_var", descending ? 368885.6915300076 : 368885.6915300076,
+                "index_stddev", descending ? 607.3596064359298 : 607.3596064359298
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                VarianceTestHelper.of(
-                    "rows", 13L,
-                    "index", 5833.2095947265625,
-                    "addRowsIndexConstant", 5847.2095947265625,
-                    "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 259061.6030548405 : 259061.60305484047,
-                    "index_stddev", descending ? 508.9809456697181 : 508.98094566971804
-                )
+            VarianceTestHelper.of(
+                "rows", 13L,
+                "index", 5833.2095947265625,
+                "addRowsIndexConstant", 5847.2095947265625,
+                "uniques", VarianceTestHelper.UNIQUES_9,
+                "index_var", descending ? 259061.6030548405 : 259061.60305484047,
+                "index_stddev", descending ? 508.9809456697181 : 508.98094566971804
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
 
-  private <T> void assertExpectedResults(Iterable<Result<T>> expectedResults, Iterable<Result<T>> results)
+  private <T> void assertExpectedResults(Iterable<Row> expectedResults, Iterable<Row> results)
   {
     if (descending) {
       expectedResults = TestHelper.revert(expectedResults);
     }
-    TestHelper.assertExpectedResults(expectedResults, results);
+    TestHelper.assertExpectedObjects(expectedResults, results);
   }
 }

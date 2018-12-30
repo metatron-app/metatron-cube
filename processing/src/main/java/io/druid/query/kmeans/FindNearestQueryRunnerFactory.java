@@ -26,7 +26,6 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -114,15 +113,5 @@ public class FindNearestQueryRunnerFactory
         return Sequences.simple(Arrays.asList(descs));
       }
     };
-  }
-
-  @Override
-  public QueryRunner<CentroidDesc> mergeRunners(
-      final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<CentroidDesc>> queryRunners,
-      final Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
   }
 }

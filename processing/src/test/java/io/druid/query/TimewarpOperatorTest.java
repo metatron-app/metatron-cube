@@ -24,11 +24,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
@@ -43,7 +44,7 @@ public class TimewarpOperatorTest
 {
   public static final ImmutableMap<String, Object> CONTEXT = ImmutableMap.of();
 
-  TimewarpOperator<Result<TimeseriesResultValue>> testOperator = new TimewarpOperator<>(
+  TimewarpOperator<Row> testOperator = new TimewarpOperator<>(
       new Interval(new DateTime("2014-01-01"), new DateTime("2014-01-15")),
       new Period("P1W"),
       new DateTime("2014-01-06") // align on Monday
@@ -76,29 +77,27 @@ public class TimewarpOperatorTest
   @Test
   public void testPostProcess() throws Exception
   {
-    QueryRunner<Result<TimeseriesResultValue>> queryRunner = testOperator.postProcess(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    QueryRunner<Row> queryRunner = testOperator.postProcess(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query,
+          public Sequence<Row> run(
+              Query<Row> query,
               Map<String, Object> responseContext
           )
           {
-            return Sequences.simple(
-                ImmutableList.of(
-                    new Result<>(
-                        new DateTime(new DateTime("2014-01-09")),
-                        new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 2))
-                    ),
-                    new Result<>(
-                        new DateTime(new DateTime("2014-01-11")),
-                        new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 3))
-                    ),
-                    new Result<>(
-                        query.getIntervals().get(0).getEnd(),
-                        new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 5))
-                    )
+            return Sequences.<Row>of(
+                new MapBasedRow(
+                    new DateTime("2014-01-09"),
+                    ImmutableMap.<String, Object>of("metric", 2)
+                ),
+                new MapBasedRow(
+                    new DateTime("2014-01-11"),
+                    ImmutableMap.<String, Object>of("metric", 3)
+                ),
+                new MapBasedRow(
+                    query.getIntervals().get(0).getEnd(),
+                    ImmutableMap.<String, Object>of("metric", 5)
                 )
             );
           }
@@ -106,7 +105,7 @@ public class TimewarpOperatorTest
         new DateTime("2014-08-02").getMillis()
     );
 
-    final Query<Result<TimeseriesResultValue>> query =
+    final Query<Row> query =
         Druids.newTimeseriesQueryBuilder()
               .dataSource("dummy")
               .intervals("2014-07-31/2014-08-05")
@@ -115,20 +114,20 @@ public class TimewarpOperatorTest
 
     Assert.assertEquals(
         Lists.newArrayList(
-            new Result<>(
+            new MapBasedRow(
                 new DateTime("2014-07-31"),
-                new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 2))
+                ImmutableMap.<String, Object>of("metric", 2)
             ),
-            new Result<>(
+            new MapBasedRow(
                 new DateTime("2014-08-02"),
-                new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 3))
+                ImmutableMap.<String, Object>of("metric", 3)
             ),
-            new Result<>(
+            new MapBasedRow(
                 new DateTime("2014-08-02"),
-                new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 5))
+                ImmutableMap.<String, Object>of("metric", 5)
             )
         ),
-        Sequences.toList(queryRunner.run(query, CONTEXT), Lists.<Result<TimeseriesResultValue>>newArrayList())
+        Sequences.toList(queryRunner.run(query, CONTEXT), Lists.<Row>newArrayList())
     );
 
 
@@ -188,25 +187,23 @@ public class TimewarpOperatorTest
   @Test
   public void testEmptyFutureInterval() throws Exception
   {
-    QueryRunner<Result<TimeseriesResultValue>> queryRunner = testOperator.postProcess(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    QueryRunner<Row> queryRunner = testOperator.postProcess(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query,
+          public Sequence<Row> run(
+              Query<Row> query,
               Map<String, Object> responseContext
           )
           {
-            return Sequences.simple(
-                ImmutableList.of(
-                    new Result<>(
-                        query.getIntervals().get(0).getStart(),
-                        new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 2))
-                    ),
-                    new Result<>(
-                        query.getIntervals().get(0).getEnd(),
-                        new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 3))
-                    )
+            return Sequences.<Row>of(
+                new MapBasedRow(
+                    query.getIntervals().get(0).getStart(),
+                    ImmutableMap.<String, Object>of("metric", 2)
+                ),
+                new MapBasedRow(
+                    query.getIntervals().get(0).getEnd(),
+                    ImmutableMap.<String, Object>of("metric", 3)
                 )
             );
           }
@@ -214,7 +211,7 @@ public class TimewarpOperatorTest
         new DateTime("2014-08-02").getMillis()
     );
 
-    final Query<Result<TimeseriesResultValue>> query =
+    final Query<Row> query =
         Druids.newTimeseriesQueryBuilder()
               .dataSource("dummy")
               .intervals("2014-08-06/2014-08-08")
@@ -223,16 +220,16 @@ public class TimewarpOperatorTest
 
     Assert.assertEquals(
         Lists.newArrayList(
-            new Result<>(
+            new MapBasedRow(
                 new DateTime("2014-08-02"),
-                new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 2))
+                ImmutableMap.<String, Object>of("metric", 2)
             ),
-            new Result<>(
+            new MapBasedRow(
                 new DateTime("2014-08-02"),
-                new TimeseriesResultValue(ImmutableMap.<String, Object>of("metric", 3))
+                ImmutableMap.<String, Object>of("metric", 3)
             )
         ),
-        Sequences.toList(queryRunner.run(query, Maps.<String, Object>newHashMap()), Lists.<Result<TimeseriesResultValue>>newArrayList())
+        Sequences.toList(queryRunner.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList())
     );
   }
 }

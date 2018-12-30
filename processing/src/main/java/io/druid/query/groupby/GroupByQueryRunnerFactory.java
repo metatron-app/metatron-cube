@@ -49,7 +49,6 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
-import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -62,7 +61,6 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -178,11 +176,11 @@ public class GroupByQueryRunnerFactory
       for (int i = 0; i < segments.size(); i++) {
         Segment segment = segments.get(i);
         SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor());
-        Result<TimeseriesResultValue> result = Sequences.only(
+        Row result = Sequences.only(
             timeseries.withQuerySegmentSpec(segmentSpec)
                       .run(segmentWalker, Maps.<String, Object>newHashMap())
         );
-        HyperLogLogCollector collector = (HyperLogLogCollector) result.getValue().getMetric("cardinality");
+        HyperLogLogCollector collector = (HyperLogLogCollector) result.getRaw("cardinality");
         if (prev != null) {
           collector = collector.fold(prev);
         }

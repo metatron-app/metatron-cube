@@ -42,7 +42,6 @@ import io.druid.query.JoinQueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -51,7 +50,6 @@ import org.junit.Assert;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -154,9 +152,19 @@ public class TestHelper
     assertResults(expectedResults, results, failMsg);
   }
 
+  public static <T> void assertExpectedObjects(Iterable<T> expectedResults, Iterable<T> results)
+  {
+    assertObjects(expectedResults, results, "");
+  }
+
   public static <T> void assertExpectedObjects(Iterable<T> expectedResults, Iterable<T> results, String failMsg)
   {
     assertObjects(expectedResults, results, failMsg);
+  }
+
+  public static <T> void assertExpectedObjects(Iterable<T> expectedResults, Sequence<T> results)
+  {
+    assertExpectedObjects(expectedResults, results, "");
   }
 
   public static <T> void assertExpectedObjects(Iterable<T> expectedResults, Sequence<T> results, String failMsg)
@@ -292,18 +300,7 @@ public class TestHelper
     Assert.assertEquals(msg, expected.getTimestamp(), actual.getTimestamp());
     Object o1 = expected.getValue();
     Object o2 = actual.getValue();
-    if (o1 instanceof TimeseriesResultValue && o2 instanceof TimeseriesResultValue) {
-      Map<String, Object> m1 = ((TimeseriesResultValue)o1).getBaseObject();
-      Map<String, Object> m2 = ((TimeseriesResultValue)o2).getBaseObject();
-      Assert.assertEquals(msg, m1.size(), m2.size());
-      List<String> columns = Lists.newArrayList(m1.keySet());
-      Collections.sort(columns);
-      for (String column : columns) {
-        Assert.assertEquals(msg, m1.get(column), m2.get(column));
-      }
-    } else {
-      Assert.assertEquals(msg, expected.getValue(), actual.getValue());
-    }
+    Assert.assertEquals(msg, expected.getValue(), actual.getValue());
   }
 
   public static TopNQueryEngine testTopNQueryEngine()

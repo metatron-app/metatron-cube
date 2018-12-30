@@ -176,7 +176,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
-    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
+    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategyIfExists(query);
     final Map<DruidServer, List<SegmentDescriptor>> serverSegments = Maps.newTreeMap();
 
     final List<Pair<Interval, byte[]>> cachedResults = Lists.newArrayList();

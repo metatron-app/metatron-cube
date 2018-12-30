@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.DateTimes;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
@@ -40,7 +41,6 @@ import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -59,12 +59,12 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.GroupByQueryRunnerTest;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -124,12 +124,12 @@ public class TimeseriesQueryRunnerTest
   }
 
 
-  private <T> void assertExpectedResults(Iterable<Result<T>> expectedResults, Iterable<Result<T>> results)
+  private <T> void assertExpectedResults(Iterable<Row> expectedResults, Iterable<Row> results)
   {
     if (descending) {
       expectedResults = TestHelper.revert(expectedResults);
     }
-    TestHelper.assertExpectedResults(expectedResults, results);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -141,19 +141,17 @@ public class TimeseriesQueryRunnerTest
                                   .granularity(gran)
                                   .intervals(QueryRunnerTestHelper.fullOnInterval)
                                   .aggregators(
-                                      Arrays.asList(
-                                          QueryRunnerTestHelper.rowsCount,
-                                          QueryRunnerTestHelper.indexDoubleSum,
-                                          QueryRunnerTestHelper.qualityUniques
-                                      )
+                                      QueryRunnerTestHelper.rowsCount,
+                                      QueryRunnerTestHelper.indexDoubleSum,
+                                      QueryRunnerTestHelper.qualityUniques
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     final String[] expectedIndex = descending ?
@@ -165,35 +163,33 @@ public class TimeseriesQueryRunnerTest
                                   QueryRunnerTestHelper.last;
 
     int count = 0;
-    Result lastResult = null;
-    for (Result<TimeseriesResultValue> result : results) {
+    Row lastResult = null;
+    for (Row result : results) {
       DateTime current = result.getTimestamp();
       Assert.assertFalse(
           String.format("Timestamp[%s] > expectedLast[%s]", current, expectedLast),
           descending ? current.isBefore(expectedLast) : current.isAfter(expectedLast)
       );
 
-      final TimeseriesResultValue value = result.getValue();
-
       Assert.assertEquals(
           result.toString(),
           QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L,
-          value.getLongMetric("rows").longValue()
+          result.getLongMetric("rows")
       );
       Assert.assertEquals(
           result.toString(),
           expectedIndex[count],
-          String.valueOf(value.getDoubleMetric("index"))
+          String.valueOf(result.getDoubleMetric("index"))
       );
       Assert.assertEquals(
           result.toString(),
           new Double(expectedIndex[count]) +
           (QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L) + 1L,
-          value.getDoubleMetric("addRowsIndexConstant"),
+          result.getDoubleMetric("addRowsIndexConstant"),
           0.0
       );
       Assert.assertEquals(
-          value.getDoubleMetric("uniques"),
+          result.getDoubleMetric("uniques"),
           QueryRunnerTestHelper.skippedDay.equals(current) ? 0.0d : 9.0d,
           0.02
       );
@@ -213,10 +209,8 @@ public class TimeseriesQueryRunnerTest
                                   .granularity(QueryGranularities.ALL)
                                   .intervals(QueryRunnerTestHelper.fullOnInterval)
                                   .aggregators(
-                                      Arrays.asList(
-                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                                          new DoubleMinAggregatorFactory("minIndex", "index")
-                                      )
+                                      new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                      new DoubleMinAggregatorFactory("minIndex", "index")
                                   )
                                   .descending(descending)
                                   .build();
@@ -225,11 +219,11 @@ public class TimeseriesQueryRunnerTest
     DateTime expectedSplit = new DateTime("2011-03-01");
     DateTime expectedLast = new DateTime("2011-04-15");
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    Result<TimeseriesResultValue> result = results.iterator().next();
+    Row result = results.iterator().next();
 
     DateTime expected = descending && dataSource.equals("mmapped-split") ? expectedSplit : expectedEarliest;
     Assert.assertEquals(expected, result.getTimestamp());
@@ -238,10 +232,8 @@ public class TimeseriesQueryRunnerTest
         result.getTimestamp().isAfter(expectedLast)
     );
 
-    final TimeseriesResultValue value = result.getValue();
-
-    Assert.assertEquals(result.toString(), 1870.06103515625, value.getDoubleMetric("maxIndex"), 0.0);
-    Assert.assertEquals(result.toString(), 59.02102279663086, value.getDoubleMetric("minIndex"), 0.0);
+    Assert.assertEquals(result.toString(), 1870.06103515625, result.getDoubleMetric("maxIndex"), 0.0);
+    Assert.assertEquals(result.toString(), 59.02102279663086, result.getDoubleMetric("minIndex"), 0.0);
   }
 
   @Test
@@ -274,31 +266,27 @@ public class TimeseriesQueryRunnerTest
                                   QueryRunnerTestHelper.earliest :
                                   QueryRunnerTestHelper.last;
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
-    for (Result<TimeseriesResultValue> result : results) {
+    for (Row result : results) {
       DateTime current = result.getTimestamp();
       Assert.assertFalse(
           String.format("Timestamp[%s] > expectedLast[%s]", current, expectedLast),
           descending ? current.isBefore(expectedLast) : current.isAfter(expectedLast)
       );
 
-      final TimeseriesResultValue value = result.getValue();
-
       Assert.assertEquals(
           result.toString(),
           QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0L : 2L,
-          value.getLongMetric("rows").longValue()
+          result.getLongMetric("rows")
       );
       Assert.assertEquals(
           result.toString(),
           QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0.0d : 2.0d,
-          value.getDoubleMetric(
-              "uniques"
-          ),
+          result.getDoubleMetric("uniques"),
           0.01
       );
     }
@@ -324,24 +312,20 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     assertExpectedResults(expectedResults, results);
@@ -366,8 +350,8 @@ public class TimeseriesQueryRunnerTest
         .descending(descending)
         .build();
 
-    List<Result<TimeseriesResultValue>> expected = TimeseriesQueryRunnerTestHelper.createExpected(
-        new String[]{"rows", "idx", "idx+10", "uniques"},
+    List<Row> expected = GroupByQueryRunnerTest.createExpectedRows(
+        new String[]{"__time", "rows", "idx", "idx+10", "uniques"},
         new Object[]{"2011-01-12", 13L, 4500L, 4510L, QueryRunnerTestHelper.UNIQUES_9},
         new Object[]{"2011-01-13", 13L, 6071L, 6081L, QueryRunnerTestHelper.UNIQUES_9},
         new Object[]{"2011-01-14", 13L, 4916L, 4926L, QueryRunnerTestHelper.UNIQUES_9},
@@ -378,9 +362,9 @@ public class TimeseriesQueryRunnerTest
         new Object[]{"2011-01-19", 13L, 4589L, 4599L, QueryRunnerTestHelper.UNIQUES_9}
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         subQuery.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expected, results);
 
@@ -406,10 +390,10 @@ public class TimeseriesQueryRunnerTest
 
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    expected = TimeseriesQueryRunnerTestHelper.createExpected(
-        new String[]{"rows", "idx+10", "(idx+10)+10"},
+    expected = GroupByQueryRunnerTest.createExpectedRows(
+        new String[]{"__time", "rows", "idx+10", "(idx+10)+10"},
         new Object[]{"2011-01-10", 5L, 25948L, 25958L},
         new Object[]{"2011-01-17", 3L, 13655L, 13665L}
     );
@@ -501,24 +485,20 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-03-31", DateTimeZone.forID("America/Los_Angeles")),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "idx2", 6619L + 130L)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "idx2", 6619L + 130L)
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-01T", DateTimeZone.forID("America/Los_Angeles")),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "idx2", 5827L + 130L)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "idx2", 5827L + 130L)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     assertExpectedResults(expectedResults, results);
@@ -530,13 +510,7 @@ public class TimeseriesQueryRunnerTest
     TimeseriesQuery query1 = Druids.newTimeseriesQueryBuilder()
                                    .dataSource(dataSource)
                                    .granularity(new PeriodGranularity(new Period("P1M"), null, null))
-                                   .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"
-                                           )
-                                       )
-                                   )
+                                   .intervals(new Interval("2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"))
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
                                            QueryRunnerTestHelper.rowsCount,
@@ -550,30 +524,23 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults1 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results1 = Sequences.toList(
+    Iterable<Row> results1 = Sequences.toList(
         query1.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults1, results1);
 
     TimeseriesQuery query2 = Druids.newTimeseriesQueryBuilder()
                                    .dataSource(dataSource)
                                    .granularity("DAY")
-                                   .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"
-                                           )
-                                       )
+                                   .intervals(new Interval("2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z")
                                    )
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
@@ -587,18 +554,16 @@ public class TimeseriesQueryRunnerTest
                                    )
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults2 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults2 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results2 = Sequences.toList(
+    Iterable<Row> results2 = Sequences.toList(
         query2.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults2, results2);
   }
@@ -617,11 +582,7 @@ public class TimeseriesQueryRunnerTest
                                        )
                                    )
                                    .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-01-12T00:00:00.000-08:00/2011-01-20T00:00:00.000-08:00"
-                                           )
-                                       )
+                                       new Interval("2011-01-12T00:00:00.000-08:00/2011-01-20T00:00:00.000-08:00")
                                    )
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
@@ -635,24 +596,20 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults1 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-06T00:00:00.000-08:00", DateTimeZone.forID("America/Los_Angeles")),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of("rows", 13L, "idx", 6071L)
-            )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-01-13T00:00:00.000-08:00", DateTimeZone.forID("America/Los_Angeles")),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of("rows", 91L, "idx", 33382L)
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results1 = Sequences.toList(
+    Iterable<Row> results1 = Sequences.toList(
         query1.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults1, results1);
   }
@@ -665,11 +622,7 @@ public class TimeseriesQueryRunnerTest
                                    .filters(QueryRunnerTestHelper.marketDimension, "spot", "upfront", "total_market")
                                    .granularity(QueryGranularities.HOUR)
                                    .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-14T00:00:00.000Z/2011-05-01T00:00:00.000Z"
-                                           )
-                                       )
+                                       new Interval("2011-04-14T00:00:00.000Z/2011-05-01T00:00:00.000Z")
                                    )
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
@@ -683,45 +636,39 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Result<TimeseriesResultValue>> lotsOfZeroes = Lists.newArrayList();
+    List<Row> lotsOfZeroes = Lists.newArrayList();
     final Iterable<Interval> iterable = QueryGranularities.HOUR.getIterable(
         new Interval(DateTimes.of("2011-04-14T01"), DateTimes.of("2011-04-15"))
     );
     for (Interval interval : iterable) {
       lotsOfZeroes.add(
-              new Result<>(
-                      interval.getStart(),
-                      new TimeseriesResultValue(
-                              ImmutableMap.<String, Object>of("rows", 0L, "idx", 0L)
-                      )
-              )
+          new MapBasedRow(
+              interval.getStart(),
+              ImmutableMap.<String, Object>of("rows", 0L, "idx", 0L)
+          )
       );
     }
-    List<Result<TimeseriesResultValue>> expectedResults1 = Lists.newArrayList(
+    List<Row> expectedResults1 = Lists.newArrayList(
         Iterables.concat(
-            Arrays.asList(
-                new Result<>(
+            Arrays.<Row>asList(
+                new MapBasedRow(
                     new DateTime("2011-04-14T00"),
-                    new TimeseriesResultValue(
-                        ImmutableMap.<String, Object>of("rows", 13L, "idx", 4907L)
-                    )
+                    ImmutableMap.<String, Object>of("rows", 13L, "idx", 4907L)
                 )
             ),
             lotsOfZeroes,
-            Arrays.asList(
-                new Result<>(
+            Arrays.<Row>asList(
+                new MapBasedRow(
                     new DateTime("2011-04-15T00"),
-                    new TimeseriesResultValue(
-                        ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
-                    )
+                    ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
                 )
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results1 = Sequences.toList(
+    Iterable<Row> results1 = Sequences.toList(
         query1.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults1, results1);
   }
@@ -739,13 +686,7 @@ public class TimeseriesQueryRunnerTest
                                            DateTimeZone.UTC
                                        )
                                    )
-                                   .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-15T00:00:00.000Z/2012"
-                                           )
-                                       )
-                                   )
+                                   .intervals(new Interval("2011-04-15T00:00:00.000Z/2012"))
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
                                            QueryRunnerTestHelper.rowsCount,
@@ -758,18 +699,16 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults1 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-14T23:01Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results1 = Sequences.toList(
+    Iterable<Row> results1 = Sequences.toList(
         query1.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults1, results1);
   }
@@ -781,13 +720,7 @@ public class TimeseriesQueryRunnerTest
                                    .dataSource(dataSource)
                                    .filters(QueryRunnerTestHelper.marketDimension, "spot", "upfront", "total_market")
                                    .granularity(new PeriodGranularity(new Period("P1M"), null, null))
-                                   .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"
-                                           )
-                                       )
-                                   )
+                                   .intervals(new Interval("2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"))
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
                                            QueryRunnerTestHelper.rowsCount,
@@ -801,17 +734,15 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults1 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
-    Iterable<Result<TimeseriesResultValue>> results1 = Sequences.toList(
+    Iterable<Row> results1 = Sequences.toList(
         query1.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults1, results1);
 
@@ -819,12 +750,7 @@ public class TimeseriesQueryRunnerTest
                                    .dataSource(dataSource)
                                    .filters(QueryRunnerTestHelper.marketDimension, "spot", "upfront", "total_market")
                                    .granularity("DAY")
-                                   .intervals(
-                                       Arrays.asList(
-                                           new Interval(
-                                               "2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z"
-                                           )
-                                       )
+                                   .intervals(new Interval("2011-04-02T00:00:00.000Z/2011-04-03T00:00:00.000Z")
                                    )
                                    .aggregators(
                                        Arrays.<AggregatorFactory>asList(
@@ -838,18 +764,16 @@ public class TimeseriesQueryRunnerTest
                                    )
                                    .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults2 = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults2 = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-            )
+            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results2 = Sequences.toList(
+    Iterable<Row> results2 = Sequences.toList(
         query2.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults2, results2);
   }
@@ -860,15 +784,7 @@ public class TimeseriesQueryRunnerTest
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
-                                  .intervals(
-                                      new MultipleIntervalSegmentSpec(
-                                          Arrays.asList(
-                                              new Interval(
-                                                  "2015-01-01/2015-01-10"
-                                              )
-                                          )
-                                      )
-                                  )
+                                  .intervals(new Interval("2015-01-01/2015-01-10"))
                                   .aggregators(
                                       Arrays.<AggregatorFactory>asList(
                                           QueryRunnerTestHelper.rowsCount,
@@ -881,11 +797,11 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList();
+    List<Row> expectedResults = Arrays.<Row>asList();
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -909,34 +825,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 6619L,
-                    "addRowsIndexConstant", 6633.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 6619L,
+                "addRowsIndexConstant", 6633.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 5827L,
-                    "addRowsIndexConstant", 5841.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 5827L,
+                "addRowsIndexConstant", 5841.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -960,34 +872,30 @@ public class TimeseriesQueryRunnerTest
         .descending(descending)
         .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 11L,
-                    "index", 3783L,
-                    "addRowsIndexConstant", 3795.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 11L,
+                "index", 3783L,
+                "addRowsIndexConstant", 3795.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 11L,
-                    "index", 3313L,
-                    "addRowsIndexConstant", 3325.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 11L,
+                "index", 3313L,
+                "addRowsIndexConstant", 3325.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1011,34 +919,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 9L,
-                    "index", 1102L,
-                    "addRowsIndexConstant", 1112.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 9L,
+                "index", 1102L,
+                "addRowsIndexConstant", 1112.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 9L,
-                    "index", 1120L,
-                    "addRowsIndexConstant", 1130.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 9L,
+                "index", 1120L,
+                "addRowsIndexConstant", 1130.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1062,34 +966,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 2681L,
-                    "addRowsIndexConstant", 2684.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 2681L,
+                "addRowsIndexConstant", 2684.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 2193L,
-                    "addRowsIndexConstant", 2196.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 2193L,
+                "addRowsIndexConstant", 2196.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1113,34 +1013,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 2836L,
-                    "addRowsIndexConstant", 2839.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 2836L,
+                "addRowsIndexConstant", 2839.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 2514L,
-                    "addRowsIndexConstant", 2517.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 2514L,
+                "addRowsIndexConstant", 2517.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1168,34 +1064,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 254.4554443359375D,
-                    "addRowsIndexConstant", 257.4554443359375D,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 254.4554443359375D,
+                "addRowsIndexConstant", 257.4554443359375D,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 2L,
-                    "index", 260.4129638671875D,
-                    "addRowsIndexConstant", 263.4129638671875D,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 2L,
+                "index", 260.4129638671875D,
+                "addRowsIndexConstant", 263.4129638671875D,
+                "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1224,64 +1116,56 @@ public class TimeseriesQueryRunnerTest
                                   .limit(3)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(135.885094).doubleValue(),
-                    "addRowsIndexConstant", new Float(137.885094).doubleValue(),
-                    "uniques", QueryRunnerTestHelper.UNIQUES_1
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(135.885094).doubleValue(),
+                "addRowsIndexConstant", new Float(137.885094).doubleValue(),
+                "uniques", QueryRunnerTestHelper.UNIQUES_1
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(147.425935).doubleValue(),
-                    "addRowsIndexConstant", new Float(149.425935).doubleValue(),
-                    "uniques", QueryRunnerTestHelper.UNIQUES_1
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(147.425935).doubleValue(),
+                "addRowsIndexConstant", new Float(149.425935).doubleValue(),
+                "uniques", QueryRunnerTestHelper.UNIQUES_1
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
 
     query = query.withOutputColumns(Arrays.asList("rows", "index"));
     // with projection processor
 
-    expectedResults = Arrays.asList(
-        new Result<>(
+    expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(135.885094).doubleValue()
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(135.885094).doubleValue()
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(147.425935).doubleValue()
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(147.425935).doubleValue()
             )
         )
     );
 
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
 
@@ -1297,16 +1181,16 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    String[] columnNames = new String[] {"rows", "index", "daily"};
+    String[] columnNames = new String[] {"__time", "rows", "index", "daily"};
     query = query.withOutputColumns(Arrays.asList("rows", "index", "daily"));
     if (descending) {
-      expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+      expectedResults = GroupByQueryRunnerTest.createExpectedRows(
           columnNames,
           new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"},
           new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"}
       );
     } else {
-      expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+      expectedResults = GroupByQueryRunnerTest.createExpectedRows(
           columnNames,
           new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"},
           new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"}
@@ -1315,7 +1199,7 @@ public class TimeseriesQueryRunnerTest
 
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
@@ -1343,34 +1227,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(118.570340).doubleValue(),
-                    "addRowsIndexConstant", new Float(120.570340).doubleValue(),
-                    "uniques", QueryRunnerTestHelper.UNIQUES_1
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(118.570340).doubleValue(),
+                "addRowsIndexConstant", new Float(120.570340).doubleValue(),
+                "uniques", QueryRunnerTestHelper.UNIQUES_1
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 1L,
-                    "index", new Float(112.987027).doubleValue(),
-                    "addRowsIndexConstant", new Float(114.987027).doubleValue(),
-                    "uniques", QueryRunnerTestHelper.UNIQUES_1
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 1L,
+                "index", new Float(112.987027).doubleValue(),
+                "addRowsIndexConstant", new Float(114.987027).doubleValue(),
+                "uniques", QueryRunnerTestHelper.UNIQUES_1
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1400,34 +1280,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 6619L,
-                    "addRowsIndexConstant", 6633.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 6619L,
+                "addRowsIndexConstant", 6633.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 5827L,
-                    "addRowsIndexConstant", 5841.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 5827L,
+                "addRowsIndexConstant", 5841.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1463,34 +1339,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 6619L,
-                    "addRowsIndexConstant", 6633.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 6619L,
+                "addRowsIndexConstant", 6633.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 13L,
-                    "index", 5827L,
-                    "addRowsIndexConstant", 5841.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 13L,
+                "index", 5827L,
+                "addRowsIndexConstant", 5841.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1512,34 +1384,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 2L,
                     "index", 254.4554443359375D,
                     "addRowsIndexConstant", 257.4554443359375D,
                     "uniques", QueryRunnerTestHelper.UNIQUES_2
-                )
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 2L,
                     "index", 260.4129638671875D,
                     "addRowsIndexConstant", 263.4129638671875D,
                     "uniques", QueryRunnerTestHelper.UNIQUES_2
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1557,34 +1425,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
-                )
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1603,11 +1467,11 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList();
+    List<Row> expectedResults = Arrays.<Row>asList();
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1625,34 +1489,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
-            )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1670,34 +1530,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1715,34 +1571,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
-                )
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1764,34 +1616,30 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
                 )
-            )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 0L,
                     "index", 0.0,
                     "addRowsIndexConstant", 1.0,
                     "uniques", 0.0
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, results);
   }
@@ -1813,26 +1661,20 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = ImmutableList.of(
-        new Result<>(
-            new DateTime(
-                QueryRunnerTestHelper.firstToThird.getIntervals()
-                                                  .get(0)
-                                                  .getStart()
-            ),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "index", 12459.361190795898d,
-                    "nindex", 283.31103515625d,
-                    "pishcount", 52d
-                )
+    Iterable<Row> expectedResults = ImmutableList.<Row>of(
+        new MapBasedRow(
+            new DateTime(QueryRunnerTestHelper.firstToThird.getIntervals().get(0).getStart()),
+            ImmutableMap.<String, Object>of(
+                "index", 12459.361190795898d,
+                "nindex", 283.31103515625d,
+                "pishcount", 52d
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, actualResults);
   }
@@ -1855,26 +1697,20 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = ImmutableList.of(
-        new Result<>(
-            new DateTime(
-                QueryRunnerTestHelper.firstToThird.getIntervals()
-                                                  .get(0)
-                                                  .getStart()
-            ),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "index", 283.31103515625d,
-                    "nindex", 283.31103515625d,
-                    "pishcount", 4d
-                )
+    List<Row> expectedResults = ImmutableList.<Row>of(
+        new MapBasedRow(
+            new DateTime(QueryRunnerTestHelper.firstToThird.getIntervals().get(0).getStart()),
+            ImmutableMap.<String, Object>of(
+                "index", 283.31103515625d,
+                "nindex", 283.31103515625d,
+                "pishcount", 4d
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     assertExpectedResults(expectedResults, actualResults);
   }
@@ -1892,7 +1728,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
+    Iterable<Row> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()
               .dataSource(dataSource)
               .granularity(QueryRunnerTestHelper.dayGran)
@@ -1901,13 +1737,13 @@ public class TimeseriesQueryRunnerTest
               .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
               .descending(descending)
               .build().run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults);
   }
 
   @Test
@@ -1923,7 +1759,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
+    Iterable<Row> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()
               .dataSource(dataSource)
               .granularity(QueryRunnerTestHelper.dayGran)
@@ -1933,13 +1769,13 @@ public class TimeseriesQueryRunnerTest
               .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
               .descending(descending)
               .build().run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults);
   }
 
   @Test
@@ -1964,7 +1800,7 @@ public class TimeseriesQueryRunnerTest
         SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
     );
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
+    Iterable<Row> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()
               .dataSource(dataSource)
               .granularity(QueryRunnerTestHelper.dayGran)
@@ -1974,13 +1810,13 @@ public class TimeseriesQueryRunnerTest
               .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
               .descending(descending)
               .build().run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults);
   }
 
   @Test
@@ -2005,7 +1841,7 @@ public class TimeseriesQueryRunnerTest
         SelectorDimFilter.or(QueryRunnerTestHelper.qualityDimension, "automotive", "business")
     );
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
+    Iterable<Row> expectedResults = Sequences.toList(
         Druids.newTimeseriesQueryBuilder()
               .dataSource(dataSource)
               .granularity(QueryRunnerTestHelper.dayGran)
@@ -2015,13 +1851,13 @@ public class TimeseriesQueryRunnerTest
               .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
               .descending(descending)
               .build().run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults);
   }
 
   @Test
@@ -2051,21 +1887,19 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "filteredAgg", 18L,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
                     "rows", 26L
-                )
             )
         )
     );
@@ -2100,22 +1934,20 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "filteredAgg", 0L,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
                     "rows", 26L
-                )
             )
         )
     );
@@ -2150,15 +1982,14 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "filteredAgg", 26L,
                     "addRowsIndexConstant", 12486.361190795898d,
@@ -2167,7 +1998,6 @@ public class TimeseriesQueryRunnerTest
                     "rows", 26L
                 )
             )
-        )
     );
 
     assertExpectedResults(expectedResults, actualResults);
@@ -2202,21 +2032,19 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "filteredAgg", 26L,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
                     "rows", 26L
-                )
             )
         )
     );
@@ -2253,14 +2081,13 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "filteredAgg", 26L,
                     "addRowsIndexConstant", 12486.361190795898d,
@@ -2268,7 +2095,6 @@ public class TimeseriesQueryRunnerTest
                     "uniques", 9.019833517963864d,
                     "rows", 26L
                 )
-            )
         )
     );
 
@@ -2282,20 +2108,17 @@ public class TimeseriesQueryRunnerTest
                                   .dataSource(dataSource)
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(
-                                      Arrays.asList(
-                                          QueryRunnerTestHelper.rowsCount,
-                                          QueryRunnerTestHelper.jsCountIfTimeGreaterThan,
-                                          QueryRunnerTestHelper.__timeLongSum
-                                      )
+                                      QueryRunnerTestHelper.rowsCount,
+                                      QueryRunnerTestHelper.jsCountIfTimeGreaterThan,
+                                      QueryRunnerTestHelper.__timeLongSum
                                   )
                                   .granularity(QueryRunnerTestHelper.allGran)
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows",
                     26L,
@@ -2303,14 +2126,13 @@ public class TimeseriesQueryRunnerTest
                     13.0,
                     "sumtime",
                     33843139200000L
-                )
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     assertExpectedResults(expectedResults, actualResults);
@@ -2366,36 +2188,32 @@ public class TimeseriesQueryRunnerTest
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 9L,
                     "index", 1102L,
                     "addRowsIndexConstant", 1112.0,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
                     "rows", 9L,
                     "index", 1120L,
                     "addRowsIndexConstant", 1130.0,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
-            )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -2406,16 +2224,14 @@ public class TimeseriesQueryRunnerTest
                                   .granularity(QueryGranularities.MONTH)
                                   .intervals(QueryRunnerTestHelper.fullOnInterval)
                                   .aggregators(
-                                      Arrays.asList(
-                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                                          new DoubleMinAggregatorFactory("minIndex", "index")
-                                      )
+                                      new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                      new DoubleMinAggregatorFactory("minIndex", "index")
                                   )
                                   .descending(descending)
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expected = TimeseriesQueryRunnerTestHelper.createExpected(
-        new String[]{"maxIndex", "minIndex"},
+    List<Row> expected = GroupByQueryRunnerTest.createExpectedRows(
+        new String[]{"__time", "maxIndex", "minIndex"},
         new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
         new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
         new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
@@ -2425,29 +2241,29 @@ public class TimeseriesQueryRunnerTest
       Collections.reverse(expected);
     }
     for (int i = 4; i > 0; i--) {
-      List<Result<TimeseriesResultValue>> results = Sequences.toList(
+      List<Row> results = Sequences.toList(
           query.withLimitSpec(new LimitSpec(null, i)).run(TestIndex.segmentWalker, CONTEXT),
-          Lists.<Result<TimeseriesResultValue>>newArrayList()
+          Lists.<Row>newArrayList()
       );
-      TestHelper.assertExpectedResults(expected.subList(0, i), results);
+      TestHelper.assertExpectedObjects(expected.subList(0, i), results);
     }
 
-    expected = TimeseriesQueryRunnerTestHelper.createExpected(
-        new String[]{"maxIndex", "minIndex"},
+    expected = GroupByQueryRunnerTest.createExpectedRows(
+        new String[]{"__time", "maxIndex", "minIndex"},
         new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
         new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
         new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
         new Object[]{"2011-04-01", 1522.043701171875D, 72.66842651367188D}
     );
     LimitSpec spec = LimitSpecs.of(null, OrderByColumnSpec.asc("minIndex"));
-    List<Result<TimeseriesResultValue>> results = Sequences.toList(
+    List<Row> results = Sequences.toList(
         query.withLimitSpec(spec).run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expected, results);
+    TestHelper.assertExpectedObjects(expected, results);
 
-    expected = TimeseriesQueryRunnerTestHelper.createExpected(
-        new String[]{"maxIndex", "minIndex"},
+    expected = GroupByQueryRunnerTest.createExpectedRows(
+        new String[]{"__time", "maxIndex", "minIndex"},
         new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
         new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
         new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
@@ -2456,9 +2272,9 @@ public class TimeseriesQueryRunnerTest
     spec = LimitSpecs.of(null, OrderByColumnSpec.desc("maxIndex"));
     results = Sequences.toList(
         query.withLimitSpec(spec).run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expected, results);
+    TestHelper.assertExpectedObjects(expected, results);
   }
 
   @Test
@@ -2472,10 +2288,10 @@ public class TimeseriesQueryRunnerTest
         .setPostAggregatorSpecs(QueryRunnerTestHelper.addRowsIndexConstant)
         .setGranularity(QueryGranularities.DAY);
 
-    String[] columnNames = {"rows", "index", "addRowsIndexConstant"};
-    Iterable<Result<TimeseriesResultValue>> results;
+    String[] columnNames = {"__time", "rows", "index", "addRowsIndexConstant"};
+    Iterable<Row> results;
 
-    List<Result<TimeseriesResultValue>> expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    List<Row> expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
         new Object[]{"2011-01-12",  4L, 3600.0, 3605.0},
         new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469},
@@ -2502,11 +2318,11 @@ public class TimeseriesQueryRunnerTest
     TimeseriesQuery query = builder.build();
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
         new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238},
         new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297},
@@ -2525,7 +2341,7 @@ public class TimeseriesQueryRunnerTest
     );
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
@@ -2538,8 +2354,8 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    columnNames = new String[]{"rows", "index", "addRowsIndexConstant", "delta", "runningSum"};
-    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+    columnNames = new String[]{"__time", "rows", "index", "addRowsIndexConstant", "delta", "runningSum"};
+    expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
         new Object[]{"2011-01-12", 4L, 3600.0, 3605.0, 0.0, 4L},
         new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469, 2383.0744018554688, 16L},
@@ -2564,7 +2380,7 @@ public class TimeseriesQueryRunnerTest
     );
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

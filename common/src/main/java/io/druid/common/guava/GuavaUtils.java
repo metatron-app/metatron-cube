@@ -94,6 +94,15 @@ public class GuavaUtils
     return NULL_FIRST_NATURAL;
   }
 
+  public static <T> Ordering<T> allEquals()
+  {
+    return new Ordering<T>()
+    {
+      @Override
+      public int compare(T left, T right) { return 0;}
+    };
+  }
+
   public static Function<Object, String> NULLABLE_TO_STRING_FUNC = new Function<Object, String>()
   {
     @Override
@@ -220,6 +229,16 @@ public class GuavaUtils
     Map<A, B> map = Maps.newLinkedHashMap();
     for (Pair<A, B> pair : pairs) {
       map.put(pair.lhs, pair.rhs);
+    }
+    return map;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <A, B> Map<A, B> asMap(Object... keyValues)
+  {
+    Map<A, B> map = Maps.newLinkedHashMap();
+    for (int i = 0; i < keyValues.length; i += 2) {
+      map.put((A) keyValues[i], (B) keyValues[i + 1]);
     }
     return map;
   }

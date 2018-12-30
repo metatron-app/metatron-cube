@@ -69,6 +69,20 @@ public class Rows
     }
   }
 
+  public static double round(double value, int round)
+  {
+    if (Double.isInfinite(value) || Double.isNaN(value) || round <= 0) {
+      return value;
+    }
+    double abs = Math.abs(value);
+    while (abs < 1) {
+      abs *= 10;
+      round++;
+    }
+    double remains = Math.pow(10, round);
+    return Math.round(value * remains) / remains;
+  }
+
   public static long parseLong(Object value)
   {
     if (value == null) {

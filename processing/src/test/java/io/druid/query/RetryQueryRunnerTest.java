@@ -25,10 +25,11 @@ import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.SegmentMissingException;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -65,11 +66,11 @@ public class RetryQueryRunnerTest
   {
     Map<String, Object> context = new MapMaker().makeMap();
     context.put(Result.MISSING_SEGMENTS_KEY, Lists.newArrayList());
-    RetryQueryRunner<Result<TimeseriesResultValue>> runner = new RetryQueryRunner<>(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    RetryQueryRunner<Row> runner = new RetryQueryRunner<>(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(Query query, Map context)
+          public Sequence<Row> run(Query query, Map context)
           {
             ((List) context.get(Result.MISSING_SEGMENTS_KEY)).add(
                 new SegmentDescriptor(
@@ -99,9 +100,9 @@ public class RetryQueryRunnerTest
         jsonMapper
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     Assert.assertTrue(
@@ -118,12 +119,12 @@ public class RetryQueryRunnerTest
     Map<String, Object> context = new MapMaker().makeMap();
     context.put("count", 0);
     context.put(Result.MISSING_SEGMENTS_KEY, Lists.newArrayList());
-    RetryQueryRunner<Result<TimeseriesResultValue>> runner = new RetryQueryRunner<>(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    RetryQueryRunner<Row> runner = new RetryQueryRunner<>(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query,
+          public Sequence<Row> run(
+              Query<Row> query,
               Map<String, Object> context
           )
           {
@@ -140,12 +141,10 @@ public class RetryQueryRunnerTest
               return Sequences.empty();
             } else {
               return Sequences.simple(
-                  Arrays.asList(
-                      new Result<>(
+                  Arrays.<Row>asList(
+                      new MapBasedRow(
                           new DateTime(),
-                          new TimeseriesResultValue(
-                              Maps.<String, Object>newHashMap()
-                          )
+                          Maps.<String, Object>newHashMap()
                       )
                   )
               );
@@ -164,9 +163,9 @@ public class RetryQueryRunnerTest
         jsonMapper
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     Assert.assertTrue("Should return a list with one element", ((List) actualResults).size() == 1);
@@ -182,12 +181,12 @@ public class RetryQueryRunnerTest
     Map<String, Object> context = new MapMaker().makeMap();
     context.put("count", 0);
     context.put(Result.MISSING_SEGMENTS_KEY, Lists.newArrayList());
-    RetryQueryRunner<Result<TimeseriesResultValue>> runner = new RetryQueryRunner<>(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    RetryQueryRunner<Row> runner = new RetryQueryRunner<>(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query,
+          public Sequence<Row> run(
+              Query<Row> query,
               Map<String, Object> context
           )
           {
@@ -204,12 +203,10 @@ public class RetryQueryRunnerTest
               return Sequences.empty();
             } else {
               return Sequences.simple(
-                  Arrays.asList(
-                      new Result<>(
+                  Arrays.<Row>asList(
+                      new MapBasedRow(
                           new DateTime(),
-                          new TimeseriesResultValue(
-                              Maps.<String, Object>newHashMap()
-                          )
+                          Maps.<String, Object>newHashMap()
                       )
                   )
               );
@@ -228,9 +225,9 @@ public class RetryQueryRunnerTest
         jsonMapper
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     Assert.assertTrue("Should return a list with one element", ((List) actualResults).size() == 1);
@@ -245,12 +242,12 @@ public class RetryQueryRunnerTest
   {
     Map<String, Object> context = new MapMaker().makeMap();
     context.put(Result.MISSING_SEGMENTS_KEY, Lists.newArrayList());
-    RetryQueryRunner<Result<TimeseriesResultValue>> runner = new RetryQueryRunner<>(
-        new QueryRunner<Result<TimeseriesResultValue>>()
+    RetryQueryRunner<Row> runner = new RetryQueryRunner<>(
+        new QueryRunner<Row>()
         {
           @Override
-          public Sequence<Result<TimeseriesResultValue>> run(
-              Query<Result<TimeseriesResultValue>> query,
+          public Sequence<Row> run(
+              Query<Row> query,
               Map<String, Object> context
           )
           {
@@ -277,9 +274,9 @@ public class RetryQueryRunnerTest
         jsonMapper
     );
 
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     Assert.assertTrue(

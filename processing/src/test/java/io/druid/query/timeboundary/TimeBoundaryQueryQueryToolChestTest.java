@@ -169,7 +169,7 @@ public class TimeBoundaryQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery> strategy =
-        new TimeBoundaryQueryQueryToolChest().getCacheStrategy(
+        new TimeBoundaryQueryQueryToolChest().getCacheStrategyIfExists(
             new TimeBoundaryQuery(
                 new TableDataSource("dummy"),
                 new MultipleIntervalSegmentSpec(

@@ -52,6 +52,7 @@ import io.druid.data.input.FirehoseFactoryV2;
 import io.druid.data.input.FirehoseV2;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.SegmentLoaderFactory;
@@ -83,7 +84,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
-import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -92,7 +92,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeIOConfig;
 import io.druid.segment.indexing.RealtimeTuningConfig;
@@ -1235,10 +1234,10 @@ public class RealtimeIndexTaskTest
                                   .intervals("2000/3000")
                                   .build();
 
-    ArrayList<Result<TimeseriesResultValue>> results = Sequences.toList(
+    ArrayList<Row> results = Sequences.toList(
         task.getQueryRunner(query).run(query, ImmutableMap.<String, Object>of()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    return results.isEmpty() ? 0 : results.get(0).getValue().getLongMetric(metric);
+    return results.isEmpty() ? 0 : results.get(0).getLongMetric(metric);
   }
 }

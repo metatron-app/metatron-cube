@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
@@ -31,7 +32,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.segment.IncrementalIndexSegment;
@@ -73,7 +73,7 @@ public class TimeseriesQueryRunnerBonusTest
         new DateTime("2012-01-01T00:00:00Z").getMillis(), QueryGranularities.NONE, new AggregatorFactory[]{}, 1000
     );
 
-    List<Result<TimeseriesResultValue>> results;
+    List<Row> results;
 
     oneRowIndex.add(
         new MapBasedInputRow(
@@ -88,7 +88,7 @@ public class TimeseriesQueryRunnerBonusTest
     Assert.assertEquals("index size", 1, oneRowIndex.size());
     Assert.assertEquals("result size", 1, results.size());
     Assert.assertEquals("result timestamp", new DateTime("2012-01-01T00:00:00Z"), results.get(0).getTimestamp());
-    Assert.assertEquals("result count metric", 1, (long) results.get(0).getValue().getLongMetric("rows"));
+    Assert.assertEquals("result count metric", 1, results.get(0).getLongMetric("rows"));
 
     oneRowIndex.add(
         new MapBasedInputRow(
@@ -103,19 +103,20 @@ public class TimeseriesQueryRunnerBonusTest
     Assert.assertEquals("index size", 2, oneRowIndex.size());
     Assert.assertEquals("result size", 1, results.size());
     Assert.assertEquals("result timestamp", new DateTime("2012-01-01T00:00:00Z"), results.get(0).getTimestamp());
-    Assert.assertEquals("result count metric", 2, (long) results.get(0).getValue().getLongMetric("rows"));
+    Assert.assertEquals("result count metric", 2, results.get(0).getLongMetric("rows"));
   }
 
-  private List<Result<TimeseriesResultValue>> runTimeseriesCount(IncrementalIndex index)
+  private List<Row> runTimeseriesCount(IncrementalIndex index)
   {
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-        new TimeseriesQueryQueryToolChest(
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        toolChest,
         new TimeseriesQueryEngine(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 
-    final QueryRunner<Result<TimeseriesResultValue>> runner = makeQueryRunner(
+    final QueryRunner<Row> runner = makeQueryRunner(
         factory,
         new IncrementalIndexSegment(index, null)
     );
@@ -134,7 +135,7 @@ public class TimeseriesQueryRunnerBonusTest
     HashMap<String,Object> context = new HashMap<String, Object>();
     return Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
   }
 
@@ -144,7 +145,7 @@ public class TimeseriesQueryRunnerBonusTest
   )
   {
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter, null),
+        factory.getToolchest().mergeResults(factory.createRunner(adapter, null)),
         factory.getToolchest()
     );
   }

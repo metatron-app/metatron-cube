@@ -28,7 +28,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -56,6 +55,8 @@ import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -108,7 +109,6 @@ import io.druid.query.timeboundary.TimeBoundaryQueryQueryToolChest;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryConfig;
@@ -502,7 +502,7 @@ public class CachingClusteredClientTest
 
 
     HashMap<String, List> context = new HashMap<String, List>();
-    TestHelper.assertExpectedResults(
+    TestHelper.assertExpectedObjects(
         makeRenamedTimeResults(
             new DateTime("2011-01-01"), 50, 5000,
             new DateTime("2011-01-02"), 30, 6000,
@@ -626,7 +626,7 @@ public class CachingClusteredClientTest
         )
     );
 
-    TestHelper.assertExpectedResults(
+    TestHelper.assertExpectedObjects(
         makeRenamedTimeResults(
             new DateTime("2011-01-05T00"), 85, 102,
             new DateTime("2011-01-05T02"), 80, 100,
@@ -681,7 +681,7 @@ public class CachingClusteredClientTest
         )
     );
     HashMap<String, List> context = new HashMap<String, List>();
-    TestHelper.assertExpectedResults(
+    TestHelper.assertExpectedObjects(
         makeRenamedTimeResults(
             new DateTime("2011-11-04", TIMEZONE), 50, 5000,
             new DateTime("2011-11-05", TIMEZONE), 30, 6000,
@@ -1538,20 +1538,7 @@ public class CachingClusteredClientTest
         queryCaptures.add(capture);
         QueryRunner queryable = expectations.getQueryRunner();
 
-        if (query instanceof TimeseriesQuery) {
-          List<String> segmentIds = Lists.newArrayList();
-          List<Interval> intervals = Lists.newArrayList();
-          List<Iterable<Result<TimeseriesResultValue>>> results = Lists.newArrayList();
-          for (ServerExpectation expectation : expectations) {
-            segmentIds.add(expectation.getSegmentId());
-            intervals.add(expectation.getInterval());
-            results.add(expectation.getResults());
-          }
-          EasyMock.expect(queryable.run(EasyMock.capture(capture), EasyMock.capture(context)))
-                  .andReturn(toQueryableTimeseriesResults(expectBySegment, segmentIds, intervals, results))
-                  .once();
-
-        } else if (query instanceof TopNQuery) {
+        if (query instanceof TopNQuery) {
           List<String> segmentIds = Lists.newArrayList();
           List<Interval> intervals = Lists.newArrayList();
           List<Iterable<Result<TopNResultValue>>> results = Lists.newArrayList();
@@ -1587,7 +1574,7 @@ public class CachingClusteredClientTest
           EasyMock.expect(queryable.run(EasyMock.capture(capture), EasyMock.capture(context)))
                   .andReturn(toQueryableSelectResults(segmentIds, intervals, results))
                   .once();
-        } else if (query instanceof GroupByQuery) {
+        } else if (query instanceof BaseAggregationQuery) {
           List<String> segmentIds = Lists.newArrayList();
           List<Interval> intervals = Lists.newArrayList();
           List<Iterable<Row>> results = Lists.newArrayList();
@@ -1747,47 +1734,6 @@ public class CachingClusteredClientTest
       }
     }
     return serverExpectationList;
-  }
-
-  private Sequence<Result<TimeseriesResultValue>> toQueryableTimeseriesResults(
-      boolean bySegment,
-      Iterable<String> segmentIds,
-      Iterable<Interval> intervals,
-      Iterable<Iterable<Result<TimeseriesResultValue>>> results
-  )
-  {
-    if (bySegment) {
-      return Sequences.simple(
-          FunctionalIterable
-              .create(segmentIds)
-              .trinaryTransform(
-                  intervals,
-                  results,
-                  new TrinaryFn<String, Interval, Iterable<Result<TimeseriesResultValue>>, Result<TimeseriesResultValue>>()
-                  {
-                    @Override
-                    @SuppressWarnings("unchecked")
-                    public Result<TimeseriesResultValue> apply(
-                        final String segmentId,
-                        final Interval interval,
-                        final Iterable<Result<TimeseriesResultValue>> results
-                    )
-                    {
-                      return new Result(
-                          results.iterator().next().getTimestamp(),
-                          new BySegmentResultValueClass(
-                              Lists.newArrayList(results),
-                              segmentId,
-                              interval
-                          )
-                      );
-                    }
-                  }
-              )
-      );
-    } else {
-      return Sequences.simple(Iterables.concat(results));
-    }
   }
 
   private Sequence<Result<TopNResultValue>> toQueryableTopNResults(
@@ -1962,84 +1908,44 @@ public class CachingClusteredClientTest
     );
   }
 
-  private Iterable<Result<TimeseriesResultValue>> makeTimeResults
+  private Iterable<Row> makeTimeResults
       (Object... objects)
   {
     if (objects.length % 3 != 0) {
       throw new ISE("makeTimeResults must be passed arguments in groups of 3, got[%d]", objects.length);
     }
 
-    List<Result<TimeseriesResultValue>> retVal = Lists.newArrayListWithCapacity(objects.length / 3);
+    List<Row> retVal = Lists.newArrayListWithCapacity(objects.length / 3);
     for (int i = 0; i < objects.length; i += 3) {
       double avg_impr = ((Number) objects[i + 2]).doubleValue() / ((Number) objects[i + 1]).doubleValue();
       retVal.add(
-          new Result<>(
-              (DateTime) objects[i],
-              new TimeseriesResultValue(
-                  ImmutableMap.<String, Object>builder()
-                              .put("rows", objects[i + 1])
-                              .put("imps", objects[i + 2])
-                              .put("impers", objects[i + 2])
-                              .put("avg_imps_per_row", avg_impr)
-                              .put("avg_imps_per_row_half", avg_impr / 2)
-                              .put("avg_imps_per_row_double", avg_impr * 2)
-                              .build()
-              )
+          new CompactRow(
+              new Object[] {
+                  ((DateTime) objects[i]).getMillis(), objects[i + 1], objects[i + 2], objects[i + 2],
+                  avg_impr, avg_impr / 2, avg_impr * 2
+              }
           )
       );
     }
     return retVal;
   }
 
-  private Iterable<BySegmentResultValueClass<TimeseriesResultValue>> makeBySegmentTimeResults
-      (Object... objects)
-  {
-    if (objects.length % 5 != 0) {
-      throw new ISE("makeTimeResults must be passed arguments in groups of 5, got[%d]", objects.length);
-    }
-
-    List<BySegmentResultValueClass<TimeseriesResultValue>> retVal = Lists.newArrayListWithCapacity(objects.length / 5);
-    for (int i = 0; i < objects.length; i += 5) {
-      retVal.add(
-          new BySegmentResultValueClass<TimeseriesResultValue>(
-              Lists.newArrayList(
-                  new TimeseriesResultValue(
-                      ImmutableMap.of(
-                          "rows", objects[i + 1],
-                          "imps", objects[i + 2],
-                          "impers", objects[i + 2],
-                          "avg_imps_per_row",
-                          ((Number) objects[i + 2]).doubleValue() / ((Number) objects[i + 1]).doubleValue()
-                      )
-                  )
-              ),
-              (String) objects[i + 3],
-              (Interval) objects[i + 4]
-
-          )
-      );
-    }
-    return retVal;
-  }
-
-  private Iterable<Result<TimeseriesResultValue>> makeRenamedTimeResults
+  private Iterable<Row> makeRenamedTimeResults
       (Object... objects)
   {
     if (objects.length % 3 != 0) {
       throw new ISE("makeTimeResults must be passed arguments in groups of 3, got[%d]", objects.length);
     }
 
-    List<Result<TimeseriesResultValue>> retVal = Lists.newArrayListWithCapacity(objects.length / 3);
+    List<Row> retVal = Lists.newArrayListWithCapacity(objects.length / 3);
     for (int i = 0; i < objects.length; i += 3) {
       retVal.add(
-          new Result<>(
+          new MapBasedRow(
               (DateTime) objects[i],
-              new TimeseriesResultValue(
-                  ImmutableMap.of(
-                      "rows2", objects[i + 1],
-                      "imps", objects[i + 2],
-                      "impers2", objects[i + 2]
-                  )
+              GuavaUtils.<String, Object>asMap(
+                  "rows2", objects[i + 1],
+                  "imps", objects[i + 2],
+                  "impers2", objects[i + 2]
               )
           )
       );

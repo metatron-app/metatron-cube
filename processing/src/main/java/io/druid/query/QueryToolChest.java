@@ -143,19 +143,28 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public abstract TypeReference<ResultType> getResultTypeReference();
 
-  /**
-   * Returns a CacheStrategy to be used to load data into the cache and remove it from the cache.
-   * <p>
-   * This is optional.  If it returns null, caching is effectively disabled for the query.
-   *
-   * @param query The query whose results might be cached
-   * @param <T>   The type of object that will be stored in the cache
-   *
-   * @return A CacheStrategy that can be used to populate and read from the Cache
-   */
-  public <T> CacheStrategy<ResultType, T, QueryType> getCacheStrategy(QueryType query)
+  public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
   {
+    if (this instanceof CacheSupport) {
+      return ((CacheSupport<ResultType, X, QueryType>) this).getCacheStrategy(query);
+    }
     return null;
+  }
+
+  public static abstract class CacheSupport<ResultType, X, QueryType extends Query<ResultType>>
+      extends QueryToolChest<ResultType, QueryType>
+  {
+    /**
+     * Returns a CacheStrategy to be used to load data into the cache and remove it from the cache.
+     * <p>
+     * This is optional.  If it returns null, caching is effectively disabled for the query.
+     *
+     * @param query The query whose results might be cached
+     * @param <T>   The type of object that will be stored in the cache
+     *
+     * @return A CacheStrategy that can be used to populate and read from the Cache
+     */
+    public abstract CacheStrategy<ResultType, X, QueryType> getCacheStrategy(QueryType query);
   }
 
   /**

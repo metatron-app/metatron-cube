@@ -83,7 +83,8 @@ import java.util.TreeMap;
 
 /**
  */
-public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResultValue>, SelectQuery>
+public class SelectQueryQueryToolChest
+    extends QueryToolChest.CacheSupport<Result<SelectResultValue>, Object, SelectQuery>
 {
   private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
       new TypeReference<Object>()

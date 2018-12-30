@@ -22,6 +22,8 @@ package io.druid.segment;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
@@ -46,7 +48,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
@@ -152,24 +153,22 @@ public class SchemalessTestSimple
                                   .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 11L)
-                            .put("index", 900.0)
-                            .put("addRowsIndexConstant", 912.0)
-                            .put("uniques", 2.000977198748901D)
-                            .put("maxIndex", 100.0)
-                            .put("minIndex", 0.0)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 11L)
+                .put("index", 900.0)
+                .put("addRowsIndexConstant", 912.0)
+                .put("uniques", 2.000977198748901D)
+                .put("maxIndex", 100.0)
+                .put("minIndex", 0.0)
+                .build()
         )
     );
     QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
 
 

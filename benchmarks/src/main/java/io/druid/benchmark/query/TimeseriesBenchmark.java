@@ -32,6 +32,7 @@ import io.druid.benchmark.datagen.BenchmarkSchemaInfo;
 import io.druid.benchmark.datagen.BenchmarkSchemas;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -41,7 +42,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -57,7 +57,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMergerV9;
@@ -263,14 +262,14 @@ public class TimeseriesBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void querySingleIncrementalIndex(Blackhole blackhole) throws Exception
   {
-    QueryRunner<Result<TimeseriesResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
+    QueryRunner<Row> runner = QueryBenchmarkUtil.makeQueryRunner(
         factory,
         "incIndex",
         new IncrementalIndexSegment(incIndexes.get(0), "incIndex")
     );
 
-    List<Result<TimeseriesResultValue>> results = TimeseriesBenchmark.runQuery(factory, runner, query);
-    for (Result<TimeseriesResultValue> result : results) {
+    List<Row> results = TimeseriesBenchmark.runQuery(factory, runner, query);
+    for (Row result : results) {
       blackhole.consume(result);
     }
   }
@@ -280,14 +279,14 @@ public class TimeseriesBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void querySingleQueryableIndex(Blackhole blackhole) throws Exception
   {
-    final QueryRunner<Result<TimeseriesResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
+    final QueryRunner<Row> runner = QueryBenchmarkUtil.makeQueryRunner(
         factory,
         "qIndex",
         new QueryableIndexSegment("qIndex", qIndexes.get(0))
     );
 
-    List<Result<TimeseriesResultValue>> results = TimeseriesBenchmark.runQuery(factory, runner, query);
-    for (Result<TimeseriesResultValue> result : results) {
+    List<Row> results = TimeseriesBenchmark.runQuery(factory, runner, query);
+    for (Row result : results) {
       blackhole.consume(result);
     }
   }
@@ -297,7 +296,7 @@ public class TimeseriesBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void queryFilteredSingleQueryableIndex(Blackhole blackhole) throws Exception
   {
-    final QueryRunner<Result<TimeseriesResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
+    final QueryRunner<Row> runner = QueryBenchmarkUtil.makeQueryRunner(
         factory,
         "qIndex",
         new QueryableIndexSegment("qIndex", qIndexes.get(0))
@@ -306,8 +305,8 @@ public class TimeseriesBenchmark
     DimFilter filter = new SelectorDimFilter("dimSequential", "399", null);
     Query filteredQuery = query.withDimFilter(filter);
 
-    List<Result<TimeseriesResultValue>> results = TimeseriesBenchmark.runQuery(factory, runner, filteredQuery);
-    for (Result<TimeseriesResultValue> result : results) {
+    List<Row> results = TimeseriesBenchmark.runQuery(factory, runner, filteredQuery);
+    for (Row result : results) {
       blackhole.consume(result);
     }
   }
@@ -317,11 +316,11 @@ public class TimeseriesBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void queryMultiQueryableIndex(Blackhole blackhole) throws Exception
   {
-    List<QueryRunner<Result<TimeseriesResultValue>>> singleSegmentRunners = Lists.newArrayList();
+    List<QueryRunner<Row>> singleSegmentRunners = Lists.newArrayList();
     QueryToolChest toolChest = factory.getToolchest();
     for (int i = 0; i < numSegments; i++) {
       String segmentName = "qIndex" + i;
-      QueryRunner<Result<TimeseriesResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
+      QueryRunner<Row> runner = QueryBenchmarkUtil.makeQueryRunner(
           factory,
           segmentName,
           new QueryableIndexSegment(segmentName, qIndexes.get(i))
@@ -336,10 +335,10 @@ public class TimeseriesBenchmark
         )
     );
 
-    Sequence<Result<TimeseriesResultValue>> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
-    List<Result<TimeseriesResultValue>> results = Sequences.toList(queryResult, Lists.<Result<TimeseriesResultValue>>newArrayList());
+    Sequence<Row> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
+    List<Row> results = Sequences.toList(queryResult, Lists.<Row>newArrayList());
 
-    for (Result<TimeseriesResultValue> result : results) {
+    for (Row result : results) {
       blackhole.consume(result);
     }
   }

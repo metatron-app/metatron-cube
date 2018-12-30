@@ -44,10 +44,10 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.BaseQuery;
-import io.druid.query.MetricValueExtractor;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -73,7 +73,6 @@ import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -296,15 +295,14 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                       @Override
                       public Integer call()
                       {
-                        List<Result<TimeseriesResultValue>> rows = Sequences.toList(
+                        List<Row> rows = Sequences.toList(
                             timeseries.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                            Lists.<Result<TimeseriesResultValue>>newArrayList()
+                            Lists.<Row>newArrayList()
                         );
                         if (rows.isEmpty()) {
                           return 0;
                         }
-                        Result<TimeseriesResultValue> result = Iterables.getOnlyElement(rows);
-                        MetricValueExtractor row = result.getValue();
+                        Row row = Iterables.getOnlyElement(rows);
                         for (String column : primitiveColumns.keySet()) {
                           ValueType type = primitiveColumns.get(column);
                           Map<String, Object> stats = results.get(column);
@@ -314,20 +312,19 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                             stats.put("missing", row.getLongMetric(column + ".missing"));
                           }
                           if (type.isNumeric()) {
-                            stats.put("mean", row.getDoubleMetricWithRound(column + ".mean", round));
-                            stats.put("variance", row.getDoubleMetricWithRound(column + ".variance", round));
-                            stats.put("stddev", row.getDoubleMetricWithRound(column + ".stddev", round));
-                            stats.put("skewness", row.getDoubleMetricWithRound(column + ".skewness", round));
+                            stats.put("mean", Rows.round(row.getDoubleMetric(column + ".mean"), round));
+                            stats.put("variance", Rows.round(row.getDoubleMetric(column + ".variance"), round));
+                            stats.put("stddev", Rows.round(row.getDoubleMetric(column + ".stddev"), round));
+                            stats.put("skewness", Rows.round(row.getDoubleMetric(column + ".skewness"), round));
                             stats.put("outliers", row.getLongMetric(column + ".outlier"));
                           }
                           if (includeCovariance && type.isNumeric()) {
                             String covariance = "covariance(" + column + ",";
-                            for (Map.Entry<String, Object> entry : row.getBaseObject().entrySet()) {
-                              String key = entry.getKey();
+                            for (String key : row.getColumns()) {
                               if (key.startsWith(covariance) && key.endsWith(")")) {
                                 stats.put(
                                     "covariance." + key.substring(covariance.length(), key.length() - 1),
-                                    MetricValueExtractor.roundValue(Rows.parseDouble(entry.getValue()), round)
+                                    Rows.round(row.getDoubleMetric(key), round)
                                 );
                               }
                             }

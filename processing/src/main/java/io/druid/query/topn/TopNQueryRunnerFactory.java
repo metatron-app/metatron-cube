@@ -26,7 +26,6 @@ import com.metamx.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.annotations.Global;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -92,16 +91,5 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
       }
     };
 
-  }
-
-  @Override
-  public QueryRunner<Result<TopNResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TopNResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 }

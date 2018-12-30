@@ -21,6 +21,7 @@ package io.druid.query.spec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -29,6 +30,8 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
@@ -40,8 +43,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultBuilder;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.SegmentMissingException;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -136,13 +137,11 @@ public class SpecificSegmentQueryRunnerTest
         0
     );
 
-    TimeseriesResultBuilder builder = new TimeseriesResultBuilder(
-        new DateTime("2012-01-01T00:00:00Z")
-    );
     CountAggregator rows = new CountAggregator();
     rows.aggregate();
-    builder.addMetric("rows", rows);
-    final Result<TimeseriesResultValue> value = builder.build();
+    final Row value = new MapBasedRow(
+        new DateTime("2012-01-01T00:00:00Z"), ImmutableMap.<String, Object>of("rows", rows.get())
+    );
 
     final SpecificSegmentQueryRunner queryRunner = new SpecificSegmentQueryRunner(
         new QueryRunner()
@@ -184,16 +183,16 @@ public class SpecificSegmentQueryRunnerTest
         query,
         responseContext
     );
-    List<Result<TimeseriesResultValue>> res = Sequences.toList(
+    List<Row> res = Sequences.toList(
         results,
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
     Assert.assertEquals(1, res.size());
 
-    Result<TimeseriesResultValue> theVal = res.get(0);
+    Row theVal = res.get(0);
 
-    Assert.assertTrue(1L == theVal.getValue().getLongMetric("rows"));
+    Assert.assertTrue(1L == theVal.getLongMetric("rows"));
 
     Object missingSegments = responseContext.get(Result.MISSING_SEGMENTS_KEY);
 

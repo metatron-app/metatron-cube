@@ -21,7 +21,6 @@ package io.druid.query.select;
 
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -30,7 +29,6 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -64,16 +62,5 @@ public class SelectMetaQueryRunnerFactory
         return engine.process((SelectMetaQuery) query, segment);
       }
     };
-  }
-
-  @Override
-  public QueryRunner<Result<SelectMetaResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<SelectMetaResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Result<SelectMetaResultValue>>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 }

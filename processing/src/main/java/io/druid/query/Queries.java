@@ -64,7 +64,6 @@ import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.DimensionSpecVirtualColumn;
@@ -257,33 +256,11 @@ public class Queries
       return Sequences.map((Sequence<StreamQueryRow>) sequence, STREAM_TO_ROW);
     } else if (subQuery instanceof TopNQuery) {
       return Sequences.concat(Sequences.map((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS));
-    } else if (subQuery instanceof TimeseriesQuery) {
-      return Sequences.map((Sequence<Result<TimeseriesResultValue>>) sequence, TIMESERIES_TO_ROW);
-    } else if (subQuery instanceof GroupByQuery) {
+    } else if (subQuery instanceof BaseAggregationQuery) {
       return (Sequence<Row>) sequence;
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }
-
-  public static Function<Result<TimeseriesResultValue>, Row> TIMESERIES_TO_ROW =
-      new Function<Result<TimeseriesResultValue>, Row>()
-      {
-        @Override
-        public Row apply(Result<TimeseriesResultValue> input)
-        {
-          return new MapBasedRow(input.getTimestamp(), input.getValue().getBaseObject());
-        }
-      };
-
-  public static Function<Row, Result<TimeseriesResultValue>> ROW_TO_TIMESERIES =
-      new Function<Row, Result<TimeseriesResultValue>>()
-      {
-        @Override
-        public Result<TimeseriesResultValue> apply(Row input)
-        {
-          return new Result<TimeseriesResultValue>(input.getTimestamp(), new TimeseriesResultValue(Rows.asMap(input)));
-        }
-      };
 
   public static Function<StreamQueryRow, Row> STREAM_TO_ROW =
       new Function<StreamQueryRow, Row>()
@@ -342,10 +319,7 @@ public class Queries
   @SuppressWarnings("unchecked")
   public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
   {
-    if (subQuery instanceof TimeseriesQuery) {
-      return (Sequence<I>) Sequences.map(sequence, ROW_TO_TIMESERIES);
-    }
-    if (subQuery instanceof GroupByQuery) {
+    if (subQuery instanceof BaseAggregationQuery) {
       return Sequences.map(sequence, GuavaUtils.<Row, I>caster());
     }
     throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
@@ -423,6 +397,7 @@ public class Queries
   )
   {
     ObjectMapper objectMapper = segmentWalker.getObjectMapper();
+    query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
     Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, objectMapper);
     Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
     return row.getLongMetric("cardinality");
@@ -507,17 +482,18 @@ public class Queries
       return null;
     }
 
-    metaQuery = metaQuery.withVirtualColumns(virtualColumns)
+    metaQuery = metaQuery.withGranularity(Granularities.ALL)
+                         .withVirtualColumns(virtualColumns)
                          .withAggregatorSpecs(Arrays.asList(aggregator))
                          .withPostAggregatorSpecs(Arrays.asList(postAggregator))
                          .withOutputColumns(Arrays.asList("SPLIT"))
                          .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
 
-    Result<TimeseriesResultValue> result = Sequences.only(
+    Row result = Sequences.only(
         metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()), null
     );
 
-    return result == null ? null : (Object[]) result.getValue().getMetric("SPLIT");
+    return result == null ? null : (Object[]) result.getRaw("SPLIT");
   }
 
 

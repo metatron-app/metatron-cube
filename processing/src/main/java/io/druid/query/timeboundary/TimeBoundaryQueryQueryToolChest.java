@@ -45,7 +45,7 @@ import java.util.Map;
 /**
  */
 public class TimeBoundaryQueryQueryToolChest
-    extends QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
+    extends QueryToolChest.CacheSupport<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery>
 {
   private static final TypeReference<Result<TimeBoundaryResultValue>> TYPE_REFERENCE = new TypeReference<Result<TimeBoundaryResultValue>>()
   {

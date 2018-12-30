@@ -117,7 +117,7 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
 
   protected void assertCache(SketchQuery query, Result<Object[]> result)
   {
-    CacheStrategy<Result<Object[]>, Object[], SketchQuery> strategy = toolChest.getCacheStrategy(query);
+    CacheStrategy<Result<Object[]>, Object[], SketchQuery> strategy = toolChest.getCacheStrategyIfExists(query);
     Object[] cached = strategy.prepareForCache().apply(result);
     Assert.assertEquals(result.getTimestamp().getMillis(), cached[0]);
     Assert.assertArrayEquals(result.getValue(), Arrays.copyOfRange(cached, 1, cached.length));

@@ -23,7 +23,6 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -34,7 +33,6 @@ import io.druid.segment.StorageAdapter;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -52,17 +50,6 @@ public class DataSourceMetadataQueryRunnerFactory
   public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new DataSourceMetadataQueryRunner(segment);
-  }
-
-  @Override
-  public QueryRunner<Result<DataSourceMetadataResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<DataSourceMetadataResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 
   private static class DataSourceMetadataQueryRunner implements QueryRunner<Result<DataSourceMetadataResultValue>>

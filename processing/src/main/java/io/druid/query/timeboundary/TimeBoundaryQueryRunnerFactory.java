@@ -23,7 +23,6 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -35,7 +34,6 @@ import org.joda.time.DateTime;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -53,15 +51,6 @@ public class TimeBoundaryQueryRunnerFactory
   public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new TimeBoundaryQueryRunner(segment);
-  }
-
-  @Override
-  public QueryRunner<Result<TimeBoundaryResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeBoundaryResultValue>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
   }
 
   private static class TimeBoundaryQueryRunner implements QueryRunner<Result<TimeBoundaryResultValue>>
@@ -115,7 +104,6 @@ public class TimeBoundaryQueryRunnerFactory
             @Override
             public void cleanup(Iterator<Result<TimeBoundaryResultValue>> toClean)
             {
-
             }
           }
       );

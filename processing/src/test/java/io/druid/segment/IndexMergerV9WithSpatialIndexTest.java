@@ -26,6 +26,8 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.spatial.search.RadiusBound;
 import com.metamx.collections.spatial.search.RectangularBound;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.QueryGranularities;
@@ -33,7 +35,6 @@ import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -42,7 +43,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
@@ -531,15 +531,10 @@ public class IndexMergerV9WithSpatialIndexTest
                                   )
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2013-01-01T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 3L)
-                            .put("val", 59L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>of("rows", 3L, "val", 59L)
         )
     );
     try {
@@ -556,7 +551,7 @@ public class IndexMergerV9WithSpatialIndexTest
           factory.getToolchest()
       );
 
-      TestHelper.assertExpectedResults(expectedResults, runner.run(query, Maps.newHashMap()));
+      TestHelper.assertExpectedObjects(expectedResults, runner.run(query, Maps.newHashMap()), "");
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
@@ -585,15 +580,13 @@ public class IndexMergerV9WithSpatialIndexTest
                                   )
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2013-01-01T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 13L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 13L)
+                .build()
         )
     );
     try {
@@ -610,7 +603,7 @@ public class IndexMergerV9WithSpatialIndexTest
           factory.getToolchest()
       );
 
-      TestHelper.assertExpectedResults(expectedResults, runner.run(query, Maps.newHashMap()));
+      TestHelper.assertExpectedObjects(expectedResults, runner.run(query, Maps.newHashMap()), "");
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
@@ -638,51 +631,41 @@ public class IndexMergerV9WithSpatialIndexTest
                                   )
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2013-01-01T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 17L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 17L)
+                .build()
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2013-01-02T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 29L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 29L)
+                .build()
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2013-01-03T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 13L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 13L)
+                .build()
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2013-01-04T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 91L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 91L)
+                .build()
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2013-01-05T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("val", 47L)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("val", 47L)
+                .build()
         )
     );
     try {
@@ -694,12 +677,12 @@ public class IndexMergerV9WithSpatialIndexTest
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
-      QueryRunner runner = new FinalizeResultsQueryRunner(
+      QueryRunner<Row> runner = new FinalizeResultsQueryRunner(
           factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
-      TestHelper.assertExpectedResults(expectedResults, runner.run(query, Maps.newHashMap()));
+      TestHelper.assertExpectedObjects(expectedResults, runner.run(query, Maps.<String, Object>newHashMap()));
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

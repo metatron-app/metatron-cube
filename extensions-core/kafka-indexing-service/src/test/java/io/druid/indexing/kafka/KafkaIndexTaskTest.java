@@ -48,6 +48,7 @@ import com.metamx.metrics.MonitorScheduler;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
 import io.druid.concurrent.Execs;
+import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
@@ -88,7 +89,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
-import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -97,7 +97,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -1511,12 +1510,12 @@ public class KafkaIndexTaskTest
                                   .intervals("0000/3000")
                                   .build();
 
-    ArrayList<Result<TimeseriesResultValue>> results = Sequences.toList(
+    ArrayList<Row> results = Sequences.toList(
         task.getQueryRunner(query).run(query, ImmutableMap.<String, Object>of()),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
 
-    return results.isEmpty() ? 0 : results.get(0).getValue().getLongMetric("rows");
+    return results.isEmpty() ? 0 : results.get(0).getLongMetric("rows");
   }
 
   private static byte[] JB(String timestamp, String dim1, String dim2, double met1)

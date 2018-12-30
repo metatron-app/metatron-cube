@@ -41,9 +41,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 
@@ -90,7 +87,7 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
         } else {
           complexColumns = false;
         }
-        if (query instanceof GroupByQuery) {
+        if (query instanceof BaseAggregationQuery) {
           return Sequences.map(
               sequence, new Function<Row, Row>()
               {
@@ -112,47 +109,6 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                     }
                   }
                   return updatable;
-                }
-              }
-          );
-        } else if (query instanceof TimeseriesQuery) {
-          return Sequences.map(
-              sequence, new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
-              {
-                @Override
-                public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> input)
-                {
-                  Map<String, Object> resultValue = input.getValue().getBaseObject();
-                  Iterable<String> columns = complexColumns ? Lists.newArrayList(resultValue.keySet()) : targetColumns;
-                  if (MapBasedRow.supportInplaceUpdate(resultValue)) {
-                    for (String column : targetColumns) {
-                      Object value = resultValue.get(column);
-                      if (value instanceof Sketch || value instanceof Union) {
-                        Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
-                        resultValue.put(column, sketch.getEstimate());
-                        resultValue.put(column + ".estimation", sketch.isEstimationMode());
-                        if (sketch.isEstimationMode()) {
-                          resultValue.put(column + ".upper95", sketch.getUpperBound(2));
-                          resultValue.put(column + ".lower95", sketch.getLowerBound(2));
-                        }
-                      }
-                    }
-                    return input;
-                  }
-                  Map<String, Object> updatable = Maps.newHashMap(resultValue);
-                  for (String column : targetColumns) {
-                    Object value = resultValue.get(column);
-                    if (value instanceof Sketch || value instanceof Union) {
-                      Sketch sketch = value instanceof Sketch ? (Sketch) value : ((Union) value).getResult();
-                      updatable.put(column, sketch.getEstimate());
-                      updatable.put(column + ".estimation", sketch.isEstimationMode());
-                      if (sketch.isEstimationMode()) {
-                        updatable.put(column + ".upper95", sketch.getUpperBound(2));
-                        updatable.put(column + ".lower95", sketch.getLowerBound(2));
-                      }
-                    }
-                  }
-                  return new Result<TimeseriesResultValue>(input.getTimestamp(), new TimeseriesResultValue(updatable));
                 }
               }
           );

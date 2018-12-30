@@ -24,6 +24,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
@@ -48,7 +50,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
@@ -99,35 +100,31 @@ public class SchemalessTestFull
   @Test
   public void testCompleteIntersectingSchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 200.0D)
-                            .put("addRowsIndexConstant", 203.0D)
-                            .put("uniques", UNIQUES_2)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 200.0D)
+                .put("addRowsIndexConstant", 203.0D)
+                .put("uniques", UNIQUES_2)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -234,35 +231,31 @@ public class SchemalessTestFull
   @Test
   public void testEmptyStrings()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 200.0D)
-                            .put("addRowsIndexConstant", 203.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 200.0D)
+                .put("addRowsIndexConstant", 203.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -373,35 +366,31 @@ public class SchemalessTestFull
   @Test
   public void testNonIntersectingSchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 103.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 103.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -506,35 +495,31 @@ public class SchemalessTestFull
   @Test
   public void testPartialIntersectingSchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 200.0D)
-                            .put("addRowsIndexConstant", 203.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 200.0D)
+                .put("addRowsIndexConstant", 203.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -638,23 +623,21 @@ public class SchemalessTestFull
   @Test
   public void testSupersetSchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 200.0D)
-                            .put("addRowsIndexConstant", 203.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 200.0D)
+                .put("addRowsIndexConstant", 203.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = expectedTimeseriesResults;
+    List<Row> expectedFilteredTimeSeriesResults = expectedTimeseriesResults;
 
     List<Result<TopNResultValue>> expectedTopNResults = Arrays.asList(
         new Result<>(
@@ -721,35 +704,31 @@ public class SchemalessTestFull
   @Test
   public void testValueAndEmptySchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 2L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 103.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 2L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 103.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
@@ -845,35 +824,31 @@ public class SchemalessTestFull
   @Test
   public void testEmptySchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 0.0D)
-                            .put("addRowsIndexConstant", 2.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 0.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 0.0D)
+                .put("addRowsIndexConstant", 2.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 0.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 0L)
-                            .put("index", 0.0D)
-                            .put("addRowsIndexConstant", 1.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", Double.NEGATIVE_INFINITY)
-                            .put("minIndex", Double.POSITIVE_INFINITY)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 0L)
+                .put("index", 0.0D)
+                .put("addRowsIndexConstant", 1.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", Double.NEGATIVE_INFINITY)
+                .put("minIndex", Double.POSITIVE_INFINITY)
+                .build()
         )
     );
 
@@ -947,23 +922,21 @@ public class SchemalessTestFull
   @Test
   public void testExactSameSchemas()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 200.0D)
-                            .put("addRowsIndexConstant", 202.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 200.0D)
-                            .put("minIndex", 200.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 200.0D)
+                .put("addRowsIndexConstant", 202.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 200.0D)
+                .put("minIndex", 200.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = expectedTimeseriesResults;
+    List<Row> expectedFilteredTimeSeriesResults = expectedTimeseriesResults;
 
     List<Result<TopNResultValue>> expectedTopNResults = Arrays.asList(
         new Result<>(
@@ -1032,35 +1005,31 @@ public class SchemalessTestFull
   @Test
   public void testMultiDimensionalValues()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 3L)
-                            .put("index", 300.0D)
-                            .put("addRowsIndexConstant", 304.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 100.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 3L)
+                .put("index", 300.0D)
+                .put("addRowsIndexConstant", 304.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 100.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 1L)
-                            .put("index", 100.0D)
-                            .put("addRowsIndexConstant", 102.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0)
-                            .put("minIndex", 100.0)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 1L)
+                .put("index", 100.0D)
+                .put("addRowsIndexConstant", 102.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0)
+                .put("minIndex", 100.0)
+                .build()
         )
     );
 
@@ -1166,35 +1135,31 @@ public class SchemalessTestFull
   @Test
   public void testDifferentMetrics()
   {
-    List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedTimeseriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 11L)
-                            .put("index", 900.0D)
-                            .put("addRowsIndexConstant", 912.0D)
-                            .put("uniques", UNIQUES_1)
-                            .put("maxIndex", 100.0D)
-                            .put("minIndex", 0.0D)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 11L)
+                .put("index", 900.0D)
+                .put("addRowsIndexConstant", 912.0D)
+                .put("uniques", UNIQUES_1)
+                .put("maxIndex", 100.0D)
+                .put("minIndex", 0.0D)
+                .build()
         )
     );
 
-    List<Result<TimeseriesResultValue>> expectedFilteredTimeSeriesResults = Arrays.asList(
-        new Result<>(
+    List<Row> expectedFilteredTimeSeriesResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>builder()
-                            .put("rows", 4L)
-                            .put("index", 400.0D)
-                            .put("addRowsIndexConstant", 405.0D)
-                            .put("uniques", 0.0D)
-                            .put("maxIndex", 100.0)
-                            .put("minIndex", 100.0)
-                            .build()
-            )
+            ImmutableMap.<String, Object>builder()
+                .put("rows", 4L)
+                .put("index", 400.0D)
+                .put("addRowsIndexConstant", 405.0D)
+                .put("uniques", 0.0D)
+                .put("maxIndex", 100.0)
+                .put("minIndex", 100.0)
+                .build()
         )
     );
 
@@ -1379,8 +1344,8 @@ public class SchemalessTestFull
   private void testAll(
       int index1,
       int index2,
-      List<Result<TimeseriesResultValue>> expectedTimeseriesResults,
-      List<Result<TimeseriesResultValue>> expectedFilteredTimeseriesResults,
+      List<Row> expectedTimeseriesResults,
+      List<Row> expectedFilteredTimeseriesResults,
       List<Result<TopNResultValue>> expectedTopNResults,
       List<Result<TopNResultValue>> expectedFilteredTopNResults,
       List<Result<SearchResultValue>> expectedSearchResults,
@@ -1405,8 +1370,8 @@ public class SchemalessTestFull
 
   private void runTests(
       Segment adapter,
-      List<Result<TimeseriesResultValue>> expectedTimeseriesResults,
-      List<Result<TimeseriesResultValue>> expectedFilteredTimeseriesResults,
+      List<Row> expectedTimeseriesResults,
+      List<Row> expectedFilteredTimeseriesResults,
       List<Result<TopNResultValue>> expectedTopNResults,
       List<Result<TopNResultValue>> expectedFilteredTopNResults,
       List<Result<SearchResultValue>> expectedSearchResults,
@@ -1430,7 +1395,7 @@ public class SchemalessTestFull
 
   private void testFullOnTimeseries(
       QueryRunner runner,
-      List<Result<TimeseriesResultValue>> expectedResults,
+      List<Row> expectedResults,
       String failMsg
   )
   {
@@ -1454,16 +1419,16 @@ public class SchemalessTestFull
 
     failMsg += " timeseries ";
     HashMap<String, Object> context = new HashMap<>();
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults, failMsg);
   }
 
   private void testFilteredTimeseries(
       QueryRunner runner,
-      List<Result<TimeseriesResultValue>> expectedResults,
+      List<Row> expectedResults,
       String failMsg
   )
   {
@@ -1488,11 +1453,11 @@ public class SchemalessTestFull
 
     failMsg += " filtered timeseries ";
     HashMap<String, Object> context = new HashMap<>();
-    Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
+    Iterable<Row> actualResults = Sequences.toList(
         runner.run(query, context),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
+    TestHelper.assertExpectedObjects(expectedResults, actualResults, failMsg);
   }
 
 

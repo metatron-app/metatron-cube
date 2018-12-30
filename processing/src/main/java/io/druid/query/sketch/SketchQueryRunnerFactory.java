@@ -20,14 +20,12 @@
 package io.druid.query.sketch;
 
 import com.google.inject.Inject;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.segment.Segment;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -47,16 +45,5 @@ public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   public QueryRunner<Result<Object[]>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SketchQueryRunner(segment, cache);
-  }
-
-  @Override
-  public QueryRunner<Result<Object[]>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<Object[]>>> queryRunners,
-      Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Result<Object[]>>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 }

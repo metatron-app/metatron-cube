@@ -28,7 +28,6 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.guice.annotations.Self;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -47,7 +46,6 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -198,15 +196,5 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
     {
       return ImmutableMap.<String, Object>of(node.getHostAndPort(), current);
     }
-  }
-
-  @Override
-  public QueryRunner<Map<String, Object>> mergeRunners(
-      final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<Map<String, Object>>> queryRunners,
-      final Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Map<String, Object>>(queryExecutor, queryWatcher, queryRunners);
   }
 }

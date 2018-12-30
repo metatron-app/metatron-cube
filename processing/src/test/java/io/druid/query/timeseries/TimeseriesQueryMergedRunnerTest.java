@@ -22,10 +22,11 @@ package io.druid.query.timeseries;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.extraction.MapLookupExtractor;
@@ -66,9 +67,9 @@ public class TimeseriesQueryMergedRunnerTest
     );
   }
 
-  private final QueryRunner<Result<TimeseriesResultValue>> runner;
+  private final QueryRunner<Row> runner;
 
-  public TimeseriesQueryMergedRunnerTest(QueryRunner<Result<TimeseriesResultValue>> runner)
+  public TimeseriesQueryMergedRunnerTest(QueryRunner<Row> runner)
   {
     this.runner = runner;
   }
@@ -98,35 +99,31 @@ public class TimeseriesQueryMergedRunnerTest
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .build();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
+    Iterable<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 11L,
-                    "index", 3783L,
-                    "addRowsIndexConstant", 3795.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 11L,
+                "index", 3783L,
+                "addRowsIndexConstant", 3795.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         ),
-        new Result<>(
+        new MapBasedRow(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows", 11L,
-                    "index", 3313L,
-                    "addRowsIndexConstant", 3325.0,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9
-                )
+            ImmutableMap.<String, Object>of(
+                "rows", 11L,
+                "index", 3313L,
+                "addRowsIndexConstant", 3325.0,
+                "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
         )
     );
 
-    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+    Iterable<Row> results = Sequences.toList(
         runner.run(query, CONTEXT),
-        Lists.<Result<TimeseriesResultValue>>newArrayList()
+        Lists.<Row>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

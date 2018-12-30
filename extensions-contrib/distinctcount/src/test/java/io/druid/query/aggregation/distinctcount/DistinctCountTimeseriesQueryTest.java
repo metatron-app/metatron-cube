@@ -23,15 +23,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -91,22 +91,14 @@ public class DistinctCountTimeseriesQueryTest
                                   )
                                   .build();
 
-    final Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
-        engine.process(
-            query,
-            new IncrementalIndexSegment(index, null)
-        ),
-        Lists.<Result<TimeseriesResultValue>>newLinkedList()
+    final Iterable<Row> results = Sequences.toList(
+        engine.process(query, new IncrementalIndexSegment(index, null), false),
+        Lists.<Row>newLinkedList()
     );
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<>(
-            time,
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("UV", 3, "rows", 3L)
-            )
-        )
+    List<Row> expectedResults = Arrays.<Row>asList(
+        new MapBasedRow(time, ImmutableMap.<String, Object>of("UV", 3, "rows", 3L))
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    TestHelper.assertExpectedObjects(expectedResults, results);
   }
 }

@@ -24,8 +24,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.ValueDesc;
-import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
@@ -188,5 +186,11 @@ public class DimensionSpecs
       }
     }
     return true;
+  }
+
+  public static boolean isOneToOneExtraction(DimensionSpec input)
+  {
+    final ExtractionFn extractionFn = input.getExtractionFn();
+    return extractionFn != null && ExtractionFn.ExtractionType.ONE_TO_ONE.equals(extractionFn.getExtractionType());
   }
 }

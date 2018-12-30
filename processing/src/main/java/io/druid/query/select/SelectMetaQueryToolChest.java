@@ -46,7 +46,8 @@ import java.util.Map;
 
 /**
  */
-public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaResultValue>, SelectMetaQuery>
+public class SelectMetaQueryToolChest
+    extends QueryToolChest.CacheSupport<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, SelectMetaQuery>
 {
   private static final TypeReference<Result<SelectMetaResultValue>> TYPE_REFERENCE =
       new TypeReference<Result<SelectMetaResultValue>>()

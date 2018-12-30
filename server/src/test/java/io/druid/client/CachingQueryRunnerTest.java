@@ -34,6 +34,8 @@ import com.metamx.common.guava.YieldingAccumulator;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.CacheStrategy;
@@ -49,7 +51,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
-import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryQueryToolChest;
@@ -132,23 +133,17 @@ public class CachingQueryRunnerTest
                                     .descending(descending)
                                     .build();
 
-      Result row1 = new Result(
-          new DateTime("2011-04-01"),
-          new TimeseriesResultValue(
-              ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-          )
+      Row row1 = new CompactRow(
+          new Object[]{new DateTime("2011-04-01").getMillis(), 13L, 6619L, QueryRunnerTestHelper.UNIQUES_9}
       );
-      Result row2 = new Result<>(
-          new DateTime("2011-04-02"),
-          new TimeseriesResultValue(
-              ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
-          )
+      Row row2 = new CompactRow(
+          new Object[]{new DateTime("2011-04-02").getMillis(), 13L, 5827L, QueryRunnerTestHelper.UNIQUES_9}
       );
-      List<Result> expectedResults;
+      List<Row> expectedResults;
       if (descending) {
-        expectedResults = Lists.newArrayList(row2, row1);
+        expectedResults = Lists.<Row>newArrayList(row2, row1);
       } else {
-        expectedResults = Lists.newArrayList(row1, row2);
+        expectedResults = Lists.<Row>newArrayList(row1, row2);
       }
 
       QueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
@@ -161,8 +156,8 @@ public class CachingQueryRunnerTest
   }
 
   private void testCloseAndPopulate(
-      List<Result> expectedRes,
-      List<Result> expectedCacheRes,
+      List expectedRes,
+      List expectedCacheRes,
       Query query,
       QueryToolChest toolchest
   )
@@ -221,7 +216,7 @@ public class CachingQueryRunnerTest
         }
     );
 
-    CacheStrategy cacheStrategy = toolchest.getCacheStrategy(query);
+    CacheStrategy cacheStrategy = toolchest.getCacheStrategyIfExists(query);
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
         segmentIdentifier,
         segmentDescriptor,
@@ -255,7 +250,7 @@ public class CachingQueryRunnerTest
   }
 
   private void testUseCache(
-      List<Result> expectedResults,
+      List expectedResults,
       Query query,
       QueryToolChest toolchest
   ) throws Exception
@@ -264,7 +259,7 @@ public class CachingQueryRunnerTest
     String segmentIdentifier = "segment";
     SegmentDescriptor segmentDescriptor = new SegmentDescriptor(new Interval("2011/2012"), "version", 0);
 
-    CacheStrategy cacheStrategy = toolchest.getCacheStrategy(query);
+    CacheStrategy cacheStrategy = toolchest.getCacheStrategyIfExists(query);
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
         segmentIdentifier,
         segmentDescriptor,

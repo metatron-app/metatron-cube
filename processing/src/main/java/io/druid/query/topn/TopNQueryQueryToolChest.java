@@ -72,7 +72,7 @@ import java.util.Map;
 
 /**
  */
-public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultValue>, TopNQuery>
+public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<TopNResultValue>, List<Object>, TopNQuery>
 {
   private static final TypeReference<Result<TopNResultValue>> TYPE_REFERENCE = new TypeReference<Result<TopNResultValue>>()
   {

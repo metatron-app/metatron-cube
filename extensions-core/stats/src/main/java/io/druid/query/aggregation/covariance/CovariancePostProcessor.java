@@ -31,13 +31,11 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.query.MetricValueExtractor;
+import io.druid.data.input.Row;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesResultValue;
 
 import java.util.Collections;
 import java.util.List;
@@ -61,16 +59,15 @@ public class CovariancePostProcessor extends PostProcessingOperator.Abstract
       public Sequence run(Query query, Map responseContext)
       {
         Preconditions.checkArgument(query instanceof TimeseriesQuery);
-        List<Result<TimeseriesResultValue>> rows = Sequences.toList(
+        List<Row> rows = Sequences.toList(
             baseRunner.run(query, Maps.<String, Object>newHashMap()),
-            Lists.<Result<TimeseriesResultValue>>newArrayList()
+            Lists.<Row>newArrayList()
         );
         if (rows.isEmpty()) {
           return Sequences.empty();
         }
-        Result<TimeseriesResultValue> result = Iterables.getOnlyElement(rows);
+        Row row = Iterables.getOnlyElement(rows);
         List<Pair<Double, String>> covariances = Lists.newArrayList();
-        MetricValueExtractor row = result.getValue();
         for (String column : row.getColumns()) {
           covariances.add(Pair.of(row.getDoubleMetric(column), column));
         }

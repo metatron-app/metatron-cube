@@ -133,6 +133,16 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     }
 
     @Override
+    public QueryRunner<T> mergeRunners(
+        ExecutorService queryExecutor,
+        Iterable<QueryRunner<T>> queryRunners,
+        Future<Object> optimizer
+    )
+    {
+      return new ChainedExecutionQueryRunner<T>(queryExecutor, queryWatcher, queryRunners);
+    }
+
+    @Override
     public final QueryToolChest<T, QueryType> getToolchest()
     {
       return toolChest;

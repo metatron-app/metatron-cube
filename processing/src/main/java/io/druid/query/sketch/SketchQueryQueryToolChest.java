@@ -49,7 +49,7 @@ import java.util.List;
 
 /**
  */
-public class SketchQueryQueryToolChest extends QueryToolChest<Result<Object[]>, SketchQuery>
+public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<Object[]>, Object[], SketchQuery>
 {
   private static final TypeReference<Result<Object[]>> TYPE_REFERENCE =
       new TypeReference<Result<Object[]>>()

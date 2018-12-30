@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
@@ -62,8 +63,8 @@ import java.util.Objects;
 
 /**
  */
-public abstract class BaseAggregationQuery<T extends Comparable<T>> extends BaseQuery<T>
-    implements Query.AggregationsSupport<T>
+public abstract class BaseAggregationQuery extends BaseQuery<Row>
+    implements Query.AggregationsSupport<Row>, Query.ArrayOutputSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -224,6 +225,28 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return null;
   }
 
+  @Override
+  public Sequence<Object[]> array(Sequence<Row> sequence)
+  {
+    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
+    return io.druid.common.utils.Sequences.map(
+        sequence,
+        new Function<Row, Object[]>()
+        {
+          @Override
+          public Object[] apply(Row input)
+          {
+            final Object[] array = new Object[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
+                         input.getTimestampFromEpoch() : input.getRaw(columns[i]);
+            }
+            return array;
+          }
+        }
+    );
+  }
+
   public String getLocalSplitStrategy()
   {
     if (GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) && GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
@@ -335,7 +358,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     {
     }
 
-    public Builder(BaseAggregationQuery<?> query)
+    public Builder(BaseAggregationQuery query)
     {
       dataSource = query.getDataSource();
       querySegmentSpec = query.getQuerySegmentSpec();

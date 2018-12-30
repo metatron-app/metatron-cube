@@ -21,6 +21,9 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.primitives.Longs;
+import io.druid.common.DateTimes;
+import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,6 +53,18 @@ public class CompactRow extends AbstractRow
   }
 
   @Override
+  public DateTime getTimestamp()
+  {
+    return DateTimes.utc(getTimestampFromEpoch());
+  }
+
+  @Override
+  public int compareTo(Row o)
+  {
+    return Longs.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
+  }
+
+  @Override
   public Object getRaw(String dimension)
   {
     throw new UnsupportedOperationException("getRaw");
@@ -65,5 +80,11 @@ public class CompactRow extends AbstractRow
   public String toString()
   {
     return Arrays.toString(values);
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return Arrays.equals(values, ((CompactRow) other).values);
   }
 }

@@ -62,7 +62,7 @@ public class SegmentMetadataQueryQueryToolChestTest
     );
 
     CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> strategy =
-        new SegmentMetadataQueryQueryToolChest(null).getCacheStrategy(query);
+        new SegmentMetadataQueryQueryToolChest(null).getCacheStrategyIfExists(query);
 
     // Test cache key generation
     byte[] expectedKey = {0x04, (byte) 0xFF, 0x00, 0x01, 0x02, 0x04};

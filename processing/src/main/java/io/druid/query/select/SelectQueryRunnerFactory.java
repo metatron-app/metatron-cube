@@ -28,7 +28,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -115,18 +114,6 @@ public class SelectQueryRunnerFactory
       return new SelectQueryRunner(engine, config, segment, cache);
     }
     return new NoopQueryRunner<Result<SelectResultValue>>();
-  }
-
-  @Override
-  public QueryRunner<Result<SelectResultValue>> mergeRunners(
-      final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<Result<SelectResultValue>>> queryRunners,
-      final Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Result<SelectResultValue>>(
-        queryExecutor, queryWatcher, queryRunners
-    );
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>

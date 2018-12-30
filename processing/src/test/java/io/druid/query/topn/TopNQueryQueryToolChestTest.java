@@ -59,7 +59,7 @@ public class TopNQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery> strategy =
-        new TopNQueryQueryToolChest(null, null, null).getCacheStrategy(
+        new TopNQueryQueryToolChest(null, null, null).getCacheStrategyIfExists(
             new TopNQuery(
                 new TableDataSource("dummy"),
                 null,

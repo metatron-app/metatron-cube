@@ -29,7 +29,6 @@ import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
-import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -39,7 +38,6 @@ import io.druid.server.DruidNode;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -91,15 +89,5 @@ public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<St
         return Sequences.simple(Arrays.asList(row));
       }
     };
-  }
-
-  @Override
-  public QueryRunner<Map<String, Object>> mergeRunners(
-      final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<Map<String, Object>>> queryRunners,
-      final Future<Object> optimizer
-  )
-  {
-    return new ChainedExecutionQueryRunner<Map<String, Object>>(queryExecutor, queryWatcher, queryRunners);
   }
 }

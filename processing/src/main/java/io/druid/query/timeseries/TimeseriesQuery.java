@@ -22,19 +22,17 @@ package io.druid.query.timeseries;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
-import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -50,7 +48,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("timeseries")
-public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResultValue>>
+public class TimeseriesQuery extends BaseAggregationQuery
 {
   @JsonCreator
   public TimeseriesQuery(
@@ -124,7 +122,7 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
   }
 
   @Override
-  public Query<Result<TimeseriesResultValue>> withDataSource(DataSource dataSource)
+  public Query<Row> withDataSource(DataSource dataSource)
   {
     return new TimeseriesQuery(
         dataSource,
@@ -377,6 +375,12 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
   }
 
   @Override
+  public Ordering<Row> getResultOrdering()
+  {
+    return Granularities.ALL.equals(granularity) ? null : super.getResultOrdering();
+  }
+
+  @Override
   public String toString()
   {
     return "TimeseriesQuery{" +
@@ -394,28 +398,5 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
            (lateralView == null ? "" : "lateralView=" + lateralView) +
            ", context=" + getContext() +
            '}';
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Result<TimeseriesResultValue>> sequence)
-  {
-    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
-    return Sequences.map(
-        sequence,
-        new Function<Result<TimeseriesResultValue>, Object[]>()
-        {
-          @Override
-          public Object[] apply(Result<TimeseriesResultValue> input)
-          {
-            final Object[] array = new Object[columns.length];
-            final TimeseriesResultValue value = input.getValue();
-            for (int i = 0; i < columns.length; i++) {
-              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
-                         input.getTimestamp().getMillis() : value.getMetric(columns[i]);
-            }
-            return array;
-          }
-        }
-    );
   }
 }

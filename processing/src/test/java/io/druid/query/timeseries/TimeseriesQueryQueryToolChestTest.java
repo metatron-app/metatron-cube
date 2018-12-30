@@ -21,12 +21,12 @@ package io.druid.query.timeseries;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.CacheStrategy;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -40,7 +40,6 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 @RunWith(Parameterized.class)
 public class TimeseriesQueryQueryToolChestTest
@@ -61,9 +60,8 @@ public class TimeseriesQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
-
-    CacheStrategy<Result<TimeseriesResultValue>, List<Object>, TimeseriesQuery> strategy =
-        new TimeseriesQueryQueryToolChest(null).getCacheStrategy(
+    CacheStrategy<Row, Object[], TimeseriesQuery> strategy =
+        new TimeseriesQueryQueryToolChest(null).getCacheStrategyIfExists(
             new TimeseriesQuery(
                 new TableDataSource("dummy"),
                 new MultipleIntervalSegmentSpec(
@@ -87,24 +85,20 @@ public class TimeseriesQueryQueryToolChestTest
             )
         );
 
-    final Result<TimeseriesResultValue> result = new Result<>(
+    final CompactRow result = new CompactRow(
         // test timestamps that result in integer size millis
-        new DateTime(123L),
-        new TimeseriesResultValue(
-            ImmutableMap.<String, Object>of("metric1", 2)
-        )
+        new Object[]{new DateTime(123L).getMillis(), 2}
     );
 
     Object preparedValue = strategy.prepareForCache().apply(result);
 
     ObjectMapper objectMapper = new DefaultObjectMapper();
-    List<Object> fromCacheValue = objectMapper.readValue(
+    Object[] fromCacheValue = objectMapper.readValue(
         objectMapper.writeValueAsBytes(preparedValue),
         strategy.getCacheObjectClazz()
     );
 
-    Result<TimeseriesResultValue> fromCacheResult = strategy.pullFromCache().apply(fromCacheValue);
-
-    Assert.assertEquals(result, fromCacheResult);
+    CompactRow fromCacheResult = (CompactRow) strategy.pullFromCache().apply(fromCacheValue);
+    Assert.assertEquals(result.getTimestampFromEpoch(), fromCacheResult.getTimestampFromEpoch());
   }
 }
