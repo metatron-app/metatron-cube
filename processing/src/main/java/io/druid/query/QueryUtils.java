@@ -51,8 +51,7 @@ import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.select.Schema;
-import io.druid.query.select.SelectMetaQuery;
-import io.druid.query.select.SelectMetaResultValue;
+import io.druid.query.select.SchemaQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
@@ -111,22 +110,25 @@ public class QueryUtils
   }
 
   @SuppressWarnings("unchecked")
-  public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
+  public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, final Query query)
   {
-    SelectMetaQuery metaQuery = SelectMetaQuery.forQuery(query, true, false);
+    String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
+    Map<String, Object> context = BaseQuery.copyContextForMeta(query);
+    context.put(Query.BY_SEGMENT, true);
+
+    SchemaQuery metaQuery = SchemaQuery.of(dataSource).withOverriddenContext(context);
 
     Sequence sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
     final Map<String, Map<ValueDesc, MutableInt>> results = Maps.newHashMap();
     sequence.accumulate(
-        null, new Accumulator<Object, Result<BySegmentResultValue<Result<SelectMetaResultValue>>>>()
+        null, new Accumulator<Object, Result<BySegmentResultValue<Schema>>>()
         {
           @Override
-          public Object accumulate(Object accumulated, Result<BySegmentResultValue<Result<SelectMetaResultValue>>> in)
+          public Object accumulate(Object accumulated, Result<BySegmentResultValue<Schema>> in)
           {
-            BySegmentResultValue<Result<SelectMetaResultValue>> bySegment = in.getValue();
-            for (Result<SelectMetaResultValue> result : bySegment.getResults()) {
-              SelectMetaResultValue value = result.getValue();
-              for (Pair<String, ValueDesc> pair : value.getSchema().columnAndTypes()) {
+            BySegmentResultValue<Schema> bySegment = in.getValue();
+            for (Schema schema : bySegment.getResults()) {
+              for (Pair<String, ValueDesc> pair : schema.resolve(query, false).columnAndTypes()) {
                 Map<ValueDesc, MutableInt> counters = results.get(pair.lhs);
                 if (counters == null) {
                   results.put(pair.lhs, counters = Maps.newHashMap());
@@ -371,25 +373,16 @@ public class QueryUtils
       return Preconditions.checkNotNull(schema, "schema of subquery is null");
     }
     if (dataSource instanceof ViewDataSource) {
-      query.withDataSource(TableDataSource.of(((ViewDataSource)dataSource).getName()));
+      dataSource = TableDataSource.of(((ViewDataSource) dataSource).getName());
     }
-    return getSchema(query, segmentWalker);
-  }
-
-  public static Schema getSchema(Query<?> query, QuerySegmentWalker segmentWalker)
-  {
-    SelectMetaQuery metaQuery = SelectMetaQuery.forSchema(
-        query.getDataSource(),
-        query.getQuerySegmentSpec(),
-        query.getId()
+    SchemaQuery schemaQuery = SchemaQuery.of(
+        Iterables.getOnlyElement(dataSource.getNames()), query.getQuerySegmentSpec()
     );
-    Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
-        Sequences.toList(
-            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
-            Lists.<Result<SelectMetaResultValue>>newArrayList()
-        ), null
+    return Sequences.only(
+        schemaQuery.withOverriddenContext(BaseQuery.copyContextForMeta(query))
+                   .run(segmentWalker, Maps.<String, Object>newHashMap()),
+        Schema.EMPTY
     );
-    return result == null ? Schema.EMPTY : result.getValue().getSchema();
   }
 
   // nasty..

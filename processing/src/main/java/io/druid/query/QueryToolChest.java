@@ -66,6 +66,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   protected static final byte SEARCH_QUERY = 0x15;
   protected static final byte SKETCH_QUERY = 0x16;
   protected static final byte SELECT_META_QUERY = 0x17;
+  protected static final byte SCHEMA_QUERY = 0x18;
 
   /**
    * This method wraps a QueryRunner.  The input QueryRunner, by contract, will provide a series of
@@ -165,6 +166,15 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
      * @return A CacheStrategy that can be used to populate and read from the Cache
      */
     public abstract CacheStrategy<ResultType, X, QueryType> getCacheStrategy(QueryType query);
+  }
+
+  protected abstract class IdentityCacheStrategy extends CacheStrategy.Identity<ResultType, QueryType>
+  {
+    @Override
+    public TypeReference<ResultType> getCacheObjectClazz()
+    {
+      return getResultTypeReference();
+    }
   }
 
   /**

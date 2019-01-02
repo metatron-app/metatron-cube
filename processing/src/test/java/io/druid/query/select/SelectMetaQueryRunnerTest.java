@@ -19,17 +19,19 @@
 
 package io.druid.query.select;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.CacheStrategy;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -57,7 +59,7 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class SelectMetaQueryRunnerTest
 {
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return QueryRunnerTestHelper.transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
@@ -231,7 +233,7 @@ public class SelectMetaQueryRunnerTest
   }
 
   @Test
-  public void testSchema()
+  public void testSchema() throws IOException
   {
     SelectMetaQuery query = new SelectMetaQuery(
         TableDataSource.of(dataSource),
@@ -254,12 +256,7 @@ public class SelectMetaQueryRunnerTest
         Maps.<String, Object>newHashMap()
     );
 
-    Schema schema = Iterables.getOnlyElement(
-        Sequences.toList(
-            query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
-            Lists.<Result<SelectMetaResultValue>>newArrayList()
-        )
-    ).getValue().getSchema();
+    Schema schema = Sequences.only(query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of())).getValue().getSchema();
 
     List<Pair<String, ValueDesc>> expected = Arrays.asList(
         Pair.of("time", ValueDesc.DATETIME),
@@ -271,5 +268,58 @@ public class SelectMetaQueryRunnerTest
         Pair.of("quality_uniques", ValueDesc.of("hyperUnique"))
     );
     Assert.assertTrue(Iterables.elementsEqual(expected, schema.columnAndTypes()));
+
+    // retrieves segment schema
+    SchemaQuery schemaQuery = SchemaQuery.of(dataSource);
+    Schema schema2 = Sequences.only(
+        schemaQuery.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    List<Pair<String, ValueDesc>> expected2;
+    if (dataSource.contains("mmapped")) {
+      expected2 = Arrays.asList(
+          Pair.of("__time", ValueDesc.LONG),
+          Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("quality", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("placement", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("placementish", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("partial_null_column", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("indexMin", ValueDesc.FLOAT),
+          Pair.of("quality_uniques", ValueDesc.of("hyperUnique")),
+          Pair.of("index", ValueDesc.DOUBLE),
+          Pair.of("indexDecimal", ValueDesc.of(ValueDesc.DECIMAL_TYPE + "(18,0,DOWN)")),
+          Pair.of("indexMaxPlusTen", ValueDesc.DOUBLE)
+      );
+    } else {
+      expected2 = Arrays.asList(
+          Pair.of("__time", ValueDesc.LONG),
+          Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("quality", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("placement", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("placementish", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("partial_null_column", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("null_column", ValueDesc.ofDimension(ValueType.STRING)),
+          Pair.of("index", ValueDesc.DOUBLE),
+          Pair.of("indexMin", ValueDesc.FLOAT),
+          Pair.of("indexMaxPlusTen", ValueDesc.DOUBLE),
+          Pair.of("quality_uniques", ValueDesc.of("hyperUnique")),
+          Pair.of("indexDecimal", ValueDesc.DECIMAL)
+      );
+    }
+    Assert.assertTrue(Iterables.elementsEqual(expected2, schema2.columnAndTypes()));
+
+    ObjectMapper mapper = TestIndex.segmentWalker.getObjectMapper();
+    CacheStrategy cacheStrategy = new SchemaQueryToolChest().getCacheStrategy(schemaQuery);
+    Schema cached = (Schema) cacheStrategy.pullFromCache().apply(
+        mapper.readValue(
+            mapper.writeValueAsBytes(cacheStrategy.prepareForCache().apply(schema2)), cacheStrategy.getCacheObjectClazz()
+        )
+    );
+    Assert.assertTrue(Iterables.elementsEqual(cached.columnAndTypes(), schema2.columnAndTypes()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getAggregators().keySet(), schema2.getAggregators().keySet()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getAggregators().values(), schema2.getAggregators().values()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getCapabilities().keySet(), schema2.getCapabilities().keySet()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getCapabilities().values(), schema2.getCapabilities().values()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getDescriptors().keySet(), schema2.getDescriptors().keySet()));
+    Assert.assertTrue(Iterables.elementsEqual(cached.getDescriptors().values(), schema2.getDescriptors().values()));
   }
 }

@@ -21,34 +21,32 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import io.druid.common.utils.JodaUtils;
-import io.druid.granularity.Granularities;
+import com.google.common.collect.Ordering;
+import io.druid.common.Intervals;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
-import io.druid.query.QuerySegmentWalker;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
-import org.joda.time.Interval;
+import io.druid.query.spec.QuerySegmentSpecs;
 
-import java.util.Arrays;
 import java.util.Map;
 
 /**
  */
-public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
-    implements Query.RewritingQuery<Result<SelectMetaResultValue>>
+public class SchemaQuery extends BaseQuery<Schema>
 {
   public static SchemaQuery of(String dataSource)
   {
+    return of(dataSource, QuerySegmentSpecs.create(Intervals.ETERNITY));
+  }
+
+  public static SchemaQuery of(String dataSource, QuerySegmentSpec segmentSpec)
+  {
     return new SchemaQuery(
         TableDataSource.of(dataSource),
-        new MultipleIntervalSegmentSpec(Arrays.asList(new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT))),
+        segmentSpec,
         ImmutableMap.<String, Object>of("allDimensionsForEmpty", false, "allMetricsForEmpty", false)
     );
   }
@@ -70,22 +68,9 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @Override
-  public SelectMetaQuery rewriteQuery(
-      QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
-  )
+  public Ordering<Schema> getResultOrdering()
   {
-    return new SelectMetaQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        null,
-        Granularities.ALL,
-        null,
-        null,
-        null,
-        true,
-        null,
-        getContext()
-    );
+    return null;
   }
 
   @Override
@@ -112,6 +97,12 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         computeOverriddenContext(contextOverride)
     );
+  }
+
+  @Override
+  public SchemaQuery withOverriddenContext(String contextKey, Object contextValue)
+  {
+    return (SchemaQuery) super.withOverriddenContext(contextKey, contextValue);
   }
 
   @Override

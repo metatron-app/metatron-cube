@@ -76,6 +76,9 @@ import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
+import io.druid.query.select.SchemaQuery;
+import io.druid.query.select.SchemaQueryRunnerFactory;
+import io.druid.query.select.SchemaQueryToolChest;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryEngine;
 import io.druid.query.select.SelectMetaQueryRunnerFactory;
@@ -285,6 +288,13 @@ public class QueryRunnerTestHelper
                       new SelectMetaQueryRunnerFactory(
                           new SelectMetaQueryToolChest(),
                           new SelectMetaQueryEngine(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      SchemaQuery.class,
+                      new SchemaQueryRunnerFactory(
+                          new SchemaQueryToolChest(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )

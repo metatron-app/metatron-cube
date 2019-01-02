@@ -40,6 +40,8 @@ import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
+import io.druid.query.select.SchemaQuery;
+import io.druid.query.select.SchemaQueryToolChest;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectForwardQueryToolChest;
 import io.druid.query.select.SelectMetaQuery;
@@ -75,6 +77,7 @@ public class QueryToolChestModule implements Module
                   .put(SegmentMetadataQuery.class, SegmentMetadataQueryQueryToolChest.class)
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
                   .put(SelectMetaQuery.class, SelectMetaQueryToolChest.class)
+                  .put(SchemaQuery.class, SchemaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(StreamQuery.class, StreamQueryToolChest.class)
                   .put(StreamRawQuery.class, StreamRawQueryToolChest.class)

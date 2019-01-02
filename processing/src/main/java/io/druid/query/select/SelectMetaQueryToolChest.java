@@ -20,8 +20,6 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
@@ -139,7 +137,7 @@ public class SelectMetaQueryToolChest
     if (query.getPagingSpec() != null) {
       return null;
     }
-    return new CacheStrategy<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, SelectMetaQuery>()
+    return new IdentityCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SelectMetaQuery query)
@@ -177,24 +175,6 @@ public class SelectMetaQueryToolChest
         }
 
         return queryCacheKey.array();
-      }
-
-      @Override
-      public TypeReference<Result<SelectMetaResultValue>> getCacheObjectClazz()
-      {
-        return getResultTypeReference();
-      }
-
-      @Override
-      public Function<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> prepareForCache()
-      {
-        return Functions.identity();
-      }
-
-      @Override
-      public Function<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> pullFromCache()
-      {
-        return Functions.identity();
       }
     };
   }

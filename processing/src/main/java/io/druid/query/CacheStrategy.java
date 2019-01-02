@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 
 /**
 */
@@ -56,4 +57,19 @@ public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
    * @return A function that does the inverse of the operation that the function prepareForCache returns
    */
   Function<CacheType, T> pullFromCache();
+
+  abstract class Identity<T, QueryType extends Query<T>> implements CacheStrategy<T, T, QueryType>
+  {
+    @Override
+    public Function<T, T> prepareForCache()
+    {
+      return Functions.identity();
+    }
+
+    @Override
+    public Function<T, T> pullFromCache()
+    {
+      return Functions.identity();
+    }
+  }
 }

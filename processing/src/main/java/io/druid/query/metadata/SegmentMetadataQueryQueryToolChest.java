@@ -151,7 +151,7 @@ public class SegmentMetadataQueryQueryToolChest
   @Override
   public CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> getCacheStrategy(SegmentMetadataQuery query)
   {
-    return new CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery>()
+    return new IdentityCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SegmentMetadataQuery query)
@@ -171,38 +171,6 @@ public class SegmentMetadataQueryQueryToolChest
                          .put(vcBytes)
                          .put(analysisTypesBytes)
                          .array();
-      }
-
-      @Override
-      public TypeReference<SegmentAnalysis> getCacheObjectClazz()
-      {
-        return getResultTypeReference();
-      }
-
-      @Override
-      public Function<SegmentAnalysis, SegmentAnalysis> prepareForCache()
-      {
-        return new Function<SegmentAnalysis, SegmentAnalysis>()
-        {
-          @Override
-          public SegmentAnalysis apply(@Nullable SegmentAnalysis input)
-          {
-            return input;
-          }
-        };
-      }
-
-      @Override
-      public Function<SegmentAnalysis, SegmentAnalysis> pullFromCache()
-      {
-        return new Function<SegmentAnalysis, SegmentAnalysis>()
-        {
-          @Override
-          public SegmentAnalysis apply(@Nullable SegmentAnalysis input)
-          {
-            return input;
-          }
-        };
       }
     };
   }

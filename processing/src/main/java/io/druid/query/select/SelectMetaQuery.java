@@ -27,22 +27,18 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.common.Intervals;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.ViewDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.LegacySegmentSpec;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
@@ -58,65 +54,6 @@ import java.util.Objects;
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   implements Query.MetricSupport<Result<SelectMetaResultValue>>
 {
-  public static SelectMetaQuery forQuery(Query source)
-  {
-    return forQuery(source, false, false);
-  }
-
-  public static SelectMetaQuery forView(ViewDataSource view, boolean schemaOnly)
-  {
-    return new SelectMetaQuery(
-        view,
-        MultipleIntervalSegmentSpec.of(Intervals.ETERNITY),
-        null,
-        null,
-        null,
-        null,
-        null,
-        schemaOnly,
-        null,
-        null
-    );
-  }
-
-  @SuppressWarnings("unchecked")
-  public static SelectMetaQuery forQuery(Query source, boolean bySegment, boolean schemaOnly)
-  {
-    Builder builder = new Builder()
-        .setDataSource(source.getDataSource())
-        .setQuerySegmentSpec(source.getQuerySegmentSpec())
-        .setGranularity(QueryGranularities.ALL)
-        .setContext(BaseQuery.copyContextForMeta(source.getContext()))
-        .addContext(BaseQuery.BY_SEGMENT, bySegment);
-
-    if (source instanceof VCSupport) {
-      builder.setVirtualColumns(((VCSupport) source).getVirtualColumns());
-    }
-    if (source instanceof DimFilterSupport) {
-      builder.setDimFilter(((DimFilterSupport) source).getDimFilter());
-    }
-    if (source instanceof DimensionSupport) {
-      builder.setDimensions(((DimensionSupport) source).getDimensions());
-    }
-    if (source instanceof MetricSupport) {
-      builder.setMetrics(((MetricSupport) source).getMetrics());
-    }
-    return builder.build(schemaOnly);
-  }
-
-  public static SelectMetaQuery forSchema(DataSource dataSource, QuerySegmentSpec querySegmentSpec, String queryId)
-  {
-    Map<String, Object> context = Maps.newHashMap();
-    context.put(ALL_DIMENSIONS_FOR_EMPTY, false);
-    context.put(ALL_METRICS_FOR_EMPTY, false);
-    if (queryId != null) {
-      context.put(QUERYID, queryId);
-    }
-    return new SelectMetaQuery(
-        dataSource, querySegmentSpec, null, QueryGranularities.ALL, null, null, null, true, null, context
-    );
-  }
-
   private final DimFilter dimFilter;
   private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
