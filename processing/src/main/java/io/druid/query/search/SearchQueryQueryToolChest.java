@@ -33,6 +33,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
+import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
@@ -60,6 +61,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -178,6 +180,34 @@ public class SearchQueryQueryToolChest
   public TypeReference<Result<SearchResultValue>> getResultTypeReference()
   {
     return TYPE_REFERENCE;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ToIntFunction numRows(SearchQuery query)
+  {
+    if (BaseQuery.getContextBySegment(query)) {
+      return new ToIntFunction()
+      {
+        @Override
+        public int applyAsInt(Object bySegment)
+        {
+          int counter = 0;
+          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+            counter += ((Result<SearchResultValue>) value).getValue().size();
+          }
+          return counter;
+        }
+      };
+    }
+    return new ToIntFunction()
+    {
+      @Override
+      public int applyAsInt(Object value)
+      {
+        return ((Result<SearchResultValue>) value).getValue().size();
+      }
+    };
   }
 
   @Override

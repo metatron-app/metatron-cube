@@ -69,6 +69,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -257,6 +258,34 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
   public TypeReference<Result<TopNResultValue>> getResultTypeReference()
   {
     return TYPE_REFERENCE;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ToIntFunction numRows(TopNQuery query)
+  {
+    if (BaseQuery.getContextBySegment(query)) {
+      return new ToIntFunction()
+      {
+        @Override
+        public int applyAsInt(Object bySegment)
+        {
+          int counter = 0;
+          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+            counter += ((Result<TopNResultValue>) value).getValue().size();
+          }
+          return counter;
+        }
+      };
+    }
+    return new ToIntFunction()
+    {
+      @Override
+      public int applyAsInt(Object value)
+      {
+        return ((Result<TopNResultValue>) value).getValue().size();
+      }
+    };
   }
 
   @Override

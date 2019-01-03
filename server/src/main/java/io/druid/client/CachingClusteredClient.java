@@ -92,6 +92,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -336,7 +337,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           total += value.length;
         }
         log.info(
-            "Requested %,d segments for %s and returned %,d segments (%,d bytes) from cache, took %,d msec",
+            "Requested %,d segments from cache for [%s] and returned %,d segments (%,d bytes), took %,d msec",
             cacheKeys.size(), query.getType(), cachedValues.size(), total, System.currentTimeMillis() - start
         );
       } else {
@@ -392,11 +393,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       @Override
       public Sequence<T> get()
       {
-        final CacheAccessTime cacheAccessTime = new CacheAccessTime();
+        final ToIntFunction counter = toolChest.numRows(query);
+        final CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
 
         ArrayList<Sequence<T>> sequencesByInterval = Lists.newArrayList();
-        if (strategy != null && !cachedResults.isEmpty()) {
-          addSequencesFromCache(sequencesByInterval, cacheAccessTime);
+        if (cacheAccessor != null && !cachedResults.isEmpty()) {
+          addSequencesFromCache(sequencesByInterval, cacheAccessor);
         }
         addSequencesFromServer(sequencesByInterval);
 
@@ -405,16 +407,15 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             toolChest,
             sequencesByInterval,
             cachedResults.size(),
-            cacheAccessTime
+            cacheAccessor
         );
       }
 
       private void addSequencesFromCache(
           final ArrayList<Sequence<T>> listOfSequences,
-          final CacheAccessTime cacheAccessTime
+          final CacheAccessor cacheAccessor
       )
       {
-        final Function<Object, T> pullFromCacheFunction = strategy.pullFromCache();
         final TypeReference<Object> cacheObjectClazz = strategy.getCacheObjectClazz();
         for (Pair<Interval, byte[]> cachedResultPair : cachedResults) {
           final byte[] cachedResult = cachedResultPair.rhs;
@@ -438,12 +439,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                     throw Throwables.propagate(e);
                   }
                   finally {
-                    cacheAccessTime.addRow(System.currentTimeMillis() - prev);
+                    cacheAccessor.addTime(System.currentTimeMillis() - prev);
                   }
                 }
               }
           );
-          listOfSequences.add(Sequences.map(cachedSequence, pullFromCacheFunction));
+          listOfSequences.add(Sequences.map(cachedSequence, cacheAccessor));
         }
       }
 
@@ -623,11 +624,11 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       final QueryToolChest<T, Query<T>> toolChest,
       final List<Sequence<T>> sequencesByInterval,
       final int numCachedSegments,
-      final CacheAccessTime cacheAccessTime
+      final CacheAccessor cacheAccessor
   )
   {
     Sequence<T> sequence = QueryUtils.mergeSort(query, sequencesByInterval);
-    if (numCachedSegments > 0 && cacheAccessTime != null) {
+    if (numCachedSegments > 0 && cacheAccessor != null) {
       sequence = Sequences.withBaggage(
           sequence, new Closeable()
           {
@@ -636,7 +637,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             {
               log.info(
                   "Deserialized %,d rows from %,d cached segments, took %,d msec",
-                  cacheAccessTime.rows(), numCachedSegments, cacheAccessTime.time()
+                  cacheAccessor.rows(), numCachedSegments, cacheAccessor.time()
               );
             }
           }
@@ -645,17 +646,21 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     return sequence;
   }
 
-  private static class CacheAccessTime extends Pair<AtomicLong, AtomicInteger>
+  private static class CacheAccessor<T> extends Pair<AtomicLong, AtomicInteger> implements Function<Object, T>
   {
-    public CacheAccessTime()
+    private final ToIntFunction counter;
+    private final Function<Object, T> pullFromCacheFunction;
+
+    public CacheAccessor(ToIntFunction counter, Function<Object, T> pullFromCacheFunction)
     {
       super(new AtomicLong(), new AtomicInteger());
+      this.counter = counter;
+      this.pullFromCacheFunction = pullFromCacheFunction;
     }
 
-    public void addRow(long time)
+    public void addTime(long time)
     {
       lhs.addAndGet(time);
-      rhs.incrementAndGet();
     }
 
     public long time()
@@ -666,6 +671,20 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     public int rows()
     {
       return rhs.get();
+    }
+
+    @Override
+    public T apply(Object input)
+    {
+      long start = System.currentTimeMillis();
+      try {
+        final T cached = pullFromCacheFunction.apply(input);
+        rhs.addAndGet(counter.applyAsInt(cached));
+        return cached;
+      }
+      finally {
+        lhs.addAndGet(System.currentTimeMillis() - start);
+      }
     }
   }
 

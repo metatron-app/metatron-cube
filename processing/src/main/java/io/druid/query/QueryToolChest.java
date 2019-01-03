@@ -46,6 +46,7 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.  This API is still undergoing
@@ -143,6 +144,20 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @return A TypeReference to indicate to Jackson what type of data will exist for this query
    */
   public abstract TypeReference<ResultType> getResultTypeReference();
+
+  public ToIntFunction numRows(QueryType query)
+  {
+    return COUNTER;
+  }
+
+  public static final ToIntFunction COUNTER = new ToIntFunction()
+  {
+    @Override
+    public int applyAsInt(Object value)
+    {
+      return 1;
+    }
+  };
 
   public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
   {

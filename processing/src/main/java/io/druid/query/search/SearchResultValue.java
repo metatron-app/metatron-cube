@@ -52,6 +52,11 @@ public class SearchResultValue implements Iterable<SearchHit>
     return value.iterator();
   }
 
+  public int size()
+  {
+    return value.size();
+  }
+
   public boolean isEmpty()
   {
     return value.isEmpty();

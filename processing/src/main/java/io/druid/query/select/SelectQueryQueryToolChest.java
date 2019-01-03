@@ -38,6 +38,8 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseQuery;
+import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
@@ -80,6 +82,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -270,6 +273,34 @@ public class SelectQueryQueryToolChest
   public TypeReference<Result<SelectResultValue>> getResultTypeReference()
   {
     return TYPE_REFERENCE;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ToIntFunction numRows(SelectQuery query)
+  {
+    if (BaseQuery.getContextBySegment(query)) {
+      return new ToIntFunction()
+      {
+        @Override
+        public int applyAsInt(Object bySegment)
+        {
+          int counter = 0;
+          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+            counter += ((Result<SelectResultValue>) value).getValue().size();
+          }
+          return counter;
+        }
+      };
+    }
+    return new ToIntFunction()
+    {
+      @Override
+      public int applyAsInt(Object value)
+      {
+        return ((Result<SelectResultValue>) value).getValue().size();
+      }
+    };
   }
 
   @Override

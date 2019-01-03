@@ -112,6 +112,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -296,18 +297,17 @@ public class QueryResource
       final Sequence results = Sequences.withBaggage(prepared.run(texasRanger, responseContext), future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
+      final ToIntFunction numRows = toolChest == null ? QueryToolChest.COUNTER : toolChest.numRows(query);
       final MutableInt counter = new MutableInt();
 
-      @SuppressWarnings("unchecked")
       final Yielder yielder = results.toYielder(
           null,
           new YieldingAccumulator()
           {
             @Override
-            @SuppressWarnings("unchecked")
             public Object accumulate(Object accumulated, Object in)
             {
-              counter.increment();
+              counter.add(numRows.applyAsInt(in));
               yield();
               return in;
             }

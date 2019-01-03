@@ -33,9 +33,7 @@ public class TopNResultValue implements Iterable<Map<String, Object>>
   private final List<Map<String, Object>> value;
 
   @JsonCreator
-  public TopNResultValue(
-      List<Map<String, Object>> value
-  )
+  public TopNResultValue(List<Map<String, Object>> value)
   {
     this.value = value;
   }
@@ -50,6 +48,11 @@ public class TopNResultValue implements Iterable<Map<String, Object>>
   public Iterator<Map<String, Object>> iterator()
   {
     return value.iterator();
+  }
+
+  public int size()
+  {
+    return value.size();
   }
 
   @Override

@@ -130,4 +130,10 @@ public class BySegmentResultValueClass<T> implements BySegmentResultValue<T>
       }
     };
   }
+
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> unwrap(Object input)
+  {
+    return ((Result<BySegmentResultValueClass<T>>) input).getValue().getResults();
+  }
 }

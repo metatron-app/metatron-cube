@@ -61,6 +61,11 @@ public class SelectResultValue implements Iterable<EventHolder>
     return events.iterator();
   }
 
+  public int size()
+  {
+    return events.size();
+  }
+
   @Override
   public boolean equals(Object o)
   {
