@@ -161,7 +161,7 @@ public class AggregatorsModule extends SimpleModule
   {
   }
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "version", defaultImpl = MapBasedRow.class)
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "version", defaultImpl = CompactRow.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = "v1", value = MapBasedRow.class),
       @JsonSubTypes.Type(name = "x", value = CompactRow.class),
