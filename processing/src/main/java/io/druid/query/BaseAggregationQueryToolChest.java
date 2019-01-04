@@ -33,7 +33,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
-import io.druid.data.input.BulkSequence;
+import io.druid.data.input.BulkRowSequence;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -205,7 +205,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       Schema schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
-      sequence = new BulkSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()), 2048);
+      sequence = new BulkRowSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()));
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

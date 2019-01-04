@@ -26,6 +26,9 @@ import com.metamx.common.guava.YieldingSequenceBase;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.groupby.UTF8Bytes;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import org.python.google.common.primitives.Ints;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,14 +37,22 @@ import java.util.List;
 /**
  * Remove type information & apply compresssion if possible
  */
-public class BulkSequence extends YieldingSequenceBase<Row>
+public class BulkRowSequence extends YieldingSequenceBase<Row>
 {
+  private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();
+  private static final int DEFAULT_PAGE_SIZE = 1024;
+
   private final Sequence<Row> sequence;
   private final int[] category;
   private final Object[] page;
   private final int max;
 
-  public BulkSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
+  public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types)
+  {
+    this(sequence, types, DEFAULT_PAGE_SIZE);
+  }
+
+  public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
   {
     this.sequence = sequence;
     this.category = new int[types.size()];
@@ -63,7 +74,7 @@ public class BulkSequence extends YieldingSequenceBase<Row>
           break;
         case STRING:
           category[i] = 3;
-          page[i] = new byte[max][];
+          page[i] = new BytesOutputStream(4096);
           break;
         default:
           category[i] = 4;
@@ -154,14 +165,16 @@ public class BulkSequence extends YieldingSequenceBase<Row>
     {
       final int ix = index++;
       final Object[] values = ((CompactRow) current).getValues();
-      for (int i = 0; i < category.length && ix < max; i++) {
+      for (int i = 0; i < category.length; i++) {
         switch (category[i]) {
           case 0: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); break;
           case 1: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); break;
           case 2: ((double[]) page[i])[ix] = ((Number) values[i]).doubleValue(); break;
-          case 3: ((byte[][]) page[i])[ix] =
-              values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
-                                             : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
+          case 3:
+            final byte[] bytes = values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
+                                                                : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
+            ((BytesOutputStream) page[i]).writeShort(bytes.length);
+            ((BytesOutputStream) page[i]).write(bytes);
             break;
           default: ((Object[]) page[i])[ix] = values[i]; break;
         }
@@ -178,18 +191,16 @@ public class BulkSequence extends YieldingSequenceBase<Row>
           case 0: copy[i] = Arrays.copyOf((float[]) page[i], size); break;
           case 1: copy[i] = Arrays.copyOf((long[]) page[i], size); break;
           case 2: copy[i] = Arrays.copyOf((double[]) page[i], size); break;
-          case 3: copy[i] = Arrays.copyOf((byte[][]) page[i], size); break;
-  //        case 3:
-  //          final int[] lengths = new int[index];
-  //          final ByteArrayDataOutput bout = ByteStreams.newDataOutput();
-  //          for (int x = 0; x < index; x++) {
-  //            byte[] value = ((byte[][]) values[i])[x];
-  //            lengths[x] = value.length;
-  //            bout.write(value);
-  //          }
-  //          byte[] compressed = compressor.compress(bout.toByteArray());
-  //          copy[i] = new Object[]{lengths, compressed};
-  //          break;
+          case 3:
+            final BytesOutputStream stream = (BytesOutputStream) page[i];
+            final byte[] compressed = new byte[Integer.BYTES + LZ4.maxCompressedLength(stream.size())];
+            System.arraycopy(Ints.toByteArray(stream.size()), 0, compressed, 0, Integer.BYTES);
+            copy[i] = Arrays.copyOf(
+                compressed,
+                Integer.BYTES + LZ4.compress(stream.toByteArray(), 0, stream.size(), compressed, Integer.BYTES)
+            );
+            stream.reset();
+            break;
           default: copy[i] = Arrays.copyOf((Object[]) page[i], size); break;
         }
       }

@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class BulkSequenceTest
+public class BulkRowSequenceTest
 {
   @Test
   public void test() throws IOException
@@ -23,7 +23,7 @@ public class BulkSequenceTest
     Sequence<Row> rows = Sequences.simple(Arrays.<Row>asList(
         cr(0), cr(1), cr(2), cr(3), cr(4)
     ));
-    BulkSequence bulk = new BulkSequence(rows, Arrays.asList(ValueDesc.LONG, ValueDesc.STRING), 2);
+    BulkRowSequence bulk = new BulkRowSequence(rows, Arrays.asList(ValueDesc.LONG, ValueDesc.STRING), 2);
 
     final List<long[]> longs = Sequences.toList(Sequences.map(
         bulk, new Function<Row, long[]>()
