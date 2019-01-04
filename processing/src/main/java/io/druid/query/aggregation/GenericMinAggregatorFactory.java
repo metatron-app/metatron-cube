@@ -121,9 +121,15 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
+  protected final AggregatorFactory withName(String name, String fieldName, ValueDesc inputType)
   {
     return new GenericMinAggregatorFactory(name, fieldName, inputType);
+  }
+
+  @Override
+  protected AggregatorFactory withExpression(String name, String fieldExpression, ValueDesc inputType)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, fieldExpression, predicate, inputType);
   }
 
   @Override

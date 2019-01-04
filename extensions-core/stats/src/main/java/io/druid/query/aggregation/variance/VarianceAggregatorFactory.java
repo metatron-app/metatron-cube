@@ -190,9 +190,15 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType)
+  protected AggregatorFactory withName(String name, String fieldName, ValueDesc inputType)
   {
-    return new VarianceAggregatorFactory(name, fieldName, null, null, estimator, inputType);
+    return new VarianceAggregatorFactory(name, fieldName, fieldExpression, predicate, estimator, inputType);
+  }
+
+  @Override
+  protected AggregatorFactory withExpression(String name, String fieldExpression, ValueDesc inputType)
+  {
+    return new VarianceAggregatorFactory(name, fieldName, fieldExpression, predicate, estimator, inputType);
   }
 
   @Override

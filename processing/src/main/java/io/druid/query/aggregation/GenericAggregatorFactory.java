@@ -98,8 +98,13 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   @Override
   public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
   {
-    ValueDesc sourceType = resolver.get().resolve(fieldName);
-    return withValue(name, fieldName, sourceType);
+    if (fieldName != null) {
+      ValueDesc sourceType = resolver.get().resolve(fieldName);
+      return withName(name, fieldName, sourceType);
+    } else {
+      ValueDesc sourceType = Parser.parse(fieldExpression).resolve(resolver.get());
+      return withExpression(name, fieldExpression, sourceType);
+    }
   }
 
   protected ValueDesc toOutputType(ValueDesc inputType)
@@ -163,7 +168,9 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
 
   protected abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType);
 
-  protected abstract AggregatorFactory withValue(String name, String fieldName, ValueDesc inputType);
+  protected abstract AggregatorFactory withName(String name, String fieldName, ValueDesc inputType);
+
+  protected abstract AggregatorFactory withExpression(String name, String fieldExpression, ValueDesc inputType);
 
   protected abstract byte cacheTypeID();
 
@@ -176,7 +183,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return withValue(name, name, getOutputType());
+    return withName(name, name, getOutputType());
   }
 
   @Override
