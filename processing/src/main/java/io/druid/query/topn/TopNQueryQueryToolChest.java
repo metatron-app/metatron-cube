@@ -29,11 +29,11 @@ import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
@@ -121,7 +121,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
         TopNQuery topN = (TopNQuery) query;
         if (topN.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           Sequence<Result<TopNResultValue>> sequence = runner.run(topN.removePostActions(), responseContext);
-          if (BaseQuery.getContextBySegment(topN)) {
+          if (BaseQuery.isBySegment(topN)) {
             return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(toPostAggregator(topN)));
           }
           TopNBinaryFn topNBinaryFn = new TopNBinaryFn(
@@ -264,7 +264,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
   @SuppressWarnings("unchecked")
   public ToIntFunction numRows(TopNQuery query)
   {
-    if (BaseQuery.getContextBySegment(query)) {
+    if (BaseQuery.isBySegment(query)) {
       return new ToIntFunction()
       {
         @Override
@@ -524,7 +524,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = BaseQuery.getContextBySegment(query);
+      final boolean isBySegment = BaseQuery.isBySegment(query);
 
       return Sequences.map(
           runner.run(query.withThreshold(minTopNThreshold), responseContext),
@@ -634,17 +634,15 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.concat(
-            Sequences.map(
-                sequence, new Function<Result<TopNResultValue>, Sequence<Map<String, Object>>>()
-                {
-                  @Override
-                  public Sequence<Map<String, Object>> apply(Result<TopNResultValue> input)
-                  {
-                    return Sequences.simple(input.getValue().getValue());
-                  }
-                }
-            )
+        return Sequences.explode(
+            sequence, new Function<Result<TopNResultValue>, Sequence<Map<String, Object>>>()
+            {
+              @Override
+              public Sequence<Map<String, Object>> apply(Result<TopNResultValue> input)
+              {
+                return Sequences.simple(input.getValue().getValue());
+              }
+            }
         );
       }
 

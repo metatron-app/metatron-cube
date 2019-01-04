@@ -31,10 +31,10 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
+import io.druid.common.utils.Sequences;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
@@ -91,11 +91,11 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
       return base.run(query, responseContext);
     }
 
-    final boolean populateCache = BaseQuery.getContextPopulateCache(query, true)
+    final boolean populateCache = BaseQuery.isPopulateCache(query, true)
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
 
-    final boolean useCache = BaseQuery.getContextUseCache(query, true)
+    final boolean useCache = BaseQuery.isUseCache(query, true)
                              && cacheConfig.isUseCache()
                              && cacheConfig.isQueryCacheable(query);
 

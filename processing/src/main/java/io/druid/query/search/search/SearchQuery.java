@@ -28,7 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
@@ -339,23 +339,21 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   @Override
   public Sequence<Object[]> array(Sequence<Result<SearchResultValue>> sequence)
   {
-    return Sequences.concat(
-        Sequences.map(
-            sequence, new Function<Result<SearchResultValue>, Sequence<Object[]>>()
-            {
-              @Override
-              public Sequence<Object[]> apply(Result<SearchResultValue> input)
-              {
-                final List<Object[]> list = Lists.newArrayList();
-                for (SearchHit hit : input.getValue()) {
-                  list.add(valueOnly ?
-                           new Object[] {hit.getDimension(), hit.getValue()} :
-                           new Object[] {hit.getDimension(), hit.getValue(), hit.getCount()});
-                }
-                return Sequences.simple(list);
-              }
+    return Sequences.explode(
+        sequence, new Function<Result<SearchResultValue>, Sequence<Object[]>>()
+        {
+          @Override
+          public Sequence<Object[]> apply(Result<SearchResultValue> input)
+          {
+            final List<Object[]> list = Lists.newArrayList();
+            for (SearchHit hit : input.getValue()) {
+              list.add(valueOnly ?
+                       new Object[]{hit.getDimension(), hit.getValue()} :
+                       new Object[]{hit.getDimension(), hit.getValue(), hit.getCount()});
             }
-        )
+            return Sequences.simple(list);
+          }
+        }
     );
   }
 }

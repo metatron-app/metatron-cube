@@ -22,7 +22,9 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.IdentityFunction;
+import io.druid.common.utils.Sequences;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -135,5 +137,17 @@ public class BySegmentResultValueClass<T> implements BySegmentResultValue<T>
   public static <T> List<T> unwrap(Object input)
   {
     return ((Result<BySegmentResultValueClass<T>>) input).getValue().getResults();
+  }
+
+  public static <T> Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> unwrap()
+  {
+    return new Function<Result<BySegmentResultValueClass<T>>, Sequence<T>>()
+    {
+      @Override
+      public Sequence<T> apply(Result<BySegmentResultValueClass<T>> input)
+      {
+        return Sequences.simple(input.getValue().getResults());
+      }
+    };
   }
 }

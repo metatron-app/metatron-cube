@@ -142,66 +142,62 @@ public class GroupByQueryEngine
       final Cache cache
   )
   {
-    Sequence<Cursor> cursors = Sequences.concat(
-        Sequences.map(
-            sequences, new Function<Segment, Sequence<Cursor>>()
-            {
-              @Override
-              public Sequence<Cursor> apply(Segment segment)
-              {
-                final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
-                if (storageAdapter == null) {
-                  throw new ISE(
-                      "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
-                  );
-                }
-                final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
-
-                final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
-                if (intervals.size() != 1) {
-                  throw new IAE("Should only have one interval, got[%s]", intervals);
-                }
-
-                return storageAdapter.makeCursors(
-                    query.getDimFilter(),
-                    intervals.get(0),
-                    resolver,
-                    query.getGranularity(),
-                    cache,
-                    false
-                );
-              }
+    Sequence<Cursor> cursors = Sequences.explode(
+        sequences, new Function<Segment, Sequence<Cursor>>()
+        {
+          @Override
+          public Sequence<Cursor> apply(Segment segment)
+          {
+            final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
+            if (storageAdapter == null) {
+              throw new ISE(
+                  "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
+              );
             }
-        )
+            final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
+
+            final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+            if (intervals.size() != 1) {
+              throw new IAE("Should only have one interval, got[%s]", intervals);
+            }
+
+            return storageAdapter.makeCursors(
+                query.getDimFilter(),
+                intervals.get(0),
+                resolver,
+                query.getGranularity(),
+                cache,
+                false
+            );
+          }
+        }
     );
 
-    return Sequences.concat(
-        Sequences.map(
-            cursors,
-            new Function<Cursor, Sequence<Object[]>>()
-            {
-              @Override
-              public Sequence<Object[]> apply(final Cursor cursor)
-              {
-                return new BaseSequence<>(
-                    new BaseSequence.IteratorMaker<Object[], RowIterator>()
-                    {
-                      @Override
-                      public RowIterator make()
-                      {
-                        return new RowIterator(query, cursor, intermediateResultsBufferPool, 1);
-                      }
+    return Sequences.explode(
+        cursors,
+        new Function<Cursor, Sequence<Object[]>>()
+        {
+          @Override
+          public Sequence<Object[]> apply(final Cursor cursor)
+          {
+            return new BaseSequence<>(
+                new BaseSequence.IteratorMaker<Object[], RowIterator>()
+                {
+                  @Override
+                  public RowIterator make()
+                  {
+                    return new RowIterator(query, cursor, intermediateResultsBufferPool, 1);
+                  }
 
-                      @Override
-                      public void cleanup(RowIterator iterFromMake)
-                      {
-                        CloseQuietly.close(iterFromMake);
-                      }
-                    }
-                );
-              }
-            }
-        )
+                  @Override
+                  public void cleanup(RowIterator iterFromMake)
+                  {
+                    CloseQuietly.close(iterFromMake);
+                  }
+                }
+            );
+          }
+        }
     );
   }
 

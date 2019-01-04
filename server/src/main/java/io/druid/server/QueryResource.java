@@ -279,13 +279,13 @@ public class QueryResource
     final long start = System.currentTimeMillis();
     final Query query = readQuery(in, context);
     try {
-      log.info("Got query [%s]", log.isDebugEnabled() ? query : query.getId() + ":" + query.getType());
+      log.info("Got query [%s]", log.isDebugEnabled() ? query : "[" + query.getType() + "]" + query.getId());
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
       final Query prepared = prepareQuery(query);
 
       // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      Access access = authorize(prepared, req);
+      final Access access = authorize(prepared, req);
       if (access != null) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
@@ -293,17 +293,21 @@ public class QueryResource
       Execs.SettableFuture future = new Execs.SettableFuture<Object>();
       queryManager.registerQuery(query, future);
 
-      final Map<String, Object> responseContext = new ConcurrentHashMap<>();
-      final Sequence results = Sequences.withBaggage(prepared.run(texasRanger, responseContext), future);
-
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
-      final ToIntFunction numRows = toolChest == null ? QueryToolChest.COUNTER : toolChest.numRows(query);
-      final MutableInt counter = new MutableInt();
+      final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
-      final Yielder yielder = results.toYielder(
+      Sequence sequence = prepared.run(texasRanger, responseContext);
+      if (toolChest != null) {
+        sequence = toolChest.serializeSequence(prepared, sequence, texasRanger);
+      }
+
+      final MutableInt counter = new MutableInt();
+      final Yielder yielder = Sequences.withBaggage(sequence, future).toYielder(
           null,
           new YieldingAccumulator()
           {
+            private final ToIntFunction numRows = QueryToolChest.numRows(query, toolChest);
+
             @Override
             public Object accumulate(Object accumulated, Object in)
             {

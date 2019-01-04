@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.BulkRow;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.ExpressionTimestampSpec;
 import io.druid.data.input.MapBasedRow;
@@ -165,6 +166,7 @@ public class AggregatorsModule extends SimpleModule
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = "v1", value = MapBasedRow.class),
       @JsonSubTypes.Type(name = "x", value = CompactRow.class),
+      @JsonSubTypes.Type(name = "b", value = BulkRow.class),
       @JsonSubTypes.Type(name = "predict", value = HoltWintersPostProcessor.PredictedRow.class)
   })
   public static interface Rows

@@ -760,7 +760,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   @Override
   public Ordering<Row> getResultOrdering()
   {
-    return getContextBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
+    return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
   }
 
   @SuppressWarnings("unchecked")

@@ -1,0 +1,200 @@
+/*
+ * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. Metamarkets licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package io.druid.data.input;
+
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Yielder;
+import com.metamx.common.guava.YieldingAccumulator;
+import com.metamx.common.guava.YieldingSequenceBase;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.query.groupby.UTF8Bytes;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Remove type information & apply compresssion if possible
+ */
+public class BulkSequence extends YieldingSequenceBase<Row>
+{
+  private final Sequence<Row> sequence;
+  private final int[] category;
+  private final Object[] page;
+  private final int max;
+
+  public BulkSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
+  {
+    this.sequence = sequence;
+    this.category = new int[types.size()];
+    this.page = new Object[types.size()];
+    for (int i = 0; i < types.size(); i++) {
+      final ValueDesc valueDesc = types.get(i);
+      switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
+        case FLOAT:
+          category[i] = 0;
+          page[i] = new float[max];
+          break;
+        case LONG:
+          category[i] = 1;
+          page[i] = new long[max];
+          break;
+        case DOUBLE:
+          category[i] = 2;
+          page[i] = new double[max];
+          break;
+        case STRING:
+          category[i] = 3;
+          page[i] = new byte[max][];
+          break;
+        default:
+          category[i] = 4;
+          page[i] = new Object[max];
+      }
+    }
+    this.max = max;
+  }
+
+  @Override
+  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, Row> accumulator)
+  {
+    BulkYieldingAccumulator<OutType> bulkYielder = new BulkYieldingAccumulator<OutType>(initValue, accumulator);
+    return wrapYielder(sequence.toYielder(initValue, bulkYielder), bulkYielder);
+  }
+
+  private <OutType> Yielder<OutType> wrapYielder(
+      final Yielder<OutType> yielder, final BulkYieldingAccumulator<OutType> accumulator
+  )
+  {
+    return new Yielder<OutType>()
+    {
+      @Override
+      public OutType get()
+      {
+        if (yielder.isDone() && accumulator.index > 0) {
+          return accumulator.asBulkRow();
+        }
+        return yielder.get();
+      }
+
+      @Override
+      public Yielder<OutType> next(OutType initValue)
+      {
+        accumulator.retValue = initValue;
+        return wrapYielder(yielder.next(initValue), accumulator);
+      }
+
+      @Override
+      public boolean isDone()
+      {
+        return (yielder == null || yielder.isDone()) && accumulator.index == 0;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        if (yielder != null) {
+          yielder.close();
+        }
+      }
+    };
+  }
+
+  private class BulkYieldingAccumulator<OutType> extends YieldingAccumulator<OutType, Row>
+  {
+    private final YieldingAccumulator<OutType, Row> accumulator;
+
+    private int index;
+    private OutType retValue;
+
+    public BulkYieldingAccumulator(OutType retValue, YieldingAccumulator<OutType, Row> accumulator)
+    {
+      this.accumulator = accumulator;
+      this.retValue = retValue;
+    }
+
+    @Override
+    public void reset()
+    {
+      accumulator.reset();
+    }
+
+    @Override
+    public boolean yielded()
+    {
+      return accumulator.yielded();
+    }
+
+    @Override
+    public void yield()
+    {
+      accumulator.yield();
+    }
+
+    @Override
+    public OutType accumulate(OutType prevValue, Row current)
+    {
+      final int ix = index++;
+      final Object[] values = ((CompactRow) current).getValues();
+      for (int i = 0; i < category.length && ix < max; i++) {
+        switch (category[i]) {
+          case 0: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); break;
+          case 1: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); break;
+          case 2: ((double[]) page[i])[ix] = ((Number) values[i]).doubleValue(); break;
+          case 3: ((byte[][]) page[i])[ix] =
+              values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
+                                             : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
+            break;
+          default: ((Object[]) page[i])[ix] = values[i]; break;
+        }
+      }
+      return index < max ? prevValue : asBulkRow();
+    }
+
+    private OutType asBulkRow()
+    {
+      final int size = index;
+      final Object[] copy = new Object[page.length];
+      for (int i = 0; i < category.length; i++) {
+        switch (category[i]) {
+          case 0: copy[i] = Arrays.copyOf((float[]) page[i], size); break;
+          case 1: copy[i] = Arrays.copyOf((long[]) page[i], size); break;
+          case 2: copy[i] = Arrays.copyOf((double[]) page[i], size); break;
+          case 3: copy[i] = Arrays.copyOf((byte[][]) page[i], size); break;
+  //        case 3:
+  //          final int[] lengths = new int[index];
+  //          final ByteArrayDataOutput bout = ByteStreams.newDataOutput();
+  //          for (int x = 0; x < index; x++) {
+  //            byte[] value = ((byte[][]) values[i])[x];
+  //            lengths[x] = value.length;
+  //            bout.write(value);
+  //          }
+  //          byte[] compressed = compressor.compress(bout.toByteArray());
+  //          copy[i] = new Object[]{lengths, compressed};
+  //          break;
+          default: copy[i] = Arrays.copyOf((Object[]) page[i], size); break;
+        }
+      }
+      index = 0;
+      return retValue = accumulator.accumulate(retValue, new BulkRow(copy));
+    }
+  }
+}

@@ -21,7 +21,6 @@ package io.druid.segment.realtime.firehose;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
@@ -64,112 +63,107 @@ public class IngestSegmentFirehose implements Firehose
       final Granularity granularity
   )
   {
-    Sequence<InputRow> rows = Sequences.concat(
-        Iterables.transform(
-            adapters, new Function<WindowedStorageAdapter, Sequence<InputRow>>()
-            {
-              @Nullable
-              @Override
-              public Sequence<InputRow> apply(WindowedStorageAdapter adapter)
-              {
-                return Sequences.concat(
-                    Sequences.map(
-                        adapter.getAdapter().makeCursors(
-                            dimFilter,
-                            adapter.getInterval(),
-                            RowResolver.of(adapter.getAdapter(), ImmutableList.<VirtualColumn>of()),
-                            granularity,
-                            null, false
-                        ), new Function<Cursor, Sequence<InputRow>>()
+    Sequence<InputRow> rows = Sequences.explode(
+        Sequences.simple(adapters), new Function<WindowedStorageAdapter, Sequence<InputRow>>()
+        {
+          @Override
+          public Sequence<InputRow> apply(WindowedStorageAdapter adapter)
+          {
+            return Sequences.explode(
+                adapter.getAdapter().makeCursors(
+                    dimFilter,
+                    adapter.getInterval(),
+                    RowResolver.of(adapter.getAdapter(), ImmutableList.<VirtualColumn>of()),
+                    granularity,
+                    null, false
+                ), new Function<Cursor, Sequence<InputRow>>()
+                {
+                  @Nullable
+                  @Override
+                  public Sequence<InputRow> apply(final Cursor cursor)
+                  {
+                    final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
+
+                    final Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
+                    for (String dim : dims) {
+                      final DimensionSelector dimSelector = cursor.makeDimensionSelector(
+                          new DefaultDimensionSpec(dim, dim)
+                      );
+                      // dimSelector is null if the dimension is not present
+                      if (dimSelector != null) {
+                        dimSelectors.put(dim, dimSelector);
+                      }
+                    }
+
+                    final Map<String, ObjectColumnSelector> metSelectors = Maps.newHashMap();
+                    for (String metric : metrics) {
+                      final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
+                      if (metricSelector != null) {
+                        metSelectors.put(metric, metricSelector);
+                      }
+                    }
+
+                    return Sequences.simple(
+                        new Iterable<InputRow>()
                         {
-                          @Nullable
                           @Override
-                          public Sequence<InputRow> apply(final Cursor cursor)
+                          public Iterator<InputRow> iterator()
                           {
-                            final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
-
-                            final Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-                            for (String dim : dims) {
-                              final DimensionSelector dimSelector = cursor.makeDimensionSelector(
-                                  new DefaultDimensionSpec(dim, dim)
-                              );
-                              // dimSelector is null if the dimension is not present
-                              if (dimSelector != null) {
-                                dimSelectors.put(dim, dimSelector);
+                            return new Iterator<InputRow>()
+                            {
+                              @Override
+                              public boolean hasNext()
+                              {
+                                return !cursor.isDone();
                               }
-                            }
 
-                            final Map<String, ObjectColumnSelector> metSelectors = Maps.newHashMap();
-                            for (String metric : metrics) {
-                              final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
-                              if (metricSelector != null) {
-                                metSelectors.put(metric, metricSelector);
-                              }
-                            }
+                              @Override
+                              public InputRow next()
+                              {
+                                final Map<String, Object> theEvent = Maps.newLinkedHashMap();
+                                final long timestamp = timestampColumnSelector.get();
+                                theEvent.put(EventHolder.timestampKey, new DateTime(timestamp));
 
-                            return Sequences.simple(
-                                new Iterable<InputRow>()
-                                {
-                                  @Override
-                                  public Iterator<InputRow> iterator()
-                                  {
-                                    return new Iterator<InputRow>()
-                                    {
-                                      @Override
-                                      public boolean hasNext()
-                                      {
-                                        return !cursor.isDone();
-                                      }
+                                for (Map.Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
+                                  final String dim = dimSelector.getKey();
+                                  final DimensionSelector selector = dimSelector.getValue();
+                                  final IndexedInts vals = selector.getRow();
 
-                                      @Override
-                                      public InputRow next()
-                                      {
-                                        final Map<String, Object> theEvent = Maps.newLinkedHashMap();
-                                        final long timestamp = timestampColumnSelector.get();
-                                        theEvent.put(EventHolder.timestampKey, new DateTime(timestamp));
-
-                                        for (Map.Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
-                                          final String dim = dimSelector.getKey();
-                                          final DimensionSelector selector = dimSelector.getValue();
-                                          final IndexedInts vals = selector.getRow();
-
-                                          if (vals.size() == 1) {
-                                            final Comparable dimVal = selector.lookupName(vals.get(0));
-                                            theEvent.put(dim, dimVal);
-                                          } else {
-                                            List<Comparable> dimVals = Lists.newArrayList();
-                                            for (int i = 0; i < vals.size(); ++i) {
-                                              dimVals.add(selector.lookupName(vals.get(i)));
-                                            }
-                                            theEvent.put(dim, dimVals);
-                                          }
-                                        }
-
-                                        for (Map.Entry<String, ObjectColumnSelector> metSelector : metSelectors.entrySet()) {
-                                          final String metric = metSelector.getKey();
-                                          final ObjectColumnSelector selector = metSelector.getValue();
-                                          theEvent.put(metric, selector.get());
-                                        }
-                                        cursor.advance();
-                                        return new MapBasedInputRow(timestamp, dims, theEvent);
-                                      }
-
-                                      @Override
-                                      public void remove()
-                                      {
-                                        throw new UnsupportedOperationException("Remove Not Supported");
-                                      }
-                                    };
+                                  if (vals.size() == 1) {
+                                    final Comparable dimVal = selector.lookupName(vals.get(0));
+                                    theEvent.put(dim, dimVal);
+                                  } else {
+                                    List<Comparable> dimVals = Lists.newArrayList();
+                                    for (int i = 0; i < vals.size(); ++i) {
+                                      dimVals.add(selector.lookupName(vals.get(i)));
+                                    }
+                                    theEvent.put(dim, dimVals);
                                   }
                                 }
-                            );
+
+                                for (Map.Entry<String, ObjectColumnSelector> metSelector : metSelectors.entrySet()) {
+                                  final String metric = metSelector.getKey();
+                                  final ObjectColumnSelector selector = metSelector.getValue();
+                                  theEvent.put(metric, selector.get());
+                                }
+                                cursor.advance();
+                                return new MapBasedInputRow(timestamp, dims, theEvent);
+                              }
+
+                              @Override
+                              public void remove()
+                              {
+                                throw new UnsupportedOperationException("Remove Not Supported");
+                              }
+                            };
                           }
                         }
-                    )
-                );
-              }
-            }
-        )
+                    );
+                  }
+                }
+            );
+          }
+        }
     );
     rowYielder = rows.toYielder(
         null,

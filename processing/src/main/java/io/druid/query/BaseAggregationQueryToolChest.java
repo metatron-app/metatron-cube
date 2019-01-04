@@ -31,6 +31,9 @@ import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.BulkRow;
+import io.druid.data.input.BulkSequence;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -43,6 +46,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.AggregationQueryBinaryFn;
+import io.druid.query.select.Schema;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
@@ -82,7 +86,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         T aggregation = (T) query;
         if (aggregation.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           Sequence<Row> sequence = runner.run(aggregation.removePostActions(), responseContext);
-          if (BaseQuery.getContextBySegment(aggregation)) {
+          if (BaseQuery.isBySegment(aggregation)) {
             return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(
                 Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation)))
             );
@@ -177,6 +181,33 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         return input;
       }
     };
+  }
+
+  @Override
+  public Sequence<Row> deserializeSequence(T query, Sequence<Row> sequence)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      sequence = Sequences.explode(sequence, new Function<Row, Sequence<Row>>()
+      {
+        @Override
+        public Sequence<Row> apply(Row input)
+        {
+          return ((BulkRow) input).decompose();
+        }
+      });
+    }
+    return super.deserializeSequence(query, sequence);
+  }
+
+  @Override
+  public Sequence<Row> serializeSequence(T query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
+  {
+    // see CCC.prepareQuery()
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      Schema schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
+      sequence = new BulkSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()), 2048);
+    }
+    return super.serializeSequence(query, sequence, segmentWalker);
   }
 
   @Override

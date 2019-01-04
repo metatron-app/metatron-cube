@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.search.search.SearchQueryConfig;
@@ -81,6 +82,13 @@ public class QueryConfig
       return !getSelect().isUseDateTime();
     }
     return true;
+  }
+
+  public boolean useBulkRow(Query query)
+  {
+    return !BaseQuery.isBySegment(query) &&
+           query instanceof GroupByQuery &&
+           query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow());
   }
 
   public GroupByQueryConfig getGroupBy()

@@ -73,7 +73,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
     final Query<T> queryToRun;
     final MetricManipulationFn metricManipulationFn;
 
-    if (BaseQuery.getContextFinalize(query, true)) {
+    if (BaseQuery.isFinalize(query, true)) {
       queryToRun = query.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINALIZE, false));
       metricManipulationFn = MetricManipulatorFns.finalizing();
     } else {
@@ -82,7 +82,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
     }
 
     Function finalizerFn = toolChest.makePostComputeManipulatorFn(query, metricManipulationFn);
-    if (BaseQuery.getContextBySegment(query)) {
+    if (BaseQuery.isBySegment(query)) {
       finalizerFn = BySegmentResultValueClass.applyAll(finalizerFn);
     }
     return Sequences.map(baseRunner.run(queryToRun, responseContext), finalizerFn);

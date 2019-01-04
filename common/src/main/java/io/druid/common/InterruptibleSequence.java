@@ -65,13 +65,15 @@ public class InterruptibleSequence<T> extends YieldingSequenceBase<T>
       @Override
       public boolean isDone()
       {
-        return yielder.isDone();
+        return yielder == null || yielder.isDone();
       }
 
       @Override
       public void close() throws IOException
       {
-        yielder.close();
+        if (yielder != null) {
+          yielder.close();
+        }
       }
     };
   }

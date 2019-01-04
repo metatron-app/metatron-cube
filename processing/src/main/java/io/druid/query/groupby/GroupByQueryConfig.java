@@ -59,6 +59,9 @@ public class GroupByQueryConfig
   private boolean useRawUTF8 = false;
 
   @JsonProperty
+  private boolean useBulkRow = false;
+
+  @JsonProperty
   private int localSplitNum = -1;
 
   @JsonProperty
@@ -175,6 +178,16 @@ public class GroupByQueryConfig
   public void setUseRawUTF8(boolean useRawUTF8)
   {
     this.useRawUTF8 = useRawUTF8;
+  }
+
+  public boolean isUseBulkRow()
+  {
+    return useBulkRow;
+  }
+
+  public void setUseBulkRow(boolean useBulkRow)
+  {
+    this.useBulkRow = useBulkRow;
   }
 
   public int getLocalSplitNum()

@@ -279,7 +279,7 @@ public class SelectQueryQueryToolChest
   @SuppressWarnings("unchecked")
   public ToIntFunction numRows(SelectQuery query)
   {
-    if (BaseQuery.getContextBySegment(query)) {
+    if (BaseQuery.isBySegment(query)) {
       return new ToIntFunction()
       {
         @Override
@@ -627,36 +627,34 @@ public class SelectQueryQueryToolChest
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.concat(
-            Sequences.map(
-                sequence, new Function<Result<SelectResultValue>, Sequence<Map<String, Object>>>()
-                {
-                  @Override
-                  public Sequence<Map<String, Object>> apply(Result<SelectResultValue> input)
-                  {
-                    pagingSpec.putAll(input.getValue().getPagingIdentifiers());
-                    return Sequences.simple(
-                        Iterables.transform(
-                            input.getValue().getEvents(), new Function<EventHolder, Map<String, Object>>()
-                            {
-                              @Override
-                              public Map<String, Object> apply(EventHolder input)
-                              {
-                                Map<String, Object> event = input.getEvent();
-                                if (timestampColumn != null) {
-                                  if (!MapBasedRow.supportInplaceUpdate(event)) {
-                                    event = Maps.newLinkedHashMap(event);
-                                  }
-                                  event.put(timestampColumn, input.getTimestamp());
-                                }
-                                return event;
+        return Sequences.explode(
+            sequence, new Function<Result<SelectResultValue>, Sequence<Map<String, Object>>>()
+            {
+              @Override
+              public Sequence<Map<String, Object>> apply(Result<SelectResultValue> input)
+              {
+                pagingSpec.putAll(input.getValue().getPagingIdentifiers());
+                return Sequences.simple(
+                    Iterables.transform(
+                        input.getValue().getEvents(), new Function<EventHolder, Map<String, Object>>()
+                        {
+                          @Override
+                          public Map<String, Object> apply(EventHolder input)
+                          {
+                            Map<String, Object> event = input.getEvent();
+                            if (timestampColumn != null) {
+                              if (!MapBasedRow.supportInplaceUpdate(event)) {
+                                event = Maps.newLinkedHashMap(event);
                               }
+                              event.put(timestampColumn, input.getTimestamp());
                             }
-                        )
-                    );
-                  }
-                }
-            )
+                            return event;
+                          }
+                        }
+                    )
+                );
+              }
+            }
         );
       }
 

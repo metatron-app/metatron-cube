@@ -428,7 +428,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         };
         QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
-        if (BaseQuery.getContextBySegment(query)) {
+        if (BaseQuery.isBySegment(query)) {
           manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
         }
         return Sequences.map(runner.run(query, responseContext), manipulatorFn);

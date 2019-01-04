@@ -151,14 +151,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   @Override
-  public Sequence<T> run(final Query<T> baseQuery, final Map<String, Object> responseContext)
+  public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
-    final Query<T> query;
-    if (queryConfig.useCustomSerdeForDateTime(baseQuery)) {
-      query = baseQuery.withOverriddenContext(ImmutableMap.<String, Object>of(Query.DATETIME_CUSTOM_SERDE, true));
-    } else {
-      query = baseQuery;
-    }
     final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query instanceof Query.ManagementQuery) {
@@ -183,15 +177,15 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     final List<Pair<Interval, byte[]>> cachedResults = Lists.newArrayList();
     final Map<String, CachePopulator> cachePopulatorMap = Maps.newHashMap();
 
-    final boolean useCache = BaseQuery.getContextUseCache(query, true)
+    final boolean useCache = BaseQuery.isUseCache(query, true)
                              && strategy != null
                              && cacheConfig.isUseCache()
                              && cacheConfig.isQueryCacheable(query);
-    final boolean populateCache = BaseQuery.getContextPopulateCache(query, true)
+    final boolean populateCache = BaseQuery.isPopulateCache(query, true)
                                   && strategy != null
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
-    final boolean explicitBySegment = BaseQuery.getContextBySegment(query);
+    final boolean explicitBySegment = BaseQuery.isBySegment(query);
 
 
     final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
@@ -452,8 +446,9 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       {
         listOfSequences.ensureCapacity(listOfSequences.size() + serverSegments.size());
 
+        final Query<T> prepared = prepareQuery(query);
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
-            query, MetricManipulatorFns.deserializing()
+            prepared, MetricManipulatorFns.deserializing()
         );
         final List<Sequence> needPostProcessing = Lists.newArrayList();
 
@@ -463,9 +458,9 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final DruidServer server = entry.getKey();
           final List<SegmentDescriptor> descriptors = entry.getValue();
 
-          Query<T> rewritten = query;
+          Query<T> rewritten = prepared;
           if (server.isAssignable() && populateCache) {
-            rewritten = query.withOverriddenContext(contextBuilder.build());
+            rewritten = rewritten.withOverriddenContext(contextBuilder.build());
           }
           final Query<T> running = rewritten.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
@@ -491,7 +486,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           } else {
             sequence = runner.run(running, responseContext);
           }
-          if (!BaseQuery.getContextBySegment(running)) {
+          if (!BaseQuery.isBySegment(running)) {
             listOfSequences.add(sequence);
           } else if (!populateCache) {
             listOfSequences.add(Sequences.map(sequence, BySegmentResultValueClass.applyAll(deserializer)));
@@ -585,13 +580,24 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                 }
               });
             } else {
-              sequence = QueryUtils.mergeSort(query, Sequences.map(sequence, populator));
+              sequence = QueryUtils.mergeSort(prepared, Sequences.map(sequence, populator));
             }
             listOfSequences.add(sequence);
           }
         }
       }
     }.get();
+  }
+
+  private Query<T> prepareQuery(Query<T> query)
+  {
+    if (queryConfig.useCustomSerdeForDateTime(query)) {
+      query = query.withOverriddenContext(ImmutableMap.<String, Object>of(Query.DATETIME_CUSTOM_SERDE, true));
+    }
+    if (queryConfig.useBulkRow(query)) {
+      query = query.withOverriddenContext(ImmutableMap.<String, Object>of(Query.USE_BULK_ROW, true));
+    }
+    return query;
   }
 
   private List<DruidServer> getManagementTargets(Query<T> query) throws Exception

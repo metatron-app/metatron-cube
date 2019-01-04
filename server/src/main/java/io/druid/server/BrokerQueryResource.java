@@ -258,7 +258,7 @@ public class BrokerQueryResource extends QueryResource
     query = rewriteQuery(query);
     query = QueryUtils.resolveRecursively(query, texasRanger);
 
-    if (BaseQuery.optimizeQuery(query, false)) {
+    if (BaseQuery.isOptimizeQuery(query, false)) {
       QueryToolChest toolChest = warehouse.getToolChest(query);
       if (toolChest != null) {
         query = toolChest.optimizeQuery(query, texasRanger);
@@ -269,7 +269,7 @@ public class BrokerQueryResource extends QueryResource
       if (!(query instanceof SelectQuery || query instanceof StreamQuery)) {
         throw new IllegalArgumentException("parallel forwarding is supported only for select/stream query, for now");
       }
-      if (BaseQuery.getContextBySegment(query)) {
+      if (BaseQuery.isBySegment(query)) {
         throw new IllegalArgumentException("parallel forwarding cannot be used with 'bySegment'");
       }
       URI uri = new URI(BaseQuery.getResultForwardURL(query));

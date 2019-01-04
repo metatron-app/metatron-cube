@@ -29,8 +29,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
@@ -498,28 +498,26 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     final List<String> outputColumns = estimatedOutputColumns();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputColumns));
 
-    return Sequences.concat(
-        Sequences.map(
-            sequence, new Function<Result<SelectResultValue>, Sequence<Object[]>>()
-            {
-              private final String[] columns = outputColumns.toArray(new String[0]);
+    return Sequences.explode(
+        sequence, new Function<Result<SelectResultValue>, Sequence<Object[]>>()
+        {
+          private final String[] columns = outputColumns.toArray(new String[0]);
 
-              @Override
-              public Sequence<Object[]> apply(Result<SelectResultValue> input)
-              {
-                final List<Object[]> list = Lists.newArrayList();
-                for (EventHolder holder : input.getValue()) {
-                  Map<String, Object> event = holder.getEvent();
-                  final Object[] array = new Object[columns.length];
-                  for (int i = 0; i < columns.length; i++) {
-                    array[i] = event.get(columns[i]);
-                  }
-                  list.add(array);
-                }
-                return Sequences.simple(list);
+          @Override
+          public Sequence<Object[]> apply(Result<SelectResultValue> input)
+          {
+            final List<Object[]> list = Lists.newArrayList();
+            for (EventHolder holder : input.getValue()) {
+              Map<String, Object> event = holder.getEvent();
+              final Object[] array = new Object[columns.length];
+              for (int i = 0; i < columns.length; i++) {
+                array[i] = event.get(columns[i]);
               }
+              list.add(array);
             }
-        )
+            return Sequences.simple(list);
+          }
+        }
     );
   }
 }

@@ -251,11 +251,11 @@ public class Queries
       final String timeColumn = ((JoinQuery.JoinDelegate) subQuery).getTimeColumnName();
       return Sequences.map((Sequence<Map<String, Object>>) sequence, Rows.mapToRow(timeColumn));
     } else if (subQuery instanceof SelectQuery) {
-      return Sequences.concat(Sequences.map((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS));
+      return Sequences.explode((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS);
     } else if (subQuery instanceof StreamQuery) {
       return Sequences.map((Sequence<StreamQueryRow>) sequence, STREAM_TO_ROW);
     } else if (subQuery instanceof TopNQuery) {
-      return Sequences.concat(Sequences.map((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS));
+      return Sequences.explode((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS);
     } else if (subQuery instanceof BaseAggregationQuery) {
       return (Sequence<Row>) sequence;
     }

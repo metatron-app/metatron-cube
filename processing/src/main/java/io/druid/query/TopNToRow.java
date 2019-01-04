@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.topn.TopNResultValue;
 
 import java.util.Map;
@@ -42,7 +42,7 @@ public class TopNToRow extends PostProcessingOperator.Abstract<Result<TopNResult
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        return Sequences.concat(Sequences.map(baseRunner.run(query, responseContext), Queries.TOP_N_TO_ROWS));
+        return Sequences.explode(baseRunner.run(query, responseContext), Queries.TOP_N_TO_ROWS);
       }
     };
   }

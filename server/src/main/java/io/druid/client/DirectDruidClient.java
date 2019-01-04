@@ -35,7 +35,6 @@ import com.metamx.common.Pair;
 import com.metamx.common.RE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
@@ -55,7 +54,6 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.aggregation.MetricManipulatorFns;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
@@ -223,10 +221,10 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                                 ? customDateTimeMapper
                                 : objectMapper;
 
-    final boolean isBySegment = BaseQuery.getContextBySegment(query);
+    final boolean isBySegment = BaseQuery.isBySegment(query);
     final JavaType typeRef = isBySegment ? types.rhs : types.lhs;
 
-    Sequence<T> retVal = new BaseSequence<>(
+    Sequence<T> sequence = new BaseSequence<>(
         new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()
         {
           @Override
@@ -263,11 +261,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     // bySegment queries are de-serialized after caching results in order to
     // avoid the cost of de-serializing and then re-serializing again when adding to cache
     if (!isBySegment) {
-      retVal = Sequences.map(
-          retVal, toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing())
-      );
+      sequence = toolChest.deserializeSequence(query, sequence);
     }
 
-    return retVal;
+    return sequence;
   }
 }

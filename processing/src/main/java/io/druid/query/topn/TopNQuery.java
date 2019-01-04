@@ -30,8 +30,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -204,28 +204,26 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     final List<String> outputNames = estimatedOutputColumns();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputNames));
-    return Sequences.concat(
-        Sequences.map(
-            sequence,
-            new Function<Result<TopNResultValue>, Sequence<Object[]>>()
-            {
-              private final String[] columns = outputColumns.toArray(new String[0]);
+    return Sequences.explode(
+        sequence,
+        new Function<Result<TopNResultValue>, Sequence<Object[]>>()
+        {
+          private final String[] columns = outputColumns.toArray(new String[0]);
 
-              @Override
-              public Sequence<Object[]> apply(Result<TopNResultValue> input)
-              {
-                final List<Object[]> list = Lists.newArrayList();
-                for (Map<String, Object> event : input.getValue()) {
-                  final Object[] array = new Object[columns.length];
-                  for (int i = 0; i < columns.length; i++) {
-                    array[i] = event.get(columns[i]);
-                  }
-                  list.add(array);
-                }
-                return Sequences.simple(list);
+          @Override
+          public Sequence<Object[]> apply(Result<TopNResultValue> input)
+          {
+            final List<Object[]> list = Lists.newArrayList();
+            for (Map<String, Object> event : input.getValue()) {
+              final Object[] array = new Object[columns.length];
+              for (int i = 0; i < columns.length; i++) {
+                array[i] = event.get(columns[i]);
               }
+              list.add(array);
             }
-        )
+            return Sequences.simple(list);
+          }
+        }
     );
   }
 

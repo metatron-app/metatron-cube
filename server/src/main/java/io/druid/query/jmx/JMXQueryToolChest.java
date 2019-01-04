@@ -58,34 +58,32 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.concat(
-            Sequences.map(
-                sequence, new Function<Map<String, Object>, Sequence<Map<String, Object>>>()
-                {
-                  private final DateTime current = DateTime.now();
+        return Sequences.explode(
+            sequence, new Function<Map<String, Object>, Sequence<Map<String, Object>>>()
+            {
+              private final DateTime current = DateTime.now();
 
-                  @Override
-                  @SuppressWarnings("unchecked")
-                  public Sequence<Map<String, Object>> apply(Map<String, Object> input)
-                  {
-                    return Sequences.simple(
-                        Iterables.transform(
-                            input.entrySet(), new Function<Map.Entry<String, Object>, Map<String, Object>>()
-                            {
-                              @Override
-                              public Map<String, Object> apply(Map.Entry<String, Object> entry)
-                              {
-                                Map<String, Object> value = (Map<String, Object>) entry.getValue();
-                                value.put(timestampColumn, current.getMillis());
-                                value.put("host", entry.getKey());
-                                return value;
-                              }
-                            }
-                        )
-                    );
-                  }
-                }
-            )
+              @Override
+              @SuppressWarnings("unchecked")
+              public Sequence<Map<String, Object>> apply(Map<String, Object> input)
+              {
+                return Sequences.simple(
+                    Iterables.transform(
+                        input.entrySet(), new Function<Map.Entry<String, Object>, Map<String, Object>>()
+                        {
+                          @Override
+                          public Map<String, Object> apply(Map.Entry<String, Object> entry)
+                          {
+                            Map<String, Object> value = (Map<String, Object>) entry.getValue();
+                            value.put(timestampColumn, current.getMillis());
+                            value.put("host", entry.getKey());
+                            return value;
+                          }
+                        }
+                    )
+                );
+              }
+            }
         );
       }
 

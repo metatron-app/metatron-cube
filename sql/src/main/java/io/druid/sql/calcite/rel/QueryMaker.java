@@ -224,50 +224,48 @@ public class QueryMaker
                 morePages.set(false);
                 final AtomicBoolean gotResult = new AtomicBoolean();
 
-                return Sequences.concat(
-                    Sequences.map(
-                        runQuery(queryWithPagination),
-                        new Function<Result<SelectResultValue>, Sequence<Object[]>>()
-                        {
-                          @Override
-                          public Sequence<Object[]> apply(final Result<SelectResultValue> result)
-                          {
-                            if (!gotResult.compareAndSet(false, true)) {
-                              throw new ISE("WTF?! Expected single result from Select query but got multiple!");
-                            }
+                return Sequences.explode(
+                    runQuery(queryWithPagination),
+                    new Function<Result<SelectResultValue>, Sequence<Object[]>>()
+                    {
+                      @Override
+                      public Sequence<Object[]> apply(final Result<SelectResultValue> result)
+                      {
+                        if (!gotResult.compareAndSet(false, true)) {
+                          throw new ISE("WTF?! Expected single result from Select query but got multiple!");
+                        }
 
-                            pagingIdentifiers.set(result.getValue().getPagingIdentifiers());
-                            final List<Object[]> retVals = new ArrayList<>();
-                            for (EventHolder holder : result.getValue().getEvents()) {
-                              morePages.set(true);
-                              final Map<String, Object> map = holder.getEvent();
-                              final Object[] retVal = new Object[fieldList.size()];
-                              for (RelDataTypeField field : fieldList) {
-                                final String outputName = outputRowSignature.getRowOrder().get(field.getIndex());
-                                if (outputName.equals(Column.TIME_COLUMN_NAME)) {
-                                  retVal[field.getIndex()] = coerce(
-                                      holder.getTimestamp(),
-                                      field.getType().getSqlTypeName()
-                                  );
-                                } else {
-                                  retVal[field.getIndex()] = coerce(
-                                      map.get(outputName),
-                                      field.getType().getSqlTypeName()
-                                  );
-                                }
-                              }
-                              if (limit == null || rowsRead.incrementAndGet() <= limit) {
-                                retVals.add(retVal);
-                              } else {
-                                morePages.set(false);
-                                return Sequences.simple(retVals);
-                              }
+                        pagingIdentifiers.set(result.getValue().getPagingIdentifiers());
+                        final List<Object[]> retVals = new ArrayList<>();
+                        for (EventHolder holder : result.getValue().getEvents()) {
+                          morePages.set(true);
+                          final Map<String, Object> map = holder.getEvent();
+                          final Object[] retVal = new Object[fieldList.size()];
+                          for (RelDataTypeField field : fieldList) {
+                            final String outputName = outputRowSignature.getRowOrder().get(field.getIndex());
+                            if (outputName.equals(Column.TIME_COLUMN_NAME)) {
+                              retVal[field.getIndex()] = coerce(
+                                  holder.getTimestamp(),
+                                  field.getType().getSqlTypeName()
+                              );
+                            } else {
+                              retVal[field.getIndex()] = coerce(
+                                  map.get(outputName),
+                                  field.getType().getSqlTypeName()
+                              );
                             }
-
+                          }
+                          if (limit == null || rowsRead.incrementAndGet() <= limit) {
+                            retVals.add(retVal);
+                          } else {
+                            morePages.set(false);
                             return Sequences.simple(retVals);
                           }
                         }
-                    )
+
+                        return Sequences.simple(retVals);
+                      }
+                    }
                 );
               }
 
@@ -327,31 +325,29 @@ public class QueryMaker
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 
-    return Sequences.concat(
-        Sequences.map(
-            runQuery(query),
-            new Function<Result<TopNResultValue>, Sequence<Object[]>>()
-            {
-              @Override
-              public Sequence<Object[]> apply(final Result<TopNResultValue> result)
-              {
-                final List<Map<String, Object>> rows = result.getValue().getValue();
-                final List<Object[]> retVals = new ArrayList<>(rows.size());
+    return Sequences.explode(
+        runQuery(query),
+        new Function<Result<TopNResultValue>, Sequence<Object[]>>()
+        {
+          @Override
+          public Sequence<Object[]> apply(final Result<TopNResultValue> result)
+          {
+            final List<Map<String, Object>> rows = result.getValue().getValue();
+            final List<Object[]> retVals = new ArrayList<>(rows.size());
 
-                for (Map<String, Object> row : rows) {
-                  final Object[] retVal = new Object[fieldList.size()];
-                  for (final RelDataTypeField field : fieldList) {
-                    final String outputName = druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex());
-                    retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
-                  }
-
-                  retVals.add(retVal);
-                }
-
-                return Sequences.simple(retVals);
+            for (Map<String, Object> row : rows) {
+              final Object[] retVal = new Object[fieldList.size()];
+              for (final RelDataTypeField field : fieldList) {
+                final String outputName = druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex());
+                retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
               }
+
+              retVals.add(retVal);
             }
-        )
+
+            return Sequences.simple(retVals);
+          }
+        }
     );
   }
 

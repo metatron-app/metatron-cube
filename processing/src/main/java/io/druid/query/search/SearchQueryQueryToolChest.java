@@ -186,7 +186,7 @@ public class SearchQueryQueryToolChest
   @SuppressWarnings("unchecked")
   public ToIntFunction numRows(SearchQuery query)
   {
-    if (BaseQuery.getContextBySegment(query)) {
+    if (BaseQuery.isBySegment(query)) {
       return new ToIntFunction()
       {
         @Override
@@ -361,7 +361,7 @@ public class SearchQueryQueryToolChest
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = BaseQuery.getContextBySegment(query);
+      final boolean isBySegment = BaseQuery.isBySegment(query);
 
       return Sequences.map(
           runner.run(query.withLimit(maxSearchLimit), responseContext),

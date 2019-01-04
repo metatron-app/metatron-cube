@@ -25,6 +25,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Accumulators;
 import com.metamx.common.guava.BaseSequence;
@@ -38,6 +39,7 @@ import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
+import io.druid.common.guava.ExecuteWhenDoneYielder;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -47,6 +49,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
 /**
@@ -118,6 +121,36 @@ public class Sequences extends com.metamx.common.guava.Sequences
   {
     return sequences.isEmpty() ? Sequences.<T>empty()
            : sequences.size() == 1 ? sequences.get(0) : concat(simple(sequences));
+  }
+
+  public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
+  {
+    return concat(map(sequence, fn));
+  }
+
+  public static <T> Sequence<T> withEffect(Sequence<T> sequence, Runnable effect)
+  {
+    return withEffect(sequence, effect, MoreExecutors.sameThreadExecutor());
+  }
+
+  public static <T> Sequence<T> withEffect(final Sequence <T> seq, final Runnable effect, final Executor exec)
+  {
+    return new Sequence<T>()
+    {
+      @Override
+      public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+      {
+        final OutType out = seq.accumulate(initValue, accumulator);
+        exec.execute(effect);
+        return out;
+      }
+
+      @Override
+      public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
+      {
+        return new ExecuteWhenDoneYielder<>(seq.toYielder(initValue, accumulator), effect, exec);
+      }
+    };
   }
 
   @SuppressWarnings("unchecked")

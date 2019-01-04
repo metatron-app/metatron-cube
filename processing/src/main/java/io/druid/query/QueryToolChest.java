@@ -29,6 +29,7 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactories;
@@ -121,6 +122,28 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   /**
+   * Simple utility method for deserializing non by-segment result (see DDC)
+   *
+   * @param query
+   * @param sequence
+   *
+   * @return
+   */
+  public Sequence<ResultType> deserializeSequence(QueryType query, Sequence<ResultType> sequence)
+  {
+    return Sequences.map(sequence, makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing()));
+  }
+
+  public Sequence<ResultType> serializeSequence(
+      QueryType query,
+      Sequence<ResultType> sequence,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    return sequence;
+  }
+
+  /**
    * Generally speaking this is the exact same thing as makePreComputeManipulatorFn.  It is leveraged in
    * order to compute PostAggregators on results after they have been completely merged together, which
    * should actually be done in the mergeResults() call instead of here.
@@ -145,19 +168,22 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public abstract TypeReference<ResultType> getResultTypeReference();
 
+  private static final ToIntFunction COUNTER = new ToIntFunction()
+  {
+    @Override
+    public int applyAsInt(Object value) { return 1;}
+  };
+
+  @SuppressWarnings("unchecked")
+  public static ToIntFunction numRows(Query query, QueryToolChest toolChest)
+  {
+    return toolChest == null ? QueryToolChest.COUNTER : toolChest.numRows(query);
+  }
+
   public ToIntFunction numRows(QueryType query)
   {
     return COUNTER;
   }
-
-  public static final ToIntFunction COUNTER = new ToIntFunction()
-  {
-    @Override
-    public int applyAsInt(Object value)
-    {
-      return 1;
-    }
-  };
 
   public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
   {

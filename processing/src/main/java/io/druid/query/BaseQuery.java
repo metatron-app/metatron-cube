@@ -76,27 +76,27 @@ public abstract class BaseQuery<T> implements Query<T>
     return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);
   }
 
-  public static <T> boolean getContextBySegment(Query<T> query)
+  public static <T> boolean isBySegment(Query<T> query)
   {
-    return PropUtils.parseBoolean(query.getContext(), BY_SEGMENT, false);
+    return query.getContextBoolean(BY_SEGMENT, false);
   }
 
-  public static <T> boolean getContextPopulateCache(Query<T> query, boolean defaultValue)
+  public static <T> boolean isPopulateCache(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), "populateCache", defaultValue);
+    return query.getContextBoolean(POPULATE_CACHE, defaultValue);
   }
 
-  public static <T> boolean getContextUseCache(Query<T> query, boolean defaultValue)
+  public static <T> boolean isUseCache(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), "useCache", defaultValue);
+    return query.getContextBoolean(USE_CACHE, defaultValue);
   }
 
-  public static <T> boolean getContextFinalize(Query<T> query, boolean defaultValue)
+  public static <T> boolean isFinalize(Query<T> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), FINALIZE, defaultValue);
   }
 
-  public static <T> boolean optimizeQuery(Query<T> query, boolean defaultValue)
+  public static <T> boolean isOptimizeQuery(Query<T> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }

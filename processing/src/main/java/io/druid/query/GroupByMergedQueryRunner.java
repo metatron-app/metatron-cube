@@ -97,7 +97,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     final MergeIndex mergeIndex = GroupByQueryHelper.createMergeIndex(query, maxRowCount, parallelism);
 
     final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
-    final boolean bySegment = BaseQuery.getContextBySegment(query);
+    final boolean bySegment = BaseQuery.isBySegment(query);
     final int priority = BaseQuery.getContextPriority(query, 0);
 
     final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(queryables.size(), parallelism));
