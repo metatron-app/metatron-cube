@@ -32,7 +32,8 @@ public class BulkRow extends AbstractRow
 
   public Sequence<Row> decompose()
   {
-    for (int i = 0; i < values.length; i++) {
+    final TimestampRLE timestamps = new TimestampRLE((byte[]) values[0]);
+    for (int i = 1; i < values.length; i++) {
       if (values[i] instanceof byte[]) {
         final byte[] array = (byte[]) values[i];
         values[i] = new BytesInputStream(
@@ -40,12 +41,12 @@ public class BulkRow extends AbstractRow
         );
       }
     }
-    final int max = ((List) values[0]).size();
+    final int max = timestamps.size();
     return Sequences.simple(
         new Iterable<Row>()
         {
           {
-            for (int i = 0; i < values.length; i++) {
+            for (int i = 1; i < values.length; i++) {
               if (values[i] instanceof BytesInputStream) {
                 ((BytesInputStream) values[i]).reset();
               }
@@ -57,6 +58,7 @@ public class BulkRow extends AbstractRow
           {
             return new Iterator<Row>()
             {
+              private final Iterator<Long> timestamp = timestamps.iterator();
               private int index;
 
               @Override
@@ -70,7 +72,8 @@ public class BulkRow extends AbstractRow
               {
                 final int ix = index++;
                 final Object[] row = new Object[values.length];
-                for (int i = 0; i < row.length; i++) {
+                row[0] = timestamp.next();
+                for (int i = 1; i < row.length; i++) {
                   if (values[i] instanceof BytesInputStream) {
                     row[i] = ((BytesInputStream) values[i]).readUTF();
                   } else {

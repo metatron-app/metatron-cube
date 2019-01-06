@@ -43,6 +43,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
   private static final int DEFAULT_PAGE_SIZE = 1024;
 
   private final Sequence<Row> sequence;
+  private final TimestampRLE timestamps;
   private final int[] category;
   private final Object[] page;
   private final int max;
@@ -55,9 +56,10 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
   public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
   {
     this.sequence = sequence;
+    this.timestamps = new TimestampRLE();
     this.category = new int[types.size()];
     this.page = new Object[types.size()];
-    for (int i = 0; i < types.size(); i++) {
+    for (int i = 1; i < types.size(); i++) {
       final ValueDesc valueDesc = types.get(i);
       switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
         case FLOAT:
@@ -81,7 +83,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           page[i] = new Object[max];
       }
     }
-    this.max = max;
+    this.max = Math.min(Short.MAX_VALUE, max);
   }
 
   @Override
@@ -165,7 +167,9 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
     {
       final int ix = index++;
       final Object[] values = ((CompactRow) current).getValues();
-      for (int i = 0; i < category.length; i++) {
+
+      timestamps.add(((Number) values[0]).longValue());
+      for (int i = 1; i < category.length; i++) {
         switch (category[i]) {
           case 0: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); break;
           case 1: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); break;
@@ -186,7 +190,9 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
     {
       final int size = index;
       final Object[] copy = new Object[page.length];
-      for (int i = 0; i < category.length; i++) {
+
+      copy[0] = timestamps.flush();
+      for (int i = 1; i < category.length; i++) {
         switch (category[i]) {
           case 0: copy[i] = Arrays.copyOf((float[]) page[i], size); break;
           case 1: copy[i] = Arrays.copyOf((long[]) page[i], size); break;
