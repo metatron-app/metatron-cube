@@ -83,7 +83,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           page[i] = new Object[max];
       }
     }
-    this.max = Math.min(Short.MAX_VALUE, max);
+    this.max = Math.min(0xffff, max);
   }
 
   @Override
@@ -177,8 +177,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           case 3:
             final byte[] bytes = values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
                                                                 : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
-            ((BytesOutputStream) page[i]).writeShort(bytes.length);
-            ((BytesOutputStream) page[i]).write(bytes);
+            ((BytesOutputStream) page[i]).writeVarSizeBytes(bytes);
             break;
           default: ((Object[]) page[i])[ix] = values[i]; break;
         }

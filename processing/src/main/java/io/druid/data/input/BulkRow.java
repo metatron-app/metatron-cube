@@ -41,7 +41,6 @@ public class BulkRow extends AbstractRow
         );
       }
     }
-    final int max = timestamps.size();
     return Sequences.simple(
         new Iterable<Row>()
         {
@@ -64,7 +63,7 @@ public class BulkRow extends AbstractRow
               @Override
               public boolean hasNext()
               {
-                return index < max;
+                return timestamp.hasNext();
               }
 
               @Override
@@ -75,7 +74,7 @@ public class BulkRow extends AbstractRow
                 row[0] = timestamp.next();
                 for (int i = 1; i < row.length; i++) {
                   if (values[i] instanceof BytesInputStream) {
-                    row[i] = ((BytesInputStream) values[i]).readUTF();
+                    row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
                   } else {
                     row[i] = ((List) values[i]).get(ix);
                   }

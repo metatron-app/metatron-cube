@@ -1,5 +1,6 @@
 package io.druid.data.input;
 
+import com.google.common.base.Charsets;
 import com.google.common.io.ByteArrayDataInput;
 
 import java.io.ByteArrayInputStream;
@@ -9,15 +10,14 @@ import java.io.EOFException;
 import java.io.IOException;
 
 // copied from ByteStreams.ByteArrayDataInputStream
-public class BytesInputStream implements ByteArrayDataInput
+public class BytesInputStream extends ByteArrayInputStream implements ByteArrayDataInput
 {
-  private final ByteArrayInputStream stream;
   private final DataInput input;
 
   public BytesInputStream(byte[] bytes)
   {
-    this.stream = new ByteArrayInputStream(bytes);
-    this.input = new DataInputStream(stream);
+    super(bytes);
+    this.input = new DataInputStream(this);
   }
 
   @Override
@@ -188,8 +188,23 @@ public class BytesInputStream implements ByteArrayDataInput
     }
   }
 
-  public void reset()
+  public String readVarSizeUTF()
   {
-    stream.reset();
+    final int size = readUnsignedVarInt();
+    final String value = new String(buf, pos, size, Charsets.UTF_8);
+    pos += size;
+    return value;
+  }
+
+  // copied from org.apache.parquet.bytes.BytesUtils
+  public int readUnsignedVarInt()
+  {
+    int value = 0;
+    int i;
+    int b;
+    for (i = 0; ((b = readUnsignedByte()) & 128) != 0; i += 7) {
+      value |= (b & 127) << i;
+    }
+    return value | b << i;
   }
 }

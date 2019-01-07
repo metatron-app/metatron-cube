@@ -7,19 +7,22 @@ import java.util.List;
 
 public class TimestampRLE implements Iterable<Long>
 {
-  private int size;
   private TimeWithCounter current;
-  private final List<TimeWithCounter> entries = Lists.newArrayList();
+  private final List<TimeWithCounter> entries;
 
-  public TimestampRLE() {}
+  public TimestampRLE()
+  {
+    entries = Lists.newArrayList();
+  }
 
   public TimestampRLE(byte[] array)
   {
     final BytesInputStream bin = new BytesInputStream(array);
-    size = bin.readShort();
-    int numEntries = bin.readShort();
+    final int numEntries = bin.readUnsignedShort();
+    entries = Lists.newArrayListWithCapacity(numEntries);
     for (int i = 0; i < numEntries; i++) {
-      entries.add(new TimeWithCounter(bin.readLong(), bin.readShort()));
+      TimeWithCounter entry = new TimeWithCounter(bin.readLong(), bin.readShort());
+      entries.add(entry);
     }
   }
 
@@ -30,24 +33,16 @@ public class TimestampRLE implements Iterable<Long>
     } else {
       current.counter++;
     }
-    size++;
-  }
-
-  public int size()
-  {
-    return size;
   }
 
   public byte[] flush()
   {
     final BytesOutputStream bout = new BytesOutputStream();
-    bout.writeShort(size);
     bout.writeShort(entries.size());
     for (TimeWithCounter pair : entries) {
       bout.writeLong(pair.timestamp);
       bout.writeShort(pair.counter);
     }
-    size = 0;
     current = null;
     entries.clear();
     return bout.toByteArray();
@@ -59,7 +54,7 @@ public class TimestampRLE implements Iterable<Long>
     return new Iterator<Long>()
     {
       private final Iterator<TimeWithCounter> pairs = entries.iterator();
-      private TimeWithCounter current = new TimeWithCounter(0, 0);
+      private TimeWithCounter current = new TimeWithCounter(-1, -1);
       private int index;
 
       @Override

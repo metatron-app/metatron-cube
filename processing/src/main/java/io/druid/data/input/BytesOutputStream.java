@@ -161,4 +161,20 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
       throw new AssertionError(impossible);
     }
   }
+
+  public void writeVarSizeBytes(byte[] value)
+  {
+    writeUnsignedVarInt(value.length);
+    write(value);
+  }
+
+  // copied from org.apache.parquet.bytes.BytesUtils
+  public void writeUnsignedVarInt(int value)
+  {
+    while ((long) (value & -128) != 0L) {
+      write(value & 127 | 128);
+      value >>>= 7;
+    }
+    write(value & 127);
+  }
 }
