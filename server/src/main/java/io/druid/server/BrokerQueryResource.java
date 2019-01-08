@@ -404,7 +404,7 @@ public class BrokerQueryResource extends QueryResource
   ) throws Exception
   {
     final DataSchema schema = loadSpec.getSchema();
-    final InputRowParser parser = schema.getParser();
+    final InputRowParser parser = loadSpec.getParser();
 
     final RequestContext context = new RequestContext(req, pretty != null);
     try {

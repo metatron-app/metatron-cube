@@ -213,7 +213,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       flushedIndex = context.getCounter("druid.internal", "index-flush-count");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
-      maxRowCount = tuningConfig.getRowFlushBoundary();
+      maxRowCount = tuningConfig.getMaxRowsInMemory();
 
       scatterParam = Math.min(tuningConfig.getScatterParam(), context.getNumReduceTasks());
       if (scatterParam > 1) {
@@ -307,11 +307,11 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
     private IncrementalIndex makeIncrementalIndex(Interval interval)
     {
-      final DataSchema dataSchema = config.getSchema().getDataSchema();
-      final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
+      final HadoopIngestionSpec schema = config.getSchema();
+      final GranularitySpec granularitySpec = schema.getDataSchema().getGranularitySpec();
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
-          .withDimensionsSpec(dataSchema.getParser())
+          .withDimensionsSpec(schema.getParser())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)

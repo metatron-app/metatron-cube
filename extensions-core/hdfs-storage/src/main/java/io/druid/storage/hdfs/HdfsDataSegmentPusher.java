@@ -338,7 +338,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       temp.delete();
       temp.mkdirs();
 
-      final int maxRowCount = tuning == null ? 500000 : tuning.getRowFlushBoundary();
+      final int maxRowCount = tuning == null ? 500000 : tuning.getMaxRowsInMemory();
       final long maxOccupation = tuning == null ? 256 << 20 : tuning.getMaxOccupationInMemory();
       final IndexSpec indexSpec = tuning == null ? new IndexSpec() : tuning.getIndexSpec();
 

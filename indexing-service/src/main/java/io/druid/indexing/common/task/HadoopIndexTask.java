@@ -88,7 +88,7 @@ public class HadoopIndexTask extends HadoopTask
     String schemaDataSource = dataSchema.getDataSource();
     HadoopTuningConfig tuningConfig = spec.getTuningConfig();
     Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
-    if (!pathSpec.containsKey("type") || "hadoop".equals(pathSpec.get("type"))) {
+    if (pathSpec.containsKey("elements") && !pathSpec.containsKey("type") || "hadoop".equals(pathSpec.get("type"))) {
       // simple validation
       Set<String> dataSources = Sets.newLinkedHashSet();
       for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {

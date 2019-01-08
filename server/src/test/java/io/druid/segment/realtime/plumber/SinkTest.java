@@ -81,8 +81,7 @@ public class SinkTest
         schema,
         tuningConfig.getShardSpec(),
         version,
-        tuningConfig.getMaxRowsInMemory(),
-        tuningConfig.isReportParseExceptions()
+        tuningConfig
     );
 
     sink.add(

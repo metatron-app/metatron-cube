@@ -124,9 +124,9 @@ public class IndexTask extends AbstractFixedIntervalTask
 
   static RealtimeTuningConfig convertTuningConfig(
       ShardSpec shardSpec,
-      int rowFlushBoundary,
+      Integer rowFlushBoundary,
       IndexSpec indexSpec,
-      boolean buildV9Directly
+      Boolean buildV9Directly
   )
   {
     return new RealtimeTuningConfig(
@@ -215,7 +215,7 @@ public class IndexTask extends AbstractFixedIntervalTask
             shardSpecs.add(new HashBasedNumberedShardSpec(i, numShards, null, jsonMapper));
           }
         } else {
-          shardSpecs = ImmutableList.<ShardSpec>of(new NoneShardSpec());
+          shardSpecs = ImmutableList.<ShardSpec>of(NoneShardSpec.instance());
         }
       }
       for (final ShardSpec shardSpec : shardSpecs) {
@@ -240,7 +240,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     int unparsed = 0;
     SortedSet<Interval> retVal = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
-    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getDataSchema().getParser())) {
+    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -277,7 +277,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     // Load data
-    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getDataSchema().getParser())) {
+    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -308,7 +308,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     final List<ShardSpec> shardSpecs = Lists.newArrayList();
 
     if (numberOfShards == 1) {
-      shardSpecs.add(new NoneShardSpec());
+      shardSpecs.add(NoneShardSpec.instance());
     } else {
       for (int i = 0; i < numberOfShards; ++i) {
         shardSpecs.add(new HashBasedNumberedShardSpec(i, numberOfShards, null, jsonMapper));
@@ -369,7 +369,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Create firehose + plumber
     final FireDepartmentMetrics metrics = new FireDepartmentMetrics();
-    final Firehose firehose = firehoseFactory.connect(ingestionSchema.getDataSchema().getParser());
+    final Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser());
     final Supplier<Committer> committerSupplier = Committers.supplierFromFirehose(firehose);
     final Plumber plumber = new YeOldePlumberSchool(
         interval,
@@ -486,10 +486,6 @@ public class IndexTask extends AbstractFixedIntervalTask
 
   public static class IndexIngestionSpec extends IngestionSpec<IndexIOConfig, IndexTuningConfig>
   {
-    private final DataSchema dataSchema;
-    private final IndexIOConfig ioConfig;
-    private final IndexTuningConfig tuningConfig;
-
     @JsonCreator
     public IndexIngestionSpec(
         @JsonProperty("dataSchema") DataSchema dataSchema,
@@ -497,11 +493,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         @JsonProperty("tuningConfig") IndexTuningConfig tuningConfig
     )
     {
-      super(dataSchema, ioConfig, tuningConfig);
-
-      this.dataSchema = dataSchema;
-      this.ioConfig = ioConfig;
-      this.tuningConfig = tuningConfig == null ? new IndexTuningConfig(0, 0, null, null, null, false) : tuningConfig;
+      super(dataSchema, ioConfig, tuningConfig == null ? IndexTuningConfig.DEFAULT : tuningConfig);
     }
 
     @Override
@@ -549,6 +541,8 @@ public class IndexTask extends AbstractFixedIntervalTask
   @JsonTypeName("index")
   public static class IndexTuningConfig implements TuningConfig
   {
+    public static final IndexTuningConfig DEFAULT = new IndexTuningConfig(0, 0, null, null, null, false);
+
     private static final int DEFAULT_TARGET_PARTITION_SIZE = 5000000;
     private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
     private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
@@ -618,6 +612,20 @@ public class IndexTask extends AbstractFixedIntervalTask
     public boolean isIgnoreInvalidRows()
     {
       return ignoreInvalidRows;
+    }
+
+    @Override
+    @JsonIgnore
+    public int getMaxRowsInMemory()
+    {
+      return rowFlushBoundary;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isReportParseExceptions()
+    {
+      return !ignoreInvalidRows;
     }
   }
 }

@@ -19,15 +19,19 @@
 
 package io.druid.segment.indexing;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.segment.IndexSpec;
 
 /**
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimeTuningConfig.class)
-})
 public interface TuningConfig
 {
+  IndexSpec getIndexSpec();
+
+  int getMaxRowsInMemory();
+
+  boolean isIgnoreInvalidRows();
+
+  boolean isReportParseExceptions();
 }

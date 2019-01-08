@@ -43,7 +43,6 @@ import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -272,8 +271,7 @@ public class AppenderatorImpl implements Appenderator
           schema,
           identifier.getShardSpec(),
           identifier.getVersion(),
-          tuningConfig.getMaxRowsInMemory(),
-          tuningConfig.isReportParseExceptions()
+          tuningConfig
       );
 
       try {
@@ -1030,8 +1028,7 @@ public class AppenderatorImpl implements Appenderator
             schema,
             identifier.getShardSpec(),
             identifier.getVersion(),
-            tuningConfig.getMaxRowsInMemory(),
-            tuningConfig.isReportParseExceptions(),
+            tuningConfig,
             hydrants
         );
         sinks.put(identifier, currSink);

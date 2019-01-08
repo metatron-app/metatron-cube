@@ -378,7 +378,7 @@ public class HadoopIngestionSpecTest
 
     Assert.assertNotNull(settlingConfig);
 
-    InputRowParser parser = schema.getDataSchema().getParser();
+    InputRowParser parser = schema.getParser();
     System.out.println("[HadoopIngestionSpecTest/testHadoopSettlingConfig] " + parser);
   }
 

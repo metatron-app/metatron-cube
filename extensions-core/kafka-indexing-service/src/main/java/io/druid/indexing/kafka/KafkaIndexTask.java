@@ -184,9 +184,11 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
     );
 
     this.dataSchema = Preconditions.checkNotNull(dataSchema, "dataSchema");
-    this.parser = Preconditions.checkNotNull((InputRowParser<ByteBuffer>) dataSchema.getParser(), "parser");
     this.tuningConfig = Preconditions.checkNotNull(tuningConfig, "tuningConfig");
     this.ioConfig = Preconditions.checkNotNull(ioConfig, "ioConfig");
+    this.parser = Preconditions.checkNotNull(
+        (InputRowParser<ByteBuffer>) dataSchema.getParser(tuningConfig.isIgnoreInvalidRows()), "parser"
+    );
     this.chatHandlerProvider = Optional.fromNullable(chatHandlerProvider);
 
     this.endOffsets.putAll(ioConfig.getEndPartitions().getPartitionOffsetMap());

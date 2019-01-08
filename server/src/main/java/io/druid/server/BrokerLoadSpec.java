@@ -20,12 +20,14 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.query.ResultWriter;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
@@ -116,6 +118,13 @@ public class BrokerLoadSpec
     return properties;
   }
 
+  @JsonIgnore
+  public InputRowParser getParser()
+  {
+    return schema.getParser(tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+  }
+
+  @JsonIgnore
   public List<URI> getURIs() throws URISyntaxException
   {
     URI parent = basePath == null ? null : normalize(new URI(basePath));

@@ -58,10 +58,10 @@ public class RealtimeTuningConfigTest
         mapper.writeValueAsString(
             mapper.readValue(
                 jsonStr,
-                TuningConfig.class
+                RealtimeTuningConfig.class
             )
         ),
-        TuningConfig.class
+        RealtimeTuningConfig.class
     );
 
     Assert.assertNotNull(config.getBasePersistDirectory());
@@ -100,10 +100,10 @@ public class RealtimeTuningConfigTest
         mapper.writeValueAsString(
             mapper.readValue(
                 jsonStr,
-                TuningConfig.class
+                RealtimeTuningConfig.class
             )
         ),
-        TuningConfig.class
+        RealtimeTuningConfig.class
     );
 
     Assert.assertEquals("/tmp/xxx", config.getBasePersistDirectory().toString());

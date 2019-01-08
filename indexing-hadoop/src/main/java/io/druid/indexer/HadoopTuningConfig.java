@@ -45,7 +45,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private static final int DEFAULT_MIN_REDUCER = 1;
   private static final int DEFAULT_MAX_REDUCER = 100;
   private static final int DEFAULT_SCATTER_PARAM = -1;
-  private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.FALSE;
+  private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
   private static final int DEFAULT_NUM_BACKGROUND_PERSIST_THREADS = 0;
 
   public static HadoopTuningConfig makeDefaultTuningConfig()
@@ -70,7 +70,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         DEFAULT_MIN_REDUCER,
         DEFAULT_MAX_REDUCER,
         DEFAULT_SCATTER_PARAM,
-        null,
         DEFAULT_BUILD_V9_DIRECTLY,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
     );
@@ -113,8 +112,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
       final @JsonProperty("minReducer") Integer minReducer,
       final @JsonProperty("maxReducer") Integer maxReducer,
       final @JsonProperty("scatterParam") Integer scatterParam,
-      // See https://github.com/druid-io/druid/pull/1922
-      final @JsonProperty("rowFlushBoundary") Integer maxRowsInMemoryCOMPAT,
       final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
       final @JsonProperty("numBackgroundPersistThreads") Integer numBackgroundPersistThreads
   )
@@ -125,10 +122,8 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
     this.partitionsSpec = partitionsSpec == null ? DEFAULT_PARTITIONS_SPEC : partitionsSpec;
     this.shardSpecs = shardSpecs == null ? DEFAULT_SHARD_SPECS : shardSpecs;
     this.leaveIntermediate = leaveIntermediate;
-    this.cleanupOnFailure = cleanupOnFailure == null ? true : cleanupOnFailure;
-    this.jobProperties = (jobProperties == null
-                          ? ImmutableMap.<String, String>of()
-                          : ImmutableMap.copyOf(jobProperties));
+    this.cleanupOnFailure = cleanupOnFailure == null || cleanupOnFailure;
+    this.jobProperties = jobProperties == null ? ImmutableMap.<String, String>of() : ImmutableMap.copyOf(jobProperties);
     this.ingestionMode = ingestionMode == null ? IngestionMode.MAPRED : ingestionMode;
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
@@ -183,7 +178,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         null,
         null,
         null,
-        maxRowsInMemoryCOMPAT,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -286,7 +280,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         partitionsSpec,
         shardSpecs,
         getIndexSpec(),
-        getRowFlushBoundary(),
+        getMaxRowsInMemory(),
         getMaxOccupationInMemory(),
         getMaxShardLength(),
         leaveIntermediate,
@@ -300,7 +294,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
-        null,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -314,7 +307,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         partitionsSpec,
         shardSpecs,
         getIndexSpec(),
-        getRowFlushBoundary(),
+        getMaxRowsInMemory(),
         getMaxOccupationInMemory(),
         getMaxShardLength(),
         leaveIntermediate,
@@ -328,7 +321,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
-        null,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -342,7 +334,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         partitionsSpec,
         shardSpecs,
         getIndexSpec(),
-        getRowFlushBoundary(),
+        getMaxRowsInMemory(),
         getMaxOccupationInMemory(),
         getMaxShardLength(),
         leaveIntermediate,
@@ -356,7 +348,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
-        null,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -370,7 +361,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         partitionsSpec,
         specs,
         getIndexSpec(),
-        getRowFlushBoundary(),
+        getMaxRowsInMemory(),
         getMaxOccupationInMemory(),
         getMaxShardLength(),
         leaveIntermediate,
@@ -384,7 +375,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
-        null,
         buildV9Directly,
         numBackgroundPersistThreads
     );

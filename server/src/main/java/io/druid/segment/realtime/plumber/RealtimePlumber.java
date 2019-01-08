@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -299,8 +300,8 @@ public class RealtimePlumber implements Plumber
           schema,
           config.getShardSpec(),
           versioningPolicy.getVersion(sinkInterval),
-          config.getMaxRowsInMemory(),
-          config.isReportParseExceptions()
+          config,
+          ImmutableList.<FireHydrant>of()
       );
       addSink(retVal);
 
@@ -913,8 +914,7 @@ public class RealtimePlumber implements Plumber
           schema,
           config.getShardSpec(),
           versioningPolicy.getVersion(sinkInterval),
-          config.getMaxRowsInMemory(),
-          config.isReportParseExceptions(),
+          config,
           hydrants
       );
       addSink(currSink);

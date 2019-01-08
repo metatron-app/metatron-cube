@@ -98,7 +98,7 @@ public class EvaluationTest
         aggregators,
         evaluations,
         Arrays.<Validation>asList(),
-        false
+        false, false
     );
     InputRow row = wrapped.parse(new Object[]{new DateTime("2018-08-07"), "x", "y", "NULL"});
     Assert.assertEquals(-100L, row.getRaw("met1"));

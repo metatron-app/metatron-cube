@@ -21,6 +21,7 @@ package io.druid.indexing.kafka;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.TuningConfig;
@@ -29,6 +30,7 @@ import org.joda.time.Period;
 
 import java.io.File;
 
+@JsonTypeName("kafka")
 public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
 {
   private static final int DEFAULT_MAX_ROWS_PER_SEGMENT = 5_000_000;
@@ -143,5 +145,11 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
         reportParseExceptions,
         handoffConditionTimeout
     );
+  }
+
+  @Override
+  public boolean isIgnoreInvalidRows()
+  {
+    return false;
   }
 }

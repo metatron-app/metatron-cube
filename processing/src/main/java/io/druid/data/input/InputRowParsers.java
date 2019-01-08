@@ -54,7 +54,8 @@ public class InputRowParsers
       final AggregatorFactory[] aggregators,
       final List<Evaluation> evaluations,
       final List<Validation> validations,
-      final boolean enforceType
+      final boolean enforceType,
+      final boolean ignoreInvalidRows
   )
   {
     if (GuavaUtils.isNullOrEmpty(evaluations) && GuavaUtils.isNullOrEmpty(validations) && !enforceType) {
@@ -150,7 +151,10 @@ public class InputRowParsers
             inputRow = evaluator.evaluate(inputRow);
           }
           catch (Exception e) {
-            throw ParsingFail.propagate(inputRow, e);
+            if (!ignoreInvalidRows) {
+              throw ParsingFail.propagate(inputRow, e);
+            }
+            return null;
           }
         }
         for (RowEvaluator<Boolean> validator : validators) {

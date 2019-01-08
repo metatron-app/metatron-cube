@@ -20,18 +20,20 @@
 package io.druid.segment.incremental;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.indexing.TuningConfig;
 
 /**
  */
-public class BaseTuningConfig
+public class BaseTuningConfig implements TuningConfig
 {
   protected static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
   protected static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
 
   private final IndexSpec indexSpec;
-  private final int rowFlushBoundary;
+  private final int maxRowsInMemory;
   private final long maxOccupationInMemory;
   private final long maxShardLength;
   private final boolean overwriteFiles;
@@ -48,7 +50,7 @@ public class BaseTuningConfig
   )
   {
     this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
-    this.rowFlushBoundary = maxRowsInMemory == null ? DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemory;
+    this.maxRowsInMemory = maxRowsInMemory == null ? DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemory;
     this.maxOccupationInMemory = maxOccupationInMemory == null ? -1 : maxOccupationInMemory;
     this.maxShardLength = maxShardLength == null ? 1L << 31 : maxShardLength;
     this.overwriteFiles = overwriteFiles;
@@ -61,19 +63,19 @@ public class BaseTuningConfig
     return indexSpec;
   }
 
-  @JsonProperty("maxRowsInMemory")
-  public int getRowFlushBoundary()
+  @JsonProperty
+  public int getMaxRowsInMemory()
   {
-    return rowFlushBoundary;
+    return maxRowsInMemory;
   }
 
-  @JsonProperty("maxOccupationInMemory")
+  @JsonProperty
   public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
   }
 
-  @JsonProperty("maxShardLength")
+  @JsonProperty
   public long getMaxShardLength()
   {
     return maxShardLength;
@@ -89,5 +91,12 @@ public class BaseTuningConfig
   public boolean isIgnoreInvalidRows()
   {
     return ignoreInvalidRows;
+  }
+
+  @Override
+  @JsonIgnore
+  public boolean isReportParseExceptions()
+  {
+    return !isIgnoreInvalidRows();
   }
 }

@@ -386,7 +386,7 @@ public class HadoopDruidIndexerConfig
 
   public InputRowParser getParser()
   {
-    return schema.getDataSchema().getParser();
+    return schema.getParser();
   }
 
   public HadoopyShardSpec getShardSpec(Bucket bucket)
@@ -621,7 +621,7 @@ public class HadoopDruidIndexerConfig
     Preconditions.checkNotNull(dataSchema.getDataSource(), "dataSource");
     Preconditions.checkNotNull(dataSchema.getGranularitySpec(), "granularitySpec");
 
-    InputRowParser parser = dataSchema.getParser();
+    InputRowParser parser = schema.getParser();
     Preconditions.checkNotNull(parser.getDimensionsSpec(), "dimensionsSpec");
     Preconditions.checkNotNull(parser.getTimestampSpec(), "timestampSpec");
 

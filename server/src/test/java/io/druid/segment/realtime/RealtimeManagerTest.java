@@ -210,8 +210,7 @@ public class RealtimeManagerTest
         schema,
         tuningConfig.getShardSpec(),
         new DateTime().toString(),
-        tuningConfig.getMaxRowsInMemory(),
-        tuningConfig.isReportParseExceptions()
+        tuningConfig
     ));
 
     realtimeManager = new RealtimeManager(
@@ -230,8 +229,7 @@ public class RealtimeManagerTest
         schema2,
         tuningConfig.getShardSpec(),
         new DateTime().toString(),
-        tuningConfig.getMaxRowsInMemory(),
-        tuningConfig.isReportParseExceptions()
+        tuningConfig
     ));
 
     realtimeManager2 = new RealtimeManager(

@@ -1068,7 +1068,7 @@ public class RealtimeIndexTaskTest
         taskId,
         null,
         new FireDepartment(dataSchema, realtimeIOConfig, realtimeTuningConfig),
-        null,
+        objectMapper,
         null
     )
     {

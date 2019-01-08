@@ -21,14 +21,15 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.input.impl.InputRowParser;
 
 /**
  */
 public abstract class IngestionSpec<IOConfigType extends IOConfig, TuningConfigType extends TuningConfig>
 {
-  private final DataSchema dataSchema;
-  private final IOConfigType ioConfig;
-  private final TuningConfigType tuningConfig;
+  protected final DataSchema dataSchema;
+  protected final IOConfigType ioConfig;
+  protected final TuningConfigType tuningConfig;
 
   @JsonCreator
   public IngestionSpec(
@@ -58,5 +59,10 @@ public abstract class IngestionSpec<IOConfigType extends IOConfig, TuningConfigT
   public TuningConfigType getTuningConfig()
   {
     return tuningConfig;
+  }
+
+  public InputRowParser getParser()
+  {
+    return dataSchema.getParser(tuningConfig.isIgnoreInvalidRows());
   }
 }

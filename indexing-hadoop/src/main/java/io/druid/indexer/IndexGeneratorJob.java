@@ -50,7 +50,6 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
-import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -253,18 +252,17 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
   {
     final HadoopIngestionSpec schema = config.getSchema();
     final HadoopTuningConfig tuningConfig = schema.getTuningConfig();
-    final DataSchema dataSchema = schema.getDataSchema();
-    final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
+    final GranularitySpec granularitySpec = schema.getDataSchema().getGranularitySpec();
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(theBucket.time.getMillis())
-        .withDimensionsSpec(dataSchema.getParser())
+        .withDimensionsSpec(schema.getParser())
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withMetrics(aggs)
         .withRollup(granularitySpec.isRollup())
         .build();
 
-    final int boundary = hardLimit < 0 ? tuningConfig.getRowFlushBoundary() : hardLimit;
+    final int boundary = hardLimit < 0 ? tuningConfig.getMaxRowsInMemory() : hardLimit;
     OnheapIncrementalIndex newIndex = new OnheapIncrementalIndex(
         indexSchema,
         true,
@@ -589,7 +587,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         final List<QueryableIndex> indexes,
         final AggregatorFactory[] aggs,
         final File file,
-        ProgressIndicator progressIndicator
+        final ProgressIndicator progressIndicator
     ) throws IOException
     {
       boolean rollup = config.getSchema().getDataSchema().getGranularitySpec().isRollup();
@@ -638,7 +636,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
       final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
       final HadoopTuningConfig tuningConfig = config.getSchema().getTuningConfig();
-      final int limit = tuningConfig.getRowFlushBoundary();
+      final int limit = tuningConfig.getMaxRowsInMemory();
       final long maxOccupation = tuningConfig.getMaxOccupationInMemory();
       final int occupationCheckInterval = 2000;
 

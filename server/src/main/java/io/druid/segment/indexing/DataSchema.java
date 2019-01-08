@@ -117,15 +117,14 @@ public class DataSchema
     return parser;
   }
 
-  @JsonIgnore
-  public InputRowParser getParser()
+  public InputRowParser getParser(boolean ignoreInvalidRows)
   {
     if (parser == null) {
       log.warn("No parser has been specified");
       return null;
     }
     final InputRowParser parser = createInputRowParser();
-    return InputRowParsers.wrap(parser, aggregators, evaluations, validations, enforceType);
+    return InputRowParsers.wrap(parser, aggregators, evaluations, validations, enforceType, ignoreInvalidRows);
   }
 
   private InputRowParser createInputRowParser()

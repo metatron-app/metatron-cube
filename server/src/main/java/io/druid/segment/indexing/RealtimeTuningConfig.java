@@ -21,6 +21,7 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.guava.Files;
 import io.druid.segment.IndexSpec;
@@ -37,6 +38,7 @@ import java.io.File;
 
 /**
  */
+@JsonTypeName("realtime")
 public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
 {
   private static final int defaultMaxRowsInMemory = 75000;
@@ -287,5 +289,11 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         handoffConditionTimeout,
         ignorePreviousSegments
     );
+  }
+
+  @Override
+  public boolean isIgnoreInvalidRows()
+  {
+    return false;
   }
 }

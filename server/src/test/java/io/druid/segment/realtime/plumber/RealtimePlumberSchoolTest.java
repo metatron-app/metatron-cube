@@ -261,8 +261,7 @@ public class RealtimePlumberSchoolTest
                    schema,
                    tuningConfig.getShardSpec(),
                    new DateTime("2014-12-01T12:34:56.789").toString(),
-                   tuningConfig.getMaxRowsInMemory(),
-                   tuningConfig.isReportParseExceptions()
+                   tuningConfig
                )
            );
     Assert.assertNull(plumber.startJob());
@@ -308,8 +307,7 @@ public class RealtimePlumberSchoolTest
                    schema,
                    tuningConfig.getShardSpec(),
                    new DateTime("2014-12-01T12:34:56.789").toString(),
-                   tuningConfig.getMaxRowsInMemory(),
-                   tuningConfig.isReportParseExceptions()
+                   tuningConfig
                )
            );
     plumber.startJob();
@@ -365,8 +363,7 @@ public class RealtimePlumberSchoolTest
                     schema2,
                     tuningConfig.getShardSpec(),
                     new DateTime("2014-12-01T12:34:56.789").toString(),
-                    tuningConfig.getMaxRowsInMemory(),
-                    tuningConfig.isReportParseExceptions()
+                    tuningConfig
                 )
             );
     Assert.assertNull(plumber2.startJob());

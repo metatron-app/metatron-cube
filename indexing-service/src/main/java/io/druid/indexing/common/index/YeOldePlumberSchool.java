@@ -107,8 +107,7 @@ public class YeOldePlumberSchool implements PlumberSchool
         schema,
         config.getShardSpec(),
         version,
-        config.getMaxRowsInMemory(),
-        config.isReportParseExceptions()
+        config
     );
 
     // Temporary directory to hold spilled segments.

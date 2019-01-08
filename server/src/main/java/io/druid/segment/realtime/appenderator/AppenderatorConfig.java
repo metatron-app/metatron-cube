@@ -19,22 +19,16 @@
 
 package io.druid.segment.realtime.appenderator;
 
-import io.druid.segment.IndexSpec;
+import io.druid.segment.indexing.TuningConfig;
 import org.joda.time.Period;
 
 import java.io.File;
 
-public interface AppenderatorConfig
+public interface AppenderatorConfig extends TuningConfig
 {
-  boolean isReportParseExceptions();
-
-  int getMaxRowsInMemory();
-
   int getMaxPendingPersists();
 
   Period getIntermediatePersistPeriod();
-
-  IndexSpec getIndexSpec();
 
   File getBasePersistDirectory();
 }

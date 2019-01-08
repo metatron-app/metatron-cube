@@ -17,7 +17,6 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
-import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
@@ -397,11 +396,11 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
 
     private IncrementalIndex makeIncrementalIndex()
     {
-      final DataSchema dataSchema = config.getSchema().getDataSchema();
-      final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
+      final HadoopIngestionSpec schema = config.getSchema();
+      final GranularitySpec granularitySpec = schema.getDataSchema().getGranularitySpec();
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
-          .withDimensionsSpec(dataSchema.getParser())
+          .withDimensionsSpec(schema.getParser())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
@@ -414,7 +413,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           !tuningConfig.isIgnoreInvalidRows(),
           true,
           true,
-          tuningConfig.getRowFlushBoundary()
+          tuningConfig.getMaxRowsInMemory()
       );
 
       if (allDimensionNames != null && !indexSchema.getDimensionsSpec().hasCustomDimensions()) {

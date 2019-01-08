@@ -117,7 +117,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   }
 
   @Override
-  public Iterator<InputRow> parseStream(Object input)
+  public Iterator<InputRow> parseStream(final Object input)
   {
     if (input == null) {
       return Iterators.emptyIterator();

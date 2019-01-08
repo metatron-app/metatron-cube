@@ -21,6 +21,7 @@ package io.druid.segment.realtime.plumber;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -34,6 +35,7 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.TuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.realtime.FireHydrant;
 import io.druid.timeline.DataSegment;
@@ -59,6 +61,7 @@ public class Sink implements Iterable<FireHydrant>
   private final ShardSpec shardSpec;
   private final String version;
   private final int maxRowsInMemory;
+  private final boolean ignoreInvalidRows;
   private final boolean reportParseExceptions;
   private final CopyOnWriteArrayList<FireHydrant> hydrants = new CopyOnWriteArrayList<FireHydrant>();
   private final LinkedHashSet<String> dimOrder = Sets.newLinkedHashSet();
@@ -77,18 +80,10 @@ public class Sink implements Iterable<FireHydrant>
       DataSchema schema,
       ShardSpec shardSpec,
       String version,
-      int maxRowsInMemory,
-      boolean reportParseExceptions
+      TuningConfig tuningConfig
   )
   {
-    this.schema = schema;
-    this.shardSpec = shardSpec;
-    this.interval = interval;
-    this.version = version;
-    this.maxRowsInMemory = maxRowsInMemory;
-    this.reportParseExceptions = reportParseExceptions;
-
-    makeNewCurrIndex(interval.getStartMillis(), schema);
+    this(interval, schema, shardSpec, version, tuningConfig, ImmutableList.<FireHydrant>of());
   }
 
   public Sink(
@@ -96,8 +91,7 @@ public class Sink implements Iterable<FireHydrant>
       DataSchema schema,
       ShardSpec shardSpec,
       String version,
-      int maxRowsInMemory,
-      boolean reportParseExceptions,
+      TuningConfig tuningConfig,
       List<FireHydrant> hydrants
   )
   {
@@ -105,8 +99,9 @@ public class Sink implements Iterable<FireHydrant>
     this.shardSpec = shardSpec;
     this.interval = interval;
     this.version = version;
-    this.maxRowsInMemory = maxRowsInMemory;
-    this.reportParseExceptions = reportParseExceptions;
+    this.maxRowsInMemory = tuningConfig.getMaxRowsInMemory();
+    this.ignoreInvalidRows = tuningConfig.isIgnoreInvalidRows();
+    this.reportParseExceptions = tuningConfig.isReportParseExceptions();
 
     int maxCount = -1;
     for (int i = 0; i < hydrants.size(); ++i) {
@@ -251,7 +246,7 @@ public class Sink implements Iterable<FireHydrant>
         .withMinTimestamp(minTimestamp)
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
-        .withDimensionsSpec(schema.getParser())
+        .withDimensionsSpec(schema.getParser(ignoreInvalidRows))
         .withMetrics(schema.getAggregators())
         .withRollup(granularitySpec.isRollup())
         .build();
