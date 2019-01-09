@@ -25,9 +25,10 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
+import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.granularity.Granularity;
 import io.druid.query.filter.DimFilter;
@@ -144,6 +145,33 @@ public class QueryRunnerHelper
               public Sequence<T> call()
               {
                 return runner.run(query, responseContext);
+              }
+            };
+          }
+        }
+    );
+  }
+
+  public static <T> Iterable<Callable<Sequence<T>>> asCallable(
+      final Iterable<QueryRunner<T>> runners,
+      final Execs.Semaphore semaphore,
+      final Query<T> query,
+      final Map<String, Object> responseContext
+  )
+  {
+    return Iterables.transform(
+        asCallable(runners, query, responseContext),
+        new Function<Callable<Sequence<T>>, Callable<Sequence<T>>>()
+        {
+          @Override
+          public Callable<Sequence<T>> apply(final Callable<Sequence<T>> callable)
+          {
+            return new PrioritizedCallable.Background<Sequence<T>>()
+            {
+              @Override
+              public Sequence<T> call() throws Exception
+              {
+                return Sequences.simple(Sequences.toList(Sequences.withBaggage(callable.call(), semaphore)));
               }
             };
           }

@@ -209,8 +209,9 @@ public class StreamRawQueryRunnerFactory
               Sequences.<Object[]>callableToLazy()
           );
         } else {
+          Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
           iterable = Iterables.transform(
-              Execs.execute(executor, QueryRunnerHelper.asCallable(runners, query, responseContext)),
+              Execs.execute(executor, QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext)),
               FutureSequence.<Object[]>toSequence()
           );
         }
