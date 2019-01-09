@@ -473,6 +473,7 @@ public class Queries
                                          .put("name", "SPLIT")
                                          .put("fieldName", "SKETCH")
                                          .put("op", "QUANTILES")
+                                         .put("dedup", true)
                                          .put(splitType, numSplits + 1)
                                          .build();
 
