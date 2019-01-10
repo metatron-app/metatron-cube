@@ -4,11 +4,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
+import com.metamx.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Rows;
@@ -29,6 +32,8 @@ import java.util.Set;
 
 public class CSVInputRowParser implements InputRowParser.Streaming<Object>
 {
+  private static final Logger LOG = new Logger(CSVInputRowParser.class);
+
   private final TimestampSpec timestampSpec;
   private final DimensionsSpec dimensionsSpec;
   private final List<String> columns;
@@ -40,6 +45,8 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   private final Boolean skipHeaderRecord;
   private final Boolean ignoreSurroundingSpaces;
   private final Boolean ignoreHeaderCase;
+  private final boolean checkConsistency;
+  private final boolean ignoreInvalidRows;
   private final String charset;
 
   @JsonCreator
@@ -55,6 +62,8 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
       @JsonProperty("skipHeaderRecord") Boolean skipHeaderRecord,
       @JsonProperty("ignoreSurroundingSpaces") Boolean ignoreSurroundingSpaces,
       @JsonProperty("ignoreHeaderCase") Boolean ignoreHeaderCase,
+      @JsonProperty("checkConsistency") boolean checkConsistency,
+      @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
       @JsonProperty("charset") String charset
   ) {
     this.timestampSpec = timestampSpec;
@@ -68,6 +77,8 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
     this.skipHeaderRecord = skipHeaderRecord;
     this.ignoreSurroundingSpaces = ignoreSurroundingSpaces;
     this.ignoreHeaderCase = ignoreHeaderCase;
+    this.checkConsistency = checkConsistency;
+    this.ignoreInvalidRows = ignoreInvalidRows;
     this.charset = charset;
   }
 
@@ -106,6 +117,29 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
         skipHeaderRecord,
         ignoreSurroundingSpaces,
         ignoreHeaderCase,
+        checkConsistency,
+        ignoreInvalidRows,
+        charset
+    );
+  }
+
+  @Override
+  public Streaming<Object> withIgnoreInvalidRows(boolean ignoreInvalidRows)
+  {
+    return new CSVInputRowParser(
+        timestampSpec,
+        dimensionsSpec,
+        columns,
+        delimiter,
+        quoteCharacter,
+        escapeCharacter,
+        recordSeparator,
+        nullString,
+        skipHeaderRecord,
+        ignoreSurroundingSpaces,
+        ignoreHeaderCase,
+        checkConsistency,
+        ignoreInvalidRows,
         charset
     );
   }
@@ -127,17 +161,46 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
     final List<String> columns = asNames(parser.getHeaderMap());
     return Iterators.transform(parser.iterator(), new Function<CSVRecord, InputRow>()
     {
+      private int columnInconsistency;
+      private int timestampError;
+
       @Override
       public InputRow apply(final CSVRecord input)
       {
+        if (checkConsistency && !input.isConsistent()) {
+          if (!ignoreInvalidRows) {
+            throw new ParsingFail(input.toMap(), "Inconsistent row in %d th line", input.getRecordNumber());
+          }
+          if (columnInconsistency++ == 0) {
+            LOG.info(
+                "Inconsistent row %s in %d th line.. similar cases will not be logged further",
+                input.toMap(), input.getRecordNumber()
+            );
+          }
+          return null;
+        }
         final int max = Math.min(columns.size(), input.size());
         final Map<String, Object> event = Maps.newHashMap();
         for (int i = 0; i < max; i++) {
           event.put(columns.get(i), input.get(i));
         }
         Map<String, Object> merged = Rows.mergePartitions(event);
-        DateTime dateTime = timestampSpec.extractTimestamp(merged);
-        return new MapBasedInputRow(dateTime, dimensions, merged);
+        try {
+          DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
+          return new MapBasedInputRow(dateTime, dimensions, merged);
+        }
+        catch (Exception e) {
+          if (!ignoreInvalidRows) {
+            throw ParsingFail.propagate(merged, e);
+          }
+          if (timestampError++ == 0) {
+            LOG.info(
+                "Exception extracting timestamp from row %s in %d th line.. similar cases will not be logged further",
+                input.toMap(), input.getRecordNumber()
+            );
+          }
+          return null;
+        }
       }
     });
   }
@@ -257,6 +320,18 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   public Boolean getIgnoreHeaderCase()
   {
     return ignoreHeaderCase;
+  }
+
+  @JsonProperty
+  public boolean isCheckConsistency()
+  {
+    return checkConsistency;
+  }
+
+  @JsonProperty
+  public boolean isIgnoreInvalidRows()
+  {
+    return ignoreInvalidRows;
   }
 
   @JsonProperty

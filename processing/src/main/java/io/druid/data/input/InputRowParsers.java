@@ -111,6 +111,7 @@ public class InputRowParsers
       public Iterator<InputRow> parseStream(Object input)
       {
         if (parser instanceof Streaming) {
+          // ignoreInvalidRows is handled in inside of stream parser
           return Iterators.filter(
               Iterators.transform(
                   ((Streaming<T>) parser).parseStream(input),
@@ -138,7 +139,15 @@ public class InputRowParsers
       @Override
       public InputRow parse(T input)
       {
-        return convert(parser.parse(input));
+        try {
+          return convert(parser.parse(input));
+        }
+        catch (Exception e) {
+          if (!ignoreInvalidRows) {
+            throw ParsingFail.propagate(input, e);
+          }
+          return null;
+        }
       }
 
       private InputRow convert(InputRow inputRow)
@@ -166,7 +175,8 @@ public class InputRowParsers
           catch (Exception e) {
             if (!warned) {
               LOG.info(
-                  "Exception %s thrown validating row %s. Will be regarded as invalid and not logged further", e, inputRow
+                  "%s is thrown validating row %s. Regarded as invalid and similar cases will not be logged further",
+                  e, inputRow
               );
               warned = true;
             }
@@ -186,6 +196,12 @@ public class InputRowParsers
       public DimensionsSpec getDimensionsSpec()
       {
         return parser.getDimensionsSpec();
+      }
+
+      @Override
+      public Streaming<T> withIgnoreInvalidRows(boolean ignoreInvalidRows)
+      {
+        throw new UnsupportedOperationException("withIgnoreInvalidRows");
       }
 
       @Override

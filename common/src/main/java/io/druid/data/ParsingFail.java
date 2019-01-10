@@ -26,15 +26,21 @@ public class ParsingFail extends ParseException
 {
   private final Object input;
 
-  public ParsingFail(Object input, String message, Throwable cause)
+  public ParsingFail(Object input, Throwable cause, String message, Object... params)
   {
-    super(message, cause);
+    super(cause, message, params);
     this.input = input;
   }
 
   public ParsingFail(Object input, Throwable cause)
   {
     super(cause, Strings.nullToEmpty(cause.getMessage()));
+    this.input = input;
+  }
+
+  public ParsingFail(Object input, String message, Object... params)
+  {
+    super(message, params);
     this.input = input;
   }
 

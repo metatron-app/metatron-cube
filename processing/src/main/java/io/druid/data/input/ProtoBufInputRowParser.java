@@ -29,6 +29,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
@@ -89,9 +90,13 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
   {
     // We should really create a ProtoBufBasedInputRow that does not need an intermediate map but accesses
     // the DynamicMessage directly...
-    Map<String, Object> theMap = Rows.mergePartitions(buildStringKeyMap(input));
-
-    return mapParser.parse(theMap);
+    final Map<String, Object> event = Rows.mergePartitions(buildStringKeyMap(input));
+    try {
+      return mapParser.parse(event);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(event, e);
+    }
   }
 
   private Map<String, Object> buildStringKeyMap(ByteBuffer input)
@@ -126,8 +131,13 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
     return theMap;
   }
 
+  private Descriptor descriptor;
+
   private Descriptor getDescriptor(String descriptorFileInClassPath)
   {
+    if (descriptor != null) {
+      return descriptor;
+    }
     try {
       InputStream fin = this.getClass().getClassLoader().getResourceAsStream(descriptorFileInClassPath);
       FileDescriptorSet set = FileDescriptorSet.parseFrom(fin);
@@ -135,7 +145,7 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
           set.getFile(0), new FileDescriptor[]
           {}
       );
-      return file.getMessageTypes().get(0);
+      return descriptor = file.getMessageTypes().get(0);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

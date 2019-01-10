@@ -20,6 +20,7 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.avro.AvroBytesDecoder;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -59,10 +60,15 @@ public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
       GenericRecord record, ParseSpec parseSpec, List<String> dimensions, boolean fromPigAvroStorage
   )
   {
-    GenericRecordAsMap genericRecordAsMap = new GenericRecordAsMap(record, fromPigAvroStorage);
-    TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
-    DateTime dateTime = timestampSpec.extractTimestamp(genericRecordAsMap);
-    return new MapBasedInputRow(dateTime, dimensions, genericRecordAsMap);
+    try {
+      GenericRecordAsMap genericRecordAsMap = new GenericRecordAsMap(record, fromPigAvroStorage);
+      TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
+      DateTime dateTime = timestampSpec.extractTimestamp(genericRecordAsMap);
+      return new MapBasedInputRow(dateTime, dimensions, genericRecordAsMap);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(record, e);
+    }
   }
 
   @JsonProperty

@@ -51,6 +51,10 @@ public interface InputRowParser<T>
     boolean accept(Object input);
 
     Iterator<InputRow> parseStream(Object input);
+
+    // not like other parsers handling 'ignoreInvalidRows' in outside, it shoud be done in inside
+    // exceptions thrown in hasNext() will always be propagated cause it's not possible to overcome that in streaming world
+    Streaming<T> withIgnoreInvalidRows(boolean ignoreInvalidRows);
   }
 
   interface Delegated<T> extends Streaming<T>

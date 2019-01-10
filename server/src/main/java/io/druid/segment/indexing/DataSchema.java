@@ -21,7 +21,6 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -123,13 +122,16 @@ public class DataSchema
       log.warn("No parser has been specified");
       return null;
     }
-    final InputRowParser parser = createInputRowParser();
+    final InputRowParser parser = createInputRowParser(ignoreInvalidRows);
     return InputRowParsers.wrap(parser, aggregators, evaluations, validations, enforceType, ignoreInvalidRows);
   }
 
-  private InputRowParser createInputRowParser()
+  private InputRowParser createInputRowParser(boolean ignoreInvalidRows)
   {
     InputRowParser inputRowParser = jsonMapper.convertValue(this.parser, InputRowParser.class);
+    if (inputRowParser instanceof InputRowParser.Streaming) {
+      inputRowParser = ((InputRowParser.Streaming) inputRowParser).withIgnoreInvalidRows(ignoreInvalidRows);
+    }
 
     Set<String> exclusions = Sets.newHashSet();
     for (AggregatorFactory aggregator : aggregators) {

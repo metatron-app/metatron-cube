@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.ircclouds.irc.api.domain.messages.ChannelPrivMsg;
 import com.metamx.common.Pair;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -90,7 +91,12 @@ public class IrcInputRowParser implements InputRowParser<Pair<DateTime, ChannelP
   @Override
   public InputRow parse(Pair<DateTime, ChannelPrivMsg> msg)
   {
-    return decoder.decodeMessage(msg.lhs, msg.rhs.getChannelName(), msg.rhs.getText());
+    try {
+      return decoder.decodeMessage(msg.lhs, msg.rhs.getChannelName(), msg.rhs.getText());
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(msg, e);
+    }
   }
 
   @JsonProperty

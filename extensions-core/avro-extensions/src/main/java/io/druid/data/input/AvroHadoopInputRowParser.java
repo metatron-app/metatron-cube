@@ -20,7 +20,6 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
@@ -49,12 +48,7 @@ public class AvroHadoopInputRowParser implements InputRowParser<GenericRecord>
   @Override
   public InputRow parse(GenericRecord record)
   {
-    try {
-      return AvroStreamInputRowParser.parseGenericRecord(record, parseSpec, dimensions, fromPigAvroStorage);
-    }
-    catch (Exception e) {
-      throw ParsingFail.propagate(record, e);
-    }
+    return AvroStreamInputRowParser.parseGenericRecord(record, parseSpec, dimensions, fromPigAvroStorage);
   }
 
   @JsonProperty
