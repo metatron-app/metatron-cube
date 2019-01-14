@@ -33,6 +33,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
+import io.druid.common.guava.BytesRef;
 import io.druid.query.groupby.UTF8Bytes;
 import org.joda.time.DateTimeZone;
 
@@ -173,6 +174,18 @@ public class DruidDefaultSerializersModule extends SimpleModule
           {
             final byte[] value = utf8.getValue();
             jgen.writeUTF8String(value, 0, value.length);
+          }
+        }
+    );
+    addSerializer(
+        BytesRef.class,
+        new JsonSerializer<BytesRef>()
+        {
+          @Override
+          public void serialize(BytesRef utf8, final JsonGenerator jgen, SerializerProvider provider)
+              throws IOException
+          {
+            jgen.writeBinary(utf8.bytes, utf8.from, utf8.len);
           }
         }
     );

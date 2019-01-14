@@ -19,10 +19,12 @@
 
 package io.druid.data.input;
 
+import com.google.common.base.Preconditions;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.YieldingSequenceBase;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.groupby.UTF8Bytes;
@@ -55,6 +57,8 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
 
   public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
   {
+    Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
+    this.max = max;
     this.sequence = sequence;
     this.timestamps = new TimestampRLE();
     this.category = new int[types.size()];
@@ -83,7 +87,6 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           page[i] = new Object[max];
       }
     }
-    this.max = Math.min(0xffff, max);
   }
 
   @Override
@@ -200,7 +203,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
             final BytesOutputStream stream = (BytesOutputStream) page[i];
             final byte[] compressed = new byte[Integer.BYTES + LZ4.maxCompressedLength(stream.size())];
             System.arraycopy(Ints.toByteArray(stream.size()), 0, compressed, 0, Integer.BYTES);
-            copy[i] = Arrays.copyOf(
+            copy[i] = new BytesRef(
                 compressed,
                 Integer.BYTES + LZ4.compress(stream.toByteArray(), 0, stream.size(), compressed, Integer.BYTES)
             );
