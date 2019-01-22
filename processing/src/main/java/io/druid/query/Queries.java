@@ -398,7 +398,7 @@ public class Queries
   {
     ObjectMapper objectMapper = segmentWalker.getObjectMapper();
     query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
-    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config, objectMapper);
+    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
     Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
     return row.getLongMetric("cardinality");
   }

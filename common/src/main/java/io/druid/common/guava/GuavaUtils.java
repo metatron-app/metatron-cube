@@ -299,6 +299,12 @@ public class GuavaUtils
     return Lists.newArrayList(Iterables.concat(list1, list2));
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T, X extends T> X lastOf(List<T> list)
+  {
+    return list.isEmpty() ? null : (X) list.get(list.size() - 1);
+  }
+
   public static Closeable bind(final Closeable... resources)
   {
     return bind(Arrays.asList(resources));

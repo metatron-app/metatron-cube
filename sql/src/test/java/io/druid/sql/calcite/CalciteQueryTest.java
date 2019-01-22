@@ -36,7 +36,10 @@ import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.Parser;
 import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
+import io.druid.query.JoinElement;
+import io.druid.query.JoinType;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryContexts;
 import io.druid.query.QueryDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -166,6 +169,14 @@ public class CalciteQueryTest
     public int getMaxQueryCount()
     {
       return 1;
+    }
+  };
+  private static final PlannerConfig PLANNER_CONFIG_JOIN_ENABLED = new PlannerConfig()
+  {
+    @Override
+    public boolean isJoinEnabled()
+    {
+      return true;
     }
   };
   private static final PlannerConfig PLANNER_CONFIG_REQUIRE_TIME_CONDITION = new PlannerConfig()
@@ -4339,7 +4350,7 @@ public class CalciteQueryTest
   {
     final String explanation =
         "DruidOuterQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"skipEmptyBuckets\":true,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
-        + "  DruidSemiJoin(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], leftExpressions=[[SUBSTRING($3, 1, 1)]], rightKeys=[[0]])\n"
+        + "  DruidSemiJoinRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], leftExpressions=[[SUBSTRING($3, 1, 1)]], rightKeys=[[0]])\n"
         + "    DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"extraction\",\"dimension\":\"dim1\",\"outputName\":\"d0\",\"extractionFn\":{\"type\":\"substring\",\"index\":0,\"length\":1}}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string}])\n";
 
     testQuery(
@@ -6845,6 +6856,92 @@ public class CalciteQueryTest
     );
   }
 
+  @Test
+  public void testJoin() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_JOIN_ENABLED,
+        "SELECT foo.m1 X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time limit 3",
+        ImmutableList.of(
+            Druids.newSelectQueryBuilder()
+                  .dataSource(
+                      QueryDataSource.of(
+                          Druids.newJoinQueryBuilder()
+                                .dataSource("R", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo")
+                                          .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                                          .columns("__time", "m1")
+                                          .streamingRaw())
+                                )
+                                .dataSource("L", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo2")
+                                          .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                                          .columns("__time", "dim2")
+                                          .streamingRaw())
+                                )
+                                .element(JoinElement.of(JoinType.INNER, "L.__time = R.__time"))
+                                .build()
+                      )
+                  )
+                  .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                  .columns("dim2", "m1")
+                  .limit(3)
+                  .streamingRaw()
+        )
+        , ImmutableList.of(
+            new Object[]{1.0, "en"},
+            new Object[]{1.0, "ru"},
+            new Object[]{1.0, "he"}
+        )
+    );
+  }
+
+  @Test
+  public void testGbyOnJoin() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_JOIN_ENABLED,
+        "SELECT sum(foo.m1) X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time group by foo2.dim2 limit 3",
+        ImmutableList.of(
+            new GroupByQuery.Builder()
+                  .dataSource(
+                      QueryDataSource.of(
+                          Druids.newJoinQueryBuilder()
+                                .dataSource("R", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo")
+                                          .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                                          .columns("__time", "m1")
+                                          .streamingRaw())
+                                )
+                                .dataSource("L", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo2")
+                                          .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                                          .columns("__time", "dim2")
+                                          .streamingRaw())
+                                )
+                                .element(JoinElement.of(JoinType.INNER, "L.__time = R.__time"))
+                                .build()
+                      )
+                  )
+                  .granularity(Granularities.ALL)
+                  .intervals(MultipleIntervalSegmentSpec.ETERNITY)
+                  .addDimension(DefaultDimensionSpec.of("dim2", "d0"))
+                  .addAggregator(new GenericSumAggregatorFactory("a0", "m1", ValueDesc.DOUBLE))
+                  .limit(3)
+                  .build()
+        )
+        , ImmutableList.of(
+            new Object[]{1.0, "en"},
+            new Object[]{1.0, "ru"},
+            new Object[]{1.0, "he"}
+        )
+    );
+  }
+
   private void testQuery(
       final String sql,
       final List<Query> expectedQueries,
@@ -6899,6 +6996,7 @@ public class CalciteQueryTest
         walker,
         operatorTable,
         plannerConfig,
+        new QueryConfig(),
         CalciteTests.getJsonMapper()
     );
 

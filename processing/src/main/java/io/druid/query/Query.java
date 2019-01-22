@@ -34,6 +34,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.kmeans.KMeansTaggingQuery;
@@ -208,9 +209,16 @@ public interface Query<T> extends QueryContextKeys
     Sequence<Object[]> array(Sequence<T> sequence);
   }
 
+  interface OrderingSupport<T> extends Query<T>
+  {
+    List<OrderByColumnSpec> getOrderingSpecs();
+
+    OrderingSupport<T> withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs);
+  }
+
   interface RewritingQuery<T> extends Query<T>
   {
-    Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper);
+    Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig);
   }
 
   interface IteratingQuery<INTERMEDIATE, FINAL>

@@ -88,7 +88,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     Map<String, Map<ValueDesc, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
 
@@ -138,6 +138,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         Maps.newHashMap(sketchContext)
     );
 
+    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
     Map<String, Object> summaryContext = computeOverriddenContext(
         ImmutableMap.<String, Object>of(POST_PROCESSING, jsonMapper.convertValue(
             ImmutableMap.of(

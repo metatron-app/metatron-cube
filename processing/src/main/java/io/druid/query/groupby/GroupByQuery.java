@@ -495,9 +495,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public Query rewriteQuery(
-      QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
-  )
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     GroupByQuery query = this;
     GroupByQueryConfig groupByConfig = queryConfig.getGroupBy();
@@ -508,14 +506,14 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       query = query.tryRemoveOrdering();
     }
     if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, groupByConfig.isConvertTimeseries())) {
-      Query converted = query.tryConvertToTimeseries(jsonMapper);
+      Query converted = query.tryConvertToTimeseries(segmentWalker.getObjectMapper());
       if (converted != null) {
         return converted;
       }
     }
     int estimationFactor = query.getContextInt(GBY_ESTIMATE_TOPN_FACTOR, groupByConfig.getEstimateTopNFactor());
     if (estimationFactor > 0) {
-      return query.tryEstimateTopN(segmentWalker, jsonMapper, estimationFactor);
+      return query.tryEstimateTopN(segmentWalker, estimationFactor);
     }
     return query;
   }
@@ -604,7 +602,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return Druids.newTimeseriesQueryBuilder().copy(this).build();
   }
 
-  private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper, int estimationFactor)
+  private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, int estimationFactor)
   {
     if (getGroupingSets() != null || getGranularity() != Granularities.ALL) {
       return this;
@@ -784,11 +782,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
           }
         }
     );
-  }
-
-  public GroupByQuery withOrderingSpec(List<OrderByColumnSpec> columns)
-  {
-    return withLimitSpec(limitSpec.withOrderingSpec(columns));
   }
 
   public TimeseriesQuery asTimeseriesQuery()

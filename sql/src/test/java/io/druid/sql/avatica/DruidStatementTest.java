@@ -22,6 +22,7 @@ package io.druid.sql.avatica;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
+import io.druid.query.QueryConfig;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -58,6 +59,7 @@ public class DruidStatementTest
     Calcites.setSystemProperties();
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
     final PlannerConfig plannerConfig = new PlannerConfig();
+    final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(
         walker,
         plannerConfig
@@ -68,6 +70,7 @@ public class DruidStatementTest
         walker,
         operatorTable,
         plannerConfig,
+        queryConfig,
         CalciteTests.getJsonMapper()
     );
   }

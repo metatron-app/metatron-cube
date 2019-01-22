@@ -32,11 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Module;
 import com.metamx.common.UOE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
@@ -46,7 +41,6 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.guice.annotations.Json;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -138,33 +132,6 @@ public class QueryRunnerTestHelper
 {
 
   public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
-
-  public static final Injector INJECTOR = Guice.createInjector(
-      new Module()
-      {
-        @Override
-        public void configure(final Binder binder)
-        {
-          binder.bind(Key.get(ObjectMapper.class, Json.class)).toInstance(TestHelper.JSON_MAPPER);
-          binder.bind(QueryToolChestWarehouse.class).toInstance(
-              new QueryToolChestWarehouse()
-              {
-                @Override
-                public QueryConfig getQueryConfig()
-                {
-                  return QUERY_CONFIG;
-                }
-
-                @Override
-                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
-                {
-                  return CONGLOMERATE.findFactory(query).getToolchest();
-                }
-              }
-          );
-        }
-      }
-  );
 
   private static final QueryConfig QUERY_CONFIG = new QueryConfig();
   private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()

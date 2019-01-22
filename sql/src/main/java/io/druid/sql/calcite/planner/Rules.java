@@ -71,6 +71,7 @@ import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;
+import io.druid.sql.calcite.rule.DruidJoinRule;
 import io.druid.sql.calcite.rule.DruidRelToBindableRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
@@ -248,6 +249,9 @@ public class Rules
 
     if (plannerConfig.getMaxSemiJoinRowsInMemory() > 0) {
       rules.add(DruidSemiJoinRule.instance());
+    }
+    if (plannerConfig.isJoinEnabled()) {
+      rules.add(DruidJoinRule.instance());
     }
 
     return rules.build();

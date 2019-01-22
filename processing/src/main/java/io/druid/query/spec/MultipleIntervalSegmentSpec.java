@@ -21,6 +21,7 @@ package io.druid.query.spec;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -39,6 +40,8 @@ public class MultipleIntervalSegmentSpec implements QuerySegmentSpec
   {
     return new MultipleIntervalSegmentSpec(Arrays.asList(intervals));
   }
+
+  public static QuerySegmentSpec ETERNITY = MultipleIntervalSegmentSpec.of(Intervals.ETERNITY);
 
   private final List<Interval> intervals;
 

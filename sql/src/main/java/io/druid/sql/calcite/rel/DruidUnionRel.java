@@ -35,7 +35,6 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -81,13 +80,6 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel>
   }
 
   @Override
-  @Nullable
-  public PartialDruidQuery getPartialDruidQuery()
-  {
-    return null;
-  }
-
-  @Override
   public int getQueryCount()
   {
     return rels.stream().mapToInt(rel -> ((DruidRel) rel).getQueryCount()).sum();
@@ -115,7 +107,6 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel>
     throw new UnsupportedOperationException();
   }
 
-  @Nullable
   @Override
   public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
@@ -177,15 +168,6 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel>
         inputs,
         limit
     );
-  }
-
-  @Override
-  public List<String> getDatasourceNames()
-  {
-    return rels.stream()
-               .flatMap(rel -> ((DruidRel<?>) rel).getDatasourceNames().stream())
-               .distinct()
-               .collect(Collectors.toList());
   }
 
   @Override

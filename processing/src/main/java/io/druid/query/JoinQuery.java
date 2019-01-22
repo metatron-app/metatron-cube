@@ -248,8 +248,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
   @Override
   @SuppressWarnings("unchecked")
-  public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
+    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
     XJoinPostProcessor joinProcessor = jsonMapper.convertValue(
         ImmutableMap.of(
             "type", "join",
@@ -416,7 +417,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
     {
       return this;
     }

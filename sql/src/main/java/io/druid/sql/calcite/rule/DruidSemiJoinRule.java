@@ -19,8 +19,6 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -35,8 +33,10 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.rel.DruidRel;
-import io.druid.sql.calcite.rel.DruidSemiJoin;
+import io.druid.sql.calcite.rel.DruidSemiJoinRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
+
+import java.util.function.Predicate;
 
 /**
  * Planner rule adapted from Calcite 1.11.0's SemiJoinRule.
@@ -68,18 +68,18 @@ public class DruidSemiJoinRule extends RelOptRule
     super(
         operand(
             Project.class,
-            operand(
+            operandJ(
                 Join.class,
                 null,
                 IS_LEFT_OR_INNER,
                 some(
-                    operand(
+                    operandJ(
                         DruidRel.class,
                         null,
-                        Predicates.and(DruidRules.CAN_BUILD_ON, Predicates.not(IS_GROUP_BY)),
+                        DruidRules.CAN_BUILD_ON.and(IS_GROUP_BY.negate()),
                         any()
                     ),
-                    operand(DruidRel.class, null, IS_GROUP_BY, any())
+                    operandJ(DruidRel.class, null, IS_GROUP_BY, any())
                 )
             )
         )
@@ -153,7 +153,7 @@ public class DruidSemiJoinRule extends RelOptRule
       // and LEFT means even if there is no match, a left-hand row will still be included).
       relBuilder.push(left);
     } else {
-      final DruidSemiJoin druidSemiJoin = DruidSemiJoin.create(
+      final DruidSemiJoinRel druidSemiJoin = DruidSemiJoinRel.create(
           left,
           right,
           joinInfo.leftKeys,

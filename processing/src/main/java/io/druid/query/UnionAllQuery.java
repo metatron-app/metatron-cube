@@ -423,7 +423,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     if (query != null && query.getDataSource() instanceof UnionDataSource) {
       return withQueries(Lists.<Query>newArrayList(Iterables.transform(

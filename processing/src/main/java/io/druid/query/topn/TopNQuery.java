@@ -208,7 +208,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         sequence,
         new Function<Result<TopNResultValue>, Sequence<Object[]>>()
         {
-          private final String[] columns = outputColumns.toArray(new String[0]);
+          private final String[] columns = outputNames.toArray(new String[0]);
 
           @Override
           public Sequence<Object[]> apply(Result<TopNResultValue> input)

@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.metamx.common.Pair;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.server.log.NoopRequestLogger;
@@ -83,6 +84,7 @@ public class SqlResourceTest
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
 
     final PlannerConfig plannerConfig = new PlannerConfig();
+    final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     req = EasyMock.createStrictMock(HttpServletRequest.class);
@@ -96,6 +98,7 @@ public class SqlResourceTest
             walker,
             operatorTable,
             plannerConfig,
+            queryConfig,
             CalciteTests.getJsonMapper()
         ),
         new NoopRequestLogger()

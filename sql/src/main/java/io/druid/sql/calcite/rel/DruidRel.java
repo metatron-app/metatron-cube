@@ -21,6 +21,7 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Sequence;
+import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.interpreter.BindableRel;
 import org.apache.calcite.interpreter.Node;
@@ -30,10 +31,9 @@ import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
-import io.druid.sql.calcite.planner.PlannerContext;
+import org.apache.calcite.rel.RelNode;
 
 import javax.annotation.Nullable;
-import java.util.List;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {
@@ -50,7 +50,22 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    * if this rel cannot be built on top of.
    */
   @Nullable
-  public abstract PartialDruidQuery getPartialDruidQuery();
+  public PartialDruidQuery getPartialDruidQuery()
+  {
+    return null;
+  }
+
+  public RelNode getLeafRel()
+  {
+    PartialDruidQuery partialQuery = getPartialDruidQuery();
+    return partialQuery == null ? null : partialQuery.leafRel();
+  }
+
+  public boolean canAccept(PartialDruidQuery.Stage stage)
+  {
+    PartialDruidQuery partialQuery = getPartialDruidQuery();
+    return partialQuery != null && partialQuery.canAccept(stage);
+  }
 
   /**
    * Return the number of Druid queries this rel involves, including sub-queries. Simple queries will return 1.
@@ -59,7 +74,13 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    */
   public abstract int getQueryCount();
 
-  public abstract Sequence<Object[]> runQuery();
+  public Sequence<Object[]> runQuery()
+  {
+    // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
+    // is the outermost query and it will actually get run as a native query. Druid's native query layer will
+    // finalize aggregations for the outermost query even if we don't explicitly ask it to.
+    return getQueryMaker().runQuery(toDruidQuery(false));
+  }
 
   public abstract T withPartialQuery(PartialDruidQuery newQueryBuilder);
 
@@ -69,7 +90,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
       toDruidQueryForExplaining();
       return true;
     }
-    catch (CannotBuildQueryException e) {
+    catch (Exception e) {
       return false;
     }
   }
@@ -117,11 +138,6 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   }
 
   public abstract T asDruidConvention();
-
-  /**
-   * Get a list of names of datasources read by this DruidRel
-   */
-  public abstract List<String> getDatasourceNames();
 
   @Override
   public Class<Object[]> getElementType()

@@ -21,7 +21,6 @@ package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -224,9 +223,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(
-      QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
-  )
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     Map<String, Object> context = getContext();
     Query kMeansQuery = new KMeansQuery(
@@ -242,11 +239,11 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         centroids,
         measure,
         context
-    ).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+    ).rewriteQuery(segmentWalker, queryConfig);
 
     Query source = query.getId() == null ? query.withId(getId()) : query;
     if (source instanceof Query.RewritingQuery) {
-      source = ((Query.RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+      source = ((Query.RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig);
     }
     Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)

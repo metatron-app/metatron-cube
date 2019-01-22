@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -155,7 +154,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     final List<String> columns = boundary.getColumns();
     final int geomIndex = boundaryColumn == null ? 0 : columns.indexOf(boundaryColumn);
@@ -194,7 +193,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
         ));
         filtered = filtered.withOverriddenContext(copy);
       }
-      queries.add(filtered.rewriteQuery(segmentWalker, queryConfig, jsonMapper));
+      queries.add(filtered.rewriteQuery(segmentWalker, queryConfig));
     }
     Map<String, Object> copy = Maps.newHashMap(context);
     copy.put(QueryContextKeys.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));

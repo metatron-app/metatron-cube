@@ -21,7 +21,7 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
-import com.metamx.common.guava.Sequence;
+import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -33,10 +33,8 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import io.druid.sql.calcite.table.DruidTable;
 
 import javax.annotation.Nonnull;
-import java.util.List;
 
 /**
  * DruidRel that uses a "table" dataSource.
@@ -137,12 +135,6 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   }
 
   @Override
-  public List<String> getDatasourceNames()
-  {
-    return druidTable.getDataSource().getNames();
-  }
-
-  @Override
   public PartialDruidQuery getPartialDruidQuery()
   {
     return partialQuery;
@@ -165,16 +157,6 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   public int getQueryCount()
   {
     return 1;
-  }
-
-  @Override
-  public Sequence<Object[]> runQuery()
-  {
-    // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
-    // is the outermost query and it will actually get run as a native query. Druid's native query layer will
-    // finalize aggregations for the outermost query even if we don't explicitly ask it to.
-
-    return getQueryMaker().runQuery(toDruidQuery(false));
   }
 
   @Override

@@ -27,6 +27,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
+import io.druid.query.QueryConfig;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.sql.SQLFunctions;
@@ -77,6 +78,7 @@ public class ExpressionsTest
   private final PlannerContext plannerContext = PlannerContext.create(
       CalciteTests.createOperatorTable(),
       new PlannerConfig(),
+      new QueryConfig(),
       ImmutableMap.of()
   );
   private final RowSignature rowSignature = RowSignature

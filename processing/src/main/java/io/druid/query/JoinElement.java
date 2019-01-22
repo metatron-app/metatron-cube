@@ -20,11 +20,11 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -196,6 +196,7 @@ public class JoinElement
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getExpression()
   {
     return expression;
@@ -230,15 +231,15 @@ public class JoinElement
         return delegate.toArrayJoin();  // keep array for output
       }
       if (!(query instanceof Query.ArrayOutputSupport)) {
-        throw new UnsupportedOperationException("todo: cannot resolve output column names..");
+        throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
       }
       Query.ArrayOutputSupport array = (Query.ArrayOutputSupport) query;
       if (GuavaUtils.isNullOrEmpty(array.estimatedOutputColumns())) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
-      if (query instanceof GroupByQuery) {
-        query = ((GroupByQuery) query).withOrderingSpec(OrderByColumnSpec.ascending(sortColumns))
-                                      .withOverriddenContext(SORTED_CONTEXT_KEY, true);
+      if (query instanceof Query.OrderingSupport) {
+        query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns))
+                                               .withOverriddenContext(SORTED_CONTEXT_KEY, true);
       }
       return query;
     }

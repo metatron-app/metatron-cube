@@ -25,8 +25,12 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.google.inject.Module;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -37,8 +41,13 @@ import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.guice.GuiceAnnotationIntrospector;
 import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Processing;
+import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QueryToolChest;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -62,6 +71,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Utility functions for Calcite tests.
@@ -76,7 +86,35 @@ public class CalciteTests
 
   private static final String TIMESTAMP_COLUMN = "t";
 
-  private static final Injector INJECTOR = QueryRunnerTestHelper.INJECTOR;
+  public static final Injector INJECTOR = Guice.createInjector(
+      new Module()
+      {
+        @Override
+        public void configure(final Binder binder)
+        {
+          binder.bind(Key.get(ObjectMapper.class, Json.class)).toInstance(TestHelper.JSON_MAPPER);
+          binder.bind(QueryToolChestWarehouse.class).toInstance(
+              new QueryToolChestWarehouse()
+              {
+                @Override
+                public QueryConfig getQueryConfig()
+                {
+                  return new QueryConfig();
+                }
+
+                @Override
+                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+                {
+                  return QueryRunnerTestHelper.CONGLOMERATE.findFactory(query).getToolchest();
+                }
+              }
+          );
+          binder.bind(Key.get(ExecutorService.class, Processing.class)).toInstance(
+              MoreExecutors.sameThreadExecutor()
+          );
+        }
+      }
+  );
 
   private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(

@@ -2,7 +2,6 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -72,12 +71,12 @@ public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQ
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query<Row> rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query<Row> rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     try {
-      Query<Row> rewritten = query.toCardinalityEstimator(queryConfig, jsonMapper, true);
+      Query<Row> rewritten = query.toCardinalityEstimator(queryConfig, segmentWalker.getObjectMapper(), true);
       if (rewritten instanceof RewritingQuery) {
-        rewritten = ((RewritingQuery)rewritten).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+        rewritten = ((RewritingQuery)rewritten).rewriteQuery(segmentWalker, queryConfig);
       }
       return rewritten;
     }

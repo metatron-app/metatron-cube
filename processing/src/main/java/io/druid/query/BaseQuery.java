@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
@@ -166,6 +167,7 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @JsonProperty("intervals")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   @Override
   public QuerySegmentSpec getQuerySegmentSpec()
   {
@@ -485,9 +487,7 @@ public abstract class BaseQuery<T> implements Query<T>
     if (descending != baseQuery.descending) {
       return false;
     }
-    if (!Objects.equals(context, baseQuery.context)) {
-      return false;
-    }
+    // removed context from eq/hash cause equality is just for test
     if (!Objects.equals(querySegmentSpec, baseQuery.querySegmentSpec)) {
       return false;
     }
@@ -503,7 +503,6 @@ public abstract class BaseQuery<T> implements Query<T>
   {
     int result = dataSource.hashCode();
     result = 31 * result + (descending ? 1 : 0);
-    result = 31 * result + (context != null ? context.hashCode() : 0);
     result = 31 * result + (querySegmentSpec != null ? querySegmentSpec.hashCode() : 0);
     result = 31 * result + (duration != null ? duration.hashCode() : 0);
     return result;

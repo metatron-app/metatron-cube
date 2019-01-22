@@ -245,26 +245,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   private <T> Query<T> prepareQuery(Query<T> query)
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-
-    query = Queries.iterate(
-        query, new Function<Query, Query>()
-        {
-          @Override
-          public Query apply(Query input)
-          {
-            if (input instanceof Query.RewritingQuery) {
-              input = ((Query.RewritingQuery) input).rewriteQuery(
-                  SpecificSegmentsQuerySegmentWalker.this,
-                  queryConfig,
-                  objectMapper
-              );
-            }
-            return input;
-          }
-        }
-    );
-    query = QueryUtils.resolveRecursively(query, this);
-    return QueryUtils.setQueryId(query, queryId);
+    query = QueryUtils.setQueryId(query, queryId);
+    query = QueryUtils.rewriteRecursively(query, SpecificSegmentsQuerySegmentWalker.this, queryConfig);
+    return QueryUtils.resolveRecursively(query, this);
   }
 
   @Override

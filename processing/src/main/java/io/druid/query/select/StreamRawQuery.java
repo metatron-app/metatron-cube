@@ -49,7 +49,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName(Query.SELECT_STREAM_RAW)
-public class StreamRawQuery extends AbstractStreamQuery<Object[]>
+public class StreamRawQuery extends AbstractStreamQuery<Object[]> implements Query.OrderingSupport<Object[]>
 {
   private final List<OrderByColumnSpec> orderBySpecs;
 
@@ -240,6 +240,29 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getOrderBySpecs(),
+        getLimit(),
+        getContext()
+    );
+  }
+
+  @Override
+  public List<OrderByColumnSpec> getOrderingSpecs()
+  {
+    return orderBySpecs;
+  }
+
+  @Override
+  public OrderingSupport<Object[]> withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs)
+  {
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        orderingSpecs,
         getLimit(),
         getContext()
     );

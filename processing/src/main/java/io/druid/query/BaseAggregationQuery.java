@@ -64,7 +64,7 @@ import java.util.Objects;
 /**
  */
 public abstract class BaseAggregationQuery extends BaseQuery<Row>
-    implements Query.AggregationsSupport<Row>, Query.ArrayOutputSupport<Row>
+    implements Query.AggregationsSupport<Row>, Query.ArrayOutputSupport<Row>, Query.OrderingSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -182,6 +182,18 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public abstract BaseAggregationQuery withOutputColumns(List<String> outputColumns);
 
   public abstract BaseAggregationQuery withLateralView(LateralViewSpec lateralView);
+
+  @Override
+  public List<OrderByColumnSpec> getOrderingSpecs()
+  {
+    return limitSpec.getColumns();
+  }
+
+  @Override
+  public BaseAggregationQuery withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs)
+  {
+    return withLimitSpec(limitSpec.withOrderingSpec(orderingSpecs));
+  }
 
   public boolean isSortOnTimeForLimit(boolean defaultValue)
   {

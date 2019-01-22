@@ -255,7 +255,7 @@ public class BrokerQueryResource extends QueryResource
   {
     Query query = super.prepareQuery(baseQuery);
     query = rewriteDataSource(query);
-    query = rewriteQuery(query);
+    query = QueryUtils.rewriteRecursively(query, texasRanger, warehouse.getQueryConfig());
     query = QueryUtils.resolveRecursively(query, texasRanger);
 
     if (BaseQuery.isOptimizeQuery(query, false)) {
@@ -319,23 +319,6 @@ public class BrokerQueryResource extends QueryResource
               } else {
                 input = input.withDataSource(UnionDataSource.of(exploded));
               }
-            }
-            return input;
-          }
-        }
-    );
-  }
-
-  private Query rewriteQuery(final Query query)
-  {
-    return Queries.iterate(
-        query, new Function<Query, Query>()
-        {
-          @Override
-          public Query apply(Query input)
-          {
-            if (input instanceof Query.RewritingQuery) {
-              input = ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
             }
             return input;
           }

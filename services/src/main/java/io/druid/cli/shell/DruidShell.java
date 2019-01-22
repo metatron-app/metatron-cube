@@ -48,6 +48,7 @@ import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 
+import javax.ws.rs.core.MediaType;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -202,6 +203,7 @@ public class DruidShell implements CommonShell
         "task",
         "query",
         "help",
+        "sql",
         "quit",
         "exit"
     );
@@ -472,6 +474,7 @@ public class DruidShell implements CommonShell
         writer.println("tasks [-full] [-completed [-recent=<duration>]]");
         writer.println("task <task-id> [-status|-segments|-log]");
         writer.println("query <datasource-name> <intervals> [-full]");
+        writer.println("sql <sql-string>");
         return;
       case "loadstatus":
         Map<String, Object> loadStatus = execute(coordinatorURL, "/druid/coordinator/v1/loadstatus", MAP);
@@ -895,6 +898,32 @@ public class DruidShell implements CommonShell
         }
         break;
       }
+      case "sql": {
+        if (brokerURLs.isEmpty()) {
+          writer.println("no broker..");
+          return;
+        }
+        if (!cursor.hasMore()) {
+          writer.println("needs sql string");
+          return;
+        }
+        int numRow = 0;
+        long start = System.currentTimeMillis();
+        for (Map<String, Object> row : execute(
+            HttpMethod.POST,
+            brokerURLs.get(0),
+            "/druid/v2/sql",
+            MediaType.TEXT_PLAIN,
+            cursor.next().getBytes(),
+            new TypeReference<List<Map<String, Object>>>() {}
+        )) {
+          writer.print("  ");
+          writer.println(row);
+          numRow++;
+        }
+        writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
+        break;
+      }
       default:
         writer.println(PREFIX[0] + "invalid command " + cursor.command());
     }
@@ -1001,14 +1030,24 @@ public class DruidShell implements CommonShell
 
   private <T> T execute(URL baseURL, String resource, TypeReference<T> resultType)
   {
-    return execute(HttpMethod.GET, baseURL, resource, resultType);
+    return execute(HttpMethod.GET, baseURL, resource, null, null, resultType);
   }
 
-  private <T> T execute(HttpMethod method, URL baseURL, String resource, TypeReference<T> resultType)
+  private <T> T execute(
+      HttpMethod method,
+      URL baseURL,
+      String resource,
+      String contentType,
+      byte[] content,
+      TypeReference<T> resultType
+  )
   {
     try {
       URL requestURL = new URL(baseURL + resource);
       Request request = new Request(method, requestURL);
+      if (contentType != null && content != null) {
+        request.setContent(contentType, content);
+      }
       StatusResponseHolder response = httpClient.go(request, RESPONSE_HANDLER).get();
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
         throw new ISE(

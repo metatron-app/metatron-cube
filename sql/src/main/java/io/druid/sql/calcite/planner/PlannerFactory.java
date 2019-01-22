@@ -22,6 +22,7 @@ package io.druid.sql.calcite.planner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.druid.guice.annotations.Json;
+import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.schema.DruidSchema;
@@ -58,6 +59,7 @@ public class PlannerFactory
   private final QuerySegmentWalker segmentWalker;
   private final DruidOperatorTable operatorTable;
   private final PlannerConfig plannerConfig;
+  private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
 
   @Inject
@@ -66,6 +68,7 @@ public class PlannerFactory
       final QuerySegmentWalker segmentWalker,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
+      final QueryConfig queryConfig,
       final @Json ObjectMapper jsonMapper
   )
   {
@@ -73,6 +76,7 @@ public class PlannerFactory
     this.segmentWalker = segmentWalker;
     this.operatorTable = operatorTable;
     this.plannerConfig = plannerConfig;
+    this.queryConfig = queryConfig;
     this.jsonMapper = jsonMapper;
   }
 
@@ -82,9 +86,10 @@ public class PlannerFactory
     final PlannerContext plannerContext = PlannerContext.create(
         operatorTable,
         plannerConfig,
+        queryConfig,
         queryContext
     );
-    final QueryMaker queryMaker = new QueryMaker(segmentWalker, plannerContext, jsonMapper);
+    final QueryMaker queryMaker = new QueryMaker(segmentWalker, plannerContext, queryConfig, jsonMapper);
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
         .configBuilder()
         .withExpand(false)

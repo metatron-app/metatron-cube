@@ -21,7 +21,6 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
@@ -29,25 +28,22 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.math.expr.Evals;
+import io.druid.query.BaseAggregationQuery;
+import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryUtils;
 import io.druid.query.Result;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.select.EventHolder;
-import io.druid.query.select.PagingSpec;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectResultValue;
-import io.druid.query.select.StreamRawQuery;
-import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
-import io.druid.segment.column.Column;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -61,12 +57,9 @@ import org.joda.time.DateTime;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class QueryMaker
@@ -75,16 +68,19 @@ public class QueryMaker
 
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
+  private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
 
   public QueryMaker(
       final QuerySegmentWalker segmentWalker,
       final PlannerContext plannerContext,
+      final QueryConfig queryConfig,
       final ObjectMapper jsonMapper
   )
   {
     this.segmentWalker = segmentWalker;
     this.plannerContext = plannerContext;
+    this.queryConfig = queryConfig;
     this.jsonMapper = jsonMapper;
   }
 
@@ -106,192 +102,57 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
     final Query query = druidQuery.getQuery();
+    final Query prepared = prepareQuery(query);
 
-    final Query innerMostQuery = findInnerMostQuery(query);
-    if (plannerContext.getPlannerConfig().isRequireTimeCondition() &&
-        innerMostQuery.getIntervals().equals(Intervals.ONLY_ETERNITY)) {
-      throw new CannotBuildQueryException(
-          "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
-      );
+    if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
+      Queries.iterate(prepared, new IdentityFunction<Query>()
+      {
+        @Override
+        public Query apply(Query input)
+        {
+          if (!(prepared.getDataSource() instanceof QueryDataSource) &&
+              Intervals.ONLY_ETERNITY.equals(prepared.getIntervals())) {
+            throw new CannotBuildQueryException(
+                "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
+            );
+          }
+          return input;
+        }
+      });
     }
 
-    if (query instanceof TimeseriesQuery) {
-      return executeTimeseries(druidQuery, (TimeseriesQuery) query);
-    } else if (query instanceof TopNQuery) {
-      return executeTopN(druidQuery, (TopNQuery) query);
-    } else if (query instanceof GroupByQuery) {
-      return executeGroupBy(druidQuery, (GroupByQuery) query);
-    } else if (query instanceof StreamRawQuery) {
-      return executeScan(druidQuery, (StreamRawQuery) query);
-    } else if (query instanceof SelectQuery) {
-      return executeSelect(druidQuery, (SelectQuery) query);
+    Hook.QUERY_PLAN.run(query);   // original query
+
+    if (prepared instanceof BaseAggregationQuery) {
+      return executeAggregation(druidQuery, (BaseAggregationQuery) prepared);
+    } else if (prepared instanceof TopNQuery) {
+      return executeTopN(druidQuery, (TopNQuery) prepared);
+    } else if (prepared instanceof Query.ArrayOutputSupport) {
+      return executeArray(druidQuery, (Query.ArrayOutputSupport) prepared);
     } else {
-      throw new ISE("Cannot run query of class[%s]", query.getClass().getName());
+      throw new ISE("Cannot run query of class[%s]", prepared.getClass().getName());
     }
   }
 
-  private Query findInnerMostQuery(Query outerQuery)
+  // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
+  private Query prepareQuery(Query<?> query)
   {
-    Query query = outerQuery;
-    while (query.getDataSource() instanceof QueryDataSource) {
-      query = ((QueryDataSource) query.getDataSource()).getQuery();
-    }
+    String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
+    query = QueryUtils.setQueryId(query, queryId);
+    query = QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig);
+    query = QueryUtils.resolveRecursively(query, segmentWalker);
     return query;
   }
 
-  private Sequence<Object[]> executeScan(
-      final DruidQuery druidQuery,
-      final StreamRawQuery query
-  )
-  {
-    final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
-
-    final RowSignature outputRowSignature = druidQuery.getOutputRowSignature();
-
-    // SQL row column index -> Scan query column index
-    final int[] columnMapping = new int[outputRowSignature.getRowOrder().size()];
-
-    final List<String> columnNames = query.getColumns();
-    final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
-
-    for (int i = 0; i < columnNames.size(); i++) {
-      scanColumnOrder.put(columnNames.get(i), i);
-    }
-
-    for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
-      String columnName = outputRowSignature.getRowOrder().get(i);
-      Integer index = scanColumnOrder.get(columnName);
-      columnMapping[i] = index == null ? -1 : index;
-    }
-    return Sequences.map(
-        runQuery(query),
-        row -> {
-          final Object[] retVal = new Object[fieldList.size()];
-          for (RelDataTypeField field : fieldList) {
-            int index = columnMapping[field.getIndex()];
-            if (index < 0) {
-              continue;
-            }
-            retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
-          }
-          return retVal;
-        }
-    );
-  }
-
-  private Sequence<Object[]> executeSelect(
-      final DruidQuery druidQuery,
-      final SelectQuery baseQuery
-  )
-  {
-    Preconditions.checkState(druidQuery.getGrouping() == null, "grouping must be null");
-
-    final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
-    final Integer limit = druidQuery.getLimitSpec() != null ? druidQuery.getLimitSpec().getLimit() : null;
-    final RowSignature outputRowSignature = druidQuery.getOutputRowSignature();
-
-    // Select is paginated, we need to make multiple queries.
-    final Sequence<Sequence<Object[]>> sequenceOfSequences = Sequences.simple(
-        new Iterable<Sequence<Object[]>>()
-        {
-          @Override
-          public Iterator<Sequence<Object[]>> iterator()
-          {
-            final AtomicBoolean morePages = new AtomicBoolean(true);
-            final AtomicReference<Map<String, Integer>> pagingIdentifiers = new AtomicReference<>();
-            final AtomicLong rowsRead = new AtomicLong();
-
-            // Each Sequence<Object[]> is one page.
-            return new Iterator<Sequence<Object[]>>()
-            {
-              @Override
-              public boolean hasNext()
-              {
-                return morePages.get();
-              }
-
-              @Override
-              public Sequence<Object[]> next()
-              {
-                final SelectQuery queryWithPagination = baseQuery.withPagingSpec(
-                    new PagingSpec(
-                        pagingIdentifiers.get(),
-                        plannerContext.getPlannerConfig().getSelectThreshold(),
-                        true
-                    )
-                );
-
-                morePages.set(false);
-                final AtomicBoolean gotResult = new AtomicBoolean();
-
-                return Sequences.explode(
-                    runQuery(queryWithPagination),
-                    new Function<Result<SelectResultValue>, Sequence<Object[]>>()
-                    {
-                      @Override
-                      public Sequence<Object[]> apply(final Result<SelectResultValue> result)
-                      {
-                        if (!gotResult.compareAndSet(false, true)) {
-                          throw new ISE("WTF?! Expected single result from Select query but got multiple!");
-                        }
-
-                        pagingIdentifiers.set(result.getValue().getPagingIdentifiers());
-                        final List<Object[]> retVals = new ArrayList<>();
-                        for (EventHolder holder : result.getValue().getEvents()) {
-                          morePages.set(true);
-                          final Map<String, Object> map = holder.getEvent();
-                          final Object[] retVal = new Object[fieldList.size()];
-                          for (RelDataTypeField field : fieldList) {
-                            final String outputName = outputRowSignature.getRowOrder().get(field.getIndex());
-                            if (outputName.equals(Column.TIME_COLUMN_NAME)) {
-                              retVal[field.getIndex()] = coerce(
-                                  holder.getTimestamp(),
-                                  field.getType().getSqlTypeName()
-                              );
-                            } else {
-                              retVal[field.getIndex()] = coerce(
-                                  map.get(outputName),
-                                  field.getType().getSqlTypeName()
-                              );
-                            }
-                          }
-                          if (limit == null || rowsRead.incrementAndGet() <= limit) {
-                            retVals.add(retVal);
-                          } else {
-                            morePages.set(false);
-                            return Sequences.simple(retVals);
-                          }
-                        }
-
-                        return Sequences.simple(retVals);
-                      }
-                    }
-                );
-              }
-
-              @Override
-              public void remove()
-              {
-                throw new UnsupportedOperationException();
-              }
-            };
-          }
-        }
-    );
-
-    return Sequences.concat(sequenceOfSequences);
-  }
-
   @SuppressWarnings("unchecked")
-  private <T> Sequence<T> runQuery(final Query<T> query)
+  private <T> Sequence<T> runQuery(final Query query)
   {
-    Hook.QUERY_PLAN.run(query);
     return query.run(segmentWalker, Maps.newHashMap());
   }
 
-  private Sequence<Object[]> executeTimeseries(
+  private Sequence<Object[]> executeAggregation(
       final DruidQuery druidQuery,
-      final TimeseriesQuery query
+      final BaseAggregationQuery query
   )
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
@@ -351,29 +212,42 @@ public class QueryMaker
     );
   }
 
-  private Sequence<Object[]> executeGroupBy(
+  private <T> Sequence<Object[]> executeArray(
       final DruidQuery druidQuery,
-      final GroupByQuery query
+      final Query.ArrayOutputSupport<?> query
   )
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 
+    final RowSignature outputRowSignature = druidQuery.getOutputRowSignature();
+
+    // SQL row column index -> Scan query column index
+    final int[] columnMapping = new int[outputRowSignature.getRowOrder().size()];
+
+    final List<String> columnNames = query.estimatedOutputColumns();
+    final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
+
+    for (int i = 0; i < columnNames.size(); i++) {
+      scanColumnOrder.put(columnNames.get(i), i);
+    }
+
+    for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
+      String columnName = outputRowSignature.getRowOrder().get(i);
+      Integer index = scanColumnOrder.get(columnName);
+      columnMapping[i] = index == null ? -1 : index;
+    }
     return Sequences.map(
-        runQuery(query),
-        new Function<Row, Object[]>()
-        {
-          @Override
-          public Object[] apply(final Row row)
-          {
-            final Object[] retVal = new Object[fieldList.size()];
-            for (RelDataTypeField field : fieldList) {
-              retVal[field.getIndex()] = coerce(
-                  row.getRaw(druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex())),
-                  field.getType().getSqlTypeName()
-              );
+        query.array(runQuery(query)),
+        row -> {
+          final Object[] retVal = new Object[fieldList.size()];
+          for (RelDataTypeField field : fieldList) {
+            int index = columnMapping[field.getIndex()];
+            if (index < 0) {
+              continue;
             }
-            return retVal;
+            retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
           }
+          return retVal;
         }
     );
   }

@@ -49,7 +49,6 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -57,7 +56,7 @@ import java.util.Set;
 /**
  * DruidRel that has a main query, and also a subquery "right" that is used to filter the main query.
  */
-public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
+public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
 {
   private final List<RexNode> leftExpressions;
   private final List<Integer> rightKeys;
@@ -65,7 +64,7 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   private DruidRel<?> left;
   private RelNode right;
 
-  private DruidSemiJoin(
+  private DruidSemiJoinRel(
       final RelOptCluster cluster,
       final RelTraitSet traitSet,
       final DruidRel<?> left,
@@ -84,7 +83,7 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
     this.maxSemiJoinRowsInMemory = maxSemiJoinRowsInMemory;
   }
 
-  public static DruidSemiJoin create(
+  public static DruidSemiJoinRel create(
       final DruidRel left,
       final DruidRel right,
       final List<Integer> leftKeys,
@@ -109,7 +108,7 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
       }
     }
 
-    return new DruidSemiJoin(
+    return new DruidSemiJoinRel(
         left.getCluster(),
         left.getTraitSet(),
         left,
@@ -128,9 +127,9 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   }
 
   @Override
-  public DruidSemiJoin withPartialQuery(final PartialDruidQuery newQueryBuilder)
+  public DruidSemiJoinRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
   {
-    return new DruidSemiJoin(
+    return new DruidSemiJoinRel(
         getCluster(),
         getTraitSet().plusAll(newQueryBuilder.getRelTraits()),
         left.withPartialQuery(newQueryBuilder),
@@ -157,9 +156,9 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   }
 
   @Override
-  public DruidSemiJoin asBindable()
+  public DruidSemiJoinRel asBindable()
   {
-    return new DruidSemiJoin(
+    return new DruidSemiJoinRel(
         getCluster(),
         getTraitSet().replace(BindableConvention.INSTANCE),
         left,
@@ -172,9 +171,9 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   }
 
   @Override
-  public DruidSemiJoin asDruidConvention()
+  public DruidSemiJoinRel asDruidConvention()
   {
-    return new DruidSemiJoin(
+    return new DruidSemiJoinRel(
         getCluster(),
         getTraitSet().replace(DruidConvention.instance()),
         left,
@@ -184,16 +183,6 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
         maxSemiJoinRowsInMemory,
         getQueryMaker()
     );
-  }
-
-  @Override
-  public List<String> getDatasourceNames()
-  {
-    final DruidRel<?> druidRight = (DruidRel) this.right;
-    Set<String> datasourceNames = new LinkedHashSet<>();
-    datasourceNames.addAll(left.getDatasourceNames());
-    datasourceNames.addAll(druidRight.getDatasourceNames());
-    return new ArrayList<>(datasourceNames);
   }
 
   @Override
@@ -238,7 +227,7 @@ public class DruidSemiJoin extends DruidRel<DruidSemiJoin>
   @Override
   public RelNode copy(final RelTraitSet traitSet, final List<RelNode> inputs)
   {
-    return new DruidSemiJoin(
+    return new DruidSemiJoinRel(
         getCluster(),
         getTraitSet(),
         left,

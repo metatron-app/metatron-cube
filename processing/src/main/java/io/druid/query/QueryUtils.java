@@ -211,7 +211,7 @@ public class QueryUtils
     };
   }
 
-  public static Query setQueryId(Query query, final String queryId)
+  public static Query setQueryId(final Query query, final String queryId)
   {
     return Queries.iterate(
         query, new Function<Query, Query>()
@@ -228,7 +228,31 @@ public class QueryUtils
     );
   }
 
-  public static Query resolveRecursively(Query query, final QuerySegmentWalker segmentWalker)
+  public static Query rewriteRecursively(
+      final Query query,
+      final QuerySegmentWalker segmentWalker,
+      final QueryConfig queryConfig
+  )
+  {
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input instanceof Query.RewritingQuery) {
+              input = ((Query.RewritingQuery) input).rewriteQuery(
+                  segmentWalker,
+                  queryConfig
+              );
+            }
+            return input;
+          }
+        }
+    );
+  }
+
+  public static Query resolveRecursively(final Query query, final QuerySegmentWalker segmentWalker)
   {
     return Queries.iterate(
         query, new Function<Query, Query>()

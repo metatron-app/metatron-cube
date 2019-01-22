@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -90,7 +89,7 @@ public class SelectForwardQuery extends BaseQuery implements DelegateQuery
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     return query;
   }

@@ -1839,7 +1839,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
@@ -1871,7 +1871,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
     results = runQuery(query);
@@ -1902,7 +1902,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "convert-timeseries");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_CONVERT_TIMESERIES, true);
-    Query timeseries = query.rewriteQuery(null, new QueryConfig(), TestHelper.JSON_MAPPER);
+    Query timeseries = query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
     Assert.assertTrue(timeseries instanceof TimeseriesQuery);
 
     results = runRowQuery(timeseries);
@@ -2175,7 +2175,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
@@ -3665,7 +3665,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     GroupByQuery query = builder.build();
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
     DimensionSpec dimensionSpec = query.getDimensions().get(1);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);  // 0 is basic ordering
     WindowingSpec windowingSpec = query.getLimitSpec().getWindowingSpecs().get(0);

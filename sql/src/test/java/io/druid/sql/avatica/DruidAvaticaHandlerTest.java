@@ -39,6 +39,7 @@ import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
+import io.druid.query.QueryConfig;
 import io.druid.server.DruidNode;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -125,6 +126,7 @@ public class DruidAvaticaHandlerTest
     Calcites.setSystemProperties();
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
     final PlannerConfig plannerConfig = new PlannerConfig();
+    final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
 
@@ -149,6 +151,7 @@ public class DruidAvaticaHandlerTest
             walker,
             operatorTable,
             plannerConfig,
+            queryConfig,
             CalciteTests.getJsonMapper()
         ),
         AVATICA_CONFIG,
@@ -695,6 +698,7 @@ public class DruidAvaticaHandlerTest
     };
 
     final PlannerConfig plannerConfig = new PlannerConfig();
+    final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final List<Meta.Frame> frames = new ArrayList<>();
@@ -704,6 +708,7 @@ public class DruidAvaticaHandlerTest
             walker,
             operatorTable,
             plannerConfig,
+            queryConfig,
             CalciteTests.getJsonMapper()
         ),
         smallFrameConfig,

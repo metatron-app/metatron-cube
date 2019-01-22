@@ -32,6 +32,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_APPROXIMATE_COUNT_DISTINCT = "useApproximateCountDistinct";
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
   public static final String CTX_KEY_USE_FALLBACK = "useFallback";
+  public static final String CTX_KEY_USE_JOIN = "useJoin";
 
   @JsonProperty
   private Period metadataRefreshPeriod = new Period("PT1M");
@@ -62,6 +63,9 @@ public class PlannerConfig
 
   @JsonProperty
   private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
+
+  @JsonProperty
+  private boolean joinEnabled = false;
 
   public Period getMetadataRefreshPeriod()
   {
@@ -103,6 +107,11 @@ public class PlannerConfig
     return useFallback;
   }
 
+  public boolean isJoinEnabled()
+  {
+    return joinEnabled;
+  }
+
   public boolean isRequireTimeCondition()
   {
     return requireTimeCondition;
@@ -139,6 +148,11 @@ public class PlannerConfig
         context,
         CTX_KEY_USE_FALLBACK,
         isUseFallback()
+    );
+    newConfig.joinEnabled = getContextBoolean(
+        context,
+        CTX_KEY_USE_JOIN,
+        isJoinEnabled()
     );
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
@@ -180,6 +194,7 @@ public class PlannerConfig
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
            useFallback == that.useFallback &&
+           joinEnabled == that.joinEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
            Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
@@ -198,6 +213,7 @@ public class PlannerConfig
         useApproximateCountDistinct,
         useApproximateTopN,
         useFallback,
+        joinEnabled,
         requireTimeCondition,
         sqlTimeZone
     );
@@ -215,6 +231,7 @@ public class PlannerConfig
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
            ", useFallback=" + useFallback +
+           ", joinEnabled=" + joinEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
            ", sqlTimeZone=" + sqlTimeZone +
            '}';

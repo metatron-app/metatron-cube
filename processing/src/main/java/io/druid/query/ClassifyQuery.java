@@ -95,18 +95,19 @@ public class ClassifyQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     Query q = query.getId() == null ? query.withId(getId()) : query;
     if (q instanceof Query.RewritingQuery) {
-      q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+      q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig);
     }
+    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
     if (estimatedOutputColumns() == null && !PostProcessingOperators.isTabularOutput(q, jsonMapper)) {
       throw new IllegalArgumentException("cannot classify which is neither array output supported or tabular format");
     }
     Query c = classifier.getId() == null ? classifier.withId(getId()) : classifier;
     if (c instanceof Query.RewritingQuery) {
-      c = ((Query.RewritingQuery) c).rewriteQuery(segmentWalker, queryConfig, jsonMapper);
+      c = ((Query.RewritingQuery) c).rewriteQuery(segmentWalker, queryConfig);
     }
     Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)

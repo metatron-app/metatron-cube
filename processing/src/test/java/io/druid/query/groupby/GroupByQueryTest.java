@@ -39,6 +39,7 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -105,7 +106,7 @@ public class GroupByQueryTest
         .setContext(ImmutableMap.<String, Object>of(Query.GBY_PRE_ORDERING, true))
         .build();
 
-    GroupByQuery rewritten = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    GroupByQuery rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
 
     List<DimensionSpec> dimensions = rewritten.getDimensions();
     Assert.assertEquals(2, dimensions.size());
@@ -130,7 +131,7 @@ public class GroupByQueryTest
         )
     );
 
-    rewritten = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
 
     dimensions = rewritten.getDimensions();
     Assert.assertEquals(2, dimensions.size());
