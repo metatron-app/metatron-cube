@@ -22,6 +22,7 @@ package io.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -215,6 +216,7 @@ public class HadoopIndexTask extends HadoopTask
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getHadoopDependencyCoordinates()
   {
     return super.getHadoopDependencyCoordinates();
@@ -222,6 +224,7 @@ public class HadoopIndexTask extends HadoopTask
 
   @JsonProperty
   @Override
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getClasspathPrefix()
   {
     return classpathPrefix;

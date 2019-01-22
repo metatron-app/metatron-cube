@@ -20,6 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -45,6 +46,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private static final int DEFAULT_MIN_REDUCER = 1;
   private static final int DEFAULT_MAX_REDUCER = 100;
   private static final int DEFAULT_SCATTER_PARAM = -1;
+  private static final long DEFAULT_BYTES_PER_REDUCER = -1;
   private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
   private static final int DEFAULT_NUM_BACKGROUND_PERSIST_THREADS = 0;
 
@@ -70,6 +72,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         DEFAULT_MIN_REDUCER,
         DEFAULT_MAX_REDUCER,
         DEFAULT_SCATTER_PARAM,
+        DEFAULT_BYTES_PER_REDUCER,
         DEFAULT_BUILD_V9_DIRECTLY,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
     );
@@ -88,6 +91,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private final int minReducer;
   private final int maxReducer;
   private final int scatterParam;
+  private final long bytesPerReducer;
   private final Boolean buildV9Directly;
   private final int numBackgroundPersistThreads;
 
@@ -112,6 +116,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
       final @JsonProperty("minReducer") Integer minReducer,
       final @JsonProperty("maxReducer") Integer maxReducer,
       final @JsonProperty("scatterParam") Integer scatterParam,
+      final @JsonProperty("bytesPerReducer") Long bytesPerReducer,
       final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
       final @JsonProperty("numBackgroundPersistThreads") Integer numBackgroundPersistThreads
   )
@@ -128,8 +133,9 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
-    this.minReducer = minReducer == null ? DEFAULT_MIN_REDUCER : minReducer;
-    this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : maxReducer;
+    this.minReducer = minReducer == null ? DEFAULT_MIN_REDUCER : Math.max(1, minReducer);
+    this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : Math.max(1, maxReducer);
+    this.bytesPerReducer = bytesPerReducer == null ? DEFAULT_BYTES_PER_REDUCER : bytesPerReducer;
     this.scatterParam = scatterParam == null ? DEFAULT_SCATTER_PARAM : scatterParam;
     this.numBackgroundPersistThreads = numBackgroundPersistThreads == null ? DEFAULT_NUM_BACKGROUND_PERSIST_THREADS : numBackgroundPersistThreads;
     Preconditions.checkArgument(this.numBackgroundPersistThreads >= 0, "Not support persistBackgroundCount < 0");
@@ -178,12 +184,14 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         null,
         null,
         null,
+        null,
         buildV9Directly,
         numBackgroundPersistThreads
     );
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getWorkingPath()
   {
     return workingPath;
@@ -272,6 +280,12 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
     return scatterParam;
   }
 
+  @JsonProperty
+  public long getBytesPerReducer()
+  {
+    return bytesPerReducer;
+  }
+
   public HadoopTuningConfig withPartitionsSpec(PartitionsSpec partitionsSpec)
   {
     return new HadoopTuningConfig(
@@ -294,6 +308,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
+        bytesPerReducer,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -321,6 +336,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
+        bytesPerReducer,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -348,6 +364,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
+        bytesPerReducer,
         buildV9Directly,
         numBackgroundPersistThreads
     );
@@ -375,6 +392,35 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         minReducer,
         maxReducer,
         scatterParam,
+        bytesPerReducer,
+        buildV9Directly,
+        numBackgroundPersistThreads
+    );
+  }
+
+  public HadoopTuningConfig withNumReducer(int numReducer)
+  {
+    return new HadoopTuningConfig(
+        workingPath,
+        version,
+        partitionsSpec,
+        shardSpecs,
+        getIndexSpec(),
+        getMaxRowsInMemory(),
+        getMaxOccupationInMemory(),
+        getMaxShardLength(),
+        leaveIntermediate,
+        cleanupOnFailure,
+        isOverwriteFiles(),
+        isIgnoreInvalidRows(),
+        jobProperties,
+        ingestionMode,
+        combineText,
+        useCombiner,
+        numReducer,
+        numReducer,
+        scatterParam,
+        DEFAULT_BYTES_PER_REDUCER,
         buildV9Directly,
         numBackgroundPersistThreads
     );

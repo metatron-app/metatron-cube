@@ -21,6 +21,7 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -171,18 +172,21 @@ public class DataSchema
   }
 
   @JsonProperty("metricsSpec")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public AggregatorFactory[] getAggregators()
   {
     return aggregators;
   }
 
   @JsonProperty("evaluations")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<Evaluation> getEvaluations()
   {
     return evaluations;
   }
 
   @JsonProperty("validations")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<Validation> getValidations()
   {
     return validations;

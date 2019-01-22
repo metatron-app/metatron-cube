@@ -102,7 +102,7 @@ public class DetermineHashedPartitionsJob implements Jobby
       if (!segmentGranularIntervals.isPresent()) {
         groupByJob.setNumReduceTasks(1);
       } else {
-        groupByJob.setNumReduceTasks(Math.min(config.getMaxReducer(), segmentGranularIntervals.get().size()));
+        groupByJob.setNumReduceTasks(config.getNumReducer(segmentGranularIntervals.get().size()));
       }
       JobHelper.setupClasspath(
           JobHelper.distributedClassPath(config.getWorkingPath()),

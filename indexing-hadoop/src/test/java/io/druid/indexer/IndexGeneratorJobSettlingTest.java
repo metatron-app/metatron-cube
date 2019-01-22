@@ -32,7 +32,6 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.QueryableIndex;
@@ -46,7 +45,6 @@ import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.SingleDimensionShardSpec;
 import org.apache.commons.collections.ListUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -255,19 +253,7 @@ public class IndexGeneratorJobSettlingTest
                 true,
                 null
             ),
-            null,
-            new HadoopJDBCSettlingConfig(
-                mapper.readValue(hiveConnectorMeta, MetadataStorageConnectorConfig.class),
-                String.format("select %s from %s where %s", StringUtils.join(columns, ","), targetTable, condition),
-                staticColumns,
-                regexColumns,
-                "eqp_param_name",
-                "visited_num",
-                aggTypeColumn,
-                offsetColumn,
-                sizeColumn,
-                settlingYNColumnName
-            )
+            null
         )
     );
 

@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.HadoopyShardSpec;
 import io.druid.indexer.Jobby;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
@@ -52,9 +53,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
   private static final Logger log = new Logger(DetermineSizeBasedPartitionsJob.class);
   private final HadoopDruidIndexerConfig config;
 
-  public DetermineSizeBasedPartitionsJob(
-      HadoopDruidIndexerConfig config
-  )
+  public DetermineSizeBasedPartitionsJob(HadoopDruidIndexerConfig config)
   {
     this.config = config;
   }
@@ -70,30 +69,14 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
     if (!intervals.isPresent() || intervals.get().isEmpty()) {
       throw new IllegalArgumentException("Empty interval..");
     }
+    HadoopTuningConfig tuningConfig = config.getTuningConfig();
     try {
-      final Job job = Job.getInstance(
-          new Configuration(),
-          String.format("%s-determine_partitions_filesized-%s", config.getDataSource(), config.getIntervals())
-      );
-
-      config.addInputPaths(job);
-
-      Configuration configuration = job.getConfiguration();
-      boolean recursive = FileInputFormat.getInputDirRecursive(job);
-
-      PathFilter inputFilter = getPathFilter(job);
-
-      long total = 0;
-      for (String mapping : configuration.get(MultipleInputs.DIR_FORMATS).split(",")) {
-        Path path = new Path(mapping.split(";")[0]);
-        FileSystem fs = path.getFileSystem(job.getConfiguration());
-        FileStatus[] matches = fs.globStatus(path, inputFilter);
-        if (matches == null || matches.length == 0) {
-          throw new IllegalArgumentException("input path is not valid");
-        }
-        for (FileStatus globStat : matches) {
-          total += iterate(fs, globStat, inputFilter, recursive);
-        }
+      long total = getTotalSize(config);
+      if (tuningConfig.getBytesPerReducer() > 0 && tuningConfig.getMinReducer() < tuningConfig.getMaxReducer()) {
+        int numReducer = (int) Math.ceil((double) total / tuningConfig.getBytesPerReducer());
+        tuningConfig = tuningConfig.withNumReducer(
+            Math.max(Math.min(numReducer, tuningConfig.getMaxReducer()), tuningConfig.getMinReducer())
+        );
       }
       Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
 
@@ -111,7 +94,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
 
         List<HadoopyShardSpec> actualSpecs = Lists.newArrayListWithCapacity(numberOfShards);
         if (numberOfShards == 1) {
-          actualSpecs.add(new HadoopyShardSpec(new NoneShardSpec(), 0));
+          actualSpecs.add(new HadoopyShardSpec(NoneShardSpec.instance(), 0));
           log.info("DateTime[%s], partition[%d], spec[%s]", interval, 0, actualSpecs.get(0));
         } else {
           int shardCount = 0;
@@ -127,7 +110,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
         shardSpecs.put(interval.getStartMillis(), actualSpecs);
       }
 
-      config.setShardSpecs(shardSpecs);
+      config.setTuningConfig(tuningConfig.withShardSpecs(shardSpecs));
       log.info("DetermineSizeBasedPartitionsJob took %d millis", (System.currentTimeMillis() - startTime));
 
       return true;
@@ -137,7 +120,37 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
     }
   }
 
-  private long iterate(FileSystem fs, FileStatus status, PathFilter inputFilter, boolean recursive) throws IOException
+  public static long getTotalSize(HadoopDruidIndexerConfig config) throws IOException
+  {
+    final Job job = Job.getInstance(
+        new Configuration(),
+        String.format("%s-determine_partitions_filesized-%s", config.getDataSource(), config.getIntervals())
+    );
+
+    config.addInputPaths(job);
+
+    Configuration configuration = job.getConfiguration();
+    boolean recursive = FileInputFormat.getInputDirRecursive(job);
+
+    PathFilter inputFilter = getPathFilter(job);
+
+    long total = 0;
+    for (String mapping : configuration.get(MultipleInputs.DIR_FORMATS).split(",")) {
+      Path path = new Path(mapping.split(";")[0]);
+      FileSystem fs = path.getFileSystem(job.getConfiguration());
+      FileStatus[] matches = fs.globStatus(path, inputFilter);
+      if (matches == null || matches.length == 0) {
+        throw new IllegalArgumentException("input path is not valid");
+      }
+      for (FileStatus globStat : matches) {
+        total += iterate(fs, globStat, inputFilter, recursive);
+      }
+    }
+    return total;
+  }
+
+  private static long iterate(FileSystem fs, FileStatus status, PathFilter inputFilter, boolean recursive)
+      throws IOException
   {
     if (status.isDirectory()) {
       long total = 0;
@@ -157,7 +170,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
     return status.getLen();
   }
 
-  private PathFilter getPathFilter(Job job)
+  private static PathFilter getPathFilter(Job job)
   {
     // creates a MultiPathFilter with the hiddenFileFilter and the user provided one (if any).
     PathFilter hiddenFilter = new PathFilter()

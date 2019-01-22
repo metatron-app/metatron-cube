@@ -48,6 +48,7 @@ import io.druid.granularity.Granularity;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
+import io.druid.indexer.partitions.DetermineSizeBasedPartitionsJob;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.indexer.path.PathSpec;
@@ -77,6 +78,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -319,33 +321,46 @@ public class HadoopDruidIndexerConfig
     return schema.getTuningConfig().isIgnoreInvalidRows();
   }
 
-  public int getNumReducer()
+  public int getNumReducer(int numSegments) throws IOException
   {
-    Optional<Iterable<Bucket>> buckets = getAllBuckets();
-    if (!buckets.isPresent()) {
-      return 0;
-    }
-    int bucketSize = Iterables.size(buckets.get());
     HadoopTuningConfig config = schema.getTuningConfig();
-    return Math.min(Math.max(bucketSize, config.getMinReducer()), config.getMaxReducer());
-  }
-
-  public int getMaxReducer()
-  {
-    return schema.getTuningConfig().getMaxReducer();
+    if (config.getMinReducer() >= config.getMaxReducer()) {
+      return config.getMinReducer();  // forced
+    }
+    if (numSegments < 0) {
+      numSegments = Iterables.size(getAllBuckets());
+    }
+    if (numSegments == 0) {
+      return 0;   //no segments?
+    }
+    int minReducer = config.getMinReducer();
+    int maxReducer = Math.min(numSegments, config.getMaxReducer());
+    if (minReducer >= maxReducer) {
+      return minReducer;
+    }
+    if (config.getBytesPerReducer() > 0) {
+      long totalSize = DetermineSizeBasedPartitionsJob.getTotalSize(this);
+      if (totalSize > 0) {
+        int numReducer = (int) Math.ceil((double) totalSize / config.getBytesPerReducer());
+        return Math.max(Math.min(numReducer, maxReducer), minReducer);
+      }
+    }
+    return maxReducer;
   }
 
   public void setVersion(String version)
   {
-    log.info("Replacing %s with %s", schema.getTuningConfig().getVersion(), version);
-    this.schema = schema.withTuningConfig(schema.getTuningConfig().withVersion(version));
-    this.pathSpec = JSON_MAPPER.convertValue(schema.getIOConfig().getPathSpec(), PathSpec.class);
+    setTuningConfig(schema.getTuningConfig().withVersion(version));
   }
 
   public void setShardSpecs(Map<Long, List<HadoopyShardSpec>> shardSpecs)
   {
-    log.info("Replacing %s with %s", schema.getTuningConfig().getShardSpecs(), shardSpecs);
-    this.schema = schema.withTuningConfig(schema.getTuningConfig().withShardSpecs(shardSpecs));
+    setTuningConfig(schema.getTuningConfig().withShardSpecs(shardSpecs));
+  }
+
+  public void setTuningConfig(HadoopTuningConfig config)
+  {
+    this.schema = schema.withTuningConfig(config);
     this.pathSpec = JSON_MAPPER.convertValue(schema.getIOConfig().getPathSpec(), PathSpec.class);
   }
 
@@ -357,6 +372,11 @@ public class HadoopDruidIndexerConfig
     } else {
       return Optional.absent();
     }
+  }
+
+  public HadoopTuningConfig getTuningConfig()
+  {
+    return schema.getTuningConfig();
   }
 
   public boolean isDeterminingPartitions()
@@ -467,12 +487,11 @@ public class HadoopDruidIndexerConfig
     );
   }
 
-  public Optional<Iterable<Bucket>> getAllBuckets()
+  public Iterable<Bucket> getAllBuckets()
   {
     Optional<Set<Interval>> intervals = getSegmentGranularIntervals();
     if (intervals.isPresent()) {
-      return Optional.of(
-          (Iterable<Bucket>) FunctionalIterable
+      return FunctionalIterable
               .create(intervals.get())
               .transformCat(
                   new Function<Interval, Iterable<Bucket>>()
@@ -502,10 +521,9 @@ public class HadoopDruidIndexerConfig
                           );
                     }
                   }
-              )
       );
     } else {
-      return Optional.absent();
+      return Arrays.asList();
     }
   }
 
@@ -635,29 +653,12 @@ public class HadoopDruidIndexerConfig
 
   public List<String> extractForwardingColumns()
   {
-    List<String> dimensions = extractCommonDimensions();
-    SettlingConfig settlingConfig = schema.getSettlingConfig();
-    if (settlingConfig != null) {
-      if (!dimensions.contains(settlingConfig.getParamNameColumn())) {
-        dimensions.add(settlingConfig.getParamNameColumn());
-      }
-      if (!dimensions.contains(settlingConfig.getParamValueColumn())) {
-        dimensions.add(settlingConfig.getParamValueColumn());
-      }
-    }
-    return dimensions;
+    return extractCommonDimensions();
   }
 
   public List<String> extractFinalDimensions()
   {
-    List<String> dimensions = extractCommonDimensions();
-    SettlingConfig settlingConfig = schema.getSettlingConfig();
-    if (settlingConfig != null) {
-      if (!dimensions.contains(settlingConfig.getParamNameColumn())) {
-        dimensions.add(settlingConfig.getParamNameColumn());
-      }
-    }
-    return dimensions;
+    return extractCommonDimensions();
   }
 
   private List<String> extractCommonDimensions()

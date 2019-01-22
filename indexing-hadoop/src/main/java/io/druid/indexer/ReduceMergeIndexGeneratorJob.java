@@ -112,7 +112,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       job.setMapperClass(ReducerMergingMapper.class);
       job.setReducerClass(ReducerMergingReducer.class);
 
-      int numReducers = config.getNumReducer();
+      int numReducers = config.getNumReducer(-1);
       if (numReducers == 0) {
         throw new RuntimeException("No buckets?? seems there is no data to index.");
       }

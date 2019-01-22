@@ -190,9 +190,8 @@ public class DeterminePartitionsJob implements Jobby
       dimSelectionJob.setOutputValueClass(Text.class);
       dimSelectionJob.setOutputFormatClass(DeterminePartitionsDimSelectionOutputFormat.class);
       dimSelectionJob.setPartitionerClass(DeterminePartitionsDimSelectionPartitioner.class);
-      dimSelectionJob.setNumReduceTasks(
-          Math.min(config.getMaxReducer(), config.getGranularitySpec().bucketIntervals().get().size())
-      );
+      dimSelectionJob.setNumReduceTasks(config.getGranularitySpec().bucketIntervals().get().size());
+
       JobHelper.setupClasspath(
           JobHelper.distributedClassPath(config.getWorkingPath()),
           JobHelper.distributedClassPath(new Path(config.makeIntermediatePath(), "dimSelection")),

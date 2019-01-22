@@ -39,7 +39,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.ThreadRenamingRunnable;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -82,7 +81,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -181,7 +179,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
       SortableBytes.useSortableBytesAsMapOutputKey(job);
 
-      int numReducers = config.getNumReducer();
+      int numReducers = config.getNumReducer(-1);
       if (numReducers == 0) {
         throw new RuntimeException("No buckets?? seems there is no data to index.");
       }
@@ -190,13 +188,8 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         throw new RuntimeException("Does not support segment appending in this mode.");
       }
       if (config.getSchema().getTuningConfig().getUseCombiner()) {
-        // when settling is used, combiner should be turned off
-        if (config.getSchema().getSettlingConfig() == null) {
-          job.setCombinerClass(IndexGeneratorCombiner.class);
-          job.setCombinerKeyGroupingComparatorClass(BytesWritable.Comparator.class);
-        } else {
-          log.error("Combiner is set but ignored as settling cannot use combiner");
-        }
+        job.setCombinerClass(IndexGeneratorCombiner.class);
+        job.setCombinerKeyGroupingComparatorClass(BytesWritable.Comparator.class);
       }
 
       job.setNumReduceTasks(numReducers);
@@ -298,11 +291,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       List<String> exportDimensions = config.extractForwardingColumns();
 
       partitionDimensions = Lists.newArrayList(exportDimensions);
-      SettlingConfig settlingConfig = config.getSchema().getSettlingConfig();
-      if (settlingConfig != null) {
-        partitionDimensions.remove(settlingConfig.getParamNameColumn());
-        partitionDimensions.remove(settlingConfig.getParamValueColumn());
-      }
       serde = new InputRowSerde(config.getSchema().getDataSchema().getAggregators(), exportDimensions);
 
       keyLength = context.getCounter("druid.internal", "mapper-key-length");
@@ -534,10 +522,8 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
   public static class IndexGeneratorReducer extends Reducer<BytesWritable, BytesWritable, BytesWritable, Text>
   {
     protected HadoopDruidIndexerConfig config;
-    protected SettlingConfig settlingConfig;
     private String nameField;
     private String valueField;
-    private SettlingConfig.Settler settler;
     private List<String> metricNames = Lists.newArrayList();
     private AggregatorFactory[] aggregators;
     private AggregatorFactory[] rangedAggs;
@@ -616,12 +602,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         rangedAggs[i] = aggregators[i];
       }
 
-      settlingConfig = config.getSchema().getSettlingConfig();
-      if (settlingConfig != null) {
-        settler = settlingConfig.setUp(aggregators);
-        nameField = settlingConfig.getParamNameColumn();
-        valueField = settlingConfig.getParamValueColumn();
-      }
       flushedIndex = context.getCounter("druid.internal", "index-flush-count");
       groupCount = context.getCounter("druid.internal", "group-count");
     }
@@ -695,7 +675,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
         int numRows = 0;
         int nextLogging = 1000;
-        AggregatorFactory[][] settlingApplied = null;
         for (final BytesWritable bw : values) {
           context.progress();
 
@@ -705,9 +684,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
           boolean flush = !index.canAppendRow();
           if (prev == null || WritableComparator.compareBytes(prev, 0, prev.length, bytes, 0, prev.length) != 0) {
             prev = Arrays.copyOfRange(bytes, 0, lengthSkipLastTS);
-            if (settler != null) {
-              settlingApplied = settler.applySettling(inputRow);
-            }
             flush |= numRows >= limit;
             groupCount.increment(1);
             if (groupCount.getValue() % occupationCheckInterval == 0) {
@@ -771,7 +747,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
             startTime = System.currentTimeMillis();
             ++indexCount;
           }
-          numRows = add(index, inputRow, settlingApplied);
+          numRows = index.add(inputRow);
           if (++lineCount % nextLogging == 0) {
             log.info("processing %,d lines..", lineCount);
             nextLogging = Math.min(nextLogging * 10, 1000000);
@@ -868,32 +844,10 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       }
     }
 
-    private int add(IncrementalIndex index, InputRow row, AggregatorFactory[][] settlingApplied)
+    private int add(IncrementalIndex index, InputRow row)
         throws IndexSizeExceededException
     {
-      if (settlingApplied != null) {
-        int ret = 0;
-        MapBasedInputRow mapBasedInputRow = (MapBasedInputRow) row;
-        Map<String, Object> event = mapBasedInputRow.getEvent();
-
-        Object rawNameField = row.getRaw(nameField);
-        Object rawValueField = row.getRaw(valueField);
-
-        final List names = rawNameField instanceof List ? (List) rawNameField : Lists.newArrayList(rawNameField);
-        final List values = rawValueField instanceof List ? (List) rawValueField : Lists.newArrayList(rawValueField);
-        for (int i = 0; i < settlingApplied.length; i++) {
-          Object value = toNumeric(values.get(i));
-          if (value != null) {
-            event.put(nameField, names.get(i));
-            event.put(valueField, value);
-            System.arraycopy(settlingApplied[i], 0, rangedAggs, 0, rangedAggs.length);
-            ret = index.add(row);
-          }
-        }
-        return ret;
-      } else {
         return index.add(row);
-      }
     }
   }
 

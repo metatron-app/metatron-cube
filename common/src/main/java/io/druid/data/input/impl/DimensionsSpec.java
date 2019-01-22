@@ -19,6 +19,7 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -108,6 +109,7 @@ public class DimensionsSpec
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Set<String> getDimensionExclusions()
   {
     return dimensionExclusions;

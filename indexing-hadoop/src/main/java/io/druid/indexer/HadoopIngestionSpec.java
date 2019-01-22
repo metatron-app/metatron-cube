@@ -49,7 +49,6 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
   private final DataSchema dataSchema;
   private final HadoopIOConfig ioConfig;
   private final HadoopTuningConfig tuningConfig;
-  private final SettlingConfig settlingConfig;
 
   //this is used in the temporary paths on the hdfs unique to an hadoop indexing task
   private final String uniqueId;
@@ -59,8 +58,7 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
       @JsonProperty("dataSchema") DataSchema dataSchema,
       @JsonProperty("ioConfig") HadoopIOConfig ioConfig,
       @JsonProperty("tuningConfig") HadoopTuningConfig tuningConfig,
-      @JsonProperty("uniqueId") String uniqueId,
-      @JsonProperty("settlingConfig") SettlingConfig settlingConfig
+      @JsonProperty("uniqueId") String uniqueId
   )
   {
     super(dataSchema, ioConfig, tuningConfig);
@@ -69,7 +67,6 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
     this.ioConfig = ioConfig;
     this.tuningConfig = tuningConfig == null ? HadoopTuningConfig.makeDefaultTuningConfig() : tuningConfig;
     this.uniqueId = uniqueId == null ? UUIDUtils.generateUuid() : uniqueId;
-    this.settlingConfig = settlingConfig;
   }
 
   //for unit tests
@@ -79,7 +76,7 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
       HadoopTuningConfig tuningConfig
   )
   {
-    this(dataSchema, ioConfig, tuningConfig, null, null);
+    this(dataSchema, ioConfig, tuningConfig, null);
   }
 
   @JsonProperty("dataSchema")
@@ -109,20 +106,13 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
     return uniqueId;
   }
 
-  @JsonProperty("settlingConfig")
-  public SettlingConfig getSettlingConfig()
-  {
-    return settlingConfig;
-  }
-
   public HadoopIngestionSpec withDataSchema(DataSchema schema)
   {
     return new HadoopIngestionSpec(
         schema,
         ioConfig,
         tuningConfig,
-        uniqueId,
-        settlingConfig
+        uniqueId
     );
   }
 
@@ -132,8 +122,7 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
         dataSchema,
         config,
         tuningConfig,
-        uniqueId,
-        settlingConfig
+        uniqueId
     );
   }
 
@@ -143,19 +132,7 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
         dataSchema,
         ioConfig,
         config,
-        uniqueId,
-        settlingConfig
-    );
-  }
-
-  public HadoopIngestionSpec withSettlingConfig(SettlingConfig config)
-  {
-    return new HadoopIngestionSpec(
-        dataSchema,
-        ioConfig,
-        tuningConfig,
-        uniqueId,
-        config
+        uniqueId
     );
   }
 

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.indexer.partitions.PartitionsSpec;
@@ -269,117 +268,6 @@ public class HadoopIngestionSpecTest
     ).getUniqueId();
 
     Assert.assertNotEquals(id1, id2);
-  }
-
-  @Test
-  public void testHadoopSettlingConfig() throws Exception
-  {
-    final HadoopIngestionSpec schema = jsonReadWriteRead(
-        "{\n" +
-            "    \"dataSchema\" : {\n" +
-            "      \"dataSource\" : \"summary_cmp106_settling\",\n" +
-            "      \"parser\" : {\n" +
-            "        \"type\" : \"hadoopyStringSummary\",\n" +
-            "        \"parseSpec\" : {\n" +
-            "          \"columns\" : [ \"time\", \"time_stamp\", \"eqp_id\", \"module_name\", \"lot_id\", \"eqp_recipe_id\", \"cassette_slot\", \"eqp_step_id\", \"product_id\", \"operation_id\", \"lot_code\", \"substrate_id\", \"eqp_param_name\", \"eqp_param_value\" ],\n" +
-            "          \"timestampSpec\" : {\n" +
-            "            \"column\" : \"time_stamp\",\n" +
-            "            \"format\" : \"yyyy-MM-dd HH:mm:ss.SSS\"\n" +
-            "          },\n" +
-            "          \"dimensionsSpec\" : {\n" +
-            "            \"dimesions\" : [ ],\n" +
-            "            \"dimensionExclusions\" : [ ],\n" +
-            "            \"spatialDimensions\" : [ ]\n" +
-            "          },\n" +
-            "          \"delimiter\" : \"\\u0001\",\n" +
-            "          \"listDelimiter\" : \"\\u0002\"\n" +
-            "        },\n" +
-            "        \"decoder\" : {\n" +
-            "          \"type\" : \"hadoopCustom\",\n" +
-            "          \"parseColumn\" : {\n" +
-            "            \"columnField\" : \"eqp_param_name\",\n" +
-            "            \"valueField\" : \"eqp_param_value\",\n" +
-            "            \"tokenizer\" : \":\"\n" +
-            "          }\n" +
-            "        }\n" +
-            "      },\n" +
-            "      \"metricsSpec\" : [ {\n" +
-            "        \"type\" : \"count\",\n" +
-            "        \"name\" : \"count\"\n" +
-            "      }, {\n" +
-            "        \"type\" : \"doubleSum\",\n" +
-            "        \"name\" : \"param_value_sum\",\n" +
-            "        \"fieldName\" : \"eqp_param_value\"\n" +
-            "      }, {\n" +
-            "        \"type\" : \"doubleMin\",\n" +
-            "        \"name\" : \"param_value_min\",\n" +
-            "        \"fieldName\" : \"eqp_param_value\"\n" +
-            "      }, {\n" +
-            "        \"type\" : \"doubleMax\",\n" +
-            "        \"name\" : \"param_value_max\",\n" +
-            "        \"fieldName\" : \"eqp_param_value\"\n" +
-            "      } ],\n" +
-            "      \"granularitySpec\" : {\n" +
-            "        \"type\" : \"uniform\",\n" +
-            "        \"segmentGranularity\" : \"DAY\",\n" +
-            "        \"queryGranularity\" : {\n" +
-            "          \"type\" : \"duration\",\n" +
-            "          \"duration\" : 86400000,\n" +
-            "          \"origin\" : \"1970-01-01T00:00:00.000Z\"\n" +
-            "        },\n" +
-            "        \"intervals\" : [ \"2015-10-08T00:00:00.000Z/2015-10-09T00:00:00.000Z\" ]\n" +
-            "      }\n" +
-            "    },\n" +
-            "    \"ioConfig\" : {\n" +
-            "      \"type\" : \"hadoop\",\n" +
-            "      \"inputSpec\" : {\n" +
-            "        \"type\" : \"static\",\n" +
-            "        \"paths\" : \"/data/p_module=CMP106_BR1/*\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    \"tuningConfig\" : {\n" +
-            "      \"type\" : \"hadoop\",\n" +
-            "      \"partitionsSpec\" : {\n" +
-            "        \"targetPartitionSize\" : 1000000\n" +
-            "      },\n" +
-            "      \"maxRowsInMemory\" : 25000,\n" +
-            "      \"jobProperties\" : {\n" +
-            "        \"mapreduce.map.java.opts\" : \"-server -Xmx256m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -XX:+PrintGCDetails -XX:+PrintGCTimeStamps\",\n" +
-            "        \"mapreduce.reduce.java.opts\" : \"-server -Xmx256m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -XX:+PrintGCDetails -XX:+PrintGCTimeStamps\"\n" +
-            "      },\n" +
-            "      \"useCombiner\" : true,\n" +
-            "      \"buildV9Directly\" : true,\n" +
-            "      \"numBackgroundPersistThreads\" : 2\n" +
-            "    },\n" +
-            "    \"settlingConfig\" : {\n" +
-            "      \"type\" : \"jdbc\",\n" +
-            "      \"connectorConfig\" : {\n" +
-            "        \"connectURI\" : \"jdbc:hive2://emn-g04-03:10000\",\n" +
-            "        \"user\" : \"hadoop\",\n" +
-            "        \"password\" : \"hadoop\"\n" +
-            "      },\n" +
-            "      \"query\" : \"select module_name,eqp_param_name,eqp_recipe_id,eqp_step_id,lot_code,sum_type_cd,count_settling,count_activation from big_fdc_settling_info where count_settling > 0.0 and count_activation != -1.0\",\n" +
-            "      \"constColumns\" : [ \"module_name\", \"eqp_param_name\" ],\n" +
-            "      \"regexColumns\" : [ \"eqp_recipe_id\", \"eqp_step_id\", \"lot_code\" ],\n" +
-            "      \"typeColumn\" : \"sum_type_cd\",\n" +
-            "      \"offsetColumn\" : \"count_settling\",\n" +
-            "      \"sizeColumn\" : \"count_activation\",\n" +
-            "      \"paramNameColumn\" : \"eqp_param_name\",\n" +
-            "      \"paramValueColumn\" : \"eqp_param_value\"\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"context\" : {\n" +
-            "    \"druid.indexer.runner.javaOpts\" : \"-server -Xmx1g -Xms1g -Xdebug -Xrunjdwp:transport=dt_socket,address=0.0.0.0:0,server=y,suspend=n\"\n" +
-            "  }",
-        HadoopIngestionSpec.class
-    );
-
-    SettlingConfig settlingConfig = schema.getSettlingConfig();
-
-    Assert.assertNotNull(settlingConfig);
-
-    InputRowParser parser = schema.getParser();
-    System.out.println("[HadoopIngestionSpecTest/testHadoopSettlingConfig] " + parser);
   }
 
   @Test

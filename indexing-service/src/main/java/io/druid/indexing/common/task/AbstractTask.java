@@ -20,6 +20,7 @@
 package io.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -214,6 +215,7 @@ public abstract class AbstractTask implements Task
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Object> getContext()
   {
     return context;

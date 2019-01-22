@@ -135,6 +135,12 @@ public class HdfsStorageDruidModule implements DruidModule
           }
         }
       }
+      try {
+        Class.forName("org.apache.hadoop.hdfs.LeaseRenewer", true, HdfsStorageDruidModule.class.getClassLoader());
+      }
+      catch (Exception e) {
+        // just to suppress meaningless exception in shutdown.. ignore
+      }
     }
     catch (IOException ex) {
       throw Throwables.propagate(ex);

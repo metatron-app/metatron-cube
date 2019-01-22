@@ -20,6 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.indexer.updater.MetadataStorageUpdaterJobSpec;
@@ -55,12 +56,14 @@ public class HadoopIOConfig implements IOConfig
   }
 
   @JsonProperty("metadataUpdateSpec")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public MetadataStorageUpdaterJobSpec getMetadataUpdateSpec()
   {
     return metadataUpdateSpec;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public String getSegmentOutputPath()
   {
     return segmentOutputPath;
