@@ -59,7 +59,7 @@ public class SelectMetaQueryRunnerFactory
           final Query<Result<SelectMetaResultValue>> query, Map<String, Object> responseContext
       )
       {
-        return engine.process((SelectMetaQuery) query, segment);
+        return engine.process((SelectMetaQuery) query, segment, cache);
       }
     };
   }

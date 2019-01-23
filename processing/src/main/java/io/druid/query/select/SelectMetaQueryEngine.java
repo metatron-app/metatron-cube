@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
@@ -45,7 +46,11 @@ import java.util.Set;
  */
 public class SelectMetaQueryEngine
 {
-  public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery query, final Segment segment)
+  public Sequence<Result<SelectMetaResultValue>> process(
+      final SelectMetaQuery query,
+      final Segment segment,
+      final Cache cache
+  )
   {
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
@@ -102,7 +107,7 @@ public class SelectMetaQueryEngine
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         query,
-        null,
+        cache,
         new Function<Cursor, Result<SelectMetaResultValue>>()
         {
           @Override

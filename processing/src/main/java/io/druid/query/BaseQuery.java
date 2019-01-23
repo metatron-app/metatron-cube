@@ -279,12 +279,14 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {
+    context = context == null ? Maps.<String, Object>newHashMap() : context;
     return querySegmentSpec == null ? Sequences.<T>empty() : run(querySegmentSpec.lookup(this, walker), context);
   }
 
   @Override
   public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
   {
+    context = context == null ? Maps.<String, Object>newHashMap() : context;
     return runner.run(this, context);
   }
 

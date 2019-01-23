@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -68,7 +67,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public CacheStrategy<Schema, Schema, SchemaQuery> getCacheStrategy(SchemaQuery query)
+  public IdentityCacheStrategy getCacheStrategy(SchemaQuery query)
   {
     return new IdentityCacheStrategy()
     {

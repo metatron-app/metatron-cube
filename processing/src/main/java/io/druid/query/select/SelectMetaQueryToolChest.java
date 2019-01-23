@@ -26,7 +26,6 @@ import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
@@ -129,10 +128,7 @@ public class SelectMetaQueryToolChest
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public CacheStrategy<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, SelectMetaQuery> getCacheStrategy(
-      final SelectMetaQuery query
-  )
+  public IdentityCacheStrategy getCacheStrategy(final SelectMetaQuery query)
   {
     if (query.getPagingSpec() != null) {
       return null;

@@ -36,7 +36,6 @@ import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
-import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
@@ -149,7 +148,7 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Override
-  public CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> getCacheStrategy(SegmentMetadataQuery query)
+  public IdentityCacheStrategy getCacheStrategy(SegmentMetadataQuery query)
   {
     return new IdentityCacheStrategy()
     {

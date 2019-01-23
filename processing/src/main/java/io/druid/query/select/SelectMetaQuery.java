@@ -54,6 +54,27 @@ import java.util.Objects;
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   implements Query.MetricSupport<Result<SelectMetaResultValue>>
 {
+  public static SelectMetaQuery of(
+      DataSource source,
+      QuerySegmentSpec querySegmentSpec,
+      DimFilter filter,
+      Map<String, Object> context
+  )
+  {
+    return new SelectMetaQuery(
+        source,
+        querySegmentSpec,
+        filter,
+        Granularities.ALL,
+        null,
+        null,
+        null,
+        false,
+        null,
+        context
+    );
+  }
+
   private final DimFilter dimFilter;
   private final Granularity granularity;
   private final List<DimensionSpec> dimensions;

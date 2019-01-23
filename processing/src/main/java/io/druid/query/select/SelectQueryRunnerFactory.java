@@ -81,7 +81,7 @@ public class SelectQueryRunnerFactory
     int threshold = pagingSpec.getThreshold();
     if (threshold > 0) {
       final SelectMetaQuery baseQuery = query.toMetaQuery(false);
-      final SelectMetaQueryEngine metaQueryEngine = new SelectMetaQueryEngine();
+      final SelectMetaQueryEngine engine = new SelectMetaQueryEngine();
 
       final Set<String> targets = Sets.newHashSet();
       for (Segment segment : segments) {
@@ -89,7 +89,7 @@ public class SelectQueryRunnerFactory
         SelectMetaQuery metaQuery = baseQuery.withQuerySegmentSpec(
             new MultipleIntervalSegmentSpec(Arrays.asList(segment.getDataInterval()))
         );
-        for (Result<SelectMetaResultValue> result : Sequences.toList(metaQueryEngine.process(metaQuery, segment))) {
+        for (Result<SelectMetaResultValue> result : Sequences.toList(engine.process(metaQuery, segment, cache))) {
           threshold -= result.getValue().getTotalCount();
           if (threshold < 0) {
             LOG.info(

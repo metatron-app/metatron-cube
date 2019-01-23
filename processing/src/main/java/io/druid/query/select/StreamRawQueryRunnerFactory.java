@@ -30,6 +30,8 @@ import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.query.BaseQuery;
+import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -38,11 +40,14 @@ import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
+import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -95,6 +100,11 @@ public class StreamRawQueryRunnerFactory
     return null;
   }
 
+  private static final int SPLIT_MIN_ROWS = 8192;
+  private static final int SPLIT_DEFAULT_ROWS = 131072;
+
+  private static final int SPLIT_MAX_SPLIT = 12;
+
   @Override
   public Iterable<StreamRawQuery> splitQuery(
       StreamRawQuery query,
@@ -104,10 +114,34 @@ public class StreamRawQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 5);
-    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs()) || numSplit < 2) {
+    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
       return null;
     }
+    int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1);
+    if (numSplit < 2) {
+      int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
+      if (splitRows > SPLIT_MIN_ROWS) {
+        int numRows = 0;
+        DataSource ds = query.getDataSource();
+        DimFilter filter = query.getDimFilter();
+        Map<String, Object> context = BaseQuery.copyContextForMeta(query);
+        for (Segment segment : segments) {
+          SelectMetaQuery meta = SelectMetaQuery.of(
+              ds, new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor()), filter, context
+          );
+          Result<SelectMetaResultValue> result = Sequences.only(meta.run(segmentWalker, null), null);
+          if (result != null) {
+            numRows += result.getValue().getTotalCount();
+          }
+        }
+        logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
+        numSplit = numRows / splitRows;
+      }
+    }
+    if (numSplit < 2) {
+      return null;
+    }
+    numSplit = Math.min(SPLIT_MAX_SPLIT, numSplit);
 
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
 
@@ -116,7 +150,7 @@ public class StreamRawQueryRunnerFactory
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, sortColumn);
     try {
       if (dictionaries.size() << 2 > segments.size()) {
-        numSplit = Queries.getNumSplits(dictionaries, numSplit);
+        numSplit = Math.min(SPLIT_MAX_SPLIT, Queries.getNumSplits(dictionaries, numSplit));
         if (numSplit < 2) {
           return null;
         }
