@@ -327,15 +327,25 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
             return ro;
           }
           continue;
+        case FULL:
+          if (compare < 0) {
+            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size());
+            left.partition = left.next();
+            return lo;
+          } else {
+            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
+            right.partition = right.next();
+            return ro;
+          }
         default:
           throw new UnsupportedOperationException("not supported type " + type);
       }
     }
-    if (type == JoinType.LO && left.partition != null) {
+    if (left.partition != null && (type == JoinType.LO || type == JoinType.FULL)) {
       Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.columns.size());
       left.partition = null;
       return lo;
-    } else if (type == JoinType.RO && right.partition != null) {
+    } else if (right.partition != null && (type == JoinType.RO || type == JoinType.FULL)) {
       Iterator<Object[]> ro = ro(left.columns.size(), Iterators.concat(right.partition.iterator(), right.rows));
       right.partition = null;
       return ro;

@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum JoinType
 {
-  INNER, LO, RO;
+  INNER, LO, RO, FULL;
 
   @JsonValue
   public String getName()

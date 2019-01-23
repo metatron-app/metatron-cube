@@ -37,6 +37,7 @@ public class XJoinPostProcessorTest
     XJoinPostProcessor inner = proc(JoinType.INNER);
     XJoinPostProcessor lo = proc(JoinType.LO);
     XJoinPostProcessor ro = proc(JoinType.RO);
+    XJoinPostProcessor full = proc(JoinType.FULL);
 
     // no match
     List<Object[]> l = Arrays.<Object[]>asList(array("spot", "automotive", 100));
@@ -45,6 +46,7 @@ public class XJoinPostProcessorTest
     test1(inner, new int[][]{}, l, r);
     test1(lo, new int[][]{{100, -1}}, l, r);
     test1(ro, new int[][]{{-1, 200}}, l, r);
+    test1(full, new int[][]{{100, -1}, {-1, 200}}, l, r);
 
     // inner product
     l = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "automotive", 200), array("upfront", "automotive", 201));
@@ -53,6 +55,7 @@ public class XJoinPostProcessorTest
     test1(inner, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, l, r);
     test1(lo, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {201, -1}}, l, r);
     test1(ro, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {-1, 401}}, l, r);
+    test1(full, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {201, -1}, {-1, 401}}, l, r);
 
     // more1
     l = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "business", 200), array("total", "mezzanine", 300));
@@ -61,6 +64,7 @@ public class XJoinPostProcessorTest
     test1(inner, new int[][]{{100, 400}, {100, 500}, {300, 600}}, l, r);
     test1(lo, new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, l, r);
     test1(ro, new int[][]{{100, 400}, {100, 500}, {300, 600}}, l, r);
+    test1(full, new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, l, r);
 
     // more2
     l = Arrays.<Object[]>asList(array("spot", "business", 100), array("spot", "health", 200), array("total", "automotive", 300));
@@ -69,6 +73,7 @@ public class XJoinPostProcessorTest
     test1(inner, new int[][]{{200, 500}}, l, r);
     test1(lo, new int[][]{{100, -1}, {200, 500}, {300, -1}}, l, r);
     test1(ro, new int[][]{{-1, 400}, {200, 500}, {-1, 600}}, l, r);
+    test1(full, new int[][]{{-1, 400}, {100, -1}, {200, 500}, {300, -1}, {-1, 600}}, l, r);
   }
 
   private static Object[] array(Object... elements)
