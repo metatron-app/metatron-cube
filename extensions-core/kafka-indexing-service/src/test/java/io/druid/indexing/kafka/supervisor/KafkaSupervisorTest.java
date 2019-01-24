@@ -1570,6 +1570,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
             dataSchema,
             tuningConfig,
             kafkaSupervisorIOConfig,
+            null,
             taskStorage,
             taskMaster,
             indexerMetadataStorageCoordinator,
