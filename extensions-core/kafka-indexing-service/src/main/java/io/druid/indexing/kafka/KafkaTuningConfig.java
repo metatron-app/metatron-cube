@@ -34,6 +34,7 @@ import java.io.File;
 public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
 {
   private static final int DEFAULT_MAX_ROWS_PER_SEGMENT = 5_000_000;
+  private static final boolean DEFAULT_RESET_OFFSET_AUTOMATICALLY = false;
 
   private final int maxRowsInMemory;
   private final int maxRowsPerSegment;
@@ -44,6 +45,7 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
   private final boolean buildV9Directly;
   private final boolean reportParseExceptions;
   private final long handoffConditionTimeout;
+  private final boolean resetOffsetAutomatically;
 
   @JsonCreator
   public KafkaTuningConfig(
@@ -55,7 +57,8 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
       @JsonProperty("indexSpec") IndexSpec indexSpec,
       @JsonProperty("buildV9Directly") Boolean buildV9Directly,
       @JsonProperty("reportParseExceptions") Boolean reportParseExceptions,
-      @JsonProperty("handoffConditionTimeout") Long handoffConditionTimeout
+      @JsonProperty("handoffConditionTimeout") Long handoffConditionTimeout,
+      @JsonProperty("resetOffsetAutomatically") Boolean resetOffsetAutomatically
   )
   {
     // Cannot be a static because default basePersistDirectory is unique per-instance
@@ -76,6 +79,9 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
     this.handoffConditionTimeout = handoffConditionTimeout == null
                                    ? defaults.getHandoffConditionTimeout()
                                    : handoffConditionTimeout;
+    this.resetOffsetAutomatically = resetOffsetAutomatically == null
+                                    ? DEFAULT_RESET_OFFSET_AUTOMATICALLY
+                                    : resetOffsetAutomatically;
   }
 
   public static KafkaTuningConfig copyOf(KafkaTuningConfig config)
@@ -89,7 +95,8 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
         config.indexSpec,
         config.buildV9Directly,
         config.reportParseExceptions,
-        config.handoffConditionTimeout
+        config.handoffConditionTimeout,
+        config.resetOffsetAutomatically
     );
   }
 
@@ -147,6 +154,12 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
     return handoffConditionTimeout;
   }
 
+  @JsonProperty
+  public boolean isResetOffsetAutomatically()
+  {
+    return resetOffsetAutomatically;
+  }
+
   public KafkaTuningConfig withBasePersistDirectory(File dir)
   {
     return new KafkaTuningConfig(
@@ -158,7 +171,8 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
         indexSpec,
         buildV9Directly,
         reportParseExceptions,
-        handoffConditionTimeout
+        handoffConditionTimeout,
+        resetOffsetAutomatically
     );
   }
 
@@ -166,6 +180,22 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
   public boolean isIgnoreInvalidRows()
   {
     return false;
+  }
+
+  public KafkaTuningConfig withMaxRowsInMemory(int rows)
+  {
+    return new KafkaTuningConfig(
+        rows,
+        maxRowsPerSegment,
+        intermediatePersistPeriod,
+        basePersistDirectory,
+        maxPendingPersists,
+        indexSpec,
+        buildV9Directly,
+        reportParseExceptions,
+        handoffConditionTimeout,
+        resetOffsetAutomatically
+    );
   }
 
   @Override
@@ -198,6 +228,9 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
     if (handoffConditionTimeout != that.handoffConditionTimeout) {
       return false;
     }
+    if (resetOffsetAutomatically != that.resetOffsetAutomatically) {
+      return false;
+    }
     if (intermediatePersistPeriod != null
         ? !intermediatePersistPeriod.equals(that.intermediatePersistPeriod)
         : that.intermediatePersistPeriod != null) {
@@ -208,7 +241,8 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
         : that.basePersistDirectory != null) {
       return false;
     }
-    return !(indexSpec != null ? !indexSpec.equals(that.indexSpec) : that.indexSpec != null);
+    return indexSpec != null ? indexSpec.equals(that.indexSpec) : that.indexSpec == null;
+
   }
 
   @Override
@@ -223,6 +257,7 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
     result = 31 * result + (buildV9Directly ? 1 : 0);
     result = 31 * result + (reportParseExceptions ? 1 : 0);
     result = 31 * result + (int) (handoffConditionTimeout ^ (handoffConditionTimeout >>> 32));
+    result = 31 * result + (resetOffsetAutomatically ? 1 : 0);
     return result;
   }
 
@@ -239,6 +274,7 @@ public class KafkaTuningConfig implements TuningConfig, AppenderatorConfig
            ", buildV9Directly=" + buildV9Directly +
            ", reportParseExceptions=" + reportParseExceptions +
            ", handoffConditionTimeout=" + handoffConditionTimeout +
+           ", resetOffsetAutomatically=" + resetOffsetAutomatically +
            '}';
   }
 }
