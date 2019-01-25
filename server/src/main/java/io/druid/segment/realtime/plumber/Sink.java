@@ -239,6 +239,18 @@ public class Sink implements Iterable<FireHydrant>
     }
   }
 
+  public int getNumRowsInMemory()
+  {
+    synchronized (hydrantLock) {
+      IncrementalIndex index = currHydrant.getIndex();
+      if (index == null) {
+        return 0;
+      }
+
+      return currHydrant.getIndex().size();
+    }
+  }
+
   private FireHydrant makeNewCurrIndex(long minTimestamp, DataSchema schema)
   {
     final GranularitySpec granularitySpec = schema.getGranularitySpec();
