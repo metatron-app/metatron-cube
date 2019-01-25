@@ -26,7 +26,20 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum JoinType
 {
-  INNER, LO, RO, FULL;
+  INNER { public boolean isLeftDriving() { return true;} public boolean isRightDriving() { return true;}},
+  LO    { public boolean isLeftDriving() { return true;}},
+  RO    { public boolean isRightDriving() { return true;}},
+  FULL;
+
+  public boolean isLeftDriving()
+  {
+    return false;
+  }
+
+  public boolean isRightDriving()
+  {
+    return false;
+  }
 
   @JsonValue
   public String getName()

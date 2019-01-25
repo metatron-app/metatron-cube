@@ -170,12 +170,13 @@ public class Queries
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
       Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) subQuery;
-      Schema instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-      if (!GuavaUtils.isNullOrEmpty(instance.getDimensionNames())) {
-        builder.withDimensions(instance.getDimensionNames(), instance.getDimensionTypes());
+      Schema schema = QueryUtils.retrieveSchema(subQuery, segmentWalker);
+      Schema resolved = schema.resolve(subQuery, false);
+      if (!GuavaUtils.isNullOrEmpty(resolved.getDimensionNames())) {
+        builder.withDimensions(resolved.getDimensionNames(), resolved.getDimensionTypes());
       }
-      if (!GuavaUtils.isNullOrEmpty(instance.getMetricNames())) {
-        builder.withMetrics(AggregatorFactory.toRelay(instance.getMetricNames(), instance.getMetricTypes()));
+      if (!GuavaUtils.isNullOrEmpty(resolved.getMetricNames())) {
+        builder.withMetrics(AggregatorFactory.toRelay(resolved.getMetricNames(), resolved.getMetricTypes()));
       }
       return builder.withRollup(false).build();
     }

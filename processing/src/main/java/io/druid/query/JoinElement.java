@@ -23,10 +23,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularity;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.select.AbstractStreamQuery;
+import io.druid.query.select.SelectMetaQuery;
+import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
+import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -212,7 +222,8 @@ public class JoinElement
     return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};
   }
 
-  static final String SORTED_CONTEXT_KEY = "$sorted";
+  static final String HASHABLE = "$hash";
+  static final String SORTED_ON_JOINKEY = "$sorted";
 
   public static Query toQuery(
       DataSource dataSource,
@@ -226,7 +237,7 @@ public class JoinElement
       if (query instanceof JoinQuery.JoinDelegate) {
         JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) query;
         if (delegate.getSortColumns().contains(sortColumns)) {
-          delegate = (JoinQuery.JoinDelegate) delegate.withOverriddenContext(JoinElement.SORTED_CONTEXT_KEY, true);
+          delegate = (JoinQuery.JoinDelegate) delegate.withOverriddenContext(SORTED_ON_JOINKEY, true);
         }
         return delegate.toArrayJoin();  // keep array for output
       }
@@ -239,16 +250,66 @@ public class JoinElement
       }
       if (query instanceof Query.OrderingSupport) {
         query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns))
-                                               .withOverriddenContext(SORTED_CONTEXT_KEY, true);
+                                               .withOverriddenContext(SORTED_ON_JOINKEY, true);
       }
       return query;
     }
+    // even for hash join, sorting will help building hash efficiently, I guess
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
-        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_CONTEXT_KEY, true)
+        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_ON_JOINKEY, true)
         .streamingRaw(sortColumns);
   }
+
+  public static long estimatedNumRows(
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      Map<String, Object> context,
+      QuerySegmentWalker segmentWalker,
+      QueryConfig config
+  )
+  {
+    if (dataSource instanceof QueryDataSource) {
+      Query query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof TimeseriesQuery) {
+        Granularity granularity = query.getGranularity();
+        long count = 0;
+        for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
+          count += Iterables.size(granularity.getIterable(interval));
+        }
+        return count;
+      }
+      if (query instanceof GroupByQuery) {
+        return Queries.estimateCardinality((GroupByQuery) query, segmentWalker, config);
+      }
+      if (query instanceof AbstractStreamQuery) {
+        return runSelectMetaQuery(
+            query.getDataSource(),
+            query.getQuerySegmentSpec(),
+            ((AbstractStreamQuery) query).getDimFilter(),
+            BaseQuery.copyContextForMeta(query),
+            segmentWalker
+        );
+      }
+      return -1;
+    }
+    return runSelectMetaQuery(dataSource, segmentSpec, null, BaseQuery.copyContextForMeta(context), segmentWalker);
+  }
+
+  public static long runSelectMetaQuery(
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      DimFilter filter,
+      Map<String, Object> context,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    SelectMetaQuery query = SelectMetaQuery.of(dataSource, segmentSpec, filter, context);
+    Result<SelectMetaResultValue> result = Sequences.only(query.run(segmentWalker, null), null);
+    return result == null ? -1 : result.getValue().getTotalCount();
+  }
+
 
   @Override
   public boolean equals(Object o)

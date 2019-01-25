@@ -342,12 +342,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(sources, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
 
-      Query<ResultType> resolved = QueryUtils.resolveQuery(query, segmentWalker);
+      query = QueryUtils.resolveQuery(query, segmentWalker);
       Sequence<Sequence<ResultType>> sequences = Sequences.map(
-          Sequences.simple(resolved.getIntervals()),
-          query(resolved, segment)
+          Sequences.simple(query.getIntervals()),
+          query(query, segment)
       );
-      return mergeQuery(resolved, sequences, segment);
+      return mergeQuery(query, sequences, segment);
     }
 
     @SuppressWarnings("unchecked")
@@ -438,9 +438,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    protected Function<Interval, Sequence<ResultType>> query(
-        Query<ResultType> query, Segment segment
-    )
+    protected Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment)
     {
       throw new UnsupportedOperationException("streaming only sub-query handler");
     }

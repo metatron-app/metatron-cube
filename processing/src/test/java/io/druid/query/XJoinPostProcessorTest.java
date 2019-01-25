@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
+import io.druid.common.utils.Sequences;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,14 +32,14 @@ import java.util.concurrent.Future;
 
 public class XJoinPostProcessorTest
 {
+  final XJoinPostProcessor inner = proc(JoinType.INNER);
+  final XJoinPostProcessor lo = proc(JoinType.LO);
+  final XJoinPostProcessor ro = proc(JoinType.RO);
+  final XJoinPostProcessor full = proc(JoinType.FULL);
+
   @Test
   public void testJoin() throws Exception
   {
-    XJoinPostProcessor inner = proc(JoinType.INNER);
-    XJoinPostProcessor lo = proc(JoinType.LO);
-    XJoinPostProcessor ro = proc(JoinType.RO);
-    XJoinPostProcessor full = proc(JoinType.FULL);
-
     // no match
     List<Object[]> l = Arrays.<Object[]>asList(array("spot", "automotive", 100));
     List<Object[]> r = Arrays.<Object[]>asList(array("spot", "business", 200));
@@ -85,16 +86,41 @@ public class XJoinPostProcessorTest
   {
     XJoinPostProcessor.JoinAlias l = new XJoinPostProcessor.JoinAlias(
         Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
-        left.iterator()
+        left.iterator(), true
     );
     XJoinPostProcessor.JoinAlias r = new XJoinPostProcessor.JoinAlias(
         Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
-        right.iterator()
+        right.iterator(), true
     );
-    int[] index = new int[] {2, 5};
+    validate(expected, Lists.newArrayList(processor.join(l, r, 0)));
 
-    List<Object[]> joined = Lists.newArrayList(processor.join(l, r, 0));
-    System.out.println("-------------");
+    if (processor == inner || processor == lo) {
+      XJoinPostProcessor.JoinAlias lhs = new XJoinPostProcessor.JoinAlias(
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
+          left.iterator(), true
+      );
+      XJoinPostProcessor.JoinAlias rhs = new XJoinPostProcessor.JoinAlias(
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
+          XJoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+      );
+      validate(expected, Lists.newArrayList(processor.join(lhs, rhs, 0)));
+
+      XJoinPostProcessor.JoinAlias lh = new XJoinPostProcessor.JoinAlias(
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
+          left.iterator(), false
+      );
+      XJoinPostProcessor.JoinAlias rh = new XJoinPostProcessor.JoinAlias(
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
+          XJoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+      );
+      validate(expected, Lists.newArrayList(processor.join(lh, rh, 0)));
+    }
+  }
+
+  private void validate(int[][] expected, List<Object[]> joined)
+  {
+    System.out.println("------------->");
+    int[] index = new int[] {2, 5};
     for (Object[] x : joined) {
       System.out.println(Arrays.toString(x));
     }
@@ -174,15 +200,15 @@ public class XJoinPostProcessorTest
   {
     XJoinPostProcessor.JoinAlias a1 = new XJoinPostProcessor.JoinAlias(
         Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
-        r1.iterator()
+        r1.iterator(), true
     );
     XJoinPostProcessor.JoinAlias a2 = new XJoinPostProcessor.JoinAlias(
         Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
-        r2.iterator()
+        r2.iterator(), true
     );
     XJoinPostProcessor.JoinAlias a3 = new XJoinPostProcessor.JoinAlias(
         Arrays.asList("ds3"), Arrays.asList("e", "f", "z"), Arrays.asList("e", "f"), new int[] {0, 1},
-        r3.iterator()
+        r3.iterator(), true
     );
     Future[] futures = new Future[] {
         Futures.immediateFuture(a1), Futures.immediateFuture(a2), Futures.immediateFuture(a3)

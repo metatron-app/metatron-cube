@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
@@ -44,13 +45,14 @@ import java.util.Set;
  */
 public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
 {
+  private static final Logger LOG = new Logger(JoinQuery.class);
+
   private final Map<String, DataSource> dataSources;
   private final List<JoinElement> elements;
   private final String timeColumnName;
   private final boolean prefixAlias;
   private final boolean asArray;
   private final int limit;
-  private final int parallelism;
   private final int maxRowsInGroup;
 
   @JsonCreator
@@ -62,7 +64,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("asArray") boolean asArray,
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("limit") int limit,
-      @JsonProperty("parallelism") int parallelism,
       @JsonProperty("maxRowsInGroup") int maxRowsInGroup,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -74,7 +75,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.timeColumnName = timeColumnName;
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.limit = limit;
-    this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
     this.maxRowsInGroup = maxRowsInGroup;
   }
 
@@ -193,12 +193,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return limit;
   }
 
-  @JsonProperty
-  public int getParallelism()
-  {
-    return parallelism;
-  }
-
   @Override
   public boolean hasFilters()
   {
@@ -228,7 +222,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         asArray,
         timeColumnName,
         limit,
-        parallelism,
         maxRowsInGroup,
         computeOverriddenContext(contextOverride)
     );
@@ -261,6 +254,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         ),
         new TypeReference<XJoinPostProcessor>() {}
     );
+    int threshold = queryConfig.getJoin().getHashJoinThreshold();
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
@@ -270,7 +264,16 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     queries.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, getContext()));
     for (JoinElement element : elements) {
       DataSource right = dataSources.get(element.getRightAlias());
-      queries.add(JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext()));
+      Query query = JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext());
+      if (threshold > 0 && element.getJoinType().isLeftDriving()) {
+        long estimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
+        boolean useHashJoin = estimated > 0 && estimated < threshold;
+        if (useHashJoin) {
+          query = query.withOverriddenContext(JoinElement.HASHABLE, true);
+        }
+        LOG.info("%s -----> %d rows, useHashJoin? %s", element.getRightAlias(), estimated, useHashJoin);
+      }
+      queries.add(query);
     }
 
     JoinElement lastElement = elements.get(elements.size() - 1);
@@ -291,8 +294,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    Map<String, Object> context = computeOverriddenContext(joinContext);
-    return new JoinDelegate(queries, prefixAliases, sortColumns, timeColumn, limit, parallelism, context);
+    // removed parallelism.. executed parallel in join post processor
+    return new JoinDelegate(
+        queries, prefixAliases, sortColumns, timeColumn, limit, computeOverriddenContext(joinContext)
+    );
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)
@@ -305,7 +310,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         asArray,
         getTimeColumnName(),
         limit,
-        parallelism,
         maxRowsInGroup,
         getContext()
     );
@@ -319,7 +323,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            ", elements=" + elements +
            ", prefixAlias=" + prefixAlias +
            ", asArray=" + asArray +
-           ", parallelism=" + parallelism +
            ", maxRowsInGroup=" + maxRowsInGroup +
            ", limit=" + limit +
            '}';
@@ -339,11 +342,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         List<List<String>> sortColumns,
         String timeColumnName,
         int limit,
-        int parallelism,
         Map<String, Object> context
     )
     {
-      super(null, list, false, limit, parallelism, context);
+      super(null, list, false, limit, -1, context);
       this.prefixAliases = prefixAliases;
       this.sortColumns = sortColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
@@ -373,7 +375,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           sortColumns,
           timeColumnName,
           getLimit(),
-          getParallelism(),
           getContext()
       );
     }
@@ -399,7 +400,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           sortColumns,
           timeColumnName,
           getLimit(),
-          getParallelism(),
           context
       );
     }
@@ -409,7 +409,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       return "JoinDelegate{" +
              "queries=" + getQueries() +
-             ", parallelism=" + getParallelism() +
              ", prefixAliases=" + getPrefixAliases() +
              ", timeColumnName=" + getTimeColumnName() +
              ", limit=" + getLimit() +

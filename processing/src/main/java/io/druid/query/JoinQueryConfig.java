@@ -31,6 +31,9 @@ public class JoinQueryConfig
   @JsonProperty
   private int maxRowsInGroup = 1_000000;
 
+  @JsonProperty
+  private int hashJoinThreshold = 300_000;
+
   public int getMaxRows()
   {
     return maxRows;
@@ -49,5 +52,15 @@ public class JoinQueryConfig
   public void setMaxRowsInGroup(int maxRowsInGroup)
   {
     this.maxRowsInGroup = maxRowsInGroup;
+  }
+
+  public int getHashJoinThreshold()
+  {
+    return hashJoinThreshold;
+  }
+
+  public void setHashJoinThreshold(int hashJoinThreshold)
+  {
+    this.hashJoinThreshold = hashJoinThreshold;
   }
 }

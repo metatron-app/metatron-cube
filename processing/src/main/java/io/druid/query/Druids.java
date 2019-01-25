@@ -1198,7 +1198,6 @@ public class Druids
     private boolean asArray;
     private String timeColumnName;
     private int limit;
-    private int parallelism;
     private int maxRowsInGroup;
     private Map<String, Object> context = Maps.newHashMap();
 
@@ -1212,7 +1211,6 @@ public class Druids
           asArray,
           timeColumnName,
           limit,
-          parallelism,
           maxRowsInGroup,
           context
       );
@@ -1316,12 +1314,6 @@ public class Druids
     public JoinQueryBuilder limit(int limit)
     {
       this.limit = limit;
-      return this;
-    }
-
-    public JoinQueryBuilder parallelism(int parallelism)
-    {
-      this.parallelism = parallelism;
       return this;
     }
 
