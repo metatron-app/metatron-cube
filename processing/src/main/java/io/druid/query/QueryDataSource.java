@@ -34,6 +34,13 @@ public class QueryDataSource implements DataSource
     return new QueryDataSource(query);
   }
 
+  public static QueryDataSource of(Query query, Schema schema)
+  {
+    QueryDataSource dataSource = of(query);
+    dataSource.setSchema(schema);
+    return dataSource;
+  }
+
   @JsonProperty
   private final Query query;
   private transient Schema schema;  //  result schema of the query

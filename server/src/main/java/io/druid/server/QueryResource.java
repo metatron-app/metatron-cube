@@ -584,7 +584,7 @@ public class QueryResource
       String indexSchema = Objects.toString(forwardContext.get("schema"), null);
       String indexInterval = Objects.toString(forwardContext.get("interval"), null);
       if (Strings.isNullOrEmpty(indexSchema)) {
-        IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate());
+        IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate()).asRelaySchema();
         log.info(
             "Resolved index schema.. dimensions: %s, metrics: %s",
             schema.getDimensionsSpec().getDimensionNames(),
@@ -669,7 +669,7 @@ public class QueryResource
     Map<String, Object> override = BaseQuery.removeContext(Query.FORWARD_URL, Query.FORWARD_CONTEXT);
     if (query.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-      query = query.withDataSource(new QueryDataSource(dataSource.getQuery().withOverriddenContext(override)));
+      query = query.withDataSource(QueryDataSource.of(dataSource.getQuery().withOverriddenContext(override)));
     }
     return query.withOverriddenContext(override);
   }

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.query.select.Schema;
 
 import java.util.List;
 
@@ -94,7 +94,7 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   }
 
   @Override
-  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema schema, ObjectMapper mapper)
+  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
   {
     for (PostProcessingOperator child : processors) {
       if (child instanceof PostProcessingOperator.SchemaResolving) {

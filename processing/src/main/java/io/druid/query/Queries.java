@@ -46,7 +46,6 @@ import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
@@ -70,7 +69,6 @@ import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -148,10 +146,10 @@ public class Queries
     return convert(object, jsonMapper, Query.class);
   }
 
-  public static IncrementalIndexSchema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  public static Schema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
     ObjectMapper mapper = segmentWalker.getObjectMapper();
-    IncrementalIndexSchema schema = _relaySchema(subQuery, segmentWalker);
+    Schema schema = _relaySchema(subQuery, segmentWalker);
     PostProcessingOperator postProcessor = PostProcessingOperators.load(subQuery, mapper);
     if (postProcessor instanceof PostProcessingOperator.SchemaResolving) {
       schema = ((PostProcessingOperator.SchemaResolving) postProcessor).resolve(subQuery, schema, mapper);
@@ -159,90 +157,71 @@ public class Queries
     return schema;
   }
 
-  private static IncrementalIndexSchema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  private static Schema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
-    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
-    IncrementalIndexSchema.Builder builder = new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(Granularities.ALL)
-        .withFixedSchema(true);
-
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
-      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) subQuery;
-      Schema schema = QueryUtils.retrieveSchema(subQuery, segmentWalker);
-      Schema resolved = schema.resolve(subQuery, false);
-      if (!GuavaUtils.isNullOrEmpty(resolved.getDimensionNames())) {
-        builder.withDimensions(resolved.getDimensionNames(), resolved.getDimensionTypes());
-      }
-      if (!GuavaUtils.isNullOrEmpty(resolved.getMetricNames())) {
-        builder.withMetrics(AggregatorFactory.toRelay(resolved.getMetricNames(), resolved.getMetricTypes()));
-      }
-      return builder.withRollup(false).build();
+      return QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
     }
-    Schema instance = Schema.EMPTY.resolve(subQuery, false);
+    List<String> dimensionNames = Lists.newArrayList();
+    List<String> metricNames = Lists.newArrayList();
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    List<ValueDesc> metricTypes = Lists.newArrayList();
+
+    Schema resolver = Schema.EMPTY.resolve(subQuery, false);
     if (subQuery instanceof Query.DimensionSupport) {
       List<String> dimensions = DimensionSpecs.toOutputNames(((Query.DimensionSupport<?>) subQuery).getDimensions());
-      List<ValueDesc> types = instance.tryColumnTypes(dimensions);
+      List<ValueDesc> types = resolver.tryColumnTypes(dimensions);
       if (types == null) {
-        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = instance.tryColumnTypes(dimensions);
+        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = resolver.tryColumnTypes(dimensions);
       }
-      builder.withDimensions(dimensions, Preconditions.checkNotNull(types));
+      dimensionNames.addAll(dimensions);
+      dimensionTypes.addAll(types);
     }
     if (subQuery instanceof Query.MetricSupport) {
       List<String> metrics = ((Query.MetricSupport<?>) subQuery).getMetrics();
-      List<ValueDesc> types = instance.tryColumnTypes(metrics);
+      List<ValueDesc> types = resolver.tryColumnTypes(metrics);
       if (types == null) {
-        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = instance.tryColumnTypes(metrics);
+        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = resolver.tryColumnTypes(metrics);
       }
-      return builder.withMetrics(metrics, Preconditions.checkNotNull(types))
-                    .withRollup(false)
-                    .build();
+      metricNames.addAll(metrics);
+      metricTypes.addAll(Preconditions.checkNotNull(types));
     } else if (subQuery instanceof Query.AggregationsSupport) {
       // todo: cannot handle lateral view, windowing, post-processing, etc. should throw exception ?
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
       List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
       List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       List<String> metrics = AggregatorFactory.toNames(aggregators, postAggregators);
-      List<ValueDesc> types = instance.tryColumnTypes(metrics);
+      List<ValueDesc> types = resolver.tryColumnTypes(metrics);
       if (types == null) {
-        instance = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = instance.tryColumnTypes(metrics);
+        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+        types = resolver.tryColumnTypes(metrics);
       }
-      return builder.withMetrics(metrics, Preconditions.checkNotNull(types))
-                    .withRollup(false)
-                    .build();
+      metricNames.addAll(metrics);
+      metricTypes.addAll(Preconditions.checkNotNull(types));
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
-      List<String> dimensions = Lists.newArrayList();
-      List<AggregatorFactory> metrics = Lists.newArrayList();
       List queries = joinQuery.getQueries();
       List<String> aliases = joinQuery.getPrefixAliases();
       for (int i = 0; i < queries.size(); i++) {
+        final Schema schema = relaySchema((Query) queries.get(i), segmentWalker);
         final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-        IncrementalIndexSchema schema = relaySchema((Query) queries.get(i), segmentWalker);
-        for (String dimension : schema.getDimensionsSpec().getDimensionNames()) {
-          String prefixed = prefix + dimension;
-          if (!dimensions.contains(prefixed)) {
-            dimensions.add(prefixed);
-          }
+        for (Pair<String, ValueDesc> pair : schema.dimensionAndTypes()) {
+          dimensionNames.add(prefix + pair.lhs);
+          dimensionTypes.add(pair.rhs);
         }
-        AggregatorFactory[] aggregators = schema.getMetrics();
-        for (AggregatorFactory aggregator : aggregators) {
-          Preconditions.checkArgument(aggregator instanceof RelayAggregatorFactory);
-          metrics.add(new RelayAggregatorFactory(prefix + aggregator.getName(), aggregator.getOutputType()));
+        for (Pair<String, ValueDesc> pair : schema.metricAndTypes()) {
+          metricNames.add(prefix + pair.lhs);
+          metricTypes.add(pair.rhs);
         }
       }
-      return builder.withDimensions(dimensions)
-                    .withMetrics(AggregatorFactory.toRelay(metrics))
-                    .withRollup(false)
-                    .build();
     } else {
       // todo union-all (partitioned-join, etc.)
       throw new UnsupportedOperationException("Cannot extract metric from query " + subQuery);
     }
+    return new Schema(dimensionNames, metricNames, GuavaUtils.concatish(dimensionTypes, metricTypes));
   }
 
   @SuppressWarnings("unchecked")
@@ -347,7 +326,7 @@ public class Queries
       Query source = ((QueryDataSource) query.getDataSource()).getQuery();
       Query converted = iterate(source, function);
       if (source != converted) {
-        query = query.withDataSource(new QueryDataSource(converted));
+        query = query.withDataSource(QueryDataSource.of(converted));
       }
     } else if (query instanceof JoinQuery) {
       JoinQuery joinQuery = (JoinQuery) query;
@@ -356,7 +335,7 @@ public class Queries
           Query source = ((QueryDataSource) entry.getValue()).getQuery();
           Query converted = iterate(source, function);
           if (source != converted) {
-            entry.setValue(new QueryDataSource(converted));
+            entry.setValue(QueryDataSource.of(converted));
           }
         }
       }

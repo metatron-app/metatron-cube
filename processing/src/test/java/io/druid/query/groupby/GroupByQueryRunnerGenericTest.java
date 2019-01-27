@@ -2960,6 +2960,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("index", "index")
         )
         .setGranularity(Granularities.ALL)
+        .addOrderByColumn("index", Direction.DESCENDING)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -2968,11 +2969,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("2011-01-12T00:00:00.000Z", 2L, 2483L),
         array("2011-01-12T00:00:00.000Z", 3L, 1278L),
         array("2011-01-12T00:00:00.000Z", 4L, 808L),
-        array("2011-01-12T00:00:00.000Z", 5L, 208L),
-        array("2011-01-12T00:00:00.000Z", 6L, 627L)
+        array("2011-01-12T00:00:00.000Z", 6L, 627L),
+        array("2011-01-12T00:00:00.000Z", 5L, 208L)
     );
 
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+
+    // outer queries are resolved from schema of inner query.. (FluentQueryRunnerBuilder.applySubQueryResolver)
+    GroupByQuery outerResolving = query.withAggregatorSpecs(
+        Arrays.<AggregatorFactory>asList(new GenericSumAggregatorFactory("index", "index", null))
+    );
+    TestHelper.assertExpectedObjects(expectedResults, runQuery(outerResolving), "");
   }
 
   @Test

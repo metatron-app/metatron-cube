@@ -11,7 +11,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.egads.data.Anomaly;
@@ -23,12 +22,8 @@ import io.druid.granularity.Granularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.query.select.Schema;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -173,19 +168,15 @@ public class AnomalyPostProcessor
   }
 
   @Override
-  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper)
+  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
   {
-    if (predictColumn == null && tsModelColumn == null) {
-      return input;
-    }
-    List<AggregatorFactory> metrics = Lists.newArrayList(Arrays.asList(input.getMetrics()));
     if (predictColumn != null) {
-      metrics.add(new RelayAggregatorFactory(predictColumn, ValueDesc.FLOAT));
+      schema = schema.appendMetrics(predictColumn, ValueDesc.FLOAT);
     }
     if (tsModelColumn != null) {
-      metrics.add(new RelayAggregatorFactory(tsModelColumn, ValueDesc.MAP));
+      schema = schema.appendMetrics(tsModelColumn, ValueDesc.MAP);
     }
-    return input.withMetrics(metrics.toArray(new AggregatorFactory[0]));
+    return schema;
   }
 
   @JsonProperty

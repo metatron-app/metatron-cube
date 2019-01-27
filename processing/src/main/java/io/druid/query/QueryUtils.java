@@ -33,6 +33,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
@@ -214,7 +215,7 @@ public class QueryUtils
   public static Query setQueryId(final Query query, final String queryId)
   {
     return Queries.iterate(
-        query, new Function<Query, Query>()
+        query, new IdentityFunction<Query>()
         {
           @Override
           public Query apply(Query input)
@@ -235,7 +236,7 @@ public class QueryUtils
   )
   {
     return Queries.iterate(
-        query, new Function<Query, Query>()
+        query, new IdentityFunction<Query>()
         {
           @Override
           public Query apply(Query input)
@@ -255,7 +256,7 @@ public class QueryUtils
   public static Query resolveRecursively(final Query query, final QuerySegmentWalker segmentWalker)
   {
     return Queries.iterate(
-        query, new Function<Query, Query>()
+        query, new IdentityFunction<Query>()
         {
           @Override
           public Query apply(Query input)
@@ -271,7 +272,7 @@ public class QueryUtils
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getSchema() == null) {
-      // cannot be resolved before sub-query is executed
+      // cannot be resolved before sub-query is resolved (see FluentQueryRunnerBuilder.applySubQueryResolver)
       return query;
     }
     if (dataSource instanceof UnionDataSource) {
@@ -350,23 +351,6 @@ public class QueryUtils
       }
     }
     return mapping;
-  }
-
-  public static Supplier<Schema> schemaSupplier(
-      final Query query,
-      final QuerySegmentWalker segmentWalker
-  )
-  {
-    return Suppliers.memoize(
-        new Supplier<Schema>()
-        {
-          @Override
-          public Schema get()
-          {
-            return retrieveSchema(query, segmentWalker);
-          }
-        }
-    );
   }
 
   public static Supplier<RowResolver> resolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)

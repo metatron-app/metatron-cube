@@ -379,6 +379,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator(objectMapper)
+                                     .applySubQueryResolver(this)
                                      .build();
     }
     if (query instanceof Query.IteratingQuery) {

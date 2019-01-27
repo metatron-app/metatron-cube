@@ -38,7 +38,6 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.LogicalSegment;
@@ -342,7 +341,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(sources, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
 
-      query = QueryUtils.resolveQuery(query, segmentWalker);
       Sequence<Sequence<ResultType>> sequences = Sequences.map(
           Sequences.simple(query.getIntervals()),
           query(query, segment)
@@ -356,22 +354,20 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       long start = System.currentTimeMillis();
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
 
-      Query<I> subQuery = prepareSubQuery(query, (Query<I>) dataSource.getQuery());
+      Query subQuery = dataSource.getQuery();
       Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
-      IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
+
+      Schema schema = dataSource.getSchema();
       LOG.info(
-          "Accumulating into intermediate index with dimensions %s and metrics %s",
-          schema.getDimensionsSpec().getDimensionNameTypes(),
-          schema.getMetricNameTypes()
+          "Accumulating into intermediate index with dimensions [%s] and metrics [%s]",
+          schema.dimensionAndTypesString(), schema.metricAndTypesString()
       );
-      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, false, maxRowCount);
+      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, true, false, maxRowCount);
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
           "Accumulated sub-query into index in %,d msec.. total %,d rows",
-          (System.currentTimeMillis() - start),
-          accumulated.size()
+          System.currentTimeMillis() - start, accumulated.size()
       );
-      dataSource.setSchema(schema.asSchema(false));   // will be used to resolve schema of outer query
       return accumulated;
     }
 
@@ -391,14 +387,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
 
-      Query<I> subQuery = prepareSubQuery(query, (Query<I>) dataSource.getQuery());
-      Schema schema = Queries.relaySchema(subQuery, segmentWalker).asSchema(false);
-      dataSource.setSchema(schema);   // will be used to resolve schema of outer query
-
-      query = QueryUtils.resolveQuery(query, segmentWalker);
-
+      Query subQuery = dataSource.getQuery();
       Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
-      Sequence<Cursor> cursors = ColumnSelectorFactories.toCursor(sequence, schema, query);
+
+      Sequence<Cursor> cursors = ColumnSelectorFactories.toCursor(sequence, dataSource.getSchema(), query);
       return streamMerge(Sequences.map(cursors, streamQuery(query)));
     }
 

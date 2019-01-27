@@ -457,7 +457,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
     public Builder setDataSource(Query query)
     {
-      this.dataSource = new QueryDataSource(query);
+      this.dataSource = QueryDataSource.of(query);
       return this;
     }
 

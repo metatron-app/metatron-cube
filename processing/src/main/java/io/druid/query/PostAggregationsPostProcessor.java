@@ -33,13 +33,9 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.select.Schema;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -100,34 +96,31 @@ public class PostAggregationsPostProcessor
   }
 
   @Override
-  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper)
+  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
-      return input;
+      return schema;
     }
-    Schema schema = input.asSchema(true);
-    List<String> dimensionNames = input.getDimensionsSpec().getDimensionNames();
-    List<String> metricNames = input.getMetricNames();
-    List<AggregatorFactory> aggregatorFactories = Lists.newArrayList(Arrays.asList(input.getMetrics()));
+    List<String> dimensionNames = Lists.newArrayList(schema.getDimensionNames());
+    List<String> metricNames = Lists.newArrayList(schema.getMetricNames());
+    List<ValueDesc> types = Lists.newArrayList(schema.getColumnTypes());
     for (PostAggregator postAggregator : postAggregations) {
       String outputName = postAggregator.getName();
-      if (dimensionNames.indexOf(outputName) >= 0) {
-        continue; // whatever it is, it's string
-      }
       ValueDesc valueDesc = postAggregator.resolve(schema);
-      if (metricNames.indexOf(outputName) >= 0) {
-        aggregatorFactories.set(
-            metricNames.indexOf(outputName),
-            new RelayAggregatorFactory(outputName, valueDesc)
-        );
-      } else {
-        aggregatorFactories.add(
-            metricNames.indexOf(outputName),
-            new RelayAggregatorFactory(outputName, valueDesc)
-        );
+      int index = dimensionNames.indexOf(outputName);
+      if (index >= 0) {
+        types.set(index, valueDesc);
+        continue;
       }
+      index = metricNames.indexOf(outputName);
+      if (index >= 0) {
+        types.set(dimensionNames.size() + index, valueDesc);
+        continue;
+      }
+      metricNames.add(outputName);
+      types.add(valueDesc);
     }
-    return input.withMetrics(aggregatorFactories.toArray(new AggregatorFactory[0]));
+    return new Schema(dimensionNames, metricNames, types);
   }
 
   @Override

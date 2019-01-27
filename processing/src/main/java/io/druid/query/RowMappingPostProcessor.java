@@ -27,16 +27,10 @@ import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.query.select.Schema;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -84,62 +78,26 @@ public class RowMappingPostProcessor
   }
 
   @Override
-  public IncrementalIndexSchema resolve(Query query, IncrementalIndexSchema input, ObjectMapper mapper)
+  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
-      return input;
+      return schema;
     }
-    List<String> dimensionNames = input.getDimensionsSpec().getDimensionNames();
-    List<DimensionSchema> dimensionSchemas = input.getDimensionsSpec().getDimensions();
-    List<String> metricNames = input.getMetricNames();
-    List<AggregatorFactory> aggregatorFactories = Lists.newArrayList(Arrays.asList(input.getMetrics()));
+    List<String> dimensionNames = Lists.newArrayList(schema.getDimensionNames());
+    List<String> metricNames = Lists.newArrayList(schema.getMetricNames());
     for (Map.Entry<String, String> entry : mapping.entrySet()) {
       final String from = entry.getValue();
       final String to = entry.getKey();
       int findex = dimensionNames.indexOf(from);
       if (findex >= 0) {
-        dimensionNames.remove(findex);
-        DimensionSchema removed = dimensionSchemas.remove(findex);
-        if (removed != null) {
-          int tindex = dimensionNames.indexOf(to);
-          if (tindex >= 0) {
-            dimensionSchemas.set(tindex, removed);
-            dimensionNames.set(tindex, removed.getName());
-            continue;
-          }
-          tindex = metricNames.indexOf(to);
-          if (tindex >= 0) {
-            metricNames.set(tindex, to);
-            aggregatorFactories.add(tindex, new RelayAggregatorFactory(to, ValueDesc.STRING));
-          } else {
-            metricNames.add(to);
-            aggregatorFactories.add(new RelayAggregatorFactory(to, ValueDesc.STRING));
-          }
-        }
+        dimensionNames.set(findex, to);
         continue;
       }
       findex = metricNames.indexOf(from);
       if (findex >= 0) {
-        metricNames.remove(findex);
-        AggregatorFactory removed = aggregatorFactories.remove(findex);
-        if (removed != null) {
-          int tindex = dimensionNames.indexOf(to);
-          if (tindex >= 0) {
-            // whatever it is, it's string
-            continue;
-          }
-          tindex = metricNames.indexOf(to);
-          if (tindex >= 0) {
-            metricNames.set(tindex, to);
-            aggregatorFactories.add(tindex, removed);
-          } else {
-            metricNames.add(to);
-            aggregatorFactories.add(removed);
-          }
-        }
+        metricNames.set(findex, to);
       }
     }
-    return input.withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
-                .withMetrics(aggregatorFactories.toArray(new AggregatorFactory[0]));
+    return new Schema(dimensionNames, metricNames, schema.getColumnTypes());
   }
 }

@@ -449,13 +449,13 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
     public Builder<T> setDataSource(Query query)
     {
-      this.dataSource = new QueryDataSource(query);
+      this.dataSource = QueryDataSource.of(query);
       return this;
     }
 
     public Builder<T> dataSource(Query query)
     {
-      dataSource = new QueryDataSource(query);
+      dataSource = QueryDataSource.of(query);
       return this;
     }
 

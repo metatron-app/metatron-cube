@@ -20,8 +20,10 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceEmitter;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FluentQueryRunnerBuilder<T>
@@ -83,6 +85,24 @@ public class FluentQueryRunnerBuilder<T>
   public FluentQueryRunnerBuilder<T> applyPostProcessingOperator(ObjectMapper mapper)
   {
     return from(PostProcessingOperators.wrap(baseRunner, mapper));
+  }
+
+  public FluentQueryRunnerBuilder<T> applySubQueryResolver(final QuerySegmentWalker segmentWalker)
+  {
+    return from(new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+        if (dataSource.getSchema() == null) {
+          Query subQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
+          query = query.withDataSource(QueryDataSource.of(subQuery, Queries.relaySchema(subQuery, segmentWalker)));
+          query = QueryUtils.resolveQuery(query, segmentWalker);
+        }
+        return baseRunner.run(query, responseContext);
+      }
+    });
   }
 
   public FluentQueryRunnerBuilder<T> emitCPUTimeMetric(ServiceEmitter emitter)

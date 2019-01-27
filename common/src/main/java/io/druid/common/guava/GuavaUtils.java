@@ -50,6 +50,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -297,6 +298,33 @@ public class GuavaUtils
       return list1;
     }
     return Lists.newArrayList(Iterables.concat(list1, list2));
+  }
+
+  public static <T> List<T> concatish(final List<T> list1, final List<T> list2)
+  {
+    if (list1 == null && list2 == null) {
+      return Lists.newArrayList();
+    }
+    if (list1 == null) {
+      return list2;
+    }
+    if (list2 == null) {
+      return list1;
+    }
+    return new AbstractList<T>()
+    {
+      @Override
+      public int size()
+      {
+        return list1.size() + list2.size();
+      }
+
+      @Override
+      public T get(int index)
+      {
+        return index < list1.size() ? list1.get(index) : list2.get(index - list1.size());
+      }
+    };
   }
 
   @SuppressWarnings("unchecked")

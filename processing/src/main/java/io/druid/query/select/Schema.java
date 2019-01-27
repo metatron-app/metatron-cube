@@ -35,6 +35,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -47,6 +48,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -211,6 +213,28 @@ public class Schema implements TypeResolver, RowSignature
     return GuavaUtils.zip(metricNames, columnTypes.subList(dimensionNames.size(), columnTypes.size()));
   }
 
+  public String dimensionAndTypesString()
+  {
+    return toString(dimensionAndTypes());
+  }
+
+  public String metricAndTypesString()
+  {
+    return toString(metricAndTypes());
+  }
+
+  private String toString(Iterable<Pair<String, ValueDesc>> nameAndTypes)
+  {
+    StringBuilder builder = new StringBuilder();
+    for (Pair<String, ValueDesc> pair : nameAndTypes) {
+      if (builder.length() > 0) {
+        builder.append(',');
+      }
+      builder.append(pair.lhs).append(':').append(pair.rhs);
+    }
+    return builder.toString();
+  }
+
   @Override
   public ValueDesc resolve(String column)
   {
@@ -238,6 +262,42 @@ public class Schema implements TypeResolver, RowSignature
   public Map<String, String> getColumnDescriptor(String column)
   {
     return descriptors.get(column);
+  }
+
+  public Schema withDimensions(List<String> dimensionNames, List<ValueDesc> dimensionTypes)
+  {
+    return new Schema(
+        dimensionNames,
+        metricNames,
+        GuavaUtils.<ValueDesc>concat(dimensionTypes, getMetricTypes())
+    );
+  }
+
+  public Schema withMetrics(List<String> metricNames, List<ValueDesc> metricTypes)
+  {
+    return new Schema(
+        dimensionNames,
+        metricNames,
+        GuavaUtils.concat(getDimensionTypes(), metricTypes)
+    );
+  }
+
+  public Schema appendMetrics(String metricName, ValueDesc metricType)
+  {
+    return new Schema(
+        dimensionNames,
+        GuavaUtils.concat(getMetricNames(), metricName),
+        GuavaUtils.concat(getColumnTypes(), metricType)
+    );
+  }
+
+  public Schema appendMetrics(List<String> metricNames, List<ValueDesc> metricTypes)
+  {
+    return new Schema(
+        dimensionNames,
+        GuavaUtils.concat(getMetricNames(), metricNames),
+        GuavaUtils.concat(getColumnTypes(), metricTypes)
+    );
   }
 
   public Schema merge(Schema other)
@@ -325,45 +385,49 @@ public class Schema implements TypeResolver, RowSignature
   {
     List<String> dimensions = Lists.newArrayList();
     List<String> metrics = Lists.newArrayList();
-    List<ValueDesc> types = Lists.newArrayList();
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    List<ValueDesc> metricTypes = Lists.newArrayList();
 
-    Schema schema = columnTypes.isEmpty() ? new Schema(dimensions, metrics, types) : this;
+    Schema schema = columnTypes.isEmpty() ?
+                    new Schema(dimensions, metrics, GuavaUtils.concatish(dimensionTypes, metricTypes)) : this;
 
     List<VirtualColumn> virtualColumns = BaseQuery.getVirtualColumns(query);
     TypeResolver resolver = GuavaUtils.isNullOrEmpty(virtualColumns) ? schema : RowResolver.of(schema, virtualColumns);
 
     if (query instanceof Query.ColumnsSupport) {
-      for (String column : ((Query.ColumnsSupport<?>) query).getColumns()) {
+      final List<String> columns = ((Query.ColumnsSupport<?>) query).getColumns();
+      for (String column : columns) {
         ValueDesc resolved = resolver.resolve(column);
-        types.add(resolved);
-        if (resolved != null && resolved.isDimension()) {
+        if (resolved == null || resolved.isDimension()) {
           dimensions.add(column);
+          dimensionTypes.add(resolved);
         } else {
           metrics.add(column);
+          metricTypes.add(resolved);
         }
       }
-      return new Schema(dimensions, metrics, types);
+      return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
     }
     for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
-      types.add(dimensionSpec.resolve(resolver));
+      dimensionTypes.add(dimensionSpec.resolve(resolver));
       dimensions.add(dimensionSpec.getOutputName());
     }
     for (String metric : BaseQuery.getMetrics(query)) {
-      types.add(resolver.resolve(metric));
+      metricTypes.add(resolver.resolve(metric));
       metrics.add(metric);
     }
     List<AggregatorFactory> aggregators = BaseQuery.getAggregators(query);
     List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
     for (AggregatorFactory metric : aggregators) {
-      types.add(finalzed ? metric.finalizedType() : metric.getOutputType());
+      metricTypes.add(finalzed ? metric.finalizedType() : metric.getOutputType());
       metric = metric.resolveIfNeeded(Suppliers.ofInstance(resolver));
       metrics.add(metric.getName());
     }
     for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, aggregators)) {
-      types.add(postAggregator.resolve(resolver));
+      metricTypes.add(postAggregator.resolve(resolver));
       metrics.add(postAggregator.getName());
     }
-    return new Schema(dimensions, metrics, types);
+    return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
   }
 
   // all of nothing
@@ -425,5 +489,18 @@ public class Schema implements TypeResolver, RowSignature
            ", descriptors=" + descriptors +
            ", capabilities=" + capabilities +
            '}';
+  }
+
+  public IncrementalIndexSchema asRelaySchema()
+  {
+    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
+    return new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(Granularities.ALL)
+        .withFixedSchema(true)
+        .withDimensions(getDimensionNames(), getDimensionTypes())
+        .withMetrics(AggregatorFactory.toRelay(getMetricNames(), getMetricTypes()))
+        .withRollup(false)
+        .build();
   }
 }

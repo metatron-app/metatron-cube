@@ -107,6 +107,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator(objectMapper)
+                                     .applySubQueryResolver(this)
                                      .build();
     }
 

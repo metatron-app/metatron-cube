@@ -100,7 +100,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         Query query = ((QueryDataSource) dataSource).getQuery();
         QuerySegmentSpec currentSpec = query.getQuerySegmentSpec();
         if (currentSpec == null || currentSpec.getIntervals().isEmpty()) {
-          dataSource = new QueryDataSource(query.withQuerySegmentSpec(segmentSpec));
+          dataSource = QueryDataSource.of(query.withQuerySegmentSpec(segmentSpec));
         }
       } else if (dataSource instanceof TableDataSource) {
         dataSource = ViewDataSource.of(((TableDataSource) dataSource).getName());
