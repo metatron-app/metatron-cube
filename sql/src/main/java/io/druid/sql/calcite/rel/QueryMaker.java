@@ -147,6 +147,7 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
+    LOG.info("Running.. %s", query);
     return query.run(segmentWalker, Maps.newHashMap());
   }
 

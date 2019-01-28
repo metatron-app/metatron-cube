@@ -330,7 +330,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         for (byte[] value : cachedValues.values()) {
           total += value.length;
         }
-        log.info(
+        log.debug(
             "Requested %,d segments from cache for [%s] and returned %,d segments (%,d bytes), took %,d msec",
             cacheKeys.size(), query.getType(), cachedValues.size(), total, System.currentTimeMillis() - start
         );
@@ -641,7 +641,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             @Override
             public void close() throws IOException
             {
-              log.info(
+              log.debug(
                   "Deserialized %,d rows from %,d cached segments, took %,d msec",
                   cacheAccessor.rows(), numCachedSegments, cacheAccessor.time()
               );

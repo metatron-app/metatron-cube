@@ -136,11 +136,8 @@ public class Rows extends io.druid.data.Rows
       @Override
       public Row apply(Map<String, Object> input)
       {
-        Object timestamp = input.get(timestampColumn);
-        if (timestamp == null) {
-          throw new IllegalArgumentException("cannot find time column '" + timestampColumn + "'");
-        }
-        return new MapBasedRow(new DateTime(timestamp), input);
+        final Object timestamp = input.get(timestampColumn);
+        return new MapBasedRow(timestamp == null ? null : new DateTime(timestamp), input);
       }
     };
   }
