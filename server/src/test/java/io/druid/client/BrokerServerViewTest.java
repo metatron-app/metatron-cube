@@ -34,6 +34,7 @@ import com.metamx.http.client.HttpClient;
 import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
+import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.curator.CuratorTestBase;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryToolChestWarehouse;
@@ -49,7 +50,6 @@ import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.PartitionHolder;
-import io.druid.timeline.partition.SingleElementPartitionChunk;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.After;
@@ -73,6 +73,7 @@ public class BrokerServerViewTest extends CuratorTestBase
 
   private BatchServerInventoryView baseView;
   private BrokerServerView brokerServerView;
+  private TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
 
   public BrokerServerViewTest()
   {
@@ -129,11 +130,11 @@ public class BrokerServerViewTest extends CuratorTestBase
     Assert.assertTrue(actualPartitionHolder.isComplete());
     Assert.assertEquals(1, Iterables.size(actualPartitionHolder));
 
-    ServerSelector selector = ((SingleElementPartitionChunk<ServerSelector>) actualPartitionHolder.iterator()
-                                                                                                  .next()).getObject();
+    ServerSelector selector = actualPartitionHolder.iterator()
+                                                   .next().getObject();
     Assert.assertFalse(selector.isEmpty());
     Assert.assertEquals(segment, selector.getSegment());
-    Assert.assertEquals(druidServer, selector.pick().getServer());
+    Assert.assertEquals(druidServer, selector.pick(strategy).getServer());
 
     unannounceSegmentForServer(druidServer, segment, zkPathsConfig);
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentRemovedLatch));
@@ -280,10 +281,10 @@ public class BrokerServerViewTest extends CuratorTestBase
       Assert.assertTrue(actualPartitionHolder.isComplete());
       Assert.assertEquals(1, Iterables.size(actualPartitionHolder));
 
-      ServerSelector selector = ((SingleElementPartitionChunk<ServerSelector>) actualPartitionHolder.iterator()
-                                                                                                    .next()).getObject();
+      ServerSelector selector = actualPartitionHolder.iterator()
+                                                     .next().getObject();
       Assert.assertFalse(selector.isEmpty());
-      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick().getServer());
+      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick(strategy).getServer());
       Assert.assertEquals(expectedPair.rhs.rhs.rhs, selector.getSegment());
     }
   }
@@ -340,7 +341,6 @@ public class BrokerServerViewTest extends CuratorTestBase
         new DefaultObjectMapper(),
         EasyMock.createMock(HttpClient.class),
         baseView,
-        new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy()),
         new NoopServiceEmitter(),
         new BrokerSegmentWatcherConfig(),
         new BrokerIOConfig(),

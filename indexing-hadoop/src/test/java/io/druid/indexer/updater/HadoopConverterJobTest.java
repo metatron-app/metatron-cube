@@ -258,7 +258,7 @@ public class HadoopConverterJobTest
     manager.poll();
     final DruidDataSource druidDataSource = manager.getInventoryValue(DATASOURCE);
     manager.stop();
-    return Lists.newArrayList(druidDataSource.getSegments());
+    return druidDataSource.getSegmentsSorted();
   }
 
   @Test

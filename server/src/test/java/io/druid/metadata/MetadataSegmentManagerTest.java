@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.metrics.NoopServiceEmitter;
@@ -36,6 +37,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 
 public class MetadataSegmentManagerTest
@@ -112,9 +117,10 @@ public class MetadataSegmentManagerTest
         ImmutableList.of("wikipedia"),
         manager.getAllDatasourceNames()
     );
+    List<DataSegment> expected = Lists.newArrayList(segment1, segment2);
+    Collections.sort(expected);
     Assert.assertEquals(
-        ImmutableSet.of(segment1, segment2),
-        manager.getInventoryValue("wikipedia").getSegments()
+        expected, manager.getInventoryValue("wikipedia").getSegmentsSorted()
     );
     manager.stop();
   }

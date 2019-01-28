@@ -543,12 +543,12 @@ public class DatasourcesResource
 
     Response.ResponseBuilder builder = Response.ok();
     if (full != null) {
-      return builder.entity(dataSource.getSegments()).build();
+      return builder.entity(dataSource.getSegmentsSorted()).build();
     }
 
     return builder.entity(
         Iterables.transform(
-            dataSource.getSegments(),
+            dataSource.getSegmentsSorted(),
             new Function<DataSegment, Object>()
             {
               @Override

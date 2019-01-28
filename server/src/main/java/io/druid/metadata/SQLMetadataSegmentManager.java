@@ -397,7 +397,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean removeSegment(String ds, final String segmentID)
+  public boolean removeSegment(String ds, final String segmentId)
   {
     try {
       connector.getDBI().withHandle(
@@ -408,7 +408,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
             {
               handle.createStatement(
                   String.format("UPDATE %s SET used=false WHERE id = :segmentID", getSegmentsTable())
-              ).bind("segmentID", segmentID)
+              ).bind("segmentID", segmentId)
                     .execute();
 
               return null;
@@ -418,13 +418,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
 
       ConcurrentHashMap<String, DruidDataSource> dataSourceMap = dataSources.get();
 
-      if (!dataSourceMap.containsKey(ds)) {
+      DruidDataSource dataSource = dataSourceMap.get(ds);
+      if (dataSource == null) {
         log.warn("Cannot find datasource %s", ds);
         return false;
       }
 
-      DruidDataSource dataSource = dataSourceMap.get(ds);
-      dataSource.removePartition(segmentID);
+      dataSource.removeSegment(segmentId);
 
       if (dataSource.isEmpty()) {
         dataSourceMap.remove(ds);
@@ -584,7 +584,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
         }
 
-        if (!dataSource.getSegments().contains(segment)) {
+        if (!dataSource.contains(segment)) {
           dataSource.addSegment(segment.getIdentifier(), segment);
         }
       }

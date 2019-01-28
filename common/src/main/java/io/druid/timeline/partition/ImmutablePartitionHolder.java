@@ -23,7 +23,7 @@ package io.druid.timeline.partition;
  */
 public class ImmutablePartitionHolder<T> extends PartitionHolder<T>
 {
-  public ImmutablePartitionHolder(PartitionHolder partitionHolder)
+  public ImmutablePartitionHolder(PartitionHolder<T> partitionHolder)
   {
     super(partitionHolder);
   }

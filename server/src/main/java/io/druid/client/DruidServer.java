@@ -224,7 +224,7 @@ public class DruidServer implements Comparable
       }
       immutableView = null;
 
-      dataSource.removePartition(segmentId);
+      dataSource.removeSegment(segmentId);
 
       segments.remove(segmentId);
       currSize -= segment.getSize();

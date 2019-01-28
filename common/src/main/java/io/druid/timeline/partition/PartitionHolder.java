@@ -21,45 +21,44 @@ package io.druid.timeline.partition;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 /**
  * An object that clumps together multiple other objects which each represent a shard of some space.
  */
 public class PartitionHolder<T> implements Iterable<PartitionChunk<T>>
 {
-  private final TreeSet<PartitionChunk<T>> holderSet;
+  private final List<PartitionChunk<T>> holderSet;  // keep sorted
 
   public PartitionHolder(PartitionChunk<T> initialChunk)
   {
-    this.holderSet = Sets.newTreeSet();
-    add(initialChunk);
+    this.holderSet = Lists.newArrayListWithCapacity(2);
+    this.holderSet.add(initialChunk);
   }
 
   public PartitionHolder(List<PartitionChunk<T>> initialChunks)
   {
-    this.holderSet = Sets.newTreeSet();
-    for (PartitionChunk<T> chunk : initialChunks) {
-      add(chunk);
-    }
+    this.holderSet = Lists.newArrayList(initialChunks);
   }
 
-  public PartitionHolder(PartitionHolder partitionHolder)
+  public PartitionHolder(PartitionHolder<T> partitionHolder)
   {
-    this.holderSet = Sets.newTreeSet();
-    this.holderSet.addAll(partitionHolder.holderSet);
+    this.holderSet = Lists.newArrayList(partitionHolder.holderSet);
   }
 
   public void add(PartitionChunk<T> chunk)
   {
-    holderSet.add(chunk);
+    final int index = Collections.binarySearch(holderSet, chunk);
+    if (index < 0) {
+      holderSet.add(-index - 1, chunk);
+    }
   }
 
   public int size()
@@ -69,16 +68,9 @@ public class PartitionHolder<T> implements Iterable<PartitionChunk<T>>
 
   public PartitionChunk<T> remove(PartitionChunk<T> chunk)
   {
-    if (!holderSet.isEmpty()) {
-      // Somewhat funky implementation in order to return the removed object as it exists in the set
-      SortedSet<PartitionChunk<T>> tailSet = holderSet.tailSet(chunk, true);
-      if (!tailSet.isEmpty()) {
-        PartitionChunk<T> element = tailSet.first();
-        if (chunk.equals(element)) {
-          holderSet.remove(element);
-          return element;
-        }
-      }
+    final int index = Collections.binarySearch(holderSet, chunk);
+    if (index >= 0) {
+      return holderSet.remove(index);
     }
     return null;
   }
@@ -137,7 +129,7 @@ public class PartitionHolder<T> implements Iterable<PartitionChunk<T>>
   @Override
   public Iterator<PartitionChunk<T>> iterator()
   {
-    return holderSet.iterator();
+    return ImmutableList.copyOf(holderSet).iterator();
   }
 
   public Iterable<T> payloads()

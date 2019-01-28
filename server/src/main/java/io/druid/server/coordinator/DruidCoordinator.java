@@ -881,7 +881,7 @@ public class DruidCoordinator
               "    %s : properties=%s, %,d segments",
               druidDataSource.getName(),
               druidDataSource.getProperties(),
-              druidDataSource.getSegments().size()
+              druidDataSource.size()
           );
         }
       }

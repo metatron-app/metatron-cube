@@ -19,6 +19,7 @@
 
 package io.druid.client.selector;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.emitter.EmittingLogger;
@@ -28,91 +29,84 @@ import io.druid.timeline.DataSegment;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  */
-public class ServerSelector implements DiscoverySelector<QueryableDruidServer>
+public class ServerSelector
 {
   public static ServerSelector dummy(final QueryableDruidServer server)
   {
-    return new ServerSelector(null, null)
+    return new ServerSelector(null)
     {
       @Override
-      public QueryableDruidServer pick() { return server; }
+      public QueryableDruidServer pick(TierSelectorStrategy strategy) { return server; }
     };
   }
 
   private static final EmittingLogger log = new EmittingLogger(ServerSelector.class);
 
-  private final Set<QueryableDruidServer> servers = Sets.newHashSet();
+  private DataSegment segment;
+  private final List<QueryableDruidServer> servers = Lists.newArrayListWithCapacity(1);
 
-  private final TierSelectorStrategy strategy;
-
-  private final AtomicReference<DataSegment> segment;
-
-  public ServerSelector(
-      DataSegment segment,
-      TierSelectorStrategy strategy
-  )
+  public ServerSelector(DataSegment segment)
   {
-    this.segment = new AtomicReference<DataSegment>(segment);
-    this.strategy = strategy;
+    this.segment = segment;
   }
 
   public DataSegment getSegment()
   {
-    return segment.get();
+    return segment;
   }
 
-  public void addServerAndUpdateSegment(
-      QueryableDruidServer server, DataSegment segment
-  )
+  public synchronized void addServerAndUpdateSegment(QueryableDruidServer server, DataSegment segment)
   {
-    synchronized (this) {
-      this.segment.set(segment);
+    if (!servers.contains(server)) {
       servers.add(server);
     }
+    this.segment = segment;
   }
 
-  public boolean removeServer(QueryableDruidServer server)
+  public synchronized boolean removeServer(QueryableDruidServer server)
   {
-    synchronized (this) {
-      return servers.remove(server);
-    }
+    return servers.remove(server);
   }
 
-  public boolean isEmpty()
+  public synchronized boolean isEmpty()
   {
-    synchronized (this) {
-      return servers.isEmpty();
-    }
+    return servers.isEmpty();
   }
 
-  public List<DruidServerMetadata> getCandidates() {
+  public synchronized List<DruidServerMetadata> getCandidates()
+  {
     List<DruidServerMetadata> result = Lists.newArrayList();
-    synchronized (this) {
-      for (QueryableDruidServer server : servers) {
-        result.add(server.getServer().getMetadata());
-      }
+    for (QueryableDruidServer server : servers) {
+      result.add(server.getServer().getMetadata());
     }
     return result;
   }
 
-  public QueryableDruidServer pick()
+  public synchronized QueryableDruidServer pick(TierSelectorStrategy strategy)
   {
-    synchronized (this) {
-      final TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers = new TreeMap<>(strategy.getComparator());
-      for (QueryableDruidServer server : servers) {
-        Set<QueryableDruidServer> theServers = prioritizedServers.get(server.getServer().getPriority());
-        if (theServers == null) {
-          theServers = Sets.newHashSet();
-          prioritizedServers.put(server.getServer().getPriority(), theServers);
-        }
-        theServers.add(server);
-      }
-
-      return strategy.pick(prioritizedServers, segment.get());
+    if (servers.isEmpty()) {
+      return null;
     }
+    if (servers.size() == 1) {
+      return Iterables.getFirst(servers, null);
+    }
+    final TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers = new TreeMap<>(strategy.getComparator());
+    for (QueryableDruidServer server : servers) {
+      Set<QueryableDruidServer> theServers = prioritizedServers.get(server.getServer().getPriority());
+      if (theServers == null) {
+        theServers = Sets.newHashSet();
+        prioritizedServers.put(server.getServer().getPriority(), theServers);
+      }
+      theServers.add(server);
+    }
+    return strategy.pick(prioritizedServers, segment);
+  }
+
+  public synchronized void clear()
+  {
+    servers.clear();
   }
 }

@@ -33,177 +33,129 @@ public class ReferenceCountingSegment implements Segment
 
   private final Segment baseSegment;
 
-  private final Object lock = new Object();
-
-  private volatile int numReferences = 0;
-  private volatile boolean isClosed = false;
+  private int numReferences;
 
   public ReferenceCountingSegment(Segment baseSegment)
   {
     this.baseSegment = baseSegment;
   }
 
-  public Segment getBaseSegment()
+  public synchronized Segment getBaseSegment()
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      return baseSegment;
-    }
+    return numReferences < 0 ? null : baseSegment;
   }
 
-  public int getNumReferences()
+  public synchronized int getNumReferences()
   {
-    synchronized (lock) {
-      return numReferences;
-    }
+    return numReferences;
   }
 
-  public boolean isClosed()
+  public synchronized boolean isClosed()
   {
-    synchronized (lock) {
-      return isClosed;
-    }
+    return numReferences < 0;
   }
 
   @Override
-  public long getLastAccessTime()
+  public synchronized long getLastAccessTime()
   {
     return baseSegment.getLastAccessTime();
   }
 
   @Override
-  public Schema asSchema(boolean prependTime)
+  public synchronized Schema asSchema(boolean prependTime)
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-      QueryableIndex index = baseSegment.asQueryableIndex(false);
-      if (index != null) {
-        return index.asSchema(prependTime);
-      }
-      return baseSegment.asStorageAdapter(false).asSchema(prependTime);
+    if (numReferences < 0) {
+      return null;
     }
+    QueryableIndex index = baseSegment.asQueryableIndex(false);
+    if (index != null) {
+      return index.asSchema(prependTime);
+    }
+    return baseSegment.asStorageAdapter(false).asSchema(prependTime);
   }
 
   @Override
-  public String getIdentifier()
+  public synchronized String getIdentifier()
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      return baseSegment.getIdentifier();
-    }
+    return numReferences < 0 ? null : baseSegment.getIdentifier();
   }
 
   @Override
-  public Interval getDataInterval()
+  public synchronized Interval getDataInterval()
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      return baseSegment.getDataInterval();
-    }
+    return numReferences < 0 ? null : baseSegment.getDataInterval();
   }
 
   @Override
-  public QueryableIndex asQueryableIndex(boolean forQuery)
+  public synchronized QueryableIndex asQueryableIndex(boolean forQuery)
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      return baseSegment.asQueryableIndex(forQuery);
-    }
+    return numReferences < 0 ? null : baseSegment.asQueryableIndex(forQuery);
   }
 
   @Override
-  public StorageAdapter asStorageAdapter(boolean forQuery)
+  public synchronized StorageAdapter asStorageAdapter(boolean forQuery)
   {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      return baseSegment.asStorageAdapter(forQuery);
-    }
+    return numReferences < 0 ? null : baseSegment.asStorageAdapter(forQuery);
   }
 
   @Override
-  public void close() throws IOException
+  public synchronized void close() throws IOException
   {
-    synchronized (lock) {
-      if (isClosed) {
-        log.info("Failed to close, %s is closed already", baseSegment.getIdentifier());
-        return;
+    if (numReferences < 0) {
+      log.info("Failed to close, %s is closed already", baseSegment.getIdentifier());
+      return;
+    }
+
+    if (numReferences > 0) {
+      log.info("%d references to %s still exist. Decrementing.", numReferences, baseSegment.getIdentifier());
+
+      decrement();
+    } else {
+      innerClose();
+    }
+  }
+
+  public synchronized Closeable increment()
+  {
+    if (numReferences < 0) {
+      return null;
+    }
+
+    numReferences++;
+    final AtomicBoolean decrementOnce = new AtomicBoolean(false);
+    return new Closeable()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        if (decrementOnce.compareAndSet(false, true)) {
+          decrement();
+        }
       }
+    };
+  }
 
-      if (numReferences > 0) {
-        log.info("%d references to %s still exist. Decrementing.", numReferences, baseSegment.getIdentifier());
-
-        decrement();
-      } else {
+  private synchronized void decrement()
+  {
+    if (numReferences < 0) {
+      return;
+    }
+    if (--numReferences < 0) {
+      try {
         innerClose();
       }
-    }
-  }
-
-  public Closeable increment()
-  {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-
-      numReferences++;
-      final AtomicBoolean decrementOnce = new AtomicBoolean(false);
-      return new Closeable()
-      {
-        @Override
-        public void close() throws IOException
-        {
-          if (decrementOnce.compareAndSet(false, true)) {
-            decrement();
-          }
-        }
-      };
-    }
-  }
-
-  private void decrement()
-  {
-    synchronized (lock) {
-      if (isClosed) {
-        return;
-      }
-
-      if (--numReferences < 0) {
-        try {
-          innerClose();
-        }
-        catch (Exception e) {
-          log.error("Unable to close queryable index %s", getIdentifier());
-        }
+      catch (Exception e) {
+        log.error("Unable to close queryable index %s", getIdentifier());
       }
     }
   }
 
-  private void innerClose() throws IOException
+  private synchronized void innerClose() throws IOException
   {
-    synchronized (lock) {
-      log.info("Closing %s, numReferences: %d", baseSegment.getIdentifier(), numReferences);
+    log.info("Closing %s, numReferences: %d", baseSegment.getIdentifier(), numReferences);
 
-      isClosed = true;
-      baseSegment.close();
-    }
+    numReferences = -1;
+    baseSegment.close();
   }
 
   @Override

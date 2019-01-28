@@ -32,10 +32,11 @@ import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.HttpResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
-import io.druid.client.selector.ConnectionCountServerSelectorStrategy;
 import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.QueryableDruidServer;
+import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
+import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.QueryInterruptedException;
@@ -113,9 +114,9 @@ public class DirectDruidClientTest
             new NoneShardSpec(),
             0,
             0L
-        ),
-        new HighestPriorityTierSelectorStrategy(new ConnectionCountServerSelectorStrategy())
+        )
     );
+    final TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
 
     DirectDruidClient client1 = new DirectDruidClient(
         new ReflectionQueryToolChestWarehouse(),
@@ -184,7 +185,7 @@ public class DirectDruidClientTest
 
     Assert.assertTrue(client2.getNumOpenConnections() == 2);
 
-    Assert.assertTrue(serverSelector.pick() == queryableDruidServer2);
+    Assert.assertTrue(serverSelector.pick(strategy) == queryableDruidServer2);
 
     EasyMock.verify(httpClient);
   }
@@ -229,8 +230,7 @@ public class DirectDruidClientTest
             new NoneShardSpec(),
             0,
             0L
-        ),
-        new HighestPriorityTierSelectorStrategy(new ConnectionCountServerSelectorStrategy())
+        )
     );
 
     DirectDruidClient client1 = new DirectDruidClient(
@@ -300,10 +300,7 @@ public class DirectDruidClientTest
         0,
         0L
     );
-    final ServerSelector serverSelector = new ServerSelector( dataSegment
-        ,
-        new HighestPriorityTierSelectorStrategy(new ConnectionCountServerSelectorStrategy())
-    );
+    final ServerSelector serverSelector = new ServerSelector(dataSegment);
 
     DirectDruidClient client1 = new DirectDruidClient(
         new ReflectionQueryToolChestWarehouse(),

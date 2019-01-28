@@ -191,12 +191,12 @@ public class MetadataResource
 
     Response.ResponseBuilder builder = Response.status(Response.Status.OK);
     if (full != null) {
-      return builder.entity(dataSource.getSegments()).build();
+      return builder.entity(dataSource.getSegmentsSorted()).build();
     }
 
     return builder.entity(
         Iterables.transform(
-            dataSource.getSegments(),
+            dataSource.getSegmentsSorted(),
             new Function<DataSegment, String>()
             {
               @Override

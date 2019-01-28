@@ -160,21 +160,7 @@ public class CachingClusteredClientFunctionalityTest {
                 .interval(interval)
                 .version(version)
                 .shardSpec(new NoneShardSpec())
-                .build(),
-            new TierSelectorStrategy() {
-              @Override
-              public Comparator<Integer> getComparator() {
-                return Ordering.natural();
-              }
-
-              @Override
-              public QueryableDruidServer pick(TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers, DataSegment segment) {
-                return new QueryableDruidServer(
-                    new DruidServer("localhost", "localhost", 100, "historical", "a", 10),
-                    EasyMock.createNiceMock(DirectDruidClient.class)
-                );
-              }
-            }
+                .build()
         )
     ));
   }
@@ -190,6 +176,26 @@ public class CachingClusteredClientFunctionalityTest {
       final int mergeLimit
   )
   {
+    TierSelectorStrategy strategy = new TierSelectorStrategy()
+    {
+      @Override
+      public Comparator<Integer> getComparator()
+      {
+        return Ordering.natural();
+      }
+
+      @Override
+      public QueryableDruidServer pick(
+          TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers,
+          DataSegment segment
+      )
+      {
+        return new QueryableDruidServer(
+            new DruidServer("localhost", "localhost", 100, "historical", "a", 10),
+            EasyMock.createNiceMock(DirectDruidClient.class)
+        );
+      }
+    };
     return new CachingClusteredClient(
         null,
         null,
@@ -234,6 +240,7 @@ public class CachingClusteredClientFunctionalityTest {
           {
           }
         },
+        strategy,
         cache,
         CachingClusteredClientTest.jsonMapper,
         backgroundExecutorService,

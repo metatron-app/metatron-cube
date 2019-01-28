@@ -20,11 +20,9 @@
 package io.druid.client;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import io.druid.timeline.DataSegment;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
@@ -32,20 +30,17 @@ public class ImmutableDruidDataSource
 {
   private final String name;
   private final ImmutableMap<String, String> properties;
-  private final ImmutableMap<String, DataSegment> partitionNames;
-  private final ImmutableSet<DataSegment> segmentsHolder;
+  private final ImmutableMap<String, DataSegment> segmentsMap;
 
   public ImmutableDruidDataSource(
       String name,
       ImmutableMap<String, String> properties,
-      ImmutableMap<String, DataSegment> partitionNames,
-      ImmutableSet<DataSegment> segmentsHolder
+      ImmutableMap<String, DataSegment> segmentsMap
   )
   {
     this.name = name;
     this.properties = properties;
-    this.partitionNames = partitionNames;
-    this.segmentsHolder = segmentsHolder;
+    this.segmentsMap = segmentsMap;
   }
 
   public String getName()
@@ -58,18 +53,18 @@ public class ImmutableDruidDataSource
     return properties;
   }
 
-  public Map<String, DataSegment> getPartitionNames()
-  {
-    return partitionNames;
-  }
-
   public boolean isEmpty()
   {
-    return segmentsHolder.isEmpty();
+    return segmentsMap.isEmpty();
   }
 
-  public Set<DataSegment> getSegments()
+  public int size()
   {
-    return segmentsHolder;
+    return segmentsMap.size();
+  }
+
+  public Iterable<DataSegment> getSegments()
+  {
+    return segmentsMap.values();
   }
 }

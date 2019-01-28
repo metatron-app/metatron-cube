@@ -126,13 +126,12 @@ public class TierSelectorStrategyTest
             new NoneShardSpec(),
             0,
             0L
-        ),
-        tierSelectorStrategy
+        )
     );
     for (QueryableDruidServer server : servers) {
       serverSelector.addServerAndUpdateSegment(server, serverSelector.getSegment());
     }
-    Assert.assertEquals(expectedSelection, serverSelector.pick());
+    Assert.assertEquals(expectedSelection, serverSelector.pick(tierSelectorStrategy));
   }
 
 }

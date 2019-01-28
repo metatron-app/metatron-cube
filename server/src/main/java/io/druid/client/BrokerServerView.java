@@ -43,7 +43,6 @@ import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Client;
@@ -121,7 +120,6 @@ public class BrokerServerView implements TimelineServerView
   private final ObjectMapper jsonMapper;
   private final HttpClient httpClient;
   private final FilteredServerInventoryView baseView;
-  private final TierSelectorStrategy tierSelectorStrategy;
   private final ServiceEmitter emitter;
   private final BrokerIOConfig ioConfig;
   private final ExecutorService backgroundExecutorService;
@@ -139,7 +137,6 @@ public class BrokerServerView implements TimelineServerView
       @Json ObjectMapper jsonMapper,
       @Client HttpClient httpClient,
       FilteredServerInventoryView baseView,
-      TierSelectorStrategy tierSelectorStrategy,
       ServiceEmitter emitter,
       final BrokerSegmentWatcherConfig segmentWatcherConfig,
       BrokerIOConfig ioConfig,
@@ -154,7 +151,6 @@ public class BrokerServerView implements TimelineServerView
     this.jsonMapper = jsonMapper;
     this.httpClient = httpClient;
     this.baseView = baseView;
-    this.tierSelectorStrategy = tierSelectorStrategy;
     this.emitter = emitter;
     this.backgroundExecutorService = backgroundExecutorService;
     this.clients = Maps.newConcurrentMap();
@@ -250,15 +246,10 @@ public class BrokerServerView implements TimelineServerView
 
       timelines.clear();
 
-      final Iterator<ServerSelector> selectorsIter = selectors.values().iterator();
-      while (selectorsIter.hasNext()) {
-        final ServerSelector selector = selectorsIter.next();
-        selectorsIter.remove();
-        while (!selector.isEmpty()) {
-          final QueryableDruidServer pick = selector.pick();
-          selector.removeServer(pick);
-        }
+      for (ServerSelector selector : selectors.values()) {
+        selector.clear();
       }
+      selectors.clear();
     }
   }
 
@@ -298,7 +289,7 @@ public class BrokerServerView implements TimelineServerView
     String segmentId = segment.getIdentifier();
     ServerSelector selector = selectors.get(segmentId);
     if (selector == null) {
-      selector = new ServerSelector(segment, tierSelectorStrategy);
+      selector = new ServerSelector(segment);
 
       VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(segment.getDataSource());
       if (timeline == null) {

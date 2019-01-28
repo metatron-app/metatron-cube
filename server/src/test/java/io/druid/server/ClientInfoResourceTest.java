@@ -42,7 +42,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Ordering;
 import io.druid.client.DruidServer;
 import io.druid.client.FilteredServerInventoryView;
-import io.druid.client.InventoryView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.TableDataSource;
@@ -378,7 +377,7 @@ public class ClientInfoResourceTest
                                      .size(1)
                                      .build();
     server.addDataSegment(segment.getIdentifier(), segment);
-    ServerSelector ss = new ServerSelector(segment, null);
+    ServerSelector ss = new ServerSelector(segment);
     timeline.add(new Interval(interval), version, new SingleElementPartitionChunk<ServerSelector>(ss));
   }
 
@@ -402,7 +401,7 @@ public class ClientInfoResourceTest
                                      .size(1)
                                      .build();
     server.addDataSegment(segment.getIdentifier(), segment);
-    ServerSelector ss = new ServerSelector(segment, null);
+    ServerSelector ss = new ServerSelector(segment);
     timeline.add(new Interval(interval), version, shardSpec.createChunk(ss));
   }
 

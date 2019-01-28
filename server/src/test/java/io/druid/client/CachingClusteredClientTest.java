@@ -54,6 +54,7 @@ import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
+import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.CompactRow;
@@ -559,10 +560,7 @@ public class CachingClusteredClientTest
     final DataSegment dataSegment = EasyMock.createNiceMock(DataSegment.class);
     EasyMock.expect(dataSegment.getIdentifier()).andReturn(DATA_SOURCE).anyTimes();
     EasyMock.replay(dataSegment);
-    final ServerSelector selector = new ServerSelector(
-        dataSegment,
-        new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy())
-    );
+    final ServerSelector selector = new ServerSelector(dataSegment);
     selector.addServerAndUpdateSegment(new QueryableDruidServer(lastServer, null), dataSegment);
     timeline.add(interval, "v", new SingleElementPartitionChunk<>(selector));
 
@@ -1713,8 +1711,7 @@ public class CachingClusteredClientTest
         serverExpectations.get(lastServer).addExpectation(expectation);
 
         ServerSelector selector = new ServerSelector(
-            expectation.getSegment(),
-            new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy())
+            expectation.getSegment()
         );
         selector.addServerAndUpdateSegment(new QueryableDruidServer(lastServer, null), selector.getSegment());
 
@@ -2098,6 +2095,7 @@ public class CachingClusteredClientTest
       final int mergeLimit
   )
   {
+    TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
     return new CachingClusteredClient(
         null,
         null,
@@ -2142,6 +2140,7 @@ public class CachingClusteredClientTest
           {
           }
         },
+        strategy,
         cache,
         jsonMapper,
         backgroundExecutorService,

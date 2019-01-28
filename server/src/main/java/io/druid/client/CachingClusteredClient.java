@@ -43,6 +43,7 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
+import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
@@ -104,6 +105,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
+  private final TierSelectorStrategy tierSelectorStrategy;
   private final Cache cache;
   private final ObjectMapper objectMapper;
   private final QueryConfig queryConfig;
@@ -117,6 +119,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       QueryRunnerFactoryConglomerate conglomerate,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
+      TierSelectorStrategy tierSelectorStrategy,
       Cache cache,
       @Smile ObjectMapper objectMapper,
       @Processing ExecutorService executorService,
@@ -129,6 +132,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     this.conglomerate = conglomerate;
     this.warehouse = warehouse;
     this.serverView = serverView;
+    this.tierSelectorStrategy = tierSelectorStrategy;
     this.cache = cache;
     this.objectMapper = objectMapper;
     this.queryConfig = queryConfig;
@@ -361,7 +365,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
     // Compile list of all segments not pulled from cache
     for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
-      final QueryableDruidServer queryableDruidServer = segment.lhs.pick();
+      final QueryableDruidServer queryableDruidServer = segment.lhs.pick(tierSelectorStrategy);
 
       if (queryableDruidServer == null) {
         log.makeAlert(

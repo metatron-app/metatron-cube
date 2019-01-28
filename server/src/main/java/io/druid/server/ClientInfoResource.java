@@ -115,6 +115,9 @@ public class ClientInfoResource
         segments.addAll(dataSource.getSegments());
       }
     }
+    for (List<DataSegment> segments : dataSourceMap.values()) {
+      Collections.sort(segments);
+    }
     return dataSourceMap;
   }
 
