@@ -27,12 +27,19 @@ import com.google.common.collect.Maps;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.TaskMaster;
 import org.easymock.*;
+import org.easymock.Capture;
+import io.druid.server.security.AuthConfig;
+import org.easymock.EasyMock;
+import org.easymock.EasyMockRunner;
+import org.easymock.EasyMockSupport;
+import org.easymock.Mock;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +54,15 @@ public class SupervisorResourceTest extends EasyMockSupport
   @Mock
   private SupervisorManager supervisorManager;
 
+  @Mock
+  private HttpServletRequest request;
+
   private SupervisorResource supervisorResource;
 
   @Before
   public void setUp() throws Exception
   {
-    supervisorResource = new SupervisorResource(taskMaster);
+    supervisorResource = new SupervisorResource(taskMaster, new AuthConfig());
   }
 
   @Test
@@ -64,7 +74,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(supervisorManager.createOrUpdateAndStartSupervisor(spec)).andReturn(true);
     replayAll();
 
-    Response response = supervisorResource.specPost(spec);
+    Response response = supervisorResource.specPost(spec, request);
     verifyAll();
 
     Assert.assertEquals(200, response.getStatus());
@@ -74,7 +84,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.<SupervisorManager>absent());
     replayAll();
 
-    response = supervisorResource.specPost(spec);
+    response = supervisorResource.specPost(spec, request);
     verifyAll();
 
     Assert.assertEquals(503, response.getStatus());
@@ -89,7 +99,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(supervisorIds);
     replayAll();
 
-    Response response = supervisorResource.specGetAll();
+    Response response = supervisorResource.specGetAll(request);
     verifyAll();
 
     Assert.assertEquals(200, response.getStatus());
@@ -99,7 +109,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.<SupervisorManager>absent());
     replayAll();
 
-    response = supervisorResource.specGetAll();
+    response = supervisorResource.specGetAll(request);
     verifyAll();
 
     Assert.assertEquals(503, response.getStatus());
@@ -214,7 +224,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(supervisorManager.getSupervisorHistory()).andReturn(history);
     replayAll();
 
-    Response response = supervisorResource.specGetAllHistory();
+    Response response = supervisorResource.specGetAllHistory(request);
 
     Assert.assertEquals(200, response.getStatus());
     Assert.assertEquals(history, response.getEntity());
@@ -224,7 +234,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.<SupervisorManager>absent());
     replayAll();
 
-    response = supervisorResource.specGetAllHistory();
+    response = supervisorResource.specGetAllHistory(request);
     verifyAll();
 
     Assert.assertEquals(503, response.getStatus());
@@ -321,6 +331,12 @@ public class SupervisorResourceTest extends EasyMockSupport
     public Supervisor createSupervisor()
     {
       return supervisor;
+    }
+
+    @Override
+    public List<String> getDataSources()
+    {
+      return null;
     }
   }
 }

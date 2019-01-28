@@ -271,5 +271,12 @@ public class SupervisorManagerTest extends EasyMockSupport
     {
       return supervisor;
     }
+
+    @Override
+    public List<String> getDataSources()
+    {
+      return null;
+    }
+
   }
 }
