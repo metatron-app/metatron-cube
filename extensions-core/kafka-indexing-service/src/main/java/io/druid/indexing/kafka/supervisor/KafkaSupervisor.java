@@ -1296,7 +1296,8 @@ public class KafkaSupervisor implements Supervisor
         true,
         false,
         minimumMessageTime,
-        ioConfig.isUseEarliestOffset()
+        ioConfig.isUseEarliestOffset(),
+        ioConfig.isSkipOffsetGaps()
     );
 
     for (int i = 0; i < replicas; i++) {

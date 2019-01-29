@@ -33,6 +33,7 @@ public class KafkaIOConfig implements IOConfig
   private static final boolean DEFAULT_USE_TRANSACTION = true;
   private static final boolean DEFAULT_PAUSE_AFTER_READ = false;
   private static final boolean DEFAULT_USE_EARLIEST_OFFSET = false;
+  private static final boolean DEFAULT_SKIP_OFFSET_GAPS = false;
 
   private final String baseSequenceName;
   private final KafkaPartitions startPartitions;
@@ -42,6 +43,7 @@ public class KafkaIOConfig implements IOConfig
   private final boolean pauseAfterRead;
   private final Optional<DateTime> minimumMessageTime;
   private final boolean useEarliestOffset;
+  private final boolean skipOffsetGaps;
 
   @JsonCreator
   public KafkaIOConfig(
@@ -52,7 +54,8 @@ public class KafkaIOConfig implements IOConfig
       @JsonProperty("useTransaction") Boolean useTransaction,
       @JsonProperty("pauseAfterRead") Boolean pauseAfterRead,
       @JsonProperty("minimumMessageTime") DateTime minimumMessageTime,
-      @JsonProperty("useEarliestOffset") Boolean useEarliestOffset
+      @JsonProperty("useEarliestOffset") Boolean useEarliestOffset,
+      @JsonProperty("skipOffsetGaps") Boolean skipOffsetGaps
   )
   {
     this.baseSequenceName = Preconditions.checkNotNull(baseSequenceName, "baseSequenceName");
@@ -63,6 +66,7 @@ public class KafkaIOConfig implements IOConfig
     this.pauseAfterRead = pauseAfterRead != null ? pauseAfterRead : DEFAULT_PAUSE_AFTER_READ;
     this.minimumMessageTime = Optional.fromNullable(minimumMessageTime);
     this.useEarliestOffset = useEarliestOffset != null ? useEarliestOffset : DEFAULT_USE_EARLIEST_OFFSET;
+    this.skipOffsetGaps = skipOffsetGaps != null ? skipOffsetGaps : DEFAULT_SKIP_OFFSET_GAPS;
 
     Preconditions.checkArgument(
         startPartitions.getTopic().equals(endPartitions.getTopic()),
@@ -132,6 +136,12 @@ public class KafkaIOConfig implements IOConfig
     return useEarliestOffset;
   }
 
+  @JsonProperty
+  public boolean isSkipOffsetGaps()
+  {
+    return skipOffsetGaps;
+  }
+
   @Override
   public String toString()
   {
@@ -144,6 +154,7 @@ public class KafkaIOConfig implements IOConfig
            ", pauseAfterRead=" + pauseAfterRead +
            ", minimumMessageTime=" + minimumMessageTime +
            ", useEarliestOffest=" + useEarliestOffset +
+           ", skipOffsetGaps=" + skipOffsetGaps +
            '}';
   }
 }

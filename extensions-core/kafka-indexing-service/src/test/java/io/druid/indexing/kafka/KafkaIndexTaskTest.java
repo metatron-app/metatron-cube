@@ -303,7 +303,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -346,7 +347,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -401,7 +403,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             new DateTime("2010"),
-            null
+            null,
+            false
         ),
         null,
         null
@@ -463,7 +466,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -505,7 +509,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -558,7 +563,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -610,7 +616,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -644,7 +651,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -659,7 +667,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -714,7 +723,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -729,7 +739,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -785,7 +796,8 @@ public class KafkaIndexTaskTest
             false,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -800,7 +812,8 @@ public class KafkaIndexTaskTest
             false,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -861,7 +874,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -919,7 +933,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -934,7 +949,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -991,7 +1007,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -1027,7 +1044,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -1080,7 +1098,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -1164,7 +1183,8 @@ public class KafkaIndexTaskTest
             true,
             true,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -1252,7 +1272,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         null
@@ -1291,7 +1312,8 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null
+            null,
+            false
         ),
         null,
         true
