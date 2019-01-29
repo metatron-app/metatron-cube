@@ -29,7 +29,6 @@ import com.metamx.emitter.core.LoggingEmitterConfig;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.curator.CuratorConfig;
 import io.druid.guice.JsonConfigProvider;
-import io.druid.guice.LazySingleton;
 import io.druid.guice.ManageLifecycle;
 import io.druid.testing.IntegrationTestingConfig;
 import io.druid.testing.IntegrationTestingConfigProvider;
@@ -49,7 +48,7 @@ public class DruidTestModule implements Module
   }
 
   @Provides
-  @LazySingleton
+  @ManageLifecycle
   public ServiceEmitter getServiceEmitter(Supplier<LoggingEmitterConfig> config, ObjectMapper jsonMapper)
   {
     return new ServiceEmitter("", "", new LoggingEmitter(config.get(), jsonMapper));

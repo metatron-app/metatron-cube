@@ -46,6 +46,9 @@
     </plugins>
   </build>
 
+  <properties>
+    <apache.kafka.version>0.10.2.0</apache.kafka.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -69,7 +72,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>0.10.2.0</version>
+      <version>${apache.kafka.version}</version>
     </dependency>
 
     <!-- Tests -->
@@ -81,7 +84,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.11</artifactId>
-      <version>0.10.2.0</version>
+      <version>${apache.kafka.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
