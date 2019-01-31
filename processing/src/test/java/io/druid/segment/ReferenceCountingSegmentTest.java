@@ -131,15 +131,15 @@ public class ReferenceCountingSegmentTest
         }
     );
 
-    Assert.assertTrue(segment.getNumReferences() == 0);
+    Assert.assertTrue(segment.getNumReferences() < 0);
     Assert.assertTrue(segment.isClosed());
 
     segment.increment();
     segment.increment();
     segment.increment();
-    Assert.assertTrue(segment.getNumReferences() == 0);
+    Assert.assertTrue(segment.getNumReferences() < 0);
 
     segment.close();
-    Assert.assertTrue(segment.getNumReferences() == 0);
+    Assert.assertTrue(segment.getNumReferences() < 0);
   }
 }

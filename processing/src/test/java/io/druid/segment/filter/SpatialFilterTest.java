@@ -545,15 +545,16 @@ public class SpatialFilterTest
         )
     );
     try {
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-          new TimeseriesQueryQueryToolChest(
-              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+          toolChest,
           new TimeseriesQueryEngine(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment, null),
+          toolChest.mergeResults(factory.createRunner(segment, null)),
           factory.getToolchest()
       );
 
@@ -596,15 +597,16 @@ public class SpatialFilterTest
         )
     );
     try {
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-          new TimeseriesQueryQueryToolChest(
-              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+          toolChest,
           new TimeseriesQueryEngine(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment, null),
+          toolChest.mergeResults(factory.createRunner(segment, null)),
           factory.getToolchest()
       );
 
@@ -674,15 +676,16 @@ public class SpatialFilterTest
         )
     );
     try {
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-          new TimeseriesQueryQueryToolChest(
-              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+          toolChest,
           new TimeseriesQueryEngine(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment, null),
+          toolChest.mergeResults(factory.createRunner(segment, null)),
           factory.getToolchest()
       );
 

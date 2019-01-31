@@ -61,7 +61,7 @@ public class GenericRecordAsMap implements Map<String, Object>
       schema.put(field.name(), field);
     }
     Map<String, Object> partitions = InputRow.CURRENT_PARTITION.get();
-    if (partitions != null & !partitions.isEmpty()) {
+    if (partitions != null && !partitions.isEmpty()) {
       for (String key : schema.keySet()) {
         partitions.remove(key);
       }

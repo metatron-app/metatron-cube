@@ -461,7 +461,7 @@ public class PullDependencies implements Runnable
 
   private void createRootExtensionsDirectory(File atLocation)
   {
-    if (!atLocation.isDirectory() && !atLocation.mkdirs()) {
+    if (!atLocation.mkdirs()) {
       throw new ISE(
           String.format(
               "Unable to create extensions directory at [%s]",

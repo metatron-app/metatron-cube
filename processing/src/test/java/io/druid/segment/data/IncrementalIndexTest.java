@@ -387,13 +387,16 @@ public class IncrementalIndexTest
                                   .build();
 
     final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+    );
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-        new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        toolChest,
         new TimeseriesQueryEngine(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     final QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
-        factory.createRunner(incrementalIndexSegment, null),
+        toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
         factory.getToolchest()
     );
 
@@ -414,7 +417,8 @@ public class IncrementalIndexTest
       Assert.assertEquals(
           String.format("Failed double sum on dimension %d", i),
           2*rows,
-          result.getDoubleMetric(String.format("doubleSumResult%s", i))
+          result.getDoubleMetric(String.format("doubleSumResult%s", i)),
+          0.001
       );
     }
   }
@@ -487,8 +491,11 @@ public class IncrementalIndexTest
     final List<ListenableFuture<?>> indexFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
     final List<ListenableFuture<?>> queryFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
     final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
+        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+    );
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-        new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        toolChest,
         new TimeseriesQueryEngine(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
@@ -553,7 +560,7 @@ public class IncrementalIndexTest
                   }
                   while (concurrentlyRan.get() == 0) {
                     QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
-                        factory.createRunner(incrementalIndexSegment, null),
+                        toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
                         factory.getToolchest()
                     );
                     Map<String, Object> context = new HashMap<String, Object>();
@@ -605,7 +612,7 @@ public class IncrementalIndexTest
     queryExecutor.shutdown();
     indexExecutor.shutdown();
     QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
-        factory.createRunner(incrementalIndexSegment, null),
+        toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
         factory.getToolchest()
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
@@ -634,7 +641,8 @@ public class IncrementalIndexTest
         Assert.assertEquals(
             String.format("Failed double sum on dimension %d", i),
             elementsPerThread * concurrentThreads,
-            result.getDoubleMetric(String.format("doubleSumResult%s", i))
+            result.getDoubleMetric(String.format("doubleSumResult%s", i)),
+            0.001
         );
       }
     }

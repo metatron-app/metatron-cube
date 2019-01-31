@@ -3,6 +3,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -38,6 +39,11 @@ public class BulkRow extends AbstractRow
         final byte[] array = (byte[]) values[i];
         values[i] = new BytesInputStream(
             LZ4.decompress(array, Integer.BYTES, Ints.fromByteArray(array))
+        );
+      } else if (values[i] instanceof BytesRef) {
+        final BytesRef array = (BytesRef) values[i];
+        values[i] = new BytesInputStream(
+            LZ4.decompress(array.bytes, Integer.BYTES, Ints.fromByteArray(array.bytes))
         );
       }
     }

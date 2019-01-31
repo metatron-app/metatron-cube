@@ -1,7 +1,10 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import io.druid.common.Yielders;
@@ -31,7 +34,11 @@ public class BulkRowSequenceTest
           @Override
           public long[] apply(Row input)
           {
-            return (long[]) ((BulkRow) input).getValues()[0];
+            List<Long> timestamps = Lists.newArrayList();
+            for (Row row : Sequences.toList(((BulkRow) input).decompose())) {
+              timestamps.add((Long)((CompactRow) row).getValues()[0]);
+            }
+            return Longs.toArray(timestamps);
           }
         }
     ));
@@ -45,7 +52,11 @@ public class BulkRowSequenceTest
           @Override
           public String[] apply(Row input)
           {
-            return (String[]) ((BulkRow) input).getValues()[1];
+            List<String> strings = Lists.newArrayList();
+            for (Row row : Sequences.toList(((BulkRow) input).decompose())) {
+              strings.add((String)((CompactRow) row).getValues()[1]);
+            }
+            return strings.toArray(new String[0]);
           }
         }
     ));
@@ -54,25 +65,39 @@ public class BulkRowSequenceTest
     Assert.assertArrayEquals(new String[]{"4"}, strings.get(2));
 
     Yielder<Row> yielder = bulk.toYielder(null, new Yielders.Yielding<Row>());
-    Assert.assertArrayEquals(new long[]{0, 1}, (long[]) ((BulkRow) yielder.get()).getValues()[0]);
+    List<Long> timestamps = Lists.newArrayList();
+    for (Row row : Sequences.toList(((BulkRow) yielder.get()).decompose())) {
+      timestamps.add((Long)((CompactRow) row).getValues()[0]);
+    }
+    Assert.assertArrayEquals(new long[]{0, 1}, Longs.toArray(timestamps));
     yielder = yielder.next(null);
-    Assert.assertArrayEquals(new long[]{2, 3}, (long[]) ((BulkRow) yielder.get()).getValues()[0]);
+    timestamps.clear();
+    for (Row row : Sequences.toList(((BulkRow) yielder.get()).decompose())) {
+      timestamps.add((Long)((CompactRow) row).getValues()[0]);
+    }
+    Assert.assertArrayEquals(new long[]{2, 3}, Longs.toArray(timestamps));
     yielder = yielder.next(null);
-    Assert.assertArrayEquals(new long[]{4}, (long[]) ((BulkRow) yielder.get()).getValues()[0]);
+    timestamps.clear();
+    for (Row row : Sequences.toList(((BulkRow) yielder.get()).decompose())) {
+      timestamps.add((Long)((CompactRow) row).getValues()[0]);
+    }
     Assert.assertTrue(yielder.isDone());
 
-    DefaultObjectMapper mapper = new DefaultObjectMapper();
-    String s = mapper.writeValueAsString(bulk);
+    DefaultObjectMapper mapper = new DefaultObjectMapper(new SmileFactory());
+    byte[] s = mapper.writeValueAsBytes(bulk);
     List<Row> deserialized = mapper.readValue(s, new TypeReference<List<Row>>() {});
-    Assert.assertEquals(Arrays.asList(0, 1), ((BulkRow) deserialized.get(0)).getValues()[0]);
-    Assert.assertEquals(Arrays.asList("0", "1"), ((BulkRow) deserialized.get(0)).getValues()[1]);
-    Assert.assertEquals(Arrays.asList(2, 3), ((BulkRow) deserialized.get(1)).getValues()[0]);
-    Assert.assertEquals(Arrays.asList("2", "3"), ((BulkRow) deserialized.get(1)).getValues()[1]);
-    Assert.assertEquals(Arrays.asList(4), ((BulkRow) deserialized.get(2)).getValues()[0]);
-    Assert.assertEquals(Arrays.asList("4"), ((BulkRow) deserialized.get(2)).getValues()[1]);
+    Assert.assertEquals(
+        Lists.newArrayList(cr(0), cr(1)), Sequences.toList(((BulkRow) deserialized.get(0)).decompose())
+    );
+    Assert.assertEquals(
+        Lists.newArrayList(cr(2), cr(3)), Sequences.toList(((BulkRow) deserialized.get(1)).decompose())
+    );
+    Assert.assertEquals(
+        Lists.newArrayList(cr(4)), Sequences.toList(((BulkRow) deserialized.get(2)).decompose())
+    );
   }
 
-  private CompactRow cr(int x)
+  private CompactRow cr(long x)
   {
     return new CompactRow(new Object[]{x, String.valueOf(x)});
   }
