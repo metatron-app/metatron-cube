@@ -33,6 +33,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -80,7 +81,7 @@ public class StringInputRowParser implements InputRowParser
     } else if (input instanceof ByteBuffer) {
       event = buildStringKeyMap((ByteBuffer) input);
     } else {
-      throw new IllegalArgumentException("invalid type value " + input);
+      event = parseString(Objects.toString(input));
     }
     return parseMap(Rows.mergePartitions(event));
   }

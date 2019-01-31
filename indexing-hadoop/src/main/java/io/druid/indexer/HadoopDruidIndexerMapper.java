@@ -25,10 +25,8 @@ import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.segment.indexing.granularity.GranularitySpec;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.joda.time.DateTime;
@@ -148,15 +146,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   @SuppressWarnings("unchecked")
   private InputRow parseInputRow(Object value, InputRowParser parser)
   {
-    if (value instanceof InputRow) {
-      return (InputRow) value;
-    } else if (parser instanceof StringInputRowParser && value instanceof Text) {
-      //Note: This is to ensure backward compatibility with 0.7.0 and before
-      //HadoopyStringInputRowParser can handle this and this special case is not needed
-      //except for backward compatibility
-      return parser.parse(value.toString());
-    }
-    return parser.parse(value);
+    return value instanceof InputRow ? (InputRow) value : parser.parse(value);
   }
 
   protected abstract void innerMap(InputRow inputRow, Object value, Context context)
