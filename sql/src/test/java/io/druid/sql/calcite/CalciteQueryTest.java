@@ -5247,27 +5247,24 @@ public class CalciteQueryTest
             GroupByQuery.builder()
                         .setDataSource(CalciteTests.DATASOURCE1)
                         .setInterval(QSS(Filtration.eternity()))
-                        .setGranularity(Granularities.ALL)
+                        .setGranularity(Granularities.YEAR)
                         .setDimensions(
-                            new DefaultDimensionSpec("d0:v", "d0"),
                             new DefaultDimensionSpec("dim2", "d1")
                         )
                         .setVirtualColumns(
                             new ExprVirtualColumn("timestamp_floor(\"__time\",'P1Y','','UTC')", "d0:v")
                         )
                         .setAggregatorSpecs(
-                            AGGS(
-                                new CountAggregatorFactory("a0")
-                            )
+                            new CountAggregatorFactory("a0")
+                        )
+                        .setPostAggregatorSpecs(
+                            new MathPostAggregator("d0", "timestamp_floor(\"__time\",'P1Y','','UTC')")
                         )
                         .setLimitSpec(
-                            new LimitSpec(
-                                ImmutableList.of(
-                                    OrderByColumnSpec.asc("d0"),
-                                    OrderByColumnSpec.asc("d1"),
-                                    OrderByColumnSpec.desc("a0")
-                                ),
-                                Integer.MAX_VALUE
+                            LimitSpec.of(
+                                OrderByColumnSpec.asc("d0"),
+                                OrderByColumnSpec.asc("d1"),
+                                OrderByColumnSpec.desc("a0")
                             )
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)

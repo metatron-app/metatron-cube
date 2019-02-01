@@ -81,20 +81,28 @@ public interface SQLFunctions extends Function.Library
       final Function function = super.create(args);
       final Function parameter = Evals.getFunction(args.get(1));
       if (parameter instanceof HoldingChild) {
-        return new HoldingChild<Object>(((HoldingChild) parameter).getHolder())
-        {
-          @Override
-          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-          {
-            return ValueDesc.LONG;
-          }
+        final Object holder = ((HoldingChild) parameter).getHolder();
+        if (holder instanceof PeriodGranularity && !((PeriodGranularity) holder).isCompound()) {
+          PeriodGranularity granularity = (PeriodGranularity) holder;
+          String uninName = Evals.getConstantString(args.get(0));
+          Period period = DateTimeFunctions.Unit.valueOf(StringUtils.toUpperCase(uninName)).asPeriod();
+          if (granularity.getPeriod().equals(period)) {
+            return new HoldingChild<Object>(holder)
+            {
+              @Override
+              public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+              {
+                return ValueDesc.LONG;
+              }
 
-          @Override
-          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-          {
-            return function.apply(args, bindings);
+              @Override
+              public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+              {
+                return function.apply(args, bindings);
+              }
+            };
           }
-        };
+        }
       }
       return function;
     }

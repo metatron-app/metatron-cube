@@ -23,13 +23,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.DateTimes;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.Granularities;
-import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryConfig;
 import io.druid.query.extraction.RegexDimExtractionFn;
-import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RegexpExtractOperatorConversion;
@@ -407,16 +404,7 @@ public class ExpressionsTest
             rexBuilder.makeNullLiteral(typeFactory.createSqlType(SqlTypeName.TIMESTAMP)),
             rexBuilder.makeLiteral("America/Los_Angeles")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn(
-                    null,
-                    null,
-                    null,
-                    new PeriodGranularity(Period.days(1), null, LOS_ANGELES)
-                )
-            ),
+        DruidExpression.fromExpression(
             "timestamp_floor(\"t\",'P1D','','America/Los_Angeles')"
         ),
         DateTimes.of("2000-02-02T08:00:00").getMillis()
@@ -434,11 +422,7 @@ public class ExpressionsTest
             inputRef("t"),
             rexBuilder.makeFlag(TimeUnitRange.YEAR)
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn(null, null, null, Granularities.YEAR)
-            ),
+        DruidExpression.fromExpression(
             "timestamp_floor(\"t\",'P1Y','','UTC')"
         ),
         DateTimes.of("2000").getMillis()
@@ -487,7 +471,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             null,
-            "datetime_extract('QUARTER',\"t\",'UTC')"
+            "timestamp_extract('QUARTER',\"t\",'UTC')"
         ),
         1L
     );
@@ -499,12 +483,8 @@ public class ExpressionsTest
             rexBuilder.makeLiteral("DAY"),
             rexBuilder.makeLiteral("America/Los_Angeles")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn("d", "America/Los_Angeles", null, Granularities.NONE)
-            ),
-            "datetime_extract('DAY',\"t\",'America/Los_Angeles')"
+        DruidExpression.fromExpression(
+            "timestamp_extract('DAY',\"t\",'America/Los_Angeles')"
         ),
         2L
     );
@@ -638,11 +618,7 @@ public class ExpressionsTest
             inputRef("t"),
             rexBuilder.makeLiteral("yyyy-MM-dd HH:mm:ss")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn("yyyy-MM-dd HH:mm:ss", "UTC", null, Granularities.NONE)
-            ),
+        DruidExpression.fromExpression(
             "timestamp_format(\"t\",'yyyy-MM-dd HH:mm:ss','UTC')"
         ),
         "2000-02-03 04:05:06"
@@ -655,16 +631,7 @@ public class ExpressionsTest
             rexBuilder.makeLiteral("yyyy-MM-dd HH:mm:ss"),
             rexBuilder.makeLiteral("America/Los_Angeles")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn(
-                    "yyyy-MM-dd HH:mm:ss",
-                    "America/Los_Angeles",
-                    null,
-                    Granularities.NONE
-                )
-            ),
+        DruidExpression.fromExpression(
             "timestamp_format(\"t\",'yyyy-MM-dd HH:mm:ss','America/Los_Angeles')"
         ),
         "2000-02-02 20:05:06"
@@ -682,7 +649,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             null,
-            "datetime_extract('QUARTER',\"t\",'UTC')"
+            "timestamp_extract('QUARTER',\"t\",'UTC')"
         ),
         1L
     );
@@ -693,12 +660,8 @@ public class ExpressionsTest
             rexBuilder.makeFlag(TimeUnitRange.DAY),
             inputRef("t")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of(
-                "t",
-                new TimeFormatExtractionFn("d", "UTC", null, Granularities.NONE)
-            ),
-            "datetime_extract('DAY',\"t\",'UTC')"
+        DruidExpression.fromExpression(
+            "timestamp_extract('DAY',\"t\",'UTC')"
         ),
         3L
     );
@@ -726,7 +689,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             null,
-            "timestamp_parse(\"tstr\",'yyyy-MM-dd HH:mm:ss','UTC')"
+            "timestamp_parse(\"tstr\",'','UTC')"
         ),
         DateTimes.of("2000-02-03T04:05:06Z").getMillis()
     );
@@ -773,8 +736,7 @@ public class ExpressionsTest
             typeFactory.createSqlType(SqlTypeName.DATE),
             inputRef("t")
         ),
-        DruidExpression.of(
-            SimpleExtraction.of("t", new TimeFormatExtractionFn(null, null, null, Granularities.DAY)),
+        DruidExpression.fromExpression(
             "timestamp_floor(\"t\",'P1D','','UTC')"
         ),
         DateTimes.of("2000-02-03").getMillis()
@@ -786,7 +748,7 @@ public class ExpressionsTest
             inputRef("dstr")
         ),
         DruidExpression.fromExpression(
-            "timestamp_floor(timestamp_parse(\"dstr\",'yyyy-MM-dd','UTC'),'P1D','','UTC')"
+            "timestamp_floor(timestamp_parse(\"dstr\",'','UTC'),'P1D','','UTC')"
         ),
         DateTimes.of("2000-02-03").getMillis()
     );
@@ -817,8 +779,7 @@ public class ExpressionsTest
                 inputRef("t")
             )
         ),
-        DruidExpression.of(
-            SimpleExtraction.of("t", new TimeFormatExtractionFn(null, null, null, Granularities.DAY)),
+        DruidExpression.fromExpression(
             "timestamp_floor(\"t\",'P1D','','UTC')"
         ),
         DateTimes.of("2000-02-03").getMillis()

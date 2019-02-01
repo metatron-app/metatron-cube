@@ -27,6 +27,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.GranularityType;
 import io.druid.granularity.PeriodGranularity;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -270,7 +271,13 @@ public interface DateTimeFunctions extends Function.Library
 
   enum Unit
   {
-    MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, WEEKOFWEEKYEAR, MONTH, YEAR, WEEKYEAR, DOW, DOY, QUARTER
+    MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, WEEKOFWEEKYEAR, MONTH, YEAR, WEEKYEAR, DOW, DOY, QUARTER;
+
+    public Period asPeriod()
+    {
+      GranularityType type = GranularityType.of(name());
+      return type == null ? null : type.getPeriod();
+    }
   }
 
   // whole time based

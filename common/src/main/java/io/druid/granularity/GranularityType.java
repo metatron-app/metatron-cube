@@ -192,6 +192,16 @@ public enum GranularityType
     }
   }
 
+  public static GranularityType of(String string)
+  {
+    try {
+      return valueOf(string.toUpperCase());
+    }
+    catch (Exception e) {
+      return null;
+    }
+  }
+
   /**
    * Note: This is only an estimate based on the values in period.
    * This will not work for complicated periods that represent say 1 year 1 day
@@ -265,5 +275,10 @@ public enum GranularityType
   public String getDefaultFormat()
   {
     return defaultFormat;
+  }
+
+  public Period getPeriod()
+  {
+    return period;
   }
 }

@@ -21,8 +21,11 @@ package io.druid.math.expr;
 
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
+import io.druid.common.DateTimes;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -467,7 +470,15 @@ abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.Fu
 
     ValueDesc lt = leftVal.type();
     ValueDesc rt = rightVal.type();
-    if (lt.isString() && rightVal.isString() || !lt.isNumeric() && !rt.isNumeric()) {
+    if (lt.isDateTime() || rt.isDateTime()) {
+      DateTime left = lt.isDateTime() ? leftVal.dateTimeValue() : leftVal.asDateTime();
+      DateTime right = rt.isDateTime() ? rightVal.dateTimeValue() : rightVal.asDateTime();
+      DateTimeZone zone = left != null ? left.getZone() : right != null ? right.getZone() : null;
+      return ExprEval.of(
+          DateTimes.withZone(evalLong(left == null ? 0 : left.getMillis(), right == null ? 0 : right.getMillis()), zone)
+      );
+    }
+    if (!lt.isNumeric() && !rt.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
     // null - 100 = null
@@ -476,11 +487,11 @@ abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.Fu
     } else if (rightVal.isNull() && lt.isNumeric()) {
       return rightVal;
     }
-    if (!lt.isNumeric() || !rt.isNumeric()) {
-      return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
-    }
     if (lt.isLong() && rt.isLong()) {
       return ExprEval.of(evalLong(leftVal.longValue(), rightVal.longValue()));
+    }
+    if (!lt.isNumeric() || !rt.isNumeric()) {
+      return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
     if (supportsFloatEval() && lt.isFloat() && rt.isFloat()) {
       return ExprEval.of(evalFloat(leftVal.floatValue(), rightVal.floatValue()));

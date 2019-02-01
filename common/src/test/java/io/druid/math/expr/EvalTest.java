@@ -499,6 +499,8 @@ public class EvalTest
     Assert.assertEquals(31, evalLong("last_day(x)", bindings));
     Assert.assertEquals(new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-04T22:24:59", home), evalDateTime("x - 1000", bindings));
+    Assert.assertEquals(new DateTime("2016-03-04T22:25:01", home), evalDateTime("x + 1000", bindings));
 
     // utc
     Assert.assertEquals(4, evalLong("dayofmonth(x, 'UTC')", bindings));

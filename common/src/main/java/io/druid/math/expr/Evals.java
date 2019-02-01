@@ -456,7 +456,7 @@ public class Evals
       if (type.isString()) {
         final String string = arg.stringValue();
         if (StringUtils.isNumeric(string)) {
-          return new DateTime(Long.valueOf(string), timeZone);
+          return DateTimes.withZone(Long.valueOf(string), timeZone);
         } else {
           return timeZone == null
                  ? defaultFormat.parseDateTime(string)

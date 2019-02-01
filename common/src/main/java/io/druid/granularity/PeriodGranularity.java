@@ -20,6 +20,7 @@
 package io.druid.granularity;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializable;
@@ -37,7 +38,6 @@ import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -45,6 +45,11 @@ import java.io.IOException;
  */
 public class PeriodGranularity extends Granularity implements JsonSerializable
 {
+  public static PeriodGranularity of(Period period)
+  {
+    return new PeriodGranularity(period, null, null);
+  }
+
   private final Period period;
   private final Chronology chronology;
   private final long origin;
@@ -85,7 +90,7 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   }
 
   @JsonProperty("origin")
-  @Nullable
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public DateTime getOrigin()
   {
     return hasOrigin ? DateTimes.utc(origin) : null;
@@ -95,6 +100,11 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   public boolean isUTC()
   {
     return chronology == ISOChronology.getInstanceUTC();
+  }
+
+  public boolean isCompound()
+  {
+    return isCompound;
   }
 
   // Used only for Segments. Not for Queries

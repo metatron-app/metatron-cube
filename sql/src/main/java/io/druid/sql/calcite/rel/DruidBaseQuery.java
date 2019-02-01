@@ -844,20 +844,40 @@ public class DruidBaseQuery implements DruidQuery
     if (grouping == null) {
       return null;
     }
-
-    final Filtration filtration = Filtration.create(filter).optimize(sourceRowSignature);
-
-    final List<PostAggregator> postAggregators = new ArrayList<>(grouping.getPostAggregators());
+    Granularity granularity = null;
+    List<DimensionSpec> dimensionSpecs = grouping.getDimensionSpecs();
+    List<PostAggregator> postAggregators = new ArrayList<>(grouping.getPostAggregators());
     if (sortProject != null) {
       postAggregators.addAll(sortProject.getPostAggregators());
     }
+
+    DimensionExpression dimension = Iterables.getFirst(grouping.getDimensions(), null);
+    if (dimension != null) {
+       granularity = Expressions.asGranularity(dimension.getDruidExpression());
+       if (granularity != null) {
+         dimensionSpecs = dimensionSpecs.subList(1, dimensionSpecs.size());
+         DruidExpression expression = dimension.getDruidExpression();
+         PostAggregator postAggregator;
+         if (expression.isSimpleExtraction()) {
+           postAggregator = new FieldAccessPostAggregator(dimension.getOutputName(), expression.getDirectColumn());
+         } else {
+           postAggregator = new MathPostAggregator(dimension.getOutputName(), expression.getExpression());
+         }
+         postAggregators.add(postAggregator);
+       }
+    }
+    if (granularity == null) {
+      granularity = Granularities.ALL;
+    }
+
+    final Filtration filtration = Filtration.create(filter).optimize(sourceRowSignature);
 
     return new GroupByQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
         filtration.getDimFilter(),
-        Granularities.ALL,
-        grouping.getDimensionSpecs(),
+        granularity,
+        dimensionSpecs,
         null,
         getVirtualColumns(true),
         grouping.getAggregatorFactories(),
