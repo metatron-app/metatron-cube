@@ -325,6 +325,35 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void testGroupByOnExprDim()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(firstToThird)
+        .setDimensions(ExpressionDimensionSpec.of("replace(partial_null_column, 'v', 'x')", "x"))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(dayGran)
+        .build();
+
+    String[] columnNames = {"__time", "x", "rows", "idx"};
+    Object[][] objects = {
+        array("2011-04-01T00:00:00.000Z", null, 11L, 3938L),
+        array("2011-04-01T00:00:00.000Z", "xalue", 2L, 2681L),
+        array("2011-04-02T00:00:00.000Z", null, 11L, 3634L),
+        array("2011-04-02T00:00:00.000Z", "xalue", 2L, 2193L)
+    };
+    Iterable<Row> results = runQuery(query, true);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testGroupByLocalLimit()
   {
     GroupByQuery query = GroupByQuery

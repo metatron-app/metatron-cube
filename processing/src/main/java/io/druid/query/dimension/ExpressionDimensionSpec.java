@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.metamx.common.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -34,6 +35,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 
 /**
  */
@@ -103,14 +105,15 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public DimensionSelector decorate(final DimensionSelector selector)
   {
     final String dimension = getDimension();
-    final TypeResolver bindings = Parser.withTypeMap(
-        ImmutableMap.<String, ValueDesc>of(dimension, selector.type())
-    );
     final Expr expr = Parser.parse(expression);
-    final ValueDesc resultType = expr.resolve(bindings);
+    final ValueDesc resultType = expr.resolve(
+        Parser.withTypeMap(ImmutableMap.<String, ValueDesc>of(dimension, selector.type()))
+    );
     if (!Comparable.class.isAssignableFrom(RowResolver.toClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
     }
+    final Map<String, Object> mapping = Maps.newHashMap();
+    final Expr.NumericBinding binding = Parser.withMap(mapping);
     return new DimensionSelector()
     {
       @Override
@@ -128,9 +131,8 @@ public class ExpressionDimensionSpec implements DimensionSpec
       @Override
       public Comparable lookupName(int id)
       {
-        return (Comparable) expr.eval(
-            Parser.withMap(ImmutableMap.<String, Object>of(dimension, selector.lookupName(id)))
-        ).value();
+        mapping.put(dimension, selector.lookupName(id));
+        return (Comparable) expr.eval(binding).value();
       }
 
       @Override
