@@ -19,7 +19,6 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
@@ -170,8 +169,8 @@ public interface DateTimeFunctions extends Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          ExprEval param = args.get(0).eval(bindings);
-          return ExprEval.of(granularity.bucketStart(param.asDateTime()));
+          final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
+          return ExprEval.of(dateTime == null ? null : granularity.bucketStart(dateTime));
         }
       };
     }
@@ -194,8 +193,8 @@ public interface DateTimeFunctions extends Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          ExprEval param = args.get(0).eval(bindings);
-          return ExprEval.of(granularity.bucketEnd(param.asDateTime()));
+          final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
+          return ExprEval.of(dateTime == null ? null : granularity.bucketEnd(dateTime));
         }
       };
     }
@@ -228,6 +227,7 @@ public interface DateTimeFunctions extends Function.Library
       final DateTimeZone timeZone = args.size() == 3
                                     ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2)))
                                     : null;
+      final Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
       return new Child()
       {
         @Override
@@ -240,8 +240,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
-          return evaluate(base, period);
+          return base == null ? ExprEval.of(base) : evaluate(base, period);
         }
       };
     }
@@ -340,7 +339,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.dayOfWeek().getAsText(locale));
+          return ExprEval.of(time == null ? null : time.dayOfWeek().getAsText(locale));
         }
       };
     }
@@ -357,7 +356,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getDayOfMonth());
+          return ExprEval.of(time == null ? -1 :time.getDayOfMonth());
         }
       };
     }
@@ -374,7 +373,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.dayOfMonth().getMaximumValue());
+          return ExprEval.of(time == null ? -1 :time.dayOfMonth().getMaximumValue());
         }
       };
     }
@@ -391,7 +390,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getDayOfWeek());
+          return ExprEval.of(time == null ? -1 :time.getDayOfWeek());
         }
       };
     }
@@ -408,7 +407,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getDayOfYear());
+          return ExprEval.of(time == null ? -1 :time.getDayOfYear());
         }
       };
     }
@@ -426,7 +425,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getWeekOfWeekyear());
+          return ExprEval.of(time == null ? -1 :time.getWeekOfWeekyear());
         }
       };
     }
@@ -444,7 +443,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getWeekyear());
+          return ExprEval.of(time == null ? -1 :time.getWeekyear());
         }
       };
     }
@@ -461,7 +460,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getHourOfDay());
+          return ExprEval.of(time == null ? -1 : time.getHourOfDay());
         }
       };
     }
@@ -478,7 +477,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getMonthOfYear());
+          return ExprEval.of(time == null ? -1 :time.getMonthOfYear());
         }
       };
     }
@@ -495,7 +494,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.monthOfYear().getAsText(locale));
+          return ExprEval.of(time == null ? null : time.monthOfYear().getAsText(locale));
         }
       };
     }
@@ -512,7 +511,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.getYear());
+          return ExprEval.of(time == null ? -1 : time.getYear());
         }
       };
     }
@@ -529,7 +528,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.dayOfMonth().withMinimumValue());
+          return ExprEval.of(time == null ? -1 :time.dayOfMonth().withMinimumValue().getDayOfMonth());
         }
       };
     }
@@ -546,7 +545,7 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time.dayOfMonth().withMaximumValue());
+          return ExprEval.of(time == null ? -1 :time.dayOfMonth().withMaximumValue().getDayOfMonth());
         }
       };
     }
@@ -606,12 +605,8 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval value = args.get(0).eval(bindings);
-          try {
-            return eval(Evals.toDateTime(value, formatter));
-          }
-          catch (Exception e) {
-            return failed(e);
-          }
+          DateTime dateTime = Evals.toDateTime(value, formatter);
+          return dateTime == null ? invalid(value) : eval(dateTime);
         }
       };
     }
@@ -620,9 +615,9 @@ public interface DateTimeFunctions extends Function.Library
 
     protected abstract ExprEval eval(DateTime date);
 
-    protected ExprEval failed(Exception ex)
+    protected ExprEval invalid(ExprEval value)
     {
-      throw Throwables.propagate(ex);
+      throw new IllegalArgumentException("Invalid value " + value.value());
     }
   }
 
@@ -639,7 +634,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected ExprEval eval(DateTime date)
     {
-      return ExprEval.of(date.getMillis(), ValueDesc.LONG);
+      return ExprEval.of(date.getMillis());
     }
   }
 
@@ -682,6 +677,9 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime dateTime = Evals.toDateTime(args.get(0).eval(bindings), formatter);
+          if (dateTime == null) {
+            return ExprEval.of((DateTime) null);
+          }
           return ExprEval.of(timeZone == null ? dateTime : new DateTime(dateTime.getMillis(), timeZone));
         }
       };
@@ -714,7 +712,7 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     @Override
-    protected final ExprEval failed(Exception ex)
+    protected ExprEval invalid(ExprEval value)
     {
       return ExprEval.of(false);
     }
@@ -750,10 +748,10 @@ public interface DateTimeFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = args.get(0).eval(bindings);
-          if (eval.isNull()) {
+          DateTime dateTime = Evals.toDateTime(eval, formatter);
+          if (dateTime == null) {
             return ExprEval.of((String) null);
           }
-          DateTime dateTime = Evals.toDateTime(eval, formatter);
           if (prevValue == null || dateTime.getMillis() != prevTime) {
             prevTime = dateTime.getMillis();
             prevValue = outputFormat.print(dateTime);
@@ -789,7 +787,14 @@ public interface DateTimeFunctions extends Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final DateTime dateTime = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
+          final ExprEval param = args.get(1).eval(bindings);
+          final DateTime dateTime = Evals.toDateTime(param, timeZone);
+          if (dateTime == null) {
+            if (unit == Unit.MINUTE || unit == Unit.EPOCH) {
+              throw new IllegalArgumentException("Invalid value " + param.value());
+            }
+            return ExprEval.of(-1);
+          }
 
           switch (unit) {
             case MILLIS:

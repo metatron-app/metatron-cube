@@ -267,6 +267,31 @@ public class EvalTest
             + ")", bindings
         )
     );
+    // invalid
+    Assert.assertNull(
+        evalString(
+            "time_format("
+            + "'2016-11-17 AM 10:11:39.662+0900', "
+            + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
+            + "locale='ko', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZ', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
+    Assert.assertNull(
+        evalString(
+            "time_format("
+            + "'2016-11-31 오전 10:11:39.662+0900', "
+            + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
+            + "locale='ko', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZ', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
 
     long time = new DateTime("2016-11-17T10:11:39.662+0900").getMillis();
     // format (long to string)
@@ -471,7 +496,7 @@ public class EvalTest
     Assert.assertEquals("Friday", evalString("dayname(x)", bindings));
     Assert.assertEquals("3월", evalString("monthname(x, ,'ko')", bindings));
     Assert.assertEquals("금요일", evalString("dayname(x, ,'ko')", bindings));
-    Assert.assertEquals(new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x)", bindings));
+    Assert.assertEquals(31, evalLong("last_day(x)", bindings));
     Assert.assertEquals(new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
 
@@ -486,9 +511,25 @@ public class EvalTest
     Assert.assertEquals("Friday", evalString("dayname(x, 'UTC', )", bindings));
     Assert.assertEquals("3月", evalString("monthname(x, 'UTC','ja')", bindings));
     Assert.assertEquals("金曜日", evalString("dayname(x, 'UTC','ja')", bindings));
-    Assert.assertEquals(new DateTime("2016-03-31T13:25:00Z"), evalDateTime("last_day(x, 'UTC')", bindings));
+    Assert.assertEquals(31, evalLong("last_day(x, 'UTC')", bindings));
     Assert.assertEquals(new DateTime("2016-03-07T16:25:00Z"), evalDateTime("add_time(x, '3D 3H', 'UTC')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T10:22:00Z"), evalDateTime("sub_time(x, '1D 3H 3m', 'UTC')", bindings));
+
+    // invalids
+    bindings = Parser.withMap(ImmutableMap.of("x", "xxxx"));
+    Assert.assertEquals(-1, evalLong("dayofmonth(x)", bindings));
+    Assert.assertEquals(-1, evalLong("lastdayofmonth(x)", bindings));
+    Assert.assertEquals(-1, evalLong("dayofyear(x)", bindings));
+    Assert.assertEquals(-1, evalLong("hour(x)", bindings));
+    Assert.assertEquals(-1, evalLong("month(x)", bindings));
+    Assert.assertEquals(-1, evalLong("year(x)", bindings));
+    Assert.assertNull(evalString("monthname(x)", bindings));
+    Assert.assertNull(evalString("dayname(x)", bindings));
+    Assert.assertNull(evalString("monthname(x, ,'ko')", bindings));
+    Assert.assertNull(evalString("dayname(x, ,'ko')", bindings));
+    Assert.assertEquals(-1, evalLong("last_day(x)", bindings));
+    Assert.assertNull(evalDateTime("add_time(x, '3D 3H')", bindings));
+    Assert.assertNull(evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
   }
 
   @Test

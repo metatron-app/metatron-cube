@@ -427,35 +427,51 @@ public class Evals
 
   static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)
   {
-    ValueDesc type = arg.type();
-    DateTimeZone timeZone = formatter.getZone();
-    if (type.isString()) {
-      return formatter.parseDateTime(arg.asString());
+    if (arg.isNull()) {
+      return null;
     }
-    if (type.isDateTime()) {
-      return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+    final ValueDesc type = arg.type();
+    final DateTimeZone timeZone = formatter.getZone();
+    try {
+      if (type.isString()) {
+        return formatter.parseDateTime(arg.asString());
+      }
+      if (type.isDateTime()) {
+        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+      }
+      return DateTimes.withZone(arg.asLong(), timeZone);
     }
-    return DateTimes.withZone(arg.asLong(), timeZone);
+    catch (Exception e) {
+      return null;
+    }
   }
 
   static DateTime toDateTime(ExprEval arg, DateTimeZone timeZone)
   {
-    ValueDesc type = arg.type();
-    if (type.isString()) {
-      final String string = arg.stringValue();
-      if (StringUtils.isNumeric(string)) {
-        return new DateTime(Long.valueOf(string), timeZone);
-      } else {
-        return timeZone == null
-               ? defaultFormat.parseDateTime(string)
-               : defaultFormat.withZone(timeZone).parseDateTime(string);
-      }
+    if (arg.isNull()) {
+      return null;
+    }
+    final ValueDesc type = arg.type();
+    try {
+      if (type.isString()) {
+        final String string = arg.stringValue();
+        if (StringUtils.isNumeric(string)) {
+          return new DateTime(Long.valueOf(string), timeZone);
+        } else {
+          return timeZone == null
+                 ? defaultFormat.parseDateTime(string)
+                 : defaultFormat.withZone(timeZone).parseDateTime(string);
+        }
 
+      }
+      if (type.isDateTime()) {
+        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+      }
+      return DateTimes.withZone(arg.asLong(), timeZone);
     }
-    if (type.isDateTime()) {
-      return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+    catch (Exception e) {
+      return null;
     }
-    return DateTimes.withZone(arg.asLong(), timeZone);
   }
 
   public static Pair<String, Expr> splitSimpleAssign(String expression)
