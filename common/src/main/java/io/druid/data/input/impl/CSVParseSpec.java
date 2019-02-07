@@ -19,10 +19,10 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.metamx.common.parsers.CSVParser;
 import com.metamx.common.parsers.Parser;
+import com.metamx.common.parsers.ParserUtils;
+import com.metamx.common.parsers.Parsers;
 import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
@@ -33,13 +33,15 @@ public class CSVParseSpec extends AbstractParseSpec
 {
   private final String listDelimiter;
   private final List<String> columns;
+  private final boolean trim;
 
   @JsonCreator
   public CSVParseSpec(
       @JsonProperty("timestampSpec") TimestampSpec timestampSpec,
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("listDelimiter") String listDelimiter,
-      @JsonProperty("columns") List<String> columns
+      @JsonProperty("columns") List<String> columns,
+      @JsonProperty("trim") boolean trim
   )
   {
     super(timestampSpec, dimensionsSpec);
@@ -49,8 +51,19 @@ public class CSVParseSpec extends AbstractParseSpec
     for (String column : columns) {
       Preconditions.checkArgument(!column.contains(","), "Column[%s] has a comma, it cannot", column);
     }
-
+    ParserUtils.validateFields(columns);
     this.columns = columns;
+    this.trim = trim;
+  }
+
+  public CSVParseSpec(
+      DefaultTimestampSpec timestampSpec,
+      DimensionsSpec dimensionsSpec,
+      String listDelimiter,
+      List<String> columns
+  )
+  {
+    this(timestampSpec, dimensionsSpec, listDelimiter, columns, false);
   }
 
   @JsonProperty
@@ -59,32 +72,38 @@ public class CSVParseSpec extends AbstractParseSpec
     return listDelimiter;
   }
 
-  @JsonProperty("columns")
+  @JsonProperty
   public List<String> getColumns()
   {
     return columns;
   }
 
+  @JsonProperty
+  public boolean isTrim()
+  {
+    return trim;
+  }
+
   @Override
   public Parser<String, Object> makeParser()
   {
-    return new CSVParser(Optional.fromNullable(listDelimiter), columns);
+    return new CSVParser(listDelimiter == null ? Parsers.DEFAULT_LIST_DELIMITER : listDelimiter, columns, trim);
   }
 
   @Override
   public ParseSpec withTimestampSpec(TimestampSpec spec)
   {
-    return new CSVParseSpec(spec, getDimensionsSpec(), listDelimiter, columns);
+    return new CSVParseSpec(spec, getDimensionsSpec(), listDelimiter, columns, trim);
   }
 
   @Override
   public ParseSpec withDimensionsSpec(DimensionsSpec spec)
   {
-    return new CSVParseSpec(getTimestampSpec(), spec, listDelimiter, columns);
+    return new CSVParseSpec(getTimestampSpec(), spec, listDelimiter, columns, trim);
   }
 
   public ParseSpec withColumns(List<String> cols)
   {
-    return new CSVParseSpec(getTimestampSpec(), getDimensionsSpec(), listDelimiter, cols);
+    return new CSVParseSpec(getTimestampSpec(), getDimensionsSpec(), listDelimiter, cols, trim);
   }
 }

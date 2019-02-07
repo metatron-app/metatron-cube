@@ -43,6 +43,7 @@ public class DelimitedParseSpecTest
         "\u0002",
         Arrays.asList("abc"),
         Arrays.asList("x", "y", "z"),
+        false,
         false
     );
     final DelimitedParseSpec serde = jsonMapper.readValue(

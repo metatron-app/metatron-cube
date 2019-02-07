@@ -16,7 +16,6 @@
 
 package io.druid.data.input.impl;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,8 +29,8 @@ public class DelimitedParserTest
   public void testBasic()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
-        Optional.<String>absent(),
+        "\t",
+        null,
         Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo";
@@ -47,8 +46,8 @@ public class DelimitedParserTest
   public void testMoreKeys()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
-        Optional.<String>absent(),
+        "\t",
+        null,
         Arrays.asList("x", "y", "z", "w")
     );
     String body = "hello\tworld\tfoo";
@@ -64,8 +63,8 @@ public class DelimitedParserTest
   public void testMoreValues()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
-        Optional.<String>absent(),
+        "\t",
+        null,
         Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo\txxx";
@@ -81,11 +80,12 @@ public class DelimitedParserTest
   public void testDequote()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of(","),
-        Optional.<String>absent(),
+        ",",
+        null,
         Arrays.asList("x", "y", "z"),
         null,
-        true
+        true,
+        false
     );
     String body = "\"hello, world\",\"foo,xxx";
     Map jsonMap = delimitedParser.parse(body);
@@ -97,11 +97,31 @@ public class DelimitedParserTest
   }
 
   @Test
+  public void testTrim()
+  {
+    DelimitedParser delimitedParser = new DelimitedParser(
+        "\t",
+        null,
+        Arrays.asList("x", "y", "z"),
+        null,
+        false,
+        true
+    );
+    String body = "hello\t  world\t      10000  ";
+    Map jsonMap = delimitedParser.parse(body);
+    Assert.assertEquals(
+        "jsonMap",
+        ImmutableMap.of("x", "hello", "y", "world", "z", "10000"),
+        jsonMap
+    );
+  }
+
+  @Test
   public void testListParsing()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
-        Optional.of(":"),
+        "\t",
+        ":",
         Arrays.asList("x", "y")
     );
     String body = "hello:world\tfoo:xxx";
@@ -117,10 +137,11 @@ public class DelimitedParserTest
   public void testSelectiveListParsing()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
-        Optional.of(":"),
+        "\t",
+        ":",
         Arrays.asList("x", "y"),
         Arrays.asList("y"),
+        false,
         false
     );
     String body = "hello:world\tfoo:xxx";

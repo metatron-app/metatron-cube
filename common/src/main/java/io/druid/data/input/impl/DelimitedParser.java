@@ -16,9 +16,10 @@
 
 package io.druid.data.input.impl;
 
-import com.google.common.base.Optional;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -42,17 +43,19 @@ public class DelimitedParser implements Parser<String, Object>
   private final Set<String> listColumns;
 
   private final boolean dequote;
+  private final Function<String, String> handler;
 
   public DelimitedParser(
-      Optional<String> delimiter,
-      Optional<String> listDelimiter,
+      String delimiter,
+      String listDelimiter,
       List<String> columnNames,
       List<String> listColumnNames,
-      boolean dequote
+      boolean dequote,
+      boolean trim
   )
   {
-    this.delimiter = delimiter.isPresent() ? delimiter.get() : DEFAULT_DELIMITER;
-    this.listDelimiter = listDelimiter.isPresent() ? listDelimiter.get() : Parsers.DEFAULT_LIST_DELIMITER;
+    this.delimiter = delimiter != null ? delimiter : DEFAULT_DELIMITER;
+    this.listDelimiter = listDelimiter != null ? listDelimiter : Parsers.DEFAULT_LIST_DELIMITER;
 
     Preconditions.checkState(
         !this.delimiter.equals(this.listDelimiter),
@@ -64,16 +67,17 @@ public class DelimitedParser implements Parser<String, Object>
 
     this.columns = columnNames;
     this.listColumns = listColumnNames == null ? null : Sets.newHashSet(listColumnNames);
+    this.handler = CSVParser.getStringHandler(trim);
     this.dequote = dequote;
   }
 
   public DelimitedParser(
-      Optional<String> delimiter,
-      Optional<String> listDelimiter,
+      String delimiter,
+      String listDelimiter,
       List<String> columnNames
   )
   {
-    this(delimiter, listDelimiter, columnNames, null, false);
+    this(delimiter, listDelimiter, columnNames, null, false, false);
   }
 
   public String getDelimiter()
@@ -116,13 +120,9 @@ public class DelimitedParser implements Parser<String, Object>
           value = value.substring(1, value.length() - 1);
         }
         if ((listColumns == null || listColumns.contains(key)) && value.contains(listDelimiter)) {
-          List<String> elements = Lists.newArrayList();
-          for (String element : split(value, listDelimiter)) {
-            elements.add(Strings.isNullOrEmpty(element) ? null : element);
-          }
-          row.put(key, elements);
+          row.put(key, Lists.newArrayList(Iterables.transform(split(value, listDelimiter), handler)));
         } else {
-          row.put(key, value);
+          row.put(key, handler.apply(value));
         }
       }
       return row;
@@ -168,5 +168,10 @@ public class DelimitedParser implements Parser<String, Object>
       escape = c;
     }
     return escape;
+  }
+
+  private static String trimIfNeeded(String value, boolean trim)
+  {
+    return trim && value != null ? value.trim() : value;
   }
 }

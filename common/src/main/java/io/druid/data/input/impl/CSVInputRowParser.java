@@ -47,6 +47,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   private final Boolean ignoreHeaderCase;
   private final boolean checkConsistency;
   private final boolean ignoreInvalidRows;
+  private final boolean trim;
   private final String charset;
 
   @JsonCreator
@@ -64,6 +65,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
       @JsonProperty("ignoreHeaderCase") Boolean ignoreHeaderCase,
       @JsonProperty("checkConsistency") boolean checkConsistency,
       @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
+      @JsonProperty("trim") boolean trim,
       @JsonProperty("charset") String charset
   ) {
     this.timestampSpec = timestampSpec;
@@ -79,6 +81,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
     this.ignoreHeaderCase = ignoreHeaderCase;
     this.checkConsistency = checkConsistency;
     this.ignoreInvalidRows = ignoreInvalidRows;
+    this.trim = trim;
     this.charset = charset;
   }
 
@@ -119,6 +122,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
         ignoreHeaderCase,
         checkConsistency,
         ignoreInvalidRows,
+        trim,
         charset
     );
   }
@@ -140,6 +144,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
         ignoreHeaderCase,
         checkConsistency,
         ignoreInvalidRows,
+        trim,
         charset
     );
   }
@@ -180,9 +185,9 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
           return null;
         }
         final int max = Math.min(columns.size(), input.size());
-        final Map<String, Object> event = Maps.newHashMap();
+        final Map<String, Object> event = Maps.newHashMapWithExpectedSize(max);
         for (int i = 0; i < max; i++) {
-          event.put(columns.get(i), input.get(i));
+          event.put(columns.get(i), trimIfNeeded(input.get(i)));
         }
         Map<String, Object> merged = Rows.mergePartitions(event);
         try {
@@ -203,6 +208,11 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
         }
       }
     });
+  }
+
+  private String trimIfNeeded(String value)
+  {
+    return trim && value != null ? value.trim() : value;
   }
 
   private CSVParser makeParser(Object input)
@@ -332,6 +342,12 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   public boolean isIgnoreInvalidRows()
   {
     return ignoreInvalidRows;
+  }
+
+  @JsonProperty
+  public boolean isTrim()
+  {
+    return trim;
   }
 
   @JsonProperty
