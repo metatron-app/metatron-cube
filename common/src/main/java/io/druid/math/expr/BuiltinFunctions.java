@@ -1684,21 +1684,24 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (args.size() < 2) {
+      final int size = args.size();
+      if (size < 2) {
         throw new RuntimeException("function 'case' needs at least 2 arguments");
       }
-      ValueDesc type = null;
-      for (int i = 0; i < args.size() - 1; i += 2) {
+      for (int i = 0; i < size - 1; i += 2) {
         ExprEval eval = Evals.eval(args.get(i), bindings);
         if (eval.asBoolean()) {
           return args.get(i + 1).eval(bindings);
         }
-        type = ValueDesc.toCommonType(type, eval.type());
       }
-      if (args.size() % 2 == 1) {
-        return args.get(args.size() - 1).eval(bindings);
+      if (size % 2 == 1) {
+        return args.get(size - 1).eval(bindings);
       }
-      return ExprEval.of(null, type);
+      ValueDesc type = null;
+      for (int i = 1; i < size - 1; i += 2) {
+        type = ValueDesc.toCommonType(type, args.get(i).eval(bindings).type());
+      }
+      return ExprEval.of(null, type == null ? ValueDesc.STRING : type);
     }
   }
 

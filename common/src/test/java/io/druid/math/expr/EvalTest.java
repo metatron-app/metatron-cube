@@ -147,7 +147,7 @@ public class EvalTest
   }
 
   @Test
-  public void testEvalIf()
+  public void testIf()
   {
     Map<String, Number> mapping = new HashMap<>();
     for (int i = 0; i < 30; i++) {
@@ -162,6 +162,23 @@ public class EvalTest
         Assert.assertEquals("Z", eval);
       }
     }
+  }
+
+  @Test
+  public void testCase()
+  {
+    Map<String, Object> mapping = new HashMap<>();
+    mapping.put("setl_rem_amt", "1646446000-");
+    Expr.NumericBinding bindings = Parser.withMap(mapping);
+
+    String ex1 = "case(endsWith(setl_rem_amt,'-'), concat('-',left(setl_rem_amt, length(setl_rem_amt) - 1)))";
+    String ex2 = "case(endsWith(setl_rem_amt,'-'), concat('-',left(setl_rem_amt, length(setl_rem_amt) - 1)), setl_rem_amt)";
+    Assert.assertEquals("-1646446000", evalString(ex1, bindings));
+    Assert.assertEquals("-1646446000", evalString(ex2, bindings));
+
+    mapping.put("setl_rem_amt", "1646446000");
+    Assert.assertNull(evalString(ex1, bindings));
+    Assert.assertEquals("1646446000", evalString(ex2, bindings));
   }
 
   @Test

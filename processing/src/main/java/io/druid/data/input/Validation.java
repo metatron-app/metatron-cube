@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
@@ -32,6 +33,7 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -90,19 +92,25 @@ public class Validation
 
   private final String columnName;
   private final List<String> exclusions;
+  @JsonIgnore
   private final List<Expr> parsedExpressions;
 
   @JsonCreator
   public Validation(
       @JsonProperty("columnName") String columnName,
+      @JsonProperty("exclusion") String exclusion,
       @JsonProperty("exclusions") List<String> exclusions
   )
   {
     this.columnName = columnName;
-    this.exclusions = Preconditions.checkNotNull(exclusions);
+    Preconditions.checkArgument(
+        exclusion == null ^ exclusions == null,
+        "Must have either expression or expressions"
+    );
+    this.exclusions = exclusion == null ? exclusions : Arrays.asList(exclusion);
     this.parsedExpressions = Lists.newArrayList(
         Lists.transform(
-            exclusions, new Function<String, Expr>()
+            this.exclusions, new Function<String, Expr>()
             {
               @Override
               public Expr apply(String input) { return Parser.parse(input); }

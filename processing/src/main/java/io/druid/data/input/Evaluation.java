@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -52,6 +53,7 @@ public class Evaluation
 
   private final String outputName;
   private final List<String> expressions;
+  @JsonIgnore
   private final List<Expr> parsedExpressions;
 
   @JsonCreator
