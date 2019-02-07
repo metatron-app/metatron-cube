@@ -45,6 +45,7 @@ import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -100,20 +101,17 @@ public class SelectQueryQueryToolChest
 
   private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
-  private final SelectQueryConfig config;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public SelectQueryQueryToolChest(
       ObjectMapper jsonMapper,
       SelectQueryEngine engine,
-      SelectQueryConfig config,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.jsonMapper = jsonMapper;
     this.engine = engine;
-    this.config = config;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }
 
@@ -122,7 +120,7 @@ public class SelectQueryQueryToolChest
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
-    this(jsonMapper, null, null, intervalChunkingQueryRunnerDecorator);
+    this(jsonMapper, null, intervalChunkingQueryRunnerDecorator);
   }
 
   @Override
@@ -164,9 +162,9 @@ public class SelectQueryQueryToolChest
   }
 
   @Override
-  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       public Sequence<Result<SelectResultValue>> run(
@@ -203,7 +201,7 @@ public class SelectQueryQueryToolChest
           {
             return engine.process(
                 select.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                config,
+                config.getSelect(),
                 segment
             );
           }

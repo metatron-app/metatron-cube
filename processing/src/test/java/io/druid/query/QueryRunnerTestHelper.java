@@ -133,7 +133,8 @@ public class QueryRunnerTestHelper
 
   public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
 
-  private static final QueryConfig QUERY_CONFIG = new QueryConfig();
+  public static final QueryConfig QUERY_CONFIG = new QueryConfig();
+
   private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
   {
     @Override
@@ -162,7 +163,7 @@ public class QueryRunnerTestHelper
                       SegmentMetadataQuery.class,
                       new SegmentMetadataQueryRunnerFactory(
                           new SegmentMetadataQueryQueryToolChest(
-                              new SegmentMetadataQueryConfig("P1W")
+                              QUERY_CONFIG.getSegmentMeta()
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
@@ -187,11 +188,10 @@ public class QueryRunnerTestHelper
                           new SelectQueryQueryToolChest(
                               TestHelper.JSON_MAPPER,
                               new SelectQueryEngine(),
-                              new SelectQueryConfig(),
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
                           new SelectQueryEngine(),
-                          new SelectQueryConfig(),
+                          QUERY_CONFIG.getSelect(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )

@@ -90,8 +90,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import static io.druid.query.groupby.GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP;
-
 /**
  */
 public class GroupByQuery extends BaseAggregationQuery implements Query.RewritingQuery<Row>
@@ -474,7 +472,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   {
     Map<String, Object> override = defaultPostActionContext();
     override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
-    override.put(CTX_KEY_FUDGE_TIMESTAMP, Objects.toString(GroupByQueryEngine.getUniversalTimestamp(this), null));
+    override.put(FUDGE_TIMESTAMP, Objects.toString(GroupByQueryEngine.getUniversalTimestamp(this), null));
 
     return new GroupByQuery(
         getDataSource(),

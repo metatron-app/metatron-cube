@@ -122,15 +122,15 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   }
 
   @Override
-  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         final GroupByQuery groupBy = (GroupByQuery) query.withOverriddenContext(
-            GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
+            Query.FUDGE_TIMESTAMP,
             Objects.toString(GroupByQueryEngine.getUniversalTimestamp(query), "")
         );
         final int maxPage = groupBy.getContextIntWithMax(
@@ -166,7 +166,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
         GroupByQuery groupBy = (GroupByQuery) query;
         Sequence<Row> sequence = super.mergeQuery(query, sequences, segment);
         MergeIndex mergeIndex = sequence.accumulate(
-            GroupByQueryHelper.createMergeIndex(groupBy, config.getMaxResults(), 1),
+            GroupByQueryHelper.createMergeIndex(groupBy, config, 1),
             GroupByQueryHelper.<Row>newMergeAccumulator(new Execs.Semaphore(1))
         );
         sequence = Sequences.withBaggage(mergeIndex.toMergeStream(true), mergeIndex);

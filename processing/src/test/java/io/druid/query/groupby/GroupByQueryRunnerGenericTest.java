@@ -145,17 +145,18 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     Parser.register(ModuleBuiltinFunctions.class);
   }
 
-  @Parameterized.Parameters(name = "{0}")
+  @Parameterized.Parameters(name = "{0}:{1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
+    return cartesian(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
   }
 
   private final String dataSource;
 
-  public GroupByQueryRunnerGenericTest(String dataSource)
+  public GroupByQueryRunnerGenericTest(String dataSource, boolean sortParallel)
   {
     this.dataSource = dataSource;
+    TestIndex.segmentWalker.getQueryConfig().getGroupBy().setUseParallelSort(sortParallel);
   }
 
   @SuppressWarnings("unchecked")

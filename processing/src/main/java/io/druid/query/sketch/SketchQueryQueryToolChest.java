@@ -31,6 +31,7 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -233,9 +234,9 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
   }
 
   @Override
-  public <I> QueryRunner<Result<Object[]>> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<Result<Object[]>> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       protected Function<Interval, Sequence<Result<Object[]>>> query(

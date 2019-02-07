@@ -36,7 +36,6 @@ import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.groupby.MergeIndex;
 import org.apache.commons.io.IOUtils;
@@ -61,12 +60,12 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
 
   private final List<QueryRunner<Row>> queryables;
   private final ExecutorService exec;
-  private final GroupByQueryConfig config;
+  private final QueryConfig config;
   private final QueryWatcher queryWatcher;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
-      GroupByQueryConfig config,
+      QueryConfig config,
       QueryWatcher queryWatcher,
       Iterable<QueryRunner<Row>> queryables
   )
@@ -80,27 +79,28 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
   @Override
   public Sequence<Row> run(final Query<Row> queryParam, final Map<String, Object> responseContext)
   {
+    if (queryables.isEmpty()) {
+      return Sequences.empty();
+    }
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    final int maxRowCount = config.getMaxIntermediateRows();
-
     final ExecutorService executor;
-    int parallelism = query.getContextIntWithMax(Query.GBY_MERGE_PARALLELISM, config.getMaxMergeParallelism());
+    int parallelism = config.getMaxMergeParallelism(query);
     if (parallelism > 1) {
       executor = exec;
-      parallelism = Math.min(Iterables.size(queryables), parallelism);
+      parallelism = Math.min(queryables.size(), parallelism);
     } else {
       executor = MoreExecutors.sameThreadExecutor();
       parallelism = 1;
     }
 
-    final MergeIndex mergeIndex = GroupByQueryHelper.createMergeIndex(query, maxRowCount, parallelism);
+    final MergeIndex mergeIndex = GroupByQueryHelper.createMergeIndex(query, config, parallelism);
 
     final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.isBySegment(query);
     final int priority = BaseQuery.getContextPriority(query, 0);
 
-    final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(queryables.size(), parallelism));
+    final Execs.Semaphore semaphore = new Execs.Semaphore(parallelism);
 
     final ListenableFuture<List<Sequence<Row>>> future = Futures.allAsList(
         Execs.execute(

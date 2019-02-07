@@ -67,9 +67,23 @@ public class QueryConfig
   @NotNull
   public Supplier<JoinQueryConfig> join = Suppliers.ofInstance(new JoinQueryConfig());
 
-  public int getMaxResults()
+  public int getMaxResults(Query<?> query)
   {
-    return maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults;
+    int systemMax = maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults;
+    int userMax = query.getContextValue(Query.MAX_RESULTS, -1);
+    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+  }
+
+  public int getMaxMergeParallelism(Query<?> query)
+  {
+    final int systemMax = getGroupBy().getMaxMergeParallelism();
+    final int userMax = query.getContextInt(Query.GBY_MERGE_PARALLELISM, -1);
+    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+  }
+
+  public boolean useParallelSort(Query<?> query)
+  {
+    return query.getContextBoolean(Query.GBY_USE_PARALLEL, getGroupBy().isUseParallelSort());
   }
 
   public boolean useCustomSerdeForDateTime(Query query)

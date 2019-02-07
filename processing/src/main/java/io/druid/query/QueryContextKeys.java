@@ -26,19 +26,22 @@ public interface QueryContextKeys
 {
   public static final String QUERYID = "queryId";
 
-  // internal
+  // internal markers
   public static final String PRIORITY = "priority";
   public static final String TIMEOUT = "timeout";
   public static final String CHUNK_PERIOD = "chunkPeriod";
   public static final String FINALIZE = "finalize";
   public static final String FINAL_MERGE = "finalMerge";
   public static final String BY_SEGMENT = "bySegment";
-  public static final String LOCAL_POST_PROCESSING = "localPostProcessing";
-  public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
-  public static final String LOCAL_SPLIT_STRATEGY = "localSplitStrategy";
-  public static final String USE_BULK_ROW = "useBulkRow";
+  public static final String LOCAL_POST_PROCESSING = "#localPostProcessing";
+  public static final String DATETIME_CUSTOM_SERDE = "#dateTimeCustomSerde"; // datetime serde between broker & others
+  public static final String LOCAL_SPLIT_STRATEGY = "#localSplitStrategy";
+  public static final String FUDGE_TIMESTAMP = "#fudgeTimestamp";
+  public static final String USE_BULK_ROW = "#useBulkRow";
+  public static final String MAJOR_TYPES = "#majorTypes";   // for sketch
 
   // group-by config.. overriding
+  public static final String GBY_USE_PARALLEL = "groupByUseParallel";
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
@@ -50,6 +53,7 @@ public interface QueryContextKeys
   public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
+  // select.stream.raw
   public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
   public static final String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
 
@@ -65,9 +69,6 @@ public interface QueryContextKeys
   public static final String FORWARD_CONTEXT = "forwardContext";
   public static final String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
 
-  // for sketch
-  public static final String MAJOR_TYPES = "majorTypes";
-
   // for jmx
   public static final String PREVIOUS_JMX = "previousJmx";
 
@@ -75,10 +76,14 @@ public interface QueryContextKeys
   public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
   public static final String FORWARD_PARALLEL = "parallel";
 
+  // generic
+  public static final String MAX_RESULTS = "maxResults";
+
   public static final List<String> FOR_META = Arrays.asList(
       QUERYID,
       PRIORITY,
       TIMEOUT,
+      GBY_USE_PARALLEL,
       GBY_MERGE_PARALLELISM,
       GBY_CONVERT_TIMESERIES,
       GBY_ESTIMATE_TOPN_FACTOR,
@@ -87,12 +92,15 @@ public interface QueryContextKeys
       GBY_LOCAL_SPLIT_NUM,
       GBY_LOCAL_SPLIT_CARDINALITY,
       GBY_USE_RAW_UTF8,
+      GBY_USE_BULK_ROW,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
       STREAM_RAW_LOCAL_SPLIT_NUM,
+      STREAM_RAW_LOCAL_SPLIT_ROWS,
       USE_CACHE,
       POPULATE_CACHE,
       OPTIMIZE_QUERY,
       ALL_DIMENSIONS_FOR_EMPTY,
-      ALL_METRICS_FOR_EMPTY
+      ALL_METRICS_FOR_EMPTY,
+      MAX_RESULTS
   );
 }

@@ -333,7 +333,7 @@ public class GroupByQueryRunnerFactory
     // mergeRunners should take ListeningExecutorService at some point
     return new GroupByMergedQueryRunner(
         MoreExecutors.listeningDecorator(exec),
-        config.getGroupBy(),
+        config,
         queryWatcher,
         queryRunners
     );

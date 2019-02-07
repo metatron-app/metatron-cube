@@ -72,7 +72,7 @@ public class DistinctCountGroupByQueryTest
     );
 
     QueryConfig config = new QueryConfig();
-    config.getGroupBy().setMaxIntermediateRows(10000);
+    config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 

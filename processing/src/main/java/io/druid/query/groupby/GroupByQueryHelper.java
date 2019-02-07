@@ -27,8 +27,10 @@ import io.druid.concurrent.Execs;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
+import io.druid.query.QueryConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OffheapIncrementalIndex;
@@ -41,17 +43,19 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class GroupByQueryHelper
 {
-  public static final String CTX_KEY_MAX_RESULTS = "maxResults";
-  public static final String CTX_KEY_FUDGE_TIMESTAMP = "fudgeTimestamp";
-
   public static MergeIndex createMergeIndex(
       final GroupByQuery query,
-      final int maxResult,
+      final QueryConfig config,
       final int parallelism
   )
   {
-    int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
-    return new MergeIndex(query.withPostAggregatorSpecs(null), maxRowCount, parallelism);
+    final int maxResults = config.getMaxResults(query);
+    final OrderedLimitSpec nodeLimit = query.getLimitSpec().getNodeLimit();
+    if (config.useParallelSort(query) ||
+        nodeLimit != null && nodeLimit.hasLimit() && nodeLimit.getLimit() < maxResults) {
+      return new MergeIndexParallel(query.withPostAggregatorSpecs(null), maxResults, parallelism);
+    }
+    return new MergeIndexSorting(query.withPostAggregatorSpecs(null), maxResults, parallelism);
   }
 
   public static IncrementalIndex createIncrementalIndex(

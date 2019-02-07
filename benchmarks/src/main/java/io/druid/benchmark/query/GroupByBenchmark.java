@@ -229,7 +229,6 @@ public class GroupByBenchmark
     OffheapBufferPool bufferPool2 = new OffheapBufferPool(250000000, Integer.MAX_VALUE);
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setSingleThreaded(false);
-    config.getGroupBy().setMaxIntermediateRows(1000000);
     config.getGroupBy().setMaxResults(1000000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(bufferPool);

@@ -44,7 +44,6 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -173,9 +172,11 @@ public class CalciteTests
     // No instantiation.
   }
 
-  public static QueryRunnerFactoryConglomerate queryRunnerFactoryConglomerate()
+  public static SpecificSegmentsQuerySegmentWalker newSegmentWalker()
   {
-    return QueryRunnerTestHelper.CONGLOMERATE;
+    return new SpecificSegmentsQuerySegmentWalker(
+        QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG
+    );
   }
 
   public static ObjectMapper getJsonMapper()
@@ -217,7 +218,7 @@ public class CalciteTests
                                                       .rows(FORBIDDEN_ROWS)
                                                       .buildMMappedIndex();
 
-    return new SpecificSegmentsQuerySegmentWalker(queryRunnerFactoryConglomerate()).add(
+    return newSegmentWalker().add(
         DataSegment.builder()
                    .dataSource(DATASOURCE1)
                    .interval(index1.getDataInterval())

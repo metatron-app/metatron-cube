@@ -55,7 +55,7 @@ public class DruidTDigestGroupByQueryTest
     );
 
     QueryConfig config = new QueryConfig();
-    config.getGroupBy().setMaxIntermediateRows(10000);
+    config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
@@ -72,7 +72,7 @@ public class DruidTDigestGroupByQueryTest
 
     config = new QueryConfig();
     config.getGroupBy().setSingleThreaded(true);
-    config.getGroupBy().setMaxIntermediateRows(10000);
+    config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,

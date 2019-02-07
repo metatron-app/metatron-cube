@@ -57,7 +57,6 @@ import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.MetricManipulatorFns;
-import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -152,12 +151,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     }
   }
 
-  public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
+  public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
   {
     this.objectMapper = TestHelper.JSON_MAPPER;
     this.conglomerate = conglomerate;
     this.executor = MoreExecutors.sameThreadExecutor();
-    this.queryConfig = new QueryConfig();
+    this.queryConfig = config;
     this.timeLines = new PopulatingMap();
   }
 
@@ -368,13 +367,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, query + " does not supports nested query");
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-      int maxResult = queryConfig.getMaxResults();
-      int maxRowCount = Math.min(
-          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
-          maxResult
-      );
-      QueryRunner<T> runner = toolChest.handleSubQuery(this, maxRowCount);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this, queryConfig);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()

@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -112,9 +113,9 @@ public class StreamRawQueryToolChest extends QueryToolChest<Object[], StreamRawQ
   }
 
   @Override
-  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new StreamingSubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new StreamingSubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)

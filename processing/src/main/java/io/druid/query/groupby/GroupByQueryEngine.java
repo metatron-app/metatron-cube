@@ -103,7 +103,7 @@ public class GroupByQueryEngine
   public static Long getUniversalTimestamp(final Query<?> query)
   {
     final Granularity gran = query.getGranularity();
-    final String timestampStringFromContext = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
+    final String timestampStringFromContext = query.getContextValue(Query.FUDGE_TIMESTAMP);
 
     if (!Strings.isNullOrEmpty(timestampStringFromContext)) {
       return Long.parseLong(timestampStringFromContext);
@@ -234,7 +234,7 @@ public class GroupByQueryEngine
       this.asSorted = query.getContextBoolean("IN_TEST", false);
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
                         query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
-      String fudgeTimestampString = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
+      String fudgeTimestampString = query.getContextValue(Query.FUDGE_TIMESTAMP);
       fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
                                    ? null
                                    : new DateTime(Long.parseLong(fudgeTimestampString));

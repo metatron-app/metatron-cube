@@ -312,9 +312,9 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
   /**
    * @param segmentWalker
-   * @param maxRowCount
+   * @param config
    */
-  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
     throw new UnsupportedOperationException("handleSourceQuery");
   }
@@ -322,12 +322,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
   {
     protected final QuerySegmentWalker segmentWalker;
-    protected final int maxRowCount;
+    protected final QueryConfig config;
 
-    protected SubQueryRunner(QuerySegmentWalker segmentWalker, int maxRowCount)
+    protected SubQueryRunner(QuerySegmentWalker segmentWalker, QueryConfig config)
     {
       this.segmentWalker = segmentWalker;
-      this.maxRowCount = maxRowCount;
+      this.config = config;
     }
 
     @Override
@@ -362,7 +362,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
           "Accumulating into intermediate index with dimensions [%s] and metrics [%s]",
           schema.dimensionAndTypesString(), schema.metricAndTypesString()
       );
-      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, true, false, maxRowCount);
+      int maxResult = config.getMaxResults(query);
+      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, true, false, maxResult);
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
           "Accumulated sub-query into index in %,d msec.. total %,d rows",
@@ -418,9 +419,9 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   // streaming only version
   public abstract class StreamingSubQueryRunner<I> extends SubQueryRunner<I>
   {
-    protected StreamingSubQueryRunner(QuerySegmentWalker segmentWalker, int maxRowCount)
+    protected StreamingSubQueryRunner(QuerySegmentWalker segmentWalker, QueryConfig config)
     {
-      super(segmentWalker, maxRowCount);
+      super(segmentWalker, config);
     }
 
     @Override

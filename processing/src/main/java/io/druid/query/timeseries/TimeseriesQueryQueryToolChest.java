@@ -35,6 +35,7 @@ import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -99,9 +100,9 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   }
 
   @Override
-  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new SubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new SubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       protected Function<Interval, Sequence<Row>> query(final Query<Row> query, final Segment segment)

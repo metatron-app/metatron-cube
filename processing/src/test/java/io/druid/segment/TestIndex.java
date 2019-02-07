@@ -133,7 +133,7 @@ public class TestIndex
   private static QueryableIndex mergedRealtime = null;
 
   public static SpecificSegmentsQuerySegmentWalker segmentWalker =
-      new SpecificSegmentsQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE);
+      new SpecificSegmentsQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG);
 
   public static final IncrementalIndexSchema SAMPLE_SCHEMA = new IncrementalIndexSchema.Builder()
       .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())

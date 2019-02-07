@@ -25,6 +25,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -92,9 +93,9 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   }
 
   @Override
-  public <I> QueryRunner<StreamQueryRow> handleSubQuery(QuerySegmentWalker segmentWalker, int maxRowCount)
+  public <I> QueryRunner<StreamQueryRow> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new StreamingSubQueryRunner<I>(segmentWalker, maxRowCount)
+    return new StreamingSubQueryRunner<I>(segmentWalker, config)
     {
       @Override
       protected final Function<Cursor, Sequence<StreamQueryRow>> streamQuery(

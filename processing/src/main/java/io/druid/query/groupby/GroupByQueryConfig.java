@@ -21,6 +21,8 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.validation.constraints.Min;
+
 /**
  */
 public class GroupByQueryConfig
@@ -29,15 +31,14 @@ public class GroupByQueryConfig
   private boolean singleThreaded = false;
 
   @JsonProperty
-  private int maxIntermediateRows = 50000;
-
-  @JsonProperty
+  @Min(1000)
   private int maxResults = 500000;
 
   @JsonProperty
   private boolean sortOnTime = true;
 
   @JsonProperty
+  @Min(1)
   private int maxMergeParallelism = 8;
 
   @JsonProperty
@@ -53,7 +54,7 @@ public class GroupByQueryConfig
   private int estimateTopNFactor = -1;
 
   @JsonProperty
-  private boolean mergeSimple = true; // todo
+  private boolean useParallelSort = true;
 
   @JsonProperty
   private boolean useRawUTF8 = false;
@@ -78,16 +79,6 @@ public class GroupByQueryConfig
   public void setSingleThreaded(boolean singleThreaded)
   {
     this.singleThreaded = singleThreaded;
-  }
-
-  public int getMaxIntermediateRows()
-  {
-    return maxIntermediateRows;
-  }
-
-  public void setMaxIntermediateRows(int maxIntermediateRows)
-  {
-    this.maxIntermediateRows = maxIntermediateRows;
   }
 
   public int getMaxResults()
@@ -160,14 +151,14 @@ public class GroupByQueryConfig
     this.estimateTopNFactor = estimateTopNFactor;
   }
 
-  public boolean isMergeSimple()
+  public boolean isUseParallelSort()
   {
-    return mergeSimple;
+    return useParallelSort;
   }
 
-  public void setMergeSimple(boolean mergeSimple)
+  public void setUseParallelSort(boolean useParallelSort)
   {
-    this.mergeSimple = mergeSimple;
+    this.useParallelSort = useParallelSort;
   }
 
   public boolean isUseRawUTF8()

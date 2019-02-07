@@ -75,7 +75,7 @@ public class ApproximateHistogramGroupByQueryTest
     );
 
     QueryConfig config = new QueryConfig();
-    config.getGroupBy().setMaxIntermediateRows(10000);
+    config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
@@ -92,7 +92,7 @@ public class ApproximateHistogramGroupByQueryTest
 
     config = new QueryConfig();
     config.getGroupBy().setSingleThreaded(true);
-    config.getGroupBy().setMaxIntermediateRows(10000);
+    config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,

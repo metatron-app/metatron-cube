@@ -113,7 +113,7 @@ public class DruidSchemaTest
                                               .rows(ROWS2)
                                               .buildMMappedIndex();
 
-    walker = new SpecificSegmentsQuerySegmentWalker(CalciteTests.queryRunnerFactoryConglomerate()).add(
+    walker = CalciteTests.newSegmentWalker().add(
         DataSegment.builder()
                    .dataSource(CalciteTests.DATASOURCE1)
                    .interval(Intervals.of("2000/P1Y"))

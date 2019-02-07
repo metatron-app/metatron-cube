@@ -36,7 +36,6 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.UnionAllQuery;
-import io.druid.query.groupby.GroupByQueryHelper;
 import org.joda.time.Interval;
 
 import java.util.concurrent.ExecutorService;
@@ -97,12 +96,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
-      int maxResult = queryConfig.getMaxResults();
-      int maxRowCount = Math.min(
-          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
-          maxResult
-      );
-      QueryRunner<T> runner = toolChest.handleSubQuery(this, maxRowCount);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this, queryConfig);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
