@@ -80,6 +80,7 @@ public class ConfigResourceFilter extends AbstractResourceFilter
   {
     return requestPath.startsWith("druid/worker/v1") ||
            requestPath.startsWith("druid/indexer/v1") ||
+           requestPath.startsWith("status/properties") ||
            requestPath.startsWith("druid/coordinator/v1/config");
   }
 }
