@@ -27,6 +27,7 @@ import io.druid.query.JoinElement;
 import io.druid.query.JoinType;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -43,6 +44,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 
@@ -140,13 +142,23 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
       @Override
       public Query getQuery()
       {
+        final Query leftDruid = leftQuery.getQuery();
+        final Query rightDruid = rightQuery.getQuery();
+        final String leftAlias = toAlias(leftDruid);
+        final String rightAlias = toAlias(rightDruid);
         return new Druids.JoinQueryBuilder()
-            .dataSource("L", QueryDataSource.of(leftQuery.getQuery()))
-            .dataSource("R", QueryDataSource.of(rightQuery.getQuery()))
-            .element(new JoinElement(JoinType.fromString(joinType.name()), "L", leftKeys, "R", rightKeys))
+            .dataSource(leftAlias, QueryDataSource.of(leftDruid))
+            .dataSource(rightAlias, QueryDataSource.of(rightDruid))
+            .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
+            .intervals(MultipleIntervalSegmentSpec.ETERNITY)
             .build();
       }
     };
+  }
+
+  private String toAlias(Query query)
+  {
+    return StringUtils.join(query.getDataSource().getNames(), '+');
   }
 
   @Override

@@ -6864,21 +6864,22 @@ public class CalciteQueryTest
                   .dataSource(
                       QueryDataSource.of(
                           Druids.newJoinQueryBuilder()
-                                .dataSource("R", QueryDataSource.of(
+                                .dataSource("foo", QueryDataSource.of(
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo")
                                           .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                           .columns("__time", "m1")
                                           .streamingRaw())
                                 )
-                                .dataSource("L", QueryDataSource.of(
+                                .dataSource("foo2", QueryDataSource.of(
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo2")
                                           .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                           .columns("__time", "dim2")
                                           .streamingRaw())
                                 )
-                                .element(JoinElement.of(JoinType.INNER, "L.__time = R.__time"))
+                                .element(JoinElement.of(JoinType.INNER, "foo2.__time = foo.__time"))
+                                .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                 .build()
                       )
                   )
@@ -6906,21 +6907,22 @@ public class CalciteQueryTest
                   .dataSource(
                       QueryDataSource.of(
                           Druids.newJoinQueryBuilder()
-                                .dataSource("R", QueryDataSource.of(
+                                .dataSource("foo", QueryDataSource.of(
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo")
                                           .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                           .columns("__time", "m1")
                                           .streamingRaw())
                                 )
-                                .dataSource("L", QueryDataSource.of(
+                                .dataSource("foo2", QueryDataSource.of(
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo2")
                                           .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                           .columns("__time", "dim2")
                                           .streamingRaw())
                                 )
-                                .element(JoinElement.of(JoinType.INNER, "L.__time = R.__time"))
+                                .element(JoinElement.of(JoinType.INNER, "foo2.__time = foo.__time"))
+                                .intervals(MultipleIntervalSegmentSpec.ETERNITY)
                                 .build()
                       )
                   )

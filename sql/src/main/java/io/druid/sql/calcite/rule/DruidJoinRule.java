@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rule;
 
 import io.druid.sql.calcite.rel.DruidJoinRel;
-import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -40,7 +39,7 @@ public class DruidJoinRule extends RelOptRule
   {
     super(
         operand(
-            Join.class, some(operand(DruidQueryRel.class, any()), operand(DruidQueryRel.class, any()))
+            Join.class, some(operand(DruidRel.class, any()), operand(DruidRel.class, any()))
         )
     );
   }
