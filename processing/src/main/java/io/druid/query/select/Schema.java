@@ -430,6 +430,18 @@ public class Schema implements TypeResolver, RowSignature
     return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
   }
 
+  // for streaming sub query.. we don't have index
+  public Schema replaceDimensionToString()
+  {
+    List<ValueDesc> replaced = Lists.newArrayList(columnTypes);
+    for (int i = 0; i < replaced.size(); i++) {
+      if (ValueDesc.isDimension(replaced.get(i))) {
+        replaced.set(i, ValueDesc.STRING);
+      }
+    }
+    return new Schema(dimensionNames, metricNames, replaced);
+  }
+
   // all of nothing
   public List<ValueDesc> tryColumnTypes(List<String> columns)
   {

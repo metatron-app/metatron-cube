@@ -41,12 +41,12 @@ import io.druid.math.expr.Expr;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
-import io.druid.query.select.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -894,7 +894,9 @@ public class ColumnSelectorFactories
       return Sequences.empty();
     }
     // todo: this is semantically not consistent with others
-    final RowResolver resolver = RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
+    final RowResolver resolver = RowResolver.of(
+        schema.replaceDimensionToString(), BaseQuery.getVirtualColumns(query)
+    );
     final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<Row>();
     final ColumnSelectorFactory factory = new FromRowSupplier(supplier, resolver);
 
