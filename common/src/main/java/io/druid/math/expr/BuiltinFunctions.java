@@ -1988,38 +1988,114 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("left")
-  final class LeftFunc extends Function.StringOut
+  final class LeftFunc extends Function.AbstractFactory
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
       if (args.size() != 2) {
         throw new RuntimeException("function 'left' needs 2 arguments");
       }
-      String input = args.get(0).eval(bindings).asString();
-      int index = (int) args.get(1).eval(bindings).longValue();
-
-      return ExprEval.of(Strings.isNullOrEmpty(input) || input.length() < index ? input : input.substring(0, index));
+      if (Evals.isConstant(args.get(1))) {
+        final int index = Evals.getConstantInt(args.get(1));
+        return new StringChild()
+        {
+          @Override
+          public ExprEval apply(List<Expr> args, NumericBinding bindings)
+          {
+            final String input = Evals.evalString(args.get(0), bindings);
+            if (input == null) {
+              return ExprEval.of(input);
+            }
+            final int length = input.length();
+            if (index == 0 || length == 0) {
+              return ExprEval.of("");
+            }
+            if (index < 0) {
+              final int endIndex = length + index;
+              return ExprEval.of(endIndex < 0 ? "" : input.substring(0, length + index));
+            }
+            return ExprEval.of(index > length ? input : input.substring(0, index));
+          }
+        };
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          final String input = Evals.evalString(args.get(0), bindings);
+          if (input == null) {
+            return ExprEval.of(input);
+          }
+          final int index = Evals.evalInt(args.get(1), bindings);
+          final int length = input.length();
+          if (index == 0 || length == 0) {
+            return ExprEval.of("");
+          }
+          if (index < 0) {
+            final int endIndex = length + index;
+            return ExprEval.of(endIndex < 0 ? "" : input.substring(0, length + index));
+          }
+          return ExprEval.of(index > length ? input : input.substring(0, index));
+        }
+      };
     }
   }
 
   @Function.Named("right")
-  final class RightFunc extends Function.StringOut
+  final class RightFunc extends Function.AbstractFactory
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
       if (args.size() != 2) {
         throw new RuntimeException("function 'right' needs 2 arguments");
       }
-      String input = args.get(0).eval(bindings).asString();
-      int index = (int) args.get(1).eval(bindings).longValue();
-
-      return ExprEval.of(
-          Strings.isNullOrEmpty(input) || input.length() < index
-          ? input
-          : input.substring(input.length() - index)
-      );
+      if (Evals.isConstant(args.get(1))) {
+        final int index = Evals.getConstantInt(args.get(1));
+        return new StringChild()
+        {
+          @Override
+          public ExprEval apply(List<Expr> args, NumericBinding bindings)
+          {
+            final String input = args.get(0).eval(bindings).asString();
+            if (input == null) {
+              return ExprEval.of(input);
+            }
+            final int length = input.length();
+            if (index == 0 || length == 0) {
+              return ExprEval.of("");
+            }
+            if (index < 0) {
+              return ExprEval.of(length + index < 0 ? "" : input.substring(-index));
+            }
+            final int startIndex = length - index;
+            return ExprEval.of(startIndex < 0 ? input : input.substring(startIndex));
+          }
+        };
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          final String input = args.get(0).eval(bindings).asString();
+          if (input == null) {
+              return ExprEval.of(input);
+            }
+          final int length = input.length();
+          final int index = Evals.evalInt(args.get(0), bindings);
+          if (index == 0 || length == 0) {
+            return ExprEval.of("");
+          }
+          if (index < 0) {
+            return ExprEval.of(length + index < 0 ? "" : input.substring(-index));
+          }
+          final int startIndex = length - index;
+          return ExprEval.of(startIndex < 0 ? input : input.substring(startIndex));
+        }
+      };
     }
   }
 

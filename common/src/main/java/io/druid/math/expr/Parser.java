@@ -270,16 +270,10 @@ public class Parser
       @Override
       public Object get(String name)
       {
-        Object value = bindings.get(name);
-        if (value == null && !bindings.containsKey(name)) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        return value;
+        return bindings.get(name);
       }
     };
   }
-
-  private static final String TIME_COLUMN_NAME = "__time";
 
   public static Expr.NumericBinding withRowSupplier(final Supplier<Row> rowSupplier)
   {
@@ -294,7 +288,7 @@ public class Parser
       @Override
       public Object get(String name)
       {
-        if (name.equals(TIME_COLUMN_NAME)) {
+        if (Row.TIME_COLUMN_NAME.equals(name)) {
           return rowSupplier.get().getTimestampFromEpoch();
         }
         return rowSupplier.get().getRaw(name);
@@ -304,7 +298,7 @@ public class Parser
 
   public static Expr.NumericBinding withTimeAndMap(final DateTime timestamp, final Map<String, ?> bindings)
   {
-    Preconditions.checkArgument(!bindings.containsKey(TIME_COLUMN_NAME));
+    Preconditions.checkArgument(!bindings.containsKey(Row.TIME_COLUMN_NAME));
     return new Expr.NumericBinding()
     {
       @Override
@@ -316,14 +310,10 @@ public class Parser
       @Override
       public Object get(String name)
       {
-        if (name.equals(TIME_COLUMN_NAME)) {
+        if (Row.TIME_COLUMN_NAME.equals(name)) {
           return timestamp;
         }
-        Object value = bindings.get(name);
-        if (value == null && !bindings.containsKey(name)) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        return value;
+        return bindings.get(name);
       }
     };
   }
@@ -342,9 +332,6 @@ public class Parser
       public Object get(String name)
       {
         Supplier supplier = bindings.get(name);
-        if (supplier == null && !bindings.containsKey(name)) {
-          throw new RuntimeException("No binding found for " + name);
-        }
         return supplier == null ? null : supplier.get();
       }
     };

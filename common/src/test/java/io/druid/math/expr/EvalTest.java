@@ -821,11 +821,38 @@ public class EvalTest
   }
 
   @Test
+  public void testLeft()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcde", "y", "abc"));
+    Assert.assertNull(Parser.parse("left(z, 0)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("left(x, 0)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("left(y, 0)").eval(bindings).stringValue());
+    Assert.assertEquals("a", Parser.parse("left(x, 1)").eval(bindings).stringValue());
+    Assert.assertEquals("a", Parser.parse("left(y, 1)").eval(bindings).stringValue());
+    Assert.assertEquals("abcd", Parser.parse("left(x, 4)").eval(bindings).stringValue());
+    Assert.assertEquals("abc", Parser.parse("left(y, 4)").eval(bindings).stringValue());
+
+    Assert.assertEquals("abcd", Parser.parse("left(x, -1)").eval(bindings).stringValue());
+    Assert.assertEquals("ab", Parser.parse("left(y, -1)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("left(x, -5)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("left(y, -5)").eval(bindings).stringValue());
+  }
+
+  @Test
   public void testRight()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcde", "y", "abc"));
+    Assert.assertEquals("", Parser.parse("right(x, 0)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("right(y, 0)").eval(bindings).stringValue());
+    Assert.assertEquals("e", Parser.parse("right(x, 1)").eval(bindings).stringValue());
+    Assert.assertEquals("c", Parser.parse("right(y, 1)").eval(bindings).stringValue());
     Assert.assertEquals("bcde", Parser.parse("right(x, 4)").eval(bindings).stringValue());
     Assert.assertEquals("abc", Parser.parse("right(y, 4)").eval(bindings).stringValue());
+
+    Assert.assertEquals("bcde", Parser.parse("right(x, -1)").eval(bindings).stringValue());
+    Assert.assertEquals("bc", Parser.parse("right(y, -1)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("right(x, -5)").eval(bindings).stringValue());
+    Assert.assertEquals("", Parser.parse("right(y, -5)").eval(bindings).stringValue());
   }
 
   @Test

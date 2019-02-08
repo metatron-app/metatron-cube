@@ -182,8 +182,8 @@ public class MathPostAggregator implements DecoratingPostAggregator
               return timestamp;
             }
             final Object value = values.get(name);
-            if (value == null && !values.containsKey(name)) {
-              throw new RuntimeException("No binding found for " + name);
+            if (value == null) {
+              return null;
             }
             AggregatorFactory factory = aggregators.get(name);
             return factory == null ? value : factory.finalizeComputation(value);
