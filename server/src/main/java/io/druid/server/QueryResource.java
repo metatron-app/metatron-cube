@@ -595,7 +595,7 @@ public class QueryResource
             jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
         );
         if (indexInterval == null || jsonMapper.readValue(indexInterval, Interval.class) == null) {
-          Interval dataInterval = JodaUtils.umbrellaInterval(query.getQuerySegmentSpec().getIntervals());
+          Interval dataInterval = JodaUtils.umbrellaInterval(query.getIntervals());
           forwardContext.put("interval", dataInterval.toString());
         }
       }

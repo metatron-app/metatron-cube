@@ -29,7 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.net.HostAndPort;
 import io.druid.client.DruidServer;
-import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -37,7 +36,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -67,7 +65,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   {
     super(
         dataSource == null ? TableDataSource.of("jmx") : dataSource,
-        querySegmentSpec == null ? new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY) : querySegmentSpec,
+        querySegmentSpec,
         false,
         context
     );

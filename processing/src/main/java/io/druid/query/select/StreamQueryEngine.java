@@ -107,7 +107,7 @@ public class StreamQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+    List<Interval> intervals = query.getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final Schema schema = segment.asSchema(false);

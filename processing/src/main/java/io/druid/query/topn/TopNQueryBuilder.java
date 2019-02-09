@@ -325,6 +325,12 @@ public class TopNQueryBuilder
     return this;
   }
 
+  public TopNQueryBuilder postAggregators(PostAggregator... p)
+  {
+    postAggregatorSpecs = Arrays.asList(p);
+    return this;
+  }
+
   public TopNQueryBuilder outputColumns(List<String> o)
   {
     outputColumns = o;

@@ -27,7 +27,6 @@ import io.druid.query.JoinElement;
 import io.druid.query.JoinType;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -150,7 +149,6 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
             .dataSource(leftAlias, QueryDataSource.of(leftDruid))
             .dataSource(rightAlias, QueryDataSource.of(rightDruid))
             .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
-            .intervals(MultipleIntervalSegmentSpec.ETERNITY)
             .build();
       }
     };

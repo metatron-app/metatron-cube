@@ -156,7 +156,7 @@ public class GroupByQueryEngine
             }
             final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
-            final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+            final List<Interval> intervals = query.getIntervals();
             if (intervals.size() != 1) {
               throw new IAE("Should only have one interval, got[%s]", intervals);
             }

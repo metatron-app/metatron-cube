@@ -27,7 +27,6 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
-import io.druid.common.Intervals;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -102,8 +101,9 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
     final Query query = druidQuery.getQuery();
-    final Query prepared = prepareQuery(query);
+    LOG.info("Running.. %s", query);
 
+    final Query prepared = prepareQuery(query);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
       Queries.iterate(prepared, new IdentityFunction<Query>()
       {
@@ -111,7 +111,7 @@ public class QueryMaker
         public Query apply(Query input)
         {
           if (!(prepared.getDataSource() instanceof QueryDataSource) &&
-              Intervals.ONLY_ETERNITY.equals(prepared.getIntervals())) {
+              prepared.getQuerySegmentSpec() == null) {
             throw new CannotBuildQueryException(
                 "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
             );
@@ -147,7 +147,6 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
-    LOG.info("Running.. %s", query);
     return query.run(segmentWalker, Maps.newHashMap());
   }
 

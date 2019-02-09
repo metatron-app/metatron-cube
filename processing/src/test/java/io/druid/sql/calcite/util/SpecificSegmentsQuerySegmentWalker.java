@@ -315,7 +315,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
         Iterables.transform(
             Iterables.concat(
                 Iterables.transform(
-                    segmentSpec.getIntervals(),
+                    input.getIntervals(),
                     new Function<Interval, Iterable<TimelineObjectHolder<String, Segment>>>()
                     {
                       @Override

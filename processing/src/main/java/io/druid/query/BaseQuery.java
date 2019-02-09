@@ -33,9 +33,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -43,6 +43,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Duration;
@@ -279,21 +280,25 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {
-    context = context == null ? Maps.<String, Object>newHashMap() : context;
-    return querySegmentSpec == null ? Sequences.<T>empty() : run(querySegmentSpec.lookup(this, walker), context);
+    QuerySegmentSpec spec = querySegmentSpec == null ? MultipleIntervalSegmentSpec.ETERNITY : querySegmentSpec;
+    return run(spec.lookup(this, walker), assertContext(context));
   }
 
   @Override
   public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
   {
-    context = context == null ? Maps.<String, Object>newHashMap() : context;
-    return runner.run(this, context);
+    return runner.run(this, assertContext(context));
+  }
+
+  public Map<String, Object> assertContext(Map<String, Object> context)
+  {
+    return context == null ? Maps.<String, Object>newHashMap() : context;
   }
 
   @Override
   public List<Interval> getIntervals()
   {
-    return querySegmentSpec == null ? ImmutableList.<Interval>of() : querySegmentSpec.getIntervals();
+    return querySegmentSpec == null ? Intervals.ONLY_ETERNITY : querySegmentSpec.getIntervals();
   }
 
   @Override

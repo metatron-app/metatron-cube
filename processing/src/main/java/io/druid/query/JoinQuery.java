@@ -96,13 +96,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     Map<String, DataSource> validated = Maps.newHashMap();
     for (Map.Entry<String, DataSource> entry : dataSources.entrySet()) {
       DataSource dataSource = entry.getValue();
-      if (dataSource instanceof QueryDataSource) {
-        Query query = ((QueryDataSource) dataSource).getQuery();
-        QuerySegmentSpec currentSpec = query.getQuerySegmentSpec();
-        if (currentSpec == null || currentSpec.getIntervals().isEmpty()) {
-          dataSource = QueryDataSource.of(query.withQuerySegmentSpec(segmentSpec));
-        }
-      } else if (dataSource instanceof TableDataSource) {
+      if (dataSource instanceof TableDataSource) {
         dataSource = ViewDataSource.of(((TableDataSource) dataSource).getName());
       }
       validated.put(entry.getKey(), dataSource);

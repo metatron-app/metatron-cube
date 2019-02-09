@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
-import io.druid.common.Intervals;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.query.spec.QuerySegmentSpecs;
 
 import java.util.Map;
 
@@ -39,7 +37,7 @@ public class SchemaQuery extends BaseQuery<Schema>
 {
   public static SchemaQuery of(String dataSource)
   {
-    return of(dataSource, QuerySegmentSpecs.create(Intervals.ETERNITY));
+    return of(dataSource, null);
   }
 
   public static SchemaQuery of(String dataSource, QuerySegmentSpec segmentSpec)

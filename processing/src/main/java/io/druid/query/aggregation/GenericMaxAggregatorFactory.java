@@ -30,6 +30,16 @@ import io.druid.segment.ColumnSelectors;
  */
 public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericMaxAggregatorFactory ofLong(String name, String fieldName)
+  {
+    return new GenericMaxAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
+  }
+
+  public static GenericMaxAggregatorFactory ofDouble(String name, String fieldName)
+  {
+    return new GenericMaxAggregatorFactory(name, fieldName, null, null, ValueDesc.DOUBLE);
+  }
+
   public static GenericMaxAggregatorFactory expr(String name, String expression, ValueDesc inputType)
   {
     return new GenericMaxAggregatorFactory(name, null, expression, null, inputType);

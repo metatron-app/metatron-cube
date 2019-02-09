@@ -60,7 +60,7 @@ public class SelectMetaQueryEngine
       );
     }
 
-    final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+    final List<Interval> intervals = query.getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final Interval interval = Iterables.getOnlyElement(intervals);

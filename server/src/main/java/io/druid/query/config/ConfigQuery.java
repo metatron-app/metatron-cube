@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableSet;
 import io.druid.client.DruidServer;
-import io.druid.common.Intervals;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
 import io.druid.query.jmx.JMXQuery;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -54,7 +52,7 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
   {
     super(
         dataSource == null ? TableDataSource.of("config") : dataSource,
-        querySegmentSpec == null ? new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY) : querySegmentSpec,
+        querySegmentSpec,
         false,
         context
     );

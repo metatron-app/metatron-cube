@@ -34,6 +34,16 @@ import java.math.BigDecimal;
  */
 public class GenericSumAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericSumAggregatorFactory ofLong(String name, String fieldName)
+  {
+    return new GenericSumAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
+  }
+
+  public static GenericSumAggregatorFactory ofDouble(String name, String fieldName)
+  {
+    return new GenericSumAggregatorFactory(name, fieldName, null, null, ValueDesc.DOUBLE);
+  }
+
   public static GenericSumAggregatorFactory expr(String name, String expression, ValueDesc inputType)
   {
     return new GenericSumAggregatorFactory(name, null, expression, null, inputType);

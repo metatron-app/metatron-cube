@@ -236,7 +236,7 @@ public class SelectQueryQueryToolChest
               selectors.add(cursor.makeObjectColumnSelector(metric));
               outputColumns.add(metric);
             }
-            final Interval interval = JodaUtils.umbrellaInterval(select.getQuerySegmentSpec().getIntervals());
+            final Interval interval = JodaUtils.umbrellaInterval(select.getIntervals());
             final String segmentId = DataSegment.makeDataSegmentIdentifier(
                 org.apache.commons.lang.StringUtils.join(select.getDataSource().getNames(), '_'),
                 interval.getStart(),

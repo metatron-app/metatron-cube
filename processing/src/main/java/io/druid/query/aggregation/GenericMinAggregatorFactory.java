@@ -30,6 +30,16 @@ import io.druid.segment.ColumnSelectors;
  */
 public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericMinAggregatorFactory ofLong(String name, String fieldName)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
+  }
+
+  public static GenericMinAggregatorFactory ofDouble(String name, String fieldName)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, null, null, ValueDesc.DOUBLE);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x0E;
 
   @JsonCreator

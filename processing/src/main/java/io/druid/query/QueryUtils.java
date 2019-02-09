@@ -397,10 +397,8 @@ public class QueryUtils
   public static boolean coveredBy(Query<?> query1, Query<?> query2)
   {
     final Granularity granularity = query1.getGranularity();
-    final QuerySegmentSpec spec1 = query1.getQuerySegmentSpec();
-    final QuerySegmentSpec spec2 = query2.getQuerySegmentSpec();
 
-    List<Interval> intervals1 = spec1.getIntervals();
+    List<Interval> intervals1 = query1.getIntervals();
     if (granularity != null && granularity != Granularities.ALL) {
       intervals1 = Lists.newArrayList(
           Iterables.transform(
@@ -418,7 +416,7 @@ public class QueryUtils
           )
       );
     }
-    List<Interval> intervals2 = spec2.getIntervals();
+    List<Interval> intervals2 = query2.getIntervals();
     if (intervals1.size() == 1 && intervals2.size() == 1) {
       return intervals2.get(0).contains(intervals1.get(0));
     }

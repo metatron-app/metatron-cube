@@ -85,7 +85,7 @@ public class Filtration
 
   public QuerySegmentSpec getQuerySegmentSpec()
   {
-    return new MultipleIntervalSegmentSpec(intervals);
+    return Intervals.ONLY_ETERNITY.equals(intervals) ? null : new MultipleIntervalSegmentSpec(intervals);
   }
 
   public List<Interval> getIntervals()

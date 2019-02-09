@@ -37,6 +37,11 @@ import java.util.Objects;
  */
 public class CountAggregatorFactory extends AggregatorFactory
 {
+  public static CountAggregatorFactory of(String name)
+  {
+    return new CountAggregatorFactory(name);
+  }
+
   private static final byte[] CACHE_KEY = new byte[]{0x0};
   private final String name;
   private final String predicate;

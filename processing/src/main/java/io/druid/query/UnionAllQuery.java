@@ -69,7 +69,6 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     return UnionDataSource.of(names);
   }
 
-  // dummy datasource for authorization
   private static <T> QuerySegmentSpec unionQuerySegmentSpec(Query<T> query, List<Query<T>> queries)
   {
     if (queries == null || queries.isEmpty()) {
@@ -77,7 +76,11 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     }
     List<Interval> intervals = Lists.newArrayList();
     for (Query q : queries) {
-      intervals.addAll(q.getQuerySegmentSpec().getIntervals());
+      QuerySegmentSpec segmentSpec = q.getQuerySegmentSpec();
+      if (segmentSpec == null) {
+        return null;
+      }
+      intervals.addAll(segmentSpec.getIntervals());
     }
     return new MultipleIntervalSegmentSpec(JodaUtils.condenseIntervals(intervals));
   }
