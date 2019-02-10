@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequence;
@@ -30,11 +29,8 @@ import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
-import io.druid.granularity.Granularity;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
-import io.druid.segment.StorageAdapter;
-import org.joda.time.Interval;
+import io.druid.segment.CursorFactory;
 
 import java.io.Closeable;
 import java.util.Arrays;
@@ -49,50 +45,23 @@ public class QueryRunnerHelper
   private static final Logger log = new Logger(QueryRunnerHelper.class);
 
   public static <T> Sequence<T> makeCursorBasedQuery(
-      final StorageAdapter adapter,
+      final CursorFactory factory,
       final Query<?> query,
       final Cache cache,
       final Function<Cursor, T> mapFn
   )
   {
-    return makeCursorBasedQuery(
-        adapter,
-        Iterables.getOnlyElement(query.getIntervals()),
-        RowResolver.of(adapter, BaseQuery.getVirtualColumns(query)),
-        BaseQuery.getDimFilter(query),
-        cache,
-        query.isDescending(),
-        query.getGranularity(),
-        mapFn
-    );
-  }
-
-  public static <T> Sequence<T> makeCursorBasedQuery(
-      final StorageAdapter adapter,
-      Interval interval,
-      RowResolver resolver,
-      DimFilter filter,
-      Cache cache,
-      boolean descending,
-      Granularity granularity,
-      final Function<Cursor, T> mapFn
-  )
-  {
-    return Sequences.filter(
-        Sequences.map(
-            adapter.makeCursors(filter, interval, resolver, granularity, cache, descending),
-            new Function<Cursor, T>()
-            {
-              @Override
-              public T apply(Cursor input)
-              {
-                log.debug("Running over cursor[%s/%s]", input.getTime(), adapter.getInterval());
-                return mapFn.apply(input);
-              }
-            }
+    return Sequences.filterNull(Sequences.map(
+        factory.makeCursors(
+            BaseQuery.getDimFilter(query),
+            Iterables.getOnlyElement(query.getIntervals()),
+            RowResolver.of(factory, BaseQuery.getVirtualColumns(query)),
+            query.getGranularity(),
+            cache,
+            query.isDescending()
         ),
-        Predicates.<T>notNull()
-    );
+        mapFn
+    ));
   }
 
   public static <T>  QueryRunner<T> makeClosingQueryRunner(final QueryRunner<T> runner, final Closeable closeable){

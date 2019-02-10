@@ -59,58 +59,56 @@ public class TimeseriesQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
+    return QueryRunnerHelper.makeCursorBasedQuery(adapter, query, cache, processor(query, compact));
+  }
 
-    return QueryRunnerHelper.makeCursorBasedQuery(
-        adapter,
-        query,
-        cache,
-        new Function<Cursor, Row>()
-        {
-          private final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
-          private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
-          private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
+  public static Function<Cursor, Row> processor(final TimeseriesQuery query, final boolean compact)
+  {
+    return new Function<Cursor, Row>()
+    {
+      private final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
+      private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
+      private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
 
-          @Override
-          public Row apply(Cursor cursor)
-          {
+      @Override
+      public Row apply(Cursor cursor)
+      {
+        if (skipEmptyBuckets && cursor.isDone()) {
+          return null;
+        }
 
-            if (skipEmptyBuckets && cursor.isDone()) {
-              return null;
+        final Aggregator[] aggregators = AggregatorFactory.toAggregatorsAsArray(cursor, aggregatorSpecs);
+        try {
+          while (!cursor.isDone()) {
+            for (Aggregator aggregator : aggregators) {
+              aggregator.aggregate();
+            }
+            cursor.advance();
+          }
+
+          if (compact) {
+            final Object[] array = new Object[aggregators.length + 1];
+            for (int i = 1; i < array.length; i++) {
+              array[i] = aggregators[i - 1].get();
+            }
+            array[0] = cursor.getTime().getMillis();
+            return new CompactRow(array);
+          } else {
+            final Map<String, Object> event = Maps.newLinkedHashMap();
+            for (int i = 0; i < aggregators.length; i++) {
+              event.put(aggregatorNames[i], aggregators[i].get());
             }
 
-            final Aggregator[] aggregators = AggregatorFactory.toAggregatorsAsArray(cursor, aggregatorSpecs);
-            try {
-              while (!cursor.isDone()) {
-                for (Aggregator aggregator : aggregators) {
-                  aggregator.aggregate();
-                }
-                cursor.advance();
-              }
-
-              if (compact) {
-                final Object[] array = new Object[aggregators.length + 1];
-                for (int i = 1; i < array.length; i++) {
-                  array[i] = aggregators[i - 1].get();
-                }
-                array[0] = cursor.getTime().getMillis();
-                return new CompactRow(array);
-              } else {
-                final Map<String, Object> event = Maps.newLinkedHashMap();
-                for (int i = 0; i < aggregators.length; i++) {
-                  event.put(aggregatorNames[i], aggregators[i].get());
-                }
-
-                return new MapBasedRow(cursor.getTime(), event);
-              }
-            }
-            finally {
-              // cleanup
-              for (Aggregator agg : aggregators) {
-                agg.close();
-              }
-            }
+            return new MapBasedRow(cursor.getTime(), event);
           }
         }
-    );
+        finally {
+          // cleanup
+          for (Aggregator agg : aggregators) {
+            agg.close();
+          }
+        }
+      }
+    };
   }
 }

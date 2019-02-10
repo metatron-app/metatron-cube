@@ -39,9 +39,7 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.spec.QuerySegmentSpecs;
-import io.druid.segment.Segment;
-import org.joda.time.Interval;
+import io.druid.segment.Cursor;
 
 import java.util.Comparator;
 import java.util.List;
@@ -102,23 +100,23 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   @Override
   public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new SubQueryRunner<I>(segmentWalker, config)
+    return new StreamingSubQueryRunner<I>(segmentWalker, config)
     {
       @Override
-      protected Function<Interval, Sequence<Row>> query(final Query<Row> query, final Segment segment)
+      protected Function<Cursor, Sequence<Row>> streamQuery(Query<Row> query)
       {
-        final TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
-        final TimeseriesQuery outerQuery = (TimeseriesQuery) query;
-        final Function<Row, Row> function = Functions.compose(toPostAggregator(outerQuery), toMapBasedRow(outerQuery));
-        return new Function<Interval, Sequence<Row>>()
-        {
-          @Override
-          public Sequence<Row> apply(Interval interval)
-          {
-            TimeseriesQuery timeseries = outerQuery.withQuerySegmentSpec(QuerySegmentSpecs.create(interval));
-            return Sequences.map(engine.process(timeseries, segment, true), function);
-          }
-        };
+        final Function<Row, Row> postProcessing = toPostAggregator((TimeseriesQuery) query);
+        return Functions.compose(
+            new Function<Row, Sequence<Row>>()
+            {
+              @Override
+              public Sequence<Row> apply(Row input)
+              {
+                return Sequences.of(postProcessing.apply(input));
+              }
+            },
+            TimeseriesQueryEngine.processor((TimeseriesQuery) query, false)
+        );
       }
     };
   }

@@ -57,6 +57,7 @@ import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -910,8 +911,11 @@ public class ColumnSelectorFactories
     final PeekingIterator<Row> peeker = Iterators.peekingIterator(iterator);
 
     final Granularity granularity = query.getGranularity();
-    final Iterable<Interval> intervals = JodaUtils.split(query.getGranularity(), query.getIntervals());
-    return Sequences.withBaggage(Sequences.map(
+    List<Interval> intervals = Lists.newArrayList(JodaUtils.split(granularity, query.getIntervals()));
+    if (query.isDescending()) {
+      Collections.reverse(intervals);
+    }
+    return Sequences.withBaggage(Sequences.filterNull(Sequences.map(
         Sequences.simple(intervals),
         new com.google.common.base.Function<Interval, Cursor>()
         {
@@ -951,14 +955,7 @@ public class ColumnSelectorFactories
             };
 
             if (!termIterator.hasNext()) {
-              return new DelegatedCursor(factory, resolver)
-              {
-                @Override
-                public boolean isDone()
-                {
-                  return true;
-                }
-              };
+              return null;    // skip
             }
 
             return new DelegatedCursor(factory, resolver)
@@ -988,6 +985,6 @@ public class ColumnSelectorFactories
             };
           }
         }
-    ), iterator);
+    )), iterator);
   }
 }

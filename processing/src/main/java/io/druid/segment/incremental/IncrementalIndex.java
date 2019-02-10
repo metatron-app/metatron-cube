@@ -54,10 +54,10 @@ import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.Granularity;
-import io.druid.query.select.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
@@ -454,7 +454,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
         rowSupplier
     );
     ingestedNumRows++;
-    updateMaxIngestedTime(row.getTimestamp());
+    updateMaxIngestedTime(row.getTimestampFromEpoch());
     return rv;
   }
 
@@ -566,9 +566,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     return new NoRollup(timestamp, new int[][]{}, 0);
   }
 
-  private void updateMaxIngestedTime(DateTime eventTime)
+  private void updateMaxIngestedTime(long time)
   {
-    final long time = eventTime.getMillis();
     for (long current = maxIngestedEventTime.get(); time > current; current = maxIngestedEventTime.get()) {
       if (maxIngestedEventTime.compareAndSet(current, time)) {
         break;
@@ -671,7 +670,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
     final MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
 
-    final Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
+    final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
     if (multiValueHandling != MultiValueHandling.ARRAY) {
       Arrays.sort(dimArray, ordering);
     }
@@ -968,7 +967,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
                                    : Lists.<Map.Entry<K, V>>newArrayListWithCapacity(size);
     Iterators.addAll(sorted, facts.iterator());
     if (sorted.size() > 1 << 13) {  // Arrays.MIN_ARRAY_SORT_GRAN
-      Map.Entry<K, V>[] array = sorted.toArray(new Map.Entry[sorted.size()]);
+      Map.Entry<K, V>[] array = sorted.toArray(new Map.Entry[0]);
       Arrays.parallelSort(array, comparator);
       sorted = Arrays.asList(array);
     } else {
@@ -1408,7 +1407,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   {
     private final SortedDimLookup<String> delegate;
 
-    public NullValueConverterDimLookup(SortedDimLookup delegate)
+    public NullValueConverterDimLookup(SortedDimLookup<String> delegate)
     {
       this.delegate = delegate;
     }

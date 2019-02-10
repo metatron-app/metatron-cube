@@ -431,7 +431,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    protected Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment)
+    protected final Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment)
     {
       throw new UnsupportedOperationException("streaming only sub-query handler");
     }

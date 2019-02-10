@@ -154,7 +154,11 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         for (PostAggregator postAggregator : postAggregators) {
           newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
         }
-        return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
+        final DateTime current = row.getTimestamp();
+        if (current == null || granularity.isUTC()) {
+          return new MapBasedRow(current, newMap);
+        }
+        return new MapBasedRow(granularity.toDateTime(current.getMillis()), newMap);
       }
     };
   }

@@ -20,8 +20,6 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -39,7 +37,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.joda.time.Interval;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -107,27 +104,19 @@ public class StreamQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    List<Interval> intervals = query.getIntervals();
-    Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
-
-    final Schema schema = segment.asSchema(false);
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
-
-    Sequence<Object[]> sequence = Sequences.concat(
+    final Sequence<Object[]> sequence = Sequences.concat(
         QueryRunnerHelper.makeCursorBasedQuery(
             adapter,
-            Iterables.getOnlyElement(intervals),
-            RowResolver.of(schema, query.getVirtualColumns()),
-            query.getDimensionsFilter(),
+            query,
             cache,
-            query.isDescending(),
-            query.getGranularity(),
             converter(query, counter)
         )
     );
 
+    final Schema schema = segment.asSchema(false);
     return Pair.of(schema.resolve(query, false), sequence);
   }
 

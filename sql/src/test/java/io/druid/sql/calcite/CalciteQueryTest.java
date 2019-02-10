@@ -3444,8 +3444,7 @@ public class CalciteQueryTest
                   .build()
         ),
         ImmutableList.of(
-//            new Object[]{2L}
-            new Object[]{3L}
+            new Object[]{2L}
         )
     );
   }

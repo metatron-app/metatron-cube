@@ -28,9 +28,9 @@ import org.joda.time.Interval;
 
 /**
  */
-public interface CursorFactory
+public interface CursorFactory extends SchemaProvider
 {
-  public Sequence<Cursor> makeCursors(
+  Sequence<Cursor> makeCursors(
       DimFilter filter,
       Interval interval,
       RowResolver resolver,

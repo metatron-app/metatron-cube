@@ -20,6 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -93,6 +94,11 @@ public class Sequences extends com.metamx.common.guava.Sequences
   public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Sequence<Sequence<T>> baseSequences)
   {
     return new MergeSequence<T>(ordering, baseSequences);
+  }
+
+  public static <T> Sequence<T> filterNull(Sequence<T> sequence)
+  {
+    return filter(sequence, Predicates.<T>notNull());
   }
 
   @SafeVarargs

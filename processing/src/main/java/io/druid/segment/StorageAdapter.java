@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  */
-public interface StorageAdapter extends SchemaProvider, CursorFactory
+public interface StorageAdapter extends CursorFactory
 {
   String getSegmentIdentifier();
   Interval getInterval();
