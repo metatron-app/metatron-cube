@@ -147,6 +147,14 @@ public class EvalTest
   }
 
   @Test
+  public void testNullAsBoolean()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
+    Assert.assertFalse(Parser.parse("X").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("!X").eval(bindings).asBoolean());
+  }
+
+  @Test
   public void testIf()
   {
     Map<String, Number> mapping = new HashMap<>();

@@ -371,18 +371,20 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    ExprEval ret = expr.eval(bindings);
-    ValueDesc type = ret.type();
-    if (type.isLong()) {
+    final ExprEval ret = expr.eval(bindings);
+    final ValueDesc type = ret.type();
+    if (ret.isNull()) {
+      return ExprEval.of(null, type);
+    } else if (type.isLong()) {
       return ExprEval.of(ret.asBoolean() ? 0L : 1L);
     } else if (type.isFloat()) {
       return ExprEval.of(ret.asBoolean() ? 0.0f : 1.0f);
     } else if (type.isDouble()) {
       return ExprEval.of(ret.asBoolean() ? 0.0d : 1.0d);
-    } else  if (type.isDecimal()) {
+    } else if (type.isDecimal()) {
       return ExprEval.of(ret.asBoolean() ? BigDecimal.ZERO : BigDecimal.ONE, ValueDesc.DECIMAL);
     }
-    throw new IllegalArgumentException("unsupported type " + ret.type());
+    throw new IllegalArgumentException("unsupported type " + type);
   }
 
   @Override
