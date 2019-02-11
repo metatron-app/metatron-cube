@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.filter.Filters;
 
@@ -63,6 +65,11 @@ public class MathExprFilter implements DimFilter
   @Override
   public DimFilter optimize()
   {
+    final Expr expr = Parser.parse(expression);
+    if (Evals.isConstant(expr)) {
+      final boolean check = Evals.getConstantEval(expr).asBoolean();
+      return check ? new DimFilters.ALL() : new DimFilters.NONE();
+    }
     return this;
   }
 
