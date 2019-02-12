@@ -144,7 +144,10 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
         final Query leftDruid = leftQuery.getQuery();
         final Query rightDruid = rightQuery.getQuery();
         final String leftAlias = toAlias(leftDruid);
-        final String rightAlias = toAlias(rightDruid);
+        String rightAlias = toAlias(rightDruid);
+        while (leftAlias.equals(rightAlias)) {
+          rightAlias += "$";
+        }
         return new Druids.JoinQueryBuilder()
             .dataSource(leftAlias, QueryDataSource.of(leftDruid))
             .dataSource(rightAlias, QueryDataSource.of(rightDruid))
@@ -265,6 +268,6 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
   @Override
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
   {
-    return planner.getCostFactory().makeCost(mq.getRowCount(this), 0, 0).multiplyBy(100);
+    return planner.getCostFactory().makeCost(mq.getRowCount(left) + mq.getRowCount(right), 0, 0);
   }
 }

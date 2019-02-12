@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -85,7 +86,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     for (DataSource dataSource : dataSources.values()) {
       names.addAll(Preconditions.checkNotNull(dataSource).getNames());
     }
-    return UnionDataSource.of(names);
+    return names.size() == 1 ? TableDataSource.of(Iterables.getOnlyElement(names)) : UnionDataSource.of(names);
   }
 
   private static Map<String, DataSource> validateDataSources(

@@ -1228,6 +1228,12 @@ public class Druids
       return this;
     }
 
+    public JoinQueryBuilder dataSource(String alias, Query query)
+    {
+      dataSources.put(alias, QueryDataSource.of(query));
+      return this;
+    }
+
     public JoinQueryBuilder interval(Interval interval)
     {
       querySegmentSpec = new LegacySegmentSpec(interval);

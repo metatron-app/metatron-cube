@@ -57,7 +57,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   private static final Logger LOG = new Logger(UnionAllQuery.class);
 
   // dummy datasource for authorization
-  private static <T> DataSource unionDataSource(Query<T> query, List<Query<T>> queries)
+  static <T> DataSource unionDataSource(Query<T> query, List<Query<T>> queries)
   {
     if (queries == null || queries.isEmpty()) {
       return Preconditions.checkNotNull(query).getDataSource();
@@ -66,7 +66,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     for (Query q : queries) {
       names.addAll(q.getDataSource().getNames());
     }
-    return UnionDataSource.of(names);
+    return names.size() == 1 ? TableDataSource.of(Iterables.getOnlyElement(names)) : UnionDataSource.of(names);
   }
 
   private static <T> QuerySegmentSpec unionQuerySegmentSpec(Query<T> query, List<Query<T>> queries)

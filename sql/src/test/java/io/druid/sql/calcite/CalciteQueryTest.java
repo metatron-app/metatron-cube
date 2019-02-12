@@ -4052,6 +4052,56 @@ public class CalciteQueryTest
   }
 
   @Test
+  public void testExactCountDistinctOfJoinResult() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_JOIN_ENABLED,
+        "SELECT COUNT(*)\n"
+        + "FROM (\n"
+        + "  SELECT DISTINCT dim2\n"
+        + "  FROM druid.foo\n"
+        + "  WHERE SUBSTRING(dim2, 1, 1) IN (\n"
+        + "    SELECT SUBSTRING(dim1, 1, 1) FROM druid.foo WHERE dim1 <> ''\n"
+        + "  )\n"
+        + ")",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(GroupByQuery.builder().setDataSource(
+                      new Druids.JoinQueryBuilder()
+                          .dataSource(
+                              "foo",
+                              new Druids.SelectQueryBuilder()
+                                  .dataSource(CalciteTests.DATASOURCE1)
+                                  .columns("dom2", "v0")
+                                  .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                                  .streamingRaw()
+                          )
+                          .dataSource(
+                              "foo$",
+                              new GroupByQuery.Builder()
+                                  .setDataSource("foo")
+                                  .filters(NOT(SELECTOR("dim1", "", null)))
+                                  .granularity(Granularities.ALL)
+                                  .setDimensions(new ExtractionDimensionSpec("dim1", "d0", new SubstringDimExtractionFn(0, 1)))
+                                  .build()
+                          )
+                          .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                          .build())
+                      .setGranularity(Granularities.ALL)
+                      .setDimensions(DefaultDimensionSpec.of("dim2", "_d0"))
+                      .build()
+                  )
+                  .granularity(Granularities.ALL)
+                  .aggregators(CountAggregatorFactory.of("a0"))
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2L}
+        )
+    );
+  }
+
+  @Test
   public void testExplainExactCountDistinctOfSemiJoinResult() throws Exception
   {
     final String explanation =
