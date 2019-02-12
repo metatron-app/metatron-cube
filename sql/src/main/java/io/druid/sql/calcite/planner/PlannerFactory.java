@@ -93,7 +93,7 @@ public class PlannerFactory
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
         .configBuilder()
         .withExpand(false)
-        .withDecorrelationEnabled(false)
+        .withDecorrelationEnabled(true)
         .withTrimUnusedFields(false)
         .withInSubQueryThreshold(Integer.MAX_VALUE)
         .build();

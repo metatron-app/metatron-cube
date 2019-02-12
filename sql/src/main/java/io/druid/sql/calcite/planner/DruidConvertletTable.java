@@ -60,6 +60,7 @@ public class DruidConvertletTable implements SqlRexConvertletTable
   private static final List<SqlOperator> STANDARD_CONVERTLET_OPERATORS =
       ImmutableList.<SqlOperator>builder()
           .add(SqlStdOperatorTable.ROW)
+          .add(SqlStdOperatorTable.EXISTS)
           .add(SqlStdOperatorTable.NOT_IN)
           .add(SqlStdOperatorTable.NOT_LIKE)
           .add(SqlStdOperatorTable.BETWEEN)

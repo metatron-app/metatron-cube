@@ -4102,6 +4102,45 @@ public class CalciteQueryTest
   }
 
   @Test
+  public void testExactCountDistinctOfJoinResult2() throws Exception
+  {
+    testQuery(
+        "SELECT COUNT(*)\n"
+        + "FROM (\n"
+        + "  SELECT DISTINCT dim2\n"
+        + "  FROM druid.foo as X\n"
+        + "  WHERE EXISTS ( SELECT * FROM druid.foo as Y WHERE X.dim2 = Y.dim2  )\n"
+        + ")",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(CalciteTests.DATASOURCE1)
+                        .setGranularity(Granularities.ALL)
+                        .setDimFilter(NOT(SELECTOR("dim2", "", null)))
+                        .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build(),
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(
+                      GroupByQuery.builder()
+                                  .setDataSource(CalciteTests.DATASOURCE1)
+                                  .setGranularity(Granularities.ALL)
+                                  .setDimFilter(IN("dim2", ImmutableList.of("a", "abc"), null))
+                                  .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                                  .setContext(QUERY_CONTEXT_DEFAULT)
+                                  .build()
+                  )
+                  .granularity(Granularities.ALL)
+                  .aggregators(CountAggregatorFactory.of("a0"))
+                  .context(TIMESERIES_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2L}
+        )
+    );
+  }
+
+  @Test
   public void testExplainExactCountDistinctOfSemiJoinResult() throws Exception
   {
     final String explanation =
