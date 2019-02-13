@@ -46,6 +46,7 @@ import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
@@ -85,7 +86,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 
 @Ignore
-public class DruidAvaticaHandlerTest
+public class DruidAvaticaHandlerTest extends CalciteTestBase
 {
   private static final AvaticaServerConfig AVATICA_CONFIG = new AvaticaServerConfig()
   {
@@ -123,7 +124,6 @@ public class DruidAvaticaHandlerTest
   @Before
   public void setUp() throws Exception
   {
-    Calcites.setSystemProperties();
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
     final PlannerConfig plannerConfig = new PlannerConfig();
     final QueryConfig queryConfig = new QueryConfig();

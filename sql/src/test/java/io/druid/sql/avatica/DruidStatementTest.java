@@ -23,11 +23,11 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
 import io.druid.query.QueryConfig;
-import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
@@ -42,7 +42,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
 
-public class DruidStatementTest
+public class DruidStatementTest extends CalciteTestBase
 {
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -56,7 +56,6 @@ public class DruidStatementTest
   @Before
   public void setUp() throws Exception
   {
-    Calcites.setSystemProperties();
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
     final PlannerConfig plannerConfig = new PlannerConfig();
     final QueryConfig queryConfig = new QueryConfig();

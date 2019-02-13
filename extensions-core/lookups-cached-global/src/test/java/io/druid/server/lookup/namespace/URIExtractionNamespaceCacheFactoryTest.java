@@ -297,7 +297,7 @@ public class URIExtractionNamespaceCacheFactoryTest
   public void setUp() throws Exception
   {
     lifecycle.start();
-    tmpFileParent = new File(temporaryFolder.newFolder(), "☃");
+    tmpFileParent = new File(temporaryFolder.newFolder(), "X");
     Assert.assertTrue(tmpFileParent.mkdir());
     Assert.assertTrue(tmpFileParent.isDirectory());
     tmpFile = Files.createTempFile(tmpFileParent.toPath(), "druidTestURIExtractionNS", suffix).toFile();
