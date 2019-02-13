@@ -56,10 +56,12 @@ public class StreamRawQueryToolChest extends QueryToolChest<Object[], StreamRawQ
           Query<Object[]> query, Map<String, Object> responseContext
       )
       {
-        final boolean finalWork = query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true);
-        final StreamRawQuery stream = (StreamRawQuery) query.withOverriddenContext(QueryContextKeys.FINAL_MERGE, false);
-
-        Sequence<Object[]> sequence = queryRunner.run(stream, responseContext);
+        boolean finalWork = query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true);
+        if (finalWork) {
+          query = query.removePostActions();
+        }
+        StreamRawQuery stream = (StreamRawQuery) query;
+        Sequence<Object[]> sequence = queryRunner.run(stream.removePostActions(), responseContext);
         if (stream.getLimit() > 0 && finalWork) {
           sequence = Sequences.limit(sequence, stream.getLimit());
         }

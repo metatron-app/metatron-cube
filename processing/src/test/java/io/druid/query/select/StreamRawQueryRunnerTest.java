@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.Druids;
-import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.spec.LegacySegmentSpec;
@@ -133,9 +132,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
       );
     }
 
-    // disable split (need sketch)
-    query = builder.context(ImmutableMap.<String, Object>of(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 1))
-                   .streamingRaw(Arrays.asList("quality", "market", "__time"));
+    query = builder.streamingRaw(Arrays.asList("quality", "market", "__time"));
 
     expected = Lists.newArrayList(
         array(time("2011-04-01"), "spot", "automotive", 135.88510131835938, 135.8851f),
