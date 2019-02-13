@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rel;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
@@ -98,10 +99,20 @@ public class QueryMaker
     return segmentWalker;
   }
 
+  public QueryConfig getQueryConfig()
+  {
+    return queryConfig;
+  }
+
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
     final Query query = druidQuery.getQuery();
-    LOG.info("Running.. %s", query);
+    try {
+      LOG.info("Running.. %s", jsonMapper.writeValueAsString(query));
+    }
+    catch (JsonProcessingException e) {
+      LOG.info("Running.. %s", query);
+    }
 
     final Query prepared = prepareQuery(query);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {

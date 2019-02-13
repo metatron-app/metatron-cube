@@ -44,7 +44,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import io.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -88,7 +87,7 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
       final DruidRel right,
       final List<Integer> leftKeys,
       final List<Integer> rightKeys,
-      final PlannerContext plannerContext
+      final int maxSegmiJoinRows
   )
   {
     final ImmutableList.Builder<RexNode> listBuilder = ImmutableList.builder();
@@ -115,7 +114,7 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
         right,
         listBuilder.build(),
         rightKeys,
-        plannerContext.getPlannerConfig().getMaxSemiJoinRowsInMemory(),
+        maxSegmiJoinRows,
         left.getQueryMaker()
     );
   }

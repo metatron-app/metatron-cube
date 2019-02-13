@@ -19,6 +19,15 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.metamx.common.logger.Logger;
+import io.druid.query.Queries;
+import io.druid.query.Query;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.sql.calcite.planner.PlannerConfig;
+import io.druid.sql.calcite.rel.DruidRel;
+import io.druid.sql.calcite.rel.DruidSemiJoinRel;
+import io.druid.sql.calcite.rel.PartialDruidQuery;
+import io.druid.sql.calcite.rel.QueryMaker;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -31,11 +40,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
-import io.druid.sql.calcite.planner.PlannerConfig;
-import io.druid.sql.calcite.rel.DruidRel;
-import io.druid.sql.calcite.rel.DruidSemiJoinRel;
-import io.druid.sql.calcite.rel.PartialDruidQuery;
 
+import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -52,6 +58,8 @@ import java.util.function.Predicate;
  */
 public class DruidSemiJoinRule extends RelOptRule
 {
+  private static final Logger LOG = new Logger(DruidSemiJoinRule.class);
+
   private static final Predicate<Join> IS_LEFT_OR_INNER =
       join -> {
         final JoinRelType joinType = join.getJoinType();
@@ -153,12 +161,27 @@ public class DruidSemiJoinRule extends RelOptRule
       // and LEFT means even if there is no match, a left-hand row will still be included).
       relBuilder.push(left);
     } else {
+      int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
+      final Query query = right.toDruidQuery(true).getQuery();
+      if (query instanceof GroupByQuery) {
+        GroupByQuery groupBy = (GroupByQuery) query.withId(UUID.randomUUID().toString());
+        QueryMaker queryMaker = right.getQueryMaker();
+        long cardinality = Queries.estimateCardinality(
+            groupBy.removePostActions(),
+            queryMaker.getSegmentWalker(),
+            queryMaker.getQueryConfig()
+        );
+        if (cardinality < 0 || cardinality > maxSegmiJoinRows) {
+          LOG.info("Estimated cardinality [%d] is exceeding maxSegmiJoinRows [%d]", cardinality, maxSegmiJoinRows);
+          return;
+        }
+      }
       final DruidSemiJoinRel druidSemiJoin = DruidSemiJoinRel.create(
           left,
           right,
           joinInfo.leftKeys,
           joinInfo.rightKeys,
-          left.getPlannerContext()
+          maxSegmiJoinRows
       );
 
       // Check maxQueryCount.
