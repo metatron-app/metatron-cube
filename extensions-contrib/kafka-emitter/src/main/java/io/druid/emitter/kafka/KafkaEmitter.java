@@ -39,6 +39,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executors;
@@ -186,7 +188,23 @@ public class KafkaEmitter implements Emitter
   public void emit(final Event event)
   {
     if (event != null) {
-      ImmutableMap.Builder<String, Object> resultBuilder = ImmutableMap.<String, Object>builder().putAll(event.toMap());
+      Map<String, Object> eventMap = new HashMap<>(event.toMap());
+      eventMap.computeIfPresent("context", (String s, Object o) -> {
+        if (o != null) {
+          String contextStr = eventMap.get("context").toString();
+          try {
+            Map<String, Object> context = jsonMapper.readValue(contextStr, Map.class);
+            return context;
+          }
+          catch (IOException e) {
+            log.warn("Failed to parse context");
+            return contextStr;
+          }
+        }
+        return null;
+      });
+
+      ImmutableMap.Builder<String, Object> resultBuilder = ImmutableMap.<String, Object>builder().putAll(eventMap);
       if (config.getClusterName() != null) {
         resultBuilder.put("clusterName", config.getClusterName());
       }
