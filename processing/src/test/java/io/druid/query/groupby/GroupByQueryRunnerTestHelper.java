@@ -22,7 +22,6 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -167,7 +166,6 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
   @SuppressWarnings("unchecked")
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
-    query = query.withOverriddenContext(ImmutableMap.<String, Object>of("IN_TEST", true));
     QueryRunner<T> theRunner = toMergeRunner(factory, runner, query);
 
     Sequence<T> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());

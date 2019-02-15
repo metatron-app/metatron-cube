@@ -208,7 +208,6 @@ public class GroupByQueryEngine
     private final Cursor cursor;
     private final RowUpdater rowUpdater;
 
-    private final boolean asSorted;
     private final boolean useRawUTF8;
     private final DateTime fixedTimeForAllGranularity;
 
@@ -231,7 +230,6 @@ public class GroupByQueryEngine
     {
       this.cursor = cursor;
       this.rowUpdater = new RowUpdater(bufferPool, maxPage);
-      this.asSorted = query.getContextBoolean("IN_TEST", false);
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
                         query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
       String fudgeTimestampString = query.getContextValue(Query.FUDGE_TIMESTAMP);
@@ -303,7 +301,7 @@ public class GroupByQueryEngine
       }
       nextIteration(start, unprocessedKeys);
 
-      delegate = rowUpdater.flush(asSorted);
+      delegate = rowUpdater.flush();
 
       return delegate.hasNext();
     }
@@ -391,16 +389,6 @@ public class GroupByQueryEngine
         return new int[]{nextIndex++, 0};
       }
 
-      private Map<IntArray, int[]> getPositions(boolean asSorted)
-      {
-        if (asSorted) {
-          Map<IntArray, int[]> sorted = Maps.newTreeMap();
-          sorted.putAll(positions);
-          return sorted;
-        }
-        return positions;
-      }
-
       private List<int[]> updateValues(final int[] key, final int index, final DimensionSelector[] dims)
       {
         if (index < key.length) {
@@ -455,11 +443,11 @@ public class GroupByQueryEngine
         return position;
       }
 
-      private Iterator<Object[]> flush(boolean asSorted)
+      private Iterator<Object[]> flush()
       {
         return GuavaUtils.withResource(
             Iterators.transform(
-                getPositions(asSorted).entrySet().iterator(),
+                positions.entrySet().iterator(),
                 new Function<Map.Entry<IntArray, int[]>, Object[]>()
                 {
                   private final DateTime timestamp =
@@ -628,21 +616,21 @@ public class GroupByQueryEngine
         }
       };
     }
+    return arrayToRow(query.getGranularity(), toOutputColumns(query).toArray(new String[0]));
+  }
+
+  public static Function<Object[], Row> arrayToRow(final Granularity granularity, final String[] columnNames)
+  {
     return new Function<Object[], Row>()
     {
-      private final Granularity granularity = query.getGranularity();
-      private final boolean asSorted = query.getContextBoolean("IN_TEST", false);
-      private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
-
       @Override
       public Row apply(final Object[] input)
       {
-        final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
-                                                      : Maps.<String, Object>newHashMap();
+        final Map<String, Object> theEvent = Maps.<String, Object>newHashMapWithExpectedSize(columnNames.length);
         for (int i = 1; i < columnNames.length; i++) {
           theEvent.put(columnNames[i], input[i]);
         }
-        return new MapBasedRow(granularity.toDateTime(((Number)input[0]).longValue()), theEvent);
+        return new MapBasedRow(granularity.toDateTime(((Number) input[0]).longValue()), theEvent);
       }
     };
   }
