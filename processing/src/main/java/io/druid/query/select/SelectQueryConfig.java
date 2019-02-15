@@ -31,6 +31,9 @@ public class SelectQueryConfig
   @JsonProperty
   private int optimizeSegmentThreshold = 2;
 
+  @JsonProperty
+  private int maxThreshold = 1000000;
+
   public boolean isUseDateTime()
   {
     return useDateTime;
@@ -39,5 +42,10 @@ public class SelectQueryConfig
   public int getOptimizeSegmentThreshold()
   {
     return optimizeSegmentThreshold;
+  }
+
+  public int getMaxThreshold()
+  {
+    return maxThreshold;
   }
 }

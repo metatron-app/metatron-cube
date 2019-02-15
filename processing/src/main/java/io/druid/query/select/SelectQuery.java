@@ -37,6 +37,8 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
@@ -52,7 +54,9 @@ import java.util.Objects;
  */
 @JsonTypeName("select")
 public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
-    implements Query.MetricSupport<Result<SelectResultValue>>, Query.ArrayOutputSupport<Result<SelectResultValue>>
+    implements Query.MetricSupport<Result<SelectResultValue>>,
+    Query.ArrayOutputSupport<Result<SelectResultValue>>,
+    Query.RewritingQuery<Result<SelectResultValue>>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;
@@ -122,6 +126,18 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getPagingSpec(),
         getContext()
     );
+  }
+
+  @Override
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  {
+    final PagingSpec pagingSpec = getPagingSpec();
+    final int threshold = pagingSpec.getThreshold();
+    final int maxthreshold = queryConfig.getSelect().getMaxThreshold();
+    if (threshold < 0 || threshold > maxthreshold) {
+      return withPagingSpec(pagingSpec.withThreshold(maxthreshold));
+    }
+    return this;
   }
 
   @Override

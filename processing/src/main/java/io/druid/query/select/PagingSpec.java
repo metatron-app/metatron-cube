@@ -79,6 +79,11 @@ public class PagingSpec
     this(pagingIdentifiers, threshold, false);
   }
 
+  public PagingSpec withThreshold(int threshold)
+  {
+    return new PagingSpec(pagingIdentifiers, threshold, fromNext);
+  }
+
   @JsonProperty
   public Map<String, Integer> getPagingIdentifiers()
   {

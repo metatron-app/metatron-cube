@@ -247,7 +247,7 @@ public class SelectQueryQueryToolChest
 
             final int limit = select.getPagingSpec().getThreshold();
             final List<EventHolder> events = Lists.newArrayList();
-            for (; !cursor.isDone() && limit < 0 || events.size() < limit; cursor.advance()) {
+            for (; !cursor.isDone() && (limit < 0 || events.size() < limit); cursor.advance()) {
               Map<String, Object> event = Maps.newHashMap();
               for (int i = 0; i < selectors.size(); i++) {
                 event.put(outputColumns.get(i), selectors.get(i).get());
