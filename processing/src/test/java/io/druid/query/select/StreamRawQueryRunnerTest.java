@@ -86,7 +86,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     testEq(builder.intervals(firstToThird));
     testEq(builder.limit(32));
 
-    StreamRawQuery query = builder.streamingRaw();
+    StreamQuery query = builder.streaming();
 
     List<Object[]> expected = Lists.newArrayList(
         array(time("2011-04-01"), "spot", "automotive", 135.88510131835938, 135.8851f),
@@ -132,7 +132,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
       );
     }
 
-    query = builder.streamingRaw(Arrays.asList("quality", "market", "__time"));
+    query = builder.streaming(Arrays.asList("quality", "market", "__time"));
 
     expected = Lists.newArrayList(
         array(time("2011-04-01"), "spot", "automotive", 135.88510131835938, 135.8851f),
@@ -180,9 +180,9 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
 
   private Druids.SelectQueryBuilder testEq(Druids.SelectQueryBuilder builder)
   {
-    StreamRawQuery query1 = builder.streamingRaw();
-    StreamRawQuery query2 = builder.streamingRaw();
-    Map<StreamRawQuery, String> map = ImmutableMap.of(query1, query1.toString());
+    StreamQuery query1 = builder.streaming();
+    StreamQuery query2 = builder.streaming();
+    Map<StreamQuery, String> map = ImmutableMap.of(query1, query1.toString());
     Assert.assertEquals(query2.toString(), map.get(query2));
     return builder;
   }

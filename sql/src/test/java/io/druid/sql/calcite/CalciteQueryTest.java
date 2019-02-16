@@ -276,7 +276,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "2"))
                 .limit(1)
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{2, ""}
@@ -491,7 +491,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .dataSource(CalciteTests.DATASOURCE1)
                 .columns("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1")
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HLLCV1.class.getName()},
@@ -515,7 +515,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .dataSource(CalciteTests.FORBIDDEN_DATASOURCE)
                 .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "forbidden", "abcd", 9999.0d, 0.0, HLLCV1.class.getName()}
@@ -550,7 +550,7 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{
-                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
             }
         )
     );
@@ -567,7 +567,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                 .limit(2)
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, HLLCV1.class.getName()},
@@ -588,7 +588,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
                 .limit(2)
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"a"},
@@ -610,7 +610,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .descending(true)
                   .limit(2)
                   .context(QUERY_CONTEXT_DEFAULT)
-                  .streamingRaw()
+                  .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6d, HLLCV1.class.getName()},
@@ -630,7 +630,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .granularity(Granularities.ALL)
                   .columns(ImmutableList.of("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                   .context(QUERY_CONTEXT_DEFAULT)
-                  .streamingRaw()
+                  .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HLLCV1.class.getName()},
@@ -654,7 +654,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .columns(Arrays.asList("dim2", "dim2"))
                 .limit(2)
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"a", "a"},
@@ -676,7 +676,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .descending(true)
                   .limit(2)
                   .context(QUERY_CONTEXT_DEFAULT)
-                  .streamingRaw()
+                  .streaming()
         ),
         ImmutableList.of(
             new Object[]{"abc"},
@@ -727,12 +727,12 @@ public class CalciteQueryTest extends CalciteTestBase
                 .columns(Arrays.asList("dim1"))
                 .filters(NOT(SELECTOR("dim1", "", null)))
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw(),
+                .streaming(),
             newScanQueryBuilder()
                 .dataSource(CalciteTests.DATASOURCE1)
                 .columns(Arrays.asList("dim1", "dim2"))
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"abc", "def", "abc"}
@@ -745,8 +745,8 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     final String explanation =
         "BindableJoin(condition=[=($0, $2)], joinType=[inner])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"columns\":[\"dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string}])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n";
+        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"columns\":[\"dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string}])\n"
+        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n";
 
     testQuery(
         PLANNER_CONFIG_FALLBACK,
@@ -1696,7 +1696,7 @@ public class CalciteQueryTest extends CalciteTestBase
                     )
                 )
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0d, HLLCV1.class.getName()},
@@ -4074,7 +4074,7 @@ public class CalciteQueryTest extends CalciteTestBase
                                   .dataSource(CalciteTests.DATASOURCE1)
                                   .columns("dom2", "v0")
                                   .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
-                                  .streamingRaw()
+                                  .streaming()
                           )
                           .dataSource(
                               "foo$",
@@ -5826,7 +5826,7 @@ public class CalciteQueryTest extends CalciteTestBase
         + "    BindableFilter(condition=[OR(=($0, 'xxx'), CAST(AND(IS NOT NULL($4), <>($2, 0), IS NOT NULL($1))):BOOLEAN)])\n"
         + "      BindableJoin(condition=[=($1, $3)], joinType=[left])\n"
         + "        BindableJoin(condition=[true], joinType=[inner])\n"
-        + "          DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n"
+        + "          DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n"
         + "          DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"skipEmptyBuckets\":true,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
         + "        DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"d1:v\",\"outputName\":\"d1\"}],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"1\",\"outputName\":\"d1:v\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:long}])\n";
     final String theQuery = "SELECT dim1, dim2, COUNT(*) FROM druid.foo\n"
@@ -5893,7 +5893,7 @@ public class CalciteQueryTest extends CalciteTestBase
                     )
                 ))
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{T("2001-01-02"), 1L, "def", "abc"}
@@ -5927,7 +5927,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .columns(Arrays.asList("dim1", "dim2"))
                 .filters(IN("dim2", ImmutableList.of("", "a", "abc"), null))
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"", "a"},
@@ -6251,7 +6251,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",'-',\"dim1\",'_',\"dim1\")"))
                 .columns("v0")
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"-_"},
@@ -6271,7 +6271,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",concat(\"dim2\",'x'),\"m2\",9999,\"dim1\")"))
                 .columns("v0")
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"ax1.09999"},
@@ -6295,7 +6295,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",\"dim1\")"))
                 .columns("v0")
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{""},
@@ -6315,7 +6315,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",CAST(\"m2\", 'STRING'))"))
                 .columns("v0")
                 .context(QUERY_CONTEXT_DEFAULT)
-                .streamingRaw()
+                .streaming()
         ),
         ImmutableList.of(
             new Object[]{"1.0"},
@@ -6446,13 +6446,13 @@ public class CalciteQueryTest extends CalciteTestBase
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo")
                                           .columns("__time", "m1")
-                                          .streamingRaw())
+                                          .streaming())
                                 )
                                 .dataSource("foo2", QueryDataSource.of(
                                     Druids.newSelectQueryBuilder()
                                           .dataSource("foo2")
                                           .columns("__time", "dim2")
-                                          .streamingRaw())
+                                          .streaming())
                                 )
                                 .element(JoinElement.of(JoinType.INNER, "foo2.__time = foo.__time"))
                                 .build()
@@ -6460,7 +6460,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   )
                   .columns("dim2", "m1")
                   .limit(3)
-                  .streamingRaw()
+                  .streaming()
         )
         , ImmutableList.of(
             new Object[]{1.0, "en"},
@@ -6485,13 +6485,13 @@ public class CalciteQueryTest extends CalciteTestBase
                                   Druids.newSelectQueryBuilder()
                                         .dataSource("foo")
                                         .columns("__time", "m1")
-                                        .streamingRaw())
+                                        .streaming())
                               )
                               .dataSource("foo2", QueryDataSource.of(
                                   Druids.newSelectQueryBuilder()
                                         .dataSource("foo2")
                                         .columns("__time", "dim2")
-                                        .streamingRaw())
+                                        .streaming())
                               )
                               .element(JoinElement.of(JoinType.INNER, "foo2.__time = foo.__time"))
                               .build()

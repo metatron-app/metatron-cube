@@ -57,8 +57,6 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
-import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamQueryRow;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
@@ -232,8 +230,6 @@ public class Queries
       return Sequences.map((Sequence<Map<String, Object>>) sequence, Rows.mapToRow(timeColumn));
     } else if (subQuery instanceof SelectQuery) {
       return Sequences.explode((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS);
-    } else if (subQuery instanceof StreamQuery) {
-      return Sequences.map((Sequence<StreamQueryRow>) sequence, STREAM_TO_ROW);
     } else if (subQuery instanceof TopNQuery) {
       return Sequences.explode((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS);
     } else if (subQuery instanceof BaseAggregationQuery) {
@@ -241,16 +237,6 @@ public class Queries
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }
-
-  public static Function<StreamQueryRow, Row> STREAM_TO_ROW =
-      new Function<StreamQueryRow, Row>()
-      {
-        @Override
-        public Row apply(StreamQueryRow input)
-        {
-          return new MapBasedRow(input.getTimestamp(), input);
-        }
-      };
 
   public static Function<Result<TopNResultValue>, Sequence<Row>> TOP_N_TO_ROWS =
       new Function<Result<TopNResultValue>, Sequence<Row>>()

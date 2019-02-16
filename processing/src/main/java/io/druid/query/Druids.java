@@ -48,7 +48,6 @@ import io.druid.query.search.search.SearchSortSpec;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamRawQuery;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -817,31 +816,14 @@ public class Druids
 
     public StreamQuery streaming()
     {
+      return streaming(null);
+    }
+
+    public StreamQuery streaming(List<String> sortOn)
+    {
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
       return new StreamQuery(
-          dataSource,
-          querySegmentSpec,
-          descending,
-          dimFilter,
-          columns,
-          virtualColumns,
-          concatString,
-          pagingSpec == null ? -1 : pagingSpec.getThreshold(),
-          context
-      );
-    }
-
-    public StreamRawQuery streamingRaw()
-    {
-      return streamingRaw(null);
-    }
-
-    public StreamRawQuery streamingRaw(List<String> sortOn)
-    {
-      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
-      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
-      return new StreamRawQuery(
           dataSource,
           querySegmentSpec,
           descending,

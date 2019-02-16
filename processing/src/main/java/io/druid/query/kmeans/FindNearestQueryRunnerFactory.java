@@ -22,7 +22,6 @@ package io.druid.query.kmeans;
 import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -31,7 +30,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
-import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.Segment;
@@ -84,7 +82,7 @@ public class FindNearestQueryRunnerFactory
         final int dimension = nearestQuery.getMetrics().size();
 
         final StreamQuery stream = nearestQuery.asInput();
-        final Pair<Schema, Sequence<Object[]>> result = engine.processRaw(stream, segment, optimizer, cache);
+        final Sequence<Object[]> result = engine.process(stream, segment, optimizer, cache);
 
         final Centroid[] centroids = nearestQuery.getCentroids().toArray(new Centroid[0]);
         final CentroidDesc[] descs = new CentroidDesc[centroids.length];
@@ -95,7 +93,7 @@ public class FindNearestQueryRunnerFactory
         final double[] values = new double[dimension];
         final DistanceMeasure measure = DistanceMeasure.of(nearestQuery.getMeasure());
 
-        result.rhs.accumulate(
+        result.accumulate(
             null, new Accumulator<CentroidDesc, Object[]>()
             {
               @Override

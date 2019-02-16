@@ -53,7 +53,6 @@ public class CacheConfig
       Query.GROUP_BY,
       Query.SELECT,
       Query.SELECT_STREAM,
-      Query.SELECT_STREAM_RAW,
       Query.SELECT_DELEGATE
   );
 

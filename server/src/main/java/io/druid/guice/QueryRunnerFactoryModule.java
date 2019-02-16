@@ -44,8 +44,6 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryRunnerFactory;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRunnerFactory;
-import io.druid.query.select.StreamRawQuery;
-import io.druid.query.select.StreamRawQueryRunnerFactory;
 import io.druid.query.sketch.SketchQuery;
 import io.druid.query.sketch.SketchQueryRunnerFactory;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -74,7 +72,6 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(SchemaQuery.class, SchemaQueryRunnerFactory.class)
                   .put(SelectQuery.class, SelectQueryRunnerFactory.class)
                   .put(StreamQuery.class, StreamQueryRunnerFactory.class)
-                  .put(StreamRawQuery.class, StreamRawQueryRunnerFactory.class)
                   .put(TopNQuery.class, TopNQueryRunnerFactory.class)
                   .put(DataSourceMetadataQuery.class, DataSourceMetadataQueryRunnerFactory.class)
                   .put(FindNearestQuery.class, FindNearestQueryRunnerFactory.class)

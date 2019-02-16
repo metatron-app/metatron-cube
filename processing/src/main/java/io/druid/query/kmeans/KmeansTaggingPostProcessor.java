@@ -12,7 +12,7 @@ import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.UnionAllQueryRunner;
-import io.druid.query.select.StreamRawQuery;
+import io.druid.query.select.StreamQuery;
 
 import java.util.Arrays;
 import java.util.List;
@@ -53,8 +53,8 @@ public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionS
         final DistanceMeasure measure = DistanceMeasure.of(((KMeansQuery)first.lhs).getMeasure());
         final List<Sequence<Object[]>> tagged = Lists.newArrayList();
         for (Pair<Query, Sequence> pair : sequences) {
-          if (pair.lhs instanceof StreamRawQuery) {
-            StreamRawQuery stream = (StreamRawQuery) pair.lhs;
+          if (pair.lhs instanceof StreamQuery) {
+            StreamQuery stream = (StreamQuery) pair.lhs;
             List<String> outputColumns = stream.estimatedOutputColumns();
             if (outputColumns == null) {
               tagged.add(pair.rhs);

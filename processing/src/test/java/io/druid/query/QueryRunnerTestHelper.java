@@ -62,7 +62,6 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
 import io.druid.query.kmeans.FindNearestQueryToolChest;
-import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -79,17 +78,13 @@ import io.druid.query.select.SelectMetaQueryRunnerFactory;
 import io.druid.query.select.SelectMetaQueryToolChest;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
-import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRunnerFactory;
 import io.druid.query.select.StreamQueryToolChest;
-import io.druid.query.select.StreamRawQuery;
-import io.druid.query.select.StreamRawQueryRunnerFactory;
-import io.druid.query.select.StreamRawQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -166,13 +161,6 @@ public class QueryRunnerTestHelper
                               QUERY_CONFIG.getSegmentMeta()
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      StreamRawQuery.class,
-                      new StreamRawQueryRunnerFactory(
-                          new StreamRawQueryToolChest(),
-                          new StreamQueryEngine()
                       )
                   )
                   .put(

@@ -47,7 +47,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.select.SelectQuery;
-import io.druid.query.select.StreamRawQuery;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.DimensionTopNMetricSpec;
 import io.druid.query.topn.InvertedTopNMetricSpec;
@@ -676,7 +676,7 @@ public class DruidBaseQuery implements DruidQuery
       return groupByQuery;
     }
 
-    final StreamRawQuery scanQuery = toScanQuery();
+    final StreamQuery scanQuery = toScanQuery();
     if (scanQuery != null) {
       return scanQuery;
     }
@@ -896,7 +896,7 @@ public class DruidBaseQuery implements DruidQuery
    * @return query or null
    */
   @Nullable
-  public StreamRawQuery toScanQuery()
+  public StreamQuery toScanQuery()
   {
     if (grouping != null) {
       // Scan cannot GROUP BY.
@@ -921,7 +921,7 @@ public class DruidBaseQuery implements DruidQuery
     if (!GuavaUtils.isNullOrEmpty(ordering) && ordering.get(0).equals(OrderByColumnSpec.desc(Row.TIME_COLUMN_NAME))) {
       descending = true;
     }
-    return new StreamRawQuery(
+    return new StreamQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
         descending,

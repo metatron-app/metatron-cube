@@ -36,7 +36,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.select.StreamRawQuery;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.lucene.ShapeFormat;
 
@@ -48,14 +48,14 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
 {
   private final GroupByQuery query;
   private final String pointColumn;
-  private final StreamRawQuery boundary;
+  private final StreamQuery boundary;
   private final String boundaryColumn;
   private final Map<String, String> boundaryJoin;
 
   public ChoroplethMapQuery(
       @JsonProperty("query") GroupByQuery query,
       @JsonProperty("pointColumn") String pointColumn,
-      @JsonProperty("boundary") StreamRawQuery boundary,
+      @JsonProperty("boundary") StreamQuery boundary,
       @JsonProperty("boundaryColumn") String boundaryColumn,
       @JsonProperty("boundaryJoin") Map<String, String> boundaryJoin,
       @JsonProperty("context") Map<String, Object> context
@@ -94,7 +94,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
   }
 
   @JsonProperty
-  public StreamRawQuery getBoundary()
+  public StreamQuery getBoundary()
   {
     return boundary;
   }

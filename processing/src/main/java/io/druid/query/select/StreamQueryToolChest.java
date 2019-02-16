@@ -21,11 +21,12 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -33,30 +34,36 @@ import io.druid.query.TabularFormat;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQuery>
+public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 {
-  private static final TypeReference<StreamQueryRow> TYPE_REFERENCE =
-      new TypeReference<StreamQueryRow>()
+  private static final TypeReference<Object[]> TYPE_REFERENCE =
+      new TypeReference<Object[]>()
       {
       };
 
   @Override
-  public QueryRunner<StreamQueryRow> mergeResults(final QueryRunner<StreamQueryRow> queryRunner)
+  public QueryRunner<Object[]> mergeResults(final QueryRunner<Object[]> queryRunner)
   {
-    return new QueryRunner<StreamQueryRow>()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence<StreamQueryRow> run(
-          Query<StreamQueryRow> query, Map<String, Object> responseContext
+      public Sequence<Object[]> run(
+          Query<Object[]> query, Map<String, Object> responseContext
       )
       {
-        Sequence<StreamQueryRow> sequence = queryRunner.run(query, responseContext);
-        if (((StreamQuery)query).getLimit() > 0) {
-          sequence = Sequences.limit(sequence, ((StreamQuery)query).getLimit());
+        boolean finalWork = query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true);
+        if (finalWork) {
+          query = query.removePostActions();
+        }
+        StreamQuery stream = (StreamQuery) query;
+        Sequence<Object[]> sequence = queryRunner.run(stream.removePostActions(), responseContext);
+        if (stream.getLimit() > 0 && finalWork) {
+          sequence = Sequences.limit(sequence, stream.getLimit());
         }
         return sequence;
       }
@@ -64,7 +71,7 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   }
 
   @Override
-  public TypeReference<StreamQueryRow> getResultTypeReference()
+  public TypeReference<Object[]> getResultTypeReference()
   {
     return TYPE_REFERENCE;
   }
@@ -72,16 +79,31 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   @Override
   public TabularFormat toTabularFormat(
       final StreamQuery query,
-      final Sequence<StreamQueryRow> sequence,
+      final Sequence<Object[]> sequence,
       final String timestampColumn
   )
   {
     return new TabularFormat()
     {
+      private final List<String> columnNames = query.getColumns();
+
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.map(sequence, GuavaUtils.<StreamQueryRow, Map<String, Object>>caster());
+        return Sequences.map(
+            sequence, new Function<Object[], Map<String, Object>>()
+            {
+              @Override
+              public Map<String, Object> apply(Object[] input)
+              {
+                final Map<String, Object> converted = Maps.newLinkedHashMap();
+                for (int i = 0; i < columnNames.size(); i++) {
+                  converted.put(columnNames.get(i), input[i]);
+                }
+                return converted;
+              }
+            }
+        );
       }
 
       @Override
@@ -93,39 +115,14 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   }
 
   @Override
-  public <I> QueryRunner<StreamQueryRow> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
     return new StreamingSubQueryRunner<I>(segmentWalker, config)
     {
       @Override
-      protected final Function<Cursor, Sequence<StreamQueryRow>> streamQuery(
-          Query<StreamQueryRow> outerQuery
-      )
+      protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
-        final StreamQuery query = (StreamQuery) outerQuery;
-        final String[] columns = query.getColumns().toArray(new String[0]);
-        final Function<Cursor, Sequence<Object[]>> converter = StreamQueryEngine.converter(query, new MutableInt());
-        return new Function<Cursor, Sequence<StreamQueryRow>>()
-        {
-          @Override
-          public Sequence<StreamQueryRow> apply(Cursor input)
-          {
-            return Sequences.map(
-                converter.apply(input), new Function<Object[], StreamQueryRow>()
-                {
-                  @Override
-                  public StreamQueryRow apply(Object[] input)
-                  {
-                    final StreamQueryRow row = new StreamQueryRow();
-                    for (int i = 0; i < columns.length; i++) {
-                      row.put(columns[i], input[i]);
-                    }
-                    return row;
-                  }
-                }
-            );
-          }
-        };
+        return StreamQueryEngine.converter((StreamQuery) query, new MutableInt());
       }
     };
   }

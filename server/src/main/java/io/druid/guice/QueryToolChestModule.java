@@ -51,8 +51,6 @@ import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryToolChest;
-import io.druid.query.select.StreamRawQuery;
-import io.druid.query.select.StreamRawQueryToolChest;
 import io.druid.query.sketch.SketchQuery;
 import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -80,7 +78,6 @@ public class QueryToolChestModule implements Module
                   .put(SchemaQuery.class, SchemaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(StreamQuery.class, StreamQueryToolChest.class)
-                  .put(StreamRawQuery.class, StreamRawQueryToolChest.class)
                   .put(SelectForwardQuery.class, SelectForwardQueryToolChest.class)
                   .put(TopNQuery.class, TopNQueryQueryToolChest.class)
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)

@@ -259,7 +259,7 @@ public class JoinElement
         .dataSource(dataSource)
         .intervals(segmentSpec)
         .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_ON_JOINKEY, true)
-        .streamingRaw(sortColumns);
+        .streaming(sortColumns);
   }
 
   public static long estimatedNumRows(

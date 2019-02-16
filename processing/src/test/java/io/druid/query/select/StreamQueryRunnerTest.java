@@ -19,7 +19,6 @@
 
 package io.druid.query.select;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -32,7 +31,6 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.TestIndex;
-import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -94,40 +92,36 @@ public class StreamQueryRunnerTest
     StreamQuery query = builder.streaming();
 
     String[] columnNames = {"__time", "market", "quality", "index", "indexMin"};
-    List<StreamQueryRow> expected;
+    List<Object[]> expected;
     if (descending) {
       expected = createExpected(
-          columnNames,
           new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
           new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
           new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
       );
     } else {
       expected = createExpected(
-          columnNames,
           new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100F},
           new Object[]{"2011-01-12T00:00:00.000Z", "spot", "business", 100D, 100F},
           new Object[]{"2011-01-12T00:00:00.000Z", "spot", "entertainment", 100D, 100F}
       );
     }
 
-    List<StreamQueryRow> results = Sequences.toList(
+    List<Object[]> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
-        Lists.<StreamQueryRow>newArrayList()
+        Lists.<Object[]>newArrayList()
     );
-    validate(columnNames, expected, results);
+    validate(expected, results);
 
     query = query.withDimFilter(new MathExprFilter("index > 200"));
     if (descending) {
       expected = createExpected(
-          columnNames,
           new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
           new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
           new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
       );
     } else {
       expected = createExpected(
-          columnNames,
           new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "mezzanine", 1000D, 1000F},
           new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "premium", 1000D, 1000F},
           new Object[]{"2011-01-12T00:00:00.000Z", "upfront", "mezzanine", 800D, 800F}
@@ -135,9 +129,9 @@ public class StreamQueryRunnerTest
     }
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
-        Lists.<StreamQueryRow>newArrayList()
+        Lists.<Object[]>newArrayList()
     );
-    validate(columnNames, expected, results);
+    validate(expected, results);
   }
 
   private Druids.SelectQueryBuilder testEq(Druids.SelectQueryBuilder builder)
@@ -149,37 +143,24 @@ public class StreamQueryRunnerTest
     return builder;
   }
 
-  public static List<StreamQueryRow> createExpected(String[] columnNames, Object[]... values)
+  public static List<Object[]> createExpected(Object[]... values)
   {
-    List<StreamQueryRow> events = Lists.newArrayList();
     for (Object[] value : values) {
-      Preconditions.checkArgument(value.length == columnNames.length);
-      StreamQueryRow event = new StreamQueryRow();
-      for (int i = 0; i < columnNames.length; i++) {
-        if (columnNames[i].equals(Column.TIME_COLUMN_NAME)) {
-          event.put(columnNames[i], value[0] instanceof Long ? (Long) value[0] : new DateTime(value[0]).getMillis());
-        } else {
-          event.put(columnNames[i], value[i]);
-        }
-      }
-      events.add(event);
+      value[0] = value[0] instanceof Long ? (Long) value[0] : new DateTime(value[0]).getMillis();
     }
-    return events;
+    return Arrays.asList(values);
   }
 
   public static void validate(
-      String[] columnNames,
-      List<StreamQueryRow> expected,
-      List<StreamQueryRow> result
+      List<Object[]> expected,
+      List<Object[]> result
   )
   {
     int max1 = Math.min(expected.size(), result.size());
     for (int i = 0; i < max1; i++) {
-      StreamQueryRow e = expected.get(i);
-      StreamQueryRow r = result.get(i);
-      for (String columnName : columnNames) {
-        Assert.assertEquals(columnName, e.get(columnName), r.get(columnName));
-      }
+      Object[] e = expected.get(i);
+      Object[] r = result.get(i);
+      Assert.assertArrayEquals(e, r);
     }
     if (expected.size() > result.size()) {
       Assert.fail("need more results");

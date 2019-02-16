@@ -19,27 +19,40 @@
 
 package io.druid.query.select;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.data.input.Row;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.WindowingProcessor;
+import io.druid.query.ordering.Accessor;
+import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
 @JsonTypeName(Query.SELECT_STREAM)
-public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
+public class StreamQuery extends AbstractStreamQuery<Object[]> implements Query.OrderingSupport<Object[]>
 {
-  @JsonCreator
+  private final List<OrderByColumnSpec> orderBySpecs;
+
   public StreamQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
@@ -48,6 +61,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
+      @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
       @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -63,28 +77,70 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         limit,
         context
     );
+    this.orderBySpecs = orderBySpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderBySpecs;
   }
 
   @Override
   public String getType()
   {
-    return Query.SELECT_STREAM;
+    return SELECT_STREAM;
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
+  public List<OrderByColumnSpec> getOrderBySpecs()
+  {
+    return orderBySpecs;
+  }
+
+  @JsonIgnore
+  public List<String> getSortOn()
+  {
+    return OrderByColumnSpec.getColumns(orderBySpecs);
   }
 
   @Override
-  public StreamQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
+  @SuppressWarnings("unchecked")
+  public Ordering<Object[]> getResultOrdering()
   {
-    return new StreamQuery(
-        getDataSource(),
-        querySegmentSpec,
-        isDescending(),
-        getDimFilter(),
-        getColumns(),
-        getVirtualColumns(),
-        getConcatString(),
-        getLimit(),
-        getContext()
-    );
+    final List<String> columnNames = getColumns();
+    final List<OrderByColumnSpec> orderBySpecs = getOrderBySpecs();
+
+    final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
+    if (orderBySpecs.isEmpty() && timeIndex >= 0) {
+      final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(timeIndex);
+      Ordering<Object[]> ordering = Ordering.from(new Comparator<Object[]>()
+      {
+        @Override
+        @SuppressWarnings("unchecked")
+        public int compare(final Object[] o1, final Object[] o2)
+        {
+          return -Long.compare((Long) accessor.get(o1), (Long) accessor.get(o2));
+        }
+      });
+      if (isDescending()) {
+        ordering = ordering.reverse();
+      }
+      return ordering;
+    }
+    final List<Comparator<Object[]>> comparators = Lists.newArrayList();
+    for (OrderByColumnSpec sort : orderBySpecs) {
+      int index = columnNames.indexOf(sort.getDimension());
+      if (index >= 0) {
+        final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(index);
+        final Comparator comparator = sort.getComparator();
+        comparators.add(new Comparator<Object[]>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public int compare(final Object[] o1, final Object[] o2)
+          {
+            return comparator.compare(accessor.get(o1), accessor.get(o2));
+          }
+        });
+      }
+    }
+    return comparators.isEmpty() ? null : Comparators.compound(comparators);
   }
 
   @Override
@@ -98,13 +154,31 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
   }
 
   @Override
-  public StreamQuery withOverriddenContext(Map<String, Object> contextOverrides)
+  public StreamQuery withQuerySegmentSpec(QuerySegmentSpec spec)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        spec,
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        getOrderBySpecs(),
+        getLimit(),
+        getContext()
+    );
+  }
+
+  @Override
+  public StreamQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new StreamQuery(
         getDataSource(),
@@ -114,22 +188,24 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
+        getOrderBySpecs(),
         getLimit(),
-        computeOverriddenContext(contextOverrides)
+        computeOverriddenContext(contextOverride)
     );
   }
 
   @Override
-  public StreamQuery withDimFilter(DimFilter dimFilter)
+  public StreamQuery withDimFilter(DimFilter filter)
   {
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -146,6 +222,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getColumns(),
         virtualColumns,
         getConcatString(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
@@ -162,28 +239,73 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         columns,
         getVirtualColumns(),
         getConcatString(),
+        getOrderBySpecs(),
         getLimit(),
         getContext()
     );
   }
 
   @Override
-  public Sequence<Object[]> array(Sequence<StreamQueryRow> sequence)
+  public List<OrderByColumnSpec> getOrderingSpecs()
   {
-    final String[] columns = getColumns().toArray(new String[0]);
-    return Sequences.map(
-        sequence, new Function<StreamQueryRow, Object[]>()
-        {
-          @Override
-          public Object[] apply(StreamQueryRow input)
-          {
-            final Object[] array = new Object[columns.length];
-            for (int i = 0; i < columns.length; i++) {
-              array[i] = input.get(columns[i]);
-            }
-            return array;
-          }
-        }
+    return orderBySpecs;
+  }
+
+  @Override
+  public OrderingSupport<Object[]> withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        orderingSpecs,
+        getLimit(),
+        getContext()
     );
+  }
+
+  public StreamQuery withLimit(int limit)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        getOrderBySpecs(),
+        limit,
+        getContext()
+    );
+  }
+
+  public TimeseriesQuery asTimeseriesQuery()
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getGranularity(),
+        getVirtualColumns(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Queries.extractContext(this, BaseQuery.QUERYID)
+    );
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Object[]> sequence)
+  {
+    return sequence;
   }
 }

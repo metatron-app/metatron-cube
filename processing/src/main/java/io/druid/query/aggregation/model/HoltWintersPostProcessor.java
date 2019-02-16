@@ -40,6 +40,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -56,7 +57,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamQueryRow;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.apache.commons.math3.optim.SimpleBounds;
@@ -221,22 +221,22 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        final String[] valueColumns = values.toArray(new String[values.size()]);
+        final String[] valueColumns = values.toArray(new String[0]);
         if (query instanceof StreamQuery) {
+          final int[] indices = GuavaUtils.indexOf(((StreamQuery) query).getColumns(), values);
           final Granularity granularity = query.getGranularity();
           // this is used for quick calculation of prediction only
           final BoundedTimeseries[] numbers = makeReservoir(valueColumns.length, granularity);
           baseRunner.run(query, responseContext).accumulate(
-              null, new Accumulator<Object, StreamQueryRow>()
+              null, new Accumulator<Object, Object[]>()
               {
                 @Override
-                public Object accumulate(Object accumulated, StreamQueryRow in)
+                public Object accumulate(Object accumulated, Object[] in)
                 {
-                  final DateTime timestamp = DateTimes.utc(in.getTimestamp());
-                  for (int i = 0; i < valueColumns.length; i++) {
-                    Object value = in.get(valueColumns[i]);
-                    if (value instanceof Number) {
-                      numbers[i].add(((Number) value).doubleValue(), timestamp);
+                  final DateTime timestamp = DateTimes.utc(((Long) in[0]).longValue());
+                  for (int i = 0; i < indices.length; i++) {
+                    if (indices[i] >= 0 && in[indices[i]] instanceof Number) {
+                      numbers[i].add(((Number) in[indices[i]]).doubleValue(), timestamp);
                     }
                   }
                   return null;
@@ -250,7 +250,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
           final Granularity granularity = Optional.fromNullable(timeGranularity).or(aggregation.getGranularity());
           List<String> copy = Lists.newArrayList(dimensions);
           copy.retainAll(DimensionSpecs.toOutputNames(aggregation.getDimensions()));
-          final String[] dimensions = copy.toArray(new String[copy.size()]);
+          final String[] dimensions = copy.toArray(new String[0]);
 
           final Map<ObjectArray<Object>, BoundedTimeseries[]> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();

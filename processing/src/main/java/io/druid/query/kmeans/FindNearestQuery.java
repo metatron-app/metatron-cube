@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -192,6 +191,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
         getDimFilter(),
         getMetrics(),
         getVirtualColumns(),
+        null,
         null,
         -1,
         computeOverriddenContext(ImmutableMap.<String, Object>of(ALL_DIMENSIONS_FOR_EMPTY, false))

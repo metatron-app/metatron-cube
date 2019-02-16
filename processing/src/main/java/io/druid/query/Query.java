@@ -45,7 +45,6 @@ import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamRawQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -70,7 +69,6 @@ import java.util.Set;
     @JsonSubTypes.Type(name = Query.SELECT_META, value = SelectMetaQuery.class),
     @JsonSubTypes.Type(name = Query.SCHEMA, value = SchemaQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_STREAM, value = StreamQuery.class),
-    @JsonSubTypes.Type(name = Query.SELECT_STREAM_RAW, value = StreamRawQuery.class),
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
@@ -93,7 +91,6 @@ public interface Query<T> extends QueryContextKeys
   String SELECT_META = "selectMeta";
   String SCHEMA = "schema";
   String SELECT_STREAM = "select.stream";
-  String SELECT_STREAM_RAW = "select.stream.raw";
   String SELECT_DELEGATE = "select.delegate";
   String TOPN = "topN";
   String DATASOURCE_METADATA = "dataSourceMetadata";

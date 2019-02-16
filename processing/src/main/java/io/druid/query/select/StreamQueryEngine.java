@@ -22,7 +22,6 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
-import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
@@ -47,43 +46,18 @@ import java.util.concurrent.Future;
  */
 public class StreamQueryEngine
 {
-  public Sequence<StreamQueryRow> process(
+  public Sequence<Object[]> process(
       final StreamQuery query,
       final Segment segment,
       final Future optimizer,
       final Cache cache
   )
   {
-    final Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
-    final String[] columnNames = query.getColumns().toArray(new String[0]);
-    return Sequences.map(
-        result.rhs, new Function<Object[], StreamQueryRow>()
-        {
-          @Override
-          public StreamQueryRow apply(final Object[] input)
-          {
-            final StreamQueryRow theEvent = new StreamQueryRow();
-            for (int i = 0; i < input.length; i++) {
-              theEvent.put(columnNames[i], input[i]);
-            }
-            return theEvent;
-          }
-        }
-    );
-  }
-
-  public Sequence<Object[]> process(
-      final StreamRawQuery query,
-      final Segment segment,
-      final Future optimizer,
-      final Cache cache
-  )
-  {
-    Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
+    Sequence<Object[]> result = processRaw(query, segment, optimizer, cache);
     if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
-      return result.rhs;
+      return result;
     }
-    List<Object[]> sorted = Sequences.toList(result.rhs);
+    List<Object[]> sorted = Sequences.toList(result);
     if (sorted.isEmpty()) {
       return Sequences.empty();
     }
@@ -91,7 +65,7 @@ public class StreamQueryEngine
     return Sequences.simple(sorted);
   }
 
-  public Pair<Schema, Sequence<Object[]>> processRaw(
+  private Sequence<Object[]> processRaw(
       final AbstractStreamQuery<?> query,
       final Segment segment,
       final Future optimizer,
@@ -107,7 +81,7 @@ public class StreamQueryEngine
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
-    final Sequence<Object[]> sequence = Sequences.concat(
+    return Sequences.concat(
         QueryRunnerHelper.makeCursorBasedQuery(
             adapter,
             query,
@@ -115,9 +89,6 @@ public class StreamQueryEngine
             converter(query, counter)
         )
     );
-
-    final Schema schema = segment.asSchema(false);
-    return Pair.of(schema.resolve(query, false), sequence);
   }
 
   public static Function<Cursor, Sequence<Object[]>> converter(

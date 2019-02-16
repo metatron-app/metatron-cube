@@ -42,7 +42,7 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
-import io.druid.query.select.StreamRawQuery;
+import io.druid.query.select.StreamQuery;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -130,8 +130,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
                 }
                 sequencesList[index.intValue()].add(sequence);
                 hashing[index.intValue()] = element.getContextBoolean("hash", false);
-                if (query instanceof StreamRawQuery &&
-                    toJoinColumns(index.intValue()).equals(((StreamRawQuery)query).getSortOn())) {
+                if (query instanceof StreamQuery &&
+                    toJoinColumns(index.intValue()).equals(((StreamQuery)query).getSortOn())) {
                   // uses ascending for join query (see JoinElement.toQuery)
                   sorted[index.intValue()] = true;
                 }
