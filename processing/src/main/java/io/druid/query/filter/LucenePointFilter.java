@@ -57,6 +57,11 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     return new LucenePointFilter(field, PointQueryType.POLYGON, null, null, latitudes, longitudes, -1d);
   }
 
+  public static LuceneNearestFilter nearest(String field, double latitude, double longitude, int count)
+  {
+    return new LuceneNearestFilter(field, latitude, longitude, count);
+  }
+
   private final String field;
   private final PointQueryType type;
   private final double[] latitudes;

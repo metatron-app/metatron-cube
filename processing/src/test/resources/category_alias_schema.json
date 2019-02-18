@@ -1,10 +1,10 @@
 {
+  "columns": ["OrderDate", "Category", "Alias"],
+  "timestampSpec": { "column": "OrderDate", "format": "yyyy-MM-dd HH:mm:ss"},
   "dimensionsSpec": {
-    "dimensions": [
-      "Category", "Alias"
-    ]
+    "dimensions": ["Category", "Alias"]
   },
-  "gran": "DAY",
+  "queryGran": "DAY",
   "segmentGran": "YEAR",
   "fixedSchema": true,
   "rollup": true

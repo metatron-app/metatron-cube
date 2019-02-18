@@ -114,13 +114,19 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
       throws IOException, InterruptedException
   {
     LOG.info("Reading %s", split);
+    return makeRecordReader((ShapeSplit) split, context.getConfiguration());
+  }
 
-    final ShapeSplit shapeSplit = (ShapeSplit) split;
+  public static RecordReader<Void, Map<String, Object>> makeRecordReader(
+      final ShapeSplit shapeSplit,
+      final Configuration configuration
+  ) throws IOException
+  {
     final Path shapeFile = new Path(shapeSplit.shapeFile);
     final Path shapeIndexFile = new Path(shapeSplit.shapeIndexFile);
     final Path attributeFile = new Path(shapeSplit.attributeFile);
 
-    final Charset charset = Charset.forName(context.getConfiguration().get(ENCODING, StringUtils.UTF8_STRING));
+    final Charset charset = Charset.forName(configuration.get(ENCODING, StringUtils.UTF8_STRING));
     final GeometryFactory geometryFactory = new GeometryFactory();
 
     final ShapefileReader shapeReader = new ShapefileReader(new ShpFiles(File.createTempFile("druid_shape", ".shp"))
@@ -128,7 +134,6 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
       @Override
       public ReadableByteChannel getReadChannel(ShpFileType type, FileReader requestor) throws IOException
       {
-        Configuration configuration = context.getConfiguration();
         if (type == ShpFileType.SHP) {
           return Channels.newChannel(shapeFile.getFileSystem(configuration).open(shapeFile));
         } else if (type == ShpFileType.SHX) {
@@ -138,12 +143,12 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
         }
       }
     }, true, false, geometryFactory);
+
     final DbaseFileReader attrReader = new DbaseFileReader(new ShpFiles(File.createTempFile("druid_shape", ".dbf"))
     {
       @Override
       public ReadableByteChannel getReadChannel(ShpFileType type, FileReader requestor) throws IOException
       {
-        Configuration configuration = context.getConfiguration();
         if (type == ShpFileType.DBF) {
           return Channels.newChannel(attributeFile.getFileSystem(configuration).open(attributeFile));
         } else {
@@ -154,7 +159,7 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
 
     Path projectFile = new Path(shapeSplit.projectFile);
     StringWriter writer = new StringWriter();
-    IOUtils.copy(projectFile.getFileSystem(context.getConfiguration()).open(projectFile), writer, charset);
+    IOUtils.copy(projectFile.getFileSystem(configuration).open(projectFile), writer, charset);
 
     DbaseFileHeader header = attrReader.getHeader();
     final String[] fields = new String[header.getNumFields()];

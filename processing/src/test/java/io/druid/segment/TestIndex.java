@@ -37,6 +37,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
@@ -161,6 +162,7 @@ public class TestIndex
     mergedRealtimeIndex();
     addSalesIndex();
     addCategoryAliasIndex();
+    addEstateIndex();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
@@ -203,29 +205,26 @@ public class TestIndex
 
   private static void addSalesIndex()
   {
-    String[] columns = new String[]{
-        "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
-        "Quantity", "Region", "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus",
-        "orderprofitable", "SalesAboveTarget", "latitude", "longitude", "Discount", "Profit", "Sales",
-        "DaystoShipActual", "SalesForecast", "DaystoShipScheduled", "SalesperCustomer", "ProfitRatio"
-    };
-    addIndex("sales", columns, "OrderDate", "sales_incremental_schema.json", "sales_tab_delimiter.csv");
+    addIndex("sales", "sales_schema.json", "sales.tsv");
   }
 
   private static void addCategoryAliasIndex()
   {
-    String[] columns = {"OrderDate", "Category", "Alias"};
-    addIndex("category_alias", columns, "OrderDate", "category_alias_schema.json", "category_alias.tsv");
+    addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv");
   }
 
-  private static synchronized void addIndex(
+  private static void addEstateIndex()
+  {
+    addIndex("estate", "estate_schema.json", "estate.csv");
+  }
+
+  public static synchronized void addIndex(
       final String ds,
-      final String[] columnNames,
-      final String time,
       final String schemaFile,
       final String sourceFile
   )
   {
+    final TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {});
     segmentWalker.addPopulator(
         ds,
         new Supplier<List<Pair<DataSegment, Segment>>>()
@@ -233,17 +232,8 @@ public class TestIndex
           @Override
           public List<Pair<DataSegment, Segment>> get()
           {
-            final IncrementalIndexSchema schema = loadJson(schemaFile, new TypeReference<IncrementalIndexSchema>() {});
             final Granularity granularity = schema.getSegmentGran();
-            final StringInputRowParser parser = new StringInputRowParser(
-                new DelimitedParseSpec(
-                    new DefaultTimestampSpec("OrderDate", "yyyy-MM-dd HH:mm:ss", null),
-                    schema.getDimensionsSpec(),
-                    "\t",
-                    null,
-                    Arrays.asList(columnNames)
-                ), "utf8"
-            );
+            final InputRowParser parser = schema.getParser(TestHelper.JSON_MAPPER, false);
 
             List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
             try {
@@ -268,7 +258,7 @@ public class TestIndex
                             }
                           }
                       );
-                      index.add((Row)inputRow);
+                      index.add((Row) inputRow);
                       return true;
                     }
 
@@ -284,8 +274,8 @@ public class TestIndex
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
                 segments.add(Pair.of(segment, (Segment) new QueryableIndexSegment(
-                    segment.getIdentifier(), persistRealtimeAndLoadMMapped(entry.getValue())))
-                );
+                    segment.getIdentifier(), persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())
+                )));
               }
             }
             catch (Exception e) {
@@ -446,6 +436,11 @@ public class TestIndex
   }
 
   public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index)
+  {
+    return persistRealtimeAndLoadMMapped(index, indexSpec);
+  }
+
+  public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index, IndexSpec indexSpec)
   {
     try {
       File someTmpFile = File.createTempFile("billy", "yay");

@@ -23,8 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.vividsolutions.jts.geom.Geometry;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
@@ -42,6 +44,8 @@ import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
+
+import javax.annotation.Nullable;
 
 /**
  */
@@ -87,6 +91,19 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       }
     },
     ALL;
+
+    @JsonValue
+    public String getName()
+    {
+      return name().toLowerCase();
+    }
+
+    @Nullable
+    @JsonCreator
+    public static ShapeType fromString(@Nullable String name)
+    {
+      return Strings.isNullOrEmpty(name) ? null : valueOf(name.toUpperCase());
+    }
 
     boolean validate(Shape shape)
     {

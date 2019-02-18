@@ -800,6 +800,7 @@ public class Druids
     private String concatString;
     private LateralViewSpec lateralViewSpec;
     private List<String> outputColumns;
+    private List<OrderByColumnSpec> orderBy;
 
     public SelectQueryBuilder()
     {
@@ -831,7 +832,7 @@ public class Druids
           columns,
           virtualColumns,
           concatString,
-          sortOn == null ? null : OrderByColumnSpec.ascending(sortOn),
+          sortOn == null ? orderBy : OrderByColumnSpec.ascending(sortOn),
           pagingSpec == null ? -1 : pagingSpec.getThreshold(),
           context
       );
@@ -839,6 +840,7 @@ public class Druids
 
     public SelectQuery build()
     {
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(orderBy));
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(columns));
       return new SelectQuery(
           dataSource,
@@ -1076,6 +1078,12 @@ public class Druids
     public SelectQueryBuilder limit(int limit)
     {
       pagingSpec = PagingSpec.newSpec(limit);
+      return this;
+    }
+
+    public SelectQueryBuilder orderBy(List<OrderByColumnSpec> orderBy)
+    {
+      this.orderBy = orderBy;
       return this;
     }
   }

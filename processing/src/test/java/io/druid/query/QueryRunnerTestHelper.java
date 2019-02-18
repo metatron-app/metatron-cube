@@ -100,6 +100,7 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -920,6 +921,25 @@ public class QueryRunnerTestHelper
   public static <T> List<T> runQuery(Query query)
   {
     return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+  }
+
+  public static List<Map<String, Object>> createExpectedMaps(String[] columnNames, Object[]... values)
+  {
+    int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
+    List<Map<String, Object>> expected = Lists.newArrayList();
+    for (Object[] value : values) {
+      Preconditions.checkArgument(value.length == columnNames.length);
+      Map<String, Object> theVals = Maps.newLinkedHashMap();
+      for (int i = 0; i < columnNames.length; i++) {
+        if (i != timeIndex) {
+          theVals.put(columnNames[i], value[i]);
+        } else {
+          theVals.put(columnNames[i], new DateTime(value[i]));
+        }
+      }
+      expected.add(theVals);
+    }
+    return expected;
   }
 
   public static Map<String, Object> of(Object... keyvalues)

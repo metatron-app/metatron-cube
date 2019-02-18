@@ -1,4 +1,13 @@
 {
+  "columns": [
+    "OrderDate", "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName",
+    "Quantity", "Region", "Segment", "ShipDate", "ShipMode", "State", "Sub-Category", "ShipStatus",
+    "orderprofitable", "SalesAboveTarget", "latitude", "longitude", "Discount", "Profit", "Sales",
+    "DaystoShipActual", "SalesForecast", "DaystoShipScheduled", "SalesperCustomer", "ProfitRatio"
+  ],
+  "timestampSpec": {
+    "column": "OrderDate", "format": "yyyy-MM-dd HH:mm:ss"
+  },
   "dimensionsSpec": {
     "dimensions": [
       "Category", "City", "Country", "CustomerName", "OrderID", "PostalCode", "ProductName", "Quantity", "Region",
@@ -6,7 +15,7 @@
       "latitude", "longitude"
     ]
   },
-  "metrics": [
+  "metricsSpec": [
     {"type": "count", "name": "count"},
     {"fieldName": "Discount", "type": "sum", "inputType": "double", "name": "Discount"},
     {"fieldName": "Profit", "type": "sum", "inputType": "double", "name": "Profit"},
@@ -17,7 +26,7 @@
     {"fieldName": "SalesperCustomer", "type": "sum", "inputType": "double", "name": "SalesperCustomer"},
     {"fieldName": "ProfitRatio", "type": "sum", "inputType": "double", "name": "ProfitRatio"}
   ],
-  "gran": "DAY",
+  "queryGran": "DAY",
   "segmentGran": "YEAR",
   "fixedSchema": true,
   "rollup": true
