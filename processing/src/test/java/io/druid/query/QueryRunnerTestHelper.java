@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -76,13 +75,12 @@ import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryEngine;
 import io.druid.query.select.SelectMetaQueryRunnerFactory;
 import io.druid.query.select.SelectMetaQueryToolChest;
-import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
-import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.select.StreamQueryRunnerFactory;
 import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -526,42 +524,6 @@ public class QueryRunnerTestHelper
       }
     };
   }
-
-  @SuppressWarnings("unchecked")
-  public static QuerySegmentWalker SCHEMA_ONLY = new QuerySegmentWalker()
-  {
-    @Override
-    public ObjectMapper getObjectMapper()
-    {
-      return TestHelper.JSON_MAPPER;
-    }
-
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
-    {
-      return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence run(Query<T> query, Map<String, Object> responseContext)
-        {
-          return Sequences.simple(
-              Arrays.asList(
-                  new Result(
-                      DateTime.now(),
-                      new SelectMetaResultValue(TestIndex.SAMPLE_SCHEMA.asSchema(false))
-                  )
-              )
-          );
-        }
-      };
-    }
-
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
-    {
-      return getQueryRunnerForIntervals(query, null);
-    }
-  };
 
   public static <T, QueryType extends Query<T>> List<Object[]> makeQueryRunnersWithName(
       QueryRunnerFactory<T, QueryType> factory

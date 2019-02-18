@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
-import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
@@ -69,27 +68,6 @@ public class SelectMetaQueryToolChest
       {
         SelectMetaQuery query = (SelectMetaQuery) input;
         final Granularity gran = query.getGranularity();
-        if (Granularities.ALL.equals(gran) && query.isSchemaOnly()) {
-          return new BinaryFn<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, Result<SelectMetaResultValue>>()
-          {
-            @Override
-            public Result<SelectMetaResultValue> apply(
-                Result<SelectMetaResultValue> arg1, Result<SelectMetaResultValue> arg2
-            )
-            {
-              if (arg1 == null) {
-                return arg2;
-              }
-              if (arg2 == null) {
-                return arg1;
-              }
-              return new Result<>(
-                  arg1.getTimestamp(),
-                  new SelectMetaResultValue(arg1.getValue().getSchema().merge(arg2.getValue().getSchema()))
-              );
-            }
-          };
-        }
         return new BinaryFn<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, Result<SelectMetaResultValue>>()
         {
           @Override
@@ -115,11 +93,10 @@ public class SelectMetaQueryToolChest
               Integer prev = merged.get(entry.getKey());
               merged.put(entry.getKey(), prev == null ? entry.getValue() : prev + entry.getValue());
             }
-            Schema mergedSchema = value1.getSchema().merge(value2.getSchema());
             long estimatedSize = value1.getEstimatedSize() + value2.getEstimatedSize();
             return new Result<>(
                 timestamp,
-                new SelectMetaResultValue(mergedSchema, merged, estimatedSize)
+                new SelectMetaResultValue(merged, estimatedSize)
             );
           }
         };
@@ -161,7 +138,6 @@ public class SelectMetaQueryToolChest
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(6 + filterBytes.length + granBytes.length + vcBytes.length + columnsBytesSize)
             .put(SELECT_META_QUERY)
-            .put(query.isSchemaOnly() ? (byte) 1 : 0)
             .put(filterBytes)
             .put(granBytes)
             .put(vcBytes);

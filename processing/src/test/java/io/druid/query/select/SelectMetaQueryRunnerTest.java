@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -97,7 +96,6 @@ public class SelectMetaQueryRunnerTest
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         null,
         null,
-        false,
         null,
         Maps.<String, Object>newHashMap()
     );
@@ -111,8 +109,6 @@ public class SelectMetaQueryRunnerTest
     SelectMetaResultValue value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 26), value.getPerSegmentCounts());
-    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(26, value.getTotalCount());
     Assert.assertEquals(incremental ? 702 : 1248, value.getEstimatedSize());
 
@@ -125,8 +121,6 @@ public class SelectMetaQueryRunnerTest
     value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 8), value.getPerSegmentCounts());
-    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(8, value.getTotalCount());
     Assert.assertEquals(incremental ? 216 : 384, value.getEstimatedSize());
 
@@ -140,16 +134,12 @@ public class SelectMetaQueryRunnerTest
     value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
-    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
     Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(new DateTime(2011, 1, 13, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
-    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
     Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
   }
@@ -172,7 +162,6 @@ public class SelectMetaQueryRunnerTest
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         metrics,
         null,
-        false,
         new PagingSpec(ImmutableMap.of(segmentId, 3), -1),
         Maps.<String, Object>newHashMap()
     );
@@ -186,9 +175,6 @@ public class SelectMetaQueryRunnerTest
     Result<SelectMetaResultValue> r = results.get(0);
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 23), r.getValue().getPerSegmentCounts());
-    Schema schema = r.getValue().getSchema();
-    Assert.assertEquals(dimensions, schema.getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(23, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 621 : 483, r.getValue().getEstimatedSize());
 
@@ -201,9 +187,6 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 5), r.getValue().getPerSegmentCounts());
-    schema = r.getValue().getSchema();
-    Assert.assertEquals(dimensions, schema.getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(5, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 135 : 105, r.getValue().getEstimatedSize());
 
@@ -216,18 +199,12 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
-    schema = r.getValue().getSchema();
-    Assert.assertEquals(dimensions, schema.getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(1, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 27 : 21, r.getValue().getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
-    schema = r.getValue().getSchema();
-    Assert.assertEquals(dimensions, schema.getDimensionNames());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(1, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 27 : 21, r.getValue().getEstimatedSize());
   }
@@ -251,23 +228,9 @@ public class SelectMetaQueryRunnerTest
         Arrays.<VirtualColumn>asList(
             new ExprVirtualColumn("cast(__time, 'datetime')", "time")
         ),
-        true,
         null,
         Maps.<String, Object>newHashMap()
     );
-
-    Schema schema = Sequences.only(query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of())).getValue().getSchema();
-
-    List<Pair<String, ValueDesc>> expected = Arrays.asList(
-        Pair.of("time", ValueDesc.DATETIME),
-        Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
-        Pair.of("week", ValueDesc.LONG),
-        Pair.of("index", ValueDesc.DOUBLE),
-        Pair.of("indexMin", ValueDesc.FLOAT),
-        Pair.of("indexMaxPlusTen", ValueDesc.DOUBLE),
-        Pair.of("quality_uniques", ValueDesc.of("hyperUnique"))
-    );
-    Assert.assertTrue(Iterables.elementsEqual(expected, schema.columnAndTypes()));
 
     // retrieves segment schema
     SchemaQuery schemaQuery = SchemaQuery.of(dataSource);

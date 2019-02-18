@@ -21,7 +21,6 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 import java.util.Objects;
@@ -30,19 +29,16 @@ import java.util.Objects;
  */
 public class SelectMetaResultValue
 {
-  private final Schema schema;
   private final Map<String, Integer> perSegmentCounts;
   private final int totalCount;
   private final long estimatedSize;
 
   @JsonCreator
   public SelectMetaResultValue(
-      @JsonProperty("schema") Schema schema,
       @JsonProperty("perSegmentCounts") Map<String, Integer> perSegmentCounts,
       @JsonProperty("estimatedSize") long estimatedSize
   )
   {
-    this.schema = schema;
     this.perSegmentCounts = perSegmentCounts;
     int total = 0;
     for (Integer segmentCount : perSegmentCounts.values()) {
@@ -50,17 +46,6 @@ public class SelectMetaResultValue
     }
     this.totalCount = total;
     this.estimatedSize = estimatedSize;
-  }
-
-  public SelectMetaResultValue(Schema schema)
-  {
-    this(schema, ImmutableMap.<String, Integer>of(), -1L);
-  }
-
-  @JsonProperty
-  public Schema getSchema()
-  {
-    return schema;
   }
 
   @JsonProperty
@@ -92,10 +77,6 @@ public class SelectMetaResultValue
     }
 
     SelectMetaResultValue that = (SelectMetaResultValue) o;
-
-    if (!Objects.equals(schema, that.schema)) {
-      return false;
-    }
     if (!Objects.equals(perSegmentCounts, that.perSegmentCounts)) {
       return false;
     }
@@ -105,17 +86,14 @@ public class SelectMetaResultValue
   @Override
   public int hashCode()
   {
-    int hash = Objects.hashCode(schema);
-    hash = hash * 31 + Objects.hashCode(perSegmentCounts);
-    return hash;
+    return Objects.hash(perSegmentCounts);
   }
 
   @Override
   public String toString()
   {
     return "SelectMetaResultValue{" +
-           "schema=" + schema +
-           ", perSegmentCounts=" + perSegmentCounts +
+           "perSegmentCounts=" + perSegmentCounts +
            ", totalCount=" + totalCount +
            ", estimatedSize=" + estimatedSize +
            '}';

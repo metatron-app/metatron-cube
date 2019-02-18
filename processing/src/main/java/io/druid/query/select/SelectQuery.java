@@ -122,7 +122,6 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
-        schemaOnly,
         getPagingSpec(),
         getContext()
     );

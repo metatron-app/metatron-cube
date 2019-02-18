@@ -68,37 +68,20 @@ public class SelectMetaQueryEngine
     final Granularity granularity = query.getGranularity();
 
     final String segmentId = segment.getIdentifier();
-    final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
-
-    final Schema schema;
-    if (query.getDimensions().isEmpty() && query.getMetrics().isEmpty()) {
-      schema = segment.asSchema(true);
-    } else {
-      schema = segment.asSchema(true).resolve(query, false);
-    }
-    if (query.isSchemaOnly()) {
-      return Sequences.of(
-          new Result<SelectMetaResultValue>(
-              granularity.toDateTime(interval.getStartMillis()),
-              new SelectMetaResultValue(schema)
-          )
-      );
-    }
 
     final PagingOffset offset = query.getPagingOffset(segmentId);
     final float averageSize = calculateAverageSize(query, adapter);
 
     // minor optimization.. todo: we can do this even with filters set
-    if (filter == null &&
+    if (filter == null && offset.startDelta() == 0 &&
         QueryGranularities.ALL.equals(granularity) &&
-        interval.contains(segment.getDataInterval()) &&
-        offset.startDelta() == 0) {
-      int row = storageAdapter.getNumRows();
+        interval.contains(segment.getDataInterval())) {
+      int row = adapter.getNumRows();
       return Sequences.of(
           new Result<>(
               granularity.toDateTime(interval.getStartMillis()),
               new SelectMetaResultValue(
-                  schema, ImmutableMap.of(segmentId, row), (long) (row * averageSize)
+                  ImmutableMap.of(segmentId, row), (long) (row * averageSize)
               )
           )
       );
@@ -119,7 +102,7 @@ public class SelectMetaQueryEngine
             }
             return new Result<>(
                 cursor.getTime(),
-                new SelectMetaResultValue(schema, ImmutableMap.of(segmentId, row), (long) (row * averageSize))
+                new SelectMetaResultValue(ImmutableMap.of(segmentId, row), (long) (row * averageSize))
             );
           }
         }
