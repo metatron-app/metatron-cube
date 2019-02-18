@@ -287,10 +287,16 @@
                 <artifactId>curator-x-discovery</artifactId>
                 <version>${apache.curator.version}</version>
             </dependency>
-          <dependency>
+            <dependency>
                 <groupId>org.apache.calcite</groupId>
                 <artifactId>calcite-core</artifactId>
                 <version>${calcite.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.yahoo.datasketches</groupId>
+                        <artifactId>sketches-core</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.calcite</groupId>
