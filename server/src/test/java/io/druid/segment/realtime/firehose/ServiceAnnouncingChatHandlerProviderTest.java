@@ -41,6 +41,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
   private static final String TEST_SERVICE_NAME = "test-service-name";
   private static final String TEST_HOST = "test-host";
   private static final int TEST_PORT = 1234;
+  private static final String TEST_TYPE = "test-type";
 
   private ServiceAnnouncingChatHandlerProvider chatHandlerProvider;
 
@@ -90,6 +91,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
 
     EasyMock.expect(node.getHost()).andReturn(TEST_HOST);
     EasyMock.expect(node.getPort()).andReturn(TEST_PORT);
+    EasyMock.expect(node.getType()).andReturn(TEST_TYPE);
     serviceAnnouncer.announce(EasyMock.capture(captured));
     replayAll();
 
@@ -106,6 +108,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     Assert.assertEquals(TEST_SERVICE_NAME, param.getServiceName());
     Assert.assertEquals(TEST_HOST, param.getHost());
     Assert.assertEquals(TEST_PORT, param.getPort());
+    Assert.assertEquals(TEST_TYPE, param.getType());
     Assert.assertTrue("chatHandler did not register", chatHandlerProvider.get(TEST_SERVICE_NAME).isPresent());
     Assert.assertEquals(testChatHandler, chatHandlerProvider.get(TEST_SERVICE_NAME).get());
 
@@ -113,6 +116,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     resetAll();
     EasyMock.expect(node.getHost()).andReturn(TEST_HOST);
     EasyMock.expect(node.getPort()).andReturn(TEST_PORT);
+    EasyMock.expect(node.getType()).andReturn(TEST_TYPE);
     serviceAnnouncer.unannounce(EasyMock.capture(captured));
     replayAll();
 
@@ -123,6 +127,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     Assert.assertEquals(TEST_SERVICE_NAME, param.getServiceName());
     Assert.assertEquals(TEST_HOST, param.getHost());
     Assert.assertEquals(TEST_PORT, param.getPort());
+    Assert.assertEquals(TEST_TYPE, param.getType());
     Assert.assertFalse("chatHandler did not deregister", chatHandlerProvider.get(TEST_SERVICE_NAME).isPresent());
   }
 }
