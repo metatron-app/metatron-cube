@@ -83,15 +83,10 @@ public class ShapeUtils
     return distance * conversion;
   }
 
-  static JtsGeometry buffer(JtsGeometry geometry, double meter, int quadrantSegments, int endCapStyle) throws TransformException
+  static JtsGeometry buffer(JtsGeometry geometry, double meter, int quadrantSegments, int endCapStyle)
+      throws TransformException
   {
-    Geometry buffered = buffer(geometry.getGeom(), meter, quadrantSegments, endCapStyle);
-    return new JtsGeometry(
-        buffered,
-        JtsSpatialContext.GEO,
-        SHAPE_FACTORY.getDatelineRule() != DatelineRule.none,
-        SHAPE_FACTORY.isAllowMultiOverlap()
-    );
+    return toJtsGeometry(buffer(geometry.getGeom(), meter, quadrantSegments, endCapStyle));
   }
 
   static Geometry buffer(Geometry geometry, double meter, int quadrantSegments, int endCapStyle)
@@ -99,5 +94,20 @@ public class ShapeUtils
   {
     Geometry g1 = JTS.transform(geometry, T_4326_3857).buffer(meter, quadrantSegments, endCapStyle);
     return JTS.transform(g1, T_3857_4326);
+  }
+
+  static JtsGeometry convexHull(JtsGeometry geometry)
+  {
+    return toJtsGeometry(geometry.getGeom().convexHull());
+  }
+
+  static JtsGeometry toJtsGeometry(Geometry geometry)
+  {
+    return new JtsGeometry(
+        geometry,
+        JtsSpatialContext.GEO,
+        SHAPE_FACTORY.getDatelineRule() != DatelineRule.none,
+        SHAPE_FACTORY.isAllowMultiOverlap()
+    );
   }
 }

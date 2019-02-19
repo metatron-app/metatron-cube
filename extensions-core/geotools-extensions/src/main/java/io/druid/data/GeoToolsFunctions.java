@@ -32,7 +32,10 @@ import org.geotools.referencing.CRS;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
+import org.locationtech.spatial4j.io.ShapeWriter;
 import org.locationtech.spatial4j.io.WKTReader;
+import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
+import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
@@ -40,6 +43,8 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 
@@ -161,8 +166,7 @@ public class GeoToolsFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_fromWKT")
-  public static class FromWKT extends ShapeFuncFactory
+  public static abstract class ShapeFrom extends ShapeFuncFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -170,9 +174,10 @@ public class GeoToolsFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      final ShapeReader reader = new WKTReader(JtsSpatialContext.GEO, null);
       return new ShapeChild()
       {
+        private final ShapeReader reader = newReader();
+
         @Override
         public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -180,10 +185,31 @@ public class GeoToolsFunctions implements Function.Library
         }
       };
     }
+
+    protected abstract ShapeReader newReader();
+  }
+
+  @Function.Named("shape_fromWKT")
+  public static class FromWKT extends ShapeFrom
+  {
+    @Override
+    protected ShapeReader newReader()
+    {
+      return new WKTReader(JtsSpatialContext.GEO, null);
+    }
   }
 
   @Function.Named("shape_fromGeoJson")
-  public static class FromGeoJson extends ShapeFuncFactory
+  public static class FromGeoJson extends ShapeFrom
+  {
+    @Override
+    protected ShapeReader newReader()
+    {
+      return new GeoJSONReader(JtsSpatialContext.GEO, null);
+    }
+  }
+
+  public static abstract class ShapeTo extends Function.AbstractFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -191,15 +217,49 @@ public class GeoToolsFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      final ShapeReader reader = new GeoJSONReader(JtsSpatialContext.GEO, null);
-      return new ShapeChild()
+      return new StringChild()
       {
+        private final ShapeWriter writer = newWriter();
+        private final StringWriter buffer = new StringWriter();
+
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return reader.readIfSupported(Evals.evalString(args.get(0), bindings));
+          ExprEval exprEval = Evals.eval(args.get(0), bindings);
+          if (SHAPE_TYPE.equals(exprEval.type())) {
+            buffer.getBuffer().setLength(0);
+            try {
+              writer.write(buffer, (Shape) exprEval.value());
+              return ExprEval.of(buffer.toString());
+            }
+            catch (IOException e) {
+            }
+          }
+          return ExprEval.of((String) null);
         }
       };
+    }
+
+    protected abstract ShapeWriter newWriter();
+  }
+
+  @Function.Named("shape_toWKT")
+  public static class ToWKT extends ShapeTo
+  {
+    @Override
+    protected ShapeWriter newWriter()
+    {
+      return new JtsWKTWriter(JtsSpatialContext.GEO, null);
+    }
+  }
+
+  @Function.Named("shape_toGeoJson")
+  public static class ToGeoJson extends ShapeTo
+  {
+    @Override
+    protected ShapeWriter newWriter()
+    {
+      return new JtsGeoJSONWriter(JtsSpatialContext.GEO, null);
     }
   }
 
@@ -238,6 +298,30 @@ public class GeoToolsFunctions implements Function.Library
           catch (TransformException e) {
             throw Throwables.propagate(e);
           }
+        }
+      };
+    }
+  }
+
+  @Function.Named("shape_convexHull")
+  public static class ConvexHull extends ShapeFuncFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new ShapeChild()
+      {
+        @Override
+        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          ExprEval exprEval = Evals.eval(args.get(0), bindings);
+          if (SHAPE_TYPE.equals(exprEval.type())) {
+            return ShapeUtils.convexHull(((JtsGeometry) exprEval.value()));
+          }
+          return null;
         }
       };
     }
