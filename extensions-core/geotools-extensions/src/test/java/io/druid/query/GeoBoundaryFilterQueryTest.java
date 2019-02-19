@@ -27,7 +27,6 @@ import io.druid.query.select.StreamQuery;
 import io.druid.segment.ExprVirtualColumn;
 import org.junit.Assert;
 import org.junit.Test;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 import java.util.Arrays;
 import java.util.List;
@@ -53,26 +52,37 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
         .streaming();
     StreamQuery boundary = new Druids.SelectQueryBuilder()
         .dataSource("seoul_roads")
-        .virtualColumns(new ExprVirtualColumn("shape_buffer(shape_fromWKT(geom), 100, endCapStyle=2)", "geom_buf"))
-        .columns("geom_buf", "name")
+        .virtualColumns(
+            new ExprVirtualColumn("shape_fromWKT(geom)", "shape"),
+            new ExprVirtualColumn("shape_toWKT(shape_buffer(shape, 100, endCapStyle=2))", "geom_buf"),
+            new ExprVirtualColumn("shape_length(shape)", "length")
+        )
+        .columns("geom_buf", "name", "length")
         .streaming();
 
     List<Object[]> roadSides = runQuery(boundary);
     Assert.assertEquals(3, roadSides.size());
-    Assert.assertEquals("강남대로", roadSides.get(0)[1]);
+
+    Object[] road1 = roadSides.get(0);
+    Assert.assertEquals("강남대로", road1[1]);
+    Assert.assertEquals(0.040744881965, ((Number) road1[2]).doubleValue(), 0.000001);
     Assert.assertEquals(
         "POLYGON ((127.02055984048052 37.51079669148603, 127.02053060632362 37.51086861972532, 127.01695860632358 37.52156964587614, 127.01869539367637 37.52193435367819, 127.02225518421464 37.5112699594669, 127.03502115951952 37.48475939806655, 127.03334284048053 37.484250601067146, 127.02055984048052 37.51079669148603))",
-        ((JtsGeometry) roadSides.get(0)[0]).getGeom().toText()
+        road1[0]
     );
-    Assert.assertEquals("서초대로", roadSides.get(1)[1]);
+    Object[] road2 = roadSides.get(1);
+    Assert.assertEquals("서초대로", road2[1]);
+    Assert.assertEquals(0.020906297831, ((Number) road2[2]).doubleValue(), 0.000001);
     Assert.assertEquals(
         "POLYGON ((127.02732486542767 37.49854399294062, 127.02797113457233 37.49721400113743, 127.00797913457232 37.49109894668612, 127.00733286542767 37.4924290473923, 127.02732486542767 37.49854399294062))",
-        ((JtsGeometry) roadSides.get(1)[0]).getGeom().toText()
+        road2[0]
     );
-    Assert.assertEquals("테헤란로", roadSides.get(2)[1]);
+    Object[] road3 = roadSides.get(2);
+    Assert.assertEquals("테헤란로", road3[1]);
+    Assert.assertEquals(0.040590914168, ((Number) road3[2]).doubleValue(), 0.000001);
     Assert.assertEquals(
         "POLYGON ((127.06611049169186 37.51050615741942, 127.06676150830816 37.509177836670936, 127.02797350830815 37.497214730240735, 127.02732249169185 37.4985432638503, 127.06611049169186 37.51050615741942))",
-        ((JtsGeometry) roadSides.get(2)[0]).getGeom().toText()
+        road3[0]
     );
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
         source, "gis.coord", null, boundary, "geom_buf", Maps.<String, Object>newHashMap()

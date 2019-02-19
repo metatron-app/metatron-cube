@@ -318,6 +318,39 @@ public class Parser
     };
   }
 
+  public static Expr.TypedBinding withTypedSuppliers(final Map<String, DSuppliers.TypedSupplier> bindings)
+  {
+    return new Expr.TypedBinding()
+    {
+      @Override
+      public ValueDesc resolve(String column)
+      {
+        DSuppliers.TypedSupplier supplier = bindings.get(column);
+        return supplier == null ? null : supplier.type();
+      }
+
+      @Override
+      public ValueDesc resolve(String column, ValueDesc defaultType)
+      {
+        DSuppliers.TypedSupplier supplier = bindings.get(column);
+        return supplier == null ? defaultType : supplier.type();
+      }
+
+      @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        DSuppliers.TypedSupplier supplier = bindings.get(name);
+        return supplier == null ? null : supplier.get();
+      }
+    };
+  }
+
   public static Expr.NumericBinding withSuppliers(final Map<String, Supplier> bindings)
   {
     return new Expr.NumericBinding()
@@ -346,19 +379,6 @@ public class Parser
       {
         ValueDesc type = bindings.get(name);
         return type == null ? ValueDesc.UNKNOWN : type;
-      }
-    };
-  }
-
-  public static TypeResolver withTypeSuppliers(final Map<String, DSuppliers.TypedSupplier> bindings)
-  {
-    return new TypeResolver.Abstract()
-    {
-      @Override
-      public ValueDesc resolve(String name)
-      {
-        DSuppliers.Typed supplier = bindings.get(name);
-        return supplier == null ? ValueDesc.UNKNOWN : supplier.type();
       }
     };
   }

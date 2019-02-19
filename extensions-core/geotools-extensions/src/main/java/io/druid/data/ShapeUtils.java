@@ -96,9 +96,29 @@ public class ShapeUtils
     return JTS.transform(g1, T_3857_4326);
   }
 
+  static JtsGeometry boundary(JtsGeometry geometry)
+  {
+    return toJtsGeometry(geometry.getGeom().getBoundary());
+  }
+
   static JtsGeometry convexHull(JtsGeometry geometry)
   {
     return toJtsGeometry(geometry.getGeom().convexHull());
+  }
+
+  static JtsGeometry envelop(JtsGeometry geometry)
+  {
+    return toJtsGeometry(geometry.getGeom().getEnvelope());
+  }
+
+  static double area(JtsGeometry geometry)
+  {
+    return geometry.getGeom().getArea();
+  }
+
+  static double length(JtsGeometry geometry)
+  {
+    return geometry.getGeom().getLength();
   }
 
   static JtsGeometry toJtsGeometry(Geometry geometry)

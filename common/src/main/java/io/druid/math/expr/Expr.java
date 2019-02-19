@@ -47,6 +47,10 @@ public interface Expr extends Expression, TypeResolver.Resolvable
     Object get(String name);
   }
 
+  interface TypedBinding extends NumericBinding, TypeResolver
+  {
+  }
+
   interface WindowContext extends NumericBinding, TypeResolver
   {
     List<String> partitionColumns();
@@ -227,7 +231,15 @@ final class IdentifierExpr implements Expr
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return ExprEval.bestEffortOf(bindings.get(value));
+    final Object binding = bindings.get(value);
+    if (bindings instanceof TypeResolver) {
+      final ValueDesc type = ((TypeResolver) bindings).resolve(value, ValueDesc.UNKNOWN);
+      if (!type.equals(ValueDesc.UNKNOWN)) {
+        // type is unknown before evaluation in some cases (see LV)
+        return ExprEval.of(binding, type);
+      }
+    }
+    return ExprEval.bestEffortOf(binding);
   }
 }
 

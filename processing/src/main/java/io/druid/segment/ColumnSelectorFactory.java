@@ -19,10 +19,8 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -75,19 +73,13 @@ public interface ColumnSelectorFactory
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
       }
-      final ValueDesc expected = parsed.resolve(Parser.withTypeSuppliers(values));
-      final Expr.NumericBinding binding = Parser.withSuppliers(
-          Maps.transformValues(
-              values,
-              GuavaUtils.<DSuppliers.TypedSupplier, Supplier>caster()
-          )
-      );
+      final Expr.TypedBinding binding = Parser.withTypedSuppliers(values);
       return new ExprEvalColumnSelector()
       {
         @Override
         public ValueDesc typeOfObject()
         {
-          return expected;
+          return parsed.resolve(binding);
         }
 
         @Override

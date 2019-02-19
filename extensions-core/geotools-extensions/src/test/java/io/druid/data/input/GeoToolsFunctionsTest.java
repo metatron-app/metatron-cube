@@ -46,14 +46,21 @@ public class GeoToolsFunctionsTest
     Assert.assertArrayEquals(new double[]{-77.03631683718933, 38.907094818962875}, converted, 0.00001);
   }
 
+  static final String 서초대로64 = "LINESTRING (127.020433 37.495611, 127.022365 37.490685)";
+  static final String 사임당로23 = "LINESTRING (127.021338 37.493312, 127.020501 37.491431)";
+  static final String 아남아파트 = "POINT (127.020863 37.492793)";
+  static final String 현대아파트 = "POINT (127.020137 37.490752)";
+
+  @Test
+  public void testLength()
+  {
+    Assert.assertEquals(0.00529132308, evalDouble("shape_length(shape_fromWKT('" + 서초대로64 + "'))"), 0.00001);
+    Assert.assertEquals(0.00205881762, evalDouble("shape_length(shape_fromWKT('" + 사임당로23 + "'))"), 0.00001);
+  }
+
   @Test
   public void testBuffer()
   {
-    final String 서초대로64 = "LINESTRING (127.020433 37.495611, 127.022365 37.490685)";
-    final String 사임당로23 = "LINESTRING (127.021338 37.493312, 127.020501 37.491431)";
-    final String 아남아파트 = "POINT (127.020863 37.492793)";
-    final String 현대아파트 = "POINT (127.020137 37.490752)";
-
     final Shape 서초대로64_100 = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100)");
     final Shape 서초대로64_0_1K = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 0.1, 'km')");
     final Shape 사임당로23L = evalShape("shape_fromWKT('" + 사임당로23 + "')");
@@ -71,7 +78,6 @@ public class GeoToolsFunctionsTest
   @Test
   public void testBufferWithOption()
   {
-    final String 서초대로64 = "LINESTRING (127.020433 37.495611, 127.022365 37.490685)";
     final Shape round1 = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100)");   // quadrantSegments=8
     final Shape round2 = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100, quadrantSegments=2)");
     final Shape flat = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100, endCapStyle=2)");
@@ -94,6 +100,11 @@ public class GeoToolsFunctionsTest
         "POLYGON ((127.02322274435886 37.490896786023136, 127.02150725564114 37.49047321337635, 127.01957525564113 37.49539922734416, 127.02129074435885 37.49582277205532, 127.02322274435886 37.490896786023136))",
         geom3.toText()
     );
+  }
+
+  private double evalDouble(String expr)
+  {
+    return Parser.parse(expr).eval(null).doubleValue();
   }
 
   private Shape evalShape(String expr)
