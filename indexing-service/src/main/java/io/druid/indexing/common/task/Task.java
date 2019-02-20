@@ -134,6 +134,13 @@ public interface Task extends Progressing
   public String getClasspathPrefix();
 
   /**
+   * Postfix classpath.. Only works with middle manager, which forks (see ForkingTaskRunner)
+   *
+   * Currently it's used to provide hadoop dependencies to index task
+   */
+  public String getClasspathPostfix();
+
+  /**
    * Execute preflight actions for a task. This can be used to acquire locks, check preconditions, and so on. The
    * actions must be idempotent, since this method may be executed multiple times. This typically runs on the
    * coordinator. If this method throws an exception, the task should be considered a failure.

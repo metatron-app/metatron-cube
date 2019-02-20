@@ -144,6 +144,12 @@ public abstract class AbstractTask implements Task
   }
 
   @Override
+  public String getClasspathPostfix()
+  {
+    return null;
+  }
+
+  @Override
   public boolean canRestore()
   {
     return false;

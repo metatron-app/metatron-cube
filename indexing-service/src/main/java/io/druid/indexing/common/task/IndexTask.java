@@ -22,6 +22,7 @@ package io.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
@@ -46,10 +48,13 @@ import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
+import io.druid.guice.ExtensionsConfig;
+import io.druid.guice.GuiceInjectors;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.index.YeOldePlumberSchool;
+import io.druid.initialization.Initialization;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.indexing.DataSchema;
@@ -66,6 +71,8 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -152,6 +159,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   @JsonIgnore
   private final IndexIngestionSpec ingestionSchema;
 
+  private final List<String> hadoopDependencyCoordinates;
   private final ObjectMapper jsonMapper;
 
   @JsonCreator
@@ -160,6 +168,7 @@ public class IndexTask extends AbstractFixedIntervalTask
       @JsonProperty("resource") TaskResource taskResource,
       @JsonProperty("spec") IndexIngestionSpec ingestionSchema,
       @JacksonInject ObjectMapper jsonMapper,
+      @JsonProperty("hadoopDependencyCoordinates") List<String> hadoopDependencyCoordinates,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -172,7 +181,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         context
     );
 
-
+    this.hadoopDependencyCoordinates = hadoopDependencyCoordinates;
     this.ingestionSchema = ingestionSchema;
     this.jsonMapper = jsonMapper;
   }
@@ -187,6 +196,13 @@ public class IndexTask extends AbstractFixedIntervalTask
   public IndexIngestionSpec getIngestionSchema()
   {
     return ingestionSchema;
+  }
+
+  @JsonProperty("hadoopDependencyCoordinates")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getHadoopDependencyCoordinates()
+  {
+    return hadoopDependencyCoordinates;
   }
 
   @Override
@@ -231,6 +247,29 @@ public class IndexTask extends AbstractFixedIntervalTask
     }
     toolbox.publishSegments(segments);
     return TaskStatus.success(getId());
+  }
+
+  @Override
+  public String getClasspathPostfix()
+  {
+    if (!GuavaUtils.isNullOrEmpty(hadoopDependencyCoordinates)) {
+      log.info("Using hadoopDependencyCoordinates %s", hadoopDependencyCoordinates);
+      List<String> files = Lists.newArrayList();
+      ExtensionsConfig extensionsConfig = GuiceInjectors.makeStartupInjector().getInstance(ExtensionsConfig.class);
+      File hadoopDependenciesDir = new File(extensionsConfig.getHadoopDependenciesDir());
+      for (File hadoopDependency :
+          Initialization.getHadoopDependencyFilesToLoad(hadoopDependencyCoordinates, extensionsConfig)) {
+        for (File file : FileUtils.listFiles(hadoopDependency, new String[]{"jar"}, false)) {
+          if (!file.isHidden() && file.isFile()) {
+            files.add(file.getAbsolutePath());
+          }
+        }
+      }
+      if (!files.isEmpty()) {
+        return StringUtils.join(files, File.pathSeparator);
+      }
+    }
+    return null;
   }
 
   private SortedSet<Interval> getDataIntervals() throws IOException

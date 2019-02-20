@@ -646,6 +646,7 @@ public class TaskLifecycleTest
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
         ),
         mapper,
+        null,
         null
     );
 
@@ -704,6 +705,7 @@ public class TaskLifecycleTest
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
         ),
         mapper,
+        null,
         null
     );
 
@@ -1056,6 +1058,7 @@ public class TaskLifecycleTest
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
         ),
         mapper,
+        null,
         null
     );
 

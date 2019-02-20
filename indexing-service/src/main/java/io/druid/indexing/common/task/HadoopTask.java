@@ -20,6 +20,7 @@
 package io.druid.indexing.common.task;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -127,16 +128,14 @@ public abstract class HadoopTask extends AbstractTask
    */
   protected ClassLoader buildClassLoader(final TaskToolbox toolbox) throws MalformedURLException
   {
-    return buildClassLoader(hadoopDependencyCoordinates, toolbox.getConfig().getDefaultHadoopCoordinates());
+    return buildClassLoader(
+        Optional.fromNullable(hadoopDependencyCoordinates).or(toolbox.getConfig().getDefaultHadoopCoordinates())
+    );
   }
 
-  public static ClassLoader buildClassLoader(final List<String> hadoopDependencyCoordinates,
-                                             final List<String> defaultHadoopCoordinates) throws MalformedURLException
+  public static ClassLoader buildClassLoader(final List<String> hadoopDependencyCoordinates)
+      throws MalformedURLException
   {
-    final List<String> finalHadoopDependencyCoordinates = hadoopDependencyCoordinates != null
-                                                          ? hadoopDependencyCoordinates
-                                                          : defaultHadoopCoordinates;
-
     final List<URL> jobURLs = Lists.newArrayList(
         Arrays.asList(((URLClassLoader) HadoopIndexTask.class.getClassLoader()).getURLs())
     );
@@ -149,19 +148,13 @@ public abstract class HadoopTask extends AbstractTask
     final List<URL> localClassLoaderURLs = new ArrayList<>(jobURLs);
 
     // hadoop dependencies come before druid classes because some extensions depend on them
-    for (final File hadoopDependency :
-        Initialization.getHadoopDependencyFilesToLoad(
-            finalHadoopDependencyCoordinates,
-            extensionsConfig
-        )) {
+    for (File hadoopDependency :
+        Initialization.getHadoopDependencyFilesToLoad(hadoopDependencyCoordinates, extensionsConfig)) {
       final ClassLoader hadoopLoader = Initialization.getClassLoaderForExtension(hadoopDependency);
       localClassLoaderURLs.addAll(Arrays.asList(((URLClassLoader) hadoopLoader).getURLs()));
     }
 
-    final ClassLoader classLoader = new URLClassLoader(
-        localClassLoaderURLs.toArray(new URL[localClassLoaderURLs.size()]),
-        null
-    );
+    final ClassLoader classLoader = new URLClassLoader(localClassLoaderURLs.toArray(new URL[0]), null);
 
     final String hadoopContainerDruidClasspathJars;
     if (extensionsConfig.getHadoopContainerDruidClasspath() == null) {

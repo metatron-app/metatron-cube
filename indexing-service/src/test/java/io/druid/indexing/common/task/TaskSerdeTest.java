@@ -93,6 +93,7 @@ public class TaskSerdeTest
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
         ),
         jsonMapper,
+        null,
         null
     );
 
@@ -134,6 +135,7 @@ public class TaskSerdeTest
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
         ),
         jsonMapper,
+        null,
         null
     );
 

@@ -146,6 +146,7 @@ public class IndexTaskTest
             )
         ),
         jsonMapper,
+        null,
         null
     );
 
@@ -210,6 +211,7 @@ public class IndexTaskTest
             null
         ),
         jsonMapper,
+        null,
         null
     );
 
@@ -316,6 +318,7 @@ public class IndexTaskTest
             null
         ),
         jsonMapper,
+        null,
         null
     );
 

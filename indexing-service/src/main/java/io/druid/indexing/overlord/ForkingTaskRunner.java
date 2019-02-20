@@ -27,6 +27,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -276,14 +277,13 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                               }
 
                               final List<String> command = Lists.newArrayList();
-                              final String taskClasspath;
-                              if (task.getClasspathPrefix() != null && !task.getClasspathPrefix().isEmpty()) {
-                                taskClasspath = Joiner.on(File.pathSeparator).join(
-                                    task.getClasspathPrefix(),
-                                    config.getClasspath()
-                                );
-                              } else {
-                                taskClasspath = config.getClasspath();
+
+                              String taskClasspath = config.getClasspath();
+                              if (!Strings.isNullOrEmpty(task.getClasspathPrefix())) {
+                                taskClasspath = task.getClasspathPrefix() + File.pathSeparator + taskClasspath;
+                              }
+                              if (!Strings.isNullOrEmpty(task.getClasspathPostfix())) {
+                                taskClasspath = taskClasspath + File.pathSeparator + task.getClasspathPostfix();
                               }
 
                               command.add(config.getJavaCommand());

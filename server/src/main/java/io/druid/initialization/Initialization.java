@@ -285,7 +285,7 @@ public class Initialization
    */
   public static URLClassLoader getClassLoaderForExtension(File extension) throws MalformedURLException
   {
-    URLClassLoader loader = loadersMap.get(extension.getName());
+    URLClassLoader loader = getClassLoaderForExtension(extension.getName());
     if (loader == null) {
       final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
       final URL[] urls = new URL[jars.size()];
@@ -299,6 +299,11 @@ public class Initialization
       loadersMap.put(extension.getName(), loader);
     }
     return loader;
+  }
+
+  public static URLClassLoader getClassLoaderForExtension(String extensionName)
+  {
+    return loadersMap.get(extensionName);
   }
 
   public static List<URL> getURLsForClasspath(String cp)
