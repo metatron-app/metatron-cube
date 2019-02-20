@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -48,7 +49,7 @@ public class StaticPathSpec implements PathSpec
   private static final Logger log = new Logger(StaticPathSpec.class);
 
   private final String paths;
-  private final Class<? extends InputFormat> inputFormat;
+  private final String inputFormat;
   private final boolean combinePerPath;
 
   private final Map<String, Object> properties;
@@ -57,7 +58,7 @@ public class StaticPathSpec implements PathSpec
   public StaticPathSpec(
       @JsonProperty("paths") String paths,
       @JsonProperty("combinePerPath") boolean combinePerPath,
-      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
+      @JsonProperty("inputFormat") String inputFormat,
       @JsonProperty("properties") Map<String, Object> properties
   )
   {
@@ -65,10 +66,13 @@ public class StaticPathSpec implements PathSpec
     this.combinePerPath = combinePerPath;
     this.inputFormat = inputFormat;
     this.properties = properties;
-    Preconditions.checkArgument(!combinePerPath || inputFormat == null || inputFormat == TextInputFormat.class);
+    Preconditions.checkArgument(
+        !combinePerPath ||
+        inputFormat == null ||
+        inputFormat.equals(TextInputFormat.class.getName()));
   }
 
-  public StaticPathSpec(String paths, Class<? extends InputFormat> inputFormat)
+  public StaticPathSpec(String paths, String inputFormat)
   {
     this(paths, false, inputFormat, null);
   }
@@ -80,8 +84,9 @@ public class StaticPathSpec implements PathSpec
     if (properties != null && !properties.isEmpty()) {
       HadoopPathSpec.configure(job, properties);
     }
+    Class<? extends InputFormat> inputFormatClass = loadFormatterClass();
 
-    addToMultipleInputs(config, job, paths, inputFormat);
+    addToMultipleInputs(config, job, paths, inputFormatClass);
     if (combinePerPath) {
       job.setInputFormatClass(CombinePerPathInputFormat.class);
     }
@@ -89,8 +94,25 @@ public class StaticPathSpec implements PathSpec
     return job;
   }
 
+  private Class<? extends InputFormat> loadFormatterClass()
+  {
+    if (inputFormat == null) {
+      return TextInputFormat.class;
+    }
+    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    if (loader == null) {
+      loader = StaticPathSpec.class.getClassLoader();
+    }
+    try {
+      return (Class<? extends InputFormat>) loader.loadClass(inputFormat);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
   @JsonProperty
-  public Class<? extends InputFormat> getInputFormat()
+  public String getInputFormat()
   {
     return inputFormat;
   }

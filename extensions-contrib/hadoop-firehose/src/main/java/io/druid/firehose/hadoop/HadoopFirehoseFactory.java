@@ -20,9 +20,11 @@
 package io.druid.firehose.hadoop;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.metamx.common.logger.Logger;
@@ -32,6 +34,7 @@ import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.indexer.path.PathSpec;
+import io.druid.initialization.Initialization;
 import io.druid.utils.Runnables;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -58,12 +61,17 @@ public class HadoopFirehoseFactory implements FirehoseFactory
 {
   private static final Logger LOG = new Logger(HadoopFirehoseFactory.class);
 
+  private final String extension;
   private final Map<String, Object> pathSpec;
 
   @JsonCreator
-  public HadoopFirehoseFactory(@JsonProperty("pathSpec") Map<String, Object> pathSpec)
+  public HadoopFirehoseFactory(
+      @JsonProperty("pathSpec") Map<String, Object> pathSpec,
+      @JsonProperty("extension") String extension
+  )
   {
-    this.pathSpec = pathSpec;
+    this.extension = extension;
+    this.pathSpec = Preconditions.checkNotNull(pathSpec, "'pathSpec' should not be null");
   }
 
   @JsonProperty
@@ -72,12 +80,18 @@ public class HadoopFirehoseFactory implements FirehoseFactory
     return pathSpec;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getExtension()
+  {
+    return extension;
+  }
+
   @Override
   public Firehose connect(final InputRowParser parser) throws IOException, ParseException
   {
-    LOG.info("Loading from path spec %s", this.pathSpec);
-    final PathSpec pathSpec = JSON_MAPPER.convertValue(this.pathSpec, PathSpec.class);
-    final Job spec = pathSpec.addInputPaths(null, Job.getInstance());
+    LOG.info("Loading from path spec %s", pathSpec);
+    final Job spec = configureJob();
     final Configuration configuration = spec.getConfiguration();
     final TaskAttemptContextImpl context = new TaskAttemptContextImpl(
         configuration,
@@ -114,13 +128,12 @@ public class HadoopFirehoseFactory implements FirehoseFactory
 
       private RecordReader reader() throws IOException, InterruptedException
       {
-        while (reader == null || !hasMore) {
+        for (;!hasMore; hasMore = reader.nextKeyValue()) {
           IOUtils.closeQuietly(reader);
           if (!readers.hasNext()) {
             return null;
           }
           reader = readers.next();
-          hasMore = reader.nextKeyValue();
         }
         return reader;
       }
@@ -128,7 +141,12 @@ public class HadoopFirehoseFactory implements FirehoseFactory
       @Override
       public boolean hasMore()
       {
-        return hasMore;
+        try {
+          return reader() != null;
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
       }
 
       @Override
@@ -158,5 +176,24 @@ public class HadoopFirehoseFactory implements FirehoseFactory
         IOUtils.closeQuietly(reader);
       }
     };
+  }
+
+  private Job configureJob() throws IOException
+  {
+    ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    ClassLoader loader = HadoopFirehoseFactory.class.getClassLoader();
+    if (extension != null) {
+      loader = Initialization.getClassLoaderForExtension(extension);
+    }
+    Thread.currentThread().setContextClassLoader(loader);
+    try {
+      final PathSpec pathSpec = JSON_MAPPER.convertValue(this.pathSpec, PathSpec.class);
+      return pathSpec.addInputPaths(null, Job.getInstance());
+    } catch (NoClassDefFoundError e) {
+      LOG.info("Cannot find class.. use 'extension' for accessing classes in other extension");
+      throw e;
+    } finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
   }
 }

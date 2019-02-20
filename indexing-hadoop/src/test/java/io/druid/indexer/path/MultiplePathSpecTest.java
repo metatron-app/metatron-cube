@@ -37,7 +37,7 @@ public class MultiplePathSpecTest
     PathSpec expected = new MultiplePathSpec(
         Lists.<PathSpec>newArrayList(
             new StaticPathSpec("/tmp/path1", null),
-            new StaticPathSpec("/tmp/path2", TextInputFormat.class)
+            new StaticPathSpec("/tmp/path2", TextInputFormat.class.getName())
         )
     );
 

@@ -39,7 +39,7 @@ public class StaticPathSpecTest
   @Test
   public void testSerdeCustomInputFormat() throws Exception
   {
-    testSerde("/sample/path", TextInputFormat.class);
+    testSerde("/sample/path", TextInputFormat.class.getName());
   }
 
   @Test
@@ -64,7 +64,7 @@ public class StaticPathSpecTest
     Assert.assertArrayEquals(expected, paths.split(","));
   }
 
-  private void testSerde(String path, Class inputFormat) throws Exception
+  private void testSerde(String path, String inputFormat) throws Exception
   {
     StringBuilder sb = new StringBuilder();
     sb.append("{\"paths\" : \"");
@@ -72,7 +72,7 @@ public class StaticPathSpecTest
     sb.append("\",");
     if(inputFormat != null) {
       sb.append("\"inputFormat\" : \"");
-      sb.append(inputFormat.getName());
+      sb.append(inputFormat);
       sb.append("\",");
     }
     sb.append("\"type\" : \"static\"}");
