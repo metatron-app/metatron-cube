@@ -89,9 +89,17 @@ public class AggregatorsModule extends SimpleModule
     }
     if (ComplexMetrics.getSerdeForType("array") == null) {
       ComplexMetrics.registerSerde("array", new ArrayMetricSerde(ValueType.FLOAT));
+    }
+    if (ComplexMetrics.getSerdeForType("array.float") == null) {
       ComplexMetrics.registerSerde("array.float", new ArrayMetricSerde(ValueType.FLOAT));
+    }
+    if (ComplexMetrics.getSerdeForType("array.double") == null) {
       ComplexMetrics.registerSerde("array.double", new ArrayMetricSerde(ValueType.DOUBLE));
+    }
+    if (ComplexMetrics.getSerdeForType("array.long") == null) {
       ComplexMetrics.registerSerde("array.long", new ArrayMetricSerde(ValueType.LONG));
+    }
+    if (ComplexMetrics.getSerdeForType("array.string") == null) {
       ComplexMetrics.registerSerde("array.string", new ArrayMetricSerde(ValueType.STRING));
     }
     if (ComplexMetrics.getSerdeForType("string") == null) {
