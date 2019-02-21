@@ -20,7 +20,6 @@
 package io.druid.segment.incremental;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.indexing.TuningConfig;
@@ -29,74 +28,67 @@ import io.druid.segment.indexing.TuningConfig;
  */
 public class BaseTuningConfig implements TuningConfig
 {
-  protected static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
-  protected static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
+  private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
+  private static final int DEFAULT_MAX_ROWS_IN_MEMORY = 75000;
+  private static final long DEFAULT_MAX_OCCUPATION_IN_MEMORY = -1;
+  private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
 
   private final IndexSpec indexSpec;
   private final int maxRowsInMemory;
   private final long maxOccupationInMemory;
-  private final long maxShardLength;
-  private final boolean overwriteFiles;
   private final boolean ignoreInvalidRows;
+  private final boolean buildV9Directly;
 
   @JsonCreator
   public BaseTuningConfig(
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
       final @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
-      final @JsonProperty("maxShardLength") Long maxShardLength,
-      final @JsonProperty("overwriteFiles") boolean overwriteFiles,
+      final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
       final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows
   )
   {
     this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
-    this.maxRowsInMemory = maxRowsInMemory == null ? DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemory;
-    this.maxOccupationInMemory = maxOccupationInMemory == null ? -1 : maxOccupationInMemory;
-    this.maxShardLength = maxShardLength == null ? 1L << 31 : maxShardLength;
-    this.overwriteFiles = overwriteFiles;
+    this.maxRowsInMemory = maxRowsInMemory == null || maxRowsInMemory == 0 ?
+                           DEFAULT_MAX_ROWS_IN_MEMORY : maxRowsInMemory;
+    this.maxOccupationInMemory = maxOccupationInMemory == null || maxOccupationInMemory == 0 ?
+                                 DEFAULT_MAX_OCCUPATION_IN_MEMORY : maxOccupationInMemory;
+    this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
     this.ignoreInvalidRows = ignoreInvalidRows;
   }
 
+  @Override
   @JsonProperty
   public IndexSpec getIndexSpec()
   {
     return indexSpec;
   }
 
+  @Override
   @JsonProperty
   public int getMaxRowsInMemory()
   {
     return maxRowsInMemory;
   }
 
+  @Override
   @JsonProperty
   public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
   }
 
+  @Override
   @JsonProperty
-  public long getMaxShardLength()
+  public boolean getBuildV9Directly()
   {
-    return maxShardLength;
+    return buildV9Directly;
   }
 
-  @JsonProperty
-  public boolean isOverwriteFiles()
-  {
-    return overwriteFiles;
-  }
-
+  @Override
   @JsonProperty
   public boolean isIgnoreInvalidRows()
   {
     return ignoreInvalidRows;
-  }
-
-  @Override
-  @JsonIgnore
-  public boolean isReportParseExceptions()
-  {
-    return !isIgnoreInvalidRows();
   }
 }

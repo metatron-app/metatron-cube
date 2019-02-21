@@ -57,11 +57,11 @@ import io.druid.indexing.common.index.YeOldePlumberSchool;
 import io.druid.initialization.Initialization;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.IOConfig;
 import io.druid.segment.indexing.IngestionSpec;
 import io.druid.segment.indexing.RealtimeTuningConfig;
-import io.druid.segment.indexing.TuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
@@ -76,7 +76,6 @@ import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -209,7 +208,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   public TaskStatus run(TaskToolbox toolbox) throws Exception
   {
     final GranularitySpec granularitySpec = ingestionSchema.getDataSchema().getGranularitySpec();
-    final int targetPartitionSize = ingestionSchema.getTuningConfig().getTargetPartitionSize();
+    final IndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
 
     final TaskLock myLock = Iterables.getOnlyElement(getTaskLocks(toolbox));
     final Set<DataSegment> segments = Sets.newHashSet();
@@ -221,10 +220,11 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     for (final Interval bucket : validIntervals) {
       final List<ShardSpec> shardSpecs;
-      if (targetPartitionSize > 0) {
+      if (tuningConfig.getTargetPartitionSize() != null) {
+        int targetPartitionSize = tuningConfig.getTargetPartitionSize();
         shardSpecs = determinePartitions(bucket, targetPartitionSize, granularitySpec.getQueryGranularity());
       } else {
-        int numShards = ingestionSchema.getTuningConfig().getNumShards();
+        int numShards = tuningConfig.getNumShards();
         if (numShards > 0) {
           shardSpecs = Lists.newArrayList();
           for (int i = 0; i < numShards; i++) {
@@ -380,7 +380,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     final FirehoseFactory firehoseFactory = ingestionSchema.getIOConfig().getFirehoseFactory();
     final IndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
-    final int rowFlushBoundary = tuningConfig.getRowFlushBoundary();
+    final int rowFlushBoundary = tuningConfig.getMaxRowsInMemory();
 
     // We need to track published segments.
     final List<DataSegment> pushedSegments = new CopyOnWriteArrayList<DataSegment>();
@@ -424,7 +424,7 @@ public class IndexTask extends AbstractFixedIntervalTask
             shardSpec,
             myRowFlushBoundary,
             tuningConfig.getIndexSpec(),
-            tuningConfig.getBuildV9Directly()
+            true
         ),
         metrics
     );
@@ -578,93 +578,66 @@ public class IndexTask extends AbstractFixedIntervalTask
   }
 
   @JsonTypeName("index")
-  public static class IndexTuningConfig implements TuningConfig
+  public static class IndexTuningConfig extends BaseTuningConfig
   {
-    public static final IndexTuningConfig DEFAULT = new IndexTuningConfig(0, 0, null, null, null, false);
+    public static final IndexTuningConfig DEFAULT = new IndexTuningConfig(null, null, null, null, null, false, null, null);
 
     private static final int DEFAULT_TARGET_PARTITION_SIZE = 5000000;
-    private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
-    private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
-    private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
 
-    private final int targetPartitionSize;
-    private final int rowFlushBoundary;
-    private final int numShards;
-    private final IndexSpec indexSpec;
-    private final Boolean buildV9Directly;
-    private final boolean ignoreInvalidRows;
+    private final Integer targetPartitionSize;
+    private final Integer numShards;
 
-    @JsonCreator
     public IndexTuningConfig(
-        @JsonProperty("targetPartitionSize") int targetPartitionSize,
-        @JsonProperty("rowFlushBoundary") int rowFlushBoundary,
-        @JsonProperty("numShards") @Nullable Integer numShards,
-        @JsonProperty("indexSpec") @Nullable IndexSpec indexSpec,
+        @JsonProperty("targetPartitionSize") Integer targetPartitionSize,
+        @JsonProperty("rowFlushBoundary") @Deprecated Integer rowFlushBoundary,
+        @JsonProperty("numShards") Integer numShards,
+        @JsonProperty("indexSpec") IndexSpec indexSpec,
         @JsonProperty("buildV9Directly") Boolean buildV9Directly,
-        @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows
+        @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
+        @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
+        @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory
     )
     {
-      this.targetPartitionSize = targetPartitionSize == 0 ? DEFAULT_TARGET_PARTITION_SIZE : targetPartitionSize;
-      Preconditions.checkArgument(rowFlushBoundary >= 0, "rowFlushBoundary should be positive or zero");
-      this.rowFlushBoundary = rowFlushBoundary == 0 ? DEFAULT_ROW_FLUSH_BOUNDARY : rowFlushBoundary;
-      this.numShards = numShards == null ? -1 : numShards;
-      this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
-      Preconditions.checkArgument(
-          this.targetPartitionSize == -1 || this.numShards == -1,
-          "targetPartitionsSize and shardCount both cannot be set"
+      super(
+          indexSpec,
+          maxRowsInMemory == null ? rowFlushBoundary : maxRowsInMemory,
+          maxOccupationInMemory,
+          buildV9Directly,
+          ignoreInvalidRows
       );
-      this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
-      this.ignoreInvalidRows = ignoreInvalidRows;
+      if (targetPartitionSize == null && numShards == null) {
+        targetPartitionSize = DEFAULT_TARGET_PARTITION_SIZE;
+      }
+      Preconditions.checkArgument(
+          (targetPartitionSize == null || targetPartitionSize < 0) ^ (numShards == null || numShards < 0),
+          "Must have a valid, non-null targetPartitionSize or numShards"
+      );
+      this.targetPartitionSize = targetPartitionSize;
+      this.numShards = numShards;
+    }
+
+    public IndexTuningConfig(
+        int targetPartitionSize,
+        int rowFlushBoundary,
+        Integer numShards,
+        IndexSpec indexSpec,
+        Boolean buildV9Directly,
+        boolean ignoreInvalidRows
+    )
+    {
+      this(targetPartitionSize, rowFlushBoundary, numShards, indexSpec, buildV9Directly, ignoreInvalidRows, null, null);
     }
 
     @JsonProperty
-    public int getTargetPartitionSize()
+    public Integer getTargetPartitionSize()
     {
       return targetPartitionSize;
     }
 
     @JsonProperty
-    public int getRowFlushBoundary()
-    {
-      return rowFlushBoundary;
-    }
-
-    @JsonProperty
-    public int getNumShards()
+    public Integer getNumShards()
     {
       return numShards;
-    }
-
-    @JsonProperty
-    public IndexSpec getIndexSpec()
-    {
-      return indexSpec;
-    }
-
-    @JsonProperty
-    public Boolean getBuildV9Directly()
-    {
-      return buildV9Directly;
-    }
-
-    @JsonProperty
-    public boolean isIgnoreInvalidRows()
-    {
-      return ignoreInvalidRows;
-    }
-
-    @Override
-    @JsonIgnore
-    public int getMaxRowsInMemory()
-    {
-      return rowFlushBoundary;
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean isReportParseExceptions()
-    {
-      return !ignoreInvalidRows;
     }
   }
 }

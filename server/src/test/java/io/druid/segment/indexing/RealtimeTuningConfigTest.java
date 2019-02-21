@@ -96,7 +96,7 @@ public class RealtimeTuningConfigTest
                      + "}";
 
     ObjectMapper mapper = TestHelper.getObjectMapper();
-    RealtimeTuningConfig config = (RealtimeTuningConfig) mapper.readValue(
+    RealtimeTuningConfig config = mapper.readValue(
         mapper.writeValueAsString(
             mapper.readValue(
                 jsonStr,

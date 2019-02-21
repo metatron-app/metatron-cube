@@ -341,11 +341,11 @@ public class IndexTaskTest
     );
     RealtimeTuningConfig realtimeTuningConfig = IndexTask.convertTuningConfig(
         spec,
-        config.getRowFlushBoundary(),
+        config.getMaxRowsInMemory(),
         config.getIndexSpec(),
         config.getBuildV9Directly()
     );
-    Assert.assertEquals(realtimeTuningConfig.getMaxRowsInMemory(), config.getRowFlushBoundary());
+    Assert.assertEquals(realtimeTuningConfig.getMaxRowsInMemory(), config.getMaxRowsInMemory());
     Assert.assertEquals(realtimeTuningConfig.getShardSpec(), spec);
     Assert.assertEquals(realtimeTuningConfig.getIndexSpec(), indexSpec);
   }

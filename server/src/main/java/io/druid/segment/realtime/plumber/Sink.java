@@ -35,9 +35,9 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.indexing.DataSchema;
-import io.druid.segment.indexing.TuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.realtime.FireHydrant;
+import io.druid.segment.realtime.appenderator.AppenderatorConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
@@ -80,7 +80,7 @@ public class Sink implements Iterable<FireHydrant>
       DataSchema schema,
       ShardSpec shardSpec,
       String version,
-      TuningConfig tuningConfig
+      AppenderatorConfig tuningConfig
   )
   {
     this(interval, schema, shardSpec, version, tuningConfig, ImmutableList.<FireHydrant>of());
@@ -91,7 +91,7 @@ public class Sink implements Iterable<FireHydrant>
       DataSchema schema,
       ShardSpec shardSpec,
       String version,
-      TuningConfig tuningConfig,
+      AppenderatorConfig tuningConfig,
       List<FireHydrant> hydrants
   )
   {

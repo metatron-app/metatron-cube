@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.guava.Files;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.realtime.appenderator.AppenderatorConfig;
 import io.druid.segment.realtime.plumber.IntervalStartVersioningPolicy;
 import io.druid.segment.realtime.plumber.RejectionPolicyFactory;
@@ -39,18 +40,14 @@ import java.io.File;
 /**
  */
 @JsonTypeName("realtime")
-public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
+public class RealtimeTuningConfig extends BaseTuningConfig implements AppenderatorConfig
 {
-  private static final int defaultMaxRowsInMemory = 75000;
-  private static final long defaultMaxOccupationInMemory = 64 << 20;
   private static final Period defaultIntermediatePersistPeriod = new Period("PT10M");
   private static final Period defaultWindowPeriod = new Period("PT10M");
   private static final VersioningPolicy defaultVersioningPolicy = new IntervalStartVersioningPolicy();
   private static final RejectionPolicyFactory defaultRejectionPolicyFactory = new ServerTimeRejectionPolicyFactory();
   private static final int defaultMaxPendingPersists = 0;
   private static final ShardSpec defaultShardSpec = NoneShardSpec.instance();
-  private static final IndexSpec defaultIndexSpec = new IndexSpec();
-  private static final Boolean defaultBuildV9Directly = Boolean.TRUE;
   private static final Boolean defaultReportParseExceptions = Boolean.FALSE;
   private static final long defaultHandoffConditionTimeout = 0;
 
@@ -65,8 +62,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   public static RealtimeTuningConfig makeDefaultTuningConfig(final File basePersistDirectory)
   {
     return new RealtimeTuningConfig(
-        defaultMaxRowsInMemory,
-        defaultMaxOccupationInMemory,
+        null,
+        null,
         defaultIntermediatePersistPeriod,
         defaultWindowPeriod,
         basePersistDirectory == null ? createNewBasePersistDirectory() : basePersistDirectory,
@@ -74,8 +71,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         defaultRejectionPolicyFactory,
         defaultMaxPendingPersists,
         defaultShardSpec,
-        defaultIndexSpec,
-        defaultBuildV9Directly,
+        null,
+        null,
         0,
         0,
         defaultReportParseExceptions,
@@ -84,8 +81,6 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
     );
   }
 
-  private final int maxRowsInMemory;
-  private final long maxOccupationInMemory;
   private final Period intermediatePersistPeriod;
   private final Period windowPeriod;
   private final File basePersistDirectory;
@@ -93,8 +88,6 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   private final RejectionPolicyFactory rejectionPolicyFactory;
   private final int maxPendingPersists;
   private final ShardSpec shardSpec;
-  private final IndexSpec indexSpec;
-  private final boolean buildV9Directly;
   private final int persistThreadPriority;
   private final int mergeThreadPriority;
   private final boolean reportParseExceptions;
@@ -122,8 +115,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
       @JsonProperty("ignorePreviousSegments") boolean ignorePreviousSegments
   )
   {
-    this.maxRowsInMemory = maxRowsInMemory == null ? defaultMaxRowsInMemory : maxRowsInMemory;
-    this.maxOccupationInMemory = maxOccupationInMemory == null ? defaultMaxOccupationInMemory : maxOccupationInMemory;
+    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, buildV9Directly, false);
     this.intermediatePersistPeriod = intermediatePersistPeriod == null
                                      ? defaultIntermediatePersistPeriod
                                      : intermediatePersistPeriod;
@@ -135,8 +127,6 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
                                   : rejectionPolicyFactory;
     this.maxPendingPersists = maxPendingPersists == null ? defaultMaxPendingPersists : maxPendingPersists;
     this.shardSpec = shardSpec == null ? defaultShardSpec : shardSpec;
-    this.indexSpec = indexSpec == null ? defaultIndexSpec : indexSpec;
-    this.buildV9Directly = buildV9Directly == null ? defaultBuildV9Directly : buildV9Directly;
     this.mergeThreadPriority = mergeThreadPriority;
     this.persistThreadPriority = persistThreadPriority;
     this.reportParseExceptions = reportParseExceptions == null
@@ -147,20 +137,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
                                    ? defaultHandoffConditionTimeout
                                    : handoffConditionTimeout;
     Preconditions.checkArgument(this.handoffConditionTimeout >= 0, "handoffConditionTimeout must be >= 0");
-    Preconditions.checkArgument(this.maxRowsInMemory > 0, "maxRowsInMemory must be > 0");
     this.ignorePreviousSegments = ignorePreviousSegments;
-  }
-
-  @JsonProperty
-  public int getMaxRowsInMemory()
-  {
-    return maxRowsInMemory;
-  }
-
-  @JsonProperty
-  public long getMaxOccupationInMemory()
-  {
-    return maxOccupationInMemory;
   }
 
   @JsonProperty
@@ -206,18 +183,6 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   }
 
   @JsonProperty
-  public IndexSpec getIndexSpec()
-  {
-    return indexSpec;
-  }
-
-  @JsonProperty
-  public Boolean getBuildV9Directly()
-  {
-    return buildV9Directly;
-  }
-
-  @JsonProperty
   public int getPersistThreadPriority()
   {
     return this.persistThreadPriority;
@@ -250,8 +215,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   public RealtimeTuningConfig withVersioningPolicy(VersioningPolicy policy)
   {
     return new RealtimeTuningConfig(
-        maxRowsInMemory,
-        maxOccupationInMemory,
+        getMaxRowsInMemory(),
+        getMaxOccupationInMemory(),
         intermediatePersistPeriod,
         windowPeriod,
         basePersistDirectory,
@@ -259,8 +224,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         rejectionPolicyFactory,
         maxPendingPersists,
         shardSpec,
-        indexSpec,
-        buildV9Directly,
+        getIndexSpec(),
+        getBuildV9Directly(),
         persistThreadPriority,
         mergeThreadPriority,
         reportParseExceptions,
@@ -272,8 +237,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   public RealtimeTuningConfig withBasePersistDirectory(File dir)
   {
     return new RealtimeTuningConfig(
-        maxRowsInMemory,
-        maxOccupationInMemory,
+        getMaxRowsInMemory(),
+        getMaxOccupationInMemory(),
         intermediatePersistPeriod,
         windowPeriod,
         dir,
@@ -281,19 +246,13 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         rejectionPolicyFactory,
         maxPendingPersists,
         shardSpec,
-        indexSpec,
-        buildV9Directly,
+        getIndexSpec(),
+        getBuildV9Directly(),
         persistThreadPriority,
         mergeThreadPriority,
         reportParseExceptions,
         handoffConditionTimeout,
         ignorePreviousSegments
     );
-  }
-
-  @Override
-  public boolean isIgnoreInvalidRows()
-  {
-    return false;
   }
 }

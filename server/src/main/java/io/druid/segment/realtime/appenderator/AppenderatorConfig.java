@@ -31,4 +31,6 @@ public interface AppenderatorConfig extends TuningConfig
   Period getIntermediatePersistPeriod();
 
   File getBasePersistDirectory();
+
+  boolean isReportParseExceptions();
 }

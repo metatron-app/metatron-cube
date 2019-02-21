@@ -31,7 +31,9 @@ public interface TuningConfig
 
   int getMaxRowsInMemory();
 
-  boolean isIgnoreInvalidRows();
+  long getMaxOccupationInMemory();
 
-  boolean isReportParseExceptions();
+  boolean getBuildV9Directly();
+
+  boolean isIgnoreInvalidRows();
 }

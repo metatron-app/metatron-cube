@@ -47,7 +47,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private static final int DEFAULT_MAX_REDUCER = 100;
   private static final int DEFAULT_SCATTER_PARAM = -1;
   private static final long DEFAULT_BYTES_PER_REDUCER = -1;
-  private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
   private static final int DEFAULT_NUM_BACKGROUND_PERSIST_THREADS = 0;
 
   public static HadoopTuningConfig makeDefaultTuningConfig()
@@ -57,8 +56,8 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         new DateTime().toString(),
         DEFAULT_PARTITIONS_SPEC,
         DEFAULT_SHARD_SPECS,
-        BaseTuningConfig.DEFAULT_INDEX_SPEC,
-        BaseTuningConfig.DEFAULT_ROW_FLUSH_BOUNDARY,
+        null,
+        null,
         null,
         null,
         false,
@@ -73,7 +72,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         DEFAULT_MAX_REDUCER,
         DEFAULT_SCATTER_PARAM,
         DEFAULT_BYTES_PER_REDUCER,
-        DEFAULT_BUILD_V9_DIRECTLY,
+        null,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
     );
   }
@@ -81,9 +80,11 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private final String workingPath;
   private final String version;
   private final PartitionsSpec partitionsSpec;
+  private final long maxShardLength;
   private final Map<Long, List<HadoopyShardSpec>> shardSpecs;
   private final boolean leaveIntermediate;
   private final Boolean cleanupOnFailure;
+  private final boolean overwriteFiles;
   private final Map<String, String> jobProperties;
   private final IngestionMode ingestionMode;
   private final boolean combineText;
@@ -92,7 +93,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   private final int maxReducer;
   private final int scatterParam;
   private final long bytesPerReducer;
-  private final Boolean buildV9Directly;
   private final int numBackgroundPersistThreads;
 
   @JsonCreator
@@ -121,18 +121,19 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
       final @JsonProperty("numBackgroundPersistThreads") Integer numBackgroundPersistThreads
   )
   {
-    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, maxShardLength, overwriteFiles, ignoreInvalidRows);
+    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, buildV9Directly, ignoreInvalidRows);
     this.workingPath = workingPath;
     this.version = version == null ? new DateTime().toString() : version;
     this.partitionsSpec = partitionsSpec == null ? DEFAULT_PARTITIONS_SPEC : partitionsSpec;
+    this.maxShardLength = maxShardLength == null ? 1L << 31 : maxShardLength;
     this.shardSpecs = shardSpecs == null ? DEFAULT_SHARD_SPECS : shardSpecs;
     this.leaveIntermediate = leaveIntermediate;
     this.cleanupOnFailure = cleanupOnFailure == null || cleanupOnFailure;
+    this.overwriteFiles = overwriteFiles;
     this.jobProperties = jobProperties == null ? ImmutableMap.<String, String>of() : ImmutableMap.copyOf(jobProperties);
     this.ingestionMode = ingestionMode == null ? IngestionMode.MAPRED : ingestionMode;
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
-    this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
     this.minReducer = minReducer == null ? DEFAULT_MIN_REDUCER : Math.max(1, minReducer);
     this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : Math.max(1, maxReducer);
     this.bytesPerReducer = bytesPerReducer == null ? DEFAULT_BYTES_PER_REDUCER : bytesPerReducer;
@@ -210,6 +211,12 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  public long getMaxShardLength()
+  {
+    return maxShardLength;
+  }
+
+  @JsonProperty
   public Map<Long, List<HadoopyShardSpec>> getShardSpecs()
   {
     return shardSpecs;
@@ -219,6 +226,12 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   public boolean isLeaveIntermediate()
   {
     return leaveIntermediate;
+  }
+
+  @JsonProperty
+  public boolean isOverwriteFiles()
+  {
+    return overwriteFiles;
   }
 
   @JsonProperty
@@ -249,11 +262,6 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   public boolean getUseCombiner()
   {
     return useCombiner;
-  }
-
-  @JsonProperty
-  public Boolean getBuildV9Directly() {
-    return buildV9Directly;
   }
 
   @JsonProperty
@@ -299,7 +307,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         getMaxShardLength(),
         leaveIntermediate,
         cleanupOnFailure,
-        isOverwriteFiles(),
+        overwriteFiles,
         isIgnoreInvalidRows(),
         jobProperties,
         ingestionMode,
@@ -309,7 +317,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         maxReducer,
         scatterParam,
         bytesPerReducer,
-        buildV9Directly,
+        getBuildV9Directly(),
         numBackgroundPersistThreads
     );
   }
@@ -327,7 +335,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         getMaxShardLength(),
         leaveIntermediate,
         cleanupOnFailure,
-        isOverwriteFiles(),
+        overwriteFiles,
         isIgnoreInvalidRows(),
         jobProperties,
         ingestionMode,
@@ -337,7 +345,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         maxReducer,
         scatterParam,
         bytesPerReducer,
-        buildV9Directly,
+        getBuildV9Directly(),
         numBackgroundPersistThreads
     );
   }
@@ -355,7 +363,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         getMaxShardLength(),
         leaveIntermediate,
         cleanupOnFailure,
-        isOverwriteFiles(),
+        overwriteFiles,
         isIgnoreInvalidRows(),
         jobProperties,
         ingestionMode,
@@ -365,7 +373,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         maxReducer,
         scatterParam,
         bytesPerReducer,
-        buildV9Directly,
+        getBuildV9Directly(),
         numBackgroundPersistThreads
     );
   }
@@ -383,7 +391,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         getMaxShardLength(),
         leaveIntermediate,
         cleanupOnFailure,
-        isOverwriteFiles(),
+        overwriteFiles,
         isIgnoreInvalidRows(),
         jobProperties,
         ingestionMode,
@@ -393,7 +401,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         maxReducer,
         scatterParam,
         bytesPerReducer,
-        buildV9Directly,
+        getBuildV9Directly(),
         numBackgroundPersistThreads
     );
   }
@@ -411,7 +419,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         getMaxShardLength(),
         leaveIntermediate,
         cleanupOnFailure,
-        isOverwriteFiles(),
+        overwriteFiles,
         isIgnoreInvalidRows(),
         jobProperties,
         ingestionMode,
@@ -421,7 +429,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         numReducer,
         scatterParam,
         DEFAULT_BYTES_PER_REDUCER,
-        buildV9Directly,
+        getBuildV9Directly(),
         numBackgroundPersistThreads
     );
   }

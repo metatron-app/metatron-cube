@@ -106,7 +106,7 @@ public class RealtimePlumber implements Plumber
 {
   private static final EmittingLogger log = new EmittingLogger(RealtimePlumber.class);
   private static final int WARN_DELAY = 1000;
-  private static final int MAX_ROW_EXCEED_CHECK_COUNT = 100000;
+  private static final int MAX_ROW_EXCEED_CHECK_INTERVAL = 100000;
 
   private final DataSchema schema;
   private final RealtimeTuningConfig config;
@@ -129,7 +129,7 @@ public class RealtimePlumber implements Plumber
   private final CacheConfig cacheConfig;
   private final ObjectMapper objectMapper;
 
-  private final int maxRowExceedCheckCount;
+  private final int maxRowExceedCheckInterval;
 
   private volatile long nextFlush = 0;
   private volatile boolean shuttingDown = false;
@@ -181,7 +181,7 @@ public class RealtimePlumber implements Plumber
     this.cache = cache;
     this.cacheConfig = cacheConfig;
     this.objectMapper = objectMapper;
-    this.maxRowExceedCheckCount = Math.min(config.getMaxRowsInMemory(), MAX_ROW_EXCEED_CHECK_COUNT);
+    this.maxRowExceedCheckInterval = Math.min(config.getMaxRowsInMemory(), MAX_ROW_EXCEED_CHECK_INTERVAL);
 
     if (!cache.isLocal()) {
       log.error("Configured cache is not local, caching will not be enabled");
@@ -242,11 +242,11 @@ public class RealtimePlumber implements Plumber
       persist(committerSupplier.get());
     }
 
-    if (maxRowExceedCheckCount > 0 && ++counter % maxRowExceedCheckCount == 0) {
+    if (maxRowExceedCheckInterval > 0 && ++counter % maxRowExceedCheckInterval == 0) {
       if (rowCountInMemory() > config.getMaxRowsInMemory()) {
         log.info("Start flushing for exceeding max rows %,d/%,d", rowCountInMemory(), config.getMaxRowsInMemory());
         persist(committerSupplier.get(), findBiggest());
-      } else if (occupationInMemory() > config.getMaxOccupationInMemory()) {
+      } else if (config.getMaxOccupationInMemory() > 0 && occupationInMemory() > config.getMaxOccupationInMemory()) {
         log.info(
             "Start flushing for exceeding max occupation %,d/%,d",
             occupationInMemory(), config.getMaxOccupationInMemory()
