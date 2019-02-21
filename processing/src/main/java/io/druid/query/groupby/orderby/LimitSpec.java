@@ -37,7 +37,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.groupby.GroupByQueryEngine;
 
 import java.nio.ByteBuffer;
@@ -131,7 +130,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<WindowingSpec> getWindowingSpecs()
   {
     return windowingSpecs;

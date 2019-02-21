@@ -20,6 +20,16 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import io.druid.sql.calcite.rel.QueryMaker;
+import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;
+import io.druid.sql.calcite.rule.DruidJoinRule;
+import io.druid.sql.calcite.rule.DruidRelToBindableRule;
+import io.druid.sql.calcite.rule.DruidRelToDruidRule;
+import io.druid.sql.calcite.rule.DruidRules;
+import io.druid.sql.calcite.rule.DruidSemiJoinRule;
+import io.druid.sql.calcite.rule.DruidTableScanRule;
+import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
+import io.druid.sql.calcite.rule.SortCollapseRule;
 import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
@@ -29,7 +39,10 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
+import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
 import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
@@ -46,6 +59,7 @@ import org.apache.calcite.rel.rules.FilterTableScanRule;
 import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
+import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
@@ -69,16 +83,6 @@ import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
-import io.druid.sql.calcite.rel.QueryMaker;
-import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;
-import io.druid.sql.calcite.rule.DruidJoinRule;
-import io.druid.sql.calcite.rule.DruidRelToBindableRule;
-import io.druid.sql.calcite.rule.DruidRelToDruidRule;
-import io.druid.sql.calcite.rule.DruidRules;
-import io.druid.sql.calcite.rule.DruidSemiJoinRule;
-import io.druid.sql.calcite.rule.DruidTableScanRule;
-import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
-import io.druid.sql.calcite.rule.SortCollapseRule;
 
 import java.util.List;
 
@@ -107,7 +111,8 @@ public class Rules
           JoinPushThroughJoinRule.LEFT,
           SortProjectTransposeRule.INSTANCE,
           SortJoinTransposeRule.INSTANCE,
-          SortUnionTransposeRule.INSTANCE
+          SortUnionTransposeRule.INSTANCE,
+          JoinPushTransitivePredicatesRule.INSTANCE
       );
 
   // Rules from CalcitePrepareImpl's createPlanner.
@@ -180,9 +185,12 @@ public class Rules
 
   public static List<Program> programs(final PlannerContext plannerContext, final QueryMaker queryMaker)
   {
+    RelMetadataQuery.THREAD_PROVIDERS.set(JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
+        ImmutableList.of(HiveRelMdPredicates.SOURCE)
+    )));
     final Program hepProgram =
         Programs.sequence(
-            Programs.subQuery(DefaultRelMetadataProvider.INSTANCE),
+            Programs.subQuery(RelMetadataQuery.THREAD_PROVIDERS.get()),
             new DecorrelateAndTrimFieldsProgram()
         );
     return ImmutableList.of(
@@ -270,7 +278,9 @@ public class Rules
         List<RelOptLattice> lattices
     )
     {
-      final RelNode decorrelatedRel = RelDecorrelator.decorrelateQuery(rel);
+      final RelNode decorrelatedRel = RelDecorrelator.decorrelateQuery(
+          rel, RelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null)
+      );
       final RelBuilder relBuilder = RelFactories.LOGICAL_BUILDER.create(decorrelatedRel.getCluster(), null);
       return new RelFieldTrimmer(null, relBuilder).trim(decorrelatedRel);
     }

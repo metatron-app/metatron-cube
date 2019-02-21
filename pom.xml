@@ -91,9 +91,14 @@
         <thrift.compile.version>0.9.2</thrift.compile.version>
         <lucene.version>6.2.0</lucene.version>
 
-        <avatica.version>1.10.0</avatica.version>
+        <avatica.version>1.12.0</avatica.version>
         <calcite.version>1.17.0</calcite.version>
         <netty.version>4.1.11.Final</netty.version>
+
+        <fmpp.version>0.9.16</fmpp.version>
+        <freemarker.version>2.3.28</freemarker.version>
+        <drill-fmpp-maven-plugin.version>1.14.0</drill-fmpp-maven-plugin.version>
+        <javacc-maven-plugin.version>2.4</javacc-maven-plugin.version>
     </properties>
 
     <modules>
@@ -297,6 +302,11 @@
                         <artifactId>sketches-core</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.calcite</groupId>
+                <artifactId>calcite-server</artifactId>
+                <version>${calcite.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.calcite</groupId>
@@ -751,6 +761,34 @@
         </plugins>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.drill.tools</groupId>
+                    <artifactId>drill-fmpp-maven-plugin</artifactId>
+                    <version>${drill-fmpp-maven-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.freemarker</groupId>
+                            <artifactId>freemarker</artifactId>
+                            <version>${freemarker.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>net.sourceforge.fmpp</groupId>
+                            <artifactId>fmpp</artifactId>
+                            <version>${fmpp.version}</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>org.freemarker</groupId>
+                                    <artifactId>freemarker</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>javacc-maven-plugin</artifactId>
+                    <version>${javacc-maven-plugin.version}</version>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>

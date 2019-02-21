@@ -35,12 +35,16 @@ import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserImplFactory;
+import org.apache.calcite.sql.parser.impl.SqlParserImpl;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
+import java.io.Reader;
 import java.util.Map;
 import java.util.Properties;
 
@@ -53,6 +57,14 @@ public class PlannerFactory
       .setQuotedCasing(Casing.UNCHANGED)
       .setQuoting(Quoting.DOUBLE_QUOTE)
       .setConformance(DruidConformance.instance())
+      .setParserFactory(new SqlParserImplFactory()
+      {
+        @Override
+        public SqlAbstractParserImpl getParser(Reader reader)
+        {
+          return new SqlParserImpl(reader);
+        }
+      })
       .build();
 
   private final DruidSchema druidSchema;

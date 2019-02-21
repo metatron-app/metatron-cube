@@ -219,7 +219,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 
   private JoinType toJoinType(int index)
   {
-    return index == 0 ? null : elements[index - 1].getJoinType();
+    return elements[index == 0 ? 0 : index - 1].getJoinType();
   }
 
   private String toAlias(int index)

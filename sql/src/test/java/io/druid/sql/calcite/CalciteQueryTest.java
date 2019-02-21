@@ -2037,7 +2037,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(IN("cnt", ImmutableList.of("1.0", "100000001.0"), null))
+                  .filters(IN("cnt", "1.0", "100000001.0"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -2057,7 +2057,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(IN("cnt", ImmutableList.of("1", "2"), null))
+                  .filters(IN("cnt", "1", "2"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -2504,7 +2504,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .setDataSource(CalciteTests.DATASOURCE1)
                         .setGranularity(Granularities.ALL)
                         .setDimensions(DefaultDimensionSpec.of("dim1", "d0"))
-                        .setDimFilter(IN("dim1", ImmutableList.of("abc", "def", "ghi"), null))
+                        .setDimFilter(IN("dim1", "abc", "def", "ghi"))
                         .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
@@ -3898,7 +3898,7 @@ public class CalciteQueryTest extends CalciteTestBase
             GroupByQuery.builder()
                         .setDataSource(CalciteTests.DATASOURCE1)
                         .setGranularity(Granularities.ALL)
-                        .setDimFilter(IN("dim2", ImmutableList.of("", "a"), null))
+                        .setDimFilter(IN("dim2", "", "a"))
                         .setDimensions(DefaultDimensionSpec.of("dim1", "d0"))
                         .setAggregatorSpecs(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
                         .setLimitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
@@ -3947,7 +3947,7 @@ public class CalciteQueryTest extends CalciteTestBase
             GroupByQuery.builder()
                         .setDataSource(CalciteTests.DATASOURCE1)
                         .setGranularity(Granularities.ALL)
-                        .setDimFilter(IN("dim2", ImmutableList.of("", "a"), null))
+                        .setDimFilter(IN("dim2", "", "a"))
                         .setDimensions(DefaultDimensionSpec.of("dim1", "d0"))
                         .setAggregatorSpecs(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
                         .setLimitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
@@ -4124,7 +4124,7 @@ public class CalciteQueryTest extends CalciteTestBase
                       GroupByQuery.builder()
                                   .setDataSource(CalciteTests.DATASOURCE1)
                                   .setGranularity(Granularities.ALL)
-                                  .setDimFilter(IN("dim2", ImmutableList.of("a", "abc"), null))
+                                  .setDimFilter(IN("dim2", "a", "abc"))
                                   .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
                                   .setContext(QUERY_CONTEXT_DEFAULT)
                                   .build()
@@ -5796,7 +5796,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .setDimFilter(
                             AND(
                                 NOT(SELECTOR("dim1", "xxx", null)),
-                                IN("dim2", ImmutableList.of("1", "10.1", "2", "abc", "def"), null)
+                                IN("dim2", "1", "10.1", "2", "abc", "def")
                             )
                         )
                         .setDimensions(
@@ -5925,7 +5925,7 @@ public class CalciteQueryTest extends CalciteTestBase
             new Druids.SelectQueryBuilder()
                 .dataSource(CalciteTests.DATASOURCE1)
                 .columns(Arrays.asList("dim1", "dim2"))
-                .filters(IN("dim2", ImmutableList.of("", "a", "abc"), null))
+                .filters(IN("dim2", "", "a", "abc"))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streaming()
         ),
@@ -6676,6 +6676,11 @@ public class CalciteQueryTest extends CalciteTestBase
   private static NotDimFilter NOT(DimFilter filter)
   {
     return new NotDimFilter(filter);
+  }
+
+  private static InDimFilter IN(String dimension, String... values)
+  {
+    return new InDimFilter(dimension, Arrays.asList(values), null);
   }
 
   private static InDimFilter IN(String dimension, List<String> values, ExtractionFn extractionFn)
