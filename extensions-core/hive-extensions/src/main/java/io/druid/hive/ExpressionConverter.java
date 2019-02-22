@@ -310,7 +310,9 @@ public class ExpressionConverter
         filterExpr = expression;
       }
     }
-    SearchArgument searchArgument = ConvertAstToSearchArg.create(filterExpr);
+    Configuration configuration = new Configuration();
+    configuration.set("hive.io.filter.expr.serialized", SerializationUtilities.serializeExpression(filterExpr));
+    SearchArgument searchArgument = ConvertAstToSearchArg.createFromConf(configuration);
     ExpressionTree root = searchArgument.getExpression();
 
     List<PredicateLeaf> leaves = Lists.newArrayList(searchArgument.getLeaves());

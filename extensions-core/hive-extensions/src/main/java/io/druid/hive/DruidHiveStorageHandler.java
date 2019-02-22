@@ -27,7 +27,6 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.InputEstimator;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
-import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -57,7 +56,7 @@ public class DruidHiveStorageHandler extends DefaultStorageHandler implements In
   }
 
   @Override
-  public Class<? extends SerDe> getSerDeClass()
+  public Class getSerDeClass()
   {
     return DruidHiveSerDe.class;
   }
