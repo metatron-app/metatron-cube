@@ -55,46 +55,98 @@ public class InformationSchema extends AbstractSchema
 {
   public static final String NAME = "INFORMATION_SCHEMA";
 
-  private static final String EMPTY_CATALOG = "";
-  private static final String SCHEMATA_TABLE = "SCHEMATA";
-  private static final String TABLES_TABLE = "TABLES";
-  private static final String COLUMNS_TABLE = "COLUMNS";
+  // SCHEMATA column names:
+  public static final String CATALOG_NAME = "CATALOG_NAME";
+  public static final String SCHEMA_NAME = "SCHEMA_NAME";
+  public static final String SCHEMA_OWNER = "SCHEMA_OWNER";
+  public static final String DEFAULT_CHARACTER_SET_CATALOG = "DEFAULT_CHARACTER_SET_CATALOG";
+  public static final String DEFAULT_CHARACTER_SET_SCHEMA = "DEFAULT_CHARACTER_SET_SCHEMA";
+  public static final String DEFAULT_CHARACTER_SET_NAME = "DEFAULT_CHARACTER_SET_NAME";
+  public static final String SQL_PATH = "SQL_PATH";
+
+  // COLUMNS columns, from SQL standard:
+  // 1. TABLE_CATALOG
+  // 2. TABLE_SCHEMA
+  // 3. TABLE_NAME
+  // 4. COLUMN_NAME
+  // 5. ORDINAL_POSITION
+  // 6. COLUMN_DEFAULT
+  // 7. IS_NULLABLE
+  // 8. DATA_TYPE
+  // 9. CHARACTER_MAXIMUM_LENGTH
+  // 10. CHARACTER_OCTET_LENGTH
+  // 11. NUMERIC_PRECISION
+  // 12. NUMERIC_PRECISION_RADIX
+  // 13. NUMERIC_SCALE
+  // 14. DATETIME_PRECISION
+  // 15. INTERVAL_TYPE
+  // 16. INTERVAL_PRECISION
+  // 17. CHARACTER_SET_CATALOG ...
+
+  public static final String TABLE_CATALOG = "TABLE_CATALOG";
+  public static final String TABLE_SCHEMA = "TABLE_SCHEMA";
+  public static final String TABLE_NAME = "TABLE_NAME";
+  public static final String TABLE_TYPE = "TABLE_TYPE";
+
+  public static final String COLUMN_NAME = "COLUMN_NAME";
+  public static final String ORDINAL_POSITION = "ORDINAL_POSITION";
+  public static final String COLUMN_DEFAULT = "COLUMN_DEFAULT";
+  public static final String IS_NULLABLE = "IS_NULLABLE";
+  public static final String DATA_TYPE = "DATA_TYPE";
+  public static final String CHARACTER_MAXIMUM_LENGTH = "CHARACTER_MAXIMUM_LENGTH";
+  public static final String CHARACTER_OCTET_LENGTH = "CHARACTER_OCTET_LENGTH";
+  public static final String NUMERIC_PRECISION = "NUMERIC_PRECISION";
+  public static final String NUMERIC_PRECISION_RADIX = "NUMERIC_PRECISION_RADIX";
+  public static final String NUMERIC_SCALE = "NUMERIC_SCALE";
+  public static final String DATETIME_PRECISION = "DATETIME_PRECISION";
+  public static final String INTERVAL_TYPE = "INTERVAL_TYPE";
+  public static final String INTERVAL_PRECISION = "INTERVAL_PRECISION";
+
+  public static final String CHARACTER_SET_NAME = "CHARACTER_SET_NAME";
+  public static final String COLLATION_NAME = "COLLATION_NAME";
+  public static final String JDBC_TYPE = "JDBC_TYPE";
+
+  public static final String EMPTY_CATALOG = "";
+  public static final String SCHEMATA_TABLE = "SCHEMATA";
+  public static final String TABLES_TABLE = "TABLES";
+  public static final String COLUMNS_TABLE = "COLUMNS";
+
   private static final RowSignature SCHEMATA_SIGNATURE = RowSignature
       .builder()
-      .add("CATALOG_NAME", ValueDesc.STRING)
-      .add("SCHEMA_NAME", ValueDesc.STRING)
-      .add("SCHEMA_OWNER", ValueDesc.STRING)
-      .add("DEFAULT_CHARACTER_SET_CATALOG", ValueDesc.STRING)
-      .add("DEFAULT_CHARACTER_SET_SCHEMA", ValueDesc.STRING)
-      .add("DEFAULT_CHARACTER_SET_NAME", ValueDesc.STRING)
-      .add("SQL_PATH", ValueDesc.STRING)
+      .add(CATALOG_NAME, ValueDesc.STRING)
+      .add(SCHEMA_NAME, ValueDesc.STRING)
+      .add(SCHEMA_OWNER, ValueDesc.STRING)
+      .add(DEFAULT_CHARACTER_SET_CATALOG, ValueDesc.STRING)
+      .add(DEFAULT_CHARACTER_SET_SCHEMA, ValueDesc.STRING)
+      .add(DEFAULT_CHARACTER_SET_NAME, ValueDesc.STRING)
+      .add(SQL_PATH, ValueDesc.STRING)
       .build();
   private static final RowSignature TABLES_SIGNATURE = RowSignature
       .builder()
-      .add("TABLE_CATALOG", ValueDesc.STRING)
-      .add("TABLE_SCHEMA", ValueDesc.STRING)
-      .add("TABLE_NAME", ValueDesc.STRING)
-      .add("TABLE_TYPE", ValueDesc.STRING)
+      .add(TABLE_CATALOG, ValueDesc.STRING)
+      .add(TABLE_SCHEMA, ValueDesc.STRING)
+      .add(TABLE_NAME, ValueDesc.STRING)
+      .add(TABLE_TYPE, ValueDesc.STRING)
       .build();
   private static final RowSignature COLUMNS_SIGNATURE = RowSignature
       .builder()
-      .add("TABLE_CATALOG", ValueDesc.STRING)
-      .add("TABLE_SCHEMA", ValueDesc.STRING)
-      .add("TABLE_NAME", ValueDesc.STRING)
-      .add("COLUMN_NAME", ValueDesc.STRING)
-      .add("ORDINAL_POSITION", ValueDesc.STRING)
-      .add("COLUMN_DEFAULT", ValueDesc.STRING)
-      .add("IS_NULLABLE", ValueDesc.STRING)
-      .add("DATA_TYPE", ValueDesc.STRING)
-      .add("CHARACTER_MAXIMUM_LENGTH", ValueDesc.STRING)
-      .add("CHARACTER_OCTET_LENGTH", ValueDesc.STRING)
-      .add("NUMERIC_PRECISION", ValueDesc.STRING)
-      .add("NUMERIC_PRECISION_RADIX", ValueDesc.STRING)
-      .add("NUMERIC_SCALE", ValueDesc.STRING)
-      .add("DATETIME_PRECISION", ValueDesc.STRING)
-      .add("CHARACTER_SET_NAME", ValueDesc.STRING)
-      .add("COLLATION_NAME", ValueDesc.STRING)
-      .add("JDBC_TYPE", ValueDesc.LONG)
+      .add(TABLE_CATALOG, ValueDesc.STRING)
+      .add(TABLE_SCHEMA, ValueDesc.STRING)
+      .add(TABLE_NAME, ValueDesc.STRING)
+      .add(COLUMN_NAME, ValueDesc.STRING)
+      .add(ORDINAL_POSITION, ValueDesc.STRING)
+      .add(COLUMN_DEFAULT, ValueDesc.STRING)
+      .add(IS_NULLABLE, ValueDesc.STRING)
+      .add(DATA_TYPE, ValueDesc.STRING)
+      .add(CHARACTER_MAXIMUM_LENGTH, ValueDesc.STRING)
+      .add(CHARACTER_OCTET_LENGTH, ValueDesc.STRING)
+      .add(NUMERIC_PRECISION, ValueDesc.STRING)
+      .add(NUMERIC_PRECISION_RADIX, ValueDesc.STRING)
+      .add(NUMERIC_SCALE, ValueDesc.STRING)
+      .add(DATETIME_PRECISION, ValueDesc.STRING)
+      .add(CHARACTER_SET_NAME, ValueDesc.STRING)
+      .add(COLLATION_NAME, ValueDesc.STRING)
+      .add(JDBC_TYPE, ValueDesc.LONG)
       .build();
   private static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystem.DEFAULT;
 

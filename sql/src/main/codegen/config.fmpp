@@ -45,6 +45,7 @@ data: {
       "org.apache.calcite.sql.SqlCreate"
       "org.apache.calcite.sql.SqlDrop"
       "org.apache.calcite.sql.ddl.SqlDdlNodes"
+      "io.druid.sql.calcite.ddl.SqlShowTables"
     ]
 
     # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
@@ -54,6 +55,7 @@ data: {
       "MATERIALIZED"
       "STORED"
       "VIRTUAL"
+      "TABLES"
     ]
 
     # List of keywords from "keywords" section that are not reserved.
@@ -62,6 +64,7 @@ data: {
       "MATERIALIZED"
       "STORED"
       "VIRTUAL"
+      "TABLES"
     ]
 
     # List of additional join types. Each is a method with no arguments.
@@ -73,6 +76,7 @@ data: {
     # Return type of method implementation should be 'SqlNode'.
     # Example: SqlShowDatabases(), SqlShowTables().
     statementParserMethods: [
+      "SqlShowTables()"
     ]
 
     # List of methods for parsing custom literals.

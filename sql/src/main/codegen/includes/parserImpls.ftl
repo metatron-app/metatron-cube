@@ -364,4 +364,30 @@ SqlDrop SqlDropMaterializedView(Span s, boolean replace) :
     }
 }
 
+/**
+ * Parses statement
+ *   SHOW TABLES [{FROM | IN} db_name] [LIKE 'pattern' | WHERE expr]
+ */
+SqlNode SqlShowTables() :
+{
+    SqlParserPos pos;
+    SqlIdentifier db = null;
+    SqlNode likePattern = null;
+    SqlNode where = null;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <TABLES>
+    [
+        (<FROM> | <IN>) { db = CompoundIdentifier(); }
+    ]
+    [
+        <LIKE> { likePattern = StringLiteral(); }
+        |
+        <WHERE> { where = Expression(ExprContext.ACCEPT_SUBQUERY); }
+    ]
+    {
+        return SqlShowTables.rewrite(pos, db, likePattern, where);
+    }
+}
 // End parserImpls.ftl

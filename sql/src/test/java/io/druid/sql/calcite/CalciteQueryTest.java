@@ -253,6 +253,30 @@ public class CalciteQueryTest extends CalciteTestBase
   }
 
   @Test
+  public void testShowTables() throws Exception
+  {
+    testQuery(
+        "SHOW TABLES",
+        ImmutableList.of(),
+        ImmutableList.of(
+            new Object[]{"foo"},
+            new Object[]{"foo2"},
+            new Object[]{"forbiddenDatasource"},
+            new Object[]{"aview"},
+            new Object[]{"bview"}
+        )
+    );
+    testQuery(
+        "SHOW TABLES LIKE 'foo%'",
+        ImmutableList.of(),
+        ImmutableList.of(
+            new Object[]{"foo"},
+            new Object[]{"foo2"}
+        )
+    );
+  }
+
+  @Test
   public void testSelectConstantExpression() throws Exception
   {
     testQuery(
