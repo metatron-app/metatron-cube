@@ -94,7 +94,7 @@ public class PlannerFactory
 
   public DruidPlanner createPlanner(final Map<String, Object> queryContext)
   {
-    final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema);
+    final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker);
     final PlannerContext plannerContext = PlannerContext.create(
         operatorTable,
         plannerConfig,

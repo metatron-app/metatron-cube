@@ -27,6 +27,7 @@ import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
@@ -95,11 +96,11 @@ public class Calcites
     return DEFAULT_CHARSET;
   }
 
-  public static SchemaPlus createRootSchema(final DruidSchema druidSchema)
+  public static SchemaPlus createRootSchema(final DruidSchema druidSchema, final QuerySegmentWalker segmentWalker)
   {
     final SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
     rootSchema.add(DruidSchema.NAME, druidSchema);
-    rootSchema.add(InformationSchema.NAME, new InformationSchema(rootSchema));
+    rootSchema.add(InformationSchema.NAME, new InformationSchema(rootSchema, segmentWalker));
     return rootSchema;
   }
 

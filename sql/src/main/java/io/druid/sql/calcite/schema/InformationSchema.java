@@ -26,8 +26,14 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.query.Query;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.query.jmx.JMXQuery;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -49,7 +55,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class InformationSchema extends AbstractSchema
 {
@@ -111,6 +119,8 @@ public class InformationSchema extends AbstractSchema
   public static final String TABLES_TABLE = "TABLES";
   public static final String COLUMNS_TABLE = "COLUMNS";
 
+  private static final String SERVERS_TABLE = "SERVERS";
+
   private static final RowSignature SCHEMATA_SIGNATURE = RowSignature
       .builder()
       .add(CATALOG_NAME, ValueDesc.STRING)
@@ -150,19 +160,64 @@ public class InformationSchema extends AbstractSchema
       .build();
   private static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystem.DEFAULT;
 
+  private static final String HOST = "host";
+  private static final String TYPE = "type";
+  private static final String SERVICE = "service";
+  private static final String START_TIME = "startTime";
+  private static final String INPUT_ARGUMENTS= "inputArguments";
+  private static final String AVAILABLE_PROCESSOR = "availableProcessor";
+  private static final String SYSTEM_LOAD_AVERAGE = "systemLoadAverage";
+  private static final String HEAP_MAX = "heap.max";
+  private static final String HEAP_USED = "heap.used";
+  private static final String HEAP_COMMITTED = "heap.committed";
+  private static final String NONHEAP_MAX = "non-heap.max";
+  private static final String NONHEAP_USED = "non-heap.used";
+  private static final String NONHEAP_COMMITTED = "non-heap.committed";
+  private static final String THREAD_COUNT = "threadCount";
+  private static final String PEAK_THREAD_COUNT = "peakThreadCount";
+  private static final String TOTAL_STARTED_THREAD_COUNT = "totalStartedThreadCount";
+  private static final String GC_COLLECTION_COUNT = "gc.collectionCount";
+  private static final String GX_COLLECTION_TIME = "gc.collectionTime";
+
+  private static final RowSignature SERVERS_SIGNATURE = RowSignature
+      .builder()
+      .add(HOST, ValueDesc.STRING)
+      .add(TYPE, ValueDesc.STRING)
+      .add(SERVICE, ValueDesc.STRING)
+      .add(START_TIME, ValueDesc.LIST)
+      .add(INPUT_ARGUMENTS, ValueDesc.STRING)
+      .add(AVAILABLE_PROCESSOR, ValueDesc.LONG)
+      .add(SYSTEM_LOAD_AVERAGE, ValueDesc.DOUBLE)
+      .add(HEAP_MAX, ValueDesc.LONG)
+      .add(HEAP_USED, ValueDesc.LONG)
+      .add(HEAP_COMMITTED, ValueDesc.LONG)
+      .add(NONHEAP_MAX, ValueDesc.LONG)
+      .add(NONHEAP_USED, ValueDesc.LONG)
+      .add(NONHEAP_COMMITTED, ValueDesc.LONG)
+      .add(THREAD_COUNT, ValueDesc.LONG)
+      .add(PEAK_THREAD_COUNT, ValueDesc.LONG)
+      .add(TOTAL_STARTED_THREAD_COUNT, ValueDesc.LONG)
+      .add(GC_COLLECTION_COUNT, ValueDesc.MAP)
+      .add(GX_COLLECTION_TIME, ValueDesc.MAP)
+      .build();
+
   private final SchemaPlus rootSchema;
+  private final QuerySegmentWalker segmentWalker;
   private final Map<String, Table> tableMap;
 
   @Inject
   public InformationSchema(
-      final SchemaPlus rootSchema
+      final SchemaPlus rootSchema,
+      final QuerySegmentWalker segmentWalker
   )
   {
     this.rootSchema = Preconditions.checkNotNull(rootSchema, "rootSchema");
+    this.segmentWalker = segmentWalker;
     this.tableMap = ImmutableMap.<String, Table>of(
         SCHEMATA_TABLE, new SchemataTable(),
         TABLES_TABLE, new TablesTable(),
-        COLUMNS_TABLE, new ColumnsTable()
+        COLUMNS_TABLE, new ColumnsTable(),
+        SERVERS_TABLE, new ServersTable()
     );
   }
 
@@ -429,6 +484,59 @@ public class InformationSchema extends AbstractSchema
                 }
               }
           );
+    }
+  }
+
+  class ServersTable extends AbstractTable implements ScannableTable
+  {
+    @Override
+    public Enumerable<Object[]> scan(final DataContext root)
+    {
+      JMXQuery query = new JMXQuery(
+          null, null, null, false, ImmutableMap.of(Query.QUERYID, UUID.randomUUID().toString())
+      );
+      Iterable<Object[]> results = Iterables.concat(Iterables.transform(
+          Sequences.toList(query.run(segmentWalker, Maps.newHashMap())),
+          new Function<Map<String, Object>, Iterable<Object[]>>()
+          {
+            private final List<String> rowOrder = SERVERS_SIGNATURE.getRowOrder();
+
+            @Override
+            public Iterable<Object[]> apply(Map<String, Object> input)
+            {
+              List<Object[]> values = Lists.newArrayList();
+              for (Map.Entry<String, Object> entry : input.entrySet()) {
+                Map<String, Object> stats = (Map<String, Object>) entry.getValue();
+                final Object[] array = new Object[rowOrder.size()];
+                array[0] = entry.getKey();
+                for (int i = 1; i < array.length; i++) {
+                  array[i] = stats.get(rowOrder.get(i));
+                }
+                values.add(array);
+              }
+              return values;
+            }
+          }
+      ));
+      return Linq4j.asEnumerable(results);
+    }
+
+    @Override
+    public RelDataType getRowType(final RelDataTypeFactory typeFactory)
+    {
+      return SERVERS_SIGNATURE.getRelDataType(typeFactory);
+    }
+
+    @Override
+    public Statistic getStatistic()
+    {
+      return Statistics.UNKNOWN;
+    }
+
+    @Override
+    public TableType getJdbcTableType()
+    {
+      return TableType.SYSTEM_VIEW;
     }
   }
 

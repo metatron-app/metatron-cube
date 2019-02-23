@@ -112,7 +112,7 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
 
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     detail.intMetric("threadCount", threadMXBean.getThreadCount());
-    detail.intMetric("peekThreadCount", threadMXBean.getPeakThreadCount());
+    detail.intMetric("peakThreadCount", threadMXBean.getPeakThreadCount());
     detail.longMetric("totalStartedThreadCount", threadMXBean.getTotalStartedThreadCount());
     if (dumpLongestStack) {
       long current = Thread.currentThread().getId();
@@ -140,11 +140,14 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
       }
     }
 
+    Map<String, Long> gcCollectionsCount = Maps.newHashMap();
+    Map<String, Long> gcCollectionsTime = Maps.newHashMap();
     for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-      String prefix = "gc-" + gcMXBean.getName() + ".";
-      detail.put(prefix + "collectionCount", gcMXBean.getCollectionCount());
-      detail.put(prefix + "collectionTime", gcMXBean.getCollectionTime());
+      gcCollectionsCount.put(gcMXBean.getName(), gcMXBean.getCollectionCount());
+      gcCollectionsTime.put(gcMXBean.getName(), gcMXBean.getCollectionTime());
     }
+    detail.put("gc.collectionCount", gcCollectionsCount);
+    detail.put("gc.collectionTime", gcCollectionsTime);
 
     return detail.build(node);
   }
