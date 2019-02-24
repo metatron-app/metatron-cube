@@ -152,6 +152,9 @@ public class DruidShell implements CommonShell
     );
   }
 
+  private static final String DEFAULT_PROMPT = "> ";
+  private static final String SQL_PROMPT = "sql> ";
+
   private void execute(
       final URL coordinatorURL,
       final URL overlordURL,
@@ -161,12 +164,11 @@ public class DruidShell implements CommonShell
   )
       throws Exception
   {
-    final String prompt = "> ";
     final PrintWriter writer = terminal.writer();
     if (arguments != null && !arguments.isEmpty()) {
       Cursor cursor = new Cursor(arguments);
       try {
-        writer.println(prompt + org.apache.commons.lang.StringUtils.join(arguments, " "));
+        writer.println(DEFAULT_PROMPT + org.apache.commons.lang.StringUtils.join(arguments, " "));
         handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
       }
       finally {
@@ -391,21 +393,28 @@ public class DruidShell implements CommonShell
                                          .build();
 
     while (true) {
-      String line = null;
-      try {
-        line = reader.readLine(prompt);
-      }
-      catch (UserInterruptException e) {
-        // Ignore
-      }
-      catch (EndOfFileException e) {
+      String line = readLine(reader, DEFAULT_PROMPT);
+      if (line == null) {
         return;
       }
-      if (line == null) {
-        continue;
-      }
-      line = line.trim();
-      if (line.isEmpty()) {
+      if (line.equals("sql")) {
+        StringBuilder builder = new StringBuilder();
+        while (true) {
+          String sqlPart = readLine(reader, SQL_PROMPT);
+          if (sqlPart == null) {
+            return;
+          }
+          if (sqlPart.endsWith(";")) {
+            builder.append(sqlPart.substring(0, sqlPart.length() - 1).trim());
+            if (builder.length() == 0) {
+              break;
+            }
+            runSQL(brokerURLs, writer, builder.toString());
+            builder.setLength(0);
+          } else {
+            builder.append(sqlPart);
+          }
+        }
         continue;
       }
       if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")) {
@@ -422,6 +431,29 @@ public class DruidShell implements CommonShell
         LOG.info(e, "Failed..");
       }
       writer.flush();
+    }
+  }
+
+  private String readLine(LineReader reader, String prompt)
+  {
+    while (true) {
+      String line = null;
+      try {
+        line = reader.readLine(prompt);
+      }
+      catch (UserInterruptException e) {
+        // Ignore
+      }
+      catch (EndOfFileException e) {
+        return null;
+      }
+      if (line == null) {
+        continue;
+      }
+      line = line.trim();
+      if (!line.isEmpty()) {
+        return line;
+      }
     }
   }
 
@@ -907,25 +939,35 @@ public class DruidShell implements CommonShell
           writer.println("needs sql string");
           return;
         }
-        int numRow = 0;
-        long start = System.currentTimeMillis();
-        for (Map<String, Object> row : execute(
-            HttpMethod.POST,
-            brokerURLs.get(0),
-            "/druid/v2/sql",
-            MediaType.TEXT_PLAIN,
-            cursor.next().getBytes(),
-            new TypeReference<List<Map<String, Object>>>() {}
-        )) {
-          writer.print("  ");
-          writer.println(row);
-          numRow++;
-        }
-        writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
+        runSQL(brokerURLs, writer, cursor.next());
         break;
       }
       default:
         writer.println(PREFIX[0] + "invalid command " + cursor.command());
+    }
+  }
+
+  private void runSQL(List<URL> brokerURLs, PrintWriter writer, String sql)
+  {
+    int numRow = 0;
+    long start = System.currentTimeMillis();
+    try {
+      for (Map<String, Object> row : execute(
+          HttpMethod.POST,
+          brokerURLs.get(0),
+          "/druid/v2/sql",
+          MediaType.TEXT_PLAIN,
+          sql.getBytes(),
+          new TypeReference<List<Map<String, Object>>>() {}
+      )) {
+        writer.print("  ");
+        writer.println(row);
+        numRow++;
+      }
+      writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
+    }
+    catch (Exception e) {
+      writer.println(String.format("> Failed by exception : %s", e));
     }
   }
 
