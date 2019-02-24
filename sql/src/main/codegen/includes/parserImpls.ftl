@@ -390,4 +390,31 @@ SqlNode SqlShowTables() :
         return SqlShowTables.rewrite(pos, db, likePattern, where);
     }
 }
+
+/**
+ * Parses statement
+ *   { DESCRIBE | DESC } tblname [col_name | wildcard ]
+ */
+SqlNode SqlDescribeTable() :
+{
+    SqlParserPos pos;
+    SqlIdentifier table;
+    SqlIdentifier column = null;
+    SqlNode columnPattern = null;
+}
+{
+    (<DESCRIBE> | <DESC>) { pos = getPos(); }
+    table = CompoundIdentifier()
+    (
+        column = CompoundIdentifier()
+        |
+        columnPattern = StringLiteral()
+        |
+        E()
+    )
+    {
+        return SqlDescTable.rewrite(pos, table, column, columnPattern);
+    }
+}
+
 // End parserImpls.ftl

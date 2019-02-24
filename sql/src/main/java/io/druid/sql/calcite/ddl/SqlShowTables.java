@@ -20,17 +20,14 @@
 package io.druid.sql.calcite.ddl;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.parser.SqlParserUtil;
 
 import java.util.List;
 
@@ -52,7 +49,7 @@ public class SqlShowTables
 
     String schema = dbNode != null ? dbNode.toString() : "druid";
 
-    SqlNode where = createCondition(
+    SqlNode where = Utils.createCondition(
         new SqlIdentifier(InformationSchema.TABLE_SCHEMA, SqlParserPos.ZERO),
         SqlStdOperatorTable.EQUALS,
         SqlLiteral.createCharString(schema, SqlParserPos.ZERO)
@@ -60,28 +57,18 @@ public class SqlShowTables
 
     SqlNode filter = null;
     if (likePatternNode != null) {
-      filter = createCondition(tableName, SqlStdOperatorTable.LIKE, likePatternNode);
+      filter = Utils.createCondition(tableName, SqlStdOperatorTable.LIKE, likePatternNode);
     } else if (whereNode != null) {
       filter = whereNode;
     }
 
     if (filter != null) {
-      where = createCondition(where, SqlStdOperatorTable.AND, filter);
+      where = Utils.createCondition(where, SqlStdOperatorTable.AND, filter);
     }
 
     return new SqlSelect(
         SqlParserPos.ZERO, null, new SqlNodeList(selectList, SqlParserPos.ZERO),
         fromClause, where, null, null, null, null, null, null
     );
-  }
-
-  private static SqlNode createCondition(SqlNode left, SqlOperator op, SqlNode right)
-  {
-    List<Object> listCondition = Lists.newArrayList();
-    listCondition.add(left);
-    listCondition.add(new SqlParserUtil.ToTreeListItem(op, SqlParserPos.ZERO));
-    listCondition.add(right);
-
-    return SqlParserUtil.toTree(listCondition);
   }
 }

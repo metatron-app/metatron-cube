@@ -35,7 +35,7 @@
 data: {
   parser: {
     # Generated parser implementation package and class name.
-    package: "org.apache.calcite.sql.parser.impl",
+    package: "io.druid.sql.parser.impl",
     class: "SqlParserImpl",
 
     # List of additional classes and packages to import.
@@ -46,6 +46,7 @@ data: {
       "org.apache.calcite.sql.SqlDrop"
       "org.apache.calcite.sql.ddl.SqlDdlNodes"
       "io.druid.sql.calcite.ddl.SqlShowTables"
+      "io.druid.sql.calcite.ddl.SqlDescTable"
     ]
 
     # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
@@ -77,6 +78,7 @@ data: {
     # Example: SqlShowDatabases(), SqlShowTables().
     statementParserMethods: [
       "SqlShowTables()"
+      "SqlDescribeTable()"
     ]
 
     # List of methods for parsing custom literals.
