@@ -659,6 +659,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .granularity(Granularities.ALL)
                   .columns(ImmutableList.of("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                   .descending(true)
+                  .orderBy(OrderByColumnSpec.desc("__time"))
                   .limit(2)
                   .context(QUERY_CONTEXT_DEFAULT)
                   .streaming()
@@ -680,6 +681,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
                   .columns(ImmutableList.of("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
+                  .orderBy(OrderByColumnSpec.asc("__time"))
                   .context(QUERY_CONTEXT_DEFAULT)
                   .streaming()
         ),
@@ -725,6 +727,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .granularity(Granularities.ALL)
                   .columns(ImmutableList.of("__time", "dim1"))
                   .descending(true)
+                  .orderBy(OrderByColumnSpec.desc("__time"))
                   .limit(2)
                   .context(QUERY_CONTEXT_DEFAULT)
                   .streaming()

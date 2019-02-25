@@ -66,7 +66,7 @@ public class StreamQueryEngine
   }
 
   private Sequence<Object[]> processRaw(
-      final AbstractStreamQuery<?> query,
+      final StreamQuery query,
       final Segment segment,
       final Future optimizer,
       final Cache cache
@@ -92,7 +92,7 @@ public class StreamQueryEngine
   }
 
   public static Function<Cursor, Sequence<Object[]>> converter(
-      final AbstractStreamQuery<?> query,
+      final StreamQuery query,
       final MutableInt counter
   )
   {

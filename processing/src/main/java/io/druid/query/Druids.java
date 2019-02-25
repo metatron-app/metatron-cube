@@ -1081,6 +1081,12 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder orderBy(OrderByColumnSpec... orderBy)
+    {
+      this.orderBy = Arrays.asList(orderBy);
+      return this;
+    }
+
     public SelectQueryBuilder orderBy(List<OrderByColumnSpec> orderBy)
     {
       this.orderBy = orderBy;

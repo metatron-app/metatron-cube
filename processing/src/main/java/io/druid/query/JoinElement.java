@@ -31,9 +31,9 @@ import io.druid.granularity.Granularity;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.select.AbstractStreamQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.Interval;
@@ -283,11 +283,11 @@ public class JoinElement
       if (query instanceof GroupByQuery) {
         return Queries.estimateCardinality((GroupByQuery) query, segmentWalker, config);
       }
-      if (query instanceof AbstractStreamQuery) {
+      if (query instanceof StreamQuery) {
         return runSelectMetaQuery(
             query.getDataSource(),
             query.getQuerySegmentSpec(),
-            ((AbstractStreamQuery) query).getDimFilter(),
+            ((StreamQuery) query).getDimFilter(),
             BaseQuery.copyContextForMeta(query),
             segmentWalker
         );
