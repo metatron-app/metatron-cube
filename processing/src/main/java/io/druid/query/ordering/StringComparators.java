@@ -94,18 +94,13 @@ public class StringComparators
     @Override
     public final int compare(String s, String s2)
     {
-      // Avoid conversion to bytes for equal references
-      if (s.equals(s2)) {
-        return 0;
-      }
-      // null first
       if (Strings.isNullOrEmpty(s)) {
-        return -1;
+        return Strings.isNullOrEmpty(s2) ? 0 : -1;
+      } else if (Strings.isNullOrEmpty(s2)) {
+        return Strings.isNullOrEmpty(s) ? 0 : 1;
+      } else {
+        return _compare(s, s2);
       }
-      if (Strings.isNullOrEmpty(s2)) {
-        return 1;
-      }
-      return _compare(s, s2);
     }
 
     protected abstract int _compare(String s, String s2);

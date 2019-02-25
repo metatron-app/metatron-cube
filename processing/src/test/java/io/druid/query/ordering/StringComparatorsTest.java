@@ -38,6 +38,20 @@ import java.util.Set;
 
 public class StringComparatorsTest
 {
+  @Test
+  public void testNull()
+  {
+    StringComparator comparator = StringComparators.LEXICOGRAPHIC;
+    Assert.assertEquals(0, comparator.compare(null, ""));
+    Assert.assertEquals(0, comparator.compare("", null));
+    Assert.assertEquals(0, comparator.compare(null, null));
+    Assert.assertEquals(0, comparator.compare("", ""));
+
+    Assert.assertEquals(-1, comparator.compare("", "x"));
+    Assert.assertEquals(-1, comparator.compare(null, "x"));
+    Assert.assertEquals(1, comparator.compare("x", ""));
+    Assert.assertEquals(1, comparator.compare("x", null));
+  }
 
   @Test
   public void testLocaledTimes()
