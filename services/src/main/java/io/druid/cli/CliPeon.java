@@ -38,6 +38,7 @@ import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.Binders;
 import io.druid.guice.CacheModule;
 import io.druid.guice.IndexingServiceFirehoseModule;
@@ -119,6 +120,9 @@ public class CliPeon extends GuiceRunnable
   @Option(name = "--nodeType", title = "nodeType", description = "Set the node type to expose on ZK")
   public String nodeType = "indexer-executor";
 
+  @Option(name = "--queryable", title = "queryable", description = "Whether to include query related modules")
+  public boolean queryable = false;
+
   private static final Logger log = new Logger(CliPeon.class);
 
   @Inject
@@ -132,7 +136,7 @@ public class CliPeon extends GuiceRunnable
   @Override
   protected List<? extends Module> getModules()
   {
-    return ImmutableList.<Module>of(
+    List<Module> modules = ImmutableList.<Module>of(
         new Module()
         {
           @Override
@@ -271,11 +275,12 @@ public class CliPeon extends GuiceRunnable
           }
         },
         new IndexingServiceFirehoseModule(),
-        new ChatHandlerServerModule(properties),
-        new LookupModule(),
-        new FunctionModule(),
-        new ManagementQueryModule()
+        new ChatHandlerServerModule(properties)
     );
+    if (queryable) {
+      modules = GuavaUtils.concat(modules, new LookupModule(), new FunctionModule(), new ManagementQueryModule());
+    }
+    return modules;
   }
 
   @Override

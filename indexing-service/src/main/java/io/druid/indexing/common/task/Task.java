@@ -108,6 +108,13 @@ public interface Task extends Progressing
   public String getNodeType();
 
   /**
+   * For batch type task, we can excluded some query-related modules somthing like lookup, etc.
+   *
+   * @return
+   */
+  public boolean isQueryable();
+
+  /**
    * Returns the datasource this task operates on. Each task can operate on only one datasource.
    */
   public String getDataSource();

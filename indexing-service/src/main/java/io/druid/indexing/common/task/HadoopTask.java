@@ -76,6 +76,12 @@ public abstract class HadoopTask extends AbstractTask
     return hadoopDependencyCoordinates == null ? null : ImmutableList.copyOf(hadoopDependencyCoordinates);
   }
 
+  @Override
+  public boolean isQueryable()
+  {
+    return false;
+  }
+
   // This could stand to have a more robust detection methodology.
   // Right now it just looks for `druid.*\.jar`
   // This is only used for classpath isolation in the runTask isolation stuff, so it shooouuullldddd be ok.

@@ -404,6 +404,9 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                                 command.add("--nodeType");
                                 command.add(nodeType);
                               }
+                              if (task.isQueryable()) {
+                                command.add("--queryable");
+                              }
 
                               if (!taskFile.exists()) {
                                 jsonMapper.writeValue(taskFile, task);

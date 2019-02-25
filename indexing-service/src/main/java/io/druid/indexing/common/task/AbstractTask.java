@@ -118,6 +118,12 @@ public abstract class AbstractTask implements Task
     return null;
   }
 
+  @Override
+  public boolean isQueryable()
+  {
+    return true;
+  }
+
   @JsonProperty
   @Override
   public String getDataSource()
