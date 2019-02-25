@@ -85,7 +85,7 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
         road3[0]
     );
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
-        source, "gis.coord", null, boundary, "geom_buf", Maps.<String, Object>newHashMap()
+        source, "gis.coord", null, boundary, "geom_buf", null, Maps.<String, Object>newHashMap()
     );
     List<Object[]> roadSideEstates = runQuery(filtered);
     Assert.assertEquals(8, roadSideEstates.size());

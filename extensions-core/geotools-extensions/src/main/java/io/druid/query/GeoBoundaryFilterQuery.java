@@ -35,6 +35,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.lucene.SpatialOperations;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.WKTReader;
@@ -53,6 +54,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
 
   private final StreamQuery boundary;
   private final String boundaryColumn;
+  private final SpatialOperations operation;
 
   public GeoBoundaryFilterQuery(
       @JsonProperty("query") Query.ArrayOutputSupport query,
@@ -60,6 +62,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       @JsonProperty("shapeColumn") String shapeColumn,
       @JsonProperty("boundary") StreamQuery boundary,
       @JsonProperty("boundaryColumn") String boundaryColumn,
+      @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -78,6 +81,12 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     } else {
       Preconditions.checkArgument(boundary.getColumns().contains(boundaryColumn), "boundaryColumn");
     }
+    if (pointColumn != null) {
+      Preconditions.checkArgument(
+          operation == null || operation == SpatialOperations.COVERS, "cannot apply %s on point colunm", operation
+      );
+    }
+    this.operation = operation;
   }
 
   @Override
@@ -119,6 +128,13 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     return boundaryColumn;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public SpatialOperations getOperation()
+  {
+    return operation;
+  }
+
   @Override
   public GeoBoundaryFilterQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
@@ -128,6 +144,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         shapeColumn,
         boundary,
         boundaryColumn,
+        operation,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -170,9 +187,10 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           "shapeString", union.toText()
       );
     } else {
+      SpatialOperations op = operation == null ? SpatialOperations.COVERS : operation;
       filterMap = ImmutableMap.<String, Object>of(
           "type", "lucene.spatial",
-          "operation", "CONTAINS",
+          "operation", op.getName(),
           "field", shapeColumn,
           "shapeFormat", "WKT",
           "shapeString", union.toText()
@@ -202,6 +220,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
            "query=" + query +
            ", boundary=" + boundary +
            ", boundaryColumn='" + boundaryColumn + '\'' +
+           ", operation=" + (operation == null ? SpatialOperations.COVERS : operation) +
            '}';
   }
 }
