@@ -33,6 +33,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
   public static final String CTX_KEY_USE_FALLBACK = "useFallback";
   public static final String CTX_KEY_USE_JOIN = "useJoin";
+  public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
 
   @JsonProperty
   private Period metadataRefreshPeriod = new Period("PT1M");
@@ -66,6 +67,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean joinEnabled = false;
+
+  @JsonProperty
+  private boolean transitiveFilterOnjoinEnabled = true;
 
   public Period getMetadataRefreshPeriod()
   {
@@ -112,6 +116,11 @@ public class PlannerConfig
     return joinEnabled;
   }
 
+  public boolean isTransitiveFilterOnjoinEnabled()
+  {
+    return transitiveFilterOnjoinEnabled;
+  }
+
   public boolean isRequireTimeCondition()
   {
     return requireTimeCondition;
@@ -154,6 +163,11 @@ public class PlannerConfig
         CTX_KEY_USE_JOIN,
         isJoinEnabled()
     );
+    newConfig.transitiveFilterOnjoinEnabled = getContextBoolean(
+        context,
+        CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN,
+        isTransitiveFilterOnjoinEnabled()
+    );
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
     return newConfig;
@@ -195,6 +209,7 @@ public class PlannerConfig
            useApproximateTopN == that.useApproximateTopN &&
            useFallback == that.useFallback &&
            joinEnabled == that.joinEnabled &&
+           transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
            Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
@@ -214,6 +229,7 @@ public class PlannerConfig
         useApproximateTopN,
         useFallback,
         joinEnabled,
+        transitiveFilterOnjoinEnabled,
         requireTimeCondition,
         sqlTimeZone
     );
@@ -232,6 +248,7 @@ public class PlannerConfig
            ", useApproximateTopN=" + useApproximateTopN +
            ", useFallback=" + useFallback +
            ", joinEnabled=" + joinEnabled +
+           ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
            ", sqlTimeZone=" + sqlTimeZone +
            '}';

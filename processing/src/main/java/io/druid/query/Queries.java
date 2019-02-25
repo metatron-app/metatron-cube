@@ -42,7 +42,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -226,8 +225,7 @@ public class Queries
   public static <I> Sequence<Row> convertToRow(Query<I> subQuery, Sequence<I> sequence)
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final String timeColumn = ((JoinQuery.JoinDelegate) subQuery).getTimeColumnName();
-      return Sequences.map((Sequence<Map<String, Object>>) sequence, Rows.mapToRow(timeColumn));
+      return ((JoinQuery.JoinDelegate) subQuery).asRow(sequence);
     } else if (subQuery instanceof SelectQuery) {
       return Sequences.explode((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS);
     } else if (subQuery instanceof TopNQuery) {

@@ -33,9 +33,14 @@ import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
+import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.List;
@@ -416,6 +421,20 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return this;
     }
 
+    private XJoinPostProcessor getJoinProcessor()
+    {
+      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
+      if (processor instanceof ListPostProcessingOperator) {
+        processor = ((ListPostProcessingOperator) processor).getLast();
+      }
+      return (XJoinPostProcessor) processor;
+    }
+
+    private boolean isArrayOutput()
+    {
+      return getJoinProcessor().asArray();
+    }
+
     public JoinDelegate toArrayJoin()
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
@@ -453,11 +472,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public Sequence<Object[]> array(Sequence sequence)
     {
-      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
-      if (processor instanceof ListPostProcessingOperator) {
-        processor = ((ListPostProcessingOperator) processor).getLast();
-      }
-      if (((XJoinPostProcessor) processor).asArray()) {
+      if (isArrayOutput()) {
         return sequence;
       }
       return Sequences.map(
@@ -476,6 +491,34 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             }
           }
       );
+    }
+
+    public Sequence<Row> asRow(Sequence sequence)
+    {
+      if (isArrayOutput()) {
+        final List<String> columns = estimatedOutputColumns();
+        final int timeIndex = columns.indexOf(timeColumnName);
+        return Sequences.map(sequence, new Function<Object[], Row>()
+        {
+          @Override
+          public Row apply(final Object[] input)
+          {
+            final Map<String, Object> event = Maps.newHashMapWithExpectedSize(columns.size());
+            for (int i = 0; i < columns.size(); i++) {
+              if (i != timeIndex) {
+                event.put(columns.get(i), input[i]);
+              }
+            }
+            DateTime timestamp = null;
+            if (timeIndex >= 0 && input[timeIndex] != null) {
+              timestamp = DateTimes.utc(((Number) input[timeIndex]).longValue());
+            }
+            return new MapBasedRow(timestamp, event);
+          }
+        });
+      } else {
+        return Sequences.map(sequence, Rows.mapToRow(timeColumnName));
+      }
     }
   }
 }

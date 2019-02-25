@@ -765,6 +765,7 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testSelfJoinWithFallback() throws Exception
   {
+    // todo x.dim1, y.dim1, y.dim2 --> "abc", "def", "abc" ?
     testQuery(
         PLANNER_CONFIG_FALLBACK,
         "SELECT x.dim1, y.dim1, y.dim2\n"
@@ -782,11 +783,47 @@ public class CalciteQueryTest extends CalciteTestBase
             newScanQueryBuilder()
                 .dataSource(CalciteTests.DATASOURCE1)
                 .columns(Arrays.asList("dim1", "dim2"))
+                .filters(NOT(SELECTOR("dim2", "", null)))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streaming()
         ),
         ImmutableList.of(
             new Object[]{"abc", "def", "abc"}
+        )
+    );
+    testQuery(
+        PLANNER_CONFIG_JOIN_ENABLED,
+        "SELECT x.dim1, y.dim1, y.dim2\n"
+        + "FROM\n"
+        + "  druid.foo x INNER JOIN druid.foo y ON x.dim1 = y.dim2\n"
+        + "WHERE\n"
+        + "  x.dim1 <> ''",
+        ImmutableList.of(
+            new Druids.JoinQueryBuilder()
+                .dataSource(
+                    "foo",
+                    newScanQueryBuilder()
+                        .dataSource(CalciteTests.DATASOURCE1)
+                        .columns(Arrays.asList("dim1"))
+                        .filters(NOT(SELECTOR("dim1", "", null)))
+                        .context(QUERY_CONTEXT_DEFAULT)
+                        .streaming()
+                )
+                .dataSource(
+                    "foo$",
+                    newScanQueryBuilder()
+                        .dataSource(CalciteTests.DATASOURCE1)
+                        .columns(Arrays.asList("dim1", "dim2"))
+                        .filters(NOT(SELECTOR("dim2", "", null)))
+                        .context(QUERY_CONTEXT_DEFAULT)
+                        .streaming()
+                )
+                .element(JoinElement.inner("foo.dim1 = foo$.dim2"))
+                .asArray(true)
+                .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"def", "def", "abc"}
         )
     );
   }
@@ -797,7 +834,7 @@ public class CalciteQueryTest extends CalciteTestBase
     final String explanation =
         "BindableJoin(condition=[=($0, $2)], joinType=[inner])\n"
         + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"columns\":[\"dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string}])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n";
+        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim2\",\"value\":\"\"}},\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n";
 
     testQuery(
         PLANNER_CONFIG_FALLBACK,
@@ -4123,7 +4160,7 @@ public class CalciteQueryTest extends CalciteTestBase
                               "foo",
                               new Druids.SelectQueryBuilder()
                                   .dataSource(CalciteTests.DATASOURCE1)
-                                  .columns("dom2", "v0")
+                                  .columns("dim2", "v0")
                                   .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
                                   .streaming()
                           )

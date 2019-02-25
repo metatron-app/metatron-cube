@@ -152,6 +152,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
             .dataSource(leftAlias, QueryDataSource.of(leftDruid))
             .dataSource(rightAlias, QueryDataSource.of(rightDruid))
             .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
+            .asArray(true)
             .build();
       }
     };

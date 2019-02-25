@@ -40,7 +40,6 @@ import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
-import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
@@ -84,6 +83,7 @@ import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class Rules
@@ -188,14 +188,27 @@ public class Rules
     RelMetadataQuery.THREAD_PROVIDERS.set(JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
         ImmutableList.of(HiveRelMdPredicates.SOURCE)
     )));
-    final Program hepProgram =
-        Programs.sequence(
-            Programs.subQuery(RelMetadataQuery.THREAD_PROVIDERS.get()),
-            new DecorrelateAndTrimFieldsProgram()
-        );
+    Program decorrelate = Programs.sequence(
+        Programs.subQuery(RelMetadataQuery.THREAD_PROVIDERS.get()),
+        new DecorrelateAndTrimFieldsProgram()
+    );
+    Program druidConvention = Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker));
+    Program bindableConvention = Programs.ofRules(bindableConventionRuleSet(plannerContext, queryMaker));
+
+    PlannerConfig config = plannerContext.getPlannerConfig();
+    if (config.isTransitiveFilterOnjoinEnabled()) {
+      Program transitive = Programs.hep(
+          Arrays.asList(FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE),
+          true, RelMetadataQuery.THREAD_PROVIDERS.get()
+      );
+      return ImmutableList.of(
+          Programs.sequence(transitive, decorrelate, druidConvention),
+          Programs.sequence(transitive, decorrelate, bindableConvention)
+      );
+    }
     return ImmutableList.of(
-        Programs.sequence(hepProgram, Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker))),
-        Programs.sequence(hepProgram, Programs.ofRules(bindableConventionRuleSet(plannerContext, queryMaker)))
+        Programs.sequence(decorrelate, druidConvention),
+        Programs.sequence(decorrelate, bindableConvention)
     );
   }
 
