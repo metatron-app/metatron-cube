@@ -51,6 +51,9 @@ public class Evals
   static final Logger LOG = new Logger(Evals.class);
   static final DateTimeFormatter defaultFormat = JodaUtils.toTimeFormatter("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
 
+  public static final Expr TRUE = new LongExpr(1);
+  public static final Expr FALSE = new LongExpr(0);
+
   public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
   {
     @Override
@@ -104,6 +107,11 @@ public class Evals
       return leftVal.doubleValue() == rightVal.longValue();
     }
     return Objects.equals(leftVal.value(), rightVal.value());
+  }
+
+  static boolean hasEq(BinaryOp binary)
+  {
+    return binary instanceof BinEqExpr || binary instanceof BinGeqExpr || binary instanceof BinLeqExpr;
   }
 
   public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)

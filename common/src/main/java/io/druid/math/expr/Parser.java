@@ -192,6 +192,8 @@ public class Parser
       Expr right = flatten(binary.right);
       if (Evals.isAllConstants(left, right)) {
         expr = Evals.toConstant(expr.eval(null));
+      } else if (left.equals(right)) {
+        expr = Evals.hasEq(binary) ? Evals.TRUE : Evals.FALSE;
       } else if (left != binary.left || right != binary.right) {
         return Evals.binaryOp(binary, left, right);
       }

@@ -171,6 +171,17 @@ public class EvalTest
       }
     }
   }
+  @Test
+  public void testDummyEq()
+  {
+    Assert.assertTrue(_eval("x == x", null).asBoolean());
+    Assert.assertTrue(_eval("x >= x", null).asBoolean());
+    Assert.assertTrue(_eval("x <= x", null).asBoolean());
+
+    Assert.assertFalse(_eval("x != x", null).asBoolean());
+    Assert.assertFalse(_eval("x > x", null).asBoolean());
+    Assert.assertFalse(_eval("x < x", null).asBoolean());
+  }
 
   @Test
   public void testCase()
