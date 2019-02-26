@@ -21,6 +21,7 @@ package io.druid.concurrent;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
@@ -38,9 +39,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,6 +56,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  */
@@ -144,6 +149,106 @@ public class Execs
           }
         }
     );
+  }
+
+  // same threded executor which differs in that work is started when future.get() is called
+  public static class SubmitSingleThreaded extends AbstractExecutorService
+  {
+    private boolean shutdown;
+
+    @Override
+    public void shutdown()
+    {
+      shutdown = true;
+    }
+
+    @Override
+    public List<Runnable> shutdownNow()
+    {
+      return ImmutableList.of();
+    }
+
+    @Override
+    public boolean isShutdown()
+    {
+      return shutdown;
+    }
+
+    @Override
+    public boolean isTerminated()
+    {
+      return shutdown;
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException
+    {
+      return shutdown;
+    }
+
+    @Override
+    public <T> Future<T> submit(final Callable<T> task)
+    {
+      return new Future<T>()
+      {
+        private boolean canceled;
+        private boolean done;
+        private T result;
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning)
+        {
+          if (done) {
+            return false;
+          }
+          return canceled = done = true;
+        }
+
+        @Override
+        public boolean isCancelled()
+        {
+          return canceled;
+        }
+
+        @Override
+        public boolean isDone()
+        {
+          return done;
+        }
+
+        @Override
+        public T get() throws InterruptedException, ExecutionException
+        {
+          if (canceled) {
+            throw new CancellationException();
+          }
+          if (done) {
+            return result;
+          }
+          try {
+            return result = task.call();
+          }
+          catch (Exception e) {
+            throw new ExecutionException(e);
+          }
+          finally {
+            done = true;
+          }
+        }
+
+        @Override
+        public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException
+        {
+          throw new UnsupportedOperationException("get with timeout");
+        }
+      };
+    }
+
+    @Override
+    public void execute(Runnable command)
+    {
+      command.run();
+    }
   }
 
   public static <T> Function<Future<T>, T> getUnchecked()

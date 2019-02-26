@@ -37,6 +37,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
@@ -144,7 +145,9 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 
         final Future[] joining = new Future[joinAliases];
         for (int i = 0; i < indexer.intValue(); i++) {
-          joining[i] = exec.submit(
+          // to avoid thread exhaustion, use same threded executor for first one
+          ExecutorService executor = i == 0 ? new Execs.SubmitSingleThreaded() : exec;
+          joining[i] = executor.submit(
               toJoinAlias(
                   i,
                   sorted[i],
