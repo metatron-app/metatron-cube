@@ -33,6 +33,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.JoinElement;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
@@ -396,7 +397,12 @@ public class StreamQuery extends BaseQuery<Object[]>
     }
     builder.append(", limit=").append(limit);
 
-    builder.append(toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT));
+    builder.append(
+        toString(
+            FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.SORTED_ON_JOINKEY, JoinElement.HASHABLE
+        )
+    );
+
     return builder.append('}').toString();
   }
 

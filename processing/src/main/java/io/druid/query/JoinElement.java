@@ -222,8 +222,8 @@ public class JoinElement
     return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};
   }
 
-  static final String HASHABLE = "$hash";
-  static final String SORTED_ON_JOINKEY = "$sorted";
+  public static final String HASHABLE = "$hash";
+  public static final String SORTED_ON_JOINKEY = "$sorted";
 
   public static Query toQuery(
       DataSource dataSource,

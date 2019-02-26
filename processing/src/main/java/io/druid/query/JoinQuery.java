@@ -259,19 +259,32 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     List<Query<Map<String, Object>>> queries = Lists.newArrayList();
-    JoinElement firstJoin = elements.get(0);
-    DataSource left = dataSources.get(firstJoin.getLeftAlias());
-    queries.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, getContext()));
-    for (JoinElement element : elements) {
+    for (int i = 0; i < elements.size(); i++) {
+      JoinElement element = elements.get(i);
+      JoinType joinType = element.getJoinType();
+      boolean hashed = false;
+      if (i == 0) {
+        DataSource left = dataSources.get(element.getLeftAlias());
+        Query query = JoinElement.toQuery(left, element.getLeftJoinColumns(), segmentSpec, getContext());
+        if (threshold > 0 && joinType.isRightDriving()) {
+          long estimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
+          hashed = estimated > 0 && estimated < threshold;
+          if (hashed) {
+            query = query.withOverriddenContext(JoinElement.HASHABLE, true);
+          }
+          LOG.info("%s (L) -----> %d rows, hashed? %s", element.getLeftAlias(), estimated, hashed);
+        }
+        queries.add(query);
+      }
       DataSource right = dataSources.get(element.getRightAlias());
       Query query = JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext());
-      if (threshold > 0 && element.getJoinType().isLeftDriving()) {
+      if (threshold > 0 && joinType.isLeftDriving() && !hashed) {
         long estimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
-        boolean useHashJoin = estimated > 0 && estimated < threshold;
-        if (useHashJoin) {
+        hashed = estimated > 0 && estimated < threshold;
+        if (hashed) {
           query = query.withOverriddenContext(JoinElement.HASHABLE, true);
         }
-        LOG.info("%s -----> %d rows, useHashJoin? %s", element.getRightAlias(), estimated, useHashJoin);
+        LOG.info("%s (R) -----> %d rows, hashed? %s", element.getRightAlias(), estimated, hashed);
       }
       queries.add(query);
     }
