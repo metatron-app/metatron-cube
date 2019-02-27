@@ -146,7 +146,7 @@ public class PartialDruidQuery
   {
     return RelFactories.LOGICAL_BUILDER.create(
         scan.getCluster(),
-        scan.getTable().getRelOptSchema()
+        scan.getTable() == null ? null : scan.getTable().getRelOptSchema()
     );
   }
 

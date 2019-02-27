@@ -93,7 +93,6 @@ public class JoinElement
       this.leftJoinColumns = Preconditions.checkNotNull(leftJoinColumns);
       this.rightAlias = Preconditions.checkNotNull(rightAlias);
       this.rightJoinColumns = Preconditions.checkNotNull(rightJoinColumns);
-      Preconditions.checkArgument(leftJoinColumns.size() > 0);
       Preconditions.checkArgument(leftJoinColumns.size() == rightJoinColumns.size());
     } else {
       this.leftAlias = null;
@@ -272,6 +271,9 @@ public class JoinElement
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
+      if (query.getDataSource() instanceof QueryDataSource) {
+        return -1;  // see later
+      }
       if (query instanceof TimeseriesQuery) {
         Granularity granularity = query.getGranularity();
         long count = 0;
