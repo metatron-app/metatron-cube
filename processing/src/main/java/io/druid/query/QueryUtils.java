@@ -53,7 +53,6 @@ import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
-import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
@@ -378,7 +377,9 @@ public class QueryUtils
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof QueryDataSource) {
       Schema schema = ((QueryDataSource) dataSource).getSchema();
-      return Preconditions.checkNotNull(schema, "schema of subquery is null");
+      return Preconditions.checkNotNull(
+          schema, "schema of subquery %s is null", ((QueryDataSource) dataSource).getQuery()
+      );
     }
     if (dataSource instanceof ViewDataSource) {
       dataSource = TableDataSource.of(((ViewDataSource) dataSource).getName());

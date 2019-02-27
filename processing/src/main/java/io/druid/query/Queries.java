@@ -151,11 +151,15 @@ public class Queries
     if (postProcessor instanceof PostProcessingOperator.SchemaResolving) {
       schema = ((PostProcessingOperator.SchemaResolving) postProcessor).resolve(subQuery, schema, mapper);
     }
-    return schema;
+    return Preconditions.checkNotNull(schema);
   }
 
   private static Schema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
+    if (subQuery.getDataSource() instanceof QueryDataSource) {
+      QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
+      return relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
+    }
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
       return QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
