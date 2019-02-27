@@ -6032,6 +6032,43 @@ public class CalciteQueryTest extends CalciteTestBase
   }
 
   @Test
+  public void testSemiJoinWithOuterTimeExtract() throws Exception
+  {
+    testQuery(
+        "SELECT dim1, EXTRACT(MONTH FROM __time) FROM druid.foo\n"
+        + " WHERE dim2 IN (\n"
+        + "   SELECT dim2\n"
+        + "   FROM druid.foo\n"
+        + "   WHERE dim1 = 'def'\n"
+        + " ) AND dim1 <> ''",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(CalciteTests.DATASOURCE1)
+                        .setGranularity(Granularities.ALL)
+                        .setDimensions(DIMS(new DefaultDimensionSpec("dim2", "d0")))
+                        .setDimFilter(SELECTOR("dim1", "def", null))
+                        .build(),
+            newScanQueryBuilder()
+                .dataSource(CalciteTests.DATASOURCE1)
+                .virtualColumns(
+                    EXPR_VC("v0", "timestamp_extract('MONTH',\"__time\",'UTC')")
+                )
+                .filters(
+                    AND(
+                        NOT(SELECTOR("dim1", "", null)),
+                        SELECTOR("dim2", "abc", null)
+                    )
+                )
+                .columns("dim1", "v0")
+                .streaming()
+        ),
+        ImmutableList.of(
+            new Object[]{"def", 1L}
+        )
+    );
+  }
+
+  @Test
   public void testUsingSubqueryWithExtractionFns() throws Exception
   {
     testQuery(

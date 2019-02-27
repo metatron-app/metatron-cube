@@ -24,15 +24,21 @@ import com.metamx.common.ISE;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.tools.RelBuilder;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -136,6 +142,14 @@ public class PartialDruidQuery
     return sortProject;
   }
 
+  private RelBuilder newRelBuilder()
+  {
+    return RelFactories.LOGICAL_BUILDER.create(
+        scan.getCluster(),
+        scan.getTable().getRelOptSchema()
+    );
+  }
+
   public PartialDruidQuery withWhereFilter(final Filter newWhereFilter)
   {
     validateStage(Stage.WHERE_FILTER);
@@ -155,10 +169,34 @@ public class PartialDruidQuery
   public PartialDruidQuery withSelectProject(final Project newSelectProject)
   {
     validateStage(Stage.SELECT_PROJECT);
+    // Possibly merge together two projections.
+    final Project theProject;
+    if (selectProject == null) {
+      theProject = newSelectProject;
+    } else {
+      final List<RexNode> newProjectRexNodes = RelOptUtil.pushPastProject(
+          newSelectProject.getProjects(),
+          selectProject
+      );
+
+      if (RexUtil.isIdentity(newProjectRexNodes, selectProject.getInput().getRowType())) {
+        // The projection is gone.
+        theProject = null;
+      } else {
+        final RelBuilder relBuilder = newRelBuilder();
+        relBuilder.push(selectProject.getInput());
+        relBuilder.project(
+            newProjectRexNodes,
+            newSelectProject.getRowType().getFieldNames()
+        );
+        theProject = (Project) relBuilder.build();
+      }
+    }
+
     return new PartialDruidQuery(
         scan,
         whereFilter,
-        newSelectProject,
+        theProject,
         selectSort,
         aggregate,
         aggregateProject,
@@ -289,7 +327,12 @@ public class PartialDruidQuery
   {
     final Stage currentStage = stage();
 
-    if (stage.compareTo(currentStage) <= 0) {
+    if (currentStage == Stage.SELECT_PROJECT && stage == Stage.SELECT_PROJECT) {
+      // Special case: allow layering SELECT_PROJECT on top of SELECT_PROJECT. Calcite's builtin rules cannot
+      // always collapse these, so we have to (one example: testSemiJoinWithOuterTimeExtract). See
+      // withSelectProject for the code here that handles this.
+      return true;
+    } else if (stage.compareTo(currentStage) <= 0) {
       // Cannot go backwards.
       return false;
     } else if (stage.compareTo(Stage.AGGREGATE) > 0 && aggregate == null) {
