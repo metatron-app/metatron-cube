@@ -6069,6 +6069,58 @@ public class CalciteQueryTest extends CalciteTestBase
   }
 
   @Test
+  public void testSemiJoinWithOuterTimeExtractAggregateWithOrderBy() throws Exception
+  {
+    testQuery(
+        "SELECT COUNT(DISTINCT dim1), EXTRACT(MONTH FROM __time) FROM druid.foo\n"
+        + " WHERE dim2 IN (\n"
+        + "   SELECT dim2\n"
+        + "   FROM druid.foo\n"
+        + "   WHERE dim1 = 'def'\n"
+        + " ) AND dim1 <> ''"
+        + "GROUP BY EXTRACT(MONTH FROM __time)\n"
+        + "ORDER BY EXTRACT(MONTH FROM __time)",
+        ImmutableList.of(
+            GroupByQuery
+                .builder()
+                .setDataSource(CalciteTests.DATASOURCE1)
+                .setGranularity(Granularities.ALL)
+                .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                .setDimFilter(SELECTOR("dim1", "def", null))
+                .build(),
+            GroupByQuery
+                .builder()
+                .setDataSource(CalciteTests.DATASOURCE1)
+                .setVirtualColumns(EXPR_VC("d0:v", "timestamp_extract('MONTH',\"__time\",'UTC')"))
+                .setDimFilter(
+                    AND(
+                        NOT(SELECTOR("dim1", "", null)),
+                        SELECTOR("dim2", "abc", null)
+                    )
+                )
+                .setDimensions(DefaultDimensionSpec.of("d0:v", "d0"))
+                .setGranularity(Granularities.ALL)
+                .setAggregatorSpecs(
+                    new CardinalityAggregatorFactory(
+                        "a0",
+                        null,
+                        ImmutableList.of(DefaultDimensionSpec.of("dim1")),
+                        null,
+                        null,
+                        false,
+                        true
+                    )
+                )
+                .setLimitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
+                .build()
+        ),
+        ImmutableList.of(
+            new Object[]{1L, 1L}
+        )
+    );
+  }
+
+  @Test
   public void testUsingSubqueryWithExtractionFns() throws Exception
   {
     testQuery(
