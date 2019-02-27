@@ -19,12 +19,24 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import io.druid.data.KeyedData.StringKeyed;
 import io.druid.sql.calcite.rel.DruidJoinRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+
+import java.util.List;
 
 public class DruidJoinRule extends RelOptRule
 {
@@ -51,9 +63,83 @@ public class DruidJoinRule extends RelOptRule
     final DruidRel left = call.rel(1);
     final DruidRel right = call.rel(2);
 
-    final JoinInfo joinInfo = join.analyzeCondition();
+    final RexBuilder rexBuilder = join.getCluster().getRexBuilder();
+    final RexNode condition = extractCommonInOr(join.getCondition(), rexBuilder);
+    final JoinInfo joinInfo = JoinInfo.of(join.getLeft(), join.getRight(), condition);
     if (joinInfo.isEqui()) {
       call.transformTo(DruidJoinRel.create(join, joinInfo, left, right));
     }
+    boolean hasEquijoins = joinInfo.leftKeys.size() == joinInfo.rightKeys.size() && joinInfo.leftKeys.size() > 0;
+    if (hasEquijoins && join.getJoinType() == JoinRelType.INNER) {
+      RexNode remaining = joinInfo.getRemaining(rexBuilder);
+      DruidRel joinRel = DruidJoinRel.create(join, joinInfo, left, right);
+      call.transformTo(new LogicalFilter(join.getCluster(), join.getTraitSet(), joinRel, remaining, ImmutableSet.of()));
+    }
+  }
+
+  // I'm not sure of this
+  // for tpch-19 : OR ( AND(A, B), AND(A, C), AND(A, D)) --> AND (A, OR (B, C, D))
+  private RexNode extractCommonInOr(RexNode condition, RexBuilder builder)
+  {
+    if (!isOr(condition)) {
+      return condition;
+    }
+    List<RexNode> operands = ((RexCall) condition).getOperands();
+    if (operands.size() == 1) {
+      return operands.get(0);
+    }
+    @SuppressWarnings("unchecked")
+    List<StringKeyed<RexNode>>[] nodeList = new List[operands.size()];
+
+    int index = 0;
+    nodeList[index] = getAndedNodes(operands.get(index));
+    List<StringKeyed<RexNode>> common = Lists.newArrayList(nodeList[0]);
+    List<String> commonString = Lists.newArrayList();
+    for (index++; index < nodeList.length; index++) {
+      nodeList[index] = getAndedNodes(operands.get(index));
+      common.retainAll(nodeList[index]);
+    }
+    if (common.isEmpty()) {
+      return condition;
+    }
+    List<RexNode> orOperands = Lists.newArrayList();
+    for (int i = 0; i < nodeList.length; i++) {
+      nodeList[i].removeAll(common);
+      if (nodeList[i].isEmpty()) {
+        // OR ( AND(A, B), AND(A, C), A) --> A
+        // OR ( AND(A, B, C), AND(A, B, D), AND(A, B)) --> AND(A, B)
+        return common.size() == 1 ? common.get(0).value() :
+               builder.makeCall(SqlStdOperatorTable.AND, StringKeyed.values(common));
+      }
+      if (nodeList[i].size() == 1) {
+        orOperands.add(nodeList[i].get(0).value());
+      } else {
+        // OR ( AND(A, B, C), AND(A, D), AND(A, E)) --> AND(A, OR( AND(B, C), D, E))
+        orOperands.add(builder.makeCall(SqlStdOperatorTable.AND, StringKeyed.values(nodeList[i])));
+      }
+    }
+    List<RexNode> commonOperands = StringKeyed.values(common);
+    commonOperands.add(builder.makeCall(SqlStdOperatorTable.OR, orOperands));
+    return builder.makeCall(SqlStdOperatorTable.AND, commonOperands);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<StringKeyed<RexNode>> getAndedNodes(RexNode op)
+  {
+    if (isAnd(op)) {
+      return StringKeyed.of(((RexCall) op).getOperands());
+    } else {
+      return Lists.newArrayList(StringKeyed.of(op));
+    }
+  }
+
+  private static boolean isOr(RexNode op)
+  {
+    return op instanceof RexCall && op.getKind() == SqlKind.OR;
+  }
+
+  private static boolean isAnd(RexNode op)
+  {
+    return op instanceof RexCall && op.getKind() == SqlKind.AND;
   }
 }
