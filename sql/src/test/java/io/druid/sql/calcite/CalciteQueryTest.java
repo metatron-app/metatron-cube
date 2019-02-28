@@ -3717,8 +3717,8 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .setDataSource(CalciteTests.DATASOURCE1)
                                         .setGranularity(Granularities.ALL)
                                         .setDimensions(
-                                            DefaultDimensionSpec.of("dim1", "d0"),
-                                            DefaultDimensionSpec.of("m2", "d1")
+                                            DefaultDimensionSpec.of("m2", "d0"),
+                                            DefaultDimensionSpec.of("dim1", "d1")
                                         )
                                         .setDimFilter(SELECTOR("m1", "5.0", null))
                                         .setAggregatorSpecs(GenericMaxAggregatorFactory.ofLong("a0", "__time"))
@@ -3728,7 +3728,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .setGranularity(Granularities.ALL)
                         .setDimensions(
                             DefaultDimensionSpec.of("_d0:v", "_d0"),
-                            DefaultDimensionSpec.of("d0", "_d1")
+                            DefaultDimensionSpec.of("d1", "_d1")
                         )
                         .setVirtualColumns(EXPR_VC("_d0:v", "timestamp_floor(\"a0\",'PT1H','','UTC')"))
                         .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))

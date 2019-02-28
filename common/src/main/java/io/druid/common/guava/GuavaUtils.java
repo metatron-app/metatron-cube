@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -266,12 +267,12 @@ public class GuavaUtils
   }
 
   @SafeVarargs
-  public static <T> List<T> concat(Iterable<T> list1, T... elements)
+  public static <T> List<T> concat(Iterable<T> iterable, T... elements)
   {
-    if (list1 == null) {
+    if (iterable == null) {
       return Arrays.asList(elements);
     }
-    List<T> concat = Lists.newArrayList(list1);
+    List<T> concat = iterable.getClass() == ArrayList.class ? (List<T>) iterable : Lists.newArrayList(iterable);
     concat.addAll(Arrays.asList(elements));
     return concat;
   }

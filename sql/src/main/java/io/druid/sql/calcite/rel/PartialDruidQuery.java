@@ -59,14 +59,31 @@ public class PartialDruidQuery
   public enum Stage
   {
     SCAN,
-    WHERE_FILTER,
-    SELECT_PROJECT,
+    WHERE_FILTER {
+      @Override
+      boolean accepts(Stage stage)
+      {
+        return stage == WHERE_FILTER;
+      }
+    },
+    SELECT_PROJECT {
+      @Override
+      boolean accepts(Stage stage)
+      {
+        return stage == SELECT_PROJECT || stage == WHERE_FILTER;
+      }
+    },
     SELECT_SORT,
     AGGREGATE,
     HAVING_FILTER,
     AGGREGATE_PROJECT,
     SORT,
-    SORT_PROJECT
+    SORT_PROJECT;
+
+    boolean accepts(Stage stage)
+    {
+      return false;
+    }
   }
 
   public PartialDruidQuery(
@@ -142,7 +159,12 @@ public class PartialDruidQuery
     return sortProject;
   }
 
-  private RelBuilder newRelBuilder()
+  private RexBuilder rexBuilder()
+  {
+    return scan.getCluster().getRexBuilder();
+  }
+
+  private RelBuilder relBuilder()
   {
     return RelFactories.LOGICAL_BUILDER.create(
         scan.getCluster(),
@@ -153,9 +175,28 @@ public class PartialDruidQuery
   public PartialDruidQuery withWhereFilter(final Filter newWhereFilter)
   {
     validateStage(Stage.WHERE_FILTER);
+
+    Filter merged;
+    if (selectProject == null && whereFilter == null) {
+      merged = newWhereFilter;
+    } else {
+      RexNode newCondition = newWhereFilter.getCondition();
+      if (selectProject != null) {
+        newCondition = RelOptUtil.pushPastProject(newCondition, selectProject);
+      }
+      RelNode input = whereFilter != null ? whereFilter.getInput() : selectProject.getInput();
+      RelBuilder relBuilder = relBuilder().push(input);
+      if (whereFilter == null) {
+        relBuilder.filter(newCondition);
+      } else {
+        relBuilder.filter(whereFilter.getCondition(), newCondition);
+      }
+      merged = (Filter) relBuilder.build();
+    }
+
     return new PartialDruidQuery(
         scan,
-        newWhereFilter,
+        merged,
         selectProject,
         selectSort,
         aggregate,
@@ -183,7 +224,7 @@ public class PartialDruidQuery
         // The projection is gone.
         theProject = null;
       } else {
-        final RelBuilder relBuilder = newRelBuilder();
+        RelBuilder relBuilder = relBuilder();
         relBuilder.push(selectProject.getInput());
         relBuilder.project(
             newProjectRexNodes,
@@ -325,14 +366,10 @@ public class PartialDruidQuery
 
   public boolean canAccept(final Stage stage)
   {
-    final Stage currentStage = stage();
-
-    if (currentStage == Stage.SELECT_PROJECT && stage == Stage.SELECT_PROJECT) {
-      // Special case: allow layering SELECT_PROJECT on top of SELECT_PROJECT. Calcite's builtin rules cannot
-      // always collapse these, so we have to (one example: testSemiJoinWithOuterTimeExtract). See
-      // withSelectProject for the code here that handles this.
+    final Stage current = stage();
+    if (current.accepts(stage)) {
       return true;
-    } else if (stage.compareTo(currentStage) <= 0) {
+    } else if (stage.compareTo(current) <= 0) {
       // Cannot go backwards.
       return false;
     } else if (stage.compareTo(Stage.AGGREGATE) > 0 && aggregate == null) {

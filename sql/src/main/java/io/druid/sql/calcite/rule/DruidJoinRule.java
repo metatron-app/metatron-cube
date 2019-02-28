@@ -21,7 +21,9 @@ package io.druid.sql.calcite.rule;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.KeyedData.StringKeyed;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidJoinRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.plan.RelOptRule;
@@ -33,8 +35,6 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 import java.util.List;
 
@@ -81,7 +81,7 @@ public class DruidJoinRule extends RelOptRule
   // for tpch-19 : OR ( AND(A, B), AND(A, C), AND(A, D)) --> AND (A, OR (B, C, D))
   private RexNode extractCommonInOr(RexNode condition, RexBuilder builder)
   {
-    if (!isOr(condition)) {
+    if (!Utils.isOr(condition)) {
       return condition;
     }
     List<RexNode> operands = ((RexCall) condition).getOperands();
@@ -108,38 +108,25 @@ public class DruidJoinRule extends RelOptRule
       if (nodeList[i].isEmpty()) {
         // OR ( AND(A, B), AND(A, C), A) --> A
         // OR ( AND(A, B, C), AND(A, B, D), AND(A, B)) --> AND(A, B)
-        return common.size() == 1 ? common.get(0).value() :
-               builder.makeCall(SqlStdOperatorTable.AND, StringKeyed.values(common));
+        return Utils.and(builder, StringKeyed.values(common));
       }
       if (nodeList[i].size() == 1) {
         orOperands.add(nodeList[i].get(0).value());
       } else {
         // OR ( AND(A, B, C), AND(A, D), AND(A, E)) --> AND(A, OR( AND(B, C), D, E))
-        orOperands.add(builder.makeCall(SqlStdOperatorTable.AND, StringKeyed.values(nodeList[i])));
+        orOperands.add(Utils.and(builder, StringKeyed.values(nodeList[i])));
       }
     }
-    List<RexNode> commonOperands = StringKeyed.values(common);
-    commonOperands.add(builder.makeCall(SqlStdOperatorTable.OR, orOperands));
-    return builder.makeCall(SqlStdOperatorTable.AND, commonOperands);
+    return Utils.and(builder, GuavaUtils.concat(StringKeyed.values(common), Utils.or(builder, orOperands)));
   }
 
   @SuppressWarnings("unchecked")
   private List<StringKeyed<RexNode>> getAndedNodes(RexNode op)
   {
-    if (isAnd(op)) {
+    if (Utils.isAnd(op)) {
       return StringKeyed.of(((RexCall) op).getOperands());
     } else {
       return Lists.newArrayList(StringKeyed.of(op));
     }
-  }
-
-  private static boolean isOr(RexNode op)
-  {
-    return op instanceof RexCall && op.getKind() == SqlKind.OR;
-  }
-
-  private static boolean isAnd(RexNode op)
-  {
-    return op instanceof RexCall && op.getKind() == SqlKind.AND;
   }
 }

@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.ddl;
 
 import com.google.common.collect.Lists;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;

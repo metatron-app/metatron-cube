@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.ddl;
 
 import com.google.common.collect.ImmutableList;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
