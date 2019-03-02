@@ -644,7 +644,7 @@ public class ExpressionsTest extends CalciteTestBase
   {
     testExpression(
         rexBuilder.makeCall(
-            SqlStdOperatorTable.EXTRACT,
+            SqlExtractFunction.INSTANCE,
             rexBuilder.makeFlag(TimeUnitRange.QUARTER),
             inputRef("t")
         ),
@@ -657,7 +657,7 @@ public class ExpressionsTest extends CalciteTestBase
 
     testExpression(
         rexBuilder.makeCall(
-            SqlStdOperatorTable.EXTRACT,
+            SqlExtractFunction.INSTANCE,
             rexBuilder.makeFlag(TimeUnitRange.DAY),
             inputRef("t")
         ),
@@ -665,6 +665,18 @@ public class ExpressionsTest extends CalciteTestBase
             "timestamp_extract('DAY',\"t\",'UTC')"
         ),
         3L
+    );
+
+    testExpression(
+        rexBuilder.makeCall(
+            SqlExtractFunction.INSTANCE,
+            rexBuilder.makeFlag(TimeUnitRange.DAY),
+            stringLiteral("2010-04-12")
+        ),
+        DruidExpression.fromExpression(
+            "timestamp_extract('DAY','2010-04-12','UTC')"
+        ),
+        12L
     );
   }
 
@@ -801,6 +813,11 @@ public class ExpressionsTest extends CalciteTestBase
   private RexNode integerLiteral(final int integer)
   {
     return rexBuilder.makeLiteral(new BigDecimal(integer), typeFactory.createSqlType(SqlTypeName.INTEGER), true);
+  }
+
+  private RexNode stringLiteral(final String string)
+  {
+    return rexBuilder.makeLiteral(string);
   }
 
   private void testExpression(

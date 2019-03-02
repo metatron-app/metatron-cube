@@ -443,7 +443,7 @@ public class DruidSchema extends AbstractSchema
         final DataSegment segment = segmentMap.get(analysis.getId());
 
         if (segment == null) {
-          log.warn("Got analysis for segment[%s] we didn't ask for, ignoring.", analysis.getId());
+          log.debug("Got analysis for segment[%s] we didn't ask for, ignoring.", analysis.getId());
         } else {
           synchronized (lock) {
             final RowSignature rowSignature = analysisToRowSignature(analysis);

@@ -747,6 +747,23 @@ public class EvalTest
   }
 
   @Test
+  public void testDatetimeExtractFromString()
+  {
+    Map<String, Object> mapping = Maps.newHashMap();
+    mapping.put("x", "2016-03-04 16:25:00.123");
+
+    Expr.NumericBinding bindings = Parser.withMap(mapping);
+    Assert.assertEquals(2016, evalLong("datetime_extract('YEAR', x)", bindings));
+    Assert.assertEquals(3, evalLong("datetime_extract('MONTH', x)", bindings));
+    Assert.assertEquals(4, evalLong("datetime_extract('DAY', x)", bindings));
+
+    mapping.put("x", "2016-03-04");
+    Assert.assertEquals(2016, evalLong("datetime_extract('YEAR', x)", bindings));
+    Assert.assertEquals(3, evalLong("datetime_extract('MONTH', x)", bindings));
+    Assert.assertEquals(4, evalLong("datetime_extract('DAY', x)", bindings));
+  }
+
+  @Test
   public void testDatetimeExtractWeekYear()
   {
     DateTime time1 = DateTimes.of("2010-01-01");

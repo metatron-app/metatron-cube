@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.expression.SqlExtractFunction;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -55,7 +56,7 @@ public class ExtractOperatorConversion implements SqlOperatorConversion
   @Override
   public SqlFunction calciteOperator()
   {
-    return SqlStdOperatorTable.EXTRACT;
+    return SqlExtractFunction.INSTANCE;
   }
 
   @Override

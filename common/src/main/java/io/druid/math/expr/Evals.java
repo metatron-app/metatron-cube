@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
-import io.druid.common.utils.JodaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -44,12 +43,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static io.druid.common.utils.JodaUtils.STANDARD_PARSER;
+
 /**
  */
 public class Evals
 {
   static final Logger LOG = new Logger(Evals.class);
-  static final DateTimeFormatter defaultFormat = JodaUtils.toTimeFormatter("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
 
   public static final Expr TRUE = new LongExpr(1);
   public static final Expr FALSE = new LongExpr(0);
@@ -467,8 +467,8 @@ public class Evals
           return DateTimes.withZone(Long.valueOf(string), timeZone);
         } else {
           return timeZone == null
-                 ? defaultFormat.parseDateTime(string)
-                 : defaultFormat.withZone(timeZone).parseDateTime(string);
+                 ? STANDARD_PARSER.parseDateTime(string)
+                 : STANDARD_PARSER.withZone(timeZone).parseDateTime(string);
         }
 
       }
