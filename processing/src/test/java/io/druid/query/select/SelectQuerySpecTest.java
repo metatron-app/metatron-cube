@@ -60,8 +60,8 @@ public class SelectQuerySpecTest
         + "\"granularity\":{\"type\":\"all\"},"
         + "\"dimensions\":[{\"type\":\"default\",\"dimension\":\"market\",\"outputName\":\"market\"},{\"type\":\"default\",\"dimension\":\"quality\",\"outputName\":\"quality\"}],"
         + "\"metrics\":[\"index\"],"
-        + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3,\"fromNext\":false},"
-        + "\"context\":null}";
+        + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3,\"fromNext\":false}"
+        + "}";
 
     SelectQuery query = new SelectQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),

@@ -26,6 +26,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -243,6 +244,8 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       boolean prependTimeOrdering
   )
   {
+    final boolean finalized = BaseQuery.isFinalize(query, true);
+
     int index = 0;
     List<Comparator<T>> comparators = Lists.newArrayList();
     if (prependTimeOrdering) {
@@ -261,9 +264,13 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       dimensionsMap.put(spec.getOutputName(), spec);
     }
 
-    Map<String, AggregatorFactory> aggregatorsMap = Maps.newHashMap();
+    Map<String, Comparator> aggregatorsMap = Maps.newHashMap();
     for (AggregatorFactory agg : query.getAggregatorSpecs()) {
-      aggregatorsMap.put(agg.getName(), agg);
+      if (finalized) {
+        aggregatorsMap.put(agg.getName(), agg.getFinalizedComparator());
+      } else {
+        aggregatorsMap.put(agg.getName(), agg.getComparator());
+      }
     }
 
     Map<String, PostAggregator> postAggregatorsMap = Maps.newHashMap();
@@ -279,7 +286,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       if (postAggregatorsMap.containsKey(columnName)) {
         nextOrdering = metricOrdering(accessor, postAggregatorsMap.get(columnName).getComparator(), descending);
       } else if (aggregatorsMap.containsKey(columnName)) {
-        nextOrdering = metricOrdering(accessor, aggregatorsMap.get(columnName).getComparator(), descending);
+        nextOrdering = metricOrdering(accessor, aggregatorsMap.get(columnName), descending);
       } else if (dimensionsMap.containsKey(columnName)) {
         nextOrdering = dimensionOrdering(accessor, columnSpec.getComparator());
       } else {

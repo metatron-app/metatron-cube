@@ -105,6 +105,11 @@ public class GuavaUtils
     };
   }
 
+  public static Comparator nullFirst(Comparator comparator)
+  {
+    return Ordering.from(comparator).nullsFirst();
+  }
+
   public static Function<Object, String> NULLABLE_TO_STRING_FUNC = new Function<Object, String>()
   {
     @Override

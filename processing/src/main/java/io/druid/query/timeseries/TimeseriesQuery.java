@@ -385,7 +385,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
   {
     return "TimeseriesQuery{" +
            "dataSource='" + getDataSource() + '\'' +
-           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
            ", descending=" + isDescending() +
            ", granularity=" + granularity +
            (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
@@ -396,7 +396,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
-           ", context=" + getContext() +
+           (GuavaUtils.isNullOrEmpty(getContext()) ? "" : ", context=" + getContext()) +
            '}';
   }
 }

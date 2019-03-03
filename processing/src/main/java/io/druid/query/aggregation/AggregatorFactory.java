@@ -30,6 +30,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.ordering.Comparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 
@@ -59,6 +60,11 @@ public abstract class AggregatorFactory implements Cacheable
   public abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory);
 
   public abstract Comparator getComparator();
+
+  public Comparator getFinalizedComparator()
+  {
+    return Comparators.toComparator(finalizedType());
+  }
 
   /**
    * A method that knows how to combine the outputs of the getIntermediate() method from the Aggregators

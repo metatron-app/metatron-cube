@@ -20,6 +20,7 @@
 package io.druid.query.ordering;
 
 import com.google.common.collect.Ordering;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 
@@ -30,6 +31,67 @@ import java.util.List;
  */
 public class Comparators
 {
+  public static Comparator toComparator(ValueDesc valueDesc)
+  {
+    if (valueDesc == null) {
+      return GuavaUtils.NULL_FIRST_NATURAL;
+    }
+    switch (valueDesc.type()) {
+      case FLOAT:
+        return GuavaUtils.nullFirst(new Comparator<Number>()
+        {
+          @Override
+          public int compare(Number o1, Number o2)
+          {
+            return Float.compare(o1.floatValue(), o2.floatValue());
+          }
+        });
+      case DOUBLE:
+        return GuavaUtils.nullFirst(new Comparator<Number>()
+        {
+          @Override
+          public int compare(Number o1, Number o2)
+          {
+            return Double.compare(o1.doubleValue(), o2.doubleValue());
+          }
+        });
+      case LONG:
+        return GuavaUtils.nullFirst(new Comparator<Number>()
+        {
+          @Override
+          public int compare(Number o1, Number o2)
+          {
+            return Long.compare(o1.longValue(), o2.longValue());
+          }
+        });
+      case STRING:
+      case DATETIME:
+        return GuavaUtils.NULL_FIRST_NATURAL;
+    }
+    if (valueDesc.isArray()) {
+      final Comparator element = toComparator(valueDesc.subElement());
+      return GuavaUtils.nullFirst(new Comparator<List<Object>>()
+      {
+        @Override
+        public int compare(List<Object> o1, List<Object> o2)
+        {
+          int min = Math.min(o1.size(), o2.size());
+          for (int i = 0; i < min; i++) {
+            int ret = element.compare(o1.get(i), o2.get(i));
+            if (ret != 0) {
+              return ret;
+            }
+          }
+          return o1.size() - o2.size();
+        }
+      });
+    }
+    if (valueDesc.isStruct()) {
+      // todo
+    }
+    return GuavaUtils.NULL_FIRST_NATURAL;
+  }
+
   public static Comparator createGeneric(String name, Comparator defaultValue)
   {
     if (StringUtils.isNullOrEmpty(name)) {

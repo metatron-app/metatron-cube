@@ -737,7 +737,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   {
     return "GroupByQuery{" +
            "dataSource='" + getDataSource() + '\'' +
-           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
            (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
@@ -749,7 +749,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
-           ", context=" + getContext() +
+           (GuavaUtils.isNullOrEmpty(getContext()) ? "" : ", context=" + getContext()) +
            '}';
   }
 

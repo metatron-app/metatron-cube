@@ -317,6 +317,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Object> getContext()
   {
     return context;

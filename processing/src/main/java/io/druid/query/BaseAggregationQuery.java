@@ -34,6 +34,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -351,7 +352,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     protected QuerySegmentSpec querySegmentSpec;
     protected boolean descending;
     protected DimFilter dimFilter;
-    protected Granularity granularity;
+    protected Granularity granularity = Granularities.ALL;
     protected List<DimensionSpec> dimensions;
     protected List<VirtualColumn> virtualColumns;
     protected List<AggregatorFactory> aggregatorSpecs;

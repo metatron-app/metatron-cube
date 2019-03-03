@@ -1241,6 +1241,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void testLimitOnCardinality()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(january)
+        .setAggregatorSpecs(qualityCardinality)
+        .setDimensions(DefaultDimensionSpec.of("market"))
+        .setLimitSpec(LimitSpec.of(OrderByColumnSpec.desc("cardinality")))
+        .build();
+
+    String[] columns = new String[]{"__time", "market", "cardinality"};
+    List<Row> expectedResults = createExpectedRows(
+        columns,
+        array("2011-01-01", "spot", UNIQUES_9),
+        array("2011-01-01", "total_market", UNIQUES_2),
+        array("2011-01-01", "upfront", UNIQUES_2)
+    );
+
+    Iterable<Row> results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testGroupByWithNullProducingDimExtractionFn()
   {
     final ExtractionFn nullExtractionFn = new RegexDimExtractionFn("(\\w{1})", false, null)
