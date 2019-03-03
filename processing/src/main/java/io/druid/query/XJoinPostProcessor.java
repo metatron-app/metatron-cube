@@ -397,7 +397,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
           }
         };
       }
-      if (left.isSorted()) {
+      if (right.isSorted()) {
         return new JoinIterator(type, left, right)
         {
           @Override
