@@ -146,7 +146,7 @@ public class QueryMaker
   }
 
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
-  private Query prepareQuery(Query<?> query)
+  public Query prepareQuery(Query<?> query)
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
     query = QueryUtils.setQueryId(query, queryId);

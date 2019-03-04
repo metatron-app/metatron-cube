@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rel;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
@@ -27,6 +28,7 @@ import io.druid.query.JoinElement;
 import io.druid.query.JoinType;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -105,8 +107,13 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
     final RelDataType rowType = getRowType();
-    final DruidQuery leftQuery = ((DruidRel) left).toDruidQuery(true);
-    final DruidQuery rightQuery = ((DruidRel) right).toDruidQuery(true);
+    final DruidRel leftRel = Utils.getDruidRel(left);
+    final DruidRel rightRel = Utils.getDruidRel(right);
+    if (leftRel == null || rightRel == null) {
+      return null;
+    }
+    final DruidQuery leftQuery = leftRel.toDruidQuery(true);
+    final DruidQuery rightQuery = rightRel.toDruidQuery(true);
     if (leftQuery == null || rightQuery == null) {
       return null;
     }
@@ -202,7 +209,9 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
   @Override
   public int getQueryCount()
   {
-    return ((DruidRel) left).getQueryCount() + ((DruidRel) right).getQueryCount();
+    DruidRel leftRel = Preconditions.checkNotNull(Utils.getDruidRel(left));
+    DruidRel rightRel = Preconditions.checkNotNull(Utils.getDruidRel(right));
+    return leftRel.getQueryCount() + rightRel.getQueryCount();
   }
 
   @Override

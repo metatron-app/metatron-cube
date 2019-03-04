@@ -21,6 +21,9 @@ package io.druid.sql.calcite;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.sql.calcite.rel.DruidRel;
+import org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -65,5 +68,22 @@ public class Utils
   {
     Preconditions.checkArgument(!operands.isEmpty());
     return operands.size() == 1 ? operands.get(0) : builder.makeCall(SqlStdOperatorTable.OR, operands);
+  }
+
+  public static DruidRel getDruidRel(RelNode sourceRel)
+  {
+    RelNode rel = sourceRel;
+    if (sourceRel instanceof RelSubset) {
+      rel = ((RelSubset) sourceRel).getBest();
+      if (rel == null) {
+        for (RelNode candidate : ((RelSubset) sourceRel).getRelList()) {
+          if (candidate instanceof DruidRel) {
+            rel = candidate;
+            break;
+          }
+        }
+      }
+    }
+    return rel instanceof DruidRel ? (DruidRel) rel : null;
   }
 }

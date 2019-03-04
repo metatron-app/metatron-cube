@@ -24,6 +24,7 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.sql.calcite.planner.PlannerConfig;
+import io.druid.sql.calcite.rel.DruidQuery;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.DruidSemiJoinRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
@@ -161,6 +162,10 @@ public class DruidSemiJoinRule extends RelOptRule
       // and LEFT means even if there is no match, a left-hand row will still be included).
       relBuilder.push(left);
     } else {
+      final DruidQuery druidQuery = right.toDruidQuery(true);
+      if (druidQuery == null) {
+        return;
+      }
       int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
       final Query query = right.toDruidQuery(true).getQuery();
       if (query instanceof GroupByQuery) {

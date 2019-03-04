@@ -27,6 +27,8 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
+import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -37,7 +39,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -115,7 +116,8 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public int getQueryCount()
   {
-    return 1 + ((DruidRel) sourceRel).getQueryCount();
+    final DruidRel druidRel = Utils.getDruidRel(sourceRel);
+    return 1 + (druidRel == null ? 0 : druidRel.getQueryCount());
   }
 
   @Nullable
@@ -124,7 +126,11 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   {
     // Must finalize aggregations on subqueries.
 
-    final DruidQuery subQuery = ((DruidRel) sourceRel).toDruidQuery(true);
+    final DruidRel druidRel = Utils.getDruidRel(sourceRel);
+    if (druidRel == null) {
+      return null;
+    }
+    final DruidQuery subQuery = druidRel.toDruidQuery(true);
     if (subQuery == null) {
       return null;
     }

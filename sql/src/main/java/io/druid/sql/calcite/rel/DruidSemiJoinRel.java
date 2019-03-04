@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
@@ -28,6 +29,7 @@ import com.metamx.common.guava.Sequence;
 import io.druid.common.ResourceLimitExceededException;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.sql.calcite.Utils;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -187,7 +189,8 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
   @Override
   public int getQueryCount()
   {
-    return left.getQueryCount() + ((DruidRel) right).getQueryCount();
+    DruidRel rightRel = Preconditions.checkNotNull(Utils.getDruidRel(right));
+    return left.getQueryCount() + rightRel.getQueryCount();
   }
 
   @Override
@@ -269,7 +272,10 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
    */
   private DruidRel<?> getLeftRelWithFilter()
   {
-    final DruidRel<?> druidRight = (DruidRel) this.right;
+    final DruidRel<?> druidRight = Utils.getDruidRel(right);
+    if (druidRight == null) {
+      return null;
+    }
 
     // Build list of acceptable values from right side.
     final Set<List<String>> valuess = new HashSet<>();
