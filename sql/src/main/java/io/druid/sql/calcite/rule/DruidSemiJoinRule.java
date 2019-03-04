@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rule;
 import com.metamx.common.logger.Logger;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.rel.DruidQuery;
@@ -42,7 +43,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -167,18 +167,21 @@ public class DruidSemiJoinRule extends RelOptRule
         return;
       }
       int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
-      final Query query = right.toDruidQuery(true).getQuery();
-      if (query instanceof GroupByQuery) {
-        GroupByQuery groupBy = (GroupByQuery) query.withId(UUID.randomUUID().toString());
-        QueryMaker queryMaker = right.getQueryMaker();
-        long cardinality = Queries.estimateCardinality(
-            groupBy.removePostActions(),
-            queryMaker.getSegmentWalker(),
-            queryMaker.getQueryConfig()
-        );
-        if (cardinality < 0 || cardinality > maxSegmiJoinRows) {
-          LOG.info("Estimated cardinality [%d] is exceeding maxSegmiJoinRows [%d]", cardinality, maxSegmiJoinRows);
-          return;
+      final QueryMaker queryMaker = right.getQueryMaker();
+      final Query query = druidQuery.getQuery();
+      if (query instanceof GroupByQuery && !(query.getDataSource() instanceof QueryDataSource)) {
+        GroupByQuery groupBy = (GroupByQuery) query.removePostActions();
+        Query prepared = queryMaker.prepareQuery(groupBy);
+        if (prepared instanceof GroupByQuery) {
+          long cardinality = Queries.estimateCardinality(
+              (GroupByQuery) prepared,
+              queryMaker.getSegmentWalker(),
+              queryMaker.getQueryConfig()
+          );
+          if (cardinality < 0 || cardinality > maxSegmiJoinRows) {
+            LOG.info("Estimated cardinality [%d] is exceeding maxSegmiJoinRows [%d]", cardinality, maxSegmiJoinRows);
+            return;
+          }
         }
       }
       final DruidSemiJoinRel druidSemiJoin = DruidSemiJoinRel.create(
