@@ -605,11 +605,11 @@ public class IndexTask extends AbstractFixedIntervalTask
           buildV9Directly,
           ignoreInvalidRows
       );
-      if (targetPartitionSize == null && numShards == null) {
+      if (!isSet(targetPartitionSize) && !isSet(numShards)) {
         targetPartitionSize = DEFAULT_TARGET_PARTITION_SIZE;
       }
       Preconditions.checkArgument(
-          (targetPartitionSize == null || targetPartitionSize < 0) ^ (numShards == null || numShards < 0),
+          isSet(targetPartitionSize) ^ isSet(numShards),
           "Must have a valid, non-null targetPartitionSize or numShards"
       );
       this.targetPartitionSize = targetPartitionSize;
@@ -629,15 +629,22 @@ public class IndexTask extends AbstractFixedIntervalTask
     }
 
     @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public Integer getTargetPartitionSize()
     {
       return targetPartitionSize;
     }
 
     @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public Integer getNumShards()
     {
       return numShards;
+    }
+
+    private boolean isSet(Integer value)
+    {
+      return value != null && value > 0;
     }
   }
 }
