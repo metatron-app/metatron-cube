@@ -135,7 +135,7 @@ public class ModuleBuiltinFunctions implements Function.Library
           Object key = args.get(1).eval(bindings).value();
           String evaluated = Objects.toString(lookup.get(key), null);
           if (Strings.isNullOrEmpty(evaluated)) {
-            return ExprEval.of(retainMissingValue ? Strings.emptyToNull(evaluated) : replaceMissingValueWith);
+            return ExprEval.bestEffortOf(retainMissingValue ? key : replaceMissingValueWith);
           }
           return ExprEval.of(evaluated);
         }
