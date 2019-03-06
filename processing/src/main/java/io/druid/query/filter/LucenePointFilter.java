@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -40,6 +41,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("lucene.point")
 public class LucenePointFilter implements DimFilter.LuceneFilter
 {
   public static LucenePointFilter bbox(String field, double[] latitudes, double[] longitudes)
@@ -63,7 +65,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
   }
 
   private final String field;
-  private final PointQueryType type;
+  private final PointQueryType query;
   private final double[] latitudes;
   private final double[] longitudes;
   private final double radiusMeters;
@@ -71,7 +73,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
   @JsonCreator
   public LucenePointFilter(
       @JsonProperty("field") String field,
-      @JsonProperty("type") PointQueryType type,
+      @JsonProperty("query") PointQueryType query,
       @JsonProperty("latitude") Double latitude,
       @JsonProperty("longitude") Double longitude,
       @JsonProperty("latitudes") double[] latitudes,
@@ -86,11 +88,19 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
         longitude == null ^ longitudes == null, "Must have a valid, non-null longitude or longitudes"
     );
     this.field = Preconditions.checkNotNull(field, "field can not be null");
-    this.type = Preconditions.checkNotNull(type, "type can not be null");
     this.latitudes = latitude != null ? new double[]{latitude} : latitudes;
     this.longitudes = longitude != null ? new double[]{longitude} : longitudes;
-    this.radiusMeters = type == PointQueryType.DISTANCE ? radiusMeters : 0;
     Preconditions.checkArgument(getLatitudes().length == getLongitudes().length, "invalid coordinates");
+    if (query != null) {
+      this.query = query;
+    } else if (getLatitudes().length == 1) {
+      this.query = PointQueryType.DISTANCE;
+    } else if (getLatitudes().length == 2) {
+      this.query = PointQueryType.BBOX;
+    } else {
+      this.query = PointQueryType.POLYGON;
+    }
+    this.radiusMeters = this.query == PointQueryType.DISTANCE ? radiusMeters : 0;
   }
 
   @JsonProperty
@@ -100,9 +110,9 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
   }
 
   @JsonProperty
-  public PointQueryType getType()
+  public PointQueryType getQuery()
   {
-    return type;
+    return query;
   }
 
   @JsonProperty
@@ -132,7 +142,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     return ByteBuffer.allocate(2 + fieldBytes.length + longitudesBytes.length + latitudesBytes.length + Doubles.BYTES)
                      .put(DimFilterCacheHelper.LUCENE_POINT_CACHE_ID)
                      .put(fieldBytes)
-                     .put((byte) type.ordinal())
+                     .put((byte) query.ordinal())
                      .put(longitudesBytes)
                      .put(latitudesBytes)
                      .putDouble(radiusMeters)
@@ -152,7 +162,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LucenePointFilter(replaced, type, null, null, latitudes, longitudes, radiusMeters);
+    return new LucenePointFilter(replaced, query, null, null, latitudes, longitudes, radiusMeters);
   }
 
   @Override
@@ -191,7 +201,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
             selector.getLuceneIndex(columnName),
             "no lucene index for " + columnName
         );
-        Query query = type.toQuery(fieldName, latitudes, longitudes, radiusMeters);
+        Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
         return lucene.filterFor(query, baseBitmap);
       }
 
@@ -214,17 +224,17 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
   {
     return "LucenePointFilter{" +
            "field='" + field + '\'' +
-           ", type='" + type + '\'' +
+           ", query='" + query + '\'' +
            ", latitudes=" + Arrays.toString(latitudes) +
            ", longitudes=" + Arrays.toString(longitudes) +
-           (type == PointQueryType.DISTANCE ? ", radiusMeters=" + radiusMeters : "") +
+           (query == PointQueryType.DISTANCE ? ", radiusMeters=" + radiusMeters : "") +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, type, latitudes, longitudes, radiusMeters);
+    return Objects.hash(field, query, latitudes, longitudes, radiusMeters);
   }
 
   @Override
@@ -242,13 +252,13 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
     if (!field.equals(that.field)) {
       return false;
     }
-    if (!type.equals(that.type)) {
+    if (!query.equals(that.query)) {
       return false;
     }
-    if (Arrays.equals(latitudes, that.latitudes)) {
+    if (!Arrays.equals(latitudes, that.latitudes)) {
       return false;
     }
-    if (Arrays.equals(longitudes, that.longitudes)) {
+    if (!Arrays.equals(longitudes, that.longitudes)) {
       return false;
     }
 

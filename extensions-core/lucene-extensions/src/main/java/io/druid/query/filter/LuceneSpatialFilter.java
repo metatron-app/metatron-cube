@@ -59,7 +59,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
     // todo native hand-over
     final double[] latitudes = filter.getLatitudes();
     final double[] longitudes = filter.getLongitudes();
-    if (filter.getType() == PointQueryType.BBOX) {
+    if (filter.getQuery() == PointQueryType.BBOX) {
       StringBuilder builder = new StringBuilder();
       builder.append("POLYGON((");
       builder.append(longitudes[0]).append(' ').append(latitudes[0]).append(',');
@@ -69,7 +69,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
       builder.append(longitudes[0]).append(' ').append(latitudes[0]);
       builder.append("))");
       return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString());
-    } else if (filter.getType() != PointQueryType.POLYGON) {
+    } else if (filter.getQuery() != PointQueryType.POLYGON) {
       StringBuilder builder = new StringBuilder();
       builder.append("POLYGON((");
       for (int i = 0; i < latitudes.length; i++) {
