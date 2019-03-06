@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class HdfsDataSegmentPusherConfig
 {
   @JsonProperty
-  private String storageDirectory = "";
+  private String storageDirectory = "/you/must/configure/druid.storage.storageDirectory";
 
   public void setStorageDirectory(String storageDirectory)
   {
