@@ -20,6 +20,7 @@
 package io.druid.data;
 
 import com.google.common.collect.ImmutableMap;
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
@@ -129,5 +130,10 @@ public class ShapeUtils
         SHAPE_FACTORY.getDatelineRule() != DatelineRule.none,
         SHAPE_FACTORY.isAllowMultiOverlap()
     );
+  }
+
+  public static Object toJtsGeometry(Envelope envelope)
+  {
+    return toJtsGeometry(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
   }
 }

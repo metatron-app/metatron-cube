@@ -39,6 +39,7 @@ public class GeoToolsDruidModule implements DruidModule
         new SimpleModule("GeoToolsDruidModule")
             .registerSubtypes(GeoToolsFunctions.class)
             .registerSubtypes(GeoBoundaryFilterQuery.class)
+            .registerSubtypes(EnvelopeAggregatorFactory.class)
     );
   }
 

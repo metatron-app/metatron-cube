@@ -147,6 +147,9 @@ public class AverageAggregatorFactory extends AggregatorFactory
     if (object == null || object instanceof long[]) {
       return object;
     }
+    if (object instanceof List) {
+      return new long[]{Rows.parseLong(((List) object).get(0)), Rows.parseLong(((List) object).get(1))};
+    }
     ByteBuffer buffer;
     if (object instanceof byte[]) {
       buffer = ByteBuffer.wrap((byte[]) object);
@@ -157,7 +160,7 @@ public class AverageAggregatorFactory extends AggregatorFactory
     } else {
       return object;
     }
-    return new long[]{buffer.getLong(), Double.doubleToLongBits(buffer.getDouble())};
+    return new long[]{buffer.getLong(), buffer.getLong()};
   }
 
   @Override
@@ -205,7 +208,7 @@ public class AverageAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.ofStruct("long,double");
+    return ValueDesc.LONG_ARRAY;
   }
 
   @Override
