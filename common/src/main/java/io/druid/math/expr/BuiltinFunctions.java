@@ -2428,7 +2428,9 @@ public interface BuiltinFunctions extends Function.Library
     {
       if (args.size() > 0) {
         fieldName = Evals.getIdentifier(args.get(0));   // todo can be expression
-        fieldType = context.resolve(fieldName);
+        fieldType = Preconditions.checkNotNull(
+            context.resolve(fieldName), "%s cannot be resolved by %s", fieldName, context
+        );
         parameters = Evals.getConstants(args.subList(1, args.size()));
       } else {
         fieldName = "$$$";

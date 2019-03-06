@@ -23,6 +23,9 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.ArithmeticPostAggregator;
+import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
@@ -31,6 +34,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
+import io.druid.query.groupby.orderby.PartitionExpression;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
@@ -114,6 +118,77 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     results = runQuery(query.withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, 10));
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testWindowing()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .setVirtualColumns(
+            new ExprVirtualColumn(
+                "time_format(__time,out.format='yyyy-MM-dd HH:mm',out.timezone='Asia/Seoul',out.locale='en')",
+                "MINUTE(event_time).inner")
+        )
+        .setDimensions(DefaultDimensionSpec.of("MINUTE(event_time).inner", "MINUTE(event_time)"))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("COUNT"),
+            new GenericSumAggregatorFactory("SUM(Discount)", "Discount", ValueDesc.DOUBLE),
+            new GenericSumAggregatorFactory("SUM(Profit)", "Profit", ValueDesc.DOUBLE)
+        )
+        .setPostAggregatorSpecs(
+            new ArithmeticPostAggregator(
+                "AVG(Discount)", "/", Arrays.<PostAggregator>asList(
+                new FieldAccessPostAggregator("SUM(Discount)", "SUM(Discount)"),
+                new FieldAccessPostAggregator("COUNT", "COUNT"))
+            )
+        )
+        .setLimitSpec(
+            new LimitSpec(
+                OrderByColumnSpec.ascending("MINUTE(event_time)"), 10, Arrays.asList(new WindowingSpec(
+                    Arrays.asList("MINUTE(event_time)"), null, null,
+                    new PivotSpec(
+                        null,
+                        Arrays.asList("AVG(Discount)", "SUM(Profit)"),
+                        "-",
+                        null,
+                        null,
+                        PartitionExpression.from(
+                            "#_ = $sum(_)",
+                            "concat(_, '.percent') = case(#_ == 0, 0.0, cast(\"_\", 'DOUBLE') / #_ * 100)"
+                        ),
+                        true,
+                        true
+                    )
+            ))))
+        .setGranularity(Granularities.ALL)
+        .build();
+
+    String[] columnNames = new String[]{
+        "__time",
+        "MINUTE(event_time)",
+        "AVG(Discount)",
+        "SUM(Profit)",
+        "AVG(Discount).percent",
+        "SUM(Profit).percent"
+    };
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01", "2011-01-04 09:00", 0.2, 6.0, 0.10400077510185177, 0.0020953598256660626),
+        array("2011-01-01", "2011-01-05 09:00", 0.39999999999999997, -66.0, 0.2080015502037035, -0.02304895808232669),
+        array("2011-01-01", "2011-01-06 09:00", 0.2, 5.0, 0.10400077510185177, 0.0017461331880550522),
+        array("2011-01-01", "2011-01-07 09:00", 0.0, 1356.0, 0.0, 0.4735513206005302),
+        array("2011-01-01", "2011-01-08 09:00", 0.7, -72.0, 0.3640027128564811, -0.02514431790799275),
+        array("2011-01-01", "2011-01-10 09:00", 0.2, 11.0, 0.10400077510185177, 0.0038414930137211146),
+        array("2011-01-01", "2011-01-11 09:00", 0.0, 22.0, 0.0, 0.007682986027442229),
+        array("2011-01-01", "2011-01-12 09:00", 0.0, 3.0, 0.0, 0.0010476799128330313),
+        array("2011-01-01", "2011-01-14 09:00", 0.09545454545454546, 673.0, 0.04963673357133835, 0.23502952711221),
+        array("2011-01-01", "2011-01-15 09:00", 0.5, -53.0, 0.2600019377546294, -0.018509011793383552)
+    );
+    Iterable<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -381,9 +456,8 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01T00:00:00.000Z", 310.74, "2014-01-02 00:00:00", "2011-01-01 00:00:00", "F"),
         array("2011-01-01T00:00:00.000Z", 23.08, "2013-01-07 00:00:00", "2011-01-01 00:00:00", "F")
     };
-    Iterable<Row> results = runQuery(builder.build());
-    GroupByQueryRunnerTestHelper.printToExpected(columnNames, results);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    Iterable<Row> results = runQuery(builder.build());
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

@@ -28,7 +28,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -46,7 +45,6 @@ import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.filter.Filters;
@@ -176,15 +174,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   private final Schema schema;
   private final VirtualColumns virtualColumns;
 
-  private final Map<String, ValueDesc> columnTypes;
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
   private RowResolver(Schema schema, List<VirtualColumn> virtualColumns)
   {
     this.schema = schema;
     this.virtualColumns = VirtualColumns.valueOf(virtualColumns, schema);
-    this.columnTypes = GuavaUtils.asMap(schema.columnAndTypes());
-    this.columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
   }
 
   @VisibleForTesting
@@ -192,7 +187,6 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   {
     this.schema = Schema.of(columnTypes);
     this.virtualColumns = virtualColumns;
-    this.columnTypes = columnTypes;
   }
 
   public List<String> getDimensionNames()
@@ -255,11 +249,6 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return virtualColumns.getVirtualColumn(columnName);
   }
 
-  public Map<String, ValueDesc> getResolvedColumnTypes()
-  {
-    return columnTypes;
-  }
-
   @Override
   public ValueDesc apply(String input)
   {
@@ -275,9 +264,9 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   @Override
   public ValueDesc resolve(String column, ValueDesc defaultType)
   {
-    ValueDesc columnType = columnTypes.get(column);
-    if (columnType != null) {
-      return columnType;
+    ValueDesc resolved = schema.resolve(column);
+    if (resolved != null) {
+      return resolved;
     }
     Pair<VirtualColumn, ValueDesc> vcResolved = virtualColumnTypes.get(column);
     if (vcResolved != null) {
@@ -309,7 +298,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public Iterable<String> getAllColumnNames()
   {
     Set<String> names = Sets.newLinkedHashSet(virtualColumns.getVirtualColumnNames());
-    names.addAll(columnTypes.keySet()); // override
+    names.addAll(schema.getColumnNames()); // override
     return names;
   }
 

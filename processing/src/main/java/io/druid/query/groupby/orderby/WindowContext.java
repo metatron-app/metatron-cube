@@ -262,6 +262,12 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
     return index;
   }
 
+  @Override
+  public String toString()
+  {
+    return "expectedTypes = " + expectedTypes + (redirection == null ? "" : ", redirection = " + redirection);
+  }
+
   private Function<Row, Object> accessFunction(final String name)
   {
     return new Function<Row, Object>()

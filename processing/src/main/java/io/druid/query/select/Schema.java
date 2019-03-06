@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -251,7 +250,8 @@ public class Schema implements TypeResolver, RowSignature
   @Override
   public ValueDesc resolve(String column, ValueDesc defaultType)
   {
-    return Optional.fromNullable(resolve(column)).or(defaultType);
+    final ValueDesc resolved = resolve(column);
+    return resolved == null ? defaultType : resolved;
   }
 
   public ColumnCapabilities getColumnCapability(String column)
