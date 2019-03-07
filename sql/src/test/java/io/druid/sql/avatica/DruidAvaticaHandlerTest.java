@@ -85,7 +85,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
-@Ignore
 public class DruidAvaticaHandlerTest extends CalciteTestBase
 {
   private static final AvaticaServerConfig AVATICA_CONFIG = new AvaticaServerConfig()
@@ -285,7 +284,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
         ImmutableList.of(
             ImmutableMap.of(
                 "PLAN",
-                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"descending\":false,\"virtualColumns\":[],\"filter\":null,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"postAggregations\":[],\"context\":{\"skipEmptyBuckets\":true}}], signature=[{a0:LONG}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"skipEmptyBuckets\":true}}], signature=[{a0:long}])\n"
             )
         ),
         getRows(resultSet)
@@ -331,6 +330,12 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
             ROW(
                 Pair.of("TABLE_CAT", ""),
                 Pair.of("TABLE_NAME", "foo2"),
+                Pair.of("TABLE_SCHEM", "druid"),
+                Pair.of("TABLE_TYPE", "TABLE")
+            ),
+            ROW(
+                Pair.of("TABLE_CAT", ""),
+                Pair.of("TABLE_NAME", "forbiddenDatasource"),
                 Pair.of("TABLE_SCHEM", "druid"),
                 Pair.of("TABLE_TYPE", "TABLE")
             )
@@ -416,8 +421,8 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 Pair.of("TABLE_SCHEM", "druid"),
                 Pair.of("TABLE_NAME", "foo"),
                 Pair.of("COLUMN_NAME", "m1"),
-                Pair.of("DATA_TYPE", Types.FLOAT),
-                Pair.of("TYPE_NAME", "FLOAT"),
+                Pair.of("DATA_TYPE", Types.DOUBLE),
+                Pair.of("TYPE_NAME", "DOUBLE"),
                 Pair.of("IS_NULLABLE", "NO")
             ),
             ROW(
@@ -434,7 +439,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 Pair.of("COLUMN_NAME", "unique_dim1"),
                 Pair.of("DATA_TYPE", Types.OTHER),
                 Pair.of("TYPE_NAME", "OTHER"),
-                Pair.of("IS_NULLABLE", "NO")
+                Pair.of("IS_NULLABLE", "YES")
             )
         ),
         getRows(
@@ -445,6 +450,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
+  @Ignore("not ported security related part")
   public void testDatabaseMetaDataColumnsOnForbiddenDatasource() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
@@ -499,8 +505,8 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 Pair.of("TABLE_SCHEM", "druid"),
                 Pair.of("TABLE_NAME", CalciteTests.FORBIDDEN_DATASOURCE),
                 Pair.of("COLUMN_NAME", "m1"),
-                Pair.of("DATA_TYPE", Types.FLOAT),
-                Pair.of("TYPE_NAME", "FLOAT"),
+                Pair.of("DATA_TYPE", Types.DOUBLE),
+                Pair.of("TYPE_NAME", "DOUBLE"),
                 Pair.of("IS_NULLABLE", "NO")
             ),
             ROW(
@@ -517,7 +523,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 Pair.of("COLUMN_NAME", "unique_dim1"),
                 Pair.of("DATA_TYPE", Types.OTHER),
                 Pair.of("TYPE_NAME", "OTHER"),
-                Pair.of("IS_NULLABLE", "NO")
+                Pair.of("IS_NULLABLE", "YES")
             )
         ),
         getRows(

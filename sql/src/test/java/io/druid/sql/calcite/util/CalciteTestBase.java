@@ -19,11 +19,17 @@
 
 package io.druid.sql.calcite.util;
 
+import io.druid.math.expr.Parser;
+import io.druid.query.sql.SQLFunctions;
 import io.druid.sql.calcite.planner.Calcites;
 import org.junit.BeforeClass;
 
 public abstract class CalciteTestBase
 {
+  static {
+    Parser.register(SQLFunctions.class);
+  }
+
   @BeforeClass
   public static void setupCalciteProperties()
   {

@@ -33,7 +33,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.math.expr.Parser;
 import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
@@ -80,7 +79,6 @@ import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.query.sql.SQLFunctions;
 import io.druid.query.topn.DimensionTopNMetricSpec;
 import io.druid.query.topn.InvertedTopNMetricSpec;
 import io.druid.query.topn.NumericTopNMetricSpec;
@@ -122,10 +120,6 @@ import java.util.Map;
 
 public class CalciteQueryTest extends CalciteTestBase
 {
-  static {
-    Parser.register(SQLFunctions.class);
-  }
-
   private static final Logger log = new Logger(CalciteQueryTest.class);
 
   private static final PlannerConfig PLANNER_CONFIG_DEFAULT = new PlannerConfig();
