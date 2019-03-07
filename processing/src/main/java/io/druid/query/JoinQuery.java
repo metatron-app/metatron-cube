@@ -266,7 +266,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (i == 0) {
         DataSource left = dataSources.get(element.getLeftAlias());
         Query query = JoinElement.toQuery(left, element.getLeftJoinColumns(), segmentSpec, getContext());
-        if (threshold > 0 && joinType.isRightDriving()) {
+        if (threshold > 0 && joinType.isRightDrivable()) {
           long estimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
           hashed = estimated > 0 && estimated < threshold;
           if (hashed) {

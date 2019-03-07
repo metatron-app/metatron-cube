@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -122,6 +123,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
           aliases.add(toAlias(i));
           sequencesList[i] = Lists.<Sequence<Object[]>>newArrayList();
         }
+        final boolean[] nested = new boolean[joinAliases];
         final boolean[] sorted = new boolean[joinAliases];
         final boolean[] hashing = new boolean[joinAliases];
         final MutableInt indexer = new MutableInt();
@@ -132,6 +134,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
               @Override
               public Object accumulate(Object accumulated, Pair<Query, Sequence> in)
               {
+                nested[indexer.intValue()] = in.lhs instanceof JoinQuery.JoinDelegate;
                 sorted[indexer.intValue()] = in.lhs.getContextBoolean(JoinElement.SORTED_ON_JOINKEY, false);
                 hashing[indexer.intValue()] = in.lhs.getContextBoolean(JoinElement.HASHABLE, false);
                 Query.ArrayOutputSupport query = (Query.ArrayOutputSupport) in.lhs;
@@ -145,8 +148,8 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 
         final Future[] joining = new Future[joinAliases];
         for (int i = 0; i < indexer.intValue(); i++) {
-          // to avoid thread exhaustion, use same threded executor for first one
-          ExecutorService executor = i == 0 ? new Execs.SubmitSingleThreaded() : exec;
+          // to avoid thread exhaustion, use same threded executor for nested join
+          ExecutorService executor = nested[i] ? new Execs.SubmitSingleThreaded() : exec;
           joining[i] = executor.submit(
               toJoinAlias(
                   i,
@@ -204,18 +207,8 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       @Override
       public JoinAlias call()
       {
-        final Sequence<Object[]> sequence = Sequences.concat(sequences);
-        if (sorted) {
-          return new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence), true);
-        }
-        final int threshold = config.getHashJoinThreshold();
-        final List<Object[]> rows = Sequences.toList(sequence);
-        if (threshold > 0 && rows.size() < threshold &&
-            (index == 0 && type.isRightDriving() || index > 0 && type.isLeftDriving())) {
-          final Map<JoinKey, Object> hashed = toHashed(Sequences.simple(rows), indices, false);
-          return new JoinAlias(aliases, columnNames, joinColumns, indices, hashed);
-        }
-        return new JoinAlias(aliases, columnNames, joinColumns, indices, sort(rows, indices).iterator(), true);
+        final Iterator<Object[]> rows = Sequences.toIterator(Sequences.concat(sequences));
+        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, sorted);
       }
     };
   }
@@ -292,15 +285,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
     for (int i = 2; i < futures.length; i++) {
       right = futures[i].get();
       final int[] indices = GuavaUtils.indexOf(columns, joinColumns);
-      boolean sorted;
-      Iterator<Object[]> leftRows;
+      boolean sorted = false;
+      Iterator<Object[]> leftRows = iterator;
       if (right.isHashed() || joinColumns.equals(left.joinColumns) || joinColumns.equals(right.joinColumns)) {
-        leftRows = iterator;  // no need to sort
         sorted = !right.isHashed();
-      } else {
-        // not Lists.newArrayList() for closing resources
-        leftRows = sort(Sequences.toList(Sequences.once(iterator)), indices).iterator();
-        sorted = true;
       }
       left = new JoinAlias(alias, columns, joinColumns, indices, leftRows, sorted);
       iterator = join(left, right, 0);
@@ -329,11 +317,24 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       }
     } else if (type.isLeftDriving() && right.isHashed()) {
       return joinHashed(left, right, type, true);
-    } else if (type.isRightDriving() && left.isHashed()) {
+    } else if (type.isRightDrivable() && left.isHashed()) {
       return joinHashed(left, right, type, false);
     }
+    if (!left.isSorted()) {
+      left = left.transform(type.isRightDrivable() ? config.getHashJoinThreshold() : -1);
+      if (left.isHashed()) {
+        return joinHashed(left, right, type, false);
+      }
+      Preconditions.checkArgument(left.isSorted());
+    }
+    if (!right.isSorted()) {
+      right = right.transform(type.isLeftDriving() ? config.getHashJoinThreshold() : -1);
+      if (right.isHashed()) {
+        return joinHashed(left, right, type, true);
+      }
+      Preconditions.checkArgument(right.isSorted());
+    }
     log.info("... start %s join %s to %s (%s)", type, left.alias, right.alias, "SortedMerge");
-    assert left.isSorted() && right.isSorted();
     return new JoinIterator(type, left, right)
     {
       @Override
@@ -351,10 +352,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       final boolean leftDriving
   )
   {
-    log.info(
-        "... start %s join %s%s and %s%s",
-        type, left.alias, leftDriving ? "" : "(hashed)", right.alias, leftDriving ? "(hashed)" : ""
-    );
+    log.info("... start %s join %s %s %s", type, left, leftDriving ? "-->" : "<--", right);
     if (leftDriving) {
       if (left.isHashed()) {
         left.prepareHashIterator();
@@ -659,7 +657,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
         boolean sorted
     )
     {
-      log.info("----> %s = SMB (sorted=%s)", alias, sorted);
+      log.info("----> %s = iterator (sorted=%s)", alias, sorted);
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
@@ -700,6 +698,15 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
     private void prepareHashIterator()
     {
       iterator = hashed.entrySet().iterator();
+    }
+
+    private JoinAlias transform(int hashThreshold)
+    {
+      final List<Object[]> rows = Sequences.toList(Sequences.once(this.rows));
+      if (hashThreshold > 0 && rows.size() < hashThreshold) {
+        return new JoinAlias(alias, columns, joinColumns, indices, toHashed(Sequences.simple(rows), indices, sorted));
+      }
+      return new JoinAlias(alias, columns, joinColumns, indices, sort(alias, rows, indices).iterator(), true);
     }
 
     private Partition next()
@@ -764,6 +771,11 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       if (hashed != null) {
         hashed.clear();
       }
+    }
+
+    public String toString()
+    {
+      return alias + (isHashed() ? "(hashed)" : isSorted() ? "(sorted-stream)" : "");
     }
   }
 
@@ -856,13 +868,13 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
   }
 
   // from source.. need prefix for value
-  private List<Object[]> sort(List<Object[]> rows, int[] indices)
+  private static List<Object[]> sort(List<String> alias, List<Object[]> rows, int[] indices)
   {
     long start = System.currentTimeMillis();
     Object[][] array = rows.toArray(new Object[rows.size()][]);
     Comparator<Object[]> comparator = Comparators.toArrayComparator(indices);
     Arrays.parallelSort(array, comparator);
-    log.info(".. sorted %d rows in %,d msec", rows.size(), (System.currentTimeMillis() - start));
+    log.info(".. %s sorted %d rows in %,d msec", alias, rows.size(), (System.currentTimeMillis() - start));
     return Arrays.asList(array);
   }
 
