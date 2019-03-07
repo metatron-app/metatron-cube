@@ -71,5 +71,30 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    builder.filters(new LuceneSpatialFilter(
+        "geom",
+        SpatialOperations.BBOX_WINTHIN,
+        ShapeFormat.WKT,
+        "MULTIPOINT ((127.017827 37.484505), (127.034182 37.521752))"
+    ));
+    expected = createExpectedMaps(
+        columns,
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"}
+    );
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    builder.filters(new LuceneSpatialFilter(
+        "geom",
+        SpatialOperations.BBOX_INTERSECTS,
+        ShapeFormat.WKT,
+        "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497879))"
+    ));
+    expected = createExpectedMaps(
+        columns,
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"},
+        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
+    );
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
   }
 }

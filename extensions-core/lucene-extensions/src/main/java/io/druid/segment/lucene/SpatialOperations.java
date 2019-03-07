@@ -58,6 +58,9 @@ public enum SpatialOperations
     {
       return SpatialOperation.IsEqualTo;
     }
+
+    @Override
+    public boolean isLuceneNative() { return false;}
   },
   OVERLAPS {
     @Override
@@ -65,6 +68,9 @@ public enum SpatialOperations
     {
       return SpatialOperation.Overlaps;
     }
+
+    @Override
+    public boolean isLuceneNative() { return false;}
   },
   BBOX_INTERSECTS {
     @Override
@@ -72,6 +78,9 @@ public enum SpatialOperations
     {
       return SpatialOperation.BBoxIntersects;
     }
+
+    @Override
+    public boolean isLuceneNative() { return false;}
   },
   BBOX_WINTHIN {
     @Override
@@ -79,9 +88,17 @@ public enum SpatialOperations
     {
       return SpatialOperation.BBoxWithin;
     }
+
+    @Override
+    public boolean isLuceneNative() { return false;}
   };
 
   public abstract SpatialOperation op();
+
+  public boolean isLuceneNative()
+  {
+    return true;
+  }
 
   @JsonValue
   public String getName()

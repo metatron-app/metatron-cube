@@ -36,6 +36,7 @@ import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
+import org.apache.lucene.spatial.query.SpatialOperation;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
@@ -99,7 +100,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
     this.operation = Preconditions.checkNotNull(operation, "operation can not be null");
-    this.shapeFormat = Preconditions.checkNotNull(shapeFormat, "shapeFormat can not be null");
+    this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
   }
 
@@ -205,10 +206,9 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
         );
         JtsSpatialContext ctx = JtsSpatialContext.GEO;
         try {
-          SpatialArgs args = new SpatialArgs(operation.op(), shapeFormat.newReader(ctx).read(shapeString));
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);
           SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
-          return lucene.filterFor(strategy.makeQuery(args), baseBitmap);
+          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), baseBitmap);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -227,6 +227,23 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
         return LuceneSpatialFilter.this.toString();
       }
     };
+  }
+
+  private SpatialArgs makeSpatialArgs(JtsSpatialContext ctx) throws IOException, ParseException
+  {
+    final Shape shape = shapeFormat.newReader(ctx).read(shapeString);
+    if (operation.isLuceneNative()) {
+      return new SpatialArgs(operation.op(), shape);
+    }
+    switch (operation) {
+      case BBOX_INTERSECTS:
+        return new SpatialArgs(SpatialOperation.Intersects, shape.getBoundingBox());
+      case BBOX_WINTHIN:
+        return new SpatialArgs(SpatialOperation.IsWithin, shape.getBoundingBox());
+      case EQUALTO:
+      case OVERLAPS:
+    }
+    throw new UnsupportedOperationException(operation + " is not supported yet");
   }
 
   @Override
