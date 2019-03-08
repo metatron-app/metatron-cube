@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1361,5 +1362,22 @@ public class EvalTest
           evalDateTime("bucketEndDateTime(__time2, '" + type.name() + "')", bindings)
       );
     }
+  }
+
+  @Test
+  public void testArrayAccess()
+  {
+    Expr parsed = Parser.parse("\"x\"[0]");
+    Assert.assertEquals(ImmutableList.of("x"), Parser.findRequiredBindings(parsed));
+
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", new double[]{1, 2, 3}));
+    Assert.assertEquals(1, evalDouble("\"x\"[0]", bindings), 0.00001);
+    Assert.assertEquals(2, evalDouble("\"x\"[1]", bindings), 0.00001);
+    Assert.assertEquals(3, evalDouble("\"x\"[2]", bindings), 0.00001);
+
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", Arrays.asList(1d, 2d, 3d)));
+    Assert.assertEquals(1, evalDouble("\"x\"[0]", bindings), 0.00001);
+    Assert.assertEquals(2, evalDouble("\"x\"[1]", bindings), 0.00001);
+    Assert.assertEquals(3, evalDouble("\"x\"[2]", bindings), 0.00001);
   }
 }

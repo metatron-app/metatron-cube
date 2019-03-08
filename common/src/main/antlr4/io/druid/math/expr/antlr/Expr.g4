@@ -11,6 +11,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | 'NULL'                                         # string
      | IDENTIFIER '(' fnArgs ')'                      # functionExpr
      | IDENTIFIER                                     # identifierExpr
+     | IDENTIFIER '[' LONG ']'                        # identifierExpr
      | FLOAT                                          # floatExpr
      | DOUBLE                                         # doubleExpr
      | LONG                                           # longExpr

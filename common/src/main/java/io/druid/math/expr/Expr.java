@@ -27,6 +27,7 @@ import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.Arrays;
@@ -234,42 +235,65 @@ final class DoubleExpr implements Constant
 final class IdentifierExpr implements Expr
 {
   private final String value;
+  private final int index;
 
-  public IdentifierExpr(String value)
+  public IdentifierExpr(String value, int index)
   {
     this.value = value;
+    this.index = index;
   }
 
-  @Override
-  public String toString()
+  public String identifier()
   {
     return value;
   }
 
   @Override
+  public String toString()
+  {
+    return index < 0 ? value : value + "[" + index + "]";
+  }
+
+  @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    return bindings.resolve(value, ValueDesc.UNKNOWN);
+    ValueDesc resolved = bindings.resolve(value, ValueDesc.UNKNOWN);
+    if (index >= 0) {
+      resolved = ValueDesc.isArray(resolved) ? ValueDesc.elementOfArray(resolved) : ValueDesc.UNKNOWN;
+    }
+    return resolved;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    final Object binding = bindings.get(value);
+    ValueDesc type = null;
     if (bindings instanceof TypeResolver) {
-      final ValueDesc type = ((TypeResolver) bindings).resolve(value, ValueDesc.UNKNOWN);
-      if (!type.equals(ValueDesc.UNKNOWN)) {
-        // type is unknown before evaluation in some cases (see LV)
-        return ExprEval.of(binding, type);
+      type = resolve((TypeResolver) bindings);
+    }
+    Object binding = bindings.get(value);
+    if (index >= 0) {
+      if (binding instanceof List) {
+        List list = (List) binding;
+        binding = index < list.size() ? list.get(index) : null;
+      } else if (binding.getClass().isArray()) {
+        binding = index < Array.getLength(binding) ? Array.get(binding, index) : null;
+      } else {
+        binding = null;
       }
     }
-    return ExprEval.bestEffortOf(binding);
+    if (type == null || type.isUnknown()) {
+      return ExprEval.bestEffortOf(binding);
+    }
+    return ExprEval.of(binding, type);
   }
 
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof IdentifierExpr && value.equals(((IdentifierExpr) other).value);
+    return other instanceof IdentifierExpr
+           && value.equals(((IdentifierExpr) other).value)
+           && index == ((IdentifierExpr) other).index;
   }
 }
 

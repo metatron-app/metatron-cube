@@ -159,7 +159,7 @@ public class Parser
   private static Set<String> findBindingsRecursive(Expr expr, Set<String> found)
   {
     if (expr instanceof IdentifierExpr) {
-      found.add(expr.toString());
+      found.add(((IdentifierExpr) expr).identifier());
     } else if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
       findBindingsRecursive(binary.left, found);
