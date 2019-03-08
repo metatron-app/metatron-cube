@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
+import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.operation.buffer.BufferParameters;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
@@ -37,8 +38,8 @@ import org.locationtech.spatial4j.io.WKTReader;
 import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
 import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
-import org.locationtech.spatial4j.shape.ShapeFactory;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
+import org.locationtech.spatial4j.shape.jts.JtsPoint;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
@@ -107,9 +108,27 @@ public class GeoToolsFunctions implements Function.Library
 
   static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE");
 
-  static JtsGeometry toGeometry(ExprEval eval)
+  static ExprEval ofGeom(Geometry geometry)
   {
-    return SHAPE_TYPE.equals(eval.type()) ? (JtsGeometry) eval.value() : null;
+    return ofShape(ShapeUtils.toShape(geometry));
+  }
+
+  static ExprEval ofShape(Shape shape)
+  {
+    return ExprEval.of(shape, SHAPE_TYPE);
+  }
+
+  static Geometry toGeometry(ExprEval eval)
+  {
+    if (SHAPE_TYPE.equals(eval.type())) {
+      Shape shape = (Shape) eval.value();
+      if (shape instanceof JtsGeometry) {
+        return ((JtsGeometry)shape).getGeom();
+      } else if (shape instanceof JtsPoint) {
+        return ((JtsPoint)shape).getGeom();
+      }
+    }
+    return null;
   }
 
   static abstract class ShapeFuncFactory extends Function.AbstractFactory
@@ -125,7 +144,7 @@ public class GeoToolsFunctions implements Function.Library
       @Override
       public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
       {
-        return ExprEval.of(_eval(args, bindings), SHAPE_TYPE);
+        return ofShape(_eval(args, bindings));
       }
 
       protected abstract Shape _eval(List<Expr> args, Expr.NumericBinding bindings);
@@ -141,25 +160,39 @@ public class GeoToolsFunctions implements Function.Library
       if (args.size() != 1 && args.size() != 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      final ShapeFactory shapeFactory = JtsSpatialContext.GEO.getShapeFactory();
       return new ShapeChild()
       {
         @Override
         public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          double longitude;
-          double latitude;
+          double first;
+          double second;
           if (args.size() == 2) {
-            double[] lonlat = (double[]) Evals.eval(args.get(1), bindings).value();
-            longitude = lonlat[0];
-            latitude = lonlat[1];
+            first = Evals.evalDouble(args.get(0), bindings);
+            second = Evals.evalDouble(args.get(1), bindings);
           } else {
-            longitude = Evals.evalDouble(args.get(1), bindings);
-            latitude = Evals.evalDouble(args.get(2), bindings);
+            double[] lonlat = (double[]) Evals.eval(args.get(0), bindings).value();
+            first = lonlat[0];
+            second = lonlat[1];
           }
-          return shapeFactory.pointXY(latitude, longitude);
+          return makeJtsGeometry(first, second);
         }
       };
+    }
+
+    protected Shape makeJtsGeometry(double latitude, double longitude)
+    {
+      return ShapeUtils.SHAPE_FACTORY.pointXY(longitude, latitude);
+    }
+  }
+
+  @Function.Named("shape_fromLonLat")
+  public static class FromLonLat extends FromLatLon
+  {
+    @Override
+    protected Shape makeJtsGeometry(double longitude, double latitude)
+    {
+      return ShapeUtils.SHAPE_FACTORY.pointXY(longitude, latitude);
     }
   }
 
@@ -222,11 +255,11 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          ExprEval exprEval = Evals.eval(args.get(0), bindings);
-          if (SHAPE_TYPE.equals(exprEval.type())) {
+          Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry != null) {
             buffer.getBuffer().setLength(0);
             try {
-              writer.write(buffer, (Shape) exprEval.value());
+              writer.write(buffer, ShapeUtils.toShape(geometry));
               return ExprEval.of(buffer.toString());
             }
             catch (IOException e) {
@@ -284,19 +317,19 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final JtsGeometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(null, SHAPE_TYPE);
+            return ofShape(null);
           }
           double distance = Evals.evalDouble(args.get(1), bindings);
           if (args.size() > 2) {
             distance = ShapeUtils.toMeters(distance, Evals.evalString(args.get(2), bindings));
           }
           try {
-            return ExprEval.of(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle), SHAPE_TYPE);
+            return ofGeom(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
           }
           catch (TransformException e) {
-            return ExprEval.of(null, SHAPE_TYPE);
+            return ofShape(null);
           }
         }
       };
@@ -316,20 +349,20 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final JtsGeometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
           return geometry == null ? null : op(geometry);
         }
       };
     }
 
-    protected abstract JtsGeometry op(JtsGeometry geometry);
+    protected abstract Shape op(Geometry geometry);
   }
 
   @Function.Named("shape_boundary")
   public static class Boundary extends ShapeFunc
   {
     @Override
-    protected JtsGeometry op(JtsGeometry geometry)
+    protected Shape op(Geometry geometry)
     {
       return ShapeUtils.boundary(geometry);
     }
@@ -339,7 +372,7 @@ public class GeoToolsFunctions implements Function.Library
   public static class ConvexHull extends ShapeFunc
   {
     @Override
-    protected JtsGeometry op(JtsGeometry geometry)
+    protected Shape op(Geometry geometry)
     {
       return ShapeUtils.convexHull(geometry);
     }
@@ -349,7 +382,7 @@ public class GeoToolsFunctions implements Function.Library
   public static class Envelop extends ShapeFunc
   {
     @Override
-    protected JtsGeometry op(JtsGeometry geometry)
+    protected Shape op(Geometry geometry)
     {
       return ShapeUtils.envelop(geometry);
     }
@@ -369,8 +402,8 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final JtsGeometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? 0D : ShapeUtils.area(geometry));
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          return ExprEval.of(geometry == null ? -1D : ShapeUtils.area(geometry));
         }
       };
     }
@@ -390,8 +423,8 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final JtsGeometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? 0D : ShapeUtils.length(geometry));
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          return ExprEval.of(geometry == null ? -1D : ShapeUtils.length(geometry));
         }
       };
     }

@@ -102,6 +102,28 @@ public class GeoToolsFunctionsTest
     );
   }
 
+  @Test
+  public void testBufferOnPoint()
+  {
+    final Shape 서초대로64L = evalShape("shape_fromWKT('" + 서초대로64 + "')");
+    final Shape 사임당로23L = evalShape("shape_fromWKT('" + 사임당로23 + "')");
+    final Shape 아남P = evalShape("shape_buffer(shape_fromLatLon(37.492793, 127.020863), 70)");
+
+    Assert.assertEquals(SpatialRelation.DISJOINT, 서초대로64L.relate(아남P));
+    Assert.assertEquals(SpatialRelation.INTERSECTS, 사임당로23L.relate(아남P));
+
+    Assert.assertEquals(
+        9.793049120562071E-7,
+        evalDouble("shape_area(shape_buffer(shape_fromLatLon(37.492793, 127.020863), 70))"),
+        1.E-10
+    );
+    Assert.assertEquals(
+        0.0035489712234330817,
+        evalDouble("shape_length(shape_buffer(shape_fromLatLon(37.492793, 127.020863), 70))"),
+        1.E-10
+    );
+  }
+
   private double evalDouble(String expr)
   {
     return Parser.parse(expr).eval(null).doubleValue();

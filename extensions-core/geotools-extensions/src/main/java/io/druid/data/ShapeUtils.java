@@ -24,9 +24,8 @@ import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
-import org.locationtech.spatial4j.context.jts.DatelineRule;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
+import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.jts.JtsShapeFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
@@ -84,56 +83,47 @@ public class ShapeUtils
     return distance * conversion;
   }
 
-  static JtsGeometry buffer(JtsGeometry geometry, double meter, int quadrantSegments, int endCapStyle)
-      throws TransformException
-  {
-    return toJtsGeometry(buffer(geometry.getGeom(), meter, quadrantSegments, endCapStyle));
-  }
-
   static Geometry buffer(Geometry geometry, double meter, int quadrantSegments, int endCapStyle)
       throws TransformException
   {
-    Geometry g1 = JTS.transform(geometry, T_4326_3857).buffer(meter, quadrantSegments, endCapStyle);
-    return JTS.transform(g1, T_3857_4326);
+    Geometry geom3857 = JTS.transform(geometry, T_4326_3857);
+    Geometry buffered = geom3857.buffer(meter, quadrantSegments, endCapStyle);
+    Geometry geom4326 = JTS.transform(buffered, T_3857_4326);
+    return geom4326;
   }
 
-  static JtsGeometry boundary(JtsGeometry geometry)
+  static Shape boundary(Geometry geometry)
   {
-    return toJtsGeometry(geometry.getGeom().getBoundary());
+    return toShape(geometry.getBoundary());
   }
 
-  static JtsGeometry convexHull(JtsGeometry geometry)
+  static Shape convexHull(Geometry geometry)
   {
-    return toJtsGeometry(geometry.getGeom().convexHull());
+    return toShape(geometry.convexHull());
   }
 
-  static JtsGeometry envelop(JtsGeometry geometry)
+  static Shape envelop(Geometry geometry)
   {
-    return toJtsGeometry(geometry.getGeom().getEnvelope());
+    return toShape(geometry.getEnvelope());
   }
 
-  static double area(JtsGeometry geometry)
+  static double area(Geometry geometry)
   {
-    return geometry.getGeom().getArea();
+    return geometry.getArea();
   }
 
-  static double length(JtsGeometry geometry)
+  static double length(Geometry geometry)
   {
-    return geometry.getGeom().getLength();
+    return geometry.getLength();
   }
 
-  static JtsGeometry toJtsGeometry(Geometry geometry)
+  static Shape toShape(Geometry geometry)
   {
-    return new JtsGeometry(
-        geometry,
-        JtsSpatialContext.GEO,
-        SHAPE_FACTORY.getDatelineRule() != DatelineRule.none,
-        SHAPE_FACTORY.isAllowMultiOverlap()
-    );
+    return SHAPE_FACTORY.makeShape(geometry);
   }
 
-  public static Object toJtsGeometry(Envelope envelope)
+  static Object toShape(Envelope envelope)
   {
-    return toJtsGeometry(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
+    return toShape(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
   }
 }
