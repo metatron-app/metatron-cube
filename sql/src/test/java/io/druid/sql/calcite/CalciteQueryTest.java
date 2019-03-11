@@ -3923,7 +3923,7 @@ public class CalciteQueryTest extends CalciteTestBase
                                 )
                             )
                             .setPostAggregatorSpecs(
-                                new HyperUniqueFinalizingPostAggregator("a0", "a0:a"),
+                                new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true),
                                 EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1D','','UTC')")
                             )
                             .setContext(TIMESERIES_CONTEXT_DEFAULT)

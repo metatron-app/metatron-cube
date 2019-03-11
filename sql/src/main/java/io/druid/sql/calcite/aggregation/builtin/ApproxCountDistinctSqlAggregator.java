@@ -131,7 +131,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     return Aggregation.create(
         virtualColumns,
         Collections.singletonList(aggregatorFactory),
-        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, aggregatorFactory.getName()) : null
+        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, aggregatorFactory.getName(), true) : null
     );
   }
 

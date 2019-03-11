@@ -38,28 +38,45 @@ import java.util.Set;
  */
 public class HyperUniqueFinalizingPostAggregator implements PostAggregator
 {
-  private static final Comparator<Double> DOUBLE_COMPARATOR = Ordering.from(new Comparator<Double>()
+  private static final Comparator DOUBLE_COMPARATOR = Ordering.from(new Comparator<Number>()
   {
     @Override
-    public int compare(Double lhs, Double rhs)
+    public int compare(Number lhs, Number rhs)
     {
-      return Double.compare(lhs, rhs);
+      return Double.compare(lhs.doubleValue(), rhs.doubleValue());
+    }
+  }).nullsFirst();
+
+  private static final Comparator LONG_COMPARATOR = Ordering.from(new Comparator<Number>()
+  {
+    @Override
+    public int compare(Number lhs, Number rhs)
+    {
+      return Long.compare(lhs.longValue(), rhs.longValue());
     }
   }).nullsFirst();
 
   private final String name;
   private final String fieldName;
+  private final boolean round;
 
   @JsonCreator
   public HyperUniqueFinalizingPostAggregator(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") String fieldName
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("round") boolean round
   )
   {
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName is null");
     //Note that, in general, name shouldn't be null, we are defaulting
     //to fieldName here just to be backward compatible with 0.7.x
     this.name = name == null ? fieldName : name;
+    this.round = round;
+  }
+
+  public HyperUniqueFinalizingPostAggregator(String name, String fieldName)
+  {
+    this(name, fieldName, false);
   }
 
   @Override
@@ -69,21 +86,21 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   }
 
   @Override
-  public Comparator<Double> getComparator()
+  public Comparator getComparator()
   {
-    return DOUBLE_COMPARATOR;
+    return round ? LONG_COMPARATOR : DOUBLE_COMPARATOR;
   }
 
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    return ValueDesc.DOUBLE;
+    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   @Override
   public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName), false);
+    return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName), round);
   }
 
   @Override
@@ -110,7 +127,8 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
     }
     HyperUniqueFinalizingPostAggregator that = (HyperUniqueFinalizingPostAggregator) o;
     return Objects.equals(name, that.name) &&
-           Objects.equals(fieldName, that.fieldName);
+           Objects.equals(fieldName, that.fieldName) &&
+           round == that.round;
   }
 
   @Override
@@ -125,6 +143,7 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
     return "HyperUniqueFinalizingPostAggregator{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
+           ", round='" + round + '\'' +
            '}';
   }
 }
