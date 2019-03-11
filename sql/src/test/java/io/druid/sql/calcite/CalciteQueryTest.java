@@ -762,7 +762,6 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testSelfJoinWithFallback() throws Exception
   {
-    // todo x.dim1, y.dim1, y.dim2 --> "abc", "def", "abc" ?
     testQuery(
         PLANNER_CONFIG_FALLBACK,
         "SELECT x.dim1, y.dim1, y.dim2\n"
@@ -820,7 +819,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .build()
         ),
         ImmutableList.of(
-            new Object[]{"def", "def", "abc"}
+            new Object[]{"abc", "def", "abc"}
         )
     );
   }

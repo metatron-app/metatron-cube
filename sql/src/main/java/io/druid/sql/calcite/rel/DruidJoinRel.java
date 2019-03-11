@@ -22,10 +22,11 @@ package io.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.GuavaUtils;
+import com.metamx.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinType;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.sql.calcite.Utils;
@@ -51,6 +52,8 @@ import java.util.List;
 
 public class DruidJoinRel extends DruidRel<DruidJoinRel>
 {
+  private static final Logger LOG = new Logger(DruidJoinRel.class);
+
   public static DruidJoinRel create(Join join, JoinInfo joinInfo, DruidRel left, DruidRel right)
   {
     return new DruidJoinRel(
@@ -120,7 +123,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
     final List<String> leftOrder = leftQuery.getOutputRowSignature().getRowOrder();
     final List<String> rightOrder = rightQuery.getOutputRowSignature().getRowOrder();
 
-    final RowSignature outRowSignature = RowSignature.from(GuavaUtils.concat(leftOrder, rightOrder), rowType);
+    final RowSignature outRowSignature = RowSignature.from(Queries.uniqueNames(leftOrder, rightOrder), rowType);
 
     final List<String> leftKeys = Lists.newArrayList();
     for (int leftKey : leftExpressions) {

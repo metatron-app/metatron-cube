@@ -465,17 +465,19 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public List<String> estimatedOutputColumns()
     {
-      List<Query<Map<String, Object>>> queries = getQueries();
+      Set<String> uniqueNames = Sets.newHashSet();
       List<String> outputColumns = Lists.newArrayList();
+
+      List<Query<Map<String, Object>>> queries = getQueries();
       for (int i = 0; i < queries.size(); i++) {
         List<String> columns = ((ArrayOutputSupport<?>) queries.get(i)).estimatedOutputColumns();
         Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(columns));
         if (prefixAliases == null) {
-          outputColumns.addAll(columns);
+          Queries.uniqueNames(columns, uniqueNames, outputColumns);
         } else {
           String alias = prefixAliases.get(i) + ".";
           for (String column : columns) {
-            outputColumns.add(alias + column);
+            outputColumns.add(Queries.uniqueName(alias + column, uniqueNames));
           }
         }
       }

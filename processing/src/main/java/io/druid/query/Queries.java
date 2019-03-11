@@ -206,23 +206,50 @@ public class Queries
       final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List queries = joinQuery.getQueries();
       List<String> aliases = joinQuery.getPrefixAliases();
+      Set<String> uniqueNames = Sets.newHashSet();
       for (int i = 0; i < queries.size(); i++) {
         final Schema schema = relaySchema((Query) queries.get(i), segmentWalker);
         final String prefix = aliases == null ? "" : aliases.get(i) + ".";
         for (Pair<String, ValueDesc> pair : schema.dimensionAndTypes()) {
-          dimensionNames.add(prefix + pair.lhs);
+          dimensionNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
           dimensionTypes.add(pair.rhs);
         }
         for (Pair<String, ValueDesc> pair : schema.metricAndTypes()) {
-          metricNames.add(prefix + pair.lhs);
+          metricNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
           metricTypes.add(pair.rhs);
         }
       }
     } else {
       // todo union-all (partitioned-join, etc.)
-      throw new UnsupportedOperationException("Cannot extract metric from query " + subQuery);
+      throw new UnsupportedOperationException("Cannot extract schema from query " + subQuery);
     }
+    LOG.info("resolved schema : %s + %s", dimensionNames, metricNames);
     return new Schema(dimensionNames, metricNames, GuavaUtils.concatish(dimensionTypes, metricTypes));
+  }
+
+  // keep the same convention with calcite (see SqlValidatorUtil.addFields)
+  public static List<String> uniqueNames(List<String> names1, List<String> names2)
+  {
+    Set<String> uniqueNames = Sets.newHashSet();
+    return uniqueNames(names2, uniqueNames, uniqueNames(names1, uniqueNames, Lists.<String>newArrayList()));
+  }
+
+  public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)
+  {
+    for (String name : names) {
+      appendTo.add(uniqueName(name, uniqueNames));
+    }
+    return appendTo;
+  }
+
+  public static String uniqueName(String name, Set<String> uniqueNames)
+  {
+    // Ensure that name is unique from all previous field names
+    String nameBase = name;
+    for (int j = 0; !uniqueNames.add(name); j++) {
+      name = nameBase + j;
+    }
+    return name;
   }
 
   @SuppressWarnings("unchecked")
