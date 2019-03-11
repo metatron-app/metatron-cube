@@ -209,7 +209,9 @@ public class CombineAndSimplifyBounds extends BottomUpTransform
         }
       }
     }
-
+    if (newChildren.isEmpty()) {
+      return Filtration.matchNothing();
+    }
     Preconditions.checkState(newChildren.size() > 0, "newChildren.size > 0");
     if (newChildren.size() == 1) {
       return newChildren.get(0);
