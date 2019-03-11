@@ -21,10 +21,14 @@ package io.druid.query.select;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.TestIndex;
@@ -171,6 +175,30 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     for (int i = 0; i < results.size(); i++) {
       Assert.assertArrayEquals(i + " th row", expected.get(i), results.get(i));
     }
+
+    // group-by on stream
+    GroupByQuery groupBy = GroupByQuery.builder()
+                                       .dataSource(query)
+                                       .addDimension("quality")
+                                       .aggregators(new GenericSumAggregatorFactory("index", "index", null))
+                                       .build();
+
+    String[] columns = new String[]{"__time", "quality", "index"};
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("-146136543-09-08T08:23:32.096Z", "automotive", 283.31103515625),
+        array("-146136543-09-08T08:23:32.096Z", "business", 231.557373046875),
+        array("-146136543-09-08T08:23:32.096Z", "entertainment", 324.7632751464844),
+        array("-146136543-09-08T08:23:32.096Z", "health", 233.5807113647461),
+        array("-146136543-09-08T08:23:32.096Z", "mezzanine", 5320.717338562012),
+        array("-146136543-09-08T08:23:32.096Z", "news", 235.87371826171875),
+        array("-146136543-09-08T08:23:32.096Z", "premium", 5407.213653564453),
+        array("-146136543-09-08T08:23:32.096Z", "technology", 176.00997924804688),
+        array("-146136543-09-08T08:23:32.096Z", "travel", 246.3341064453125)
+    );
+    GroupByQueryRunnerTestHelper.validate(columns, expectedRows, Sequences.toList(
+        groupBy.run(TestIndex.segmentWalker, CONTEXT)
+    ));
   }
 
   private static long time(String time)

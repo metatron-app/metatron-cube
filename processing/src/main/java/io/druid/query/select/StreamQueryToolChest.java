@@ -85,25 +85,10 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   {
     return new TabularFormat()
     {
-      private final List<String> columnNames = query.getColumns();
-
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.map(
-            sequence, new Function<Object[], Map<String, Object>>()
-            {
-              @Override
-              public Map<String, Object> apply(Object[] input)
-              {
-                final Map<String, Object> converted = Maps.newLinkedHashMap();
-                for (int i = 0; i < columnNames.size(); i++) {
-                  converted.put(columnNames.get(i), input[i]);
-                }
-                return converted;
-              }
-            }
-        );
+        return query.asMap(sequence);
       }
 
       @Override

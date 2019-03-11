@@ -56,6 +56,7 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
@@ -263,6 +264,8 @@ public class Queries
       return Sequences.explode((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS);
     } else if (subQuery instanceof BaseAggregationQuery) {
       return (Sequence<Row>) sequence;
+    } else if (subQuery instanceof StreamQuery) {
+      return ((StreamQuery)subQuery).asRow((Sequence<Object[]>) sequence);
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }

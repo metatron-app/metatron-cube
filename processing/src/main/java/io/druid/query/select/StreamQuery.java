@@ -24,10 +24,15 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import io.druid.common.DateTimes;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -44,6 +49,7 @@ import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.List;
@@ -369,6 +375,42 @@ public class StreamQuery extends BaseQuery<Object[]>
     return sequence;
   }
 
+  public Sequence<Map<String, Object>> asMap(Sequence<Object[]> sequence)
+  {
+    return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
+    {
+      private final List<String> columnNames = estimatedOutputColumns();
+
+      @Override
+      public Map<String, Object> apply(Object[] input)
+      {
+        final Map<String, Object> converted = Maps.newLinkedHashMap();
+        for (int i = 0; i < columnNames.size(); i++) {
+          converted.put(columnNames.get(i), input[i]);
+        }
+        return converted;
+      }
+    });
+  }
+
+  public Sequence<Row> asRow(Sequence<Object[]> sequence)
+  {
+    return Sequences.map(asMap(sequence), new Function<Map<String, Object>, Row>()
+    {
+      private final List<String> columnNames = estimatedOutputColumns();
+
+      @Override
+      public Row apply(Map<String, Object> input)
+      {
+        final Object time = input.get(Row.TIME_COLUMN_NAME);
+        return new MapBasedRow(
+            time instanceof DateTime ? (DateTime) time :
+            time instanceof Number ? DateTimes.utc(((Number) time).longValue()) :
+            null, input
+        );
+      }
+    });
+  }
 
   @Override
   public String toString()
