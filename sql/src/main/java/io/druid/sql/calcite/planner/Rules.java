@@ -106,13 +106,18 @@ public class Rules
           JoinPushExpressionsRule.INSTANCE,
           FilterAggregateTransposeRule.INSTANCE,
           ProjectWindowTransposeRule.INSTANCE,
-          JoinCommuteRule.INSTANCE,
           JoinPushThroughJoinRule.RIGHT,
           JoinPushThroughJoinRule.LEFT,
           SortProjectTransposeRule.INSTANCE,
           SortJoinTransposeRule.INSTANCE,
           SortUnionTransposeRule.INSTANCE,
           JoinPushTransitivePredicatesRule.INSTANCE
+      );
+
+  // todo : later..
+  private static final List<RelOptRule> JOIN_COMMUTE_RULES =
+      ImmutableList.of(
+          JoinCommuteRule.INSTANCE
       );
 
   // Rules from CalcitePrepareImpl's createPlanner.
@@ -142,7 +147,6 @@ public class Rules
           FilterJoinRule.FILTER_ON_JOIN,
           FilterJoinRule.JOIN,
           AbstractConverter.ExpandConversionRule.INSTANCE,
-          JoinCommuteRule.INSTANCE,
           AggregateRemoveRule.INSTANCE,
           UnionToDistinctRule.INSTANCE,
           ProjectRemoveRule.INSTANCE,

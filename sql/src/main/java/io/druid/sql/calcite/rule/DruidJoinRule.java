@@ -68,12 +68,19 @@ public class DruidJoinRule extends RelOptRule
     final JoinInfo joinInfo = JoinInfo.of(join.getLeft(), join.getRight(), condition);
     if (joinInfo.isEqui()) {
       call.transformTo(DruidJoinRel.create(join, joinInfo, left, right));
-    }
-    boolean hasEquijoins = joinInfo.leftKeys.size() == joinInfo.rightKeys.size() && joinInfo.leftKeys.size() > 0;
-    if (hasEquijoins && join.getJoinType() == JoinRelType.INNER) {
-      RexNode remaining = joinInfo.getRemaining(rexBuilder);
-      DruidRel joinRel = DruidJoinRel.create(join, joinInfo, left, right);
-      call.transformTo(new LogicalFilter(join.getCluster(), join.getTraitSet(), joinRel, remaining, ImmutableSet.of()));
+    } else {
+      boolean hasEquijoins = joinInfo.leftKeys.size() == joinInfo.rightKeys.size() && joinInfo.leftKeys.size() > 0;
+      if (hasEquijoins && join.getJoinType() == JoinRelType.INNER) {
+        RexNode remaining = joinInfo.getRemaining(rexBuilder);
+        DruidRel joinRel = DruidJoinRel.create(join, joinInfo, left, right);
+        call.transformTo(new LogicalFilter(
+            join.getCluster(),
+            join.getTraitSet(),
+            joinRel,
+            remaining,
+            ImmutableSet.of()
+        ));
+      }
     }
   }
 
