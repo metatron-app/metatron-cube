@@ -108,12 +108,12 @@ public class EvalTest
     Assert.assertTrue(evalDouble("1.0 || 0.0", bindings) > 0.0);
     Assert.assertFalse(evalDouble("0.0 || 0.0", bindings) > 0.0);
 
-    Assert.assertTrue(evalDouble("2.0 > 1.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("2.0 >= 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("1.0 < 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("2.0 <= 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("2.0 == 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("2.0 != 1.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("2.0 > 1.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("2.0 >= 2.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("1.0 < 2.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("2.0 <= 2.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("2.0 == 2.0", bindings) > 0.0);
+    Assert.assertTrue(evalLong("2.0 != 1.0", bindings) > 0.0);
 
     Assert.assertEquals(3.5, evalDouble("2.0 + 1.5", bindings), 0.0001);
     Assert.assertEquals(0.5, evalDouble("2.0 - 1.5", bindings), 0.0001);

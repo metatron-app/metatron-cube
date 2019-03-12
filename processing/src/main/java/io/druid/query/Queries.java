@@ -159,11 +159,21 @@ public class Queries
   {
     if (subQuery.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
-      return relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
+      Schema schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
+      LOG.info(
+          "%s resolved schema : %s%s",
+          subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
+      );
+      return schema;
     }
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
-      return QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+      Schema schema = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+      LOG.info(
+          "%s resolved schema : %s%s",
+          subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
+      );
+      return schema;
     }
     List<String> dimensionNames = Lists.newArrayList();
     List<String> metricNames = Lists.newArrayList();

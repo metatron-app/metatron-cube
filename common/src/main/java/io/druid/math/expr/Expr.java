@@ -520,6 +520,8 @@ abstract class BinaryOp implements Expr
   }
 }
 
+abstract interface BooleanBinaryOp {}
+
 abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpression
 {
   public BinaryOpExprBase(String op, Expr left, Expr right)
@@ -537,16 +539,28 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.resolve(bindings);
-    ValueDesc rightType = right.resolve(bindings);
-    if (leftType.isStringOrDimension() || rightType.isStringOrDimension()) {
+    if (this instanceof BooleanBinaryOp) {
+      return ValueDesc.LONG;
+    }
+    ValueDesc lt = left.resolve(bindings);
+    ValueDesc rt = right.resolve(bindings);
+    if (lt.isDateTime() || rt.isDateTime()) {
+      return ValueDesc.DATETIME;
+    }
+    if (!lt.isNumeric() && !rt.isNumeric()) {
       return ValueDesc.STRING;
     }
-    if (leftType.isFloat() && rightType.isFloat()) {
+    if (lt.isStringOrDimension() || rt.isStringOrDimension()) {
+      return ValueDesc.STRING;
+    }
+    if (lt.isFloat() && rt.isFloat()) {
       return ValueDesc.FLOAT;
     }
-    if (leftType.isLong() && rightType.isLong()) {
+    if (lt.isLong() && rt.isLong()) {
       return ValueDesc.LONG;
+    }
+    if (supportsDecimalEval() && (lt.isDecimal() || rt.isDecimal())) {
+      return ValueDesc.DECIMAL;
     }
     return ValueDesc.DOUBLE;
   }
@@ -563,9 +577,8 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
       DateTime left = lt.isDateTime() ? leftVal.dateTimeValue() : leftVal.asDateTime();
       DateTime right = rt.isDateTime() ? rightVal.dateTimeValue() : rightVal.asDateTime();
       DateTimeZone zone = left != null ? left.getZone() : right != null ? right.getZone() : null;
-      return ExprEval.of(
-          DateTimes.withZone(evalLong(left == null ? 0 : left.getMillis(), right == null ? 0 : right.getMillis()), zone)
-      );
+      ExprEval exprEval = evalLong(left == null ? 0 : left.getMillis(), right == null ? 0 : right.getMillis());
+      return ExprEval.of(DateTimes.withZone(exprEval.asLong(), zone));
     }
     if (!lt.isNumeric() && !rt.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
@@ -577,20 +590,20 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
       return rightVal;
     }
     if (lt.isLong() && rt.isLong()) {
-      return ExprEval.of(evalLong(leftVal.longValue(), rightVal.longValue()));
+      return evalLong(leftVal.longValue(), rightVal.longValue());
     }
     if (!lt.isNumeric() || !rt.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
     if (supportsFloatEval() && lt.isFloat() && rt.isFloat()) {
-      return ExprEval.of(evalFloat(leftVal.floatValue(), rightVal.floatValue()));
+      return evalFloat(leftVal.floatValue(), rightVal.floatValue());
     }
     if (supportsDecimalEval() && (lt.isDecimal() || rt.isDecimal())) {
       BigDecimal decimal1 = lt.isDecimal() ? (BigDecimal) leftVal.value() : BigDecimal.valueOf(leftVal.doubleValue());
       BigDecimal decimal2 = rt.isDecimal() ? (BigDecimal) rightVal.value() : BigDecimal.valueOf(rightVal.doubleValue());
       return ExprEval.of(evalDecimal(decimal1, decimal2));
     }
-    return ExprEval.of(evalDouble(leftVal.doubleValue(), rightVal.doubleValue()));
+    return evalDouble(leftVal.doubleValue(), rightVal.doubleValue());
   }
 
   protected boolean supportsStringEval()
@@ -603,19 +616,19 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     throw new IllegalArgumentException("unsupported type " + ValueDesc.STRING + " in operation " + op);
   }
 
-  protected abstract long evalLong(long left, long right);
+  protected abstract ExprEval evalLong(long left, long right);
 
   protected boolean supportsFloatEval()
   {
     return true;
   }
 
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
     throw new IllegalArgumentException("unsupported type " + ValueDesc.FLOAT + " in operation " + op);
   }
 
-  protected abstract double evalDouble(double left, double right);
+  protected abstract ExprEval evalDouble(double left, double right);
 
   protected boolean supportsDecimalEval()
   {
@@ -643,21 +656,21 @@ final class BinMinusExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left - right;
+    return ExprEval.of(left - right);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left - right;
+    return ExprEval.of(left - right);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left - right;
+    return ExprEval.of(left - right);
   }
 
   @Override
@@ -688,15 +701,15 @@ final class BinPowExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return LongMath.pow(left, (int) right);
+    return ExprEval.of(LongMath.pow(left, (int) right));
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return Math.pow(left, right);
+    return ExprEval.of(Math.pow(left, right));
   }
 
   @Override
@@ -721,21 +734,21 @@ final class BinMulExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left * right;
+    return ExprEval.of(left * right);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left * right;
+    return ExprEval.of(left * right);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left * right;
+    return ExprEval.of(left * right);
   }
 
   @Override
@@ -760,21 +773,21 @@ final class BinDivExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left / right;
+    return ExprEval.of(left / right);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left / right;
+    return ExprEval.of(left / right);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left / right;
+    return ExprEval.of(left / right);
   }
 
   @Override
@@ -799,21 +812,21 @@ final class BinModuloExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left % right;
+    return ExprEval.of(left % right);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left % right;
+    return ExprEval.of(left % right);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left % right;
+    return ExprEval.of(left % right);
   }
 
   protected boolean supportsDecimalEval()
@@ -824,7 +837,6 @@ final class BinModuloExpr extends BinaryOpExprBase
 
 final class BinPlusExpr extends BinaryOpExprBase
 {
-
   BinPlusExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -837,21 +849,21 @@ final class BinPlusExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left + right;
+    return ExprEval.of(left + right);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left + right;
+    return ExprEval.of(left + right);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left + right;
+    return ExprEval.of(left + right);
   }
 
   @Override
@@ -861,9 +873,8 @@ final class BinPlusExpr extends BinaryOpExprBase
   }
 }
 
-final class BinLtExpr extends BinaryOpExprBase
+final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinLtExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -876,21 +887,21 @@ final class BinLtExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left < right ? 1L : 0L;
+    return ExprEval.of(left < right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left < right ? 1f : 0f;
+    return ExprEval.of(left < right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left < right ? 1.0d : 0.0d;
+    return ExprEval.of(left < right ? 1L : 0L);
   }
 
   @Override
@@ -900,9 +911,8 @@ final class BinLtExpr extends BinaryOpExprBase
   }
 }
 
-final class BinLeqExpr extends BinaryOpExprBase
+final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinLeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -915,21 +925,21 @@ final class BinLeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left <= right ? 1L : 0L;
+    return ExprEval.of(left <= right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left <= right ? 1f : 0f;
+    return ExprEval.of(left <= right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left <= right ? 1.0d : 0.0d;
+    return ExprEval.of(left <= right ? 1L : 0L);
   }
 
   @Override
@@ -939,9 +949,8 @@ final class BinLeqExpr extends BinaryOpExprBase
   }
 }
 
-final class BinGtExpr extends BinaryOpExprBase
+final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinGtExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -954,21 +963,21 @@ final class BinGtExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left > right ? 1L : 0L;
+    return ExprEval.of(left > right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left > right ? 1f : 0f;
+    return ExprEval.of(left > right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left > right ? 1.0d : 0.0d;
+    return ExprEval.of(left > right ? 1L : 0L);
   }
 
   @Override
@@ -978,9 +987,8 @@ final class BinGtExpr extends BinaryOpExprBase
   }
 }
 
-final class BinGeqExpr extends BinaryOpExprBase
+final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinGeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -993,21 +1001,21 @@ final class BinGeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left >= right ? 1L : 0L;
+    return ExprEval.of(left >= right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left >= right ? 1f : 0f;
+    return ExprEval.of(left >= right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left >= right ? 1.0d : 0.0d;
+    return ExprEval.of(left >= right ? 1L : 0L);
   }
 
   @Override
@@ -1017,9 +1025,8 @@ final class BinGeqExpr extends BinaryOpExprBase
   }
 }
 
-final class BinEqExpr extends BinaryOpExprBase
+final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinEqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -1032,21 +1039,21 @@ final class BinEqExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left == right ? 1L : 0L;
+    return ExprEval.of(left == right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left == right ? 1f : 0f;
+    return ExprEval.of(left == right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left == right ? 1.0d : 0.0d;
+    return ExprEval.of(left == right ? 1L : 0L);
   }
 
   @Override
@@ -1056,9 +1063,8 @@ final class BinEqExpr extends BinaryOpExprBase
   }
 }
 
-final class BinNeqExpr extends BinaryOpExprBase
+final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
 {
-
   BinNeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -1071,21 +1077,21 @@ final class BinNeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected long evalLong(long left, long right)
+  protected ExprEval evalLong(long left, long right)
   {
-    return left != right ? 1L : 0L;
+    return ExprEval.of(left != right ? 1L : 0L);
   }
 
   @Override
-  protected float evalFloat(float left, float right)
+  protected ExprEval evalFloat(float left, float right)
   {
-    return left != right ? 1f : 0f;
+    return ExprEval.of(left != right ? 1L : 0L);
   }
 
   @Override
-  protected double evalDouble(double left, double right)
+  protected ExprEval evalDouble(double left, double right)
   {
-    return left != right ? 1.0d : 0.0d;
+    return ExprEval.of(left != right ? 1L : 0L);
   }
 
   @Override
