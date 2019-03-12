@@ -34,6 +34,7 @@ import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
@@ -281,6 +282,10 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
   @Override
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
   {
-    return planner.getCostFactory().makeCost(mq.getRowCount(left) + mq.getRowCount(right), 0, 0);
+    final RelOptCostFactory costFactory = planner.getCostFactory();
+    if (leftExpressions.isEmpty()) {
+      return costFactory.makeCost((1 + mq.getRowCount(left)) * (1 + mq.getRowCount(right)) * 20, 0, 0);
+    }
+    return costFactory.makeCost(mq.getRowCount(left) + mq.getRowCount(right), 0, 0);
   }
 }
