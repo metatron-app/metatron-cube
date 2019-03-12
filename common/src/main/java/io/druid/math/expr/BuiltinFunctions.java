@@ -2495,21 +2495,21 @@ public interface BuiltinFunctions extends Function.Library
         reset();
         for (Object object : context.iterator(window[0], window[1], fieldName)) {
           if (object != null) {
-            invoke(object);
+            invoke(object, context);
           }
         }
       } else {
         Object current = context.get(fieldName);
         if (current != null) {
-          invoke(current);
+          invoke(current, context);
         }
       }
-      return current();
+      return current(context);
     }
 
-    protected abstract void invoke(Object current);
+    protected abstract void invoke(Object current, WindowContext context);
 
-    protected abstract Object current();
+    protected abstract Object current(WindowContext context);
   }
 
   @Function.Named("$prev")
@@ -2693,7 +2693,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
       switch (fieldType.type()) {
         case LONG:
@@ -2709,7 +2709,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object current()
+    protected Object current(WindowContext context)
     {
       if (fieldType.isLong()) {
         return longSum;
@@ -2726,6 +2726,11 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("$avg")
+  class RunningAvg extends RunningMean
+  {
+  }
+
   @Function.Named("$min")
   final class RunningMin extends WindowSupport implements Factory
   {
@@ -2733,7 +2738,7 @@ public interface BuiltinFunctions extends Function.Library
 
     @Override
     @SuppressWarnings("unchecked")
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
       Comparable comparable = (Comparable) current;
       if (prev == null || (comparable != null && comparable.compareTo(prev) < 0)) {
@@ -2742,7 +2747,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object current()
+    protected Object current(WindowContext context)
     {
       return prev;
     }
@@ -2761,7 +2766,7 @@ public interface BuiltinFunctions extends Function.Library
 
     @Override
     @SuppressWarnings("unchecked")
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
       Comparable comparable = (Comparable) current;
       if (prev == null || (comparable != null && comparable.compareTo(prev) > 0)) {
@@ -2770,7 +2775,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object current()
+    protected Object current(WindowContext context)
     {
       return prev;
     }
@@ -2861,7 +2866,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$mean")
-  final class RunningMean extends RunningSum
+  class RunningMean extends RunningSum
   {
     private int count;
 
@@ -2872,16 +2877,16 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
-      super.invoke(current);
+      super.invoke(current, context);
       count++;
     }
 
     @Override
-    protected Object current()
+    protected Object current(WindowContext context)
     {
-      return ((Number) super.current()).doubleValue() / count;
+      return ((Number) super.current(context)).doubleValue() / count;
     }
 
     public void reset()
@@ -2905,7 +2910,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
       double v = ((Number) current).doubleValue();
       count++;
@@ -2917,7 +2922,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Double current()
+    protected Double current(WindowContext context)
     {
       return count == 1 ? 0d : nvariance / (count - 1);
     }
@@ -2934,9 +2939,9 @@ public interface BuiltinFunctions extends Function.Library
   final class RunningStandardDeviation extends RunningVariance
   {
     @Override
-    protected Double current()
+    protected Double current(WindowContext context)
     {
-      return Math.sqrt(super.current());
+      return Math.sqrt(super.current(context));
     }
   }
 
@@ -2944,7 +2949,7 @@ public interface BuiltinFunctions extends Function.Library
   class RunningVariancePop extends RunningVariance
   {
     @Override
-    protected Double current()
+    protected Double current(WindowContext context)
     {
       return count == 1 ? 0d : nvariance / count;
     }
@@ -2954,9 +2959,9 @@ public interface BuiltinFunctions extends Function.Library
   final class RunningStandardDeviationPop extends RunningVariancePop
   {
     @Override
-    protected Double current()
+    protected Double current(WindowContext context)
     {
-      return Math.sqrt(super.current());
+      return Math.sqrt(super.current(context));
     }
   }
 
@@ -2997,7 +3002,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected void invoke(Object current)
+    protected void invoke(Object current, WindowContext context)
     {
       if (window == null) {
         if (type == ValueType.LONG) {
@@ -3038,7 +3043,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object current()
+    protected Object current(WindowContext context)
     {
       if (window != null) {
         if (type == ValueType.LONG) {

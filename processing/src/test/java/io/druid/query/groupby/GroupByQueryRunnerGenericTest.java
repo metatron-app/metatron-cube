@@ -3687,38 +3687,39 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                     null, null,
                     "delta_all = $delta(rows)",
                     "sum_all = $sum(rows)",
-                    "sum_post = $sum(addRowsIndexConstant)"
+                    "sum_post = $sum(addRowsIndexConstant)",
+                    "avg_post = round($avg(addRowsIndexConstant), 1)"
                 )
             )
         )
     );
 
     columnNames = new String[]{
-        "__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all", "sum_post"
+        "__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all", "sum_post", "avg_post"
     };
     expectedResults = createExpectedRows(
         columnNames,
-        array("1970-01-01", "Friday", 26L, 0L, 26L, 0L, 26L, 27324.862365722656),
-        array("1970-01-01", "Friday", 26L, 0L, 52L, 0L, 52L, 57525.55432128906),
-        array("1970-01-01", "Friday", 117L, 91L, 169L, 91L, 169L, 70863.1283416748),
-        array("1970-01-01", "Monday", 26L, 0L, 26L, -91L, 195L, 98509.71311950684),
-        array("1970-01-01", "Monday", 26L, 0L, 52L, 0L, 221L, 129005.48985290527),
-        array("1970-01-01", "Monday", 117L, 91L, 169L, 91L, 338L, 142681.22874832153),
-        array("1970-01-01", "Saturday", 26L, 0L, 26L, -91L, 364L, 170529.05992507935),
-        array("1970-01-01", "Saturday", 26L, 0L, 52L, 0L, 390L, 201497.031665802),
-        array("1970-01-01", "Saturday", 117L, 91L, 169L, 91L, 507L, 215108.78285598755),
-        array("1970-01-01", "Sunday", 26L, 0L, 26L, -91L, 533L, 239927.00667190552),
-        array("1970-01-01", "Sunday", 26L, 0L, 52L, 0L, 559L, 269259.0926094055),
-        array("1970-01-01", "Sunday", 117L, 91L, 169L, 91L, 676L, 282962.633518219),
-        array("1970-01-01", "Thursday", 28L, 0L, 28L, -89L, 704L, 311554.38229751587),
-        array("1970-01-01", "Thursday", 28L, 0L, 56L, 0L, 732L, 343944.76919937134),
-        array("1970-01-01", "Thursday", 126L, 98L, 182L, 98L, 858L, 358350.89652633667),
-        array("1970-01-01", "Tuesday", 26L, 0L, 26L, -100L, 884L, 385346.1766166687),
-        array("1970-01-01", "Tuesday", 26L, 0L, 52L, 0L, 910L, 415049.754863739),
-        array("1970-01-01", "Tuesday", 117L, 91L, 169L, 91L, 1027L, 428367.2261314392),
-        array("1970-01-01", "Wednesday", 28L, 0L, 28L, -89L, 1055L, 457381.80114364624),
-        array("1970-01-01", "Wednesday", 28L, 0L, 56L, 0L, 1083L, 490164.1384239197),
-        array("1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L, 504562.5071372986)
+        array("1970-01-01", "Friday", 26L, 0L, 26L, 0L, 26L, 27324.862365722656, 27324.9),
+        array("1970-01-01", "Friday", 26L, 0L, 52L, 0L, 52L, 57525.55432128906, 28762.8),
+        array("1970-01-01", "Friday", 117L, 91L, 169L, 91L, 169L, 70863.1283416748, 23621.0),
+        array("1970-01-01", "Monday", 26L, 0L, 26L, -91L, 195L, 98509.71311950684, 24627.4),
+        array("1970-01-01", "Monday", 26L, 0L, 52L, 0L, 221L, 129005.48985290527, 25801.1),
+        array("1970-01-01", "Monday", 117L, 91L, 169L, 91L, 338L, 142681.22874832153, 23780.2),
+        array("1970-01-01", "Saturday", 26L, 0L, 26L, -91L, 364L, 170529.05992507935, 24361.3),
+        array("1970-01-01", "Saturday", 26L, 0L, 52L, 0L, 390L, 201497.031665802, 25187.1),
+        array("1970-01-01", "Saturday", 117L, 91L, 169L, 91L, 507L, 215108.78285598755, 23901.0),
+        array("1970-01-01", "Sunday", 26L, 0L, 26L, -91L, 533L, 239927.00667190552, 23992.7),
+        array("1970-01-01", "Sunday", 26L, 0L, 52L, 0L, 559L, 269259.0926094055, 24478.1),
+        array("1970-01-01", "Sunday", 117L, 91L, 169L, 91L, 676L, 282962.633518219, 23580.2),
+        array("1970-01-01", "Thursday", 28L, 0L, 28L, -89L, 704L, 311554.38229751587, 23965.7),
+        array("1970-01-01", "Thursday", 28L, 0L, 56L, 0L, 732L, 343944.76919937134, 24567.5),
+        array("1970-01-01", "Thursday", 126L, 98L, 182L, 98L, 858L, 358350.89652633667, 23890.1),
+        array("1970-01-01", "Tuesday", 26L, 0L, 26L, -100L, 884L, 385346.1766166687, 24084.1),
+        array("1970-01-01", "Tuesday", 26L, 0L, 52L, 0L, 910L, 415049.754863739, 24414.7),
+        array("1970-01-01", "Tuesday", 117L, 91L, 169L, 91L, 1027L, 428367.2261314392, 23798.2),
+        array("1970-01-01", "Wednesday", 28L, 0L, 28L, -89L, 1055L, 457381.80114364624, 24072.7),
+        array("1970-01-01", "Wednesday", 28L, 0L, 56L, 0L, 1083L, 490164.1384239197, 24508.2),
+        array("1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L, 504562.5071372986, 24026.8)
     );
 
     results = runQuery(builder.build(), true);

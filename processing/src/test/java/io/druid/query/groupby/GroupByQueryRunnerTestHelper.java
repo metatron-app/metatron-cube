@@ -195,9 +195,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
     List<Row> expected = Lists.newArrayList();
     for (Object[] value : values) {
-      Preconditions.checkArgument(value.length == columnNames.length);
       Map<String, Object> theVals = Maps.newLinkedHashMap();
-      for (int i = 0; i < columnNames.length; i++) {
+      for (int i = 0; i < Math.min(value.length, columnNames.length); i++) {
         if (i != timeIndex) {
           theVals.put(columnNames[i], value[i]);
         }
