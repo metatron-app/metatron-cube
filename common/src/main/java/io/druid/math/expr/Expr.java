@@ -236,11 +236,20 @@ final class IdentifierExpr implements Expr
 {
   private final String value;
   private final int index;
+  private final boolean indexed;
 
   public IdentifierExpr(String value, int index)
   {
     this.value = value;
     this.index = index;
+    this.indexed = true;
+  }
+
+  public IdentifierExpr(String value)
+  {
+    this.value = value;
+    this.index = -1;
+    this.indexed = false;
   }
 
   public String identifier()
@@ -251,14 +260,14 @@ final class IdentifierExpr implements Expr
   @Override
   public String toString()
   {
-    return index < 0 ? value : value + "[" + index + "]";
+    return indexed ? value + "[" + index + "]" : value;
   }
 
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
     ValueDesc resolved = bindings.resolve(value, ValueDesc.UNKNOWN);
-    if (index >= 0) {
+    if (indexed) {
       resolved = ValueDesc.isArray(resolved) ? ValueDesc.elementOfArray(resolved) : ValueDesc.UNKNOWN;
     }
     return resolved;
@@ -272,12 +281,16 @@ final class IdentifierExpr implements Expr
       type = resolve((TypeResolver) bindings);
     }
     Object binding = bindings.get(value);
-    if (index >= 0) {
+    if (indexed) {
       if (binding instanceof List) {
         List list = (List) binding;
-        binding = index < list.size() ? list.get(index) : null;
+        final int length = list.size();
+        int x = index < 0 ? length + index : index;
+        binding = x >= 0 && x < length ? list.get(x) : null;
       } else if (binding.getClass().isArray()) {
-        binding = index < Array.getLength(binding) ? Array.get(binding, index) : null;
+        final int length = Array.getLength(binding);
+        int x = index < 0 ? length + index : index;
+        binding = x >= 0 && x < length ? Array.get(binding, x) : null;
       } else {
         binding = null;
       }

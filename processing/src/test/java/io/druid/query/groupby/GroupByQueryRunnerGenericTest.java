@@ -4086,7 +4086,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                     dayOfWeek, Arrays.asList(indexDsc), Arrays.asList("sum_week = $sum(index)"),
                     FlattenSpec.array(Arrays.asList("market", "index", "sum_week"), null)
                                .withExpression(
-                                   "sum_week_first=sum_week[0]", "sum_week_last=sum_week[_1]"
+                                   "sum_week_first=\"sum_week\"[0]", "sum_week_last=\"sum_week\"[-1]"
                                )
                 )
             )

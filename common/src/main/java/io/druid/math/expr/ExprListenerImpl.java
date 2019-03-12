@@ -324,11 +324,15 @@ public class ExprListenerImpl extends ExprBaseListener
     if (text.charAt(0) == '"' && text.charAt(text.length() - 1) == '"') {
       text = text.substring(1, text.length() - 1);
     }
-    int index = -1;
-    if (ctx.getChildCount() == 4 && ctx.getChild(1).getText().equals("[") && ctx.getChild(3).getText().equals("]")) {
-      index = Integer.parseInt(ctx.getChild(2).getText());
+    if (ctx.getChildCount() == 5 && ctx.getChild(1).getText().equals("[") && ctx.getChild(2).getText().equals("-") && ctx.getChild(4).getText().equals("]")) {
+      int index = Integer.parseInt(ctx.getChild(3).getText());
+      nodes.put(ctx, new IdentifierExpr(text, -index));
+    } else if (ctx.getChildCount() == 4 && ctx.getChild(1).getText().equals("[") && ctx.getChild(3).getText().equals("]")) {
+      int index = Integer.parseInt(ctx.getChild(2).getText());
+      nodes.put(ctx, new IdentifierExpr(text, index));
+    } else {
+      nodes.put(ctx, new IdentifierExpr(text));
     }
-    nodes.put(ctx, new IdentifierExpr(text, index));
   }
 
   @Override
