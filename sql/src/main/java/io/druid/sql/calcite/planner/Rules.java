@@ -60,6 +60,7 @@ import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
+import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.rules.ProjectTableScanRule;
@@ -110,8 +111,7 @@ public class Rules
           JoinPushThroughJoinRule.LEFT,
           SortProjectTransposeRule.INSTANCE,
           SortJoinTransposeRule.INSTANCE,
-          SortUnionTransposeRule.INSTANCE,
-          JoinPushTransitivePredicatesRule.INSTANCE
+          SortUnionTransposeRule.INSTANCE
       );
 
   // todo : later..
@@ -253,6 +253,10 @@ public class Rules
     rules.addAll(VOLCANO_ABSTRACT_RULES);
     rules.addAll(RELOPTUTIL_ABSTRACT_RULES);
     rules.addAll(SUB_QUERY_REMOVE_RULES);
+
+    if (plannerConfig.isProjectJoinTransposeEnabled()) {
+      rules.add(ProjectJoinTransposeRule.INSTANCE);
+    }
 
     if (!plannerConfig.isUseApproximateCountDistinct()) {
       // We'll need this to expand COUNT DISTINCTs.

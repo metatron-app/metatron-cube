@@ -34,6 +34,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_FALLBACK = "useFallback";
   public static final String CTX_KEY_USE_JOIN = "useJoin";
   public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
+  public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
 
   @JsonProperty
   private Period metadataRefreshPeriod = new Period("PT1M");
@@ -70,6 +71,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean transitiveFilterOnjoinEnabled = true;
+
+  @JsonProperty
+  private boolean projectJoinTransposeEnabled = false;  // should fix a bug (try tpch-7)
 
   public Period getMetadataRefreshPeriod()
   {
@@ -121,6 +125,11 @@ public class PlannerConfig
     return transitiveFilterOnjoinEnabled;
   }
 
+  public boolean isProjectJoinTransposeEnabled()
+  {
+    return projectJoinTransposeEnabled;
+  }
+
   public boolean isRequireTimeCondition()
   {
     return requireTimeCondition;
@@ -168,6 +177,11 @@ public class PlannerConfig
         CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN,
         isTransitiveFilterOnjoinEnabled()
     );
+    newConfig.projectJoinTransposeEnabled = getContextBoolean(
+        context,
+        CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE,
+        isProjectJoinTransposeEnabled()
+    );
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
     return newConfig;
@@ -210,6 +224,7 @@ public class PlannerConfig
            useFallback == that.useFallback &&
            joinEnabled == that.joinEnabled &&
            transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
+           projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
            Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
@@ -230,6 +245,7 @@ public class PlannerConfig
         useFallback,
         joinEnabled,
         transitiveFilterOnjoinEnabled,
+        projectJoinTransposeEnabled,
         requireTimeCondition,
         sqlTimeZone
     );
@@ -249,6 +265,7 @@ public class PlannerConfig
            ", useFallback=" + useFallback +
            ", joinEnabled=" + joinEnabled +
            ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
+           ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
            ", sqlTimeZone=" + sqlTimeZone +
            '}';

@@ -224,7 +224,10 @@ public class Queries
       // todo union-all (partitioned-join, etc.)
       throw new UnsupportedOperationException("Cannot extract schema from query " + subQuery);
     }
-    LOG.info("resolved schema : %s + %s", dimensionNames, metricNames);
+    LOG.info(
+        "%s resolved schema : %s%s + %s%s",
+        subQuery.getDataSource().getNames(), dimensionNames, dimensionTypes, metricNames, metricTypes
+    );
     return new Schema(dimensionNames, metricNames, GuavaUtils.concatish(dimensionTypes, metricTypes));
   }
 

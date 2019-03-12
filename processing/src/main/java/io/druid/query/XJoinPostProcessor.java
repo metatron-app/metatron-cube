@@ -334,7 +334,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       }
       Preconditions.checkArgument(right.isSorted());
     }
-    log.info("... start %s join %s to %s (%s)", type, left.alias, right.alias, "SortedMerge");
+    log.info("... start %s join %s to %s (%s)", type, left, right, "SortedMerge");
     return new JoinIterator(type, left, right)
     {
       @Override
@@ -657,7 +657,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
         boolean sorted
     )
     {
-      log.info("----> %s = iterator (sorted=%s)", alias, sorted);
+      log.info("---> %s = stream (sorted=%s)", alias, sorted);
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
@@ -675,7 +675,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
         Map<JoinKey, Object> hashed
     )
     {
-      log.info("----> %s = hashed (%d)", alias, hashed.size());
+      log.info("---> %s = hashed (group=%d)", alias, hashed.size());
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
@@ -775,7 +775,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
 
     public String toString()
     {
-      return alias + (isHashed() ? "(hashed)" : isSorted() ? "(sorted-stream)" : "");
+      return alias + "." + joinColumns + (isHashed() ? "(hashed)" : isSorted() ? "(sorted-stream)" : "");
     }
   }
 
