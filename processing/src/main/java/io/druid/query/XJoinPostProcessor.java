@@ -26,6 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -302,6 +303,11 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
   @VisibleForTesting
   final Iterator<Object[]> join(JoinAlias left, JoinAlias right, final int index)
   {
+    Preconditions.checkArgument(left.joinColumns.size() == right.joinColumns.size());
+    if (left.joinColumns.size() == 0) {
+      log.info("... start cross join %s to %s", left, right);
+      return product(left.materialize(), right.materialize(), false);
+    }
     final JoinType type = elements[index].getJoinType();
     if (left.isHashed() && right.isHashed()) {
       switch (type) {
@@ -698,6 +704,32 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
     private void prepareHashIterator()
     {
       iterator = hashed.entrySet().iterator();
+    }
+
+    private List<Object[]> materialize()
+    {
+      List<Object[]> materialized;
+      if (hashed != null) {
+        materialized = Lists.<Object[]>newArrayList(
+            Iterables.concat(
+                Iterables.transform(
+                    hashed.values(),
+                    new Function<Object, List<Object[]>>()
+                    {
+                      @Override
+                      public List<Object[]> apply(Object input)
+                      {
+                        return asValues(input);
+                      }
+                    }
+                )
+            )
+        );
+        hashed.clear();
+      } else {
+        materialized = Lists.<Object[]>newArrayList(rows);
+      }
+      return materialized;
     }
 
     private JoinAlias transform(int hashThreshold)
