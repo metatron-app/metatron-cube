@@ -42,7 +42,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -270,7 +269,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           long estimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
           hashed = estimated > 0 && estimated < threshold;
           if (hashed) {
-            query = query.withOverriddenContext(JoinElement.HASHABLE, true);
+            query = query.withOverriddenContext(JoinElement.HASHING, true);
           }
           LOG.info("%s (L) -----> %d rows, hashed? %s", element.getLeftAlias(), estimated, hashed);
         }
@@ -282,7 +281,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         long estimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
         hashed = estimated > 0 && estimated < threshold;
         if (hashed) {
-          query = query.withOverriddenContext(JoinElement.HASHABLE, true);
+          query = query.withOverriddenContext(JoinElement.HASHING, true);
         }
         LOG.info("%s (R) -----> %d rows, hashed? %s", element.getRightAlias(), estimated, hashed);
       }
@@ -292,24 +291,18 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     JoinElement lastElement = elements.get(elements.size() - 1);
 
     List<String> prefixAliases;
-    List<List<String>> sortColumns;
     String timeColumn;
     if (prefixAlias) {
       prefixAliases = JoinElement.getAliases(elements);
-      sortColumns = Arrays.asList(
-          GuavaUtils.prependEach(lastElement.getLeftAlias() + ".", lastElement.getLeftJoinColumns()),
-          GuavaUtils.prependEach(lastElement.getRightAlias() + ".", lastElement.getRightJoinColumns())
-      );
       timeColumn = timeColumnName == null ? prefixAliases.get(0) + "." + Column.TIME_COLUMN_NAME : timeColumnName;
     } else {
       prefixAliases = null;
-      sortColumns = Arrays.asList(lastElement.getLeftJoinColumns(), lastElement.getRightJoinColumns());
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
     // removed parallelism.. executed parallel in join post processor
     return new JoinDelegate(
-        queries, prefixAliases, sortColumns, timeColumn, limit, computeOverriddenContext(joinContext)
+        queries, prefixAliases, timeColumn, limit, computeOverriddenContext(joinContext)
     );
   }
 
@@ -346,13 +339,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       implements ArrayOutputSupport<Map<String, Object>>
   {
     private final List<String> prefixAliases;  // for schema resolving
-    private final List<List<String>> sortColumns;
     private final String timeColumnName;
+
+    private List<String> sortedColumns;        // set when smb join is applied
 
     public JoinDelegate(
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
-        List<List<String>> sortColumns,
         String timeColumnName,
         int limit,
         Map<String, Object> context
@@ -360,7 +353,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       super(null, list, false, limit, -1, context);
       this.prefixAliases = prefixAliases;
-      this.sortColumns = sortColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
     }
 
@@ -369,14 +361,20 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return prefixAliases;
     }
 
-    public List<List<String>> getSortColumns()
-    {
-      return sortColumns;
-    }
-
     public String getTimeColumnName()
     {
       return timeColumnName;
+    }
+
+    public List<String> getSortedColumns()
+    {
+      return sortedColumns;
+    }
+
+    public void setSortedColumns(List<String> sortedColumns)
+    {
+      // todo set this
+      this.sortedColumns = sortedColumns;
     }
 
     @Override
@@ -385,7 +383,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return new JoinDelegate(
           queries,
           prefixAliases,
-          sortColumns,
           timeColumnName,
           getLimit(),
           getContext()
@@ -410,7 +407,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return new JoinDelegate(
           queries,
           prefixAliases,
-          sortColumns,
           timeColumnName,
           getLimit(),
           context

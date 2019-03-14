@@ -42,6 +42,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.guice.annotations.Processing;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Comparators;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -135,12 +136,13 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
               @Override
               public Object accumulate(Object accumulated, Pair<Query, Sequence> in)
               {
-                nested[indexer.intValue()] = in.lhs instanceof JoinQuery.JoinDelegate;
-                sorted[indexer.intValue()] = in.lhs.getContextBoolean(JoinElement.SORTED_ON_JOINKEY, false);
-                hashing[indexer.intValue()] = in.lhs.getContextBoolean(JoinElement.HASHABLE, false);
+                final int index = indexer.intValue();
+                sorted[index] = isSortedOnJoinKey(index, in.lhs);
+                nested[index] = in.lhs instanceof JoinQuery.JoinDelegate;
+                hashing[index] = in.lhs.getContextBoolean(JoinElement.HASHING, false);
                 Query.ArrayOutputSupport query = (Query.ArrayOutputSupport) in.lhs;
                 aliasColumnsNames.add(query.estimatedOutputColumns());
-                sequencesList[indexer.intValue()].add(query.array(in.rhs));
+                sequencesList[index].add(query.array(in.rhs));
                 indexer.increment();
                 return null;
               }
@@ -179,6 +181,21 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
     };
   }
 
+  private boolean isSortedOnJoinKey(int index, Query<?> query)
+  {
+    List<String> ordering = null;
+    if (query instanceof Query.OrderingSupport) {
+      ordering = OrderByColumnSpec.getColumns(((Query.OrderingSupport<?>) query).getOrderingSpecs());
+    } else if (query instanceof JoinQuery.JoinDelegate) {
+      ordering = ((JoinQuery.JoinDelegate) query).getSortedColumns();
+    }
+    if (ordering != null) {
+      List<String> joinKey = toJoinColumns(index);
+      return ordering.subList(0, joinKey.size()).equals(joinKey);
+    }
+    return false;
+  }
+
   private PrioritizedCallable<JoinAlias> toJoinAlias(
       final int index,
       final boolean sorted,
@@ -209,7 +226,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       public JoinAlias call()
       {
         final Iterator<Object[]> rows = Sequences.toIterator(Sequences.concat(sequences));
-        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, sorted);
+        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, false);
       }
     };
   }
@@ -292,7 +309,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
         sorted = !right.isHashed();
       }
       left = new JoinAlias(alias, columns, joinColumns, indices, leftRows, sorted);
-      iterator = join(left, right, 0);
+      iterator = join(left, right, i - 1);
       alias = GuavaUtils.concat(alias, right.alias);
       columns = GuavaUtils.concat(columns, right.columns);
       joinColumns = elements[i - 1].getLeftJoinColumns();

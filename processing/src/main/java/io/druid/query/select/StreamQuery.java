@@ -440,9 +440,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     builder.append(", limit=").append(limit);
 
     builder.append(
-        toString(
-            FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.SORTED_ON_JOINKEY, JoinElement.HASHABLE
-        )
+        toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.HASHING)
     );
 
     return builder.append('}').toString();

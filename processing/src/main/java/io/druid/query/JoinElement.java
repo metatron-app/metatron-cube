@@ -221,8 +221,7 @@ public class JoinElement
     return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};
   }
 
-  public static final String HASHABLE = "$hash";
-  public static final String SORTED_ON_JOINKEY = "$sorted";
+  public static final String HASHING = "$hash";
 
   public static Query toQuery(
       DataSource dataSource,
@@ -234,11 +233,7 @@ public class JoinElement
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query instanceof JoinQuery.JoinDelegate) {
-        JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) query;
-        if (delegate.getSortColumns().contains(sortColumns)) {
-          delegate = (JoinQuery.JoinDelegate) delegate.withOverriddenContext(SORTED_ON_JOINKEY, true);
-        }
-        return delegate.toArrayJoin();  // keep array for output
+        return ((JoinQuery.JoinDelegate) query).toArrayJoin();  // keep array for output
       }
       if (!(query instanceof Query.ArrayOutputSupport)) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
@@ -248,8 +243,7 @@ public class JoinElement
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
       if (query instanceof Query.OrderingSupport) {
-        query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns))
-                                               .withOverriddenContext(SORTED_ON_JOINKEY, true);
+        query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
       }
       return query;
     }
@@ -257,7 +251,6 @@ public class JoinElement
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
-        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_ON_JOINKEY, true)
         .streaming(sortColumns);
   }
 

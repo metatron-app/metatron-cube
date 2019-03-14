@@ -52,7 +52,7 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
 
   public static List<String> getColumns(List<OrderByColumnSpec> orderByColumnSpecs)
   {
-    return Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+    return orderByColumnSpecs == null ? null : Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
   }
 
   @JsonCreator
