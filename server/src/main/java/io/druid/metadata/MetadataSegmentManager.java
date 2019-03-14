@@ -42,7 +42,9 @@ public interface MetadataSegmentManager
 
   boolean disableDatasource(final String ds);
 
-  boolean removeSegment(String ds, final String segmentID);
+  boolean disableSegment(String ds, String segmentID);
+
+  int disableSegments(String ds, Interval interval);
 
   boolean isStarted();
 

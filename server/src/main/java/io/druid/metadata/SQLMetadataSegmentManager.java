@@ -54,6 +54,7 @@ import org.skife.jdbi.v2.FoldController;
 import org.skife.jdbi.v2.Folder3;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.IDBI;
+import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionCallback;
 import org.skife.jdbi.v2.TransactionStatus;
@@ -397,7 +398,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean removeSegment(String ds, final String segmentId)
+  public boolean disableSegment(String ds, final String segmentId)
   {
     try {
       connector.getDBI().withHandle(
@@ -436,6 +437,73 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     }
 
     return true;
+  }
+
+  @Override
+  public int disableSegments(final String ds, final Interval interval)
+  {
+    try {
+      List<String> disabled = connector.getDBI().withHandle(
+          new HandleCallback<List<String>>()
+          {
+            @Override
+            public List<String> withHandle(Handle handle) throws Exception
+            {
+              final String segmentsTable = getSegmentsTable();
+              final String start = interval.getStart().toString();
+              final String end = interval.getEnd().toString();
+              final Query<Map<String, Object>> query = handle.createQuery(
+                  String.format(
+                      "SELECT id FROM %s WHERE dataSource = :dataSource and start >= :start and \"end\" <= :end and used=true",
+                      segmentsTable
+                  )
+              );
+              List<String> ids = query.bind("dataSource", ds)
+                                      .bind("start", start)
+                                      .bind("end", end)
+                                      .map(
+                                          new BaseResultSetMapper<String>()
+                                          {
+                                            @Override
+                                            protected String mapInternal(int index, Map<String, Object> row)
+                                            {
+                                              return (String) row.get("id");
+                                            }
+                                          }
+                                      )
+                                      .list();
+              handle.createStatement(
+                  String.format(
+                      "UPDATE %s SET used=false WHERE dataSource = :dataSource and start >= :start and \"end\" <= :end",
+                      segmentsTable
+                  ))
+                    .bind("dataSource", ds)
+                    .bind("start", start)
+                    .bind("end", end)
+                    .execute();
+
+              return ids;
+            }
+          }
+      );
+
+      ConcurrentHashMap<String, DruidDataSource> dataSourceMap = dataSources.get();
+
+      DruidDataSource dataSource = dataSourceMap.get(ds);
+      if (dataSource != null) {
+        for (String segmentId : disabled) {
+          dataSource.removeSegment(segmentId);
+        }
+        if (dataSource.isEmpty()) {
+          dataSourceMap.remove(ds);
+        }
+      }
+      return disabled.size();
+    }
+    catch (Exception e) {
+      log.error(e, e.toString());
+      return -1;
+    }
   }
 
   @Override

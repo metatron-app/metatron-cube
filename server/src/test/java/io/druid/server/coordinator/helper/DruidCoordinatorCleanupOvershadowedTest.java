@@ -79,8 +79,8 @@ public class DruidCoordinatorCleanupOvershadowedTest
             .anyTimes();
     EasyMock.expect(druidDataSource.getSegments()).andReturn(ImmutableSet.<DataSegment>of(segmentV1, segmentV2)).anyTimes();
     EasyMock.expect(druidDataSource.getName()).andReturn("test").anyTimes();
-    coordinator.removeSegment("overshadowed", segmentV1);
-    coordinator.removeSegment("overshadowed", segmentV0);
+    coordinator.disableSegment("overshadowed", segmentV1);
+    coordinator.disableSegment("overshadowed", segmentV0);
     EasyMock.expectLastCall();
     EasyMock.replay(mockPeon, coordinator, druidServer, druidDataSource);
     DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder()

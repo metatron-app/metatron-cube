@@ -349,10 +349,10 @@ public class DruidCoordinator
     ).get();
   }
 
-  public void removeSegment(String reason, DataSegment segment)
+  public void disableSegment(String reason, DataSegment segment)
   {
-    log.info("Removing Segment[%s] for [%s]", segment.getIdentifier(), reason);
-    metadataSegmentManager.removeSegment(segment.getDataSource(), segment.getIdentifier());
+    log.info("Disable Segment[%s] for [%s]", segment.getIdentifier(), reason);
+    metadataSegmentManager.disableSegment(segment.getDataSource(), segment.getIdentifier());
   }
 
   public void enableDatasource(String ds)

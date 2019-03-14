@@ -48,7 +48,7 @@ public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelp
       int count = 0;
       try {
         for (DataSegment dataSegment : params.getOvershadowedSegments()) {
-          coordinator.removeSegment("overshadowed", dataSegment);
+          coordinator.disableSegment("overshadowed", dataSegment);
           count++;
         }
       }

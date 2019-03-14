@@ -589,16 +589,49 @@ public class DatasourcesResource
   @DELETE
   @Path("/{dataSourceName}/segments/{segmentId}")
   @ResourceFilters(DatasourceResourceFilter.class)
+  @Deprecated
   public Response deleteDatasourceSegment(
       @PathParam("dataSourceName") String dataSourceName,
       @PathParam("segmentId") String segmentId
   )
   {
-    if (!databaseSegmentManager.removeSegment(dataSourceName, segmentId)) {
+    if (!databaseSegmentManager.disableSegment(dataSourceName, segmentId)) {
       return Response.noContent().build();
     }
 
     return Response.ok().build();
+  }
+
+  @POST
+  @Path("/{dataSourceName}/segment/disable/{segmentId}")
+  @ResourceFilters(DatasourceResourceFilter.class)
+  public Response disableDatasourceSegment(
+      @PathParam("dataSourceName") String dataSourceName,
+      @PathParam("segmentId") String segmentId
+  )
+  {
+    if (!databaseSegmentManager.disableSegment(dataSourceName, segmentId)) {
+      return Response.noContent().build();
+    }
+
+    return Response.ok().build();
+  }
+
+  @POST
+  @Path("/{dataSourceName}/interval/disable/{interval}")
+  @ResourceFilters(DatasourceResourceFilter.class)
+  public Response disableDatasourceInterval(
+      @PathParam("dataSourceName") String dataSourceName,
+      @PathParam("interval") String interval
+  )
+  {
+    final Interval theInterval = new Interval(interval.replace("_", "/"));
+    final int disabled = databaseSegmentManager.disableSegments(dataSourceName, theInterval);
+    if (disabled < 0) {
+      return Response.serverError().build();
+    }
+
+    return Response.ok(disabled).build();
   }
 
   @POST

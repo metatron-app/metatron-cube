@@ -557,7 +557,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
+    coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.replay(coordinator);
 
@@ -1104,7 +1104,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 7, 0, false, null
         )
     ).atLeastOnce();
-    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
+    coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);
     expectLoad();
@@ -1397,7 +1397,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
+    coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);
   }

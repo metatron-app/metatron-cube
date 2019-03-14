@@ -342,10 +342,10 @@ public class DruidShell implements CommonShell
         if (line.wordIndex() > 1 && command.equals("datasource")) {
           if (!commands.contains("-intervals") && !commands.contains("-segments") &&
               !hasOption(commands, "-interval=") && !hasOption(commands, "-segment=") &&
-              !hasOption(commands, "-tiers")) {
+              !hasOption(commands, "-tiers") && !hasOption(commands, "-disable")) {
             candidates.addAll(
                 Lists.transform(
-                    Arrays.asList("-intervals", "-interval=", "-segments", "-segment=", "-tiers"),
+                    Arrays.asList("-intervals", "-interval=", "-segments", "-segment=", "-tiers", "-disable"),
                     toCandidate
                 )
             );
@@ -490,6 +490,7 @@ public class DruidShell implements CommonShell
         writer.println("datasource <datasource-name> [-full|-simple|-lastUpdated]");
         writer.println("datasource <datasource-name> -intervals|-interval=<interval> [-full|-simple]");
         writer.println("datasource <datasource-name> -segments|-segment=<segment> [-full]");
+        writer.println("datasource <datasource-name> -disable -interval=<interval>|-segment=<segment>");
         writer.println("datasource <datasource-name> -tiers");
         writer.println("desc <datasource-name> DS_COMMENT");
         writer.println("desc <datasource-name> DS_PROPS");
@@ -621,6 +622,7 @@ public class DruidShell implements CommonShell
         boolean intervals = false;
         boolean segments = false;
         boolean tiers = false;
+        boolean disable = false;
         String interval = null;
         String segment = null;
         while (cursor.hasMore()) {
@@ -641,13 +643,26 @@ public class DruidShell implements CommonShell
             interval = current.substring(10).trim();
           } else if (current.startsWith("-segment=")) {
             segment = current.substring(9).trim();
+          } else if (current.startsWith("-disable")) {
+            disable = true;
           }
         }
         if ((intervals || interval != null) && (segments || segment != null)) {
           writer.println("interval(s) or segment(s), just pick one");
           return;
         }
-        if (tiers) {
+        if (disable) {
+          if (intervals || segments) {
+            writer.println("disable does not take -intervals or -segments");
+            return;
+          }
+          if (interval != null) {
+            resource.append("interval/disable/").append(interval.replace("/", "_"));
+          } else {
+            resource.append("segment/disable/").append(segment);
+          }
+          writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), INT));
+        } else if (tiers) {
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.append("tiers").get(), LIST));
         } else if (!intervals && interval == null && !segments && segment == null) {
           if (full) {
@@ -1045,6 +1060,10 @@ public class DruidShell implements CommonShell
       return words.get(++cursor);
     }
   }
+
+  private static final TypeReference<Integer> INT = new TypeReference<Integer>()
+  {
+  };
 
   private static final TypeReference<String> STRING = new TypeReference<String>()
   {

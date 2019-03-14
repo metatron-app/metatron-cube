@@ -33,7 +33,7 @@ public abstract class DropRule implements Rule
   public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
     CoordinatorStats stats = params.getCoordinatorStats();
-    coordinator.removeSegment("rule", segment);
+    coordinator.disableSegment("rule", segment);
     stats.addToGlobalStat("deletedCount", 1);
     return false;
   }
