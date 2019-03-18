@@ -21,9 +21,9 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
@@ -31,6 +31,8 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -108,6 +110,22 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
         return StreamQueryEngine.converter((StreamQuery) query, new MutableInt());
+      }
+
+      @Override
+      protected Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
+      {
+        StreamQuery streamQuery = (StreamQuery) query;
+        List<OrderByColumnSpec> orderingSpecs = streamQuery.getOrderingSpecs();
+        int limit = streamQuery.getLimit();
+
+        Sequence<Object[]> sequence = Sequences.concat(sequences);
+        if (!GuavaUtils.isNullOrEmpty(orderingSpecs)) {
+          sequence = LimitSpec.sortLimit(sequence, streamQuery.getResultOrdering(), limit);
+        } else if (limit > 0 && limit < Integer.MAX_VALUE) {
+          sequence = Sequences.limit(sequence, limit);
+        }
+        return sequence;
       }
     };
   }

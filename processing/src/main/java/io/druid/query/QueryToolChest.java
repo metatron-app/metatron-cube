@@ -392,7 +392,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
 
       Sequence<Cursor> cursors = ColumnSelectorFactories.toCursor(sequence, dataSource.getSchema(), query);
-      return streamMerge(Sequences.map(cursors, streamQuery(query)));
+      return streamMerge(query, Sequences.map(cursors, streamQuery(query)));
     }
 
     protected Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query)
@@ -400,7 +400,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       throw new UnsupportedOperationException("streaming sub-query handler");
     }
 
-    protected Sequence<ResultType> streamMerge(Sequence<Sequence<ResultType>> sequences)
+    protected Sequence<ResultType> streamMerge(Query<ResultType> query, Sequence<Sequence<ResultType>> sequences)
     {
       return Sequences.concat(sequences);
     }

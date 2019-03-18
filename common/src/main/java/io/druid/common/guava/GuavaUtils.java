@@ -250,6 +250,35 @@ public class GuavaUtils
     return map;
   }
 
+  // ~Functions.compose()
+  public static <F, X, T> Function<F, T> sequence(final Function<F, X> f, final Function<X, T> t)
+  {
+    return new Function<F, T>()
+    {
+      @Override
+      public T apply(final F input)
+      {
+        return t.apply(f.apply(input));
+      }
+    };
+  }
+
+  public static <F, X, Y, T> Function<F, T> sequence(
+      final Function<F, X> f,
+      final Function<X, Y> m,
+      final Function<Y, T> t
+  )
+  {
+    return new Function<F, T>()
+    {
+      @Override
+      public T apply(final F input)
+      {
+        return t.apply(m.apply(f.apply(input)));
+      }
+    };
+  }
+
   public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
   {
     if (name == null) {

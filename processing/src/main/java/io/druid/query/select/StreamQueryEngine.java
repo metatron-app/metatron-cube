@@ -29,6 +29,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -37,9 +38,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.Future;
 
 /**
@@ -54,15 +53,10 @@ public class StreamQueryEngine
   )
   {
     Sequence<Object[]> result = processRaw(query, segment, optimizer, cache);
-    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
-      return result;
+    if (!GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
+      result = LimitSpec.sortLimit(result, query.getResultOrdering(), -1);
     }
-    List<Object[]> sorted = Sequences.toList(result);
-    if (sorted.isEmpty()) {
-      return Sequences.empty();
-    }
-    Collections.sort(sorted, query.getResultOrdering());
-    return Sequences.simple(sorted);
+    return result;
   }
 
   private Sequence<Object[]> processRaw(

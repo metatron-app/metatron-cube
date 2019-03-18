@@ -27,12 +27,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
@@ -176,7 +176,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
     if (windowingSpecs.isEmpty()) {
       Ordering<Object[]> ordering = WindowingProcessor.makeArrayComparator(query, columns, sortOnTimeForLimit);
-      return new SortingFn(query, ordering, limit);
+      return newSortLimitRowFn(query, ordering, limit);
     }
     WindowingProcessor processor = new WindowingProcessor(query, windowingSpecs);
     boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
@@ -214,32 +214,52 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
   }
 
-  private static class SortingFn implements Function<Sequence<Row>, Sequence<Row>>
+  private Function<Sequence<Row>, Sequence<Row>> newSortLimitRowFn(
+      final Query.AggregationsSupport<?> query,
+      final Ordering<Object[]> ordering,
+      final int limit
+  )
   {
-    private final Query.AggregationsSupport<?> query;
+    return GuavaUtils.sequence(
+        Sequences.toSequenceFunc(GroupByQueryEngine.rowToArray(query)),
+        new SortingArrayFn(ordering, limit),
+        Sequences.toSequenceFunc(GroupByQueryEngine.arrayToRow(query, false))
+    );
+  }
+
+  public static Sequence<Object[]> sortLimit(Sequence<Object[]> sequence, Ordering<Object[]> ordering, int limit)
+  {
+    if (ordering != null) {
+      sequence = new SortingArrayFn(ordering, limit).apply(sequence);
+    } else if (limit > 0 && limit < Integer.MAX_VALUE) {
+      sequence = Sequences.limit(sequence, limit);
+    }
+    return sequence;
+  }
+
+  public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>
+  {
     private final Ordering<Object[]> ordering;
     private final int limit;
 
-    public SortingFn(Query.AggregationsSupport<?> query, Ordering<Object[]> ordering, int limit)
+    public SortingArrayFn(Ordering<Object[]> ordering, int limit)
     {
-      this.query = query;
       this.ordering = ordering;
       this.limit = limit;
     }
 
     @Override
-    public Sequence<Row> apply(Sequence<Row> input)
+    public Sequence<Object[]> apply(Sequence<Object[]> sequence)
     {
-      Sequence<Object[]> sequence = Sequences.map(input, GroupByQueryEngine.rowToArray(query));
-      Iterable<Object[]> sorted;
+      final Iterable<Object[]> sorted;
       if (limit > 0 && limit < Integer.MAX_VALUE) {
         sorted = TopNSorter.topN(ordering, sequence, limit);
       } else {
-        Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
-        Arrays.parallelSort(array, ordering);
+        final Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
+        Arrays.sort(array, ordering);
         sorted = Arrays.asList(array);
       }
-      return Sequences.simple(Iterables.transform(sorted, GroupByQueryEngine.arrayToRow(query, false)));
+      return Sequences.simple(sorted);
     }
   }
 

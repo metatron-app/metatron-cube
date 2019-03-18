@@ -134,6 +134,18 @@ public class Sequences extends com.metamx.common.guava.Sequences
     return concat(map(sequence, fn));
   }
 
+  public static <F, T> Function<Sequence<F>, Sequence<T>> toSequenceFunc(final Function<F, T> f)
+  {
+    return new Function<Sequence<F>, Sequence<T>>()
+    {
+      @Override
+      public Sequence<T> apply(Sequence<F> input)
+      {
+        return Sequences.map(input, f);
+      }
+    };
+  }
+
   public static <T> Sequence<T> withEffect(Sequence<T> sequence, Runnable effect)
   {
     return withEffect(sequence, effect, MoreExecutors.sameThreadExecutor());

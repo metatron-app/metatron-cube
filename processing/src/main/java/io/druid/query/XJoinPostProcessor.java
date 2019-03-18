@@ -190,8 +190,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       ordering = ((JoinQuery.JoinDelegate) query).getSortedColumns();
     }
     if (ordering != null) {
-      List<String> joinKey = toJoinColumns(index);
-      return ordering.subList(0, joinKey.size()).equals(joinKey);
+      final List<String> joinKey = toJoinColumns(index);
+      if (ordering.size() >= joinKey.size()) {
+        return ordering.subList(0, joinKey.size()).equals(joinKey);
+      }
     }
     return false;
   }
@@ -226,7 +228,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       public JoinAlias call()
       {
         final Iterator<Object[]> rows = Sequences.toIterator(Sequences.concat(sequences));
-        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, false);
+        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, sorted);
       }
     };
   }
