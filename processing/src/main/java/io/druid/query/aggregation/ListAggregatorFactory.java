@@ -372,19 +372,16 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] expressionBytes = StringUtils.toUtf8WithNullToEmpty(expression);
     byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
     int length = 1
-                 + nameBytes.length
                  + expressionBytes.length
                  + inputTypeBytes.length
                  + 6;
 
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
-                     .put(nameBytes)
                      .put(expressionBytes)
                      .put(inputTypeBytes)
                      .putInt(limit)

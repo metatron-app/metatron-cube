@@ -215,18 +215,15 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
     byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
-    int length = 1 + nameBytes.length
-                   + fieldNameBytes.length
+    int length = 1 + fieldNameBytes.length
                    + predicateBytes.length
                    + inputTypeBytes.length;
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
-                     .put(nameBytes)
                      .put(fieldNameBytes)
                      .put(predicateBytes)
                      .put(inputTypeBytes)

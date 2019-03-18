@@ -231,20 +231,17 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] fieldName1Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName1);
     byte[] fieldName2Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName2);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
     byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
-    int length = 1 + nameBytes.length
-                   + fieldName1Bytes.length
+    int length = 1 + fieldName1Bytes.length
                    + fieldName2Bytes.length
                    + predicateBytes.length
                    + inputTypeBytes.length;
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
-                     .put(nameBytes)
                      .put(fieldName1Bytes)
                      .put(fieldName2Bytes)
                      .put(predicateBytes)

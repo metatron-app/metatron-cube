@@ -257,20 +257,17 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   @Override
   public byte[] getCacheKey()
   {
-    byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
     byte[] inputTypeBytes = QueryCacheHelper.computeCacheBytes(inputType);
 
-    int length = 1 + nameBytes.length
-                   + fieldNameBytes.length
+    int length = 1 + fieldNameBytes.length
                    + fieldExpressionBytes.length
                    + predicateBytes.length
                    + inputTypeBytes.length;
     return ByteBuffer.allocate(length)
                      .put(cacheTypeID())
-                     .put(nameBytes)
                      .put(fieldNameBytes)
                      .put(fieldExpressionBytes)
                      .put(predicateBytes)
