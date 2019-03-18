@@ -218,7 +218,13 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         Assert.assertEquals(e.getTimestamp(), r.getTimestamp());
       }
       for (String columnName : columnNames) {
-        Assert.assertEquals(i + " th", e.getRaw(columnName), r.getRaw(columnName));
+        final Object ev = e.getRaw(columnName);
+        final Object rv = r.getRaw(columnName);
+        if ((ev instanceof Float && rv instanceof Double) || (ev instanceof Double && rv instanceof Float)) {
+          Assert.assertEquals(((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
+        } else {
+          Assert.assertEquals(i + " th", ev, rv);
+        }
       }
     }
     if (expected.size() > result.size()) {

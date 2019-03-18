@@ -20,61 +20,87 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
-public class RelayAggregatorFactory extends AggregatorFactory
+public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
 {
+  private static final byte CACHE_TYPE_ID = 0x11;
+
   public static AggregatorFactory ofTime()
   {
-    return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE);
+    return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE, null);
   }
 
   public static AggregatorFactory of(String name, ValueDesc type)
   {
-    return new RelayAggregatorFactory(name, name, type.typeName());
+    return new RelayAggregatorFactory(name, name, type.typeName(), null);
+  }
+
+  public static AggregatorFactory first(String name)
+  {
+    return new RelayAggregatorFactory(name, name, null, "FIRST");
+  }
+
+  public static AggregatorFactory last(String name)
+  {
+    return new RelayAggregatorFactory(name, name, null, "LAST");
   }
 
   private final String name;
   private final String columnName;
   private final String typeName;
+  private final String relayType;
 
   @JsonCreator
   public RelayAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("columnName") String columnName,
-      @JsonProperty("typeName") String typeName
-  )
+      @JsonProperty("typeName") String typeName,
+      @JsonProperty("relayType") String relayType
+      )
   {
     this.name = Preconditions.checkNotNull(name == null ? columnName : name);
     this.columnName = Preconditions.checkNotNull(columnName == null ? name : columnName);
-    this.typeName = Preconditions.checkNotNull(typeName);
+    this.typeName = typeName;
+    this.relayType = relayType;
   }
 
   public RelayAggregatorFactory(String name, ValueDesc type)
   {
-    this(name, name, type.typeName());
+    this(name, name, type.typeName(), null);
+  }
+
+  public RelayAggregatorFactory(String name, String columnName, String typeName)
+  {
+    this(name, columnName, typeName, null);
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return Aggregators.relayAggregator(metricFactory.makeObjectColumnSelector(columnName));
+    return Aggregators.relayAggregator(metricFactory.makeObjectColumnSelector(columnName), relayType);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    throw new UnsupportedOperationException("factorizeBuffered");
+    return Aggregators.relayBufferAggregator(metricFactory.makeObjectColumnSelector(columnName), relayType);
   }
 
   @Override
@@ -82,8 +108,8 @@ public class RelayAggregatorFactory extends AggregatorFactory
   {
     if (other instanceof RelayAggregatorFactory) {
       RelayAggregatorFactory relay = (RelayAggregatorFactory)other;
-      if (name.equals(relay.name) && typeName.equals(relay.typeName)) {
-        return new RelayAggregatorFactory(name, name, typeName);
+      if (Objects.equals(name, relay.name) && Objects.equals(typeName, relay.typeName)) {
+        return new RelayAggregatorFactory(name, name, relayType, typeName);
       }
     }
     throw new AggregatorFactoryNotMergeableException(this, other);
@@ -96,21 +122,22 @@ public class RelayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> Combiner<T> combiner()
   {
-    throw new UnsupportedOperationException("combine");
+    return Aggregators.relayCombiner(relayType);
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new RelayAggregatorFactory(name, name, typeName);
+    return new RelayAggregatorFactory(name, name, typeName, relayType);
   }
 
   @Override
   public Object deserialize(Object object)
   {
-    throw new UnsupportedOperationException("deserialize");
+    return object;
   }
 
   @Override
@@ -132,10 +159,17 @@ public class RelayAggregatorFactory extends AggregatorFactory
     return typeName;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getRelayType()
+  {
+    return relayType;
+  }
+
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of(typeName);
+    return typeName == null ? null : ValueDesc.of(typeName);
   }
 
   @Override
@@ -147,13 +181,23 @@ public class RelayAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    throw new UnsupportedOperationException("getCacheKey");
+    byte[] columnNameBytes = StringUtils.toUtf8WithNullToEmpty(columnName);
+    byte[] typeNameBytes = StringUtils.toUtf8WithNullToEmpty(typeName);
+    byte[] relayTypeBytes = StringUtils.toUtf8WithNullToEmpty(relayType);
+
+    int length = 1 + columnNameBytes.length + typeNameBytes.length + relayTypeBytes.length;
+    return ByteBuffer.allocate(length)
+                     .put(CACHE_TYPE_ID)
+                     .put(columnNameBytes)
+                     .put(typeNameBytes)
+                     .put(relayTypeBytes)
+                     .array();
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return 0;
+    return Integer.BYTES;
   }
 
   @Override
@@ -174,7 +218,10 @@ public class RelayAggregatorFactory extends AggregatorFactory
     if (!name.equals(that.name)) {
       return false;
     }
-    if (!typeName.equals(that.typeName)) {
+    if (!Objects.equals(typeName, that.typeName)) {
+      return false;
+    }
+    if (!Objects.equals(relayType, that.relayType)) {
       return false;
     }
 
@@ -184,10 +231,7 @@ public class RelayAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = name.hashCode();
-    result = 31 * result + columnName.hashCode();
-    result = 31 * result + typeName.hashCode();
-    return result;
+    return Objects.hash(name, columnName, typeName, relayType);
   }
 
   @Override
@@ -196,7 +240,25 @@ public class RelayAggregatorFactory extends AggregatorFactory
     return "RelayAggregatorFactory{" +
            "name='" + name + '\'' +
            ", columnName='" + columnName + '\'' +
-           ", typeName='" + typeName + '\'' +
+           (typeName == null ? "": ", typeName='" + typeName + '\'') +
+           (relayType == null ? "": ", columnName='" + columnName + '\'') +
            '}';
+  }
+
+  @Override
+  public boolean needResolving()
+  {
+    return typeName == null;
+  }
+
+  @Override
+  public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
+  {
+    return new RelayAggregatorFactory(
+        name,
+        columnName,
+        Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve " + columnName).typeName(),
+        relayType
+    );
   }
 }
