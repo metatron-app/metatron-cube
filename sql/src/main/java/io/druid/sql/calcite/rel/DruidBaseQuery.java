@@ -142,10 +142,10 @@ public class DruidBaseQuery implements DruidQuery
 
     final RowSignature sortingInputRowSignature;
 
-    if (this.selectProjection != null) {
-      sortingInputRowSignature = this.selectProjection.getOutputRowSignature();
-    } else if (this.grouping != null) {
-      sortingInputRowSignature = this.grouping.getOutputRowSignature();
+    if (selectProjection != null) {
+      sortingInputRowSignature = selectProjection.getOutputRowSignature();
+    } else if (grouping != null) {
+      sortingInputRowSignature = grouping.getOutputRowSignature();
     } else {
       sortingInputRowSignature = sourceRowSignature;
     }

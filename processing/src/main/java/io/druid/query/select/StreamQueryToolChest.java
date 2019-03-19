@@ -27,12 +27,11 @@ import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
-import io.druid.query.groupby.orderby.LimitSpec;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -107,6 +106,24 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
     return new StreamingSubQueryRunner<I>(segmentWalker, config)
     {
       @Override
+      @SuppressWarnings("unchecked")
+      public Sequence<Object[]> runStreaming(Query<Object[]> query, Map<String, Object> responseContext)
+      {
+        StreamQuery streamQuery = (StreamQuery) query;
+        QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+        Query subQuery = dataSource.getQuery();
+        if (streamQuery.isSimpleProjection() && subQuery instanceof Query.ArrayOutputSupport) {
+          Query.ArrayOutputSupport arrayOutput = (Query.ArrayOutputSupport) subQuery;
+          List<String> outputColumns = arrayOutput.estimatedOutputColumns();
+          if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+            Sequence<Object[]> sequence = arrayOutput.array(arrayOutput.run(segmentWalker, responseContext));
+            return streamQuery.applySimpleProjection(sequence, outputColumns);
+          }
+        }
+        return super.runStreaming(query, responseContext);
+      }
+
+      @Override
       protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
         return StreamQueryEngine.converter((StreamQuery) query, new MutableInt());
@@ -115,17 +132,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       @Override
       protected Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
       {
-        StreamQuery streamQuery = (StreamQuery) query;
-        List<OrderByColumnSpec> orderingSpecs = streamQuery.getOrderingSpecs();
-        int limit = streamQuery.getLimit();
-
-        Sequence<Object[]> sequence = Sequences.concat(sequences);
-        if (!GuavaUtils.isNullOrEmpty(orderingSpecs)) {
-          sequence = LimitSpec.sortLimit(sequence, streamQuery.getResultOrdering(), limit);
-        } else if (limit > 0 && limit < Integer.MAX_VALUE) {
-          sequence = Sequences.limit(sequence, limit);
-        }
-        return sequence;
+        return ((StreamQuery) query).applySortLimit(Sequences.concat(sequences));
       }
     };
   }

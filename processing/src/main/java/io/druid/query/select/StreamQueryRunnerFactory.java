@@ -201,7 +201,7 @@ public class StreamQueryRunnerFactory
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
-        if (!GuavaUtils.isNullOrEmpty(stream.getSortOn())) {
+        if (!GuavaUtils.isNullOrEmpty(stream.getOrderBySpecs())) {
           stream = stream.withLimit(-1);   // should be done after merge
         }
         return engine.process(stream, segment, optimizer, cache);

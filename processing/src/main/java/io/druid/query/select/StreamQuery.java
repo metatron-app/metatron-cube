@@ -30,8 +30,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -42,6 +43,7 @@ import io.druid.query.JoinElement;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingProcessor;
 import io.druid.query.ordering.Accessor;
@@ -147,9 +149,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
+  @JsonIgnore
   public List<String> estimatedOutputColumns()
   {
-    return getColumns();
+    return columns;
   }
 
   @JsonProperty
@@ -163,6 +166,48 @@ public class StreamQuery extends BaseQuery<Object[]>
   public List<String> getSortOn()
   {
     return OrderByColumnSpec.getColumns(orderBySpecs);
+  }
+
+  @JsonIgnore
+  public boolean isSimpleProjection()
+  {
+    return GuavaUtils.isNullOrEmpty(virtualColumns) && dimFilter == null && getQuerySegmentSpec() == null;
+  }
+
+  Sequence<Object[]> applySortLimit(Sequence<Object[]> sequence)
+  {
+    if (!GuavaUtils.isNullOrEmpty(orderBySpecs)) {
+      sequence = LimitSpec.sortLimit(sequence, getResultOrdering(), limit);
+    } else if (limit > 0 && limit < Integer.MAX_VALUE) {
+      sequence = Sequences.limit(sequence, limit);
+    }
+    return sequence;
+  }
+
+  Sequence<Object[]> applySimpleProjection(Sequence<Object[]> sequence, List<String> outputColumns)
+  {
+    sequence = applySortLimit(sequence);
+    if (!GuavaUtils.isNullOrEmpty(columns) && !outputColumns.equals(columns)) {
+      final int[] mapping = new int[columns.size()];
+      for (int i = 0; i < mapping.length; i++) {
+        mapping[i] = outputColumns.indexOf(columns.get(i));
+      }
+      sequence = Sequences.map(sequence, new Function<Object[], Object[]>()
+      {
+        @Override
+        public Object[] apply(Object[] input)
+        {
+          final Object[] output = new Object[mapping.length];
+          for (int i = 0; i < mapping.length; i++) {
+            if (mapping[i] >= 0) {
+              output[i] = input[mapping[i]];
+            }
+          }
+          return output;
+        }
+      });
+    }
+    return sequence;
   }
 
   @Override
@@ -437,7 +482,9 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (!orderBySpecs.isEmpty()) {
       builder.append(", orderBySpecs=").append(orderBySpecs);
     }
-    builder.append(", limit=").append(limit);
+    if (limit > 0 && limit < Integer.MAX_VALUE) {
+      builder.append(", limit=").append(limit);
+    }
 
     builder.append(
         toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.HASHING)

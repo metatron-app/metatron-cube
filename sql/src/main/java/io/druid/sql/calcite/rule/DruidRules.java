@@ -38,7 +38,14 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.*;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.AGGREGATE;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.AGGREGATE_PROJECT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.HAVING_FILTER;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SELECT_PROJECT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SELECT_SORT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT_PROJECT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WHERE_FILTER;
 
 public class DruidRules
 {
@@ -67,14 +74,14 @@ public class DruidRules
   public static List<RelOptRule> rules()
   {
     return ImmutableList.of(
-        new DruidQueryRule<>(Filter.class, WHERE_FILTER, PartialDruidQuery::withWhereFilter),
-        new DruidQueryRule<>(Project.class, SELECT_PROJECT, PartialDruidQuery::withSelectProject),
-        new DruidQueryRule<>(Sort.class, SELECT_SORT, PartialDruidQuery::withSelectSort),
-        new DruidQueryRule<>(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
-        new DruidQueryRule<>(Project.class, AGGREGATE_PROJECT, PartialDruidQuery::withAggregateProject),
-        new DruidQueryRule<>(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
-        new DruidQueryRule<>(Sort.class, SORT, PartialDruidQuery::withSort),
-        new DruidQueryRule<>(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
+        DruidQueryRule.of(Filter.class, WHERE_FILTER, PartialDruidQuery::withWhereFilter),
+        DruidQueryRule.of(Project.class, SELECT_PROJECT, PartialDruidQuery::withSelectProject),
+        DruidQueryRule.of(Sort.class, SELECT_SORT, PartialDruidQuery::withSelectSort),
+        DruidQueryRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
+        DruidQueryRule.of(Project.class, AGGREGATE_PROJECT, PartialDruidQuery::withAggregateProject),
+        DruidQueryRule.of(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
+        DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
+        DruidQueryRule.of(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
         DruidOuterQueryRule.PROJECT,
         DruidOuterQueryRule.AGGREGATE,
         DruidOuterQueryRule.FILTER_AGGREGATE,
@@ -88,6 +95,15 @@ public class DruidRules
 
   public static class DruidQueryRule<RelType extends RelNode> extends RelOptRule
   {
+    static <RelType extends RelNode> DruidQueryRule<RelType> of(
+        final Class<RelType> relClass,
+        final PartialDruidQuery.Stage stage,
+        final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
+    )
+    {
+      return new DruidQueryRule<RelType>(relClass, stage, f);
+    }
+
     private final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f;
 
     public DruidQueryRule(
