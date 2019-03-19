@@ -244,7 +244,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
           b.append(", ");
         }
         if (d.equals("__time")) {
-          b.append('"').append(x.getTimestamp()).append('"');
+          String timestamp = x.getTimestamp().toString().replace("T00:00:00.000Z", "");
+          b.append('"').append(timestamp).append('"');
           continue;
         }
         Object o = x.getRaw(d);

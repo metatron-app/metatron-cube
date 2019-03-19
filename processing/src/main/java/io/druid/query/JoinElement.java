@@ -242,8 +242,10 @@ public class JoinElement
       if (GuavaUtils.isNullOrEmpty(array.estimatedOutputColumns())) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
-      if (!(query.getDataSource() instanceof QueryDataSource) && query instanceof Query.OrderingSupport) {
-        query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
+      if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
+        if (!(query.getDataSource() instanceof QueryDataSource)) {
+          query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
+        }
       }
       return query;
     }

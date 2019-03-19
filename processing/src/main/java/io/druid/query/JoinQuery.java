@@ -261,29 +261,34 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     for (int i = 0; i < elements.size(); i++) {
       JoinElement element = elements.get(i);
       JoinType joinType = element.getJoinType();
-      boolean hashed = false;
+      DataSource left = dataSources.get(element.getLeftAlias());
+      DataSource right = dataSources.get(element.getRightAlias());
+      long rightEstimated = -1;
+      boolean rightHashing = false;
+      if (threshold > 0 && joinType.isLeftDrivable()) {
+        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
+        rightHashing = rightEstimated > 0 && rightEstimated < threshold;
+      }
+      long leftEstimated = -1;
+      boolean leftHashing = false;
+      if (threshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
+        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
+        leftHashing = leftEstimated > 0 && leftEstimated < threshold;
+      }
       if (i == 0) {
-        DataSource left = dataSources.get(element.getLeftAlias());
-        Query query = JoinElement.toQuery(left, element.getLeftJoinColumns(), segmentSpec, getContext());
-        if (threshold > 0 && joinType.isRightDrivable()) {
-          long estimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
-          hashed = estimated > 0 && estimated < threshold;
-          if (hashed) {
-            query = query.withOverriddenContext(JoinElement.HASHING, true);
-          }
-          LOG.info("%s (L) -----> %d rows, hashed? %s", element.getLeftAlias(), estimated, hashed);
+        LOG.info("%s (L) -----> %d rows, hashing? %s", element.getLeftAlias(), leftEstimated, leftHashing);
+        List<String> sortColumns = leftHashing || rightHashing ? null : element.getLeftJoinColumns();
+        Query query = JoinElement.toQuery(left, sortColumns, segmentSpec, getContext());
+        if (leftHashing) {
+          query = query.withOverriddenContext(JoinElement.HASHING, true);
         }
         queries.add(query);
       }
-      DataSource right = dataSources.get(element.getRightAlias());
-      Query query = JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext());
-      if (threshold > 0 && joinType.isLeftDriving() && !hashed) {
-        long estimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
-        hashed = estimated > 0 && estimated < threshold;
-        if (hashed) {
-          query = query.withOverriddenContext(JoinElement.HASHING, true);
-        }
-        LOG.info("%s (R) -----> %d rows, hashed? %s", element.getRightAlias(), estimated, hashed);
+      LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
+      List<String> sortColumns = leftHashing || rightHashing ? null : element.getRightJoinColumns();
+      Query query = JoinElement.toQuery(right, sortColumns, segmentSpec, getContext());
+      if (rightHashing) {
+        query = query.withOverriddenContext(JoinElement.HASHING, true);
       }
       queries.add(query);
     }

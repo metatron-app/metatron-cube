@@ -340,7 +340,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
         default:
           throw new ISE("Cannot %s join with hash", type);
       }
-    } else if (type.isLeftDriving() && right.isHashed()) {
+    } else if (type.isLeftDrivable() && right.isHashed()) {
       return joinHashed(left, right, type, true);
     } else if (type.isRightDrivable() && left.isHashed()) {
       return joinHashed(left, right, type, false);
@@ -353,7 +353,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
       Preconditions.checkArgument(left.isSorted());
     }
     if (!right.isSorted()) {
-      right = right.transform(type.isLeftDriving() ? config.getHashJoinThreshold() : -1);
+      right = right.transform(type.isLeftDrivable() ? config.getHashJoinThreshold() : -1);
       if (right.isHashed()) {
         return joinHashed(left, right, type, true);
       }
