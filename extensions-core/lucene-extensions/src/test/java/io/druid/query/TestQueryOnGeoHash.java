@@ -31,11 +31,11 @@ public class TestQueryOnGeoHash extends GroupByQueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.of("geohash"))
         .aggregators(
             CountAggregatorFactory.of("count"),
-            RelayAggregatorFactory.first("gu"),
-            RelayAggregatorFactory.first("amt"),
-            RelayAggregatorFactory.first("py"),
-            RelayAggregatorFactory.first("gis.lat"),
-            RelayAggregatorFactory.first("gis.lon")
+            RelayAggregatorFactory.first("gu", null),
+            RelayAggregatorFactory.first("amt", null),
+            RelayAggregatorFactory.first("py", null),
+            RelayAggregatorFactory.first("gis.lat", null),
+            RelayAggregatorFactory.first("gis.lon", null)
         )
         .limit(15);
 
@@ -62,11 +62,11 @@ public class TestQueryOnGeoHash extends GroupByQueryRunnerTestHelper
 
     builder.aggregators(
         CountAggregatorFactory.of("count"),
-        RelayAggregatorFactory.last("gu"),
-        RelayAggregatorFactory.last("amt"),
-        RelayAggregatorFactory.last("py"),
-        RelayAggregatorFactory.last("gis.lat"),
-        RelayAggregatorFactory.last("gis.lon")
+        RelayAggregatorFactory.last("gu", null),
+        RelayAggregatorFactory.last("amt", null),
+        RelayAggregatorFactory.last("py", null),
+        RelayAggregatorFactory.last("gis.lat", null),
+        RelayAggregatorFactory.last("gis.lon", null)
     );
     expected = createExpectedRows(
         columns,
@@ -169,11 +169,11 @@ public class TestQueryOnGeoHash extends GroupByQueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.of("h3"))
         .aggregators(
             CountAggregatorFactory.of("count"),
-            RelayAggregatorFactory.first("gu"),
-            RelayAggregatorFactory.first("amt"),
-            RelayAggregatorFactory.first("py"),
-            RelayAggregatorFactory.first("gis.lat"),
-            RelayAggregatorFactory.first("gis.lon")
+            RelayAggregatorFactory.first("gu", null),
+            RelayAggregatorFactory.first("amt", null),
+            RelayAggregatorFactory.first("py", null),
+            RelayAggregatorFactory.first("gis.lat", null),
+            RelayAggregatorFactory.first("gis.lon", null)
         )
         .limit(15);
 
@@ -194,11 +194,11 @@ public class TestQueryOnGeoHash extends GroupByQueryRunnerTestHelper
 
     builder.aggregators(
         CountAggregatorFactory.of("count"),
-        RelayAggregatorFactory.last("gu"),
-        RelayAggregatorFactory.last("amt"),
-        RelayAggregatorFactory.last("py"),
-        RelayAggregatorFactory.last("gis.lat"),
-        RelayAggregatorFactory.last("gis.lon")
+        RelayAggregatorFactory.last("gu", null),
+        RelayAggregatorFactory.last("amt", null),
+        RelayAggregatorFactory.last("py", null),
+        RelayAggregatorFactory.last("gis.lat", null),
+        RelayAggregatorFactory.last("gis.lon", null)
     );
     expected = createExpectedRows(
         columns,

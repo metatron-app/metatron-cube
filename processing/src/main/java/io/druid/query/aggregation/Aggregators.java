@@ -22,10 +22,14 @@ package io.druid.query.aggregation;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.Row;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -235,7 +239,7 @@ public class Aggregators
 
   public static enum RELAY_TYPE
   {
-    ONLY_ONE, FIRST, LAST, MIN, MAX;
+    ONLY_ONE, FIRST, LAST, MIN, MAX, TIME_MIN, TIME_MAX;
 
     public static RELAY_TYPE fromString(String value)
     {
@@ -243,13 +247,21 @@ public class Aggregators
     }
   }
 
-  public static Aggregator relayAggregator(final ObjectColumnSelector selector, final String type)
+  public static Aggregator relayAggregator(ColumnSelectorFactory factory, String column, String type)
   {
-    return relayAggregator(selector, RELAY_TYPE.fromString(type));
+    return relayAggregator(factory, column, RELAY_TYPE.fromString(type));
   }
 
-  public static Aggregator relayAggregator(final ObjectColumnSelector selector, final RELAY_TYPE type)
+  public static Aggregator relayAggregator(
+      final ColumnSelectorFactory factory,
+      final String column,
+      final RELAY_TYPE type
+  )
   {
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    if (selector == null) {
+      return noopAggregator();
+    }
     switch (type) {
       case ONLY_ONE:
         return new RelayAggregator()
@@ -309,6 +321,54 @@ public class Aggregators
               selected = true;
               value = update;
             }
+          }
+        };
+      case TIME_MIN:
+        return new RelayAggregator()
+        {
+          long minTime = -1;
+          final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
+
+          @Override
+          @SuppressWarnings("unchecked")
+          public void aggregate()
+          {
+            final long current = timeSelector.get();
+            if (!selected || Longs.compare(minTime, current) > 0) {
+              selected = true;
+              value = selector.get();
+              minTime = current;
+            }
+          }
+
+          @Override
+          public Object get()
+          {
+            return selected ? Arrays.asList(minTime, super.get()) : null;
+          }
+        };
+      case TIME_MAX:
+        return new RelayAggregator()
+        {
+          long maxTime = -1;
+          final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
+
+          @Override
+          @SuppressWarnings("unchecked")
+          public void aggregate()
+          {
+            final long current = timeSelector.get();
+            if (!selected || Longs.compare(maxTime, current) < 0) {
+              selected = true;
+              value = selector.get();
+              maxTime = current;
+            }
+          }
+
+          @Override
+          public Object get()
+          {
+            return selected ? Arrays.asList(maxTime, super.get()) : null;
           }
         };
       default:
@@ -401,7 +461,10 @@ public class Aggregators
     public void close() {}
   }
 
-  public static BufferAggregator relayBufferAggregator(final ObjectColumnSelector selector, final String type)
+  public static BufferAggregator relayBufferAggregator(
+      final ColumnSelectorFactory factory,
+      final String column,
+      final String type)
   {
     return new RelayBufferAggregator()
     {
@@ -409,7 +472,7 @@ public class Aggregators
       @Override
       protected Aggregator newAggregator()
       {
-        return relayAggregator(selector, relayType);
+        return relayAggregator(factory, column, relayType);
       }
     };
   }
@@ -520,6 +583,38 @@ public class Aggregators
           public Object combine(Object param1, Object param2)
           {
             return GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) > 0 ? param1 : param2;
+          }
+        };
+      case TIME_MIN:
+        return new AggregatorFactory.Combiner()
+        {
+          @Override
+          public Object combine(Object param1, Object param2)
+          {
+            if (param1 == null) {
+              return param2;
+            } else if (param2 == null) {
+              return param1;
+            }
+            final Number time1 = (Number) ((List) param1).get(0);
+            final Number time2 = (Number) ((List) param2).get(0);
+            return Longs.compare(time1.longValue(), time2.longValue()) < 0 ? param1 : param2;
+          }
+        };
+      case TIME_MAX:
+        return new AggregatorFactory.Combiner()
+        {
+          @Override
+          public Object combine(Object param1, Object param2)
+          {
+            if (param1 == null) {
+              return param2;
+            } else if (param2 == null) {
+              return param1;
+            }
+            final Number time1 = (Number) ((List) param1).get(0);
+            final Number time2 = (Number) ((List) param2).get(0);
+            return Longs.compare(time1.longValue(), time2.longValue()) > 0 ? param1 : param2;
           }
         };
       default:

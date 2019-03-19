@@ -27,6 +27,7 @@ import com.google.common.base.Supplier;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
 
@@ -52,14 +53,34 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
     return new RelayAggregatorFactory(name, name, type.typeName(), null);
   }
 
-  public static AggregatorFactory first(String name)
+  public static AggregatorFactory first(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, name, null, "FIRST");
+    return new RelayAggregatorFactory(name, columnName, null, "FIRST");
   }
 
-  public static AggregatorFactory last(String name)
+  public static AggregatorFactory last(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, name, null, "LAST");
+    return new RelayAggregatorFactory(name, columnName, null, "LAST");
+  }
+
+  public static AggregatorFactory min(String name, String columnName)
+  {
+    return new RelayAggregatorFactory(name, columnName, null, "MIN");
+  }
+
+  public static AggregatorFactory max(String name, String columnName)
+  {
+    return new RelayAggregatorFactory(name, columnName, null, "MAX");
+  }
+
+  public static AggregatorFactory timeMin(String name, String columnName)
+  {
+    return new RelayAggregatorFactory(name, columnName, null, "TIME_MIN");
+  }
+
+  public static AggregatorFactory timeMax(String name, String columnName)
+  {
+    return new RelayAggregatorFactory(name, columnName, null, "TIME_MAX");
   }
 
   private final String name;
@@ -94,13 +115,13 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return Aggregators.relayAggregator(metricFactory.makeObjectColumnSelector(columnName), relayType);
+    return Aggregators.relayAggregator(metricFactory, columnName, relayType);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return Aggregators.relayBufferAggregator(metricFactory.makeObjectColumnSelector(columnName), relayType);
+    return Aggregators.relayBufferAggregator(metricFactory, columnName, relayType);
   }
 
   @Override
@@ -109,7 +130,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
     if (other instanceof RelayAggregatorFactory) {
       RelayAggregatorFactory relay = (RelayAggregatorFactory)other;
       if (Objects.equals(name, relay.name) && Objects.equals(typeName, relay.typeName)) {
-        return new RelayAggregatorFactory(name, name, relayType, typeName);
+        return new RelayAggregatorFactory(name, name, typeName, relayType);
       }
     }
     throw new AggregatorFactoryNotMergeableException(this, other);
@@ -168,6 +189,24 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
 
   @Override
   public ValueDesc getOutputType()
+  {
+    final RELAY_TYPE relayType = RELAY_TYPE.fromString(this.relayType);
+    if (relayType == RELAY_TYPE.TIME_MIN || relayType == RELAY_TYPE.TIME_MAX) {
+      return ValueDesc.LIST;
+    }
+    return typeName == null ? null : ValueDesc.of(typeName);
+  }
+
+  @Override
+  public Object finalizeComputation(Object object)
+  {
+    if (object instanceof List) {
+      return ((List) object).get(1);
+    }
+    return object;
+  }
+
+  public ValueDesc finalizedType()
   {
     return typeName == null ? null : ValueDesc.of(typeName);
   }

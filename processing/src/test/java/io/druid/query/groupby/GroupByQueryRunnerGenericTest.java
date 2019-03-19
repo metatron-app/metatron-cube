@@ -61,6 +61,7 @@ import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -322,6 +323,45 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByRelay()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(fullOnInterval)
+        .setDimensions(new DefaultDimensionSpec("quality", "alias"))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                rowsCount,
+                RelayAggregatorFactory.min("index_min", "index"),
+                RelayAggregatorFactory.max("index_max", "index"),
+                RelayAggregatorFactory.timeMin("index_timemin", "index"),
+                RelayAggregatorFactory.timeMax("index_timemax", "index"),
+                RelayAggregatorFactory.first("index_first", "index"),
+                RelayAggregatorFactory.last("index_last", "index")
+            )
+        )
+        .build();
+
+    String[] columnNames =
+        {"__time", "rows", "index_min", "index_max", "index_timemin", "index_timemax", "index_first", "index_last"};
+    Object[][] objects = {
+        array("1970-01-01", 93L, 71.31593322753906, 277.2735290527344, 100.0, 106.793701171875, 100.0, 106.793701171875),
+        array("1970-01-01", 93L, 92.5374984741211, 135.1832733154297, 100.0, 94.4697494506836, 100.0, 94.4697494506836),
+        array("1970-01-01", 93L, 84.71052551269531, 193.78756713867188, 100.0, 135.10919189453125, 100.0, 135.10919189453125),
+        array("1970-01-01", 93L, 85.06978607177734, 189.38595581054688, 100.0, 99.59690856933594, 100.0, 99.59690856933594),
+        array("1970-01-01", 279L, 91.27055358886719, 1870.06103515625, 100.0, 92.78276062011719, 100.0, 962.731201171875),
+        array("1970-01-01", 93L, 96.0313720703125, 142.97296142578125, 100.0, 97.8597640991211, 100.0, 97.8597640991211),
+        array("1970-01-01", 279L, 99.2845230102539, 1862.7379150390625, 100.0, 120.50816345214844, 100.0, 780.27197265625),
+        array("1970-01-01", 93L, 59.02102279663086, 119.85015106201172, 100.0, 89.64623260498047, 100.0, 89.64623260498047),
+        array("1970-01-01", 93L, 100.0, 158.73936462402344, 100.0, 120.29034423828125, 100.0, 120.29034423828125)
+    };
+    Iterable<Row> results = runQuery(query, true);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
