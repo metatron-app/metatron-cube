@@ -142,8 +142,8 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
             if (envelope.getMinY() < minY) {
               buf.putDouble(position + MIN_Y, envelope.getMinY());
             }
-            if (envelope.getMinY() < minY) {
-              buf.putDouble(position + MAX_Y, envelope.getMinY());
+            if (envelope.getMaxY() > maxY) {
+              buf.putDouble(position + MAX_Y, envelope.getMaxY());
             }
           }
         }
