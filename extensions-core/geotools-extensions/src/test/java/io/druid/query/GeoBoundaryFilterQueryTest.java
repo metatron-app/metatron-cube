@@ -19,12 +19,18 @@
 
 package io.druid.query;
 
-import com.google.common.base.Throwables;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import io.druid.data.GeoToolsFunctions;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
+import io.druid.query.filter.LuceneLatLonPolygonFilter;
+import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.TestIndex;
+import io.druid.segment.lucene.ShapeIndexingStrategy;
+import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,14 +39,16 @@ import java.util.List;
 
 public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
 {
+  static SpecificSegmentsQuerySegmentWalker segmentWalker;
+
   static {
     Parser.register(GeoToolsFunctions.class);
-    try {
-      Class.forName(TestShapeQuery.class.getName());
-    }
-    catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
+    ObjectMapper mapper = new DefaultObjectMapper();
+    mapper.registerSubtypes(ShapeIndexingStrategy.class);
+    mapper.registerSubtypes(LuceneLatLonPolygonFilter.class);
+    mapper.registerSubtypes(LuceneSpatialFilter.class);
+    TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
+    segmentWalker = TestIndex.segmentWalker.withObjectMapper(mapper);
   }
 
   @Test
@@ -60,7 +68,7 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
         .columns("geom_buf", "name", "length")
         .streaming();
 
-    List<Object[]> roadSides = runQuery(boundary);
+    List<Object[]> roadSides = runQuery(boundary, segmentWalker);
     Assert.assertEquals(3, roadSides.size());
 
     Object[] road1 = roadSides.get(0);
@@ -87,7 +95,7 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
         source, "gis.coord", null, boundary, "geom_buf", null, Maps.<String, Object>newHashMap()
     );
-    List<Object[]> roadSideEstates = runQuery(filtered);
+    List<Object[]> roadSideEstates = runQuery(filtered, segmentWalker);
     Assert.assertEquals(8, roadSideEstates.size());
     Assert.assertEquals("[37.4852302, 127.0344609, 도곡동 953-1 SK허브프리모]", Arrays.toString(roadSideEstates.get(0)));
     Assert.assertEquals("[37.4864785, 127.0335393, 도곡동 952 대우디오빌]", Arrays.toString(roadSideEstates.get(1)));

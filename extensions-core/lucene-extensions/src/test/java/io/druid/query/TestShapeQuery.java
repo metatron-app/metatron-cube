@@ -19,13 +19,13 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.filter.LuceneSpatialFilter;
-import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
-import io.druid.segment.lucene.LuceneExtensionModule;
 import io.druid.segment.lucene.ShapeFormat;
+import io.druid.segment.lucene.ShapeIndexingStrategy;
 import io.druid.segment.lucene.SpatialOperations;
 import org.junit.Assert;
 import org.junit.Test;
@@ -36,10 +36,9 @@ import java.util.Map;
 public class TestShapeQuery extends QueryRunnerTestHelper
 {
   static {
-    for (Module jacksonModule : new LuceneExtensionModule().getJacksonModules()) {
-      TestHelper.JSON_MAPPER.registerModule(jacksonModule);
-    }
-    TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv");
+    ObjectMapper mapper = new DefaultObjectMapper();
+    mapper.registerSubtypes(ShapeIndexingStrategy.class);
+    TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
   }
 
   @Test

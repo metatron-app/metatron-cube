@@ -920,7 +920,13 @@ public class QueryRunnerTestHelper
   @SuppressWarnings("unchecked")
   public static <T> List<T> runQuery(Query query)
   {
-    return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+    return runQuery(query, TestIndex.segmentWalker);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> runQuery(Query query, QuerySegmentWalker walker)
+  {
+    return io.druid.common.utils.Sequences.toList(query.run(walker, Maps.<String, Object>newHashMap()));
   }
 
   public static List<Map<String, Object>> createExpectedMaps(String[] columnNames, Object[]... values)

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -221,10 +222,18 @@ public class TestIndex
   public static synchronized void addIndex(
       final String ds,
       final String schemaFile,
-      final String sourceFile
+      final String sourceFile) {
+    addIndex(ds, schemaFile, sourceFile, TestHelper.JSON_MAPPER);
+  }
+
+  public static synchronized void addIndex(
+      final String ds,
+      final String schemaFile,
+      final String sourceFile,
+      final ObjectMapper mapper
   )
   {
-    final TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {});
+    final TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {}, mapper);
     segmentWalker.addPopulator(
         ds,
         new Supplier<List<Pair<DataSegment, Segment>>>()
@@ -233,7 +242,7 @@ public class TestIndex
           public List<Pair<DataSegment, Segment>> get()
           {
             final Granularity granularity = schema.getSegmentGran();
-            final InputRowParser parser = schema.getParser(TestHelper.JSON_MAPPER, false);
+            final InputRowParser parser = schema.getParser(mapper, false);
 
             List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
             try {
@@ -339,10 +348,10 @@ public class TestIndex
     return makeRealtimeIndex(asCharSource(resourceFilename), rollup);
   }
 
-  public static <T> T loadJson(String resource, TypeReference<T> reference)
+  private static <T> T loadJson(String resource, TypeReference<T> reference, ObjectMapper mapper)
   {
     try {
-      return TestHelper.JSON_MAPPER.readValue(asCharSource(resource).openStream(), reference);
+      return mapper.readValue(asCharSource(resource).openStream(), reference);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
