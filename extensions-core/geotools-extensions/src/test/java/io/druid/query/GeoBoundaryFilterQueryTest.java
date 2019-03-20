@@ -69,7 +69,7 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
         .streaming();
 
     List<Object[]> roadSides = runQuery(boundary, segmentWalker);
-    Assert.assertEquals(3, roadSides.size());
+    Assert.assertEquals(4, roadSides.size());
 
     Object[] road1 = roadSides.get(0);
     Assert.assertEquals("강남대로", road1[1]);
@@ -92,18 +92,31 @@ public class GeoBoundaryFilterQueryTest extends QueryRunnerTestHelper
         "POLYGON ((127.06611049169186 37.51050615741942, 127.06676150830816 37.509177836670936, 127.02797350830815 37.497214730240735, 127.02732249169185 37.4985432638503, 127.06611049169186 37.51050615741942))",
         road3[0]
     );
+    Object[] road4 = roadSides.get(3);
+    Assert.assertEquals("방배로", road4[1]);
+    Assert.assertEquals(0.027482519025, ((Number) road4[2]).doubleValue(), 0.000001);
+    Assert.assertEquals(
+        "POLYGON ((127.00265861569268 37.47544532894693, 127.00105738430733 37.47479866965426, 126.9862213843073 37.4979327697642, 126.98782261569266 37.49857922883665, 127.00265861569268 37.47544532894693))",
+        road4[0]
+    );
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
-        source, "gis.coord", null, boundary, "geom_buf", null, Maps.<String, Object>newHashMap()
+        source, "gis.coord", null, boundary, "geom_buf", null, null, Maps.<String, Object>newHashMap()
     );
     List<Object[]> roadSideEstates = runQuery(filtered, segmentWalker);
-    Assert.assertEquals(8, roadSideEstates.size());
-    Assert.assertEquals("[37.4852302, 127.0344609, 도곡동 953-1 SK허브프리모]", Arrays.toString(roadSideEstates.get(0)));
-    Assert.assertEquals("[37.4864785, 127.0335393, 도곡동 952 대우디오빌]", Arrays.toString(roadSideEstates.get(1)));
-    Assert.assertEquals("[37.492158, 127.0309677, 역삼동 832-5 역삼디오슈페리움]", Arrays.toString(roadSideEstates.get(2)));
-    Assert.assertEquals("[37.4934746, 127.0154473, 서초동 1671-5 대림서초리시온]", Arrays.toString(roadSideEstates.get(3)));
-    Assert.assertEquals("[37.4934746, 127.0154473, 서초동 1671-5 대림서초리시온]", Arrays.toString(roadSideEstates.get(4)));
-    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(5)));
-    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(6)));
-    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(7)));
+    Assert.assertEquals(14, roadSideEstates.size());
+    Assert.assertEquals("[37.496687, 126.9883971, 방배동 725 방배신삼호]", Arrays.toString(roadSideEstates.get(0)));
+    Assert.assertEquals("[37.496687, 126.9883971, 방배동 725 방배신삼호]", Arrays.toString(roadSideEstates.get(1)));
+    Assert.assertEquals("[37.496533, 126.9874409, 방배동 758-4 삼호2]", Arrays.toString(roadSideEstates.get(2)));
+    Assert.assertEquals("[37.4976528, 126.9868109, 방배동 757-3 삼호3]", Arrays.toString(roadSideEstates.get(3)));
+    Assert.assertEquals("[37.4945392, 126.9891208, 방배동 772-13 현대멤피스]", Arrays.toString(roadSideEstates.get(4)));
+    Assert.assertEquals("[37.4945392, 126.9891208, 방배동 772-13 현대멤피스]", Arrays.toString(roadSideEstates.get(5)));
+    Assert.assertEquals("[37.4852302, 127.0344609, 도곡동 953-1 SK허브프리모]", Arrays.toString(roadSideEstates.get(6)));
+    Assert.assertEquals("[37.4864785, 127.0335393, 도곡동 952 대우디오빌]", Arrays.toString(roadSideEstates.get(7)));
+    Assert.assertEquals("[37.492158, 127.0309677, 역삼동 832-5 역삼디오슈페리움]", Arrays.toString(roadSideEstates.get(8)));
+    Assert.assertEquals("[37.4934746, 127.0154473, 서초동 1671-5 대림서초리시온]", Arrays.toString(roadSideEstates.get(9)));
+    Assert.assertEquals("[37.4934746, 127.0154473, 서초동 1671-5 대림서초리시온]", Arrays.toString(roadSideEstates.get(10)));
+    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(11)));
+    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(12)));
+    Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(13)));
   }
 }

@@ -54,7 +54,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         columns,
         new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"},
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"},
-        new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)"}
+        new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)"},
+        new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)"}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 

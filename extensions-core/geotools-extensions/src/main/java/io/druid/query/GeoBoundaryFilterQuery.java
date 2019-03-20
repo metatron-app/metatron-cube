@@ -26,8 +26,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryCollection;
 import com.vividsolutions.jts.operation.union.CascadedPolygonUnion;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -48,6 +50,8 @@ import java.util.Map;
 public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
 {
+  private static final int DEFAULT_PARALLELISM = 2;
+
   private final Query.ArrayOutputSupport<?> query;
   private final String pointColumn;
   private final String shapeColumn;
@@ -55,6 +59,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   private final StreamQuery boundary;
   private final String boundaryColumn;
   private final SpatialOperations operation;
+  private final Integer parallelism;
 
   public GeoBoundaryFilterQuery(
       @JsonProperty("query") Query.ArrayOutputSupport query,
@@ -63,6 +68,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       @JsonProperty("boundary") StreamQuery boundary,
       @JsonProperty("boundaryColumn") String boundaryColumn,
       @JsonProperty("operation") SpatialOperations operation,
+      @JsonProperty("parallelism") Integer parallelism,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -87,6 +93,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       );
     }
     this.operation = operation;
+    this.parallelism = parallelism;
   }
 
   @Override
@@ -135,6 +142,13 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     return operation;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer getParallelism()
+  {
+    return parallelism;
+  }
+
   @Override
   public GeoBoundaryFilterQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
@@ -145,6 +159,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundary,
         boundaryColumn,
         operation,
+        parallelism,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -178,13 +193,34 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     }
     ObjectMapper mapper = segmentWalker.getObjectMapper();
     Geometry union = new CascadedPolygonUnion(geometries).union();
+    if (union instanceof GeometryCollection && union.getNumGeometries() > 1) {
+      List<Query> queries = Lists.newArrayList();
+      for (int i = 0; i < union.getNumGeometries(); i++) {
+        queries.add(makeQuery(mapper, union.getGeometryN(i)));
+      }
+      int executor = parallelism == null ? DEFAULT_PARALLELISM : parallelism;
+      return new UnionAllQuery(null, queries, false, -1, executor, Maps.newHashMap());
+    }
+    return makeQuery(mapper, union);
+  }
+
+  private Query makeQuery(ObjectMapper mapper, Geometry geometry)
+  {
+    Map<String, Object> filterMap = makeFilter(geometry);
+    DimFilter filter = Preconditions.checkNotNull(mapper.convertValue(filterMap, DimFilter.class));
+    DimFilterSupport filterSupport = (DimFilterSupport) query;
+    return filterSupport.withDimFilter(DimFilters.and(filterSupport.getDimFilter(), filter));
+  }
+
+  private Map<String, Object> makeFilter(Geometry geometry)
+  {
     Map<String, Object> filterMap;
     if (pointColumn != null) {
       filterMap = ImmutableMap.<String, Object>of(
           "type", "lucene.latlon.polygon",
           "field", pointColumn,
           "shapeFormat", "WKT",
-          "shapeString", union.toText()
+          "shapeString", geometry.toText()
       );
     } else {
       SpatialOperations op = operation == null ? SpatialOperations.COVERS : operation;
@@ -193,12 +229,10 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           "operation", op.getName(),
           "field", shapeColumn,
           "shapeFormat", "WKT",
-          "shapeString", union.toText()
+          "shapeString", geometry.toText()
       );
     }
-    DimFilter filter = Preconditions.checkNotNull(mapper.convertValue(filterMap, DimFilter.class));
-    Query.DimFilterSupport filterSupport = (Query.DimFilterSupport) query;
-    return filterSupport.withDimFilter(DimFilters.and(filterSupport.getDimFilter(), filter));
+    return filterMap;
   }
 
   @Override
@@ -216,7 +250,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   @Override
   public String toString()
   {
-    return "BoundaryFilterQuery{" +
+    return "GeoBoundaryFilterQuery{" +
            "query=" + query +
            ", boundary=" + boundary +
            ", boundaryColumn='" + boundaryColumn + '\'' +

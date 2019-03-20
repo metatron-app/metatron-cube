@@ -34,6 +34,8 @@ import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 public class EnvelopeAggregatorFactoryTest extends QueryRunnerTestHelper
 {
   static {
@@ -59,7 +61,7 @@ public class EnvelopeAggregatorFactoryTest extends QueryRunnerTestHelper
     Row results = (Row) Iterables.getOnlyElement(runQuery(query));
 
     Assert.assertArrayEquals(
-        new double[]{127.007656, 127.066436, 37.484505, 37.521752},
+        new double[]{126.987022, 127.066436, 37.475122, 37.521752},
         (double[]) results.getRaw("envelope"),
         0.0001
     );
@@ -81,8 +83,9 @@ public class EnvelopeAggregatorFactoryTest extends QueryRunnerTestHelper
     GroupByQueryRunnerTestHelper.printJson(query);
     Row results = (Row) Iterables.getOnlyElement(runQuery(query));
 
+    System.out.println(Arrays.toString((double[]) results.getRaw("envelope")));
     Assert.assertArrayEquals(
-        new double[]{127.007656, 127.066436, 37.484505, 37.521752},
+        new double[]{126.987022, 127.066436, 37.475122, 37.521752},
         (double[]) results.getRaw("envelope"),
         0.0001
     );
