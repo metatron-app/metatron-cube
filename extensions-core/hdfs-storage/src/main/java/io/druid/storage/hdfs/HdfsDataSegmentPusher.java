@@ -117,8 +117,15 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     this.merger = merger;
   }
 
+  @Deprecated
   @Override
   public String getPathForHadoop(String dataSource)
+  {
+    return getPathForHadoop();
+  }
+
+  @Override
+  public String getPathForHadoop()
   {
     return new Path(config.getStorageDirectory()).toUri().toString();
   }

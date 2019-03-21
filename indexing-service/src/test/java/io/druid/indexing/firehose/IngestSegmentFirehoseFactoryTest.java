@@ -212,8 +212,15 @@ public class IngestSegmentFirehoseFactoryTest
         newMockEmitter(),
         new DataSegmentPusher()
         {
+          @Deprecated
           @Override
           public String getPathForHadoop(String dataSource)
+          {
+            return getPathForHadoop();
+          }
+
+          @Override
+          public String getPathForHadoop()
           {
             throw new UnsupportedOperationException();
           }
