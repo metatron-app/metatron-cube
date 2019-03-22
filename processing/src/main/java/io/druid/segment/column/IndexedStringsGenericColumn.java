@@ -50,4 +50,10 @@ public class IndexedStringsGenericColumn extends AbstractGenericColumn
   {
     return indexed.get(rowNum);
   }
+
+  @Override
+  public Object getValue(int rowNum)
+  {
+    return getString(rowNum);
+  }
 }

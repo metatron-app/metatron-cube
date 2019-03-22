@@ -42,19 +42,19 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     return (float) buf.getDouble(position);
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     return buf.getDouble(position);
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return (long) buf.getDouble(position);
   }
@@ -73,7 +73,10 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          buf.putDouble(position, buf.getDouble(position) + selector.get());
+          final Float v = selector.get();
+          if (v != null) {
+            buf.putDouble(position, buf.getDouble(position) + v);
+          }
         }
       };
     } else {
@@ -83,7 +86,10 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            buf.putDouble(position, buf.getDouble(position) + selector.get());
+            final Float v = selector.get();
+            if (v != null) {
+              buf.putDouble(position, buf.getDouble(position) + v);
+            }
           }
         }
       };
@@ -98,7 +104,10 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          buf.putDouble(position, buf.getDouble(position) + selector.get());
+          final Double v = selector.get();
+          if (v != null) {
+            buf.putDouble(position, buf.getDouble(position) + v);
+          }
         }
       };
     } else {
@@ -108,7 +117,10 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            buf.putDouble(position, buf.getDouble(position) + selector.get());
+            final Double v = selector.get();
+            if (v != null) {
+              buf.putDouble(position, buf.getDouble(position) + v);
+            }
           }
         }
       };

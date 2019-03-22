@@ -48,8 +48,11 @@ public class AverageBufferAggregator extends BufferAggregator.Abstract
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.matches()) {
-      buf.putLong(position, buf.getLong(position) + 1);
-      buf.putDouble(position + Long.BYTES, buf.getDouble(position + Long.BYTES) + selector.get());
+      final Double v = selector.get();
+      if (v != null) {
+        buf.putLong(position, buf.getLong(position) + 1);
+        buf.putDouble(position + Long.BYTES, buf.getDouble(position + Long.BYTES) + v);
+      }
     }
   }
 

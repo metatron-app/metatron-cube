@@ -69,6 +69,12 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
+  public Object getValue(int rowNum)
+  {
+    return getFloat(rowNum);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

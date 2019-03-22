@@ -69,6 +69,12 @@ public class IndexedDoublesGenericColumn extends AbstractGenericColumn
   }
 
   @Override
+  public Object getValue(int rowNum)
+  {
+    return getDouble(rowNum);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

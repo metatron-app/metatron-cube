@@ -69,6 +69,12 @@ public class IndexedLongsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
+  public Object getValue(int rowNum)
+  {
+    return getLong(rowNum);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

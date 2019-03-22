@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class CardinalityAggregator implements Aggregator
+public class CardinalityAggregator extends Aggregator.Abstract
 {
   private static final String NULL_STRING = "\u0000";
 
@@ -184,32 +184,8 @@ public class CardinalityAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
-  {
-    throw new UnsupportedOperationException("CardinalityAggregator does not support getFloat()");
-  }
-
-  @Override
-  public long getLong()
-  {
-    throw new UnsupportedOperationException("CardinalityAggregator does not support getLong()");
-  }
-
-  @Override
-  public double getDouble()
-  {
-    throw new UnsupportedOperationException("CardinalityAggregator does not support getDouble()");
-  }
-
-  @Override
   public Aggregator clone()
   {
     return new CardinalityAggregator(predicate, selectorList, groupings, byRow);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

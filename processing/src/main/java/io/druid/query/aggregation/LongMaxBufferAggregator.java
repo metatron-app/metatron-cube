@@ -36,10 +36,12 @@ public abstract class LongMaxBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final long v1 = buf.getLong(position);
-          final long v2 = selector.get();
-          if (Long.compare(v1, v2) < 0) {
-            buf.putLong(position, v2);
+          final Long v2 = selector.get();
+          if (v2 != null) {
+            final long v1 = buf.getLong(position);
+            if (Long.compare(v1, v2) < 0) {
+              buf.putLong(position, v2);
+            }
           }
         }
       };
@@ -50,10 +52,12 @@ public abstract class LongMaxBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final long v1 = buf.getLong(position);
-            final long v2 = selector.get();
-            if (Long.compare(v1, v2) < 0) {
-              buf.putLong(position, v2);
+            final Long v2 = selector.get();
+            if (v2 != null) {
+              final long v1 = buf.getLong(position);
+              if (Long.compare(v1, v2) < 0) {
+                buf.putLong(position, v2);
+              }
             }
           }
         }
@@ -74,19 +78,19 @@ public abstract class LongMaxBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
-    return buf.getLong(position);
+    return (float) buf.getLong(position);
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
-    return buf.getLong(position);
+    return (double) buf.getLong(position);
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return buf.getLong(position);
   }

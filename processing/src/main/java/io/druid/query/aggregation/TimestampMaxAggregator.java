@@ -77,7 +77,7 @@ public class TimestampMaxAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float)max;
   }
@@ -89,13 +89,13 @@ public class TimestampMaxAggregator implements Aggregator
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return max;
   }
 
   @Override
-  public double getDouble() {
+  public Double getDouble() {
     return (double)max;
   }
 

@@ -63,7 +63,7 @@ public class DocumentsColumnAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat() {
+  public Float getFloat() {
     throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getFloat()");
   }
 
@@ -76,12 +76,12 @@ public class DocumentsColumnAggregator implements Aggregator
   }
 
   @Override
-  public long getLong() {
+  public Long getLong() {
     throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getLong()");
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getDouble()");
   }

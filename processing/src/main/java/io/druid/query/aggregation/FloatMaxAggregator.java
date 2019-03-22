@@ -58,21 +58,21 @@ public abstract class FloatMaxAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return max;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) max;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
-    return max;
+    return (double) max;
   }
 
   @Override
@@ -89,9 +89,11 @@ public abstract class FloatMaxAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          float v = selector.get();
-          synchronized (this) {
-            max = Math.max(max, v);
+          final Float v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              max = Math.max(max, v);
+            }
           }
         }
       };
@@ -102,9 +104,11 @@ public abstract class FloatMaxAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            float v = selector.get();
-            synchronized (this) {
-              max = Math.max(max, v);
+            final Float v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                max = Math.max(max, v);
+              }
             }
           }
         }

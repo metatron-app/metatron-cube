@@ -51,19 +51,19 @@ public abstract class DoubleMinAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) min;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) min;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return min;
   }
@@ -82,9 +82,11 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          float v = selector.get();
-          synchronized (this) {
-            min = Math.min(min, v);
+          final Float v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
@@ -95,9 +97,11 @@ public abstract class DoubleMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            float v = selector.get();
-            synchronized (this) {
-              min = Math.min(min, v);
+            final Float v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                min = Math.min(min, v);
+              }
             }
           }
         }
@@ -113,9 +117,11 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          double v = selector.get();
-          synchronized (this) {
-            min = Math.min(min, v);
+          final Double v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
@@ -126,9 +132,11 @@ public abstract class DoubleMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            double v = selector.get();
-            synchronized (this) {
-              min = Math.min(min, v);
+            final Double v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                min = Math.min(min, v);
+              }
             }
           }
         }

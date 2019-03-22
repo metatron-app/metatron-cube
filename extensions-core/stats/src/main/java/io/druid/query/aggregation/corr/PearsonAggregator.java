@@ -49,19 +49,19 @@ public abstract class PearsonAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     throw new UnsupportedOperationException("PearsonAggregator does not support getFloat()");
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     throw new UnsupportedOperationException("PearsonAggregator does not support getDouble()");
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     throw new UnsupportedOperationException("PearsonAggregator does not support getLong()");
   }
@@ -78,7 +78,11 @@ public abstract class PearsonAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          holder.add(selector1.get(), selector2.get());
+          final Double v1 = selector1.get();
+          final Double v2 = selector2.get();
+          if (v1 != null && v2 != null) {
+            holder.add(v1, v2);
+          }
         }
       };
     } else {
@@ -88,7 +92,11 @@ public abstract class PearsonAggregator implements Aggregator
         public void aggregate()
         {
           if (predicate.matches()) {
-            holder.add(selector1.get(), selector2.get());
+            final Double v1 = selector1.get();
+            final Double v2 = selector2.get();
+            if (v1 != null && v2 != null) {
+              holder.add(v1, v2);
+            }
           }
         }
       };

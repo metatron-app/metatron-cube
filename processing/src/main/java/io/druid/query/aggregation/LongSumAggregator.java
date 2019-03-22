@@ -53,9 +53,11 @@ public abstract class LongSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          long v = selector.get();
-          synchronized (this) {
-            sum += v;
+          final Long v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };
@@ -66,9 +68,11 @@ public abstract class LongSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            long v = selector.get();
-            synchronized (this) {
-              sum += v;
+            final Long v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                sum += v;
+              }
             }
           }
         }
@@ -89,21 +93,21 @@ public abstract class LongSumAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
+  {
+    return (float) sum;
+  }
+
+  @Override
+  public Long getLong()
   {
     return sum;
   }
 
   @Override
-  public long getLong()
+  public Double getDouble()
   {
-    return sum;
-  }
-
-  @Override
-  public double getDouble()
-  {
-    return sum;
+    return (double) sum;
   }
 
   @Override

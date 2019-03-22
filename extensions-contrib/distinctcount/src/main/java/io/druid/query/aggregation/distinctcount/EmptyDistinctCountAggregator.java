@@ -40,7 +40,7 @@ public class EmptyDistinctCountAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) 0;
   }
@@ -51,13 +51,13 @@ public class EmptyDistinctCountAggregator implements Aggregator
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) 0;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return (double) 0;
   }

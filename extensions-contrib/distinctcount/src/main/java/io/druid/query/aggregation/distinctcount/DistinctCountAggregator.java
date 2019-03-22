@@ -66,7 +66,7 @@ public class DistinctCountAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) mutableBitmap.size();
   }
@@ -78,13 +78,13 @@ public class DistinctCountAggregator implements Aggregator
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) mutableBitmap.size();
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return (double) mutableBitmap.size();
   }

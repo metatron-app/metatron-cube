@@ -68,19 +68,19 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getFloat()");
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getDouble()");
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getFloat()");
   }
@@ -105,14 +105,17 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
       public void aggregate(ByteBuffer buf, int position)
       {
         if (predicate.matches()) {
+          final Double v = selector.get();
+          if (v == null) {
+            return;
+          }
           long n = buf.getLong(position + COUNT_OFFSET);
           double mean = buf.getDouble(position + MEAN_OFFSET);
           double M2 = buf.getDouble(position + M2_OFFSET);
           double M3 = buf.getDouble(position + M3_OFFSET);
           double M4 = buf.getDouble(position + M4_OFFSET);
 
-          final double x = selector.get();
-
+          final double x = v;
           final long n1 = n;
           n = n + 1;
           final double delta = x - mean;

@@ -20,11 +20,13 @@
 package io.druid.query.aggregation.histogram;
 
 
+import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
-public class ApproximateHistogramFoldingAggregator implements Aggregators.EstimableAggregator
+public class ApproximateHistogramFoldingAggregator extends Aggregator.Abstract
+    implements Aggregators.EstimableAggregator
 {
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
   private final int resolution;
@@ -89,30 +91,6 @@ public class ApproximateHistogramFoldingAggregator implements Aggregators.Estima
   public Object get()
   {
     return histogram;
-  }
-
-  @Override
-  public float getFloat()
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramFoldingAggregator does not support getFloat()");
-  }
-
-  @Override
-  public long getLong()
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramFoldingAggregator does not support getLong()");
-  }
-
-  @Override
-  public double getDouble()
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramFoldingAggregator does not support getDouble()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 
   @Override

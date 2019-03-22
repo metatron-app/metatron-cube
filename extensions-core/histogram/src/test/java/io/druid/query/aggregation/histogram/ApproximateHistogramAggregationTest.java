@@ -62,9 +62,11 @@ public class ApproximateHistogramAggregationTest
   public void testIngestWithNullsToZeroAndQuery() throws Exception
   {
     MapBasedRow row = ingestAndQuery(false);
-    Assert.assertEquals(0.0, row.getFloatMetric("index_min"), 0.0001);
+//    Assert.assertEquals(0.0, row.getFloatMetric("index_min"), 0.0001);
+    Assert.assertEquals(92.782760, row.getFloatMetric("index_min"), 0.0001);  // now, null is skipped always
     Assert.assertEquals(135.109191, row.getFloatMetric("index_max"), 0.0001);
-    Assert.assertEquals(131.428176, row.getFloatMetric("index_quantile"), 0.0001);
+//    Assert.assertEquals(131.428176, row.getFloatMetric("index_quantile"), 0.0001);
+    Assert.assertEquals(133.693405, row.getFloatMetric("index_quantile"), 0.0001);
   }
 
   private MapBasedRow ingestAndQuery(boolean ignoreNulls) throws Exception

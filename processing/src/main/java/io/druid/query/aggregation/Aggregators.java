@@ -43,13 +43,11 @@ public class Aggregators
       @Override
       public void aggregate()
       {
-
       }
 
       @Override
       public void reset()
       {
-
       }
 
       @Override
@@ -59,27 +57,25 @@ public class Aggregators
       }
 
       @Override
-      public float getFloat()
+      public Float getFloat()
       {
-        return 0;
+        return null;
       }
 
       @Override
-      public void close()
+      public Long getLong()
       {
-
+        return null;
       }
 
       @Override
-      public long getLong()
+      public Double getDouble()
       {
-        return 0;
+        return null;
       }
 
       @Override
-      public double getDouble()
-      {
-        return 0D;
+      public void close() {
       }
     };
   }
@@ -112,7 +108,7 @@ public class Aggregators
     }
 
     @Override
-    public float getFloat()
+    public Float getFloat()
     {
       return delegate.getFloat();
     }
@@ -124,13 +120,13 @@ public class Aggregators
     }
 
     @Override
-    public long getLong()
+    public Long getLong()
     {
       return delegate.getLong();
     }
 
     @Override
-    public double getDouble()
+    public Double getDouble()
     {
       return delegate.getDouble();
     }
@@ -143,13 +139,11 @@ public class Aggregators
       @Override
       public void init(ByteBuffer buf, int position)
       {
-
       }
 
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-
       }
 
       @Override
@@ -159,28 +153,27 @@ public class Aggregators
       }
 
       @Override
-      public float getFloat(ByteBuffer buf, int position)
+      public Float getFloat(ByteBuffer buf, int position)
       {
-        return 0;
+        return null;
       }
 
       @Override
-      public double getDouble(ByteBuffer buf, int position)
+      public Double getDouble(ByteBuffer buf, int position)
       {
-        return 0D;
+        return null;
       }
 
 
       @Override
-      public long getLong(ByteBuffer buf, int position)
+      public Long getLong(ByteBuffer buf, int position)
       {
-        return 0L;
+        return null;
       }
 
       @Override
       public void close()
       {
-
       }
     };
   }
@@ -213,19 +206,19 @@ public class Aggregators
     }
 
     @Override
-    public float getFloat(ByteBuffer buf, int position)
+    public Float getFloat(ByteBuffer buf, int position)
     {
       return delegate.getFloat(buf, position);
     }
 
     @Override
-    public double getDouble(ByteBuffer buf, int position)
+    public Double getDouble(ByteBuffer buf, int position)
     {
       return delegate.getDouble(buf, position);
     }
 
     @Override
-    public long getLong(ByteBuffer buf, int position)
+    public Long getLong(ByteBuffer buf, int position)
     {
       return delegate.getLong(buf, position);
     }
@@ -303,7 +296,7 @@ public class Aggregators
           public void aggregate()
           {
             final Object update = selector.get();
-            if (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) > 0) {
+            if (update != null && (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) > 0)) {
               selected = true;
               value = update;
             }
@@ -317,7 +310,7 @@ public class Aggregators
           public void aggregate()
           {
             final Object update = selector.get();
-            if (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) < 0) {
+            if (update != null && (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) < 0)) {
               selected = true;
               value = update;
             }
@@ -333,11 +326,14 @@ public class Aggregators
           @SuppressWarnings("unchecked")
           public void aggregate()
           {
-            final long current = timeSelector.get();
-            if (!selected || Longs.compare(minTime, current) > 0) {
-              selected = true;
-              value = selector.get();
-              minTime = current;
+            final Object update = selector.get();
+            if (update != null) {
+              final long current = timeSelector.get();
+              if (!selected || Longs.compare(minTime, current) > 0) {
+                selected = true;
+                value = update;
+                minTime = current;
+              }
             }
           }
 
@@ -357,11 +353,14 @@ public class Aggregators
           @SuppressWarnings("unchecked")
           public void aggregate()
           {
-            final long current = timeSelector.get();
-            if (!selected || Longs.compare(maxTime, current) < 0) {
-              selected = true;
-              value = selector.get();
-              maxTime = current;
+            final Object update = selector.get();
+            if (update != null) {
+              final long current = timeSelector.get();
+              if (!selected || Longs.compare(maxTime, current) < 0) {
+                selected = true;
+                value = selector.get();
+                maxTime = current;
+              }
             }
           }
 
@@ -390,8 +389,11 @@ public class Aggregators
 
     protected final void update(final ObjectColumnSelector selector)
     {
-      selected = true;
-      value = selector.get();
+      final Object update = selector.get();
+      if (update != null) {
+        selected = true;
+        value = update;
+      }
     }
 
     @Override
@@ -401,10 +403,10 @@ public class Aggregators
     }
 
     @Override
-    public float getFloat()
+    public Float getFloat()
     {
       if (value == null) {
-        return 0;
+        return null;
       }
       if (value instanceof Number) {
         return ((Number) value).floatValue();
@@ -420,10 +422,10 @@ public class Aggregators
     }
 
     @Override
-    public long getLong()
+    public Long getLong()
     {
       if (value == null) {
-        return 0;
+        return null;
       }
       if (value instanceof Number) {
         return ((Number) value).longValue();
@@ -439,10 +441,10 @@ public class Aggregators
     }
 
     @Override
-    public double getDouble()
+    public Double getDouble()
     {
       if (value == null) {
-        return 0;
+        return null;
       }
       if (value instanceof Number) {
         return ((Number) value).doubleValue();
@@ -507,19 +509,19 @@ public class Aggregators
     }
 
     @Override
-    public float getFloat(ByteBuffer buf, int position)
+    public Float getFloat(ByteBuffer buf, int position)
     {
       return mapping.get(toKey(buf, position)).getFloat();
     }
 
     @Override
-    public double getDouble(ByteBuffer buf, int position)
+    public Double getDouble(ByteBuffer buf, int position)
     {
       return mapping.get(toKey(buf, position)).getDouble();
     }
 
     @Override
-    public long getLong(ByteBuffer buf, int position)
+    public Long getLong(ByteBuffer buf, int position)
     {
       return mapping.get(toKey(buf, position)).getLong();
     }

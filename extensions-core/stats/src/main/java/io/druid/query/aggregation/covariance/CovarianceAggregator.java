@@ -27,9 +27,9 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class CovarianceAggregator implements Aggregator
+public abstract class CovarianceAggregator extends Aggregator.Abstract
 {
-  protected final io.druid.query.aggregation.covariance.CovarianceAggregatorCollector holder = new io.druid.query.aggregation.covariance.CovarianceAggregatorCollector();
+  protected final CovarianceAggregatorCollector holder = new CovarianceAggregatorCollector();
 
   @Override
   public void reset()
@@ -41,29 +41,6 @@ public abstract class CovarianceAggregator implements Aggregator
   public Object get()
   {
     return holder;
-  }
-
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public float getFloat()
-  {
-    throw new UnsupportedOperationException("CovarianceAggregator does not support getFloat()");
-  }
-
-  @Override
-  public double getDouble()
-  {
-    throw new UnsupportedOperationException("CovarianceAggregator does not support getDouble()");
-  }
-
-  @Override
-  public long getLong()
-  {
-    throw new UnsupportedOperationException("CovarianceAggregator does not support getLong()");
   }
 
   public static Aggregator create(
@@ -78,7 +55,11 @@ public abstract class CovarianceAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          holder.add(selector1.get(), selector2.get());
+          final Double v1 = selector1.get();
+          final Double v2 = selector2.get();
+          if (v1 != null && v2 != null) {
+            holder.add(v1, v2);
+          }
         }
       };
     } else {
@@ -88,7 +69,11 @@ public abstract class CovarianceAggregator implements Aggregator
         public void aggregate()
         {
           if (predicate.matches()) {
-            holder.add(selector1.get(), selector2.get());
+            final Double v1 = selector1.get();
+            final Double v2 = selector2.get();
+            if (v1 != null && v2 != null) {
+              holder.add(v1, v2);
+            }
           }
         }
       };

@@ -47,19 +47,19 @@ public class EmptyDistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     return (float) 0;
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     return (double) 0;
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return (long) 0;
   }

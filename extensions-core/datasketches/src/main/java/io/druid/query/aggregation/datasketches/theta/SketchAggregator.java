@@ -60,19 +60,19 @@ public abstract class SketchAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     throw new UnsupportedOperationException("Not implemented");
   }

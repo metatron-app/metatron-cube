@@ -52,7 +52,7 @@ public class MetricAreaAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float)metricArea.getArea();
   }
@@ -63,13 +63,13 @@ public class MetricAreaAggregator implements Aggregator
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) metricArea.getArea();
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return metricArea.getArea();
   }

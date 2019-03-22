@@ -50,21 +50,21 @@ public abstract class FloatMinAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return min;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) min;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
-    return min;
+    return (double) min;
   }
 
   @Override
@@ -81,9 +81,11 @@ public abstract class FloatMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          float v = selector.get();
-          synchronized (this) {
-            min = Math.min(min, v);
+          final Float v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
@@ -94,9 +96,11 @@ public abstract class FloatMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            float v = selector.get();
-            synchronized (this) {
-              min = Math.min(min, v);
+            final Float v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                min = Math.min(min, v);
+              }
             }
           }
         }

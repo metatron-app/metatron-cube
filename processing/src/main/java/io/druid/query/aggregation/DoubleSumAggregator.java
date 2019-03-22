@@ -60,19 +60,19 @@ public abstract class DoubleSumAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) sum;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) sum;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return sum;
   }
@@ -91,9 +91,11 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          float v = selector.get();
-          synchronized (this) {
-            sum += v;
+          final Float v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };
@@ -104,9 +106,11 @@ public abstract class DoubleSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            float v = selector.get();
-            synchronized (this) {
-              sum += v;
+            final Float v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                sum += v;
+              }
             }
           }
         }
@@ -122,9 +126,11 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          double v = selector.get();
-          synchronized (this) {
-            sum += v;
+          final Double v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };
@@ -135,9 +141,11 @@ public abstract class DoubleSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            double v = selector.get();
-            synchronized (this) {
-              sum += v;
+            final Double v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                sum += v;
+              }
             }
           }
         }

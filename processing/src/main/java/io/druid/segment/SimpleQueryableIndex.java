@@ -127,7 +127,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     if (capabilities.isDictionaryEncoded()) {
       return ValueDesc.ofDimension(valueType);
     } else if (!valueType.isPrimitive()) {
-      return ValueDesc.of(column.getComplexColumn().getTypeName());
+      return column.getComplexColumn().getType();
     }
     return ValueDesc.of(valueType);
 

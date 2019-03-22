@@ -29,7 +29,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class VarianceAggregator implements Aggregator
+public abstract class VarianceAggregator extends Aggregator.Abstract
 {
   protected final VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
 
@@ -45,29 +45,6 @@ public abstract class VarianceAggregator implements Aggregator
     return holder;
   }
 
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public float getFloat()
-  {
-    throw new UnsupportedOperationException("VarianceAggregator does not support getFloat()");
-  }
-
-  @Override
-  public double getDouble()
-  {
-    throw new UnsupportedOperationException("VarianceAggregator does not support getDouble()");
-  }
-
-  @Override
-  public long getLong()
-  {
-    throw new UnsupportedOperationException("VarianceAggregator does not support getLong()");
-  }
-
   public static Aggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
@@ -79,7 +56,10 @@ public abstract class VarianceAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          holder.add(selector.get());
+          final Float v = selector.get();
+          if (v != null) {
+            holder.add(v);
+          }
         }
       };
     } else {
@@ -89,7 +69,10 @@ public abstract class VarianceAggregator implements Aggregator
         public void aggregate()
         {
           if (predicate.matches()) {
-            holder.add(selector.get());
+            final Float v = selector.get();
+            if (v != null) {
+              holder.add(v);
+            }
           }
         }
       };
@@ -107,7 +90,10 @@ public abstract class VarianceAggregator implements Aggregator
       public void aggregate()
       {
         if (predicate.matches()) {
-          holder.add(selector.get());
+          final Double v = selector.get();
+          if (v != null) {
+            holder.add(v);
+          }
         }
       }
     };
@@ -124,7 +110,10 @@ public abstract class VarianceAggregator implements Aggregator
       public void aggregate()
       {
         if (predicate.matches()) {
-          holder.add(selector.get());
+          final Long v = selector.get();
+          if (v != null) {
+            holder.add(v);
+          }
         }
       }
     };

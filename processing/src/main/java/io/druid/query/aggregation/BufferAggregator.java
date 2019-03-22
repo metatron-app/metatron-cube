@@ -86,9 +86,9 @@ public interface BufferAggregator
    * @param position offset within the byte buffer at which the aggregate value is stored
    * @return the float representation of the aggregate
    */
-  float getFloat(ByteBuffer buf, int position);
+  Float getFloat(ByteBuffer buf, int position);
 
-  double getDouble(ByteBuffer buf, int position);
+  Double getDouble(ByteBuffer buf, int position);
 
   /**
    * Returns the long representation of the given aggregate byte array
@@ -105,7 +105,7 @@ public interface BufferAggregator
    * @param position offset within the byte buffer at which the aggregate value is stored
    * @return the long representation of the aggregate
    */
-  long getLong(ByteBuffer buf, int position);
+  Long getLong(ByteBuffer buf, int position);
 
   /**
    * Release any resources used by the aggregator
@@ -126,19 +126,19 @@ public interface BufferAggregator
     }
 
     @Override
-    public float getFloat(ByteBuffer buf, int position)
+    public Float getFloat(ByteBuffer buf, int position)
     {
       throw new UnsupportedOperationException("getFloat");
     }
 
     @Override
-    public double getDouble(ByteBuffer buf, int position)
+    public Double getDouble(ByteBuffer buf, int position)
     {
       throw new UnsupportedOperationException("getDouble");
     }
 
     @Override
-    public long getLong(ByteBuffer buf, int position)
+    public Long getLong(ByteBuffer buf, int position)
     {
       throw new UnsupportedOperationException("getLong");
     }

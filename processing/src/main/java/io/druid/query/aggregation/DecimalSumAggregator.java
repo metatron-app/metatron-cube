@@ -83,19 +83,19 @@ public abstract class DecimalSumAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return sum.floatValue();
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return sum.longValue();
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return sum.doubleValue();
   }

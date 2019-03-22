@@ -70,19 +70,19 @@ public class CountAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) count;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return count;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return (double) count;
   }

@@ -19,38 +19,9 @@
 
 package io.druid.segment.column;
 
-import io.druid.data.ValueDesc;
-import io.druid.segment.data.Indexed;
+import java.io.Closeable;
 
-import java.io.IOException;
-
-/**
-*/
-public class IndexedComplexColumn implements ComplexColumn
+public interface ColumnAccess extends Closeable
 {
-  private final Indexed column;
-  private final ValueDesc type;
-
-  public IndexedComplexColumn(ValueDesc type, Indexed column)
-  {
-    this.column = column;
-    this.type = type;
-  }
-
-  @Override
-  public ValueDesc getType()
-  {
-    return type;
-  }
-
-  @Override
-  public Object getValue(int rowNum)
-  {
-    return column.get(rowNum);
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-  }
+  Object getValue(int rowNum);
 }

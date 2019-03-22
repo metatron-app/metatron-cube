@@ -65,19 +65,19 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("CovarianceBufferAggregator does not support getFloat()");
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("CovarianceBufferAggregator does not support getDouble()");
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("CovarianceBufferAggregator does not support getFloat()");
   }
@@ -103,13 +103,18 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
       public void aggregate(ByteBuffer buf, int position)
       {
         if (predicate.matches()) {
+          final Double v1 = selector1.get();
+          final Double v2 = selector2.get();
+          if (v1 == null || v2 == null) {
+            return;
+          }
           long count = buf.getLong(position + COUNT_OFFSET);
           double xavg = buf.getDouble(position + XAVG_OFFSET);
           double yavg = buf.getDouble(position + YAVG_OFFSET);
           double covar = buf.getDouble(position + COVAR_OFFSET);
 
-          final double vx = selector1.get();
-          final double vy = selector2.get();
+          final double vx = v1;
+          final double vy = v2;
           final double deltaX = vx - xavg;
           final double deltaY = vy - yavg;
           count++;

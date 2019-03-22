@@ -19,40 +19,40 @@
 
 package io.druid.segment.serde;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.IndexedComplexColumn;
 import io.druid.segment.data.GenericIndexed;
 
 /**
-*/
+ */
 public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColumn>
 {
-  private final GenericIndexed complexType;
-  private final String typeName;
+  private final ValueDesc type;
+  private final GenericIndexed column;
 
-  public ComplexColumnPartSupplier(
-      final String typeName, final GenericIndexed complexType
-  ) {
-    this.complexType = complexType;
-    this.typeName = typeName;
+  public ComplexColumnPartSupplier(String typeName, GenericIndexed column)
+  {
+    this.type = ValueDesc.of(typeName);
+    this.column = column;
   }
 
   @Override
   public ComplexColumn get()
   {
-    return new IndexedComplexColumn(typeName, complexType);
+    return new IndexedComplexColumn(type, column);
   }
 
   @Override
   public int size()
   {
-    return complexType.size();
+    return column.size();
   }
 
   @Override
   public long getSerializedSize()
   {
-    return complexType.getSerializedSize();
+    return column.getSerializedSize();
   }
 }

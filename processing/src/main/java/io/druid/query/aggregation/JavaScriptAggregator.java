@@ -69,19 +69,19 @@ public class JavaScriptAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return (float) current;
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return (long) current;
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return current;
   }

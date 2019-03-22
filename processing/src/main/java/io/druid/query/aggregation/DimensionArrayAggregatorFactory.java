@@ -102,19 +102,19 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public long getLong()
+      public Long getLong()
       {
         throw new UnsupportedOperationException("getLong");
       }
 
       @Override
-      public float getFloat()
+      public Float getFloat()
       {
         throw new UnsupportedOperationException("getFloat");
       }
 
       @Override
-      public double getDouble()
+      public Double getDouble()
       {
         throw new UnsupportedOperationException("getDouble");
       }
@@ -182,19 +182,19 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public float getFloat(ByteBuffer buf, int position)
+      public Float getFloat(ByteBuffer buf, int position)
       {
         throw new UnsupportedOperationException("getFloat");
       }
 
       @Override
-      public double getDouble(ByteBuffer buf, int position)
+      public Double getDouble(ByteBuffer buf, int position)
       {
         throw new UnsupportedOperationException("getDouble");
       }
 
       @Override
-      public long getLong(ByteBuffer buf, int position)
+      public Long getLong(ByteBuffer buf, int position)
       {
         throw new UnsupportedOperationException("getLong");
       }

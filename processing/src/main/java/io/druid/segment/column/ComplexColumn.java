@@ -19,13 +19,11 @@
 
 package io.druid.segment.column;
 
-import java.io.Closeable;
+import io.druid.data.ValueDesc;
 
 /**
  */
-public interface ComplexColumn extends Closeable
+public interface ComplexColumn extends ColumnAccess
 {
-  public Class<?> getClazz();
-  public String getTypeName();
-  public Object getRowValue(int rowNum);
+  ValueDesc getType();
 }

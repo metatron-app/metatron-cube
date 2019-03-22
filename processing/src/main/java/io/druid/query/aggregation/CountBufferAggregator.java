@@ -55,19 +55,19 @@ public class CountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
-    return buf.getLong(position);
+    return (float) buf.getLong(position);
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
-    return buf.getLong(position);
+    return (double) buf.getLong(position);
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return buf.getLong(position);
   }

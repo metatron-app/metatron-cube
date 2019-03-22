@@ -24,21 +24,16 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.metamx.common.ISE;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.IndexedDoublesGenericColumn;
-import io.druid.segment.column.IndexedFloatsGenericColumn;
-import io.druid.segment.column.IndexedLongsGenericColumn;
-import io.druid.segment.column.IndexedStringsGenericColumn;
 import io.druid.segment.data.BitmapCompressedIndexedInts;
 import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
@@ -47,7 +42,6 @@ import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -178,11 +172,9 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
         return new Iterator<Rowboat>()
         {
           final GenericColumn timestamps = input.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
-          final Object[] metrics;
+          final ColumnAccess[] metrics;
 
           final DictionaryEncodedColumn[] dictionaryEncodedColumns;
-
-          final int numMetrics = getMetricNames().size();
 
           int currRow = 0;
           boolean done = false;
@@ -203,22 +195,14 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
                 ).toArray(DictionaryEncodedColumn.class);
 
             final Indexed<String> availableMetrics = getMetricNames();
-            metrics = new Object[availableMetrics.size()];
+            metrics = new ColumnAccess[availableMetrics.size()];
             for (int i = 0; i < metrics.length; ++i) {
               final Column column = input.getColumn(availableMetrics.get(i));
               final ValueType type = column.getCapabilities().getType();
-              switch (type) {
-                case FLOAT:
-                case DOUBLE:
-                case LONG:
-                case STRING:
-                  metrics[i] = column.getGenericColumn();
-                  break;
-                case COMPLEX:
-                  metrics[i] = column.getComplexColumn();
-                  break;
-                default:
-                  throw new ISE("Cannot handle type[%s]", type);
+              if (type.isPrimitive()) {
+                metrics[i] = column.getGenericColumn();
+              } else {
+                metrics[i] = column.getComplexColumn();
               }
             }
           }
@@ -229,10 +213,8 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             final boolean hasNext = currRow < numRows;
             if (!hasNext && !done) {
               CloseQuietly.close(timestamps);
-              for (Object metric : metrics) {
-                if (metric instanceof Closeable) {
-                  CloseQuietly.close((Closeable) metric);
-                }
+              for (ColumnAccess metric : metrics) {
+                CloseQuietly.close(metric);
               }
               for (DictionaryEncodedColumn dimension : dictionaryEncodedColumns) {
                 CloseQuietly.close(dimension);
@@ -265,24 +247,13 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
               dims[dimIndex++] = theVals;
             }
 
-            Object[] metricArray = new Object[numMetrics];
+            final Object[] metricArray = new Object[metrics.length];
             for (int i = 0; i < metricArray.length; ++i) {
-              if (metrics[i] instanceof IndexedFloatsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getFloat(currRow);
-              } else if (metrics[i] instanceof IndexedDoublesGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getDouble(currRow);
-              } else if (metrics[i] instanceof IndexedLongsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getLong(currRow);
-              } else if (metrics[i] instanceof IndexedStringsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getString(currRow);
-              } else if (metrics[i] instanceof ComplexColumn) {
-                metricArray[i] = ((ComplexColumn) metrics[i]).getRowValue(currRow);
-              }
+              metricArray[i] = metrics[i].getValue(currRow);
             }
 
-            final Rowboat retVal = new Rowboat(
-                timestamps.getLong(currRow), dims, metricArray, indexNum, currRow
-            );
+            final long timestamp = timestamps.getLong(currRow);
+            final Rowboat retVal = new Rowboat(timestamp, dims, metricArray, indexNum, currRow);
 
             ++currRow;
 
@@ -325,7 +296,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
     }
     ColumnCapabilities capabilities = column.getCapabilities();
     if (!capabilities.getType().isPrimitive()) {
-      return ValueDesc.of(column.getComplexColumn().getTypeName());
+      return column.getComplexColumn().getType();
     }
     return ValueDesc.of(column.getCapabilities().getType());
   }

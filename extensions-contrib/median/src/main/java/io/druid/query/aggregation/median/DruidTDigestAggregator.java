@@ -52,19 +52,19 @@ public class DruidTDigestAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     throw new UnsupportedOperationException("DruidTDigestAggregator does not support getFloat()");
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     throw new UnsupportedOperationException("DruidTDigestAggregator does not support getLong()");
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     throw new UnsupportedOperationException("DruidTDigestAggregator does not support getDouble()");
   }

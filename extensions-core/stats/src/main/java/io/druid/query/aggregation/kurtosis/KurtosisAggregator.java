@@ -27,7 +27,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class KurtosisAggregator implements Aggregator
+public abstract class KurtosisAggregator extends Aggregator.Abstract
 {
   protected final KurtosisAggregatorCollector holder = new KurtosisAggregatorCollector();
 
@@ -43,29 +43,6 @@ public abstract class KurtosisAggregator implements Aggregator
     return holder;
   }
 
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public float getFloat()
-  {
-    throw new UnsupportedOperationException("KurtosisAggregator does not support getFloat()");
-  }
-
-  @Override
-  public double getDouble()
-  {
-    throw new UnsupportedOperationException("KurtosisAggregator does not support getDouble()");
-  }
-
-  @Override
-  public long getLong()
-  {
-    throw new UnsupportedOperationException("KurtosisAggregator does not support getLong()");
-  }
-
   public static Aggregator create(
       final DoubleColumnSelector selector,
       final ValueMatcher predicate
@@ -77,7 +54,10 @@ public abstract class KurtosisAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          holder.add(selector.get());
+          final Double v = selector.get();
+          if (v != null) {
+            holder.add(v);
+          }
         }
       };
     } else {
@@ -87,7 +67,10 @@ public abstract class KurtosisAggregator implements Aggregator
         public void aggregate()
         {
           if (predicate.matches()) {
-            holder.add(selector.get());
+            final Double v = selector.get();
+            if (v != null) {
+              holder.add(v);
+            }
           }
         }
       };

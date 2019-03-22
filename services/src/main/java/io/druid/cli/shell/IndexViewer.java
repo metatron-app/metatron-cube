@@ -379,7 +379,7 @@ public class IndexViewer implements CommonShell
       ValueType type = capabilities.getType();
       if (!type.isPrimitive()) {
         ComplexColumn complexColumn = column.getComplexColumn();
-        desc = ValueDesc.of(complexColumn.getTypeName());   // more specific for complex type
+        desc = complexColumn.getType();   // more specific for complex type
         CloseQuietly.close(complexColumn);
       } else {
         desc = ValueDesc.of(type);

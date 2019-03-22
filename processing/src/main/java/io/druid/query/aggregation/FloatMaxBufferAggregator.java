@@ -41,19 +41,19 @@ public abstract class FloatMaxBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     return buf.getFloat(position);
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     return (double) buf.getFloat(position);
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return (long) buf.getFloat(position);
   }
@@ -72,10 +72,12 @@ public abstract class FloatMaxBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final float v1 = buf.getFloat(position);
-          final float v2 = selector.get();
-          if (Float.compare(v1, v2) < 0) {
-            buf.putFloat(position, v2);
+          final Float v2 = selector.get();
+          if (v2 != null) {
+            final float v1 = buf.getFloat(position);
+            if (Float.compare(v1, v2) < 0) {
+              buf.putFloat(position, v2);
+            }
           }
         }
       };
@@ -86,10 +88,12 @@ public abstract class FloatMaxBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final float v1 = buf.getFloat(position);
-            final float v2 = selector.get();
-            if (Float.compare(v1, v2) < 0) {
-              buf.putFloat(position, v2);
+            final Float v2 = selector.get();
+            if (v2 != null) {
+              final float v1 = buf.getFloat(position);
+              if (Float.compare(v1, v2) < 0) {
+                buf.putFloat(position, v2);
+              }
             }
           }
         }

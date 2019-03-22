@@ -53,19 +53,19 @@ public class FilteredAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return delegate.getFloat();
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return delegate.getLong();
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return delegate.getDouble();
   }

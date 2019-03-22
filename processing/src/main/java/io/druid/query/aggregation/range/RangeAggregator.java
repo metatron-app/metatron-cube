@@ -81,7 +81,7 @@ public class RangeAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
   {
     return delegate.getFloat();
   }
@@ -93,13 +93,13 @@ public class RangeAggregator implements Aggregator
   }
 
   @Override
-  public long getLong()
+  public Long getLong()
   {
     return delegate.getLong();
   }
 
   @Override
-  public double getDouble()
+  public Double getDouble()
   {
     return delegate.getDouble();
   }

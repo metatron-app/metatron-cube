@@ -47,7 +47,7 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
@@ -56,7 +56,7 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
@@ -65,7 +65,7 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);

@@ -21,16 +21,10 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
-import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedDoubles;
-import io.druid.segment.data.IndexedFloats;
-import io.druid.segment.data.IndexedLongs;
-
-import java.io.Closeable;
 
 /**
  */
-public interface GenericColumn extends Closeable
+public interface GenericColumn extends ColumnAccess
 {
   int length();
   ValueType getType();

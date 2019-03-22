@@ -41,9 +41,12 @@ public class AverageAggregator extends Aggregator.Abstract
   public void aggregate()
   {
     if (predicate.matches()) {
-      synchronized (this) {
-        count++;
-        sum += selector.get();
+      final Double v = selector.get();
+      if (v != null) {
+        synchronized (this) {
+          count++;
+          sum += v;
+        }
       }
     }
   }

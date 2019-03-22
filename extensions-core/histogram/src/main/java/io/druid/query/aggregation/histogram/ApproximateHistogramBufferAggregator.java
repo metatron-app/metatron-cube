@@ -73,14 +73,17 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.matches()) {
-      ByteBuffer mutationBuffer = buf.duplicate();
-      mutationBuffer.position(position);
+      final Float value = selector.get();
+      if (value != null) {
+        ByteBuffer mutationBuffer = buf.duplicate();
+        mutationBuffer.position(position);
 
-      ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
-      h0.offer((float) selector.get());
+        ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
+        h0.offer(value);
 
-      mutationBuffer.position(position);
-      h0.toBytesDense(mutationBuffer);
+        mutationBuffer.position(position);
+        h0.toBytesDense(mutationBuffer);
+      }
     }
   }
 
@@ -93,20 +96,20 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getFloat()");
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getDouble()");
   }
 
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getLong()");
   }

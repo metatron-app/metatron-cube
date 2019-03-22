@@ -42,19 +42,19 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(ByteBuffer buf, int position)
+  public Float getFloat(ByteBuffer buf, int position)
   {
     return (float) buf.getDouble(position);
   }
 
   @Override
-  public double getDouble(ByteBuffer buf, int position)
+  public Double getDouble(ByteBuffer buf, int position)
   {
     return buf.getDouble(position);
   }
 
   @Override
-  public long getLong(ByteBuffer buf, int position)
+  public Long getLong(ByteBuffer buf, int position)
   {
     return (long) buf.getDouble(position);
   }
@@ -74,7 +74,7 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           final double v1 = buf.getDouble(position);
-          final double v2 = (double) selector.get();
+          final Double v2 = (double) selector.get();
           if (Double.compare(v1, v2) >= 0) {
             buf.putDouble(position, v2);
           }
@@ -106,10 +106,12 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final double v1 = buf.getDouble(position);
-          final double v2 = selector.get();
-          if (Double.compare(v1, v2) >= 0) {
-            buf.putDouble(position, v2);
+          final Double v2 = selector.get();
+          if (v2 != null) {
+            final double v1 = buf.getDouble(position);
+            if (Double.compare(v1, v2) >= 0) {
+              buf.putDouble(position, v2);
+            }
           }
         }
       };
@@ -120,10 +122,12 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final double v1 = buf.getDouble(position);
-            final double v2 = selector.get();
-            if (Double.compare(v1, v2) >= 0) {
-              buf.putDouble(position, v2);
+            final Double v2 = selector.get();
+            if (v2 != null) {
+              final double v1 = buf.getDouble(position);
+              if (Double.compare(v1, v2) >= 0) {
+                buf.putDouble(position, v2);
+              }
             }
           }
         }

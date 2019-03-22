@@ -45,9 +45,11 @@ public abstract class LongMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          long v = selector.get();
-          synchronized (this) {
-            min = Math.min(min, v);
+          final Long v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
@@ -58,9 +60,11 @@ public abstract class LongMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            long v = selector.get();
-            synchronized (this) {
-              min = Math.min(min, v);
+            final Long v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                min = Math.min(min, v);
+              }
             }
           }
         }
@@ -81,21 +85,21 @@ public abstract class LongMinAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
+  {
+    return (float) min;
+  }
+
+  @Override
+  public Long getLong()
   {
     return min;
   }
 
   @Override
-  public long getLong()
+  public Double getDouble()
   {
-    return min;
-  }
-
-  @Override
-  public double getDouble()
-  {
-    return min;
+    return (double) min;
   }
 
   @Override

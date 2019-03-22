@@ -890,7 +890,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else if (!capabilities.getType().isPrimitive()) {
                         final ComplexColumn columnVals = holder.getComplexColumn();
-                        final ValueDesc valueType = ValueDesc.of(columnVals.getTypeName());
+                        final ValueDesc valueType = columnVals.getType();
                         cachedColumnVals = new ObjectColumnSelector.WithBaggage()
                         {
                           @Override
@@ -908,7 +908,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           @Override
                           public Object get()
                           {
-                            return columnVals.getRowValue(cursorOffset.getOffset());
+                            return columnVals.getValue(cursorOffset.getOffset());
                           }
                         };
                       } else {

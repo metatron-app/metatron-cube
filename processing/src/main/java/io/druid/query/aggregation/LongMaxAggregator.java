@@ -45,9 +45,11 @@ public abstract class LongMaxAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          long v = selector.get();
-          synchronized (this) {
-            max = Math.max(max, v);
+          final Long v = selector.get();
+          if (v != null) {
+            synchronized (this) {
+              max = Math.max(max, v);
+            }
           }
         }
       };
@@ -58,9 +60,11 @@ public abstract class LongMaxAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            long v = selector.get();
-            synchronized (this) {
-              max = Math.max(max, v);
+            final Long v = selector.get();
+            if (v != null) {
+              synchronized (this) {
+                max = Math.max(max, v);
+              }
             }
           }
         }
@@ -81,21 +85,21 @@ public abstract class LongMaxAggregator implements Aggregator
   }
 
   @Override
-  public float getFloat()
+  public Float getFloat()
+  {
+    return (float) max;
+  }
+
+  @Override
+  public Long getLong()
   {
     return max;
   }
 
   @Override
-  public long getLong()
+  public Double getDouble()
   {
-    return max;
-  }
-
-  @Override
-  public double getDouble()
-  {
-    return max;
+    return (double) max;
   }
 
   @Override
