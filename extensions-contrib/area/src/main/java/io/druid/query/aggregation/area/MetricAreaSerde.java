@@ -1,6 +1,7 @@
 package io.druid.query.aggregation.area;
 
 import com.google.common.collect.Ordering;
+import io.druid.data.Rows;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -70,12 +71,12 @@ public class MetricAreaSerde extends ComplexMetricSerde
       @Override
       public MetricArea extractValue(Row inputRow, String metricName)
       {
-        Object rawValue = inputRow.getRaw(metricName);
+        final Object rawValue = inputRow.getRaw(metricName);
 
-        if (rawValue instanceof MetricArea) {
+        if (rawValue == null || rawValue instanceof MetricArea) {
           return (MetricArea) rawValue;
         } else {
-          return new MetricArea().add(inputRow.getDoubleMetric(metricName));
+          return new MetricArea().add(Rows.parseDouble(rawValue));
         }
       }
     };

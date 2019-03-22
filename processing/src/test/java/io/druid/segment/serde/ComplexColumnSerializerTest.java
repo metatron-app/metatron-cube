@@ -67,11 +67,11 @@ public class ComplexColumnSerializerTest
     );
     serializer.open();
 
-    serializer.serialize("navis manse");
-    serializer.serialize("");
-    serializer.serialize("navis banzai");
-    serializer.serialize(null);
-    serializer.serialize("나비스 만세");
+    serializer.serialize(0, "navis manse");
+    serializer.serialize(1, "");
+    serializer.serialize(2, "navis banzai");
+    serializer.serialize(3, null);
+    serializer.serialize(4, "나비스 만세");
 
     serializer.close();
 
@@ -147,11 +147,11 @@ public class ComplexColumnSerializerTest
     );
     serializer.open();
 
-    serializer.serialize(new Object[] {"home", 37.492929d, 127.020784d});
-    serializer.serialize(new Object[] {"school", 37.491055d, 127.026020d});
-    serializer.serialize(new Object[] {"cathedral", 37.492899d, 127.021772d});
-    serializer.serialize(new Object[] {"college", 37.489955d, 127.016485d});
-    serializer.serialize(new Object[] {"subway", 37.493021d, 127.013834d});
+    serializer.serialize(0, new Object[] {"home", 37.492929d, 127.020784d});
+    serializer.serialize(1, new Object[] {"school", 37.491055d, 127.026020d});
+    serializer.serialize(2, new Object[] {"cathedral", 37.492899d, 127.021772d});
+    serializer.serialize(3, new Object[] {"college", 37.489955d, 127.016485d});
+    serializer.serialize(4, new Object[] {"subway", 37.493021d, 127.013834d});
 
     serializer.close();
 

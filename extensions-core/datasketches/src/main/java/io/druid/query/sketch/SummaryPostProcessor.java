@@ -307,16 +307,16 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                           ValueType type = primitiveColumns.get(column);
                           Map<String, Object> stats = results.get(column);
                           if (type.isNumeric()) {
-                            stats.put("zeros", row.getLongMetric(column + ".missing"));
+                            stats.put("zeros", row.getLong(column + ".missing"));
                           } else {
-                            stats.put("missing", row.getLongMetric(column + ".missing"));
+                            stats.put("missing", row.getLong(column + ".missing"));
                           }
                           if (type.isNumeric()) {
-                            stats.put("mean", Rows.round(row.getDoubleMetric(column + ".mean"), round));
-                            stats.put("variance", Rows.round(row.getDoubleMetric(column + ".variance"), round));
-                            stats.put("stddev", Rows.round(row.getDoubleMetric(column + ".stddev"), round));
-                            stats.put("skewness", Rows.round(row.getDoubleMetric(column + ".skewness"), round));
-                            stats.put("outliers", row.getLongMetric(column + ".outlier"));
+                            stats.put("mean", Rows.round(row.getDouble(column + ".mean"), round));
+                            stats.put("variance", Rows.round(row.getDouble(column + ".variance"), round));
+                            stats.put("stddev", Rows.round(row.getDouble(column + ".stddev"), round));
+                            stats.put("skewness", Rows.round(row.getDouble(column + ".skewness"), round));
+                            stats.put("outliers", row.getLong(column + ".outlier"));
                           }
                           if (includeCovariance && type.isNumeric()) {
                             String covariance = "covariance(" + column + ",";

@@ -372,11 +372,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   protected abstract Object getAggVal(AggregatorType agg, int rowOffset, int aggPosition);
 
-  protected abstract float getMetricFloatValue(int rowOffset, int aggOffset);
+  protected abstract Float getFloat(int rowOffset, int aggOffset);
 
-  protected abstract double getMetricDoubleValue(int rowOffset, int aggOffset);
+  protected abstract Double getDouble(int rowOffset, int aggOffset);
 
-  protected abstract long getMetricLongValue(int rowOffset, int aggOffset);
+  protected abstract Long getLong(int rowOffset, int aggOffset);
 
   protected abstract Object getMetricObjectValue(int rowOffset, int aggOffset);
 

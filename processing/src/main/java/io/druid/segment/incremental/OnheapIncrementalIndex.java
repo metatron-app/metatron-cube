@@ -290,19 +290,19 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public float getMetricFloatValue(int rowOffset, int aggOffset)
+  public Float getFloat(int rowOffset, int aggOffset)
   {
     return concurrentGet(rowOffset)[aggOffset].getFloat();
   }
 
   @Override
-  protected double getMetricDoubleValue(int rowOffset, int aggOffset)
+  protected Double getDouble(int rowOffset, int aggOffset)
   {
     return concurrentGet(rowOffset)[aggOffset].getDouble();
   }
 
   @Override
-  public long getMetricLongValue(int rowOffset, int aggOffset)
+  public Long getLong(int rowOffset, int aggOffset)
   {
     return concurrentGet(rowOffset)[aggOffset].getLong();
   }

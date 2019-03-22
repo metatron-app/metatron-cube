@@ -45,7 +45,7 @@ public class MetricManipulatorFnsTest
         new LongColumnSelector()
     {
       @Override
-      public long get()
+      public Long get()
       {
         return longVal;
       }
@@ -84,7 +84,7 @@ public class MetricManipulatorFnsTest
         new LongColumnSelector()
         {
           @Override
-          public long get() { return longVal; }
+          public Long get() { return longVal; }
         },
         null
     );

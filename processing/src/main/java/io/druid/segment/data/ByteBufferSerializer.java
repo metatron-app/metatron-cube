@@ -52,7 +52,11 @@ public class ByteBufferSerializer<T>
   // make buffer for read and move forward position of original buffer
   public static ByteBuffer prepareForRead(ByteBuffer buffer)
   {
-    int size = buffer.getInt();
+    return prepareForRead(buffer, buffer.getInt());
+  }
+
+  public static ByteBuffer prepareForRead(ByteBuffer buffer, int size)
+  {
     ByteBuffer bufferToUse = buffer.asReadOnlyBuffer();
     bufferToUse.limit(bufferToUse.position() + size);
     buffer.position(bufferToUse.limit());

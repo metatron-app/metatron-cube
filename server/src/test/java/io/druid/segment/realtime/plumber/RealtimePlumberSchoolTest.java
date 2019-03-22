@@ -28,6 +28,7 @@ import com.google.common.io.Files;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.cache.MapCache;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
@@ -567,7 +568,7 @@ public class RealtimePlumberSchoolTest
 
   private InputRow getTestInputRow(final String timeStr)
   {
-    return new InputRow()
+    return new AbstractInputRow()
     {
       @Override
       public List<String> getDimensions()
@@ -585,30 +586,6 @@ public class RealtimePlumberSchoolTest
       public DateTime getTimestamp()
       {
         return new DateTime(timeStr);
-      }
-
-      @Override
-      public List<String> getDimension(String dimension)
-      {
-        return Lists.newArrayList();
-      }
-
-      @Override
-      public float getFloatMetric(String metric)
-      {
-        return 0;
-      }
-
-      @Override
-      public double getDoubleMetric(String metric)
-      {
-        return 0;
-      }
-
-      @Override
-      public long getLongMetric(String metric)
-      {
-        return 0L;
       }
 
       @Override
@@ -633,7 +610,7 @@ public class RealtimePlumberSchoolTest
 
   private InputRow getTestInputRowFull(final String timeStr, final List<String> dims, final List<String> dimVals)
   {
-    return new InputRow()
+    return new AbstractInputRow()
     {
       @Override
       public List<String> getDimensions()
@@ -657,24 +634,6 @@ public class RealtimePlumberSchoolTest
       public List<String> getDimension(String dimension)
       {
         return dimVals;
-      }
-
-      @Override
-      public float getFloatMetric(String metric)
-      {
-        return 0;
-      }
-
-      @Override
-      public double getDoubleMetric(String metric)
-      {
-        return 0;
-      }
-
-      @Override
-      public long getLongMetric(String metric)
-      {
-        return 0L;
       }
 
       @Override

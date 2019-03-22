@@ -69,11 +69,11 @@ public class ComplexColumnSerializerTest
     );
     serializer.open();
 
-    serializer.serialize("navis manse");
-    serializer.serialize("");
-    serializer.serialize("navis banzai");
-    serializer.serialize(null);
-    serializer.serialize("나비스 만세");
+    serializer.serialize(0, "navis manse");
+    serializer.serialize(1, "");
+    serializer.serialize(2, "navis banzai");
+    serializer.serialize(3, null);
+    serializer.serialize(4, "나비스 만세");
 
     serializer.close();
 
@@ -165,9 +165,9 @@ public class ComplexColumnSerializerTest
                 + "127.021456 37.493129, 127.021951 37.493261, 127.022137 37.492740, 127.021639 37.492607, "
                 + "127.021456 37.493129))";
 
-    serializer.serialize(교대);
-    serializer.serialize(서이초);
-    serializer.serialize(서초성당);
+    serializer.serialize(0, 교대);
+    serializer.serialize(1, 서이초);
+    serializer.serialize(2, 서초성당);
 
     serializer.close();
 

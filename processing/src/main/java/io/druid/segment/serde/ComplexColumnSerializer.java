@@ -117,7 +117,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
 
   @SuppressWarnings(value = "unchecked")
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     writer.add(obj);
     if (luceneIndexer != null) {

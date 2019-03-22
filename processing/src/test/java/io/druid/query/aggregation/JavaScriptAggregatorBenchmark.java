@@ -99,7 +99,7 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
     }
 
     @Override
-    public double get()
+    public Double get()
     {
       return doubles[(int) (index % doubles.length)];
     }

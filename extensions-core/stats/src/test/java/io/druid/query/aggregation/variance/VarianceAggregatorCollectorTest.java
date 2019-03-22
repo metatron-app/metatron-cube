@@ -150,7 +150,7 @@ public class VarianceAggregatorCollectorTest
     float v;
 
     @Override
-    public float get()
+    public Float get()
     {
       return v;
     }

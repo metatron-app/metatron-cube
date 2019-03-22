@@ -19,6 +19,8 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.base.Supplier;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedFloatsGenericColumn;
@@ -29,16 +31,18 @@ import io.druid.segment.data.CompressedFloatsIndexedSupplier;
 public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
   private final CompressedFloatsIndexedSupplier column;
+  private final Supplier<ImmutableBitmap> nulls;
 
-  public FloatGenericColumnSupplier(CompressedFloatsIndexedSupplier column)
+  public FloatGenericColumnSupplier(CompressedFloatsIndexedSupplier column, Supplier<ImmutableBitmap> nulls)
   {
     this.column = column;
+    this.nulls = nulls;
   }
 
   @Override
   public GenericColumn get()
   {
-    return new IndexedFloatsGenericColumn(column.get());
+    return new IndexedFloatsGenericColumn(column.get(), nulls.get());
   }
 
   @Override

@@ -43,8 +43,8 @@ import java.util.Map;
  */
 public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>, ColumnPartSerde.Serializer
 {
-  public static final byte LZF_VERSION = 0x1;
-  public static final byte version = 0x2;
+  public static final byte LZF_FIXED = 0x1;
+  public static final byte WITH_COMPRESSION_ID = 0x2;
   public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Floats.BYTES;
 
   private final int totalSize;
@@ -106,7 +106,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version}));
+    channel.write(ByteBuffer.wrap(new byte[]{WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
@@ -139,47 +139,28 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
 
   public static CompressedFloatsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    byte versionFromBuffer = buffer.get();
+    final byte versionFromBuffer = buffer.get();
+    final int totalSize = buffer.getInt();
+    final int sizePer = buffer.getInt();
 
-    if (versionFromBuffer == version) {
-      final int totalSize = buffer.getInt();
-      final int sizePer = buffer.getInt();
-      final CompressedObjectStrategy.CompressionStrategy compression =
-          CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
-
-      return new CompressedFloatsIndexedSupplier(
-          totalSize,
-          sizePer,
-          GenericIndexed.read(
-              buffer,
-              CompressedFloatBufferObjectStrategy.getBufferForOrder(
-                  order,
-                  compression,
-                  sizePer
-              )
-          ),
-          compression
-      );
-    } else if (versionFromBuffer == LZF_VERSION) {
-      final int totalSize = buffer.getInt();
-      final int sizePer = buffer.getInt();
-      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.CompressionStrategy.LZF;
-      return new CompressedFloatsIndexedSupplier(
-          totalSize,
-          sizePer,
-          GenericIndexed.read(
-              buffer,
-              CompressedFloatBufferObjectStrategy.getBufferForOrder(
-                  order,
-                  compression,
-                  sizePer
-              )
-          ),
-          compression
-      );
+    final CompressedObjectStrategy.CompressionStrategy compression;
+    if (versionFromBuffer == WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == LZF_FIXED) {
+      compression = CompressedObjectStrategy.CompressionStrategy.LZF;
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
 
-    throw new IAE("Unknown version[%s]", versionFromBuffer);
+    final CompressedFloatBufferObjectStrategy strategy =
+        CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
+
+    return new CompressedFloatsIndexedSupplier(
+        totalSize,
+        sizePer,
+        GenericIndexed.read(buffer, strategy),
+        compression
+    );
   }
 
   public static CompressedFloatsIndexedSupplier fromFloatBuffer(FloatBuffer buffer, final ByteOrder order, CompressedObjectStrategy.CompressionStrategy compression)

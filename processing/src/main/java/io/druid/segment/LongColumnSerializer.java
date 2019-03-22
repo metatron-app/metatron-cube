@@ -20,6 +20,8 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.ColumnDescriptor.Builder;
@@ -28,13 +30,14 @@ import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.LongHistogram;
-import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -46,10 +49,41 @@ public class LongColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      SecondaryIndexingSpec indexing
+      SecondaryIndexingSpec indexing,
+      boolean allowNullForNumbers
   )
   {
-    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, indexing);
+    final ByteOrder ordering = IndexIO.BYTE_ORDER;
+    if (allowNullForNumbers) {
+      return new LongColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing) {
+
+        private final MutableBitmap nulls = serdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
+
+        @Override
+        public void serialize(int rowNum, Object obj) throws IOException
+        {
+          if (obj != null) {
+            super.serialize(rowNum, obj);
+          } else {
+            writer.add(0L);
+            nulls.add(rowNum);
+          }
+        }
+
+        @Override
+        public void writeToChannel(WritableByteChannel channel) throws IOException
+        {
+          super.writeToChannel(channel);
+          if (!nulls.isEmpty()) {
+            byte[] serialized = serdeFactory.getObjectStrategy().toBytes(nulls);
+            channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
+            channel.write(ByteBuffer.wrap(serialized));
+          }
+        }
+      };
+    } else {
+      return new LongColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing);
+    }
   }
 
   private final IOPeon ioPeon;
@@ -57,11 +91,11 @@ public class LongColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
 
-  private CompressedLongsSupplierSerializer writer;
+  CompressedLongsSupplierSerializer writer;
 
-  private final BitmapSerdeFactory serdeFactory;
-  private final MetricHistogram.LongType histogram;
-  private final BitSlicer.LongType slicer;
+  final BitmapSerdeFactory serdeFactory;
+  final MetricHistogram.LongType histogram;
+  final BitSlicer.LongType slicer;
 
   private LongColumnSerializer(
       IOPeon ioPeon,
@@ -107,7 +141,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     long val = (obj == null) ? 0 : ((Number) obj).longValue();
     histogram.offer(val);
@@ -121,12 +155,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
     builder.setValueType(ValueDesc.LONG);
-    builder.addSerde(
-        LongGenericColumnPartSerde.serializerBuilder()
-                                  .withByteOrder(IndexIO.BYTE_ORDER)
-                                  .withDelegate(this)
-                                  .build()
-    );
+    builder.addSerde(new LongGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));
     HistogramBitmaps bitmaps = histogram.snapshot();
     if (bitmaps != null) {
       builder.addSerde(new HistogramBitmaps.SerDe(ValueType.LONG, serdeFactory, bitmaps));

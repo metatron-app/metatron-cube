@@ -46,13 +46,7 @@ public class IndexedStringsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public boolean hasMultipleValues()
-  {
-    return false;
-  }
-
-  @Override
-  public String getStringSingleValueRow(int rowNum)
+  public String getString(int rowNum)
   {
     return indexed.get(rowNum);
   }

@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -47,6 +49,7 @@ import com.metamx.common.io.smoosh.SmooshedFileMapper;
 import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -105,6 +108,10 @@ public class IndexIO
   public static final int CURRENT_VERSION_ID = V9_VERSION;
 
   public static final ByteOrder BYTE_ORDER = ByteOrder.nativeOrder();
+  public static final BitmapFactory CONCISE_FACTORY = new ConciseBitmapFactory();
+  public static final Supplier<ImmutableBitmap> NO_NULLS = Suppliers.<ImmutableBitmap>ofInstance(
+      CONCISE_FACTORY.makeEmptyImmutableBitmap()
+  );
 
   private final Map<Integer, IndexLoader> indexLoaders;
 
@@ -746,30 +753,15 @@ public class IndexIO
           switch (holder.getType()) {
             case LONG:
               builder.setValueType(ValueDesc.LONG);
-              builder.addSerde(
-                  LongGenericColumnPartSerde.legacySerializerBuilder()
-                                            .withByteOrder(BYTE_ORDER)
-                                            .withDelegate(holder.longType)
-                                            .build()
-              );
+              builder.addSerde(new LongGenericColumnPartSerde(BYTE_ORDER, holder.longType));
               break;
             case FLOAT:
               builder.setValueType(ValueDesc.FLOAT);
-              builder.addSerde(
-                  FloatGenericColumnPartSerde.legacySerializerBuilder()
-                                             .withByteOrder(BYTE_ORDER)
-                                             .withDelegate(holder.floatType)
-                                             .build()
-              );
+              builder.addSerde(new FloatGenericColumnPartSerde(BYTE_ORDER, holder.floatType));
               break;
             case DOUBLE:
               builder.setValueType(ValueDesc.DOUBLE);
-              builder.addSerde(
-                  DoubleGenericColumnPartSerde.legacySerializerBuilder()
-                                             .withByteOrder(BYTE_ORDER)
-                                             .withDelegate(holder.doubleType)
-                                             .build()
-              );
+              builder.addSerde(new DoubleGenericColumnPartSerde(BYTE_ORDER, holder.doubleType));
               break;
             case COMPLEX:
               if (!(holder.complexType instanceof GenericIndexed)) {
@@ -791,14 +783,9 @@ public class IndexIO
               v8SmooshedFiles.mapFile(filename), BYTE_ORDER
           );
 
-          final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
+          ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
           builder.setValueType(ValueDesc.LONG);
-          builder.addSerde(
-              LongGenericColumnPartSerde.legacySerializerBuilder()
-                                        .withByteOrder(BYTE_ORDER)
-                                        .withDelegate(timestamps)
-                                        .build()
-          );
+          builder.addSerde(new LongGenericColumnPartSerde(BYTE_ORDER, timestamps));
 
           makeColumn(v9Smoosher, Column.TIME_COLUMN_NAME, builder.build());
 
@@ -925,7 +912,7 @@ public class IndexIO
             )
             .setBitmapIndex(
                 new BitmapIndexColumnPartSupplier(
-                    new ConciseBitmapFactory(),
+                    CONCISE_FACTORY,
                     index.getBitmapIndexes().get(dimension),
                     index.getDimValueLookup(dimension)
                 )
@@ -950,7 +937,7 @@ public class IndexIO
               metric,
               new ColumnBuilder()
                   .setType(ValueDesc.FLOAT)
-                  .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType))
+                  .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, NO_NULLS))
                   .build()
           );
         } else if (metricHolder.getType() == ValueType.DOUBLE) {
@@ -958,7 +945,7 @@ public class IndexIO
               metric,
               new ColumnBuilder()
                   .setType(ValueDesc.DOUBLE)
-                  .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType))
+                  .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, NO_NULLS))
                   .build()
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {
@@ -988,14 +975,14 @@ public class IndexIO
       columns.put(
           Column.TIME_COLUMN_NAME, new ColumnBuilder()
               .setType(ValueDesc.LONG)
-              .setGenericColumn(new LongGenericColumnSupplier(index.timestamps))
+              .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
               .build()
       );
       return new SimpleQueryableIndex(
           index.getDataInterval(),
           new ArrayIndexed<>(cols, String.class),
           index.getAvailableDimensions(),
-          new ConciseBitmapFactory(),
+          CONCISE_FACTORY,
           columns,
           index.getFileMapper(),
           null
@@ -1060,14 +1047,11 @@ public class IndexIO
 
       Map<String, Column> columns = Maps.newHashMap();
 
-      for (String columnName : cols) {
-        columns.put(columnName, deserializeColumn(smooshedFiles.mapFile(columnName), mapper, serdeFactory));
+      for (String columnName : GuavaUtils.concat(cols, Column.TIME_COLUMN_NAME)) {
+        ByteBuffer mapped = smooshedFiles.mapFile(columnName);
+        ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+        columns.put(columnName, descriptor.read(mapped, serdeFactory));
       }
-
-      columns.put(
-          Column.TIME_COLUMN_NAME,
-          deserializeColumn(smooshedFiles.mapFile("__time"), mapper, serdeFactory)
-      );
 
       final QueryableIndex index = new SimpleQueryableIndex(
           dataInterval, cols, dims, serdeFactory.getBitmapFactory(), columns, smooshedFiles, metadata
@@ -1076,19 +1060,6 @@ public class IndexIO
       log.debug("Mapped v9 index[%s] in %,d millis", inDir, System.currentTimeMillis() - startTime);
 
       return index;
-    }
-
-    private Column deserializeColumn(
-        ByteBuffer byteBuffer,
-        ObjectMapper mapper,
-        BitmapSerdeFactory serdeFactory
-    )
-        throws IOException
-    {
-      ColumnDescriptor serde = mapper.readValue(
-          SerializerUtils.readString(byteBuffer), ColumnDescriptor.class
-      );
-      return serde.read(byteBuffer, serdeFactory);
     }
   }
 

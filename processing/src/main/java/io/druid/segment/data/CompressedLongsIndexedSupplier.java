@@ -40,6 +40,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static io.druid.segment.data.CompressedFloatsIndexedSupplier.LZF_FIXED;
+import static io.druid.segment.data.CompressedFloatsIndexedSupplier.WITH_COMPRESSION_ID;
+
 /**
  */
 public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, ColumnPartSerde.Serializer
@@ -135,31 +138,28 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
 
   public static CompressedLongsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    byte versionFromBuffer = buffer.get();
+    final byte versionFromBuffer = buffer.get();
+    final int totalSize = buffer.getInt();
+    final int sizePer = buffer.getInt();
 
-    if (versionFromBuffer == version) {
-      final int totalSize = buffer.getInt();
-      final int sizePer = buffer.getInt();
-      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
-      return new CompressedLongsIndexedSupplier(
-          totalSize,
-          sizePer,
-        GenericIndexed.read(buffer, CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
-        compression
-      );
-    } else if (versionFromBuffer == LZF_VERSION) {
-      final int totalSize = buffer.getInt();
-      final int sizePer = buffer.getInt();
-      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.CompressionStrategy.LZF;
-      return new CompressedLongsIndexedSupplier(
-          totalSize,
-          sizePer,
-          GenericIndexed.read(buffer, CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
-          compression
-      );
+    final CompressedObjectStrategy.CompressionStrategy compression;
+    if (versionFromBuffer == WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == LZF_FIXED) {
+      compression = CompressedObjectStrategy.CompressionStrategy.LZF;
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
 
-    throw new IAE("Unknown version[%s]", versionFromBuffer);
+    final CompressedLongBufferObjectStrategy strategy =
+        CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
+
+    return new CompressedLongsIndexedSupplier(
+        totalSize,
+        sizePer,
+        GenericIndexed.read(buffer, strategy),
+        compression
+    );
   }
 
   public static CompressedLongsIndexedSupplier fromLongBuffer(LongBuffer buffer, final ByteOrder byteOrder, CompressedObjectStrategy.CompressionStrategy compression)

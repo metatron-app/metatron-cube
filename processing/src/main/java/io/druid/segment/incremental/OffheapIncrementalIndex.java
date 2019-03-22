@@ -285,7 +285,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  public float getMetricFloatValue(int rowOffset, int aggOffset)
+  public Float getFloat(int rowOffset, int aggOffset)
   {
     BufferAggregator agg = getAggs()[aggOffset];
     int[] indexAndOffset = indexAndOffsets.get(rowOffset);
@@ -294,7 +294,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  protected double getMetricDoubleValue(int rowOffset, int aggOffset)
+  protected Double getDouble(int rowOffset, int aggOffset)
   {
     BufferAggregator agg = getAggs()[aggOffset];
     int[] indexAndOffset = indexAndOffsets.get(rowOffset);
@@ -303,7 +303,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  public long getMetricLongValue(int rowOffset, int aggOffset)
+  public Long getLong(int rowOffset, int aggOffset)
   {
     BufferAggregator agg = getAggs()[aggOffset];
     int[] indexAndOffset = indexAndOffsets.get(rowOffset);

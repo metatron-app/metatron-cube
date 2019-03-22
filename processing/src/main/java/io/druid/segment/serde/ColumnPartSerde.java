@@ -48,19 +48,19 @@ import java.util.Map;
 })
 public interface ColumnPartSerde
 {
-  public Serializer getSerializer();
+  Serializer getSerializer();
 
-  public Deserializer getDeserializer();
+  Deserializer getDeserializer();
 
-  public interface Serializer
+  interface Serializer
   {
-    public long getSerializedSize() throws IOException;
+    long getSerializedSize() throws IOException;
 
-    public void writeToChannel(WritableByteChannel channel) throws IOException;
+    void writeToChannel(WritableByteChannel channel) throws IOException;
 
-    public Map<String, Object> getSerializeStats();
+    Map<String, Object> getSerializeStats();
 
-    public static abstract class Abstract implements Serializer
+    static abstract class Abstract implements Serializer
     {
       @Override
       public final Map<String, Object> getSerializeStats()
@@ -70,13 +70,9 @@ public interface ColumnPartSerde
     }
   }
 
-  public interface Deserializer
+  interface Deserializer
   {
-    public void read(
-        ByteBuffer buffer,
-        ColumnBuilder builder,
-        BitmapSerdeFactory serdeFactory
-    ) throws IOException;
+    void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
   }
 
   public class Skipper implements ColumnPartSerde

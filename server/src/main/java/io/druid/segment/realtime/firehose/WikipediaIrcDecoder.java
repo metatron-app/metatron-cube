@@ -21,13 +21,14 @@ package io.druid.segment.realtime.firehose;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.Omni;
 import com.metamx.common.logger.Logger;
+import io.druid.data.Rows;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import org.apache.commons.io.FileUtils;
@@ -240,7 +241,7 @@ class WikipediaIrcDecoder implements IrcDecoder
     metrics.put("added", Math.max(delta, 0));
     metrics.put("deleted", Math.min(delta, 0));
 
-    return new InputRow()
+    return new AbstractInputRow()
     {
       @Override
       public List<String> getDimensions()
@@ -261,39 +262,27 @@ class WikipediaIrcDecoder implements IrcDecoder
       }
 
       @Override
-      public List<String> getDimension(String dimension)
-      {
-        final String value = dimensions.get(dimension);
-        if (value != null) {
-          return ImmutableList.of(value);
-        } else {
-          return ImmutableList.of();
-        }
-      }
-
-      @Override
       public Object getRaw(String dimension)
       {
         return dimensions.get(dimension);
       }
 
-
       @Override
-      public float getFloatMetric(String metric)
+      public Float getFloat(String metric)
       {
-        return metrics.get(metric);
+        return Rows.parseFloat(metrics.get(metric));
       }
 
       @Override
-      public double getDoubleMetric(String metric)
+      public Double getDouble(String metric)
       {
-        return metrics.get(metric);
+        return Rows.parseDouble(metrics.get(metric));
       }
 
       @Override
-      public long getLongMetric(String metric)
+      public Long getLong(String metric)
       {
-        return new Float(metrics.get(metric)).longValue();
+        return Rows.parseLong(metrics.get(metric));
       }
 
       @Override

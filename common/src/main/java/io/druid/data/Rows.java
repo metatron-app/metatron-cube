@@ -29,14 +29,14 @@ import org.joda.time.DateTime;
  */
 public class Rows
 {
-  public static float parseFloat(Object value)
+  public static Float parseFloat(Object value)
   {
     if (value == null) {
-      return 0F;
+      return null;
     } else if (value instanceof Number) {
       return ((Number) value).floatValue();
     } else if (value instanceof DateTime) {
-      return ((DateTime) value).getMillis();
+      return (float) ((DateTime) value).getMillis();
     } else if (value instanceof String) {
       try {
         return tryParseFloat((String) value);
@@ -49,14 +49,14 @@ public class Rows
     }
   }
 
-  public static double parseDouble(Object value)
+  public static Double parseDouble(Object value)
   {
     if (value == null) {
-      return 0D;
+      return null;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue();
     } else if (value instanceof DateTime) {
-      return ((DateTime) value).getMillis();
+      return (double) ((DateTime) value).getMillis();
     } else if (value instanceof String) {
       try {
         return tryParseDouble((String) value);
@@ -69,9 +69,9 @@ public class Rows
     }
   }
 
-  public static double round(double value, int round)
+  public static Double round(Double value, int round)
   {
-    if (Double.isInfinite(value) || Double.isNaN(value) || round <= 0) {
+    if (value == null || Double.isInfinite(value) || Double.isNaN(value) || round <= 0) {
       return value;
     }
     double abs = Math.abs(value);
@@ -83,10 +83,10 @@ public class Rows
     return Math.round(value * remains) / remains;
   }
 
-  public static long parseLong(Object value)
+  public static Long parseLong(Object value)
   {
     if (value == null) {
-      return 0L;
+      return null;
     } else if (value instanceof Number) {
       return ((Number) value).longValue();
     } else if (value instanceof DateTime) {

@@ -21,10 +21,14 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
-import io.druid.segment.LongColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 
 import java.nio.ByteBuffer;
@@ -45,7 +49,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
   private final ByteOrder byteOrder;
   private Serializer serializer;
 
-  private LongGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
+  public LongGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {
     this.byteOrder = byteOrder;
     this.serializer = serializer;
@@ -55,68 +59,6 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
   public ByteOrder getByteOrder()
   {
     return byteOrder;
-  }
-
-  public static SerializerBuilder serializerBuilder()
-  {
-    return new SerializerBuilder();
-  }
-
-  public static class SerializerBuilder
-  {
-    private ByteOrder byteOrder = null;
-    private LongColumnSerializer delegate = null;
-
-    public SerializerBuilder withByteOrder(final ByteOrder byteOrder)
-    {
-      this.byteOrder = byteOrder;
-      return this;
-    }
-
-    public SerializerBuilder withDelegate(final LongColumnSerializer delegate)
-    {
-      this.delegate = delegate;
-      return this;
-    }
-
-    public LongGenericColumnPartSerde build()
-    {
-      return new LongGenericColumnPartSerde(
-          byteOrder, delegate
-      );
-    }
-  }
-
-  @Deprecated
-  public static LegacySerializerBuilder legacySerializerBuilder()
-  {
-    return new LegacySerializerBuilder();
-  }
-
-  @Deprecated
-  public static class LegacySerializerBuilder
-  {
-    private ByteOrder byteOrder = null;
-    private CompressedLongsIndexedSupplier delegate = null;
-
-    public LegacySerializerBuilder withByteOrder(final ByteOrder byteOrder)
-    {
-      this.byteOrder = byteOrder;
-      return this;
-    }
-
-    public LegacySerializerBuilder withDelegate(final CompressedLongsIndexedSupplier delegate)
-    {
-      this.delegate = delegate;
-      return this;
-    }
-
-    public LongGenericColumnPartSerde build()
-    {
-      return new LongGenericColumnPartSerde(
-          byteOrder, delegate
-      );
-    }
   }
 
   @Override
@@ -132,18 +74,30 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     {
       @Override
       public void read(
-          ByteBuffer buffer,
-          ColumnBuilder builder,
-          BitmapSerdeFactory serdeFactory
+          final ByteBuffer buffer,
+          final ColumnBuilder builder,
+          final BitmapSerdeFactory serdeFactory
       )
       {
-        final CompressedLongsIndexedSupplier column = CompressedLongsIndexedSupplier.fromByteBuffer(
-            buffer,
-            byteOrder
-        );
+        final CompressedLongsIndexedSupplier column = CompressedLongsIndexedSupplier.fromByteBuffer(buffer, byteOrder);
+        final Supplier<ImmutableBitmap> nulls;
+        if (buffer.remaining() > Ints.BYTES) {
+          final int size = buffer.getInt();
+          final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer, size);
+          nulls = new Supplier<ImmutableBitmap>()
+          {
+            @Override
+            public ImmutableBitmap get()
+            {
+              return serdeFactory.getObjectStrategy().fromByteBuffer(serialized, size);
+            }
+          };
+        } else {
+          nulls = Suppliers.<ImmutableBitmap>ofInstance(serdeFactory.getBitmapFactory().makeEmptyImmutableBitmap());
+        }
         builder.setType(ValueDesc.LONG)
                .setHasMultipleValues(false)
-               .setGenericColumn(new LongGenericColumnSupplier(column));
+               .setGenericColumn(new LongGenericColumnSupplier(column, nulls));
       }
     };
   }

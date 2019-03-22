@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedDoubles;
@@ -31,16 +32,12 @@ import java.io.Closeable;
  */
 public interface GenericColumn extends Closeable
 {
-  public int length();
-  public ValueType getType();
-  public boolean hasMultipleValues();
+  int length();
+  ValueType getType();
 
-  public String getStringSingleValueRow(int rowNum);
-  public Indexed<String> getStringMultiValueRow(int rowNum);
-  public float getFloatSingleValueRow(int rowNum);
-  public IndexedFloats getFloatMultiValueRow(int rowNum);
-  public long getLongSingleValueRow(int rowNum);
-  public IndexedLongs getLongMultiValueRow(int rowNum);
-  public double getDoubleSingleValueRow(int rowNum);
-  public IndexedDoubles getDoubleMultiValueRow(int rowNum);
+  String getString(int rowNum);
+  Float getFloat(int rowNum);
+  Long getLong(int rowNum);
+  Double getDouble(int rowNum);
+  ImmutableBitmap getNulls();
 }

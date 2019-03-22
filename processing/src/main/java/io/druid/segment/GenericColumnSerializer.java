@@ -36,7 +36,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
 
   public void open() throws IOException;
 
-  public void serialize(Object obj) throws IOException;
+  public void serialize(int rowNum, Object obj) throws IOException;
 
   public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException;
 

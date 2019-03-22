@@ -737,7 +737,7 @@ public interface BuiltinFunctions extends Function.Library
         return ExprEval.of(result.asLong(), ValueDesc.LONG);
       }
       if (result instanceof PyArray) {
-        return ExprEval.of(((PyArray)result).getArray(), ValueDesc.UNKNOWN);
+        return ExprEval.of(Arrays.asList(((PyArray)result).getArray()), ValueDesc.LIST);
       }
       if (result instanceof PyList) {
         PyList pyList = (PyList) result;
@@ -745,7 +745,7 @@ public interface BuiltinFunctions extends Function.Library
         for (int i = 0; i < pyList.size(); i++) {
           list.add(toExprEval(pyList.pyget(i)).value());
         }
-        return ExprEval.of(list, ValueDesc.UNKNOWN);
+        return ExprEval.of(list, ValueDesc.LIST);
       }
       if (result instanceof PyDictionary) {
         Map<PyObject, PyObject> internal = ((PyDictionary) result).getMap();
@@ -756,7 +756,7 @@ public interface BuiltinFunctions extends Function.Library
             map.put(key.asString(), toExprEval(entry.getValue()).value());
           }
         }
-        return ExprEval.of(map, ValueDesc.UNKNOWN);
+        return ExprEval.of(map, ValueDesc.MAP);
       }
       if (result instanceof PyTuple) {
         PyObject[] array = ((PyTuple)result).getArray();
@@ -767,9 +767,9 @@ public interface BuiltinFunctions extends Function.Library
         for (PyObject element : array) {
           list.add(toExprEval(element).value());
         }
-        return ExprEval.of(list, ValueDesc.UNKNOWN);
+        return ExprEval.of(list, ValueDesc.STRUCT);
       }
-      return ExprEval.of(result.toString(), ValueDesc.UNKNOWN);
+      return ExprEval.of(result.toString());
     }
   }
 

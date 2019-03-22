@@ -125,7 +125,7 @@ public class CompressedFloatsSupplierSerializer implements ColumnPartWriter<Floa
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{CompressedFloatsIndexedSupplier.version}));
+    channel.write(ByteBuffer.wrap(new byte[]{CompressedFloatsIndexedSupplier.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));

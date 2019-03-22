@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
@@ -72,13 +71,14 @@ public class IndexSpec
   private final String metricCompression;
   private final Map<String, SecondaryIndexingSpec> secondaryIndexing;
   private final ColumnIncluderator dimensionSketches;
+  private final boolean allowNullForNumbers;
 
   /**
    * Creates an IndexSpec with default parameters
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null);
+    this(null, null, null, null, null, false);
   }
 
   /**
@@ -101,7 +101,8 @@ public class IndexSpec
       @JsonProperty("dimensionCompression") String dimensionCompression,
       @JsonProperty("dimensionSketches") ColumnIncluderator dimensionSketches,
       @JsonProperty("metricCompression") String metricCompression,
-      @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing
+      @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
+      @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -114,9 +115,8 @@ public class IndexSpec
     this.dimensionCompression = dimensionCompression;
     this.dimensionSketches = dimensionSketches == null ? ColumnIncluderator.NONE : dimensionSketches;
     this.metricCompression = metricCompression;
-    this.secondaryIndexing = secondaryIndexing == null
-                             ? ImmutableMap.<String, SecondaryIndexingSpec>of()
-                             : secondaryIndexing;
+    this.secondaryIndexing = secondaryIndexing;
+    this.allowNullForNumbers = allowNullForNumbers;
   }
 
   public IndexSpec(
@@ -125,7 +125,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, false);
   }
 
   @JsonProperty("bitmap")
@@ -155,19 +155,26 @@ public class IndexSpec
   }
 
   @JsonProperty("secondaryIndexing")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, SecondaryIndexingSpec> getSecondaryIndexing()
   {
     return secondaryIndexing;
   }
 
+  @JsonProperty("allowNullForNumbers")
+  public boolean isAllowNullForNumbers()
+  {
+    return allowNullForNumbers;
+  }
+
   public SecondaryIndexingSpec getSecondaryIndexingSpec(String column)
   {
-    return secondaryIndexing.get(column);
+    return secondaryIndexing == null ? null : secondaryIndexing.get(column);
   }
 
   public LuceneIndexingSpec getLuceneIndexingSpec(String column)
   {
-    SecondaryIndexingSpec indexing = secondaryIndexing.get(column);
+    SecondaryIndexingSpec indexing = secondaryIndexing == null ? null : secondaryIndexing.get(column);
     if (indexing instanceof LuceneIndexingSpec) {
       return (LuceneIndexingSpec) indexing;
     }
@@ -201,7 +208,8 @@ public class IndexSpec
         dimensionCompression,
         dimensionSketches,
         metricCompression,
-        secondaryIndexing
+        secondaryIndexing,
+        allowNullForNumbers
     );
   }
 
@@ -215,7 +223,8 @@ public class IndexSpec
         dimensionCompression,
         dimensionSketches,
         metricCompression,
-        null
+        null,
+        allowNullForNumbers
     );
   }
 
@@ -231,25 +240,22 @@ public class IndexSpec
 
     IndexSpec indexSpec = (IndexSpec) o;
 
-    if (bitmapSerdeFactory != null
-        ? !bitmapSerdeFactory.equals(indexSpec.bitmapSerdeFactory)
-        : indexSpec.bitmapSerdeFactory != null) {
+    if (!Objects.equals(bitmapSerdeFactory, indexSpec.bitmapSerdeFactory)) {
       return false;
     }
-    if (dimensionCompression != null
-        ? !dimensionCompression.equals(indexSpec.dimensionCompression)
-        : indexSpec.dimensionCompression != null) {
+    if (!Objects.equals(dimensionCompression, indexSpec.dimensionCompression)) {
       return false;
     }
     if (!Objects.equals(dimensionSketches, indexSpec.dimensionSketches)) {
       return false;
     }
-    if (metricCompression != null
-        ? !metricCompression.equals(indexSpec.metricCompression)
-        : indexSpec.metricCompression != null) {
+    if (!Objects.equals(metricCompression, indexSpec.metricCompression)) {
       return false;
     }
-    if (!secondaryIndexing.equals(indexSpec.secondaryIndexing)) {
+    if (!Objects.equals(secondaryIndexing, indexSpec.secondaryIndexing)) {
+      return false;
+    }
+    if (allowNullForNumbers != indexSpec.allowNullForNumbers) {
       return false;
     }
     return true;
@@ -258,11 +264,13 @@ public class IndexSpec
   @Override
   public int hashCode()
   {
-    int result = bitmapSerdeFactory != null ? bitmapSerdeFactory.hashCode() : 0;
-    result = 31 * result + (dimensionCompression != null ? dimensionCompression.hashCode() : 0);
-    result = 31 * result + (dimensionSketches != null ? dimensionSketches.hashCode() : 0);
-    result = 31 * result + (metricCompression != null ? metricCompression.hashCode() : 0);
-    result = 31 * result + secondaryIndexing.hashCode();
-    return result;
+    return Objects.hash(
+        bitmapSerdeFactory,
+        dimensionCompression,
+        dimensionSketches,
+        metricCompression,
+        secondaryIndexing,
+        allowNullForNumbers
+    );
   }
 }

@@ -21,6 +21,7 @@ package io.druid.segment.realtime.plumber;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
@@ -85,7 +86,7 @@ public class SinkTest
     );
 
     sink.add(
-        new InputRow()
+        new AbstractInputRow()
         {
           @Override
           public List<String> getDimensions()
@@ -103,30 +104,6 @@ public class SinkTest
           public DateTime getTimestamp()
           {
             return new DateTime("2013-01-01");
-          }
-
-          @Override
-          public List<String> getDimension(String dimension)
-          {
-            return Lists.newArrayList();
-          }
-
-          @Override
-          public float getFloatMetric(String metric)
-          {
-            return 0;
-          }
-
-          @Override
-          public double getDoubleMetric(String metric)
-          {
-            return 0;
-          }
-
-          @Override
-          public long getLongMetric(String metric)
-          {
-            return 0L;
           }
 
           @Override
@@ -156,7 +133,7 @@ public class SinkTest
     FireHydrant swapHydrant = sink.swap();
 
     sink.add(
-        new InputRow()
+        new AbstractInputRow()
         {
           @Override
           public List<String> getDimensions()
@@ -174,30 +151,6 @@ public class SinkTest
           public DateTime getTimestamp()
           {
             return new DateTime("2013-01-01");
-          }
-
-          @Override
-          public List<String> getDimension(String dimension)
-          {
-            return Lists.newArrayList();
-          }
-
-          @Override
-          public float getFloatMetric(String metric)
-          {
-            return 0;
-          }
-
-          @Override
-          public double getDoubleMetric(String metric)
-          {
-            return 0;
-          }
-
-          @Override
-          public long getLongMetric(String metric)
-          {
-            return 0L;
           }
 
           @Override

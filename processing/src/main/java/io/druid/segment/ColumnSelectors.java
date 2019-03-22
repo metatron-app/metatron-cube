@@ -40,12 +40,39 @@ import java.util.Objects;
  */
 public class ColumnSelectors
 {
+  public static final FloatColumnSelector FLOAT_NULL = new FloatColumnSelector()
+  {
+    @Override
+    public Float get()
+    {
+      return null;
+    }
+  };
+
+  public static final DoubleColumnSelector DOUBLE_NULL = new DoubleColumnSelector()
+  {
+    @Override
+    public Double get()
+    {
+      return null;
+    }
+  };
+
+  public static final LongColumnSelector LONG_NULL = new LongColumnSelector()
+  {
+    @Override
+    public Long get()
+    {
+      return null;
+    }
+  };
+
   public static FloatColumnSelector asFloat(final ObjectColumnSelector selector)
   {
     return new FloatColumnSelector()
     {
       @Override
-      public float get()
+      public Float get()
       {
         return Rows.parseFloat(selector.get());
       }
@@ -57,7 +84,7 @@ public class ColumnSelectors
     return new DoubleColumnSelector()
     {
       @Override
-      public double get()
+      public Double get()
       {
         return Rows.parseDouble(selector.get());
       }
@@ -69,7 +96,7 @@ public class ColumnSelectors
     return new LongColumnSelector()
     {
       @Override
-      public long get()
+      public Long get()
       {
         return Rows.parseLong(selector.get());
       }
@@ -155,7 +182,7 @@ public class ColumnSelectors
     return new DoubleColumnSelector()
     {
       @Override
-      public double get()
+      public Double get()
       {
         return numeric.get().doubleValue();
       }
@@ -192,7 +219,7 @@ public class ColumnSelectors
     return new DoubleColumnSelector()
     {
       @Override
-      public double get()
+      public Double get()
       {
         return selector.get().asDouble();
       }
@@ -204,7 +231,7 @@ public class ColumnSelectors
     return new FloatColumnSelector()
     {
       @Override
-      public float get()
+      public Float get()
       {
         return selector.get().asFloat();
       }
@@ -216,7 +243,7 @@ public class ColumnSelectors
     return new LongColumnSelector()
     {
       @Override
-      public long get()
+      public Long get()
       {
         return selector.get().asLong();
       }

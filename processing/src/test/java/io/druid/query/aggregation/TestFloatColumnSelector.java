@@ -35,7 +35,7 @@ public class TestFloatColumnSelector implements FloatColumnSelector
   }
 
   @Override
-  public float get()
+  public Float get()
   {
     return floats[index];
   }

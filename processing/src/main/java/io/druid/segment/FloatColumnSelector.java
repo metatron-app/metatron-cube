@@ -26,5 +26,5 @@ package io.druid.segment;
  */
 public interface FloatColumnSelector
 {
-  public float get();
+  Float get();
 }

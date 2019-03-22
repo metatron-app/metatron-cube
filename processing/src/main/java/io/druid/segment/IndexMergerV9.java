@@ -645,20 +645,20 @@ public class IndexMergerV9 extends IndexMerger
     progress.startSection(section);
     long startTime = System.currentTimeMillis();
 
-    int rowCount = 0;
     for (int i = 0; i < adapters.size(); i++) {
       rowNumConversions[i] = new int[adapters.get(i).getNumRows()];
       Arrays.fill(rowNumConversions[i], INVALID_ROW);
     }
 
+    int rowNum = 0;
     long time = System.currentTimeMillis();
     for (Rowboat theRow : theRows) {
       progress.progress();
-      timeWriter.serialize(theRow.getTimestamp());
+      timeWriter.serialize(rowNum, theRow.getTimestamp());
 
       final Object[] metrics = theRow.getMetrics();
       for (int i = 0; i < metrics.length; ++i) {
-        metWriters.get(i).serialize(metrics[i]);
+        metWriters.get(i).serialize(rowNum, metrics[i]);
       }
 
       int[][] dims = theRow.getDims();
@@ -667,23 +667,23 @@ public class IndexMergerV9 extends IndexMerger
           continue;
         }
         if (dims[i] == null || dims[i].length == 0) {
-          nullRowsList.get(i).add(rowCount);
+          nullRowsList.get(i).add(rowNum);
         } else if (dimHasNullFlags.get(i) && dims[i].length == 1 && dims[i][0] == 0) {
           // If this dimension has the null/empty str in its dictionary, a row with a single-valued dimension
           // that matches the null/empty str's dictionary ID should also be added to nullRowsList.
-          nullRowsList.get(i).add(rowCount);
+          nullRowsList.get(i).add(rowNum);
         }
         dimWriters.get(i).add(dims[i]);
       }
 
-      theRow.applyRowMapping(rowNumConversions, rowCount);
+      theRow.applyRowMapping(rowNumConversions, rowNum);
 
-      if ((++rowCount % 500000) == 0) {
-        log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
+      if ((++rowNum % 500_000) == 0) {
+        log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
       }
     }
-    log.info("completed walk through of %,d rows in %,d millis.", rowCount, System.currentTimeMillis() - startTime);
+    log.info("completed walk through of %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -691,8 +691,8 @@ public class IndexMergerV9 extends IndexMerger
   {
     final SecondaryIndexingSpec indexing = indexSpec.getSecondaryIndexingSpec(Column.TIME_COLUMN_NAME);
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
-    LongColumnSerializer timeWriter = LongColumnSerializer.create(
-        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, indexing
+    final LongColumnSerializer timeWriter = LongColumnSerializer.create(
+        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, indexing, false
     );
     // we will close this writer after we added all the timestamps
     timeWriter.open();
@@ -709,19 +709,26 @@ public class IndexMergerV9 extends IndexMerger
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
+    final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
     for (String metric : mergedMetrics) {
       ValueDesc type = metricTypeNames.get(metric);
-      SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
+      final SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
       GenericColumnSerializer writer;
       switch (type.type()) {
         case LONG:
-          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
+          writer = LongColumnSerializer.create(
+              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+          );
           break;
         case FLOAT:
-          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
+          writer = FloatColumnSerializer.create(
+              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+          );
           break;
         case DOUBLE:
-          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
+          writer = DoubleColumnSerializer.create(
+              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+          );
           break;
         case STRING:
           LuceneIndexingSpec indexingSpec = indexSpec.getLuceneIndexingSpec(metric);

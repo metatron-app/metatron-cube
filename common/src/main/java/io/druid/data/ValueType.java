@@ -47,7 +47,7 @@ public enum ValueType
     @Override
     public Object get(Row row, String column)
     {
-      return row.getFloatMetric(column);
+      return row.getFloat(column);
     }
 
     @Override
@@ -72,7 +72,7 @@ public enum ValueType
     @Override
     public Object get(Row row, String column)
     {
-      return row.getLongMetric(column);
+      return row.getLong(column);
     }
 
     @Override
@@ -97,7 +97,7 @@ public enum ValueType
     @Override
     public Object get(Row row, String column)
     {
-      return row.getDoubleMetric(column);
+      return row.getDouble(column);
     }
 
     @Override

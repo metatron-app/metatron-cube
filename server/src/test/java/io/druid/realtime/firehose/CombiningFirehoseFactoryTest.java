@@ -19,8 +19,8 @@
 
 package io.druid.realtime.firehose;
 
-import com.google.common.collect.Lists;
 import com.metamx.common.parsers.ParseException;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
@@ -40,7 +40,6 @@ import java.util.List;
 
 public class CombiningFirehoseFactoryTest
 {
-
   @Test
   public void testCombiningfirehose() throws IOException
   {
@@ -64,7 +63,7 @@ public class CombiningFirehoseFactoryTest
 
   private InputRow makeRow(final long timestamp, final float metricValue)
   {
-    return new InputRow()
+    return new AbstractInputRow()
     {
       @Override
       public List<String> getDimensions()
@@ -85,30 +84,6 @@ public class CombiningFirehoseFactoryTest
       }
 
       @Override
-      public List<String> getDimension(String dimension)
-      {
-        return Lists.newArrayList();
-      }
-
-      @Override
-      public float getFloatMetric(String metric)
-      {
-        return metricValue;
-      }
-
-      @Override
-      public double getDoubleMetric(String metric)
-      {
-        return metricValue;
-      }
-
-      @Override
-      public long getLongMetric(String metric)
-      {
-        return new Float(metricValue).longValue();
-      }
-
-      @Override
       public Collection<String> getColumns()
       {
         return null;
@@ -117,7 +92,7 @@ public class CombiningFirehoseFactoryTest
       @Override
       public Object getRaw(String dimension)
       {
-        return null;
+        return metricValue;
       }
 
       @Override

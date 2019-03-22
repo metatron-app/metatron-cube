@@ -42,19 +42,22 @@ public abstract class AbstractRow implements Row
   @Override
   public float getFloatMetric(String metric)
   {
-    return Rows.parseFloat(getRaw(metric));
+    final Float value = getFloat(metric);
+    return value == null ? 0F : value;
   }
 
   @Override
   public double getDoubleMetric(String metric)
   {
-    return Rows.parseDouble(getRaw(metric));
+    final Double value = getDouble(metric);
+    return value == null ? 0D : value;
   }
 
   @Override
   public long getLongMetric(String metric)
   {
-    return Rows.parseLong(getRaw(metric));
+    final Long value = getLong(metric);
+    return value == null ? 0L : value;
   }
 
   @Override
@@ -73,6 +76,24 @@ public abstract class AbstractRow implements Row
     } else {
       return Collections.singletonList(String.valueOf(dimValue));
     }
+  }
+
+  @Override
+  public Float getFloat(String metric)
+  {
+    return Rows.parseFloat(getRaw(metric));
+  }
+
+  @Override
+  public Double getDouble(String metric)
+  {
+    return Rows.parseDouble(getRaw(metric));
+  }
+
+  @Override
+  public Long getLong(String metric)
+  {
+    return Rows.parseLong(getRaw(metric));
   }
 
   @Override

@@ -35,7 +35,7 @@ public class TestLongColumnSelector implements LongColumnSelector
   }
 
   @Override
-  public long get()
+  public Long get()
   {
     return longs[index];
   }

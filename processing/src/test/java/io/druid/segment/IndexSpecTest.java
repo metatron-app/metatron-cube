@@ -79,7 +79,8 @@ public class IndexSpecTest
                 new LatLonPointIndexingStrategy("coord", "lat", "lon", null),
                 new TextIndexingStrategy("text")
             )
-        )
+        ),
+        false
     );
     IndexSpec actual = objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class);
     Assert.assertEquals(spec, actual);

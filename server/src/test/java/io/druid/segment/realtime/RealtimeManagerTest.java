@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.StupidPool;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
@@ -769,7 +770,7 @@ public class RealtimeManagerTest
         throw exception;
       }
 
-      return new InputRow()
+      return new AbstractInputRow()
       {
         @Override
         public List<String> getDimensions()
@@ -787,30 +788,6 @@ public class RealtimeManagerTest
         public DateTime getTimestamp()
         {
           return new DateTime(timestamp);
-        }
-
-        @Override
-        public List<String> getDimension(String dimension)
-        {
-          return Lists.newArrayList();
-        }
-
-        @Override
-        public float getFloatMetric(String metric)
-        {
-          return 0;
-        }
-
-        @Override
-        public double getDoubleMetric(String metric)
-        {
-          return 0;
-        }
-
-        @Override
-        public long getLongMetric(String metric)
-        {
-          return 0L;
         }
 
         @Override

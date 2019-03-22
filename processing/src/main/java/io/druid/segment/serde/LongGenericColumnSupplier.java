@@ -19,27 +19,30 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.base.Supplier;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedLongsGenericColumn;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 
 /**
-*/
+ */
 public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
   private final CompressedLongsIndexedSupplier column;
+  private final Supplier<ImmutableBitmap> nulls;
 
-  public LongGenericColumnSupplier(
-      CompressedLongsIndexedSupplier column
-  ) {
+  public LongGenericColumnSupplier(CompressedLongsIndexedSupplier column, Supplier<ImmutableBitmap> nulls)
+  {
     this.column = column;
+    this.nulls = nulls;
   }
 
   @Override
   public GenericColumn get()
   {
-    return new IndexedLongsGenericColumn(column.get());
+    return new IndexedLongsGenericColumn(column.get(), nulls.get());
   }
 
   @Override

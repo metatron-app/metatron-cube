@@ -282,7 +282,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       return new FloatColumnSelector()
       {
         @Override
-        public float get()
+        public Float get()
         {
           return Rows.parseFloat(selector.lookupName(selector.getRow().get(index)));
         }
@@ -295,7 +295,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       return new DoubleColumnSelector()
       {
         @Override
-        public double get()
+        public Double get()
         {
           return Rows.parseDouble(selector.lookupName(selector.getRow().get(index)));
         }
@@ -308,7 +308,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       return new LongColumnSelector()
       {
         @Override
-        public long get()
+        public Long get()
         {
           return Rows.parseLong(selector.lookupName(selector.getRow().get(index)));
         }

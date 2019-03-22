@@ -40,7 +40,6 @@ import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
-import io.druid.query.select.Schema;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapType;
@@ -48,6 +47,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -155,7 +155,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
-      return DateTimes.utc(column.getLongSingleValueRow(0));
+      return DateTimes.utc(column.getLong(0));
     }
     finally {
       CloseQuietly.close(column);
@@ -172,7 +172,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
-      return DateTimes.utc(column.getLongSingleValueRow(column.length() - 1));
+      return DateTimes.utc(column.getLong(column.length() - 1));
     }
     finally {
       CloseQuietly.close(column);
@@ -396,13 +396,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
                   if (descending) {
                     for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLongSingleValueRow(offset.getOffset()) < timeEnd) {
+                      if (timestamps.getLong(offset.getOffset()) < timeEnd) {
                         break;
                       }
                     }
                   } else {
                     for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLongSingleValueRow(offset.getOffset()) >= timeStart) {
+                      if (timestamps.getLong(offset.getOffset()) >= timeStart) {
                         break;
                       }
                     }
@@ -711,23 +711,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (cachedMetricVals == null) {
-                        return new FloatColumnSelector()
-                        {
-                          @Override
-                          public float get()
-                          {
-                            return 0.0f;
-                          }
-                        };
+                        return ColumnSelectors.FLOAT_NULL;
                       }
 
                       final GenericColumn metricVals = cachedMetricVals;
                       return new FloatColumnSelector()
                       {
                         @Override
-                        public float get()
+                        public Float get()
                         {
-                          return metricVals.getFloatSingleValueRow(cursorOffset.getOffset());
+                          return metricVals.getFloat(cursorOffset.getOffset());
                         }
                       };
                     }
@@ -752,23 +745,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (cachedMetricVals == null) {
-                        return new DoubleColumnSelector()
-                        {
-                          @Override
-                          public double get()
-                          {
-                            return 0.0d;
-                          }
-                        };
+                        return ColumnSelectors.DOUBLE_NULL;
                       }
 
                       final GenericColumn metricVals = cachedMetricVals;
                       return new DoubleColumnSelector()
                       {
                         @Override
-                        public double get()
+                        public Double get()
                         {
-                          return metricVals.getDoubleSingleValueRow(cursorOffset.getOffset());
+                          return metricVals.getDouble(cursorOffset.getOffset());
                         }
                       };
                     }
@@ -793,23 +779,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (cachedMetricVals == null) {
-                        return new LongColumnSelector()
-                        {
-                          @Override
-                          public long get()
-                          {
-                            return 0L;
-                          }
-                        };
+                        return ColumnSelectors.LONG_NULL;
                       }
 
                       final GenericColumn metricVals = cachedMetricVals;
                       return new LongColumnSelector()
                       {
                         @Override
-                        public long get()
+                        public Long get()
                         {
-                          return metricVals.getLongSingleValueRow(cursorOffset.getOffset());
+                          return metricVals.getLong(cursorOffset.getOffset());
                         }
                       };
                     }
@@ -936,12 +915,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         final GenericColumn columnVals = holder.getGenericColumn();
                         final ValueType type = columnVals.getType();
 
-                        if (columnVals.hasMultipleValues()) {
-                          throw new UnsupportedOperationException(
-                              "makeObjectColumnSelector does not support multi-value GenericColumns"
-                          );
-                        }
-
                         if (type == ValueType.FLOAT) {
                           cachedColumnVals = new ObjectColumnSelector.WithBaggage<Float>()
                           {
@@ -960,7 +933,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Float get()
                             {
-                              return columnVals.getFloatSingleValueRow(cursorOffset.getOffset());
+                              return columnVals.getFloat(cursorOffset.getOffset());
                             }
                           };
                         } else if (type == ValueType.LONG) {
@@ -981,7 +954,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Long get()
                             {
-                              return columnVals.getLongSingleValueRow(cursorOffset.getOffset());
+                              return columnVals.getLong(cursorOffset.getOffset());
                             }
                           };
                         } else if (type == ValueType.DOUBLE) {
@@ -1002,7 +975,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Double get()
                             {
-                              return columnVals.getDoubleSingleValueRow(cursorOffset.getOffset());
+                              return columnVals.getDouble(cursorOffset.getOffset());
                             }
                           };
                         } else if (type == ValueType.STRING) {
@@ -1023,7 +996,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return columnVals.getStringSingleValueRow(cursorOffset.getOffset());
+                              return columnVals.getString(cursorOffset.getOffset());
                             }
                           };
                         }
@@ -1120,7 +1093,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public boolean withinBounds()
     {
-      return baseOffset.withinBounds() && timeInRange(timestamps.getLongSingleValueRow(baseOffset.getOffset()));
+      return baseOffset.withinBounds() && timeInRange(timestamps.getLong(baseOffset.getOffset()));
     }
 
     protected abstract boolean timeInRange(long current);
@@ -1151,7 +1124,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public String toString()
     {
-      return (baseOffset.withinBounds() ? timestamps.getLongSingleValueRow(baseOffset.getOffset()) : "OOB") +
+      return (baseOffset.withinBounds() ? timestamps.getLong(baseOffset.getOffset()) : "OOB") +
              "<" + timeLimit + "::" + baseOffset;
     }
 
@@ -1179,7 +1152,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     public String toString()
     {
       return timeLimit + ">=" +
-             (baseOffset.withinBounds() ? timestamps.getLongSingleValueRow(baseOffset.getOffset()) : "OOB") +
+             (baseOffset.withinBounds() ? timestamps.getLong(baseOffset.getOffset()) : "OOB") +
              "::" + baseOffset;
     }
 

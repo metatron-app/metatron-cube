@@ -20,6 +20,8 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.ColumnDescriptor.Builder;
@@ -29,12 +31,13 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.FloatHistogram;
-import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.HistogramBitmaps;
+import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.FloatGenericColumnPartSerde;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -46,10 +49,41 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      SecondaryIndexingSpec indexing
+      SecondaryIndexingSpec indexing,
+      boolean allowNullForNumbers
   )
   {
-    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, indexing);
+    final ByteOrder ordering = IndexIO.BYTE_ORDER;
+    if (allowNullForNumbers) {
+      return new FloatColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing) {
+
+        private final MutableBitmap nulls = serdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
+
+        @Override
+        public void serialize(int rowNum, Object obj) throws IOException
+        {
+          if (obj != null) {
+            super.serialize(rowNum, obj);
+          } else {
+            writer.add(0F);
+            nulls.add(rowNum);
+          }
+        }
+
+        @Override
+        public void writeToChannel(WritableByteChannel channel) throws IOException
+        {
+          super.writeToChannel(channel);
+          if (!nulls.isEmpty()) {
+            byte[] serialized = serdeFactory.getObjectStrategy().toBytes(nulls);
+            channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
+            channel.write(ByteBuffer.wrap(serialized));
+          }
+        }
+      };
+    } else {
+      return new FloatColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing);
+    }
   }
 
   private final IOPeon ioPeon;
@@ -57,11 +91,11 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
 
-  private CompressedFloatsSupplierSerializer writer;
+  CompressedFloatsSupplierSerializer writer;
 
-  private final BitmapSerdeFactory serdeFactory;
-  private final MetricHistogram.FloatType histogram;
-  private final BitSlicer.FloatType slicer;
+  final BitmapSerdeFactory serdeFactory;
+  final MetricHistogram.FloatType histogram;
+  final BitSlicer.FloatType slicer;
 
   private FloatColumnSerializer(
       IOPeon ioPeon,
@@ -107,7 +141,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     float val = (obj == null) ? 0 : ((Number) obj).floatValue();
     histogram.offer(val);
@@ -121,12 +155,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
     builder.setValueType(ValueDesc.FLOAT);
-    builder.addSerde(
-        FloatGenericColumnPartSerde.serializerBuilder()
-                                   .withByteOrder(IndexIO.BYTE_ORDER)
-                                   .withDelegate(this)
-                                   .build()
-    );
+    builder.addSerde(new FloatGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));
     HistogramBitmaps bitmaps = histogram.snapshot();
     if (bitmaps != null) {
       builder.addSerde(new HistogramBitmaps.SerDe(ValueType.FLOAT, serdeFactory, bitmaps));

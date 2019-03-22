@@ -268,20 +268,20 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             Object[] metricArray = new Object[numMetrics];
             for (int i = 0; i < metricArray.length; ++i) {
               if (metrics[i] instanceof IndexedFloatsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getFloatSingleValueRow(currRow);
+                metricArray[i] = ((GenericColumn) metrics[i]).getFloat(currRow);
               } else if (metrics[i] instanceof IndexedDoublesGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getDoubleSingleValueRow(currRow);
+                metricArray[i] = ((GenericColumn) metrics[i]).getDouble(currRow);
               } else if (metrics[i] instanceof IndexedLongsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getLongSingleValueRow(currRow);
+                metricArray[i] = ((GenericColumn) metrics[i]).getLong(currRow);
               } else if (metrics[i] instanceof IndexedStringsGenericColumn) {
-                metricArray[i] = ((GenericColumn) metrics[i]).getStringSingleValueRow(currRow);
+                metricArray[i] = ((GenericColumn) metrics[i]).getString(currRow);
               } else if (metrics[i] instanceof ComplexColumn) {
                 metricArray[i] = ((ComplexColumn) metrics[i]).getRowValue(currRow);
               }
             }
 
             final Rowboat retVal = new Rowboat(
-                timestamps.getLongSingleValueRow(currRow), dims, metricArray, indexNum, currRow
+                timestamps.getLong(currRow), dims, metricArray, indexNum, currRow
             );
 
             ++currRow;

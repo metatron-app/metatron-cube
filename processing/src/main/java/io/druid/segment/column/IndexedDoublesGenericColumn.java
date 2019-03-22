@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
 import io.druid.segment.data.IndexedDoubles;
 
@@ -29,11 +30,12 @@ import java.io.IOException;
 public class IndexedDoublesGenericColumn extends AbstractGenericColumn
 {
   private final IndexedDoubles column;
+  private final ImmutableBitmap nulls;
 
-  public IndexedDoublesGenericColumn(
-      final IndexedDoubles column
-  ) {
+  public IndexedDoublesGenericColumn(IndexedDoubles column, ImmutableBitmap nulls)
+  {
     this.column = column;
+    this.nulls = nulls;
   }
 
   @Override
@@ -49,27 +51,27 @@ public class IndexedDoublesGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public boolean hasMultipleValues()
+  public Double getDouble(int rowNum)
   {
-    return false;
+    return nulls.get(rowNum) ? null : column.get(rowNum);
   }
 
   @Override
-  public double getDoubleSingleValueRow(int rowNum)
+  public Float getFloat(int rowNum)
   {
-    return column.get(rowNum);
+    return nulls.get(rowNum) ? null : (float) column.get(rowNum);
   }
 
   @Override
-  public float getFloatSingleValueRow(int rowNum)
+  public Long getLong(int rowNum)
   {
-    return (float)column.get(rowNum);
+    return nulls.get(rowNum) ? null : (long) column.get(rowNum);
   }
 
   @Override
-  public long getLongSingleValueRow(int rowNum)
+  public ImmutableBitmap getNulls()
   {
-    return (long) column.get(rowNum);
+    return nulls;
   }
 
   @Override

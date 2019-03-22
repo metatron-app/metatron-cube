@@ -35,7 +35,7 @@ public class TestDoubleColumnSelector implements DoubleColumnSelector
   }
 
   @Override
-  public double get()
+  public Double get()
   {
     return doubles[index];
   }

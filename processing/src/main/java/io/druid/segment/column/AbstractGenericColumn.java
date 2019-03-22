@@ -19,10 +19,7 @@
 
 package io.druid.segment.column;
 
-import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedDoubles;
-import io.druid.segment.data.IndexedFloats;
-import io.druid.segment.data.IndexedLongs;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 
 import java.io.IOException;
 
@@ -31,56 +28,35 @@ import java.io.IOException;
 public abstract class AbstractGenericColumn implements GenericColumn
 {
   @Override
-  public String getStringSingleValueRow(int rowNum)
+  public String getString(int rowNum)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public Indexed<String> getStringMultiValueRow(int rowNum)
+  public Float getFloat(int rowNum)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public float getFloatSingleValueRow(int rowNum)
+  public Long getLong(int rowNum)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public IndexedFloats getFloatMultiValueRow(int rowNum)
+  public Double getDouble(int rowNum)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public long getLongSingleValueRow(int rowNum)
+  public ImmutableBitmap getNulls()
   {
-    throw new UnsupportedOperationException();
+    return null;
   }
 
   @Override
-  public IndexedLongs getLongMultiValueRow(int rowNum)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public double getDoubleSingleValueRow(int rowNum)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public IndexedDoubles getDoubleMultiValueRow(int rowNum)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-
-  }
+  public void close() throws IOException {}
 }

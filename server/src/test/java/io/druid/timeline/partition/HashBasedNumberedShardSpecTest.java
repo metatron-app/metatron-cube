@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.TestUtil;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
@@ -190,7 +191,7 @@ public class HashBasedNumberedShardSpecTest
     }
   }
 
-  public static class HashInputRow implements InputRow
+  public static class HashInputRow extends AbstractInputRow
   {
     private final int hashcode;
 
@@ -224,33 +225,9 @@ public class HashBasedNumberedShardSpecTest
     }
 
     @Override
-    public List<String> getDimension(String s)
-    {
-      return null;
-    }
-
-    @Override
     public Object getRaw(String s)
     {
       return null;
-    }
-
-    @Override
-    public float getFloatMetric(String s)
-    {
-      return 0;
-    }
-
-    @Override
-    public double getDoubleMetric(String metric)
-    {
-      return 0;
-    }
-
-    @Override
-    public long getLongMetric(String s)
-    {
-      return 0L;
     }
 
     @Override

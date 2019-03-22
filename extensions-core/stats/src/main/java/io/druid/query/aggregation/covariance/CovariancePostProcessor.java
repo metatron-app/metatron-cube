@@ -69,7 +69,10 @@ public class CovariancePostProcessor extends PostProcessingOperator.Abstract
         Row row = Iterables.getOnlyElement(rows);
         List<Pair<Double, String>> covariances = Lists.newArrayList();
         for (String column : row.getColumns()) {
-          covariances.add(Pair.of(row.getDoubleMetric(column), column));
+          final Double value = row.getDouble(column);
+          if (value != null) {
+            covariances.add(Pair.of(value, column));
+          }
         }
         Collections.sort(
             covariances,

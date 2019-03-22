@@ -36,11 +36,11 @@ import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
-import io.druid.query.select.Schema;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -544,23 +544,16 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (virtualColumn != null) {
                     return virtualColumn.asFloatMetric(columnName, this);
                   }
-                  return new FloatColumnSelector()
-                  {
-                    @Override
-                    public float get()
-                    {
-                      return 0.0f;
-                    }
-                  };
+                  return ColumnSelectors.FLOAT_NULL;
                 }
 
                 final int metricIndex = metricIndexInt;
                 return new FloatColumnSelector()
                 {
                   @Override
-                  public float get()
+                  public Float get()
                   {
-                    return index.getMetricFloatValue(currEntry.getValue(), metricIndex);
+                    return index.getFloat(currEntry.getValue(), metricIndex);
                   }
                 };
               }
@@ -582,23 +575,16 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (virtualColumn != null) {
                     return virtualColumn.asDoubleMetric(columnName, this);
                   }
-                  return new DoubleColumnSelector()
-                  {
-                    @Override
-                    public double get()
-                    {
-                      return 0.0d;
-                    }
-                  };
+                  return ColumnSelectors.DOUBLE_NULL;
                 }
 
                 final int metricIndex = metricIndexInt;
                 return new DoubleColumnSelector()
                 {
                   @Override
-                  public double get()
+                  public Double get()
                   {
-                    return index.getMetricDoubleValue(currEntry.getValue(), metricIndex);
+                    return index.getDouble(currEntry.getValue(), metricIndex);
                   }
                 };
               }
@@ -610,7 +596,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return new LongColumnSelector()
                   {
                     @Override
-                    public long get()
+                    public Long get()
                     {
                       return currEntry.getKey().getTimestamp();
                     }
@@ -630,14 +616,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (virtualColumn != null) {
                     return virtualColumn.asLongMetric(columnName, this);
                   }
-                  return new LongColumnSelector()
-                  {
-                    @Override
-                    public long get()
-                    {
-                      return 0L;
-                    }
-                  };
+                  return ColumnSelectors.LONG_NULL;
                 }
 
                 final int metricIndex = metricIndexInt;
@@ -645,12 +624,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 return new LongColumnSelector()
                 {
                   @Override
-                  public long get()
+                  public Long get()
                   {
-                    return index.getMetricLongValue(
-                        currEntry.getValue(),
-                        metricIndex
-                    );
+                    return index.getLong(currEntry.getValue(), metricIndex);
                   }
                 };
               }

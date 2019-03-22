@@ -33,6 +33,7 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -284,16 +285,9 @@ public class ColumnSelectorFactories
       return new FloatColumnSelector()
       {
         @Override
-        public float get()
+        public Float get()
         {
-          Object value = getObject();
-          if (value == null) {
-            return 0.0f;
-          }
-          if (value instanceof Number) {
-            return ((Number) value).floatValue();
-          }
-          return Float.valueOf(String.valueOf(value));
+          return Rows.parseFloat(getObject());
         }
       };
     }
@@ -304,16 +298,9 @@ public class ColumnSelectorFactories
       return new DoubleColumnSelector()
       {
         @Override
-        public double get()
+        public Double get()
         {
-          Object value = getObject();
-          if (value == null) {
-            return 0.0d;
-          }
-          if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-          }
-          return Double.valueOf(String.valueOf(value));
+          return Rows.parseDouble(getObject());
         }
       };
     }
@@ -324,16 +311,9 @@ public class ColumnSelectorFactories
       return new LongColumnSelector()
       {
         @Override
-        public long get()
+        public Long get()
         {
-          Object value = getObject();
-          if (value == null) {
-            return 0L;
-          }
-          if (value instanceof Number) {
-            return ((Number) value).longValue();
-          }
-          return Long.valueOf(String.valueOf(value));
+          return Rows.parseLong(getObject());
         }
       };
     }
@@ -521,7 +501,7 @@ public class ColumnSelectorFactories
         return new LongColumnSelector()
         {
           @Override
-          public long get()
+          public Long get()
           {
             return in.get().getTimestampFromEpoch();
           }
@@ -530,9 +510,9 @@ public class ColumnSelectorFactories
       return new LongColumnSelector()
       {
         @Override
-        public long get()
+        public Long get()
         {
-          return in.get().getLongMetric(columnName);
+          return in.get().getLong(columnName);
         }
       };
     }
@@ -543,9 +523,9 @@ public class ColumnSelectorFactories
       return new FloatColumnSelector()
       {
         @Override
-        public float get()
+        public Float get()
         {
-          return in.get().getFloatMetric(columnName);
+          return in.get().getFloat(columnName);
         }
       };
     }
@@ -556,9 +536,9 @@ public class ColumnSelectorFactories
       return new DoubleColumnSelector()
       {
         @Override
-        public double get()
+        public Double get()
         {
-          return in.get().getDoubleMetric(columnName);
+          return in.get().getDouble(columnName);
         }
       };
     }
@@ -621,11 +601,11 @@ public class ColumnSelectorFactories
             }
             switch (type.type()) {
               case FLOAT:
-                return in.get().getFloatMetric(column);
+                return in.get().getFloat(column);
               case LONG:
-                return in.get().getLongMetric(column);
+                return in.get().getLong(column);
               case DOUBLE:
-                return in.get().getDoubleMetric(column);
+                return in.get().getDouble(column);
             }
             return in.get().getRaw(column);
           }
