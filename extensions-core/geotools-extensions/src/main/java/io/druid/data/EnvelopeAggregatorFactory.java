@@ -70,7 +70,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (GeoToolsFunctions.SHAPE_TYPE.equals(type)) {
+    if (ValueDesc.SHAPE.equals(type)) {
       return new Aggregator.Abstract()
       {
         private Envelope envelope = new Envelope();
@@ -108,7 +108,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (GeoToolsFunctions.SHAPE_TYPE.equals(type)) {
+    if (ValueDesc.SHAPE.equals(type)) {
       return new BufferAggregator.Abstract()
       {
         @Override

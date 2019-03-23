@@ -90,6 +90,8 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
   public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
+  public static ValueDesc SHAPE = new ValueDesc("SHAPE");
+
   public static ValueDesc ofArray(ValueDesc valueType)
   {
     return ofArray(valueType.typeName);

@@ -25,12 +25,17 @@ import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
 import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.Point;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import org.locationtech.spatial4j.shape.Shape;
+import org.locationtech.spatial4j.shape.jts.JtsGeometry;
+import org.locationtech.spatial4j.shape.jts.JtsPoint;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,6 +58,19 @@ public class H3Functions implements Function.Library
     }
   });
 
+  public static Geometry toGeometry(ExprEval eval)
+  {
+    if (ValueDesc.SHAPE.equals(eval.type())) {
+      Shape shape = (Shape) eval.value();
+      if (shape instanceof JtsGeometry) {
+        return ((JtsGeometry) shape).getGeom();
+      } else if (shape instanceof JtsPoint) {
+        return ((JtsPoint) shape).getGeom();
+      }
+    }
+    return null;
+  }
+
   @Function.Named("to_h3")
   public static class ToH3 extends Function.AbstractFactory
   {
@@ -72,6 +90,33 @@ public class H3Functions implements Function.Library
           double longitude = Evals.evalDouble(args.get(1), bindings);
           int precision = Evals.evalInt(args.get(2), bindings);
           return ExprEval.of(instance.geoToH3(latitude, longitude, precision));
+        }
+      };
+    }
+  }
+
+  @Function.Named("geom_to_h3")
+  public static class GeomToH3 extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+      final H3Core instance = H3.get();
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, ValueDesc.LONG);
+          }
+          final Point point = geometry.getCentroid();
+          final int precision = Evals.evalInt(args.get(1), bindings);
+          return ExprEval.of(instance.geoToH3(point.getY(), point.getX(), precision));
         }
       };
     }

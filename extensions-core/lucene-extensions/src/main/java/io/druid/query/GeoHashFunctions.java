@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.metamx.common.IAE;
+import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -51,13 +52,43 @@ public class GeoHashFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          double latitude = Evals.evalDouble(args.get(0), bindings);
-          double longitude = Evals.evalDouble(args.get(1), bindings);
+          final double latitude = Evals.evalDouble(args.get(0), bindings);
+          final double longitude = Evals.evalDouble(args.get(1), bindings);
           if (args.size() == 3) {
             int precision = Evals.evalInt(args.get(2), bindings);
             return ExprEval.of(GeohashUtils.encodeLatLon(latitude, longitude, precision));
           }
           return ExprEval.of(GeohashUtils.encodeLatLon(latitude, longitude));
+        }
+      };
+    }
+  }
+
+  @Function.Named("geom_to_geohash")
+  public static class GeomToGeoHash extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = H3Functions.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, ValueDesc.LONG);
+          }
+          final com.vividsolutions.jts.geom.Point point = geometry.getCentroid();
+          if (args.size() == 2) {
+            final int precision = Evals.evalInt(args.get(1), bindings);
+            return ExprEval.of(GeohashUtils.encodeLatLon(point.getY(), point.getX(), precision));
+          } else {
+            return ExprEval.of(GeohashUtils.encodeLatLon(point.getY(), point.getX()));
+          }
         }
       };
     }

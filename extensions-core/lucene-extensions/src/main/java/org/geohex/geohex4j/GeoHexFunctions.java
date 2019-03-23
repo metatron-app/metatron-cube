@@ -20,12 +20,15 @@
 package org.geohex.geohex4j;
 
 import com.metamx.common.IAE;
+import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.query.H3Functions;
+import org.locationtech.spatial4j.io.GeohashUtils;
 
 import java.util.List;
 
@@ -49,6 +52,32 @@ public class GeoHexFunctions implements Function.Library
           double longitude = Evals.evalDouble(args.get(1), bindings);
           int level = Evals.evalInt(args.get(2), bindings);
           return ExprEval.of(GeoHex.encode(latitude, longitude, level));
+        }
+      };
+    }
+  }
+
+  @Function.Named("geom_to_geohex")
+  public static class GeomToGeoHex extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = H3Functions.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, ValueDesc.LONG);
+          }
+          final com.vividsolutions.jts.geom.Point point = geometry.getCentroid();
+          final int precision = Evals.evalInt(args.get(1), bindings);
+          return ExprEval.of(GeoHex.encode(point.getY(), point.getX(), precision));
         }
       };
     }

@@ -106,8 +106,6 @@ public class GeoToolsFunctions implements Function.Library
     }
   }
 
-  static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE");
-
   static ExprEval ofGeom(Geometry geometry)
   {
     return ofShape(ShapeUtils.toShape(geometry));
@@ -115,17 +113,17 @@ public class GeoToolsFunctions implements Function.Library
 
   static ExprEval ofShape(Shape shape)
   {
-    return ExprEval.of(shape, SHAPE_TYPE);
+    return ExprEval.of(shape, ValueDesc.SHAPE);
   }
 
   static Geometry toGeometry(ExprEval eval)
   {
-    if (SHAPE_TYPE.equals(eval.type())) {
+    if (ValueDesc.SHAPE.equals(eval.type())) {
       Shape shape = (Shape) eval.value();
       if (shape instanceof JtsGeometry) {
-        return ((JtsGeometry)shape).getGeom();
+        return ((JtsGeometry) shape).getGeom();
       } else if (shape instanceof JtsPoint) {
-        return ((JtsPoint)shape).getGeom();
+        return ((JtsPoint) shape).getGeom();
       }
     }
     return null;
@@ -138,7 +136,7 @@ public class GeoToolsFunctions implements Function.Library
       @Override
       public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
-        return SHAPE_TYPE;
+        return ValueDesc.SHAPE;
       }
 
       @Override
@@ -311,7 +309,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
-          return SHAPE_TYPE;
+          return ValueDesc.SHAPE;
         }
 
         @Override
