@@ -20,10 +20,12 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
-import com.metamx.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
+import com.google.common.collect.Lists;
 import io.druid.common.utils.StringUtils;
+import io.druid.query.Query;
+import io.druid.query.UnionAllQuery;
+import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -86,22 +88,6 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Sequence<Object[]> runQuery()
-  {
-    // Lazy: run each query in sequence, not all at once.
-    if (limit == 0) {
-      return Sequences.empty();
-    } else {
-      final Sequence baseSequence = Sequences.concat(
-          FluentIterable.from(rels).transform(rel -> ((DruidRel) rel).runQuery())
-      );
-
-      return limit > 0 ? Sequences.limit(baseSequence, limit) : baseSequence;
-    }
-  }
-
-  @Override
   public DruidUnionRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
   {
     throw new UnsupportedOperationException();
@@ -110,7 +96,49 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel>
   @Override
   public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
-    throw new UnsupportedOperationException();
+    RelDataType dataType0 = null;
+    RowSignature signature0 = null;
+    List<Query> queries = Lists.newArrayList();
+    for (RelNode relNode : rels) {
+      DruidRel<?> druidRel = Utils.getDruidRel(relNode);
+      if (druidRel == null) {
+        return null;
+      }
+      DruidQuery druidQuery = druidRel.toDruidQuery(finalizeAggregations);
+      if (druidQuery == null) {
+        return null;
+      }
+      queries.add(druidQuery.getQuery());
+      if (dataType0 == null) {
+        dataType0 = druidQuery.getOutputRowType();
+        signature0 = druidQuery.getOutputRowSignature();
+      } else {
+        Preconditions.checkArgument(dataType0.toString().equals(druidQuery.getOutputRowType().toString()));
+        Preconditions.checkArgument(signature0.equals(druidQuery.getOutputRowSignature()));
+      }
+    }
+    final RelDataType dataType = dataType0;
+    final RowSignature signature = signature0;
+    return new DruidQuery()
+    {
+      @Override
+      public RelDataType getOutputRowType()
+      {
+        return dataType;
+      }
+
+      @Override
+      public RowSignature getOutputRowSignature()
+      {
+        return signature;
+      }
+
+      @Override
+      public Query getQuery()
+      {
+        return UnionAllQuery.union(queries, limit);
+      }
+    };
   }
 
   @Override

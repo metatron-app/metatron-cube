@@ -22,8 +22,6 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.metamx.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
@@ -84,21 +82,6 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   public PartialDruidQuery getPartialDruidQuery()
   {
     return partialQuery;
-  }
-
-  @Override
-  public Sequence<Object[]> runQuery()
-  {
-    // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
-    // is the outermost query and it will actually get run as a native query. Druid's native query layer will
-    // finalize aggregations for the outermost query even if we don't explicitly ask it to.
-
-    final DruidQuery query = toDruidQuery(false);
-    if (query != null) {
-      return getQueryMaker().runQuery(query);
-    } else {
-      return Sequences.empty();
-    }
   }
 
   @Override

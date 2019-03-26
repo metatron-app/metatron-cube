@@ -42,6 +42,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
+import io.druid.query.UnionAllQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.sql.calcite.planner.Calcites;
@@ -134,11 +135,15 @@ public class QueryMaker
 
     Hook.QUERY_PLAN.run(query);   // original query
 
-    if (prepared instanceof BaseAggregationQuery) {
-      return executeAggregation(druidQuery, (BaseAggregationQuery) prepared);
-    } else if (prepared instanceof TopNQuery) {
+    Query schema = prepared;
+    if (schema instanceof UnionAllQuery) {
+      schema = ((UnionAllQuery) schema).getRepresentative();
+    }
+    if (schema instanceof BaseAggregationQuery) {
+      return executeAggregation(druidQuery, prepared);
+    } else if (schema instanceof TopNQuery) {
       return executeTopN(druidQuery, (TopNQuery) prepared);
-    } else if (prepared instanceof Query.ArrayOutputSupport) {
+    } else if (schema instanceof Query.ArrayOutputSupport) {
       return executeArray(druidQuery, (Query.ArrayOutputSupport) prepared);
     } else {
       throw new ISE("Cannot run query of class[%s]", prepared.getClass().getName());
@@ -161,10 +166,7 @@ public class QueryMaker
     return query.run(segmentWalker, Maps.newHashMap());
   }
 
-  private Sequence<Object[]> executeAggregation(
-      final DruidQuery druidQuery,
-      final BaseAggregationQuery query
-  )
+  private Sequence<Object[]> executeAggregation(final DruidQuery druidQuery, final Query query)
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 

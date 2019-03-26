@@ -41,6 +41,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContexts;
 import io.druid.query.QueryDataSource;
+import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
@@ -1414,24 +1415,28 @@ public class CalciteQueryTest extends CalciteTestBase
     testQuery(
         "SELECT COUNT(*) FROM foo UNION ALL SELECT SUM(cnt) FROM foo UNION ALL SELECT COUNT(*) FROM foo",
         ImmutableList.of(
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .granularity(Granularities.ALL)
-                  .aggregators(CountAggregatorFactory.of("a0"))
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build(),
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .granularity(Granularities.ALL)
-                  .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build(),
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .granularity(Granularities.ALL)
-                  .aggregators(CountAggregatorFactory.of("a0"))
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build()
+            UnionAllQuery.union(
+                Arrays.asList(
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(CountAggregatorFactory.of("a0"))
+                          .context(TIMESERIES_CONTEXT_DEFAULT)
+                          .build(),
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+                          .context(TIMESERIES_CONTEXT_DEFAULT)
+                          .build(),
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(CountAggregatorFactory.of("a0"))
+                          .context(TIMESERIES_CONTEXT_DEFAULT)
+                          .build()
+                )
+            )
         ),
         ImmutableList.of(new Object[]{6L}, new Object[]{6L}, new Object[]{6L})
     );
@@ -1445,20 +1450,29 @@ public class CalciteQueryTest extends CalciteTestBase
         + "SELECT COUNT(*) FROM foo UNION ALL SELECT SUM(cnt) FROM foo UNION ALL SELECT COUNT(*) FROM foo"
         + ") LIMIT 2",
         ImmutableList.of(
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .granularity(Granularities.ALL)
-                  .aggregators(CountAggregatorFactory.of("a0"))
-                  .limit(2)
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build(),
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .granularity(Granularities.ALL)
-                  .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                  .limit(2)
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build()
+            UnionAllQuery.union(
+                Arrays.asList(
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(CountAggregatorFactory.of("a0"))
+                          .limit(2)
+                          .build(),
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+                          .limit(2)
+                          .build(),
+                    Druids.newTimeseriesQueryBuilder()
+                          .dataSource(CalciteTests.DATASOURCE1)
+                          .granularity(Granularities.ALL)
+                          .aggregators(CountAggregatorFactory.of("a0"))
+                          .limit(2)
+                          .build()
+                ),
+                2
+            )
         ),
         ImmutableList.of(new Object[]{6L}, new Object[]{6L})
     );

@@ -25,9 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Sequence;
 import io.druid.common.ResourceLimitExceededException;
-import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.Utils;
 import org.apache.calcite.interpreter.BindableConvention;
@@ -191,17 +189,6 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
   {
     DruidRel rightRel = Preconditions.checkNotNull(Utils.getDruidRel(right));
     return left.getQueryCount() + rightRel.getQueryCount();
-  }
-
-  @Override
-  public Sequence<Object[]> runQuery()
-  {
-    final DruidRel<?> rel = getLeftRelWithFilter();
-    if (rel != null) {
-      return rel.runQuery();
-    } else {
-      return Sequences.empty();
-    }
   }
 
   @Override

@@ -74,7 +74,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    */
   public abstract int getQueryCount();
 
-  public Sequence<Object[]> runQuery()
+  public final Sequence<Object[]> runQuery()
   {
     // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
     // is the outermost query and it will actually get run as a native query. Druid's native query layer will
