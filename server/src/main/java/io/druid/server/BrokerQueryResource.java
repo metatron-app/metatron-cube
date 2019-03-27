@@ -26,7 +26,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -35,26 +34,21 @@ import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
-import io.druid.client.BrokerServerView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.PropUtils;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
-import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
@@ -68,7 +62,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.RegexDataSource;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
@@ -76,18 +70,14 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
-import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
-import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.log.Events;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
-import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
@@ -104,16 +94,13 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
@@ -124,52 +111,39 @@ public class BrokerQueryResource extends QueryResource
 {
   private final CoordinatorClient coordinator;
   private final TimelineServerView brokerServerView;
-  private final DataSegmentPusher pusher;
-  private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
-
   private final ListeningExecutorService exec;
 
   @Inject
   public BrokerQueryResource(
+      @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
-      QuerySegmentWalker texasRanger,
-      ServiceEmitter emitter,
-      @Events Emitter eventEmitter,
-      RequestLogger requestLogger,
       QueryManager queryManager,
+      QuerySegmentWalker segmentWalker,
+      QueryToolChestWarehouse warehouse,
+      ServiceEmitter emitter,
+      RequestLogger requestLogger,
       AuthConfig authConfig,
       CoordinatorClient coordinator,
       TimelineServerView brokerServerView,
-      DataSegmentPusher pusher,
-      IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator,
-      @Self DruidNode node,
-      QueryToolChestWarehouse warehouse,
-      IndexMergerV9 merger,
-      Map<String, ResultWriter> writerMap,
       @Processing ExecutorService exec
   )
   {
     super(
+        node,
         config,
         jsonMapper,
         smileMapper,
-        texasRanger,
-        emitter,
-        eventEmitter,
-        requestLogger,
         queryManager,
-        authConfig,
-        node,
+        segmentWalker,
         warehouse,
-        merger,
-        writerMap
+        emitter,
+        requestLogger,
+        authConfig
     );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;
-    this.pusher = pusher;
-    this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
     this.exec = MoreExecutors.listeningDecorator(exec);
   }
 
@@ -255,13 +229,13 @@ public class BrokerQueryResource extends QueryResource
   {
     Query query = super.prepareQuery(baseQuery);
     query = rewriteDataSource(query);
-    query = QueryUtils.rewriteRecursively(query, texasRanger, warehouse.getQueryConfig());
-    query = QueryUtils.resolveRecursively(query, texasRanger);
+    query = QueryUtils.rewriteRecursively(query, segmentWalker, warehouse.getQueryConfig());
+    query = QueryUtils.resolveRecursively(query, segmentWalker);
 
     if (BaseQuery.isOptimizeQuery(query, false)) {
       QueryToolChest toolChest = warehouse.getToolChest(query);
       if (toolChest != null) {
-        query = toolChest.optimizeQuery(query, texasRanger);
+        query = toolChest.optimizeQuery(query, segmentWalker);
       }
     }
     if (BaseQuery.isParallelForwarding(query)) {
@@ -326,52 +300,6 @@ public class BrokerQueryResource extends QueryResource
     );
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
-      throws IOException
-  {
-    if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
-      result = Maps.newLinkedHashMap(result);
-      result.put("broker", node.getHostAndPort());
-      result.put("queryId", query.getId());
-      Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
-      if (dataMeta == null) {
-        log.info("Nothing to publish..");
-        return Sequences.simple(Arrays.asList(result));
-      }
-      URI location = (URI) dataMeta.get("location");
-      DataSegment segment = (DataSegment) dataMeta.get("segment");
-      ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-      builder.put("feed", "BrokerQueryResource");
-      builder.put("broker", node.getHostAndPort());
-      builder.put("payload", segment);
-      if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
-        log.info("Publishing index to temporary table..");
-        BrokerServerView serverView = (BrokerServerView) brokerServerView;
-        serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())), result);
-        builder.put("type", "localPublish");
-      } else {
-        log.info("Publishing index to table..");
-        segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
-        Set<DataSegment> segments = Sets.newHashSet(segment);
-        indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
-        try {
-          long assertTimeout = PropUtils.parseLong(forwardContext, "waitTimeout", 0L);
-          boolean assertLoaded = PropUtils.parseBoolean(forwardContext, "assertLoaded");
-          coordinator.scheduleNow(segments, assertTimeout, assertLoaded);
-        }
-        catch (Exception e) {
-          // ignore
-          log.info("failed to notify coordinator directly by %s.. just wait next round of coordination", e);
-        }
-        builder.put("type", "publish");
-      }
-      eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
-    }
-    return Sequences.simple(Arrays.asList(result));
-  }
-
   @POST
   @Path("/load")
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
@@ -386,6 +314,9 @@ public class BrokerQueryResource extends QueryResource
       @Context final HttpServletRequest req
   ) throws Exception
   {
+    if (!(segmentWalker instanceof ForwardingSegmentWalker)) {
+      throw new UnsupportedOperationException("loadToIndex");
+    }
     final DataSchema schema = loadSpec.getSchema();
     final InputRowParser parser = loadSpec.getParser();
 
@@ -401,7 +332,7 @@ public class BrokerQueryResource extends QueryResource
       }
       List<URI> locations = loadSpec.getURIs();
       String scheme = locations.get(0).getScheme();
-      ResultWriter writer = writerMap.get(scheme);
+      StorageHandler writer = ((ForwardingSegmentWalker) segmentWalker).getHandler(scheme);
       if (writer == null) {
         throw new IAE("Unsupported scheme '%s'", scheme);
       }
@@ -443,7 +374,7 @@ public class BrokerQueryResource extends QueryResource
       loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
 
       final Sequence<Row> sequence = writer.read(locations, parser, loadContext);
-      final QueryRunner runner = wrapForward(
+      final QueryRunner runner = ((ForwardingSegmentWalker) segmentWalker).wrap(
           query, new QueryRunner()
           {
             @Override

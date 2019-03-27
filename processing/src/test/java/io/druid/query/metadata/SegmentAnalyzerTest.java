@@ -20,7 +20,7 @@
 package io.druid.query.metadata;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.LegacyDataSource;
 import io.druid.query.QueryRunner;
@@ -175,7 +175,7 @@ public class SegmentAnalyzerTest
    */
   private List<SegmentAnalysis> getSegmentAnalysises(Segment index, EnumSet<SegmentMetadataQuery.AnalysisType> analyses)
   {
-    final QueryRunner runner = QueryRunnerTestHelper.makeQueryRunner(
+    final QueryRunner<SegmentAnalysis> runner = QueryRunnerTestHelper.makeQueryRunner(
         (QueryRunnerFactory) new SegmentMetadataQueryRunnerFactory(
             new SegmentMetadataQueryQueryToolChest(new SegmentMetadataQueryConfig()),
             QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -194,7 +194,6 @@ public class SegmentAnalyzerTest
         false,
         false
     );
-    HashMap<String, Object> context = new HashMap<String, Object>();
-    return Sequences.toList(query.run(runner, context), Lists.<SegmentAnalysis>newArrayList());
+    return Sequences.toList(runner.run(query, new HashMap<String, Object>()));
   }
 }

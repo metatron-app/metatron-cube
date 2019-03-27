@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import org.joda.time.Interval;
 
 /**
@@ -50,45 +49,8 @@ public interface QuerySegmentWalker
    */
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs);
 
-  public static abstract class Wrapper implements QuerySegmentWalker
+  public interface Wrapper extends QuerySegmentWalker
   {
-    private final QuerySegmentWalker delegate;
-
-    public Wrapper(QuerySegmentWalker delegate) {this.delegate = delegate;}
-
-    public QuerySegmentWalker getDelegate()
-    {
-      return delegate;
-    }
-
-    @Override
-    public ObjectMapper getObjectMapper()
-    {
-      return delegate.getObjectMapper();
-    }
-
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
-    {
-      try {
-        return wrap(query, delegate.getQueryRunnerForIntervals(query, intervals));
-      }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
-    {
-      try {
-        return wrap(query, delegate.getQueryRunnerForSegments(query, specs));
-      }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    protected abstract <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> runner) throws Exception;
+    <T> QueryRunner<T> wrap(final Query<T> query, final QueryRunner<T> baseRunner);
   }
 }

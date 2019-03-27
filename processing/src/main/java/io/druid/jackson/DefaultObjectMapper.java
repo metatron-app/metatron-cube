@@ -29,6 +29,8 @@ import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import io.druid.query.aggregation.hll.HllSketchModule;
 import io.druid.query.sketch.SketchModule;
 
+import java.io.IOException;
+
 /**
  */
 public class DefaultObjectMapper extends ObjectMapper
@@ -74,5 +76,15 @@ public class DefaultObjectMapper extends ObjectMapper
   public static ObjectMapper excludeNulls(ObjectMapper mapper)
   {
     return mapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+  }
+
+  public static <T> T readValue(ObjectMapper mapper, String value, Class<T> clazz)
+  {
+    try {
+      return mapper.readValue(value, clazz);
+    }
+    catch (IOException e) {
+      throw new IllegalArgumentException(e);
+    }
   }
 }

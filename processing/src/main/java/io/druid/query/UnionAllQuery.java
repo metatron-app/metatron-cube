@@ -409,7 +409,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
         @Override
         public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
         {
-          return Sequences.limit(query.run(runner, responseContext), getLimit());
+          return Sequences.limit(runner.run(query, responseContext), getLimit());
         }
       };
     }

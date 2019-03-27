@@ -102,10 +102,4 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
   {
     return sequence;
   }
-
-  @Override
-  public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
-  {
-    return sequence;
-  }
 }

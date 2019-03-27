@@ -54,11 +54,11 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryRunners;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
+import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -67,6 +67,8 @@ import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
+import io.druid.server.ForwardingSegmentWalker;
+import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
@@ -88,13 +90,14 @@ import java.util.concurrent.TimeUnit;
 
 /**
  */
-public class ServerManager implements QuerySegmentWalker
+public class ServerManager implements ForwardingSegmentWalker
 {
   private static final EmittingLogger log = new EmittingLogger(ServerManager.class);
   private final Object lock = new Object();
   private final QueryManager queryManager;
   private final SegmentLoader segmentLoader;
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final ForwardHandler forwardHandler;
   private final ServiceEmitter emitter;
   private final ExecutorService exec;
   private final ExecutorService cachingExec;
@@ -110,6 +113,7 @@ public class ServerManager implements QuerySegmentWalker
       QueryManager queryManager,
       SegmentLoader segmentLoader,
       QueryRunnerFactoryConglomerate conglomerate,
+      ForwardHandler forwardHandler,
       ServiceEmitter emitter,
       @Processing ExecutorService exec,
       @BackgroundCaching ExecutorService cachingExec,
@@ -121,6 +125,7 @@ public class ServerManager implements QuerySegmentWalker
     this.queryManager = queryManager;
     this.segmentLoader = segmentLoader;
     this.conglomerate = conglomerate;
+    this.forwardHandler = forwardHandler;
     this.emitter = emitter;
 
     this.exec = exec;
@@ -552,5 +557,17 @@ public class ServerManager implements QuerySegmentWalker
         );
       }
     };
+  }
+
+  @Override
+  public StorageHandler getHandler(String scheme)
+  {
+    return forwardHandler.getHandler(scheme);
+  }
+
+  @Override
+  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  {
+    return forwardHandler.wrapForward(query, baseRunner);
   }
 }

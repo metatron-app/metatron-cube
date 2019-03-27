@@ -32,7 +32,7 @@ import java.util.Map;
 
 /**
  */
-public interface ResultWriter
+public interface StorageHandler
 {
   String FILE_SCHEME = "file";
 
@@ -40,7 +40,7 @@ public interface ResultWriter
 
   Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context) throws IOException;
 
-  ResultWriter NULL = new ResultWriter()
+  StorageHandler NULL = new StorageHandler()
   {
     @Override
     public Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context)

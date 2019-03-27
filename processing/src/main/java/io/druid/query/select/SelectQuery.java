@@ -415,7 +415,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         concatString,
         null,
         null,
-        computeOverriddenContext(removeContext(POST_PROCESSING))
+        computeOverriddenContext(contextRemover(POST_PROCESSING))
     );
   }
 

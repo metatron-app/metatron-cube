@@ -223,6 +223,7 @@ public class RealtimeManagerTest
             )
         ),
         null,
+        null,
         null
     );
     plumber2 = new TestPlumber(new Sink(
@@ -241,6 +242,7 @@ public class RealtimeManagerTest
                 tuningConfig
             )
         ),
+        null,
         null,
         null
     );
@@ -329,6 +331,7 @@ public class RealtimeManagerTest
     realtimeManager3 = new RealtimeManager(
         Arrays.asList(department_0, department_1),
         conglomerate,
+        null,
         TestHelper.JSON_MAPPER,
         ImmutableMap.<String, Map<Integer, RealtimeManager.FireChief>>of(
             "testing",

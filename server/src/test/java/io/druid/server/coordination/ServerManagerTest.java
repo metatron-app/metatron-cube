@@ -145,6 +145,7 @@ public class ServerManagerTest
             return (QueryRunnerFactory) factory;
           }
         },
+        null,
         new NoopServiceEmitter(),
         serverManagerExec,
         MoreExecutors.sameThreadExecutor(),

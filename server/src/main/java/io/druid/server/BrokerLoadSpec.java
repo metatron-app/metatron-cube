@@ -24,11 +24,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 
@@ -150,16 +151,16 @@ public class BrokerLoadSpec
       parent = new URI(parent.getScheme(), parent.getAuthority(), parent.getPath() + "/", null, parent.getFragment());
     }
     if (parent.getScheme() == null) {
-      parent = new URI(ResultWriter.FILE_SCHEME, parent.getAuthority(), parent.getPath(), parent.getFragment());
+      parent = new URI(StorageHandler.FILE_SCHEME, parent.getAuthority(), parent.getPath(), parent.getFragment());
     }
     return parent.normalize();
   }
 
   private URI resolve(URI parent, URI child) throws URISyntaxException
   {
-    URI resolved = parent == null ? child : parent.resolve(child);
+    final URI resolved = parent == null ? child : parent.resolve(child);
     return new URI(
-        resolved.getScheme() == null ? ResultWriter.FILE_SCHEME : resolved.getScheme(),
+        Optional.fromNullable(resolved.getScheme()).or(StorageHandler.FILE_SCHEME),
         resolved.getUserInfo(),
         resolved.getHost(),
         resolved.getPort(),

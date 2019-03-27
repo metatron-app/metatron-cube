@@ -21,7 +21,6 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
@@ -31,10 +30,7 @@ import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.ThreadPoolTaskRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.query.ResultWriter;
-import io.druid.segment.IndexMergerV9;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.log.Events;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
 
@@ -45,7 +41,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.Map;
 
 /**
  */
@@ -56,36 +51,29 @@ public class PeonResource extends QueryResource
 
   @Inject
   public PeonResource(
+      @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
+      QueryManager queryManager,
       QuerySegmentWalker texasRanger,
       ServiceEmitter emitter,
-      @Events Emitter eventEmitter,
       RequestLogger requestLogger,
-      QueryManager queryManager,
       AuthConfig authConfig,
-      @Self DruidNode node,
       QueryToolChestWarehouse warehouse,
-      IndexMergerV9 merger,
-      Map<String, ResultWriter> writerMap,
       TaskRunner taskRunner
   )
   {
-    super(
+    super(node,
         config,
         jsonMapper,
         smileMapper,
-        texasRanger,
-        emitter,
-        eventEmitter,
-        requestLogger,
         queryManager,
-        authConfig,
-        node,
+        texasRanger,
         warehouse,
-        merger,
-        writerMap
+        emitter,
+        requestLogger,
+        authConfig
     );
     this.taskRunner = taskRunner;
   }

@@ -199,8 +199,8 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
               toDrop,
               io.druid.common.utils.StringUtils.toKMGT(queued),
               io.druid.common.utils.StringUtils.toKMGT(server.getCurrSize()),
-              ((double) server.getCurrSize() / server.getMaxSize() * 100),
-              segments
+              segments,
+              ((double) server.getCurrSize() / server.getMaxSize() * 100)
           );
         }
         if (log.isDebugEnabled()) {

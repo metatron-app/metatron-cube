@@ -33,7 +33,7 @@ import io.druid.guice.Binders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.storage.hdfs.tasklog.HdfsTaskLogs;
 import io.druid.storage.hdfs.tasklog.HdfsTaskLogsConfig;
 import org.apache.hadoop.conf.Configuration;
@@ -116,7 +116,7 @@ public class HdfsStorageDruidModule implements DruidModule
     try {
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
       FileSystem.get(conf);
-      MapBinder<String, ResultWriter> writers = Binders.resultWriterPullerBinder(binder);
+      MapBinder<String, StorageHandler> writers = Binders.storageHandlerBinder(binder);
       Iterator<FileSystem> loader = ServiceLoader.load(FileSystem.class).iterator();
       boolean logged = false;
       // next() can throw exception (NoClassDefFoundError, etc.)

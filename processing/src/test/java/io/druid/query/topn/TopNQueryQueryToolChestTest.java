@@ -175,7 +175,7 @@ public class TopNQueryQueryToolChestTest
     )
     {
       this.query = (TopNQuery) query;
-      return query.run(runner, responseContext);
+      return runner.run(query, responseContext);
     }
   }
 }

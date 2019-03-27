@@ -26,7 +26,7 @@ import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
 import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.initialization.DruidModule;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.segment.loading.DataSegmentFinder;
 import io.druid.segment.loading.DataSegmentKiller;
 import io.druid.segment.loading.DataSegmentPusher;
@@ -88,7 +88,7 @@ public class LocalDataStorageDruidModule implements DruidModule
             .to(LocalDataSegmentPusher.class)
             .in(LazySingleton.class);
 
-    PolyBind.optionBinder(binder, Key.get(ResultWriter.class))
+    PolyBind.optionBinder(binder, Key.get(StorageHandler.class))
             .addBinding(SCHEME)
             .to(LocalDataSegmentPusher.class)
             .in(LazySingleton.class);

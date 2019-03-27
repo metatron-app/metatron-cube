@@ -48,7 +48,7 @@ import io.druid.data.output.Formatters;
 import io.druid.data.output.formatter.OrcFormatter;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.query.TabularFormat;
 import io.druid.query.select.EventHolder;
 import io.druid.segment.BaseProgressIndicator;
@@ -92,7 +92,7 @@ import java.util.Objects;
 
 /**
  */
-public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
+public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
 {
   private static final Logger log = new Logger(HdfsDataSegmentPusher.class);
 
@@ -254,7 +254,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     log.info("Result will be forwarded to " + location + " with context " + context);
     Path parent = new Path(location);
     Path targetDirectory = parent;
-    if (location.getScheme().equals(ResultWriter.FILE_SCHEME)) {
+    if (StorageHandler.FILE_SCHEME.equals(location.getScheme())) {
       targetDirectory = new Path(rewrite(location, null, -1));
     }
     FileSystem fileSystem = targetDirectory.getFileSystem(hadoopConfig);

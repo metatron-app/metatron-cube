@@ -34,7 +34,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
-import io.druid.query.ResultWriter;
+import io.druid.query.StorageHandler;
 import io.druid.query.TabularFormat;
 import io.druid.segment.SegmentUtils;
 import io.druid.timeline.DataSegment;
@@ -51,7 +51,7 @@ import java.util.Map;
 
 /**
  */
-public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
+public class LocalDataSegmentPusher implements DataSegmentPusher, StorageHandler
 {
   private static final Logger log = new Logger(LocalDataSegmentPusher.class);
 

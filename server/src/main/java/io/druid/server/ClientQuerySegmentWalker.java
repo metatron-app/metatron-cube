@@ -30,9 +30,9 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.StorageHandler;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.UnionAllQuery;
@@ -42,12 +42,13 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class ClientQuerySegmentWalker implements QuerySegmentWalker
+public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
 {
   private final ServiceEmitter emitter;
   private final CachingClusteredClient baseClient;
   private final QueryToolChestWarehouse warehouse;
   private final RetryQueryRunnerConfig retryConfig;
+  private final ForwardHandler forwardHandler;
   private final QueryConfig queryConfig;
   private final ObjectMapper objectMapper;
   private final ExecutorService exec;
@@ -58,6 +59,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       CachingClusteredClient baseClient,
       QueryToolChestWarehouse warehouse,
       RetryQueryRunnerConfig retryConfig,
+      ForwardHandler forwardHandler,
       QueryConfig queryConfig,
       ObjectMapper objectMapper,
       @Processing ExecutorService exec
@@ -67,6 +69,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     this.baseClient = baseClient;
     this.warehouse = warehouse;
     this.retryConfig = retryConfig;
+    this.forwardHandler = forwardHandler;
     this.queryConfig = queryConfig;
     this.objectMapper = objectMapper;
     this.exec = exec;
@@ -123,5 +126,17 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                                    .applyPostProcessingOperator(objectMapper)
                                    .emitCPUTimeMetric(emitter)
                                    .build();
+  }
+
+  @Override
+  public StorageHandler getHandler(String scheme)
+  {
+    return forwardHandler.getHandler(scheme);
+  }
+
+  @Override
+  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  {
+    return forwardHandler.wrapForward(query, baseRunner);
   }
 }

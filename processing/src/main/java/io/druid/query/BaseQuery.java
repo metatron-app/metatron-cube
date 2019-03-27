@@ -281,12 +281,10 @@ public abstract class BaseQuery<T> implements Query<T>
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {
     QuerySegmentSpec spec = querySegmentSpec == null ? MultipleIntervalSegmentSpec.ETERNITY : querySegmentSpec;
-    return run(spec.lookup(this, walker), assertContext(context));
-  }
-
-  @Override
-  public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
-  {
+    QueryRunner<T> runner = spec.lookup(this, walker);
+    if (walker instanceof QuerySegmentWalker.Wrapper) {
+      runner = ((QuerySegmentWalker.Wrapper) walker).wrap(this, runner);
+    }
     return runner.run(this, assertContext(context));
   }
 
@@ -422,7 +420,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return forMeta;
   }
 
-  public static Map<String, Object> removeContext(String... keys)
+  public static Map<String, Object> contextRemover(String... keys)
   {
     Map<String, Object> remover = Maps.newHashMap();
     for (String key : keys) {

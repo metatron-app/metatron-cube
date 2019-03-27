@@ -43,8 +43,8 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.indexing.DataSchema;
@@ -52,6 +52,8 @@ import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.segment.realtime.plumber.Plumbers;
+import io.druid.server.ForwardHandler;
+import io.druid.server.ForwardingSegmentWalker;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -62,12 +64,13 @@ import java.util.Map;
 
 /**
  */
-public class RealtimeManager implements QuerySegmentWalker
+public class RealtimeManager implements ForwardingSegmentWalker
 {
   private static final EmittingLogger log = new EmittingLogger(RealtimeManager.class);
 
   private final List<FireDepartment> fireDepartments;
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final ForwardHandler forwardHandler;
   private final ObjectMapper objectMapper;
 
   /**
@@ -79,11 +82,13 @@ public class RealtimeManager implements QuerySegmentWalker
   public RealtimeManager(
       List<FireDepartment> fireDepartments,
       QueryRunnerFactoryConglomerate conglomerate,
+      ForwardHandler forwardHandler,
       ObjectMapper objectMapper
   )
   {
     this.fireDepartments = fireDepartments;
     this.conglomerate = conglomerate;
+    this.forwardHandler = forwardHandler;
     this.objectMapper = objectMapper;
 
     this.chiefs = Maps.newHashMap();
@@ -92,12 +97,14 @@ public class RealtimeManager implements QuerySegmentWalker
   RealtimeManager(
       List<FireDepartment> fireDepartments,
       QueryRunnerFactoryConglomerate conglomerate,
+      ForwardHandler forwardHandler,
       ObjectMapper objectMapper,
       Map<String, Map<Integer, FireChief>> chiefs
   )
   {
     this.fireDepartments = fireDepartments;
     this.conglomerate = conglomerate;
+    this.forwardHandler = forwardHandler;
     this.objectMapper = objectMapper;
     this.chiefs = chiefs;
   }
@@ -423,5 +430,17 @@ public class RealtimeManager implements QuerySegmentWalker
         }
       }
     }
+  }
+
+  @Override
+  public StorageHandler getHandler(String scheme)
+  {
+    return forwardHandler.getHandler(scheme);
+  }
+
+  @Override
+  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  {
+    return forwardHandler.wrapForward(query, baseRunner);
   }
 }

@@ -19,59 +19,40 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
-import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
-import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.DateTimes;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.PropUtils;
 import io.druid.concurrent.Execs;
-import io.druid.data.output.Formatters;
-import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
-import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
-import io.druid.query.PostProcessingOperators;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryInterruptedException;
-import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
-import io.druid.query.ResultWriter;
-import io.druid.query.TabularFormat;
-import io.druid.query.UnionAllQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.IndexMergerV9;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.log.Events;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
@@ -82,7 +63,6 @@ import io.druid.server.security.ResourceType;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.eclipse.jetty.io.EofException;
-import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -98,17 +78,12 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -125,64 +100,47 @@ public class QueryResource
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
 
+  protected final DruidNode node;
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
   protected final ObjectMapper smileMapper;
   protected final ObjectMapper jsonCustomMapper;
   protected final ObjectMapper smileCustomMapper;
 
-  protected final QuerySegmentWalker.Wrapper texasRanger;
+  protected final QueryManager queryManager;
+  protected final QuerySegmentWalker segmentWalker;
+  protected final QueryToolChestWarehouse warehouse;
+
   protected final ServiceEmitter emitter;
   protected final RequestLogger requestLogger;
-  protected final Emitter eventEmitter;
-  protected final QueryManager queryManager;
   protected final AuthConfig authConfig;
-
-  protected final DruidNode node;
-  protected final QueryToolChestWarehouse warehouse;
-  protected final Map<String, ResultWriter> writerMap;
-  protected final IndexMergerV9 merger;
 
   @Inject
   public QueryResource(
+      @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
-      final QuerySegmentWalker texasRanger,
-      ServiceEmitter emitter,
-      @Events Emitter eventEmitter,
-      RequestLogger requestLogger,
       QueryManager queryManager,
-      AuthConfig authConfig,
-      @Self DruidNode node,
+      QuerySegmentWalker segmentWalker,
       QueryToolChestWarehouse warehouse,
-      IndexMergerV9 merger,
-      Map<String, ResultWriter> writerMap
+      ServiceEmitter emitter,
+      RequestLogger requestLogger,
+      AuthConfig authConfig
   )
   {
+    this.node = node;
     this.config = config;
     this.jsonMapper = jsonMapper;
-    this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
     this.smileMapper = smileMapper;
-    this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
-    this.emitter = emitter;
-    this.eventEmitter = eventEmitter;
-    this.requestLogger = requestLogger;
     this.queryManager = queryManager;
-    this.authConfig = authConfig;
-    this.node = node;
+    this.segmentWalker = segmentWalker;
     this.warehouse = warehouse;
-    this.merger = merger;
-    this.writerMap = writerMap;
-    this.texasRanger = new QuerySegmentWalker.Wrapper(texasRanger)
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      protected <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> runner) throws Exception
-      {
-        return wrapForward(query, runner);
-      }
-    };
+    this.emitter = emitter;
+    this.requestLogger = requestLogger;
+    this.authConfig = authConfig;
+    this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
+    this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
   }
 
   @DELETE
@@ -296,9 +254,9 @@ public class QueryResource
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
-      Sequence sequence = prepared.run(texasRanger, responseContext);
+      Sequence sequence = prepared.run(segmentWalker, responseContext);
       if (toolChest != null) {
-        sequence = toolChest.serializeSequence(prepared, sequence, texasRanger);
+        sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }
 
       final MutableInt counter = new MutableInt();
@@ -562,143 +520,5 @@ public class QueryResource
                      )
                      .build();
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  protected <T> QueryRunner wrapForward(final Query<T> query, final QueryRunner<T> baseRunner) throws Exception
-  {
-    final URI uri = getForwardURI(query);
-    if (uri == null) {
-      return baseRunner;
-    }
-    final String scheme = uri.getScheme() == null ? ResultWriter.FILE_SCHEME : uri.getScheme();
-
-    final ResultWriter writer = scheme.equals("null") ? ResultWriter.NULL : writerMap.get(uri.getScheme());
-    if (writer == null) {
-      log.warn("Unsupported scheme '" + uri.getScheme() + "'");
-      throw new IAE("Unsupported scheme '%s'", uri.getScheme());
-    }
-    final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
-
-    if (Formatters.isIndexFormat(forwardContext)) {
-      String indexSchema = Objects.toString(forwardContext.get("schema"), null);
-      String indexInterval = Objects.toString(forwardContext.get("interval"), null);
-      if (Strings.isNullOrEmpty(indexSchema)) {
-        IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate()).asRelaySchema();
-        log.info(
-            "Resolved index schema.. dimensions: %s, metrics: %s",
-            schema.getDimensionsSpec().getDimensionNames(),
-            Arrays.toString(schema.getMetrics())
-        );
-        forwardContext.put(
-            "schema",
-            jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
-        );
-        if (indexInterval == null || jsonMapper.readValue(indexInterval, Interval.class) == null) {
-          Interval dataInterval = JodaUtils.umbrellaInterval(query.getIntervals());
-          forwardContext.put("interval", dataInterval.toString());
-        }
-      }
-    }
-
-    return new QueryRunner()
-    {
-      @Override
-      public Sequence run(Query query, Map responseContext)
-      {
-        URI rewritten = uri;
-        try {
-          if (PropUtils.parseBoolean(forwardContext, Query.LOCAL_POST_PROCESSING)) {
-            rewritten = rewriteURI(rewritten, scheme, null, rewritten.getPath() + "/" + node.toPathName());
-          }
-          if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
-            rewritten = rewriteURI(rewritten, scheme, node, null);
-          }
-          if (Formatters.isIndexFormat(forwardContext) && "/__temporary".equals(rewritten.getPath())) {
-            File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
-            rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
-          }
-
-          final TabularFormat input = toTabularFormat(removeForwardContext(query), responseContext);
-          final Map<String, Object> result = writer.write(rewritten, input, forwardContext);
-          return wrapForwardResult(query, forwardContext, result);
-        }
-        catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
-      }
-
-      private TabularFormat toTabularFormat(final Query query, final Map responseContext)
-      {
-        // union-all does not have toolchest. delegate it to inner query
-        Query representative = BaseQuery.getRepresentative(query);
-        if (PostProcessingOperators.isTabularOutput(query, jsonMapper)) {
-          // already converted to tabular format
-          return new TabularFormat()
-          {
-            @Override
-            public Sequence getSequence() { return baseRunner.run(query, responseContext); }
-
-            @Override
-            public Map<String, Object> getMetaData() { return null; }
-          };
-        }
-        String timestampColumn = PropUtils.parseString(forwardContext, Query.FORWARD_TIMESTAMP_COLUMN);
-        return warehouse.getToolChest(representative).toTabularFormat(
-            query, baseRunner.run(query, responseContext),
-            timestampColumn
-        );
-      }
-    };
-  }
-
-  // remove forward context (except select forward query) for historical, etc.
-  private Query removeForwardContext(Query query)
-  {
-    if (query instanceof UnionAllQuery) {
-      UnionAllQuery<?> union = (UnionAllQuery)query;
-      if (union.getQueries() != null) {
-        List<Query> rewritten = Lists.newArrayList();
-        for (Query element : union.getQueries()) {
-          rewritten.add(removeForwardContext(element));
-        }
-        return union.withQueries(rewritten);
-      }
-      return union.withQuery(removeForwardContext(union.getQuery()));
-    }
-    Map<String, Object> override = BaseQuery.removeContext(Query.FORWARD_URL, Query.FORWARD_CONTEXT);
-    if (query.getDataSource() instanceof QueryDataSource) {
-      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-      query = query.withDataSource(QueryDataSource.of(dataSource.getQuery().withOverriddenContext(override)));
-    }
-    return query.withOverriddenContext(override);
-  }
-
-  private static URI getForwardURI(Query query) throws URISyntaxException
-  {
-    String forwardURL = BaseQuery.getResultForwardURL(query);
-    if (!Strings.isNullOrEmpty(forwardURL)) {
-      return new URI(forwardURL);
-    }
-    return null;
-  }
-
-  private static URI rewriteURI(URI uri, String scheme, DruidNode node, String path) throws URISyntaxException
-  {
-    return new URI(
-        scheme,
-        uri.getUserInfo(),
-        node == null ? uri.getHost() : node.getHost(),
-        node == null ? uri.getPort() : node.getPort(),
-        path == null ? uri.getPath() : path,
-        uri.getQuery(),
-        uri.getFragment()
-    );
-  }
-
-  protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
-      throws IOException
-  {
-    return Sequences.simple(Arrays.asList(result));
   }
 }

@@ -370,7 +370,7 @@ public class TimeseriesQueryRunnerTest
 
     // do post aggregation for inner query
     subQuery = subQuery.withOverriddenContext(
-        BaseQuery.removeContext(Query.FINALIZE, Query.FINAL_MERGE)
+        BaseQuery.contextRemover(Query.FINALIZE, Query.FINAL_MERGE)
     );
 
     TimeseriesQuery query = Druids

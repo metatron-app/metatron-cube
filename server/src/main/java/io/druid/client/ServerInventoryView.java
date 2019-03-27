@@ -113,13 +113,13 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
           @Override
           public void newContainer(DruidServer container)
           {
-            log.info("New Server[%s]", container);
+            log.info("[%s:%s] Created", container.getType(), container.getName());
           }
 
           @Override
           public void deadContainer(DruidServer deadContainer)
           {
-            log.info("Server Disappeared[%s]", deadContainer);
+            log.info("[%s:%s] Disappeared", deadContainer.getType(), deadContainer.getName());
             runServerCallbacks(deadContainer);
           }
 
