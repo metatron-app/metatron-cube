@@ -113,6 +113,18 @@ public class QueryableDruidServer implements QueryableServer
     return localTimelineView;
   }
 
+  public boolean addLocalDataSource(String dataSource)
+  {
+    VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
+    if (segmentMap == null) {
+      localTimelineView.put(
+          dataSource, new VersionedIntervalTimeline<String, ReferenceCountingSegment>(Ordering.natural())
+      );
+      return true;
+    }
+    return false;
+  }
+
   public void addIndex(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
   {
     String dataSource = segment.getDataSource();

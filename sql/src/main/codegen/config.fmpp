@@ -45,8 +45,10 @@ data: {
       "org.apache.calcite.sql.SqlCreate"
       "org.apache.calcite.sql.SqlDrop"
       "org.apache.calcite.sql.ddl.SqlDdlNodes"
-      "io.druid.sql.calcite.ddl.SqlShowTables"
+      "io.druid.sql.calcite.ddl.SqlCreateTable"
       "io.druid.sql.calcite.ddl.SqlDescTable"
+      "io.druid.sql.calcite.ddl.SqlDropTable"
+      "io.druid.sql.calcite.ddl.SqlShowTables"
     ]
 
     # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved

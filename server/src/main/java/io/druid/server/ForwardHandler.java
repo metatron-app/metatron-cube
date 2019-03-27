@@ -37,7 +37,6 @@ import io.druid.data.output.Formatters;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
@@ -48,7 +47,6 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.StorageHandler;
 import io.druid.query.TabularFormat;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,9 +54,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
-public class ForwardHandler
+public class ForwardHandler implements ForwardConstants
 {
   protected static final Logger LOG = new Logger(ForwardHandler.class);
 
@@ -97,32 +94,33 @@ public class ForwardHandler
     }
     final String scheme = Optional.fromNullable(uri.getScheme()).or(StorageHandler.FILE_SCHEME);
 
-    final StorageHandler handler = getHandler(uri.getScheme());
+    final StorageHandler handler = getHandler(scheme);
     if (handler == null) {
-      LOG.warn("Unsupported scheme '" + uri.getScheme() + "'");
-      throw new IAE("Unsupported scheme '%s'", uri.getScheme());
+      LOG.warn("Unsupported scheme '" + scheme + "'");
+      throw new IAE("Unsupported scheme '%s'", scheme);
     }
     final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
 
     if (Formatters.isIndexFormat(forwardContext)) {
-      String indexSchema = Objects.toString(forwardContext.get("schema"), null);
-      String indexInterval = Objects.toString(forwardContext.get("interval"), null);
-      if (Strings.isNullOrEmpty(indexSchema)) {
+      Object indexSchema = forwardContext.get(SCHEMA);
+      if (indexSchema == null) {
         IncrementalIndexSchema schema = Queries.relaySchema(query, segmentWalker).asRelaySchema();
         LOG.info(
             "Resolved index schema.. dimensions: %s, metrics: %s",
             schema.getDimensionsSpec().getDimensionNames(),
             Arrays.toString(schema.getMetrics())
         );
-        forwardContext.put(
-            "schema",
-            jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
-        );
-        if (indexInterval == null || DefaultObjectMapper.readValue(jsonMapper, indexInterval, Interval.class) == null) {
-          Interval dataInterval = JodaUtils.umbrellaInterval(query.getIntervals());
-          forwardContext.put("interval", dataInterval.toString());
-        }
+        indexSchema = schema;
       }
+      forwardContext.put(
+          SCHEMA,
+          jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { })
+      );
+      Object indexInterval = forwardContext.get(INTERVAL);
+      if (indexInterval == null) {
+        indexInterval = JodaUtils.umbrellaInterval(query.getIntervals());
+      }
+      forwardContext.put(INTERVAL, indexInterval.toString());
     }
 
     return new QueryRunner()

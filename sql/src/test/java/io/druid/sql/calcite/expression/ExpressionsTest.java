@@ -25,7 +25,6 @@ import io.druid.common.DateTimes;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
-import io.druid.query.QueryConfig;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
@@ -76,7 +75,6 @@ public class ExpressionsTest extends CalciteTestBase
   private final PlannerContext plannerContext = PlannerContext.create(
       CalciteTests.createOperatorTable(),
       new PlannerConfig(),
-      new QueryConfig(),
       ImmutableMap.of()
   );
   private final RowSignature rowSignature = RowSignature

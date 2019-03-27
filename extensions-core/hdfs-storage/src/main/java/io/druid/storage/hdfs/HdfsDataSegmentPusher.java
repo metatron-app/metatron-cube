@@ -33,6 +33,7 @@ import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
 import com.metamx.common.IAE;
+import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
@@ -46,11 +47,10 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.formatter.OrcFormatter;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.StorageHandler;
 import io.druid.query.TabularFormat;
-import io.druid.query.select.EventHolder;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
@@ -251,7 +251,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
   public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
       throws IOException
   {
-    log.info("Result will be forwarded to " + location + " with context " + context);
+    log.info("Result will be forwarded to [%s] with context %s", location, context);
     Path parent = new Path(location);
     Path targetDirectory = parent;
     if (StorageHandler.FILE_SCHEME.equals(location.getScheme())) {
@@ -326,7 +326,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
   {
     if ("index".equals(format)) {
       final long start = System.currentTimeMillis();
-      final String timestampColumn = PropUtils.parseString(context, "timestampColumn", EventHolder.timestampKey);
+      final String timestampColumn = PropUtils.parseString(context, "timestampColumn", Row.TIME_COLUMN_NAME);
       final String dataSource = PropUtils.parseString(context, "dataSource", "___temporary_" + new DateTime());
       final IncrementalIndexSchema schema = Preconditions.checkNotNull(
           jsonMapper.convertValue(context.get("schema"), IncrementalIndexSchema.class),
@@ -374,13 +374,13 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
               files.add(persist());
               index = newIndex();
             }
-            Object timestamp = in.get(timestampColumn);
+            final Object timestamp = in.get(timestampColumn);
             if (timestamp instanceof DateTime) {
               index.add(new MapBasedRow((DateTime) timestamp, in));
-            } else if (timestamp instanceof Long) {
-              index.add(new MapBasedRow((Long) timestamp, in));
+            } else if (timestamp instanceof Number) {
+              index.add(new MapBasedRow(((Number) timestamp).longValue(), in));
             } else {
-              throw new IllegalStateException("null or invalid type timestamp column value " + timestamp);
+              throw new ISE("null or invalid type timestamp column [%s] value [%s]", timestampColumn, timestamp);
             }
           }
           catch (Exception e) {
@@ -501,15 +501,18 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
         private Granularity coveringGranularity(Interval dataInterval)
         {
           for (Granularity granularity : Arrays.asList(
-              QueryGranularities.HOUR,
-              QueryGranularities.DAY,
-              QueryGranularities.MONTH
+              Granularities.HOUR,
+              Granularities.DAY,
+              Granularities.WEEK,
+              Granularities.MONTH,
+              Granularities.QUARTER,
+              Granularities.YEAR
           )) {
-            if (Iterables.size(granularity.getIterable(dataInterval)) <= 1) {
+            if (Iterables.size(Iterables.limit(granularity.getIterable(dataInterval), 2)) == 1) {
               return granularity;
             }
           }
-          return QueryGranularities.YEAR;
+          return Granularities.ALL;
         }
 
         private File persist() throws IOException

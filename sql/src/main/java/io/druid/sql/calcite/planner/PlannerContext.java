@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseAggregationQuery;
-import io.druid.query.QueryConfig;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -46,7 +45,6 @@ public class PlannerContext
 
   private final DruidOperatorTable operatorTable;
   private final PlannerConfig plannerConfig;
-  private final QueryConfig queryConfig;
   private final DateTime localNow;
   private final long queryStartTimeMillis;
   private final Map<String, Object> queryContext;
@@ -54,14 +52,12 @@ public class PlannerContext
   private PlannerContext(
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
-      final QueryConfig queryConfig,
       final DateTime localNow,
       final Map<String, Object> queryContext
   )
   {
     this.operatorTable = operatorTable;
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
-    this.queryConfig = Preconditions.checkNotNull(queryConfig, "queryConfig");
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
     this.queryStartTimeMillis = System.currentTimeMillis();
@@ -71,7 +67,6 @@ public class PlannerContext
   public static PlannerContext create(
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
-      final QueryConfig queryConfig,
       final Map<String, Object> queryContext
   )
   {
@@ -101,7 +96,6 @@ public class PlannerContext
     return new PlannerContext(
         operatorTable,
         plannerConfig.withOverrides(queryContext),
-        queryConfig,
         utcNow.withZone(timeZone),
         queryContext
     );

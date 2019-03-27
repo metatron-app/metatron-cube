@@ -301,17 +301,9 @@ public class BrokerServerView implements TimelineServerView
       selectors.put(segmentId, selector);
     }
 
-    QueryableDruidServer queryableDruidServer = clients.get(server.getName());
-    if (queryableDruidServer == null) {
-      DirectDruidClient client = server.equals(node) ? null : makeDirectClient(server);
-      QueryableDruidServer retVal = new QueryableDruidServer(server, client);
-      QueryableDruidServer exists = clients.put(server.getName(), retVal);
-      if (exists != null) {
-        log.warn("QueryRunner for server[%s] already existed!? Well it's getting replaced", server);
-      }
-      queryableDruidServer = retVal;
-    }
-    selector.addServerAndUpdateSegment(queryableDruidServer, segment);
+    QueryableDruidServer druidServer = getQueryableDruidServer(server);
+
+    selector.addServerAndUpdateSegment(druidServer, segment);
 
     executeCallbacks(
         new Function<TimelineCallback, CallbackAction>()
@@ -323,7 +315,30 @@ public class BrokerServerView implements TimelineServerView
           }
         }
     );
-    return queryableDruidServer;
+    return druidServer;
+  }
+
+  private QueryableDruidServer getQueryableDruidServer(DruidServer server)
+  {
+    QueryableDruidServer druidServer = clients.get(server.getName());
+    if (druidServer == null) {
+      DirectDruidClient client = server.equals(node) ? null : makeDirectClient(server);
+      QueryableDruidServer retVal = new QueryableDruidServer(server, client);
+      QueryableDruidServer exists = clients.put(server.getName(), retVal);
+      if (exists != null) {
+        log.warn("QueryRunner for server[%s] already existed!? Well it's getting replaced", server);
+      }
+      druidServer = retVal;
+    }
+    return druidServer;
+  }
+
+  public boolean addLocalDataSource(String dataSource)
+  {
+    log.debug("Adding local dataSource[%s]", dataSource);
+    synchronized (lock) {
+      return getQueryableDruidServer(node).addLocalDataSource(dataSource);
+    }
   }
 
   public void addedLocalSegment(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)

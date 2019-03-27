@@ -40,7 +40,6 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.SortablePair;
@@ -187,7 +186,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   protected final Granularity gran;
 
-  private final long minTimestamp;
+  private final long minTimestampLimit;
   private final List<Function<InputRow, InputRow>> rowTransformers;
   private final AggregatorFactory[] metrics;
   private final AggregatorType[] aggs;
@@ -250,7 +249,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       final int maxRowCount
   )
   {
-    this.minTimestamp = incrementalIndexSchema.getMinTimestamp();
+    this.minTimestampLimit = incrementalIndexSchema.getMinTimestamp();
     this.gran = incrementalIndexSchema.getGran();
     this.metrics = incrementalIndexSchema.getMetrics();
     this.rowTransformers = new CopyOnWriteArrayList<>();
@@ -464,8 +463,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     row = formatRow(row);
 
     final long timestampFromEpoch = row.getTimestampFromEpoch();
-    if (!isTemporary() && timestampFromEpoch < minTimestamp) {
-      throw new IAE("Cannot add row[%s] because it is below the minTimestamp[%s]", row, new DateTime(minTimestamp));
+    if (!isTemporary() && timestampFromEpoch < minTimestampLimit) {
+      throw new IAE("Cannot add row[%s] because it is below the minTimestamp[%s]", row, new DateTime(minTimestampLimit));
     }
 
     final List<String> rowDimensions = row.getDimensions();
@@ -541,13 +540,19 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   private long toIndexingTime(long timestampFromEpoch)
   {
-    final long truncated = isTemporary()
-                           ? timestampFromEpoch
-                           : Math.max(gran.bucketStart(gran.toDateTime(timestampFromEpoch)).getMillis(), minTimestamp);
-
+    final long truncated = truncateTimestamp(timestampFromEpoch);
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
     return truncated;
+  }
+
+  private long truncateTimestamp(long timestampFromEpoch)
+  {
+    if (isTemporary()) {
+      return timestampFromEpoch;
+    } else {
+      return Math.max(gran.bucketStart(gran.toDateTime(timestampFromEpoch)).getMillis(), minTimestampLimit);
+    }
   }
 
   private TimeAndDims createTimeAndDims(long timestamp, int[][] dims)
@@ -637,7 +642,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   protected long getMinTimeMillis()
   {
-    return minTimeMillis == Long.MAX_VALUE ? -1 : Math.max(minTimestamp, minTimeMillis);
+    return minTimeMillis == Long.MAX_VALUE ? -1 : isTemporary() ? minTimeMillis : Math.max(minTimestampLimit, minTimeMillis);
   }
 
   protected long getMaxTimeMillis()
@@ -733,14 +738,14 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   public Interval getInterval()
   {
     if (isTemporary()) {
-      return new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
+      return new Interval(getMinTimeMillis(), getMaxTimeMillis());
     }
     return new Interval(getMinTime(), isEmpty() ? getMinTime() : gran.bucketEnd(getMaxTime()));
   }
 
   public boolean isTemporary()
   {
-    return minTimestamp == Long.MIN_VALUE;
+    return minTimestampLimit == Long.MIN_VALUE;
   }
 
   public DateTime getMinTime()

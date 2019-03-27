@@ -967,6 +967,7 @@ public class DruidShell implements CommonShell
     int numRow = 0;
     long start = System.currentTimeMillis();
     try {
+      boolean header = false;
       for (Map<String, Object> row : execute(
           HttpMethod.POST,
           brokerURLs.get(0),
@@ -975,8 +976,19 @@ public class DruidShell implements CommonShell
           sql.getBytes(),
           new TypeReference<List<Map<String, Object>>>() {}
       )) {
+        if (!header) {
+          writer.print("  ");
+          String columns = row.keySet().toString();
+          writer.println(columns);
+          writer.print("  ");
+          for (int i = 0; i < columns.length(); i++) {
+            writer.print('-');
+          }
+          writer.println();
+          header = true;
+        }
         writer.print("  ");
-        writer.println(row);
+        writer.println(row.values().toString());
         numRow++;
       }
       writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));

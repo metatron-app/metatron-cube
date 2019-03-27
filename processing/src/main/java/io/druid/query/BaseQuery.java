@@ -350,9 +350,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> withOverriddenContext(String contextKey, Object contextValue)
   {
-    return withOverriddenContext(
-        ImmutableMap.of(Preconditions.checkNotNull(contextKey), Preconditions.checkNotNull(contextValue))
-    );
+    return withOverriddenContext(GuavaUtils.mutableMap(contextKey, contextValue));
   }
 
   @Override

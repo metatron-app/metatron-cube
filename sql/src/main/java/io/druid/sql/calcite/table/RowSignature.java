@@ -22,13 +22,16 @@ package io.druid.sql.calcite.table;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
+import io.druid.query.select.Schema;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
@@ -201,6 +204,28 @@ public class RowSignature
       return false;
     }
     return columnNames != null ? columnNames.equals(that.columnNames) : that.columnNames == null;
+  }
+
+  public Schema asSchema()
+  {
+    List<String> dimensions = Lists.newArrayList();
+    List<String> metrics = Lists.newArrayList();
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    List<ValueDesc> metricTypes = Lists.newArrayList();
+    for (String columnName : columnNames) {
+      if (columnName.equals(Row.TIME_COLUMN_NAME)) {
+        continue;
+      }
+      ValueDesc columnType = columnTypes.get(columnName);
+      if (columnType.isStringOrDimension()) {
+        dimensions.add(columnName);
+        dimensionTypes.add(columnType.isDimension() ? columnType.subElement() : columnType);
+      } else {
+        metrics.add(columnName);
+        metricTypes.add(columnType);
+      }
+    }
+    return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
   }
 
   @Override

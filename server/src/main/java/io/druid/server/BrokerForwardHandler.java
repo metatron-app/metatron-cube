@@ -28,7 +28,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.core.Emitter;
 import io.druid.client.BrokerServerView;
-import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.output.Formatters;
@@ -40,6 +39,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.StorageHandler;
 import io.druid.segment.IndexMergerV9;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.log.Events;
 import io.druid.timeline.DataSegment;
@@ -53,7 +53,7 @@ import java.util.Set;
 
 public class BrokerForwardHandler extends ForwardHandler
 {
-  private final TimelineServerView brokerServerView;
+  private final BrokerServerView brokerServerView;
   private final DataSegmentPusher pusher;
   private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
   private final CoordinatorClient coordinator;
@@ -66,7 +66,7 @@ public class BrokerForwardHandler extends ForwardHandler
       @Self DruidNode node,
       @Json ObjectMapper jsonMapper,
       QueryToolChestWarehouse warehouse,
-      TimelineServerView brokerServerView,
+      BrokerServerView brokerServerView,
       Map<String, StorageHandler> writerMap,
       DataSegmentPusher pusher,
       QuerySegmentWalker segmentWalker,
@@ -90,7 +90,7 @@ public class BrokerForwardHandler extends ForwardHandler
   protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
       throws IOException
   {
-    if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
+    if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, REGISTER_TABLE, false)) {
       result = Maps.newLinkedHashMap(result);
       result.put("broker", node.getHostAndPort());
       result.put("queryId", query.getId());
@@ -105,10 +105,10 @@ public class BrokerForwardHandler extends ForwardHandler
       builder.put("feed", "BrokerQueryResource");
       builder.put("broker", node.getHostAndPort());
       builder.put("payload", segment);
-      if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
+      if (PropUtils.parseBoolean(forwardContext, TEMPORARY, true)) {
         LOG.info("Publishing index to temporary table..");
-        BrokerServerView serverView = (BrokerServerView) brokerServerView;
-        serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())), result);
+        QueryableIndex index = merger.getIndexIO().loadIndex(new File(location.getPath()));
+        brokerServerView.addedLocalSegment(segment, index, result);
         builder.put("type", "localPublish");
       } else {
         LOG.info("Publishing index to table..");
@@ -116,8 +116,8 @@ public class BrokerForwardHandler extends ForwardHandler
         Set<DataSegment> segments = Sets.newHashSet(segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
         try {
-          long assertTimeout = PropUtils.parseLong(forwardContext, "waitTimeout", 0L);
-          boolean assertLoaded = PropUtils.parseBoolean(forwardContext, "assertLoaded");
+          long assertTimeout = PropUtils.parseLong(forwardContext, WAIT_TIMEOUT, 0L);
+          boolean assertLoaded = PropUtils.parseBoolean(forwardContext, ASSERT_LOADED);
           coordinator.scheduleNow(segments, assertTimeout, assertLoaded);
         }
         catch (Exception e) {

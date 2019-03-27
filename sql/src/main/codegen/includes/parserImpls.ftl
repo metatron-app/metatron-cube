@@ -256,18 +256,17 @@ SqlCreate SqlCreateType(Span s, boolean replace) :
 
 SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
+    boolean isTemporary = false;
     final boolean ifNotExists;
     final SqlIdentifier id;
-    SqlNodeList tableElementList = null;
-    SqlNode query = null;
+    SqlNode query;
 }
 {
+    [ <TEMPORARY> { isTemporary = true; } ]
     <TABLE> ifNotExists = IfNotExistsOpt() id = CompoundIdentifier()
-    [ tableElementList = TableElementList() ]
-    [ <AS> query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) ]
+    <AS> query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return SqlDdlNodes.createTable(s.end(this), replace, ifNotExists, id,
-            tableElementList, query);
+        return new SqlCreateTable(s.end(this), replace, isTemporary, ifNotExists, id, query);
     }
 }
 
@@ -333,12 +332,14 @@ SqlDrop SqlDropType(Span s, boolean replace) :
 
 SqlDrop SqlDropTable(Span s, boolean replace) :
 {
+    boolean isTemporary = false;
     final boolean ifExists;
     final SqlIdentifier id;
 }
 {
+    [ <TEMPORARY> { isTemporary = true; } ]
     <TABLE> ifExists = IfExistsOpt() id = CompoundIdentifier() {
-        return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
+        return new SqlDropTable(s.end(this), isTemporary, ifExists, id);
     }
 }
 

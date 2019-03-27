@@ -29,6 +29,7 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.logger.Logger;
+import io.druid.client.BrokerServerView;
 import io.druid.common.Yielders;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
@@ -69,17 +70,20 @@ public class SqlResource
 
   private final ObjectMapper jsonMapper;
   private final PlannerFactory plannerFactory;
+  private final BrokerServerView brokerServerView;
   private final RequestLogger requestLogger;
 
   @Inject
   public SqlResource(
       @Json ObjectMapper jsonMapper,
       PlannerFactory plannerFactory,
+      BrokerServerView brokerServerView,
       RequestLogger requestLogger
   )
   {
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
     this.plannerFactory = Preconditions.checkNotNull(plannerFactory, "connection");
+    this.brokerServerView = brokerServerView;
     this.requestLogger = requestLogger;
   }
 
@@ -116,7 +120,7 @@ public class SqlResource
 
     final long start = System.currentTimeMillis();
     try (final DruidPlanner planner = plannerFactory.createPlanner(context)) {
-      plannerResult = planner.plan(query, req);
+      plannerResult = planner.plan(query, brokerServerView, req);
       timeZone = planner.getPlannerContext().getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.

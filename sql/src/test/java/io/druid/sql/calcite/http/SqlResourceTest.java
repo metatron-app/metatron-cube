@@ -101,6 +101,7 @@ public class SqlResourceTest extends CalciteTestBase
             queryConfig,
             CalciteTests.getJsonMapper()
         ),
+        null,
         new NoopRequestLogger()
     );
   }
