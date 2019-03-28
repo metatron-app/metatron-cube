@@ -19,13 +19,41 @@
 
 package io.druid.indexer.hadoop;
 
-import io.druid.data.input.impl.InputRowParser;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.Mapper;
 
-import java.io.IOException;
-
-/**
- */
-public interface HadoopAwareParser<T> extends InputRowParser<T>
+public interface HadoopInputContext
 {
-  void setup(HadoopInputContext context) throws IOException;
+  Configuration getConfiguration();
+
+  InputSplit getInputSplit();
+
+  <T> T unwrap(Class<T> clazz);
+
+  class MapperContext implements HadoopInputContext
+  {
+    private final Mapper.Context context;
+
+    public MapperContext(Mapper.Context context) {this.context = context;}
+
+    @Override
+    public Configuration getConfiguration()
+    {
+      return context.getConfiguration();
+    }
+
+    @Override
+    public InputSplit getInputSplit()
+    {
+      return context.getInputSplit();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T unwrap(Class<T> clazz)
+    {
+      return clazz.isInstance(context) ? (T) context : null;
+    }
+  }
 }

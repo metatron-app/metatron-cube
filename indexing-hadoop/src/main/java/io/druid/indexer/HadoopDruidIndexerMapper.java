@@ -26,6 +26,7 @@ import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
+import io.druid.indexer.hadoop.HadoopInputContext.MapperContext;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -63,10 +64,10 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     oobRows = context.getCounter("druid.internal", "oob-row-num");
     errRows = context.getCounter("druid.internal", "err-row-num");
 
-    setupHadoopAwareParser(parser, context);
+    setupHadoopAwareParser(parser, new MapperContext(context));
   }
 
-  private void setupHadoopAwareParser(InputRowParser parser, Context context) throws IOException
+  private void setupHadoopAwareParser(InputRowParser parser, MapperContext context) throws IOException
   {
     if (parser instanceof HadoopAwareParser) {
       ((HadoopAwareParser) parser).setup(context);

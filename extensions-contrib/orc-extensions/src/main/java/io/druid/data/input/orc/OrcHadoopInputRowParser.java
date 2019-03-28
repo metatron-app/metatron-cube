@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.druid.data.input.orc;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -40,7 +41,7 @@ import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.indexer.hadoop.HadoopAwareParser;
-import io.druid.indexer.path.HadoopCombineInputFormat;
+import io.druid.indexer.hadoop.HadoopInputContext;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -64,11 +65,11 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.lib.input.Utils;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.joda.time.DateTime;
@@ -94,7 +95,8 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 
   private StructObjectInspector staticInspector;
 
-  private Context context;
+  private HadoopInputContext context;
+  private InputSplit currentSplit;
   private Path currentPath;
   private StructObjectInspector dynamicInspector;
 
@@ -117,7 +119,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   }
 
   @Override
-  public void setup(Context context) throws IOException
+  public void setup(HadoopInputContext context) throws IOException
   {
     this.context = context;
   }
@@ -203,25 +205,30 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     if (typeString != null) {
       return staticInspector = initStaticInspector(typeString);
     }
-    InputSplit split = context.getInputSplit();
-    Path path;
-    if (split instanceof HadoopCombineInputFormat.HadoopSplit) {
-      path = HadoopCombineInputFormat.CURRENT_PATH.get();
-    } else if (split instanceof FileSplit) {
-      path = ((FileSplit)split).getPath();
-    } else {
-      throw new IllegalArgumentException("Cannot access path in split " + split);
-    }
-    if (currentPath == null || !Objects.equals(currentPath, path)) {
-      try {
-        Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(context.getConfiguration()));
-        dynamicInspector = (StructObjectInspector) reader.getObjectInspector();
-        logger.info("Using ObjectInspector in orc meta %s", dynamicInspector.toString());
+    final InputSplit split = context.getInputSplit();
+    if (currentSplit == null || currentSplit != split) {
+      final Path path = Utils.unwrapPathFromSplit(split);
+      if (!Objects.equals(currentPath, path)) {
+        try {
+          Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(context.getConfiguration()));
+          dynamicInspector = (StructObjectInspector) reader.getObjectInspector();
+          if (logger.isInfoEnabled()) {
+            StringBuilder builder = new StringBuilder();
+            for (StructField field : dynamicInspector.getAllStructFieldRefs()) {
+              if (builder.length() > 0) {
+                builder.append(',');
+              }
+              builder.append(field.getFieldName()).append(':').append(field.getFieldObjectInspector().getTypeName());
+            }
+            logger.info("Using type in orc meta : struct<%s>", builder.toString());
+          }
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+        currentPath = path;
       }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-      currentPath = path;
+      currentSplit = split;
     }
     return dynamicInspector;
   }
