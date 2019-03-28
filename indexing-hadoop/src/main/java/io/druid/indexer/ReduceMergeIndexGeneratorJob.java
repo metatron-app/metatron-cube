@@ -607,7 +607,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         Set<String> dimensions = Sets.newLinkedHashSet();
         List<File> shard = groups.get(i);
         File mergedBase;
-        if (shard.size() == 1 && indexSpec.getSecondaryIndexing().isEmpty()) {
+        if (shard.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
           mergedBase = shard.get(0);
           QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(mergedBase);
           dimensions.addAll(Lists.newArrayList(index.getAvailableDimensions()));
