@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.BaseSequence;
@@ -30,11 +31,12 @@ import com.metamx.common.guava.Sequence;
 import io.druid.client.BrokerServerView;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.output.ForwardConstants;
 import io.druid.query.Query;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.server.ForwardConstants;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
 import io.druid.sql.calcite.ddl.SqlDropTable;
+import io.druid.sql.calcite.ddl.SqlInsertDirectory;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidQuery;
 import io.druid.sql.calcite.rel.DruidRel;
@@ -103,6 +105,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     if (target.getKind() == SqlKind.CREATE_TABLE) {
       target = ((SqlCreateTable) target).getQuery();
     }
+    if (target instanceof SqlInsertDirectory) {
+      target = ((SqlInsertDirectory) target).getQuery();
+    }
     final SqlNode validated = planner.validate(target);
     final RelRoot root = planner.rel(validated);
 
@@ -112,7 +117,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     catch (RelOptPlanner.CannotPlanException e) {
       // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
       try {
-        if (source.getKind() != SqlKind.CREATE_TABLE) {
+        if (!SqlKind.DML.contains(source.getKind())) {
           return planWithBindableConvention(source, root, request);
         }
       }
@@ -154,6 +159,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
       return handleExplain(druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
       return handleCTAS(druidRel, (SqlCreateTable) source, brokerServerView);
+    } else if (source instanceof SqlInsertDirectory) {
+      return handleInsertDirectory(druidRel, (SqlInsertDirectory) source, brokerServerView);
     }
 
     final QueryMaker queryMaker = druidRel.getQueryMaker();
@@ -322,11 +329,10 @@ public class DruidPlanner implements Closeable, ForwardConstants
     Query<Map<String, Object>> query = queryMaker.prepareQuery(
         druidQuery.getQuery().withOverriddenContext(context)
     );
-    if (source.ifNotExists() && !brokerServerView.addLocalDataSource(dataSource)) {
-      // warn : not synchronized properly
-      return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "already exists"));
+    Map<String, Object> result = Sequences.only(query.run(queryMaker.getSegmentWalker(), Maps.newHashMap()), null);
+    if (result == null) {
+      return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
     }
-    Map<String, Object> result = Sequences.only(query.run(queryMaker.getSegmentWalker(), Maps.newHashMap()));
 
     RelDataTypeFactory typeFactory = planner.getTypeFactory();
     RelDataType dataType = typeFactory.createStructType(
@@ -350,6 +356,51 @@ public class DruidPlanner implements Closeable, ForwardConstants
         segment.getInterval(),
         segment.getVersion()
     };
+    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
+  }
+
+  @SuppressWarnings("unchecked")
+  private PlannerResult handleInsertDirectory(
+      final DruidRel<?> druidRel,
+      final SqlInsertDirectory source,
+      final BrokerServerView brokerServerView
+  )
+  {
+    QueryMaker queryMaker = druidRel.getQueryMaker();
+    DruidQuery druidQuery = druidRel.toDruidQuery(false);
+
+    Map<String, Object> context = Maps.newHashMap();
+
+    Map forwardContext = Maps.newHashMap();
+    forwardContext.putAll(source.getProperties());
+    forwardContext.put(FORMAT, source.getFormat());
+    forwardContext.put(CLEANUP, source.isOverwrite());
+
+    context.put(Query.FORWARD_URL, source.getDirectory());
+    context.put(Query.FORWARD_CONTEXT, forwardContext);
+
+    Query<Map<String, Object>> query = queryMaker.prepareQuery(
+        druidQuery.getQuery().withOverriddenContext(context)
+    );
+    Map<String, Object> result = Sequences.only(query.run(queryMaker.getSegmentWalker(), Maps.newHashMap()), null);
+    if (result == null) {
+      return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
+    }
+
+    RelDataTypeFactory typeFactory = planner.getTypeFactory();
+    RelDataType dataType = typeFactory.createStructType(
+        Arrays.asList(
+            typeFactory.createJavaType(boolean.class),
+            typeFactory.createJavaType(int.class),
+            typeFactory.createJavaType(String.class),
+            typeFactory.createJavaType(int.class)
+        ),
+        Arrays.asList("success", "rowCount", "location", "length")
+    );
+    Map.Entry<String, Object> data = Iterables.getOnlyElement(
+        ((Map<String, Object>) result.get("data")).entrySet()
+    );
+    Object[] row = new Object[]{true, result.get("rowCount"), data.getKey(), data.getValue()};
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
   }
 

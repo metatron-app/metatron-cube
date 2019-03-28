@@ -34,6 +34,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.output.Formatters;
+import io.druid.data.output.ForwardConstants;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;

@@ -48,6 +48,7 @@ data: {
       "io.druid.sql.calcite.ddl.SqlCreateTable"
       "io.druid.sql.calcite.ddl.SqlDescTable"
       "io.druid.sql.calcite.ddl.SqlDropTable"
+      "io.druid.sql.calcite.ddl.SqlInsertDirectory"
       "io.druid.sql.calcite.ddl.SqlShowTables"
     ]
 

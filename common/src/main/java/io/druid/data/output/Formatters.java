@@ -44,17 +44,17 @@ import java.util.Objects;
 
 /**
  */
-public class Formatters
+public class Formatters implements ForwardConstants
 {
   public static String getFormat(Map<String, Object> context)
   {
-    String format = Objects.toString(context.get("format"), "json");
+    String format = Objects.toString(context.get(FORMAT), JSON_FORMAT);
     return Preconditions.checkNotNull(format, "format is null").toLowerCase();
   }
 
   public static boolean isIndexFormat(Map<String, Object> context)
   {
-    return "index".equals(getFormat(context));
+    return INDEX_FORMAT.equalsIgnoreCase(getFormat(context));
   }
 
   public static CountingAccumulator toBasicExporter(
@@ -63,22 +63,22 @@ public class Formatters
       ByteSink output
   ) throws IOException
   {
-    if ("excel".equals(getFormat(context))) {
+    if (EXCEL_FORMAT.equalsIgnoreCase(getFormat(context))) {
       return toExcelExporter(output, context);
     } else {
       return wrapToExporter(toBasicFormatter(output, context, jsonMapper));
     }
   }
 
-  private static final int DEFAULT_FLUSH_INTERVAL = 1000;
+  private static final int DEFAULT_FLUSH_INTERVAL = 4096;
   private static final int DEFAULT_MAX_ROWS_PER_SHEET = 0;  // MAX
 
   public static CountingAccumulator toExcelExporter(final ByteSink sink, final Map<String, Object> context)
       throws IOException
   {
-    final String[] columns = parseStrings(context.get("columns"));
-    final int flushInterval = parseInt(context.get("flushInterval"), DEFAULT_FLUSH_INTERVAL);
-    final int maxRowsPerSheet = parseInt(context.get("maxRowsPerSheet"), DEFAULT_MAX_ROWS_PER_SHEET);
+    final String[] columns = parseStrings(context.get(COLUMNS));
+    final int flushInterval = parseInt(context.get(FLUSH_INTERVAL), DEFAULT_FLUSH_INTERVAL);
+    final int maxRowsPerSheet = parseInt(context.get(MAX_ROWS_PER_SHEET), DEFAULT_MAX_ROWS_PER_SHEET);
 
     if (columns != null) {
       return new ExcelAccumulator(sink, flushInterval, maxRowsPerSheet)
@@ -262,24 +262,24 @@ public class Formatters
   private static Formatter toBasicFormatter(ByteSink output, Map<String, Object> context, ObjectMapper jsonMapper)
       throws IOException
   {
-    String[] columns = parseStrings(context.get("columns"));
+    String[] columns = parseStrings(context.get(COLUMNS));
     String format = Formatters.getFormat(context);
-    if (format.equalsIgnoreCase("json")) {
-      boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
+    if (format.equalsIgnoreCase(JSON_FORMAT)) {
+      boolean wrapAsList = parseBoolean(context.get(WRAP_AS_LIST), false);
       return new Formatter.JsonFormatter(output, jsonMapper, columns, wrapAsList);
     }
 
     String separator;
-    if (format.equalsIgnoreCase("csv")) {
+    if (format.equalsIgnoreCase(CSV_FORMAT)) {
       separator = ",";
-    } else if (format.equalsIgnoreCase("tsv")) {
+    } else if (format.equalsIgnoreCase(TSV_FORMAT)) {
       separator = "\t";
     } else {
       throw new IllegalArgumentException("Unsupported format " + format);
     }
-    boolean header = parseBoolean(context.get("withHeader"), false);
-    String nullValue = Objects.toString(context.get("nullValue"), null);
-    String charset = Objects.toString(context.get("charset"), null);
+    boolean header = parseBoolean(context.get(WITH_HEADER), false);
+    String nullValue = Objects.toString(context.get(NULL_VALUE), null);
+    String charset = Objects.toString(context.get(CHARSET), null);
 
     return new Formatter.XSVFormatter(output, jsonMapper, separator, nullValue, columns, header, charset);
   }
@@ -305,7 +305,7 @@ public class Formatters
   {
     if (input instanceof List) {
       List<String> stringList = Lists.transform((List<?>) input, Functions.toStringFunction());
-      return stringList.toArray(new String[stringList.size()]);
+      return stringList.toArray(new String[0]);
     }
     String stringVal = Objects.toString(input, null);
     if (isNullOrEmpty(stringVal)) {

@@ -17,13 +17,21 @@
  * under the License.
  */
 
-package io.druid.server;
+package io.druid.data.output;
 
 public interface ForwardConstants
 {
   String FORMAT = "format";
-  String INDEX_FORMAT = "index";
+  String CLEANUP = "cleanup";
 
+  // format
+  String INDEX_FORMAT = "index";
+  String JSON_FORMAT = "json";
+  String CSV_FORMAT = "csv";
+  String TSV_FORMAT = "tsv";
+  String EXCEL_FORMAT = "excel";
+
+  // index-format
   String DATASOURCE = "dataSource";
   String REGISTER_TABLE = "registerTable";
   String TEMPORARY = "temporary";
@@ -31,6 +39,19 @@ public interface ForwardConstants
   String INTERVAL = "interval";
   String WAIT_TIMEOUT = "waitTimeout";
   String ASSERT_LOADED = "assertLoaded";
+
+  // json
+  String COLUMNS = "columns";
+  String WRAP_AS_LIST = "wrapAsList";
+
+  // xsv
+  String WITH_HEADER = "withHeader";
+  String NULL_VALUE = "nullValue";
+  String CHARSET = "charset";
+
+  // excel
+  String FLUSH_INTERVAL = "flushInterval";
+  String MAX_ROWS_PER_SHEET = "maxRowsPerSheet";
 
   String LOCAL_TEMP_URL = "file:///__temporary";
 }

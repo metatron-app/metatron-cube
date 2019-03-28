@@ -114,8 +114,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
@@ -1288,8 +1290,14 @@ SqlNode NamedRoutineCall(
  */
 SqlNode SqlInsert() :
 {
+    boolean isOverwrite = false;
+    SqlNode directory = null;
+    SqlNode format = null;
+    Map properties = null;
+    SqlNode query = null;
+
     final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
-    final SqlNodeList keywordList;
+    SqlNodeList keywordList = null;
     SqlNode table;
     SqlNodeList extendList = null;
     SqlNode source;
@@ -1297,6 +1305,22 @@ SqlNode SqlInsert() :
     final Span s;
 }
 {
+  LOOKAHEAD(4)
+  (
+    <INSERT> { s = span(); } [ <OVERWRITE> { isOverwrite = true; } ] <INTO> <DIRECTORY> { directory = StringLiteral(); }
+    [
+        <AS> { format = StringLiteral(); } [ <WITH> { properties = Properties(); } ]
+    ]
+
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlInsertDirectory(s.end(this), isOverwrite, directory, format, properties, query);
+    }
+  )
+
+  |
+
+  (
     (
         <INSERT>
     |
@@ -1330,8 +1354,35 @@ SqlNode SqlInsert() :
         return new SqlInsert(s.end(source), keywordList, table, source,
             columnList);
     }
+  )
 }
 
+Map Properties() :
+{
+    final Map map = new HashMap();
+}
+{
+    <LPAREN> Property(map) ( <COMMA> Property(map) )* <RPAREN>
+    {
+        return map;
+    }
+}
+
+void Property(Map map) :
+{
+    SqlNode key = null;
+    SqlNode value = null;
+}
+{
+    [ key = StringLiteral() <NAMED_ARGUMENT_ASSIGNMENT> value = StringLiteral() ]
+    {
+        if (key != null) {
+            String keyString = ((SqlLiteral) key).getValueAs(String.class);
+            String valueString = ((SqlLiteral) value).getValueAs(String.class);
+            map.put(keyString, valueString);
+        }
+    }
+}
 /*
  * Abstract production:
  *
@@ -5613,6 +5664,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < DESCRIPTOR: "DESCRIPTOR" >
 |   < DETERMINISTIC: "DETERMINISTIC" >
 |   < DIAGNOSTICS: "DIAGNOSTICS" >
+|   < DIRECTORY: "DIRECTORY" >
 |   < DISALLOW: "DISALLOW" >
 |   < DISCONNECT: "DISCONNECT" >
 |   < DISPATCH: "DISPATCH" >
@@ -5822,6 +5874,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < OVERLAPS: "OVERLAPS" >
 |   < OVERLAY: "OVERLAY" >
 |   < OVERRIDING: "OVERRIDING" >
+|   < OVERWRITE: "OVERWRITE" >
 |   < PAD: "PAD" >
 |   < PARAMETER: "PARAMETER" >
 |   < PARAMETER_MODE: "PARAMETER_MODE" >
