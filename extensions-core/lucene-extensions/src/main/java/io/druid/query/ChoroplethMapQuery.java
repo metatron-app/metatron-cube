@@ -177,7 +177,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
       GroupByQuery filtered = query.withDimFilter(DimFilters.and(filter, polygonFilter.withWKT(boundary)));
       if (!joinMapping.isEmpty()) {
         Map<String, Object> copy = Maps.newHashMap(context);
-        copy.put(QueryContextKeys.POST_PROCESSING, new TransformPostProcessor(
+        copy.put(QueryContextKeys.POST_PROCESSING, new ElementMapProcessor(
             new Function<Row, Row>()
             {
               @Override

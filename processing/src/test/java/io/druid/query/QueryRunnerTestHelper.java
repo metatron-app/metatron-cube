@@ -102,6 +102,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import org.joda.time.DateTime;
@@ -912,19 +913,24 @@ public class QueryRunnerTestHelper
 
 
   @SuppressWarnings("unchecked")
-  public static List<Map<String, Object>> runTabularQuery(Query query)
+  public List<Map<String, Object>> runTabularQuery(Query query)
   {
-    return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+    return io.druid.common.utils.Sequences.toList(query.run(getSegmentWalker(), Maps.<String, Object>newHashMap()));
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> List<T> runQuery(Query query)
+  public <T> List<T> runQuery(Query query)
   {
-    return runQuery(query, TestIndex.segmentWalker);
+    return runQuery(query, getSegmentWalker());
+  }
+
+  protected SpecificSegmentsQuerySegmentWalker getSegmentWalker()
+  {
+    return TestIndex.segmentWalker;
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> List<T> runQuery(Query query, QuerySegmentWalker walker)
+  public <T> List<T> runQuery(Query query, QuerySegmentWalker walker)
   {
     return io.druid.common.utils.Sequences.toList(query.run(walker, Maps.<String, Object>newHashMap()));
   }

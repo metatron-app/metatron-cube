@@ -21,15 +21,15 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
 
 import java.util.Map;
 
-public class TransformPostProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
+public class SequenceMapProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
 {
-  private final Function function;
+  private final Function<Sequence, Sequence> function;
 
-  public TransformPostProcessor(Function function)
+  @SuppressWarnings("unchecked")
+  public SequenceMapProcessor(Function function)
   {
     this.function = function;
   }
@@ -43,7 +43,7 @@ public class TransformPostProcessor extends PostProcessingOperator.Abstract impl
       @Override
       public Sequence run(Query query, Map responseContext)
       {
-        return Sequences.map(baseRunner.run(query, responseContext), function);
+        return function.apply(baseRunner.run(query, responseContext));
       }
     };
   }

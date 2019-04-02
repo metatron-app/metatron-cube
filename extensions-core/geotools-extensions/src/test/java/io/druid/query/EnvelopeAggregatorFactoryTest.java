@@ -20,34 +20,30 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import io.druid.data.EnvelopeAggregatorFactory;
 import io.druid.data.GeoToolsDruidModule;
 import io.druid.data.GeoToolsFunctions;
 import io.druid.data.input.Row;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
+import io.druid.query.filter.LuceneLatLonPolygonFilter;
+import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
+import io.druid.segment.lucene.ShapeIndexingStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
 
-public class EnvelopeAggregatorFactoryTest extends QueryRunnerTestHelper
+public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
 {
-  static {
-    Parser.register(GeoToolsFunctions.class);
-    try {
-      Class.forName(TestShapeQuery.class.getName());
-    }
-    catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
   @Test
   public void testGroupBy()
   {

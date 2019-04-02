@@ -99,10 +99,10 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
     segmentWalker = TestIndex.segmentWalker.withConglomerate(conglomerate).withObjectMapper(JSON_MAPPER);
   }
 
-  @SuppressWarnings("unchecked")
-  public static List<Map<String, Object>> runTabularQuery(Query query)
+  @Override
+  protected SpecificSegmentsQuerySegmentWalker getSegmentWalker()
   {
-    return io.druid.common.utils.Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    return segmentWalker;
   }
 
   public static Object[] array(Object... objects)
