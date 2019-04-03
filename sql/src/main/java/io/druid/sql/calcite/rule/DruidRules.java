@@ -82,6 +82,7 @@ public class DruidRules
         DruidQueryRule.of(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
         DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
         DruidQueryRule.of(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
+        DruidOuterQueryRule.FILTER,
         DruidOuterQueryRule.PROJECT,
         DruidOuterQueryRule.AGGREGATE,
         DruidOuterQueryRule.FILTER_AGGREGATE,
@@ -136,6 +137,15 @@ public class DruidRules
 
   public static abstract class DruidOuterQueryRule extends RelOptRule
   {
+    public static RelOptRule FILTER = new DruidOuterQueryRule(operand(Filter.class, anyDruid()), "FILTER")
+    {
+      @Override
+      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
+      {
+        return druidQuery.withWhereFilter(call.rel(0));
+      }
+    };
+
     public static RelOptRule PROJECT = new DruidOuterQueryRule(operand(Project.class, anyDruid()), "PROJECT")
     {
       @Override
