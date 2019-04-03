@@ -131,14 +131,7 @@ public class TimeSeriesUnionQueryRunnerTest
   public void testUnionResultMerging()
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
-                                  .dataSource(
-                                      new UnionDataSource(
-                                          Lists.newArrayList(
-                                              new TableDataSource("ds1"),
-                                              new TableDataSource("ds2")
-                                          )
-                                      )
-                                  )
+                                  .dataSource(UnionDataSource.of(Lists.newArrayList("ds1", "ds2")))
                                   .granularity(QueryRunnerTestHelper.dayGran)
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(

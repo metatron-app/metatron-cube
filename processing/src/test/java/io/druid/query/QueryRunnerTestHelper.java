@@ -276,18 +276,8 @@ public class QueryRunnerTestHelper
 
   public static final String segmentId = "testSegment";
   public static final String dataSource = "testing";
-  public static final UnionDataSource unionDataSource = new UnionDataSource(
-      Lists.transform(
-          Lists.newArrayList(dataSource, dataSource, dataSource, dataSource), new Function<String, TableDataSource>()
-          {
-            @Nullable
-            @Override
-            public TableDataSource apply(@Nullable String input)
-            {
-              return new TableDataSource(input);
-            }
-          }
-      )
+  public static final UnionDataSource unionDataSource = UnionDataSource.of(
+      Lists.newArrayList(dataSource, dataSource, dataSource, dataSource)
   );
 
   public static final DateTime minTime = new DateTime("2011-01-12T00:00:00.000Z");

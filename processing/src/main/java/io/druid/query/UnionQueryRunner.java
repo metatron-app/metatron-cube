@@ -45,13 +45,13 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
     if (dataSource instanceof UnionDataSource) {
       final List<Sequence<T>> sequences = Lists.transform(
           ((UnionDataSource) dataSource).getDataSources(),
-          new Function<DataSource, Sequence<T>>()
+          new Function<String, Sequence<T>>()
           {
             @Override
-            public Sequence<T> apply(DataSource singleSource)
+            public Sequence<T> apply(String singleSource)
             {
               return baseRunner.run(
-                  query.withDataSource(singleSource),
+                  query.withDataSource(TableDataSource.of(singleSource)),
                   responseContext
               );
             }

@@ -58,14 +58,7 @@ public class UnionQueryRunnerTest
     UnionQueryRunner runner = new UnionQueryRunner(baseRunner);
     // Make a dummy query with Union datasource
     Query q = Druids.newTimeseriesQueryBuilder()
-                    .dataSource(
-                        new UnionDataSource(
-                            Arrays.asList(
-                                new TableDataSource("ds1"),
-                                new TableDataSource("ds2")
-                            )
-                        )
-                    )
+                    .dataSource(UnionDataSource.of(Arrays.asList("ds1", "ds2")))
                     .intervals("2014-01-01T00:00:00Z/2015-01-01T00:00:00Z")
                     .aggregators(QueryRunnerTestHelper.commonAggregators)
                     .build();

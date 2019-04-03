@@ -22,9 +22,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.util.List;
@@ -33,50 +31,26 @@ public class UnionDataSource implements DataSource
 {
   public static UnionDataSource of(Iterable<String> names)
   {
-    return new UnionDataSource(
-        Lists.newArrayList(
-            Iterables.transform(
-                names, new Function<String, TableDataSource>()
-                {
-                  @Override
-                  public TableDataSource apply(String input)
-                  {
-                    return new TableDataSource(input);
-                  }
-                }
-            )
-        )
-    );
+    return new UnionDataSource(Lists.newArrayList(names));
   }
 
   @JsonProperty
-  private final List<TableDataSource> dataSources;
+  private final List<String> dataSources;
 
   @JsonCreator
-  public UnionDataSource(@JsonProperty("dataSources") List<TableDataSource> dataSources)
+  public UnionDataSource(@JsonProperty("dataSources") List<String> dataSources)
   {
-    Preconditions.checkNotNull(dataSources, "dataSources cannot be null for unionDataSource");
-    this.dataSources = dataSources;
+    this.dataSources = Preconditions.checkNotNull(dataSources, "dataSources cannot be null for unionDataSource");
   }
 
   @Override
   public List<String> getNames()
   {
-    return Lists.transform(
-        dataSources,
-        new Function<TableDataSource, String>()
-        {
-          @Override
-          public String apply(TableDataSource input)
-          {
-            return Iterables.getOnlyElement(input.getNames());
-          }
-        }
-    );
+    return dataSources;
   }
 
   @JsonProperty
-  public List<TableDataSource> getDataSources()
+  public List<String> getDataSources()
   {
     return dataSources;
   }

@@ -32,13 +32,6 @@ public class DataSources
     if (dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getQuery().hasFilters()) {
       return true;
     }
-    if (dataSource instanceof UnionDataSource) {
-      for (DataSource ds : ((UnionDataSource) dataSource).getDataSources()) {
-        if (hasFilter(ds)) {
-          return true;
-        }
-      }
-    }
     return false;
   }
 }

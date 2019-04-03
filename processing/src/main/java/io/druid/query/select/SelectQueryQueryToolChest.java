@@ -592,7 +592,7 @@ public class SelectQueryQueryToolChest
                   .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
     }
     LOG.info("Filtered %d dataSource into %d", mapping.size(), targetDataSources.size());
-    return query.withDataSource(new UnionDataSource(TableDataSource.of(targetDataSources)));
+    return query.withDataSource(new UnionDataSource(targetDataSources));
   }
 
   private String findDataSource(List<String> dataSourceNames, String identifier)

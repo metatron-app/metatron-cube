@@ -448,12 +448,12 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     if (query != null && query.getDataSource() instanceof UnionDataSource) {
       return withQueries(Lists.<Query>newArrayList(Iterables.transform(
           ((UnionDataSource) query.getDataSource()).getDataSources(),
-          new Function<TableDataSource, Query<T>>()
+          new Function<String, Query<T>>()
           {
             @Override
-            public Query<T> apply(TableDataSource input)
+            public Query<T> apply(String dataSource)
             {
-              return query.withDataSource(input);
+              return query.withDataSource(TableDataSource.of(dataSource));
             }
           }
       )));
