@@ -46,6 +46,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.druid.query.JoinType.LO;
+import static io.druid.query.JoinType.RO;
+
 /**
  */
 public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
@@ -277,16 +280,16 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       if (i == 0) {
         LOG.info("%s (L) -----> %d rows, hashing? %s", element.getLeftAlias(), leftEstimated, leftHashing);
-        List<String> sortColumns = leftHashing || rightHashing ? null : element.getLeftJoinColumns();
-        Query query = JoinElement.toQuery(left, sortColumns, segmentSpec, getContext());
+        List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : element.getLeftJoinColumns();
+        Query query = JoinElement.toQuery(left, sortOn, segmentSpec, getContext());
         if (leftHashing) {
           query = query.withOverriddenContext(JoinElement.HASHING, true);
         }
         queries.add(query);
       }
       LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
-      List<String> sortColumns = leftHashing || rightHashing ? null : element.getRightJoinColumns();
-      Query query = JoinElement.toQuery(right, sortColumns, segmentSpec, getContext());
+      List<String> sortOn = (joinType != RO && leftHashing) || rightHashing ? null : element.getRightJoinColumns();
+      Query query = JoinElement.toQuery(right, sortOn, segmentSpec, getContext());
       if (rightHashing) {
         query = query.withOverriddenContext(JoinElement.HASHING, true);
       }
