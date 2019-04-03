@@ -148,7 +148,7 @@ public class SelectorFilter implements Filter
           @Override
           public boolean apply(Object input)
           {
-            return input == null ? allowsNull : casted.equals(input);
+            return input == null ? allowsNull : input.equals(casted);
           }
         }
     );
