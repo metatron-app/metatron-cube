@@ -26,6 +26,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.rel.DruidQuery;
+import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.DruidSemiJoinRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
@@ -61,13 +62,15 @@ public class DruidSemiJoinRule extends RelOptRule
 {
   private static final Logger LOG = new Logger(DruidSemiJoinRule.class);
 
+  private static final Predicate<DruidRel> CAN_BUILD_ON = druidRel -> druidRel.getPartialDruidQuery() != null;
+
   private static final Predicate<Join> IS_LEFT_OR_INNER =
       join -> {
         final JoinRelType joinType = join.getJoinType();
         return joinType == JoinRelType.LEFT || joinType == JoinRelType.INNER;
       };
 
-  private static final Predicate<DruidRel> IS_GROUP_BY = druidRel ->
+  private static final Predicate<DruidRel> HAS_AGGREGATION = druidRel ->
       druidRel.getPartialDruidQuery() != null && druidRel.getPartialDruidQuery().getAggregate() != null;
 
   private static final DruidSemiJoinRule INSTANCE = new DruidSemiJoinRule();
@@ -82,13 +85,8 @@ public class DruidSemiJoinRule extends RelOptRule
                 null,
                 IS_LEFT_OR_INNER,
                 some(
-                    operandJ(
-                        DruidRel.class,
-                        null,
-                        DruidRules.CAN_BUILD_ON.and(IS_GROUP_BY.negate()),
-                        any()
-                    ),
-                    operandJ(DruidRel.class, null, IS_GROUP_BY, any())
+                    DruidRules.ofDruidRel(CAN_BUILD_ON.and(HAS_AGGREGATION.negate())),
+                    DruidRules.ofDruidRel(DruidQueryRel.class, HAS_AGGREGATION)
                 )
             )
         )
@@ -166,10 +164,13 @@ public class DruidSemiJoinRule extends RelOptRule
       if (druidQuery == null) {
         return;
       }
-      int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
-      final QueryMaker queryMaker = right.getQueryMaker();
       final Query query = druidQuery.getQuery();
-      if (query instanceof GroupByQuery && !(query.getDataSource() instanceof QueryDataSource)) {
+      if (query.getDataSource() instanceof QueryDataSource) {
+        return;
+      }
+      final int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
+      final QueryMaker queryMaker = right.getQueryMaker();
+      if (query instanceof GroupByQuery) {
         GroupByQuery groupBy = (GroupByQuery) query.removePostActions();
         Query prepared = queryMaker.prepareQuery(groupBy);
         if (prepared instanceof GroupByQuery) {

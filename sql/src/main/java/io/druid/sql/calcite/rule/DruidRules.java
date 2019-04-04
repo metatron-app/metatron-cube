@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rule;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
+import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
@@ -48,8 +49,6 @@ import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WHERE_FILTER;
 
 public class DruidRules
 {
-  public static final Predicate<DruidRel> CAN_BUILD_ON = druidRel -> druidRel.getPartialDruidQuery() != null;
-
   static RelOptRuleOperand anyDruid()
   {
     return ofDruidRel(druidRel -> true);
@@ -62,7 +61,17 @@ public class DruidRules
 
   static RelOptRuleOperand ofDruidRel(Predicate<DruidRel> predicate)
   {
-    return RelOptRule.operandJ(DruidRel.class, null, predicate, RelOptRule.any());
+    return ofDruidRel(DruidRel.class, predicate);
+  }
+
+  static RelOptRuleOperand ofDruidQueryRel(Predicate<DruidRel> predicate)
+  {
+    return ofDruidRel(DruidQueryRel.class, predicate);
+  }
+
+  static <T extends DruidRel> RelOptRuleOperand ofDruidRel(Class<T> relClass, Predicate<DruidRel> predicate)
+  {
+    return RelOptRule.operandJ(relClass, null, predicate, RelOptRule.any());
   }
 
   private DruidRules()
