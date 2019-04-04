@@ -51,7 +51,7 @@ import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 
-public class DruidJoinRel extends DruidRel<DruidJoinRel>
+public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.LeafRel
 {
   private static final Logger LOG = new Logger(DruidJoinRel.class);
 
@@ -93,12 +93,6 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel>
     this.joinType = joinType;
     this.leftExpressions = leftExpressions;
     this.rightExpressions = rightExpressions;
-  }
-
-  @Override
-  public RelNode getLeafRel()
-  {
-    return this;  // I'm leaf
   }
 
   @Override

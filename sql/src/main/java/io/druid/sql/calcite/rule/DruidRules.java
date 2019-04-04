@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rule;
 
 import com.google.common.collect.ImmutableList;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
@@ -82,163 +81,68 @@ public class DruidRules
         DruidQueryRule.of(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
         DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
         DruidQueryRule.of(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
-        DruidOuterQueryRule.FILTER,
-        DruidOuterQueryRule.PROJECT,
-        DruidOuterQueryRule.AGGREGATE,
-        DruidOuterQueryRule.FILTER_AGGREGATE,
-        DruidOuterQueryRule.FILTER_PROJECT_AGGREGATE,
-        DruidOuterQueryRule.PROJECT_AGGREGATE,
-        DruidOuterQueryRule.AGGREGATE_SORT_PROJECT,
+        DruidOuterQueryRule.of(Filter.class, PartialDruidQuery::withWhereFilter),
+        DruidOuterQueryRule.of(Project.class, PartialDruidQuery::withSelectProject),
+        DruidOuterQueryRule.of(Sort.class, PartialDruidQuery::withSelectSort),
+        DruidOuterQueryRule.of(Aggregate.class, PartialDruidQuery::withAggregate),
         DruidUnionRule.instance(),
         DruidSortUnionRule.instance()
     );
   }
 
-  public static class DruidQueryRule<RelType extends RelNode> extends RelOptRule
+  static class DruidQueryRule
   {
-    static <RelType extends RelNode> DruidQueryRule<RelType> of(
+    static <RelType extends RelNode> RelOptRule of(
         final Class<RelType> relClass,
         final PartialDruidQuery.Stage stage,
         final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
     )
     {
-      return new DruidQueryRule<RelType>(relClass, stage, f);
-    }
+      final String description = StringUtils.format("DruidQueryRule(%s)", stage);
+      return new RelOptRule(RelOptRule.operand(relClass, canBuildOn(stage)), description)
+      {
+        @Override
+        public void onMatch(final RelOptRuleCall call)
+        {
+          final RelType otherRel = call.rel(0);
+          final DruidRel druidRel = call.rel(1);
 
-    private final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f;
+          final PartialDruidQuery newPartialDruidQuery = f.apply(druidRel.getPartialDruidQuery(), otherRel);
+          final DruidRel newDruidRel = druidRel.withPartialQuery(newPartialDruidQuery);
 
-    public DruidQueryRule(
-        final Class<RelType> relClass,
-        final PartialDruidQuery.Stage stage,
-        final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
-    )
-    {
-      super(
-          operand(relClass, canBuildOn(stage)),
-          StringUtils.format("%s(%s)", DruidQueryRule.class.getSimpleName(), stage)
-      );
-      this.f = f;
-    }
-
-    @Override
-    public void onMatch(final RelOptRuleCall call)
-    {
-      final RelType otherRel = call.rel(0);
-      final DruidRel druidRel = call.rel(1);
-
-      final PartialDruidQuery newPartialDruidQuery = f.apply(druidRel.getPartialDruidQuery(), otherRel);
-      final DruidRel newDruidRel = druidRel.withPartialQuery(newPartialDruidQuery);
-
-      if (newDruidRel.isValidDruidQuery()) {
-        call.transformTo(newDruidRel);
-      }
+          if (newDruidRel.isValidDruidQuery()) {
+            call.transformTo(newDruidRel);
+          }
+        }
+      };
     }
   }
 
-  public static abstract class DruidOuterQueryRule extends RelOptRule
+  static class DruidOuterQueryRule
   {
-    public static RelOptRule FILTER = new DruidOuterQueryRule(operand(Filter.class, anyDruid()), "FILTER")
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withWhereFilter(call.rel(0));
-      }
-    };
-
-    public static RelOptRule PROJECT = new DruidOuterQueryRule(operand(Project.class, anyDruid()), "PROJECT")
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withSelectProject(call.rel(0));
-      }
-    };
-
-    public static RelOptRule AGGREGATE = new DruidOuterQueryRule(operand(Aggregate.class, anyDruid()), "AGGREGATE")
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withAggregate(call.rel(0));
-      }
-    };
-
-    public static RelOptRule FILTER_AGGREGATE = new DruidOuterQueryRule(
-        operand(Aggregate.class, operand(Filter.class, anyDruid())), "FILTER_AGGREGATE"
+    static <RelType extends RelNode> RelOptRule of(
+        final Class<RelType> relClass,
+        final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
     )
     {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
+      final String description = StringUtils.format("DruidOuterQueryRule(%s)", relClass.getSimpleName());
+      return new RelOptRule(RelOptRule.operand(relClass, anyDruid()), description)
       {
-        return druidQuery.withWhereFilter(call.rel(1))
-                         .withAggregate(call.rel(0));
-      }
-    };
+        @Override
+        public void onMatch(final RelOptRuleCall call)
+        {
+          final RelType otherRel = call.rel(0);
+          final DruidRel druidRel = call.rel(1);
 
-    public static RelOptRule FILTER_PROJECT_AGGREGATE = new DruidOuterQueryRule(
-        operand(Aggregate.class, operand(Project.class, operand(Filter.class, anyDruid()))), "FILTER_PROJECT_AGGREGATE"
-    )
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withWhereFilter(call.rel(2))
-                         .withSelectProject(call.rel(1))
-                         .withAggregate(call.rel(0));
-      }
-    };
+          final RelNode leafRel = druidRel.getLeafRel();
+          final PartialDruidQuery newPartialDruidQuery = f.apply(PartialDruidQuery.create(leafRel), otherRel);
+          final DruidRel newDruidRel = DruidOuterQueryRel.create(druidRel, newPartialDruidQuery);
 
-    public static RelOptRule PROJECT_AGGREGATE = new DruidOuterQueryRule(
-        operand(Aggregate.class, operand(Project.class, anyDruid())), "PROJECT_AGGREGATE"
-    )
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withSelectProject(call.rel(1))
-                         .withAggregate(call.rel(0));
-      }
-    };
-
-    public static RelOptRule AGGREGATE_SORT_PROJECT = new DruidOuterQueryRule(
-        operand(Project.class, operand(Sort.class, operand(Aggregate.class, anyDruid()))), "AGGREGATE_SORT_PROJECT"
-    )
-    {
-      @Override
-      protected PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call)
-      {
-        return druidQuery.withAggregate(call.rel(2))
-                         .withSort(call.rel(1))
-                         .withSortProject(call.rel(0));
-      }
-    };
-
-    public DruidOuterQueryRule(final RelOptRuleOperand op, final String description)
-    {
-      super(op, StringUtils.format("%s(%s)", DruidOuterQueryRel.class.getSimpleName(), description));
+          if (newDruidRel.isValidDruidQuery()) {
+            call.transformTo(newDruidRel);
+          }
+        }
+      };
     }
-
-    @Override
-    public boolean matches(final RelOptRuleCall call)
-    {
-      final DruidRel druidRel = GuavaUtils.lastOf(call.getRelList());
-      final PartialDruidQuery druidQuery = druidRel.getPartialDruidQuery();
-      return druidQuery == null || druidQuery.stage().compareTo(PartialDruidQuery.Stage.AGGREGATE) >= 0;
-    }
-
-    @Override
-    public void onMatch(final RelOptRuleCall call)
-    {
-      final DruidRel druidRel = GuavaUtils.lastOf(call.getRelList());
-      final DruidOuterQueryRel outerQueryRel = DruidOuterQueryRel.create(
-          druidRel, attach(PartialDruidQuery.create(druidRel.getLeafRel()), call)
-      );
-      if (outerQueryRel.isValidDruidQuery()) {
-        call.transformTo(outerQueryRel);
-      }
-    }
-
-    protected abstract PartialDruidQuery attach(PartialDruidQuery druidQuery, RelOptRuleCall call);
   }
 }

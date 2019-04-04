@@ -37,6 +37,9 @@ import javax.annotation.Nullable;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {
+  public static interface LeafRel {
+  }
+
   private final QueryMaker queryMaker;
 
   protected DruidRel(RelOptCluster cluster, RelTraitSet traitSet, QueryMaker queryMaker)
@@ -57,6 +60,9 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
 
   public RelNode getLeafRel()
   {
+    if (LeafRel.class.isInstance(this)) {
+      return this;
+    }
     PartialDruidQuery partialQuery = getPartialDruidQuery();
     return partialQuery == null ? null : partialQuery.leafRel();
   }

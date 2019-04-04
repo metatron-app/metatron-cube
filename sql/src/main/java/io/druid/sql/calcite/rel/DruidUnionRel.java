@@ -41,7 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class DruidUnionRel extends DruidRel<DruidUnionRel>
+public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.LeafRel
 {
   private final RelDataType rowType;
   private final List<RelNode> rels;
