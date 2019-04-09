@@ -37,7 +37,6 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.ForwardConstants;
-import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.query.BaseQuery;
@@ -138,10 +137,10 @@ public class ForwardHandler implements ForwardConstants
           if (PropUtils.parseBoolean(forwardContext, Query.LOCAL_POST_PROCESSING)) {
             rewritten = rewriteURI(rewritten, scheme, null, rewritten.getPath() + "/" + node.toPathName());
           }
-          if (scheme.equals(StorageHandler.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
+          if (StorageHandler.FILE_SCHEME.equals(scheme) || StorageHandler.LOCAL_SCHEME.equals(scheme)) {
             rewritten = rewriteURI(rewritten, scheme, node, null);
           }
-          if (Formatters.isIndexFormat(forwardContext) && "/__temporary".equals(rewritten.getPath())) {
+          if (ForwardConstants.LOCAL_TEMP_PATH.equals(rewritten.getPath())) {
             File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
             rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
           }

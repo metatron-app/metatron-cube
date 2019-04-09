@@ -26,6 +26,7 @@ import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
 import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.initialization.DruidModule;
+import io.druid.query.LocalStorageHandler;
 import io.druid.query.StorageHandler;
 import io.druid.segment.loading.DataSegmentFinder;
 import io.druid.segment.loading.DataSegmentKiller;
@@ -46,8 +47,6 @@ import java.util.List;
  */
 public class LocalDataStorageDruidModule implements DruidModule
 {
-  public static final String SCHEME = "local";
-
   @Override
   public void configure(Binder binder)
   {
@@ -74,27 +73,27 @@ public class LocalDataStorageDruidModule implements DruidModule
              .in(LazySingleton.class);
 
     Binders.dataSegmentPullerBinder(binder)
-           .addBinding(SCHEME)
+           .addBinding(StorageHandler.LOCAL_SCHEME)
            .to(LocalDataSegmentPuller.class)
            .in(LazySingleton.class);
 
     PolyBind.optionBinder(binder, Key.get(DataSegmentKiller.class))
-            .addBinding(SCHEME)
+            .addBinding(StorageHandler.LOCAL_SCHEME)
             .to(LocalDataSegmentKiller.class)
             .in(LazySingleton.class);
 
     PolyBind.optionBinder(binder, Key.get(DataSegmentPusher.class))
-            .addBinding(SCHEME)
+            .addBinding(StorageHandler.LOCAL_SCHEME)
             .to(LocalDataSegmentPusher.class)
             .in(LazySingleton.class);
 
     PolyBind.optionBinder(binder, Key.get(StorageHandler.class))
-            .addBinding(SCHEME)
-            .to(LocalDataSegmentPusher.class)
+            .addBinding(StorageHandler.LOCAL_SCHEME)
+            .to(LocalStorageHandler.class)
             .in(LazySingleton.class);
 
     PolyBind.optionBinder(binder, Key.get(DataSegmentFinder.class))
-            .addBinding(SCHEME)
+            .addBinding(StorageHandler.LOCAL_SCHEME)
             .to(LocalDataSegmentFinder.class)
             .in(LazySingleton.class);
 

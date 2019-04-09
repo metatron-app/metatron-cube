@@ -45,6 +45,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
@@ -52,6 +53,7 @@ import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
+import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -362,7 +364,7 @@ public class BrokerQueryResource extends QueryResource
       final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
           ImmutableMap.<String, Object>of(
               BaseQuery.QUERYID, UUID.randomUUID().toString(),
-              Query.FORWARD_URL, "file:///__temporary",
+              Query.FORWARD_URL, ForwardConstants.LOCAL_TEMP_URL,
               Query.FORWARD_CONTEXT, forwardContext,
               QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
           )

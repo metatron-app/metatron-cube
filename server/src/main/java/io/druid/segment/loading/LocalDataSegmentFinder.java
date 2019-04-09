@@ -24,6 +24,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import io.druid.guice.LocalDataStorageDruidModule;
+import io.druid.query.StorageHandler;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 
@@ -74,9 +75,9 @@ public class LocalDataSegmentFinder implements DataSegmentFinder
             final DataSegment dataSegment = mapper.readValue(FileUtils.readFileToString(file), DataSegment.class);
             log.info("Found segment [%s] located at [%s]", dataSegment.getIdentifier(), indexZip.getAbsoluteFile());
             final Map<String, Object> loadSpec = dataSegment.getLoadSpec();
-            if (!loadSpec.get("type").equals(LocalDataStorageDruidModule.SCHEME) || !loadSpec.get("path")
-                                                                                             .equals(indexZip.getAbsoluteFile())) {
-              loadSpec.put("type", LocalDataStorageDruidModule.SCHEME);
+            if (!loadSpec.get("type").equals(StorageHandler.LOCAL_SCHEME) || !loadSpec.get("path")
+                                                                                      .equals(indexZip.getAbsoluteFile())) {
+              loadSpec.put("type", StorageHandler.LOCAL_SCHEME);
               loadSpec.put("path", indexZip.getAbsolutePath());
               if (updateDescriptor) {
                 log.info(

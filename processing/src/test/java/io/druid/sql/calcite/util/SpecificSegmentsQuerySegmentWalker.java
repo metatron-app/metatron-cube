@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -38,6 +39,8 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.FluentQueryRunnerBuilder;
+import io.druid.query.ForwardingSegmentWalker;
+import io.druid.query.LocalStorageHandler;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
@@ -48,13 +51,13 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunners;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.StorageHandler;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
@@ -67,6 +70,8 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.server.DruidNode;
+import io.druid.server.ForwardHandler;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -84,7 +89,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, QueryToolChestWarehouse
+public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalker, QueryToolChestWarehouse
 {
   private final ObjectMapper objectMapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
@@ -92,6 +97,19 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   private final QueryConfig queryConfig;
 
   private final PopulatingMap timeLines;
+  private final ForwardHandler handler;
+
+  @Override
+  public StorageHandler getHandler(String scheme)
+  {
+    return handler.getHandler(scheme);
+  }
+
+  @Override
+  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  {
+    return handler.wrapForward(query, baseRunner);
+  }
 
   private static class PopulatingMap
   {
@@ -135,9 +153,17 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       for (Pair<DataSegment, Segment> pair : populator.get()) {
         DataSegment descriptor = pair.lhs;
         if (descriptor.getInterval().hashCode() % 2 == 0) {
-          timeline1.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(pair.rhs));
+          timeline1.add(
+              descriptor.getInterval(),
+              descriptor.getVersion(),
+              descriptor.getShardSpec().createChunk(pair.rhs)
+          );
         } else {
-          timeline2.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(pair.rhs));
+          timeline2.add(
+              descriptor.getInterval(),
+              descriptor.getVersion(),
+              descriptor.getShardSpec().createChunk(pair.rhs)
+          );
         }
         segments.add(descriptor);
       }
@@ -153,11 +179,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
 
   public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
   {
-    this.objectMapper = TestHelper.JSON_MAPPER;
-    this.conglomerate = conglomerate;
-    this.executor = MoreExecutors.sameThreadExecutor();
-    this.queryConfig = config;
-    this.timeLines = new PopulatingMap();
+    this(TestHelper.JSON_MAPPER, conglomerate, MoreExecutors.sameThreadExecutor(), config, new PopulatingMap());
   }
 
   private SpecificSegmentsQuerySegmentWalker(
@@ -173,6 +195,13 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     this.executor = executor;
     this.queryConfig = queryConfig;
     this.timeLines = timeLines;
+    this.handler = new ForwardHandler(
+        new DruidNode("test", "test", 0),
+        objectMapper,
+        asWarehouse(queryConfig, conglomerate),
+        ImmutableMap.<String, StorageHandler>of("file", new LocalStorageHandler(objectMapper)),
+        this
+    );
   }
 
   public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
@@ -509,5 +538,27 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
   {
     QueryRunnerFactory<T, QueryType> factory = conglomerate.findFactory(query);
     return factory == null ? null : factory.getToolchest();
+  }
+
+  private static QueryToolChestWarehouse asWarehouse(
+      final QueryConfig queryConfig,
+      final QueryRunnerFactoryConglomerate conglomerate
+  )
+  {
+    return new QueryToolChestWarehouse()
+    {
+      @Override
+      public QueryConfig getQueryConfig()
+      {
+        return queryConfig;
+      }
+
+      @Override
+      public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
+      {
+        final QueryRunnerFactory<T, QueryType> factory = conglomerate.findFactory(query);
+        return factory == null ? null : factory.getToolchest();
+      }
+    };
   }
 }

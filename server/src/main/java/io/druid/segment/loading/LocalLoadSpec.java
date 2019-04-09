@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import io.druid.guice.LocalDataStorageDruidModule;
+import io.druid.query.StorageHandler;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -34,7 +34,7 @@ import java.nio.file.Paths;
 /**
  *
  */
-@JsonTypeName(LocalDataStorageDruidModule.SCHEME)
+@JsonTypeName(StorageHandler.LOCAL_SCHEME)
 public class LocalLoadSpec implements LoadSpec
 {
   private final Path path;

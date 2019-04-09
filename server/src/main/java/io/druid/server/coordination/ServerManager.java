@@ -67,7 +67,7 @@ import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
-import io.druid.server.ForwardingSegmentWalker;
+import io.druid.query.ForwardingSegmentWalker;
 import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;

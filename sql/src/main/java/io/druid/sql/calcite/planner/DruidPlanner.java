@@ -372,7 +372,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     Map<String, Object> context = Maps.newHashMap();
 
     Map forwardContext = Maps.newHashMap();
-    forwardContext.putAll(source.getProperties());
+    if (source.getProperties() != null) {
+      forwardContext.putAll(source.getProperties());
+    }
     forwardContext.put(FORMAT, source.getFormat());
     forwardContext.put(CLEANUP, source.isOverwrite());
 

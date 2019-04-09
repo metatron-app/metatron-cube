@@ -227,6 +227,8 @@ public class CalciteQueryTest extends CalciteTestBase
 
   private static final PagingSpec FIRST_PAGING_SPEC = new PagingSpec(null, 1000, true);
 
+  private static final String MASKED = "<<<<<<MASK>>>>>>";
+
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -306,6 +308,30 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{2}
+        )
+    );
+  }
+
+  @Test
+  public void testInsertInto() throws Exception
+  {
+    testQuery(
+        "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' SELECT 1 + 1, dim1 FROM foo LIMIT 1",
+        ImmutableList.of(),
+        ImmutableList.of(
+            new Object[]{true, 1, MASKED, 7L}
+        )
+    );
+  }
+
+  @Test
+  public void testInsertIntoWithHeader() throws Exception
+  {
+    testQuery(
+        "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' WITH ('withHeader' => 'true') SELECT 1 + 1, dim1 FROM foo LIMIT 1",
+        ImmutableList.of(),
+        ImmutableList.of(
+            new Object[]{true, 1, MASKED, 15L}
         )
     );
   }
@@ -6801,10 +6827,16 @@ public class CalciteQueryTest extends CalciteTestBase
 
     Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), results.size());
     for (int i = 0; i < results.size(); i++) {
+      final Object[] expected = expectedResults.get(i);
+      final Object[] actual = results.get(i);
+      final int masked = Arrays.asList(expected).indexOf(MASKED);
+      if (masked >= 0) {
+        expected[masked] = actual[masked] = null;
+      }
       Assert.assertArrayEquals(
           StringUtils.format("result #%d: %s", i + 1, sql),
-          expectedResults.get(i),
-          results.get(i)
+          expected,
+          actual
       );
     }
 

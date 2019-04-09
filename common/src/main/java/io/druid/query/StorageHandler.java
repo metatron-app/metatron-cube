@@ -35,6 +35,7 @@ import java.util.Map;
 public interface StorageHandler
 {
   String FILE_SCHEME = "file";
+  String LOCAL_SCHEME = "local";
 
   Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context) throws IOException;
 

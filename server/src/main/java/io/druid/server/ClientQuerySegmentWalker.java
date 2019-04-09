@@ -25,6 +25,7 @@ import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.FluentQueryRunnerBuilder;
+import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;

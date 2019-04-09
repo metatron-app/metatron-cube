@@ -57,7 +57,7 @@ public class HdfsDataSegmentPusherTest
     HdfsDataSegmentPusherConfig config = new HdfsDataSegmentPusherConfig();
 
     config.setStorageDirectory(tempFolder.newFolder().getAbsolutePath());
-    HdfsDataSegmentPusher pusher = new HdfsDataSegmentPusher(config, conf, new DefaultObjectMapper(), null);
+    HdfsDataSegmentPusher pusher = new HdfsDataSegmentPusher(config, conf, new DefaultObjectMapper());
 
     DataSegment segmentToPush = new DataSegment(
         "foo",

@@ -53,7 +53,7 @@ import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.segment.realtime.plumber.Plumbers;
 import io.druid.server.ForwardHandler;
-import io.druid.server.ForwardingSegmentWalker;
+import io.druid.query.ForwardingSegmentWalker;
 import org.joda.time.Interval;
 
 import java.io.Closeable;

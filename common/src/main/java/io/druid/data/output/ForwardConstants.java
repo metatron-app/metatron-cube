@@ -53,5 +53,7 @@ public interface ForwardConstants
   String FLUSH_INTERVAL = "flushInterval";
   String MAX_ROWS_PER_SHEET = "maxRowsPerSheet";
 
+  // dummy
+  String LOCAL_TEMP_PATH = "/__temporary";
   String LOCAL_TEMP_URL = "file:///__temporary";
 }

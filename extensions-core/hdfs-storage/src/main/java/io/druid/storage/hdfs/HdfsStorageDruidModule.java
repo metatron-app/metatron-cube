@@ -126,7 +126,7 @@ public class HdfsStorageDruidModule implements DruidModule
           if (SKIP.contains(next.getClass().getName())) {
             continue;
           }
-          writers.addBinding(next.getScheme()).to(HdfsDataSegmentPusher.class).in(LazySingleton.class);
+          writers.addBinding(next.getScheme()).to(HdfsStorageHandler.class).in(LazySingleton.class);
         }
         catch (Throwable e) {
           if (!logged) {
