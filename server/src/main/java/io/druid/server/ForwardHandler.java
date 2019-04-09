@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
@@ -42,11 +44,12 @@ import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryResult;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.query.StorageHandler;
-import io.druid.query.TabularFormat;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.io.File;
@@ -55,6 +58,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 public class ForwardHandler implements ForwardConstants
 {
@@ -127,7 +131,7 @@ public class ForwardHandler implements ForwardConstants
     return new QueryRunner()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence run(final Query query, final Map responseContext)
       {
         URI rewritten = uri;
         try {
@@ -141,36 +145,38 @@ public class ForwardHandler implements ForwardConstants
             File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
             rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
           }
-
-          final TabularFormat input = toTabularFormat(removeForwardContext(query), responseContext);
-          final Map<String, Object> result = handler.write(rewritten, input, forwardContext);
-          return wrapForwardResult(query, forwardContext, result);
+          final String schema = Objects.toString(forwardContext.get("schema"), null);
+          final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), responseContext);
+          final Supplier<String> typeString = Suppliers.memoize(new Supplier<String>()
+          {
+            @Override
+            public String get()
+            {
+              return schema != null ? schema : QueryUtils.retrieveSchema(query, segmentWalker).columnAndTypesString();
+            }
+          });
+          return wrapForwardResult(
+              query,
+              forwardContext,
+              handler.write(rewritten, QueryResult.of(sequence, typeString), forwardContext)
+          );
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
         }
       }
 
-      private TabularFormat toTabularFormat(final Query query, final Map responseContext)
+      private Sequence<Map<String, Object>> asMap(final Query<T> query, final Map responseContext)
       {
         // union-all does not have toolchest. delegate it to inner query
-        Query representative = BaseQuery.getRepresentative(query);
+        Sequence sequence = baseRunner.run(query, responseContext);
         if (PostProcessingOperators.isTabularOutput(query, jsonMapper)) {
           // already converted to tabular format
-          return new TabularFormat()
-          {
-            @Override
-            public Sequence getSequence() { return baseRunner.run(query, responseContext); }
-
-            @Override
-            public Map<String, Object> getMetaData() { return null; }
-          };
+          return sequence;
         }
+        Query<T> representative = BaseQuery.getRepresentative(query);
         String timestampColumn = PropUtils.parseString(forwardContext, Query.FORWARD_TIMESTAMP_COLUMN);
-        return warehouse.getToolChest(representative).toTabularFormat(
-            query, baseRunner.run(query, responseContext),
-            timestampColumn
-        );
+        return warehouse.getToolChest(representative).asMap(query, timestampColumn).apply(sequence);
       }
     };
   }

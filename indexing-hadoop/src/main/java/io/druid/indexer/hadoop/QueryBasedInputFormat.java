@@ -727,7 +727,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         super.initialize(split, configuration);
         Map<String, Object> tabularProcessor = ImmutableMap.<String, Object>of(
             BaseQuery.QUERYID, UUID.randomUUID().toString(),
-            BaseQuery.POST_PROCESSING, ImmutableMap.of("type", "tabular", "timestampColumn", timeColumn)
+            BaseQuery.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", timeColumn)
         );
         StreamQuery query = builder.intervals(new MultipleSpecificSegmentSpec(split.getSegments()))
                                    .addContext(tabularProcessor)

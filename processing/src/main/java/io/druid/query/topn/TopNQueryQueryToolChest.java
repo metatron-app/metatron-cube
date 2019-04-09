@@ -50,7 +50,6 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
-import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -626,14 +625,14 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
   }
 
   @Override
-  public TabularFormat toTabularFormat(
-      final TopNQuery query, final Sequence<Result<TopNResultValue>> sequence, final String timestampColumn
+  public Function<Sequence<Result<TopNResultValue>>, Sequence<Map<String, Object>>> asMap(
+      final TopNQuery query, final String timestampColumn
   )
   {
-    return new TabularFormat()
+    return new Function<Sequence<Result<TopNResultValue>>, Sequence<Map<String, Object>>>()
     {
       @Override
-      public Sequence<Map<String, Object>> getSequence()
+      public Sequence<Map<String, Object>> apply(Sequence<Result<TopNResultValue>> sequence)
       {
         return Sequences.explode(
             sequence, new Function<Result<TopNResultValue>, Sequence<Map<String, Object>>>()
@@ -645,12 +644,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
               }
             }
         );
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return null;
       }
     };
   }

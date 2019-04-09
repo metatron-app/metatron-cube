@@ -291,12 +291,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * currently, only select and group-by query supports this.
    *
    * @param query
-   * @param sequence
    * @return
    */
-  public TabularFormat toTabularFormat(QueryType query, Sequence<ResultType> sequence, String timestampColumn)
+  public Function<Sequence<ResultType>, Sequence<Map<String, Object>>> asMap(QueryType query, String timestampColumn)
   {
-    throw new UnsupportedOperationException("toTabularFormat");
+    throw new UnsupportedOperationException("asMap");
   }
 
   @SuppressWarnings("unchecked")

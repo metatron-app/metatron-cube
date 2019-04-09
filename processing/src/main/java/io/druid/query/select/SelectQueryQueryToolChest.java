@@ -55,7 +55,6 @@ import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.TableDataSource;
-import io.druid.query.TabularFormat;
 import io.druid.query.UnionDataSource;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -612,18 +611,15 @@ public class SelectQueryQueryToolChest
   }
 
   @Override
-  public TabularFormat toTabularFormat(
+  public Function<Sequence<Result<SelectResultValue>>, Sequence<Map<String, Object>>> asMap(
       final SelectQuery query,
-      final Sequence<Result<SelectResultValue>> sequence,
       final String timestampColumn
   )
   {
-    return new TabularFormat()
+    return new Function<Sequence<Result<SelectResultValue>>, Sequence<Map<String,Object>>>()
     {
-      final Map<String, Object> pagingSpec = Maps.newHashMap();
-
       @Override
-      public Sequence<Map<String, Object>> getSequence()
+      public Sequence<Map<String, Object>> apply(Sequence<Result<SelectResultValue>> sequence)
       {
         return Sequences.explode(
             sequence, new Function<Result<SelectResultValue>, Sequence<Map<String, Object>>>()
@@ -631,7 +627,6 @@ public class SelectQueryQueryToolChest
               @Override
               public Sequence<Map<String, Object>> apply(Result<SelectResultValue> input)
               {
-                pagingSpec.putAll(input.getValue().getPagingIdentifiers());
                 return Sequences.simple(
                     Iterables.transform(
                         input.getValue().getEvents(), new Function<EventHolder, Map<String, Object>>()
@@ -654,12 +649,6 @@ public class SelectQueryQueryToolChest
               }
             }
         );
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return pagingSpec;
       }
     };
   }

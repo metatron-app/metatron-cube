@@ -35,7 +35,7 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
 import io.druid.query.StorageHandler;
-import io.druid.query.TabularFormat;
+import io.druid.query.QueryResult;
 import io.druid.segment.SegmentUtils;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -138,7 +138,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, StorageHandler
   }
 
   @Override
-  public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
+  public Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context)
       throws IOException
   {
     log.info("Result will be forwarded to " + location + " with context " + context);
@@ -162,17 +162,6 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, StorageHandler
     }
     finally {
       info.putAll(exporter.close());
-    }
-
-    if (!PropUtils.parseBoolean(context, "skipMetaFile", false)) {
-      Map<String, Object> metaData = result.getMetaData();
-      if (metaData != null && !metaData.isEmpty()) {
-        File metaFile = new File(targetDirectory, PropUtils.parseString(context, "metaFileName", ".meta"));
-        try (OutputStream output = new FileOutputStream(metaFile)) {
-          jsonMapper.writeValue(output, metaData);
-        }
-        info.put("meta", ImmutableMap.of(rewrite(location, metaFile), metaFile.length()));
-      }
     }
     return info;
   }

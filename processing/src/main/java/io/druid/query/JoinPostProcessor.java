@@ -126,7 +126,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
                 QueryToolChest toolChest = warehouse.getToolChest(element);
                 if (toolChest != null) {
-                  sequence = toolChest.toTabularFormat(element, sequence, null).getSequence();
+                  sequence = (Sequence) toolChest.asMap(element, null).apply(sequence);
                 }
                 sequencesList[index.intValue()].add(sequence);
                 hashing[index.intValue()] = element.getContextBoolean("hash", false);

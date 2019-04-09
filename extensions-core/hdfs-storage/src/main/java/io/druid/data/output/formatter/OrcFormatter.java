@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
+import io.druid.data.Rows;
+import io.druid.data.ValueDesc;
 import io.druid.data.output.Formatter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -65,19 +67,29 @@ public class OrcFormatter implements Formatter
   public OrcFormatter(Path path, FileSystem fs, String typeString, ObjectMapper mapper) throws IOException
   {
     this.mapper = mapper;
-    columnNames = Lists.newArrayList();
+    this.columnNames = Lists.newArrayList();
     StringBuilder builder = new StringBuilder();
     builder.append("struct<");
     for (String column : typeString.split(",")) {
       if (builder.length() > 7) {
         builder.append(",");
       }
-      builder.append(column);
       int index = column.indexOf(':');
       if (index < 0) {
+        builder.append(column);
         builder.append(":string");
         columnNames.add(column);
       } else {
+        String type = column.substring(index + 1, column.length());
+        if (ValueDesc.isDimension(type)) {
+          builder.append(column, 0, index);
+          builder.append(':').append(ValueDesc.subElementOf(type));
+        } else if (type.equalsIgnoreCase(ValueDesc.LONG_TYPE)) {
+          builder.append(column, 0, index);
+          builder.append(":bigint");
+        } else {
+          builder.append(column);
+        }
         columnNames.add(column.substring(0, index));
       }
     }
@@ -126,23 +138,21 @@ public class OrcFormatter implements Formatter
     switch (column.getCategory()) {
       case INT:
       case LONG:
-        long l = object instanceof Number ? ((Number) object).longValue() : Long.valueOf(object.toString());
-        ((LongColumnVector) vector).vector[rowId] = l;
+        ((LongColumnVector) vector).vector[rowId] = Rows.parseLong(object);
         break;
       case FLOAT:
       case DOUBLE:
-        double d = object instanceof Number ? ((Number) object).doubleValue() : Double.valueOf(object.toString());
-        ((DoubleColumnVector) vector).vector[rowId] = d;
+        ((DoubleColumnVector) vector).vector[rowId] = Rows.parseDouble(object);
         break;
       case STRING:
         ((BytesColumnVector) vector).setVal(rowId, StringUtils.toUtf8(object.toString()));
         break;
       case BINARY:
-        byte[] b = object instanceof byte[] ? (byte[])object : mapper.writeValueAsBytes(object);
+        byte[] b = object instanceof byte[] ? (byte[]) object : mapper.writeValueAsBytes(object);
         ((BytesColumnVector) vector).setVal(rowId, b, 1, b.length - 1);
         break;
       case LIST:
-        ListColumnVector list = (ListColumnVector) vector;
+        final ListColumnVector list = (ListColumnVector) vector;
         final TypeDescription elementType = column.getChildren().get(0);
         final ColumnVector elements = list.child;
         final int offset = list.childCount;

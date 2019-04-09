@@ -48,12 +48,12 @@ public class PostProcessingOperators
     };
   }
 
-  public static Map<String, Object> tabular(final ObjectMapper mapper, final String timestampColumn)
+  public static Map<String, Object> toMap(final ObjectMapper mapper, final String timestampColumn)
   {
     return ImmutableMap.of(
         Query.POST_PROCESSING,
         mapper.convertValue(
-            ImmutableMap.of("type", "tabular", "timestampColumn", timestampColumn),
+            ImmutableMap.of("type", "toMap", "timestampColumn", timestampColumn),
             new TypeReference<PostProcessingOperator>()
             {
             }

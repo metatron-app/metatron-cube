@@ -31,7 +31,6 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
-import io.druid.query.TabularFormat;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -78,24 +77,17 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   }
 
   @Override
-  public TabularFormat toTabularFormat(
+  public Function<Sequence<Object[]>, Sequence<Map<String, Object>>> asMap(
       final StreamQuery query,
-      final Sequence<Object[]> sequence,
       final String timestampColumn
   )
   {
-    return new TabularFormat()
+    return new Function<Sequence<Object[]>, Sequence<Map<String, Object>>>()
     {
       @Override
-      public Sequence<Map<String, Object>> getSequence()
+      public Sequence<Map<String, Object>> apply(Sequence<Object[]> sequence)
       {
         return query.asMap(sequence);
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return null;
       }
     };
   }

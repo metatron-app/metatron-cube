@@ -327,40 +327,28 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   protected abstract byte queryCode();
 
   @Override
-  public TabularFormat toTabularFormat(
-      final T query,
-      final Sequence<Row> sequence,
-      final String timestampColumn
-  )
+  public Function<Sequence<Row>, Sequence<Map<String, Object>>> asMap(final T query, final String timestampColumn)
   {
-    return new TabularFormat()
+    return new Function<Sequence<Row>, Sequence<Map<String, Object>>>()
     {
       @Override
-      public Sequence<Map<String, Object>> getSequence()
+      public Sequence<Map<String, Object>> apply(Sequence<Row> input)
       {
-        return Sequences.map(
-            sequence, new Function<Row, Map<String, Object>>()
-            {
-              @Override
-              public Map<String, Object> apply(Row input)
-              {
-                Map<String, Object> event = ((MapBasedRow) input).getEvent();
-                if (timestampColumn != null) {
-                  if (!MapBasedRow.supportInplaceUpdate(event)) {
-                    event = Maps.newLinkedHashMap(event);
-                  }
-                  event.put(timestampColumn, input.getTimestamp());
-                }
-                return event;
+        return Sequences.map(input, new Function<Row, Map<String, Object>>()
+        {
+          @Override
+          public Map<String, Object> apply(Row input)
+          {
+            Map<String, Object> event = ((MapBasedRow) input).getEvent();
+            if (timestampColumn != null) {
+              if (!MapBasedRow.supportInplaceUpdate(event)) {
+                event = Maps.newLinkedHashMap(event);
               }
+              event.put(timestampColumn, input.getTimestamp());
             }
-        );
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return null;
+            return event;
+          }
+        });
       }
     };
   }

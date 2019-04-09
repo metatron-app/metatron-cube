@@ -30,7 +30,7 @@ import io.druid.query.select.Schema;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = XJoinPostProcessor.class),
-    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
+    @JsonSubTypes.Type(name = "toMap", value = ToMapPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
     @JsonSubTypes.Type(name = "rowToArray", value = RowToArray.class),

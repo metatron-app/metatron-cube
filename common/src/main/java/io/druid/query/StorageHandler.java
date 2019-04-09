@@ -38,7 +38,7 @@ public interface StorageHandler
 
   Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context) throws IOException;
 
-  Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context) throws IOException;
+  Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context) throws IOException;
 
   StorageHandler NULL = new StorageHandler()
   {
@@ -51,7 +51,7 @@ public interface StorageHandler
 
     @Override
     public Map<String, Object> write(
-        URI location, TabularFormat result, Map<String, Object> context
+        URI location, QueryResult result, Map<String, Object> context
     ) throws IOException
     {
       return ImmutableMap.<String, Object>of(

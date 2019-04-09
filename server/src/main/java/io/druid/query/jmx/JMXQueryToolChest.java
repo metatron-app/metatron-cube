@@ -26,7 +26,6 @@ import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
-import io.druid.query.TabularFormat;
 import org.joda.time.DateTime;
 
 import java.util.Map;
@@ -47,16 +46,15 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   }
 
   @Override
-  public TabularFormat toTabularFormat(
+  public Function<Sequence<Map<String, Object>>, Sequence<Map<String, Object>>> asMap(
       final JMXQuery query,
-      final Sequence<Map<String, Object>> sequence,
       final String timestampColumn
   )
   {
-    return new TabularFormat()
+    return new Function<Sequence<Map<String, Object>>, Sequence<Map<String, Object>>>()
     {
       @Override
-      public Sequence<Map<String, Object>> getSequence()
+      public Sequence<Map<String, Object>> apply(Sequence<Map<String, Object>> sequence)
       {
         return Sequences.explode(
             sequence, new Function<Map<String, Object>, Sequence<Map<String, Object>>>()
@@ -85,12 +83,6 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
               }
             }
         );
-      }
-
-      @Override
-      public Map<String, Object> getMetaData()
-      {
-        return null;
       }
     };
   }

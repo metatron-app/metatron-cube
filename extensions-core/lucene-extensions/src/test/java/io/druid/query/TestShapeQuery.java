@@ -48,7 +48,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource("seoul_roads")
         .columns(columns)
-        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "tabular", "timestampColumn", "__time"));
+        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
 
     List<Map<String, Object>> expected = createExpectedMaps(
         columns,

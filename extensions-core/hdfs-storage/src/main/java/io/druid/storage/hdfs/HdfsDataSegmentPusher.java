@@ -50,7 +50,7 @@ import io.druid.data.output.formatter.OrcFormatter;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.StorageHandler;
-import io.druid.query.TabularFormat;
+import io.druid.query.QueryResult;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
@@ -248,16 +248,16 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
   }
 
   @Override
-  public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
+  public Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context)
       throws IOException
   {
     log.info("Result will be forwarded to [%s] with context %s", location, context);
-    Path parent = new Path(location);
-    Path targetDirectory = parent;
+    Path nominalPath = new Path(location);
+    Path physicalPath = nominalPath;
     if (StorageHandler.FILE_SCHEME.equals(location.getScheme())) {
-      targetDirectory = new Path(rewrite(location, null, -1));
+      physicalPath = new Path(rewrite(location, null, -1));
     }
-    FileSystem fileSystem = targetDirectory.getFileSystem(hadoopConfig);
+    FileSystem fileSystem = physicalPath.getFileSystem(hadoopConfig);
     if (fileSystem instanceof LocalFileSystem) {
       // we don't need crc
       fileSystem = ((LocalFileSystem) fileSystem).getRawFileSystem();
@@ -265,34 +265,23 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
 
     boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
     if (cleanup) {
-      fileSystem.delete(targetDirectory, true);
+      fileSystem.delete(physicalPath, true);
     }
-    if (fileSystem.isFile(targetDirectory)) {
+    if (fileSystem.isFile(physicalPath)) {
       throw new IllegalStateException("'resultDirectory' should not be a file");
     }
-    if (!fileSystem.exists(targetDirectory) && !fileSystem.mkdirs(targetDirectory)) {
+    if (!fileSystem.exists(physicalPath) && !fileSystem.mkdirs(physicalPath)) {
       throw new IllegalStateException("failed to make target directory");
     }
     Map<String, Object> info = Maps.newLinkedHashMap();
-    String format = Formatters.getFormat(context);
-    CountingAccumulator exporter = toExporter(format, parent, context, fileSystem, targetDirectory);
+    CountingAccumulator exporter = toExporter(result, context, nominalPath, physicalPath, fileSystem);
     try {
       result.getSequence().accumulate(null, exporter.init());
-    }
-    finally {
+    } catch (Exception ex) {
+      log.warn(ex, "failed");
+      throw Throwables.propagate(ex);
+    } finally {
       info.putAll(exporter.close());
-    }
-
-    if (format.equals("index") || !PropUtils.parseBoolean(context, "skipMetaFile", false)) {
-      Map<String, Object> metaData = result.getMetaData();
-      if (metaData != null && !metaData.isEmpty()) {
-        Path metaFile = new Path(targetDirectory, PropUtils.parseString(context, "metaFileName", ".meta"));
-        try (OutputStream output = fileSystem.create(metaFile)) {
-          jsonMapper.writeValue(output, metaData);
-        }
-        Path metaLocation = new Path(parent, metaFile.getName());
-        info.put("meta", ImmutableMap.of(metaLocation.toString(), fileSystem.getFileStatus(metaFile).getLen()));
-      }
     }
     return info;
   }
@@ -316,14 +305,16 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
   }
 
   private CountingAccumulator toExporter(
-      final String format,
-      final Path parent,
+      final QueryResult result,
       final Map<String, Object> context,
-      final FileSystem fs,
-      final Path targetDirectory
+      final Path nominalPath,
+      final Path physicalPath,
+      final FileSystem fs
   )
       throws IOException
   {
+    final String format = Formatters.getFormat(context);
+
     if ("index".equals(format)) {
       final long start = System.currentTimeMillis();
       final String timestampColumn = PropUtils.parseString(context, "timestampColumn", Row.TIME_COLUMN_NAME);
@@ -338,7 +329,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
 
-      final Path finalPath = new Path(targetDirectory, dataSource);
+      final Path finalPath = new Path(physicalPath, dataSource);
       fs.mkdirs(finalPath);
 
       final File temp = File.createTempFile("forward", "index");
@@ -462,7 +453,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
           metaData.put("rowCount", rowCount);
           metaData.put(
               "data", ImmutableMap.of(
-                  "location", new Path(parent, dataSource).toUri(),
+                  "location", new Path(nominalPath, dataSource).toUri(),
                   "length", length,
                   "dataSource", dataSource,
                   "segment", segment
@@ -530,10 +521,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
         }
       };
     }
-    final Path dataFile = new Path(targetDirectory, PropUtils.parseString(context, "dataFileName", "data"));
+    final Path dataFile = new Path(physicalPath, PropUtils.parseString(context, "dataFileName", "data"));
     if ("orc".equals(format)) {
-      String schema = Objects.toString(context.get("schema"), null);
-      return Formatters.wrapToExporter(new OrcFormatter(dataFile, fs, schema, jsonMapper));
+      return Formatters.wrapToExporter(new OrcFormatter(dataFile, fs, result.getTypeString(), jsonMapper));
     }
     return Formatters.toBasicExporter(
         context, jsonMapper, new ByteSink()
@@ -547,7 +537,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, StorageHandler
           @Override
           public String toString()
           {
-            return new Path(parent, dataFile.getName()).toString();
+            return new Path(nominalPath, dataFile.getName()).toString();
           }
         }
     );

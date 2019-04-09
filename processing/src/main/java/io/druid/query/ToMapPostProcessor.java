@@ -29,13 +29,13 @@ import java.util.Map;
 
 /**
  */
-public class TabularPostProcessor extends PostProcessingOperator.Abstract
+public class ToMapPostProcessor extends PostProcessingOperator.Abstract
 {
   private final String timestampColumn;
   private final QueryToolChestWarehouse warehouse;
 
   @JsonCreator
-  public TabularPostProcessor(
+  public ToMapPostProcessor(
       @JsonProperty("timestampColumn") String timestampColumn,
       @JacksonInject QueryToolChestWarehouse warehouse
   )
@@ -62,7 +62,7 @@ public class TabularPostProcessor extends PostProcessingOperator.Abstract
       {
         QueryToolChest toolChest = warehouse.getToolChest(query);
         Sequence sequence = baseQueryRunner.run(query, responseContext);
-        return toolChest == null ? sequence : toolChest.toTabularFormat(query, sequence, timestampColumn).getSequence();
+        return toolChest == null ? sequence : (Sequence) toolChest.asMap(query, timestampColumn).apply(sequence);
       }
     };
   }

@@ -19,15 +19,36 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
 import com.metamx.common.guava.Sequence;
 
 import java.util.Map;
 
 /**
  */
-public interface TabularFormat
+public class QueryResult
 {
-  Sequence<Map<String, Object>> getSequence();
+  public static QueryResult of(Sequence<Map<String, Object>> sequence, Supplier<String> typeString)
+  {
+    return new QueryResult(sequence, typeString);
+  }
 
-  Map<String, Object> getMetaData();
+  private final Sequence<Map<String, Object>> sequence;
+  private final Supplier<String> typeString;
+
+  private QueryResult(Sequence<Map<String, Object>> sequence, Supplier<String> typeString)
+  {
+    this.typeString = typeString;
+    this.sequence = sequence;
+  }
+
+  public String getTypeString()
+  {
+    return typeString.get();
+  }
+
+  public Sequence<Map<String, Object>> getSequence()
+  {
+    return sequence;
+  }
 }

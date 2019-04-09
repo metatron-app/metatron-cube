@@ -19,7 +19,7 @@ public class TestEstateQuery extends QueryRunnerTestHelper
         .dataSource("estate")
         .columns(columns)
         .orderBy(OrderByColumnSpec.descending("amt"))
-        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "tabular", "timestampColumn", "__time"));
+        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
 
 
     List<Map<String, Object>> expected = createExpectedMaps(

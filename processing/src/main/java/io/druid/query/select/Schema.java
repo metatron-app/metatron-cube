@@ -222,6 +222,11 @@ public class Schema implements TypeResolver, RowSignature
     return toString(metricAndTypes());
   }
 
+  public String columnAndTypesString()
+  {
+    return toString(columnAndTypes());
+  }
+
   private String toString(Iterable<Pair<String, ValueDesc>> nameAndTypes)
   {
     StringBuilder builder = new StringBuilder();
