@@ -752,10 +752,12 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                           @Override
                           protected Interval mapInternal(int index, Map<String, Object> row)
                           {
-                            return new Interval(
-                                DateTime.parse((String) row.get("start")),
-                                DateTime.parse((String) row.get("end"))
-                            );
+                            final String start = (String) row.get("start");
+                            final String end = (String) row.get("end");
+                            if (start == null || end == null) {
+                              return null;
+                            }
+                            return new Interval(DateTime.parse(start), DateTime.parse(end));
                           }
                         }
                     )
