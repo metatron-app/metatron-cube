@@ -32,7 +32,6 @@ import com.google.inject.Inject;
 import com.metamx.common.MapUtils;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Comparators;
-import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.client.CoordinatorServerView;
@@ -828,32 +827,12 @@ public class DatasourcesResource
       return Response.ok(Lists.<ImmutableSegmentLoadInfo>newArrayList()).build();
     }
 
-    Iterable<TimelineObjectHolder<String, SegmentLoadInfo>> lookup = timeline.lookupWithIncompletePartitions(theInterval);
-    FunctionalIterable<ImmutableSegmentLoadInfo> retval = FunctionalIterable
-        .create(lookup).transformCat(
-            new Function<TimelineObjectHolder<String, SegmentLoadInfo>, Iterable<ImmutableSegmentLoadInfo>>()
-            {
-              @Override
-              public Iterable<ImmutableSegmentLoadInfo> apply(
-                  TimelineObjectHolder<String, SegmentLoadInfo> input
-              )
-              {
-                return Iterables.transform(
-                    input.getObject(),
-                    new Function<PartitionChunk<SegmentLoadInfo>, ImmutableSegmentLoadInfo>()
-                    {
-                      @Override
-                      public ImmutableSegmentLoadInfo apply(
-                          PartitionChunk<SegmentLoadInfo> chunk
-                      )
-                      {
-                        return chunk.getObject().toImmutableSegmentLoadInfo();
-                      }
-                    }
-                );
-              }
-            }
-        );
-    return Response.ok(retval).build();
+    final List<ImmutableSegmentLoadInfo> segments = Lists.newArrayList();
+    for (TimelineObjectHolder<String, SegmentLoadInfo> lookup : timeline.lookupWithIncompletePartitions(theInterval)) {
+      for (PartitionChunk<SegmentLoadInfo> segment : lookup.getObject()) {
+        segments.add(segment.getObject().toImmutableSegmentLoadInfo());
+      }
+    }
+    return Response.ok(segments).build();
   }
 }
