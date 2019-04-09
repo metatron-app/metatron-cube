@@ -84,7 +84,8 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
     loadQueuePeon = new LoadQueuePeon(
         curator,
-        LOAD_QUEUE_PATH,
+        "/druid/loadqueue",
+        "localhost:1234",
         jsonMapper,
         Execs.scheduledSingleThreaded("test_load_queue_peon_scheduled-%d"),
         Execs.singleThreaded("test_load_queue_peon-%d"),
@@ -289,7 +290,8 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
     loadQueuePeon = new LoadQueuePeon(
         curator,
-        LOAD_QUEUE_PATH,
+        "/druid/loadqueue",
+        "localhost:1234",
         jsonMapper,
         Execs.scheduledSingleThreaded("test_load_queue_peon_scheduled-%d"),
         Execs.singleThreaded("test_load_queue_peon-%d"),

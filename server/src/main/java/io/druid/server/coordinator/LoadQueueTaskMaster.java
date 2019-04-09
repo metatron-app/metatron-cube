@@ -53,8 +53,8 @@ public class LoadQueueTaskMaster
     this.config = config;
   }
 
-  public LoadQueuePeon giveMePeon(String basePath)
+  public LoadQueuePeon giveMePeon(String loadQueuePath, String server)
   {
-    return new LoadQueuePeon(curator, basePath, jsonMapper, peonExec, callbackExec, config);
+    return new LoadQueuePeon(curator, loadQueuePath, server, jsonMapper, peonExec, callbackExec, config);
   }
 }

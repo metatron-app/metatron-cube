@@ -133,7 +133,8 @@ public class DruidCoordinatorTest extends CuratorTestBase
     pathChildrenCache = new PathChildrenCache(curator, LOADPATH, true, true, Execs.singleThreaded("coordinator_test_path_children_cache-%d"));
     loadQueuePeon = new LoadQueuePeon(
       curator,
-      LOADPATH,
+      "/druid/loadqueue",
+      "localhost:1234",
       objectMapper,
       Execs.scheduledSingleThreaded("coordinator_test_load_queue_peon_scheduled-%d"),
       Execs.singleThreaded("coordinator_test_load_queue_peon-%d"),

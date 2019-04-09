@@ -891,9 +891,8 @@ public class DruidCoordinator
     final DruidCluster cluster = new DruidCluster();
     for (ImmutableDruidServer server : servers) {
       if (!loadManagementPeons.containsKey(server.getName())) {
-        String basePath = ZKPaths.makePath(zkPaths.getLoadQueuePath(), server.getName());
-        LoadQueuePeon loadQueuePeon = taskMaster.giveMePeon(basePath);
-        log.info("Creating LoadQueuePeon for server[%s] at path[%s]", server.getName(), basePath);
+        LoadQueuePeon loadQueuePeon = taskMaster.giveMePeon(zkPaths.getLoadQueuePath(), server.getName());
+        log.info("Creating LoadQueuePeon for server[%s] at path[%s]", server.getName(), loadQueuePeon.getBasePath());
 
         loadManagementPeons.put(server.getName(), loadQueuePeon);
       }

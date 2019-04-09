@@ -65,6 +65,7 @@ public class LoadQueuePeon
   }
 
   private final CuratorFramework curator;
+  private final String server;
   private final String basePath;
   private final ObjectMapper jsonMapper;
   private final ScheduledExecutorService processingExecutor;
@@ -88,7 +89,8 @@ public class LoadQueuePeon
 
   LoadQueuePeon(
       CuratorFramework curator,
-      String basePath,
+      String loadQueuePath,
+      String server,
       ObjectMapper jsonMapper,
       ScheduledExecutorService processingExecutor,
       ExecutorService callbackExecutor,
@@ -96,7 +98,8 @@ public class LoadQueuePeon
   )
   {
     this.curator = curator;
-    this.basePath = basePath;
+    this.server = server;
+    this.basePath = ZKPaths.makePath(loadQueuePath, server);
     this.jsonMapper = jsonMapper;
     this.callBackExecutor = callbackExecutor;
     this.processingExecutor = processingExecutor;
@@ -179,7 +182,7 @@ public class LoadQueuePeon
       }
     }
 
-    log.info("Asking server [%s] to load segment[%s] for [%s]", basePath, segment.getIdentifier(), loadReason);
+    log.info("Asking server [%s] to load segment[%s] for [%s]", server, segment.getIdentifier(), loadReason);
     queuedSize.addAndGet(segment.getSize());
     segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, Arrays.asList(callback)));
     doNext();
@@ -219,7 +222,7 @@ public class LoadQueuePeon
       }
     }
 
-    log.info("Asking server [%s] to drop segment[%s] for [%s]", basePath, segment.getIdentifier(), dropReason);
+    log.info("Asking server [%s] to drop segment[%s] for [%s]", server, segment.getIdentifier(), dropReason);
     segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, Arrays.asList(callback)));
     doNext();
   }
@@ -230,10 +233,10 @@ public class LoadQueuePeon
       if (currentlyProcessing == null) {
         if (!segmentsToDrop.isEmpty()) {
           currentlyProcessing = segmentsToDrop.firstEntry().getValue();
-          log.debug("Server[%s] dropping [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
+          log.debug("Server[%s] dropping [%s]", server, currentlyProcessing.getSegmentIdentifier());
         } else if (!segmentsToLoad.isEmpty()) {
           currentlyProcessing = segmentsToLoad.firstEntry().getValue();
-          log.debug("Server[%s] loading [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
+          log.debug("Server[%s] loading [%s]", server, currentlyProcessing.getSegmentIdentifier());
         } else {
           return;
         }
@@ -249,7 +252,7 @@ public class LoadQueuePeon
                     // expected when the coordinator looses leadership and LoadQueuePeon is stopped.
                     if (currentlyProcessing == null) {
                       if(!stopped) {
-                        log.makeAlert("Crazy race condition! server[%s]", basePath)
+                        log.makeAlert("Crazy race condition! server[%s]", server)
                            .emit();
                       }
                       actionCompleted();
@@ -257,7 +260,7 @@ public class LoadQueuePeon
                       return;
                     }
                     String identifier = currentlyProcessing.getSegmentIdentifier();
-                    log.debug("Server[%s] processing segment[%s]", basePath, identifier);
+                    log.debug("Server[%s] processing segment[%s]", server, identifier);
 
                     final String path = ZKPaths.makePath(basePath, identifier);
                     final byte[] payload = jsonMapper.writeValueAsBytes(currentlyProcessing.getChangeRequest());
@@ -328,7 +331,7 @@ public class LoadQueuePeon
       } else {
         log.debug(
             "Server[%s] skipping doNext() because something is currently loading[%s].",
-            basePath,
+            server,
             currentlyProcessing.getSegmentIdentifier()
         );
       }
@@ -397,13 +400,13 @@ public class LoadQueuePeon
   {
     synchronized (lock) {
       if (currentlyProcessing == null) {
-        log.warn("Server[%s] an entry[%s] was removed even though it wasn't loading!?", basePath, path);
+        log.warn("Server[%s] an entry[%s] was removed even though it wasn't loading!?", server, path);
         return;
       }
       if (!ZKPaths.getNodeFromPath(path).equals(currentlyProcessing.getSegmentIdentifier())) {
         log.warn(
             "Server[%s] entry [%s] was removed even though it's not what is currently loading[%s]",
-            basePath, path, currentlyProcessing
+            server, path, currentlyProcessing
         );
         return;
       }
@@ -417,7 +420,7 @@ public class LoadQueuePeon
   private void failAssign(Exception e)
   {
     synchronized (lock) {
-      log.error(e, "Server[%s], throwable caught when submitting [%s].", basePath, currentlyProcessing);
+      log.error(e, "Server[%s], throwable caught when submitting [%s].", server, currentlyProcessing);
       failedAssignCount.getAndIncrement();
       // Act like it was completed so that the coordinator gives it to someone else
       actionCompleted();
