@@ -30,6 +30,7 @@ import com.metamx.common.concurrent.ScheduledExecutorFactory;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.concurrent.Execs;
 import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoadingException;
@@ -43,9 +44,12 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.utils.ZKPaths;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -74,7 +78,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   private final ServerManager serverManager;
   private final ScheduledExecutorService exec;
   private final ConcurrentSkipListSet<DataSegment> segmentsToDelete;
-
+  private final Set<DataSegment> fileNotFoundSegment;
+  private final CoordinatorClient coordinatorClient;
 
   private volatile PathChildrenCache loadQueueCache;
   private volatile boolean started = false;
@@ -88,7 +93,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       DataSegmentAnnouncer announcer,
       CuratorFramework curator,
       ServerManager serverManager,
-      ScheduledExecutorFactory factory
+      ScheduledExecutorFactory factory,
+      CoordinatorClient coordinatorClient
   )
   {
     this.jsonMapper = jsonMapper;
@@ -98,9 +104,11 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     this.curator = curator;
     this.announcer = announcer;
     this.serverManager = serverManager;
+    this.coordinatorClient = coordinatorClient;
 
     this.exec = factory.create(1, "ZkCoordinator-Exec--%d");
     this.segmentsToDelete = new ConcurrentSkipListSet<>();
+    this.fileNotFoundSegment = new HashSet<>();
   }
 
   @LifecycleStart
@@ -309,6 +317,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       loaded = serverManager.loadSegment(segment);
     }
     catch (Exception e) {
+      handleFileNotFound(segment, e);
       removeSegment(segment, callback);
       throw new SegmentLoadingException(e, "Exception loading segment[%s]", segment.getIdentifier());
     }
@@ -327,6 +336,43 @@ public class ZkCoordinator implements DataSegmentChangeHandler
         }
       }
     }
+  }
+
+  // someone removed segment in deep storage..
+  private void handleFileNotFound(DataSegment segment, Exception e)
+  {
+    if (config.getReportFileNotFoundIntervalMillis() > 0 && hasException(e, FileNotFoundException.class)) {
+      synchronized (fileNotFoundSegment) {
+        fileNotFoundSegment.add(segment.withMinimum());
+      }
+      exec.schedule(
+          new Runnable() {
+            @Override
+            public void run()
+            {
+              DataSegment[] segments;
+              synchronized (fileNotFoundSegment) {
+                segments = fileNotFoundSegment.toArray(new DataSegment[0]);
+                fileNotFoundSegment.clear();
+              }
+              if (segments.length > 0) {
+                coordinatorClient.reportFileNotFound(segments);
+              }
+            }
+          },
+          config.getReportFileNotFoundIntervalMillis(),
+          TimeUnit.MILLISECONDS);
+    }
+  }
+
+  private boolean hasException(Exception exception, Class<? extends Exception> find)
+  {
+    for (Throwable current = exception; current != null; current = current.getCause()) {
+      if (find.isInstance(current)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

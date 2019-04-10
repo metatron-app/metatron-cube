@@ -23,8 +23,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.common.IAE;
+import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.common.DateTimes;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
@@ -54,6 +56,11 @@ public abstract class LoadRule implements Rule
   @Override
   public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
+    final Pair<Long, List<String>> fails = coordinator.getRecentlyFailedServers(segment);
+    if (fails != null && fails.rhs.size() > 3) {
+      log.info("Skip segment [%s] for recent [%s] fails on %s", segment, DateTimes.utc(fails.lhs), fails.rhs);
+      return false;
+    }
     final CoordinatorStats stats = params.getCoordinatorStats();
     final Set<DataSegment> availableSegments = params.getAvailableSegments();
 
@@ -80,8 +87,21 @@ public abstract class LoadRule implements Rule
       }
       final int loadedReplicantsInTier = replicantLookup.getLoadedReplicants(segment.getIdentifier(), tier);
 
-      final List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
-      if (availableSegments.contains(segment)) {
+      List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
+      if (fails != null) {
+        final Map<String, ServerHolder> serverHolderMap = Maps.newHashMap();
+        for (ServerHolder holder : serverHolderList) {
+          serverHolderMap.put(holder.getServer().getName(), holder);
+        }
+        for (String server : fails.rhs) {
+          serverHolderMap.remove(server);
+        }
+        if (serverHolderMap.isEmpty()) {
+          continue;
+        }
+        serverHolderList = Lists.newArrayList(serverHolderMap.values());
+      }
+      if (!serverHolderList.isEmpty() && availableSegments.contains(segment)) {
         int assigned = assign(
             tier,
             segment,

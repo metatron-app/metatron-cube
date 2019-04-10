@@ -259,7 +259,7 @@ public class BatchDataSegmentAnnouncerTest
     }
 
     List<String> zNodes = cf.getChildren().forPath(testSegmentsPath);
-    Assert.assertEquals(20, zNodes.size());
+    Assert.assertEquals(17, zNodes.size());       // become a little smaller (#1842)
 
     Set<DataSegment> segments = Sets.newHashSet(testSegments);
     for (String zNode : zNodes) {

@@ -38,6 +38,7 @@ import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.CostBalancerStrategyFactory;
 import io.druid.server.coordinator.DruidCluster;
+import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
@@ -75,6 +76,7 @@ public class LoadRuleTest
       )
   );
 
+  private DruidCoordinator coordinator;
   private LoadQueuePeon mockPeon;
   private ReplicationThrottler throttler;
   private DataSegment segment;
@@ -85,6 +87,11 @@ public class LoadRuleTest
   {
     EmittingLogger.registerEmitter(emitter);
     emitter.start();
+    coordinator = EasyMock.createMock(DruidCoordinator.class);
+    EasyMock.expect(coordinator.getRecentlyFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(null)
+            .anyTimes();
+    EasyMock.replay(coordinator);
+
     mockPeon = EasyMock.createMock(LoadQueuePeon.class);
     throttler = new ReplicationThrottler(2, 1);
     for (String tier : Arrays.asList("hot", DruidServer.DEFAULT_TIER)) {
@@ -213,7 +220,7 @@ public class LoadRuleTest
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
-    rule.run(null, params, segment);
+    rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
@@ -327,7 +334,7 @@ public class LoadRuleTest
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
-    rule.run(null, params, segment);
+    rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);
@@ -422,7 +429,7 @@ public class LoadRuleTest
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
-    rule.run(null, params, segment);
+    rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
@@ -531,7 +538,7 @@ public class LoadRuleTest
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
-    rule.run(null, params, segment);
+    rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);

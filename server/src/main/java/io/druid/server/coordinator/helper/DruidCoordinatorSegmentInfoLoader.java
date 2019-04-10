@@ -42,7 +42,7 @@ public class DruidCoordinatorSegmentInfoLoader implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    log.info("Starting coordination. Getting available segments.");
+    log.info("Starting coordination (%s). Getting available segments.", params.isMajorTick() ? "major" : "minor");
 
     // Display info about all available segments
     Supplier<Set<DataSegment>> supplier = new Supplier<Set<DataSegment>>()
@@ -51,13 +51,6 @@ public class DruidCoordinatorSegmentInfoLoader implements DruidCoordinatorHelper
       public Set<DataSegment> get()
       {
         final Set<DataSegment> availableSegments = coordinator.getOrderedAvailableDataSegments();
-        if (log.isDebugEnabled()) {
-          log.debug("Available DataSegments");
-          for (DataSegment dataSegment : availableSegments) {
-            log.debug("  %s", dataSegment);
-          }
-        }
-
         log.info("Found [%,d] available segments.", availableSegments.size());
         return Collections.unmodifiableSet(availableSegments);
       }

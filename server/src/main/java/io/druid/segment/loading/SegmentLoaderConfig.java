@@ -49,6 +49,9 @@ public class SegmentLoaderConfig
   @JsonProperty("numBootstrapThreads")
   private Integer numBootstrapThreads = null;
 
+  @JsonProperty("reportFileNotFoundIntervalMillis")
+  private int reportFileNotFoundIntervalMillis = 0;
+
   @JsonProperty
   private File infoDir = null;
 
@@ -70,6 +73,11 @@ public class SegmentLoaderConfig
   public int getAnnounceIntervalMillis()
   {
     return announceIntervalMillis;
+  }
+
+  public int getReportFileNotFoundIntervalMillis()
+  {
+    return reportFileNotFoundIntervalMillis;
   }
 
   public int getNumLoadingThreads()
@@ -95,6 +103,7 @@ public class SegmentLoaderConfig
     SegmentLoaderConfig retVal = new SegmentLoaderConfig();
     retVal.locations = Lists.newArrayList(locations);
     retVal.deleteOnRemove = this.deleteOnRemove;
+    retVal.reportFileNotFoundIntervalMillis = this.reportFileNotFoundIntervalMillis;
     retVal.infoDir = this.infoDir;
     return retVal;
   }
@@ -105,6 +114,7 @@ public class SegmentLoaderConfig
     return "SegmentLoaderConfig{" +
            "locations=" + locations +
            ", deleteOnRemove=" + deleteOnRemove +
+           ", reportFileNotFoundIntervalMillis=" + reportFileNotFoundIntervalMillis +
            ", dropSegmentDelayMillis=" + dropSegmentDelayMillis +
            ", infoDir=" + infoDir +
            '}';

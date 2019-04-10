@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.metamx.common.concurrent.ScheduledExecutorFactory;
 import com.metamx.common.concurrent.ScheduledExecutors;
@@ -38,11 +39,19 @@ import io.druid.client.cache.LocalCacheProvider;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.curator.announcement.Announcer;
+import io.druid.curator.discovery.DiscoveryModule;
+import io.druid.guice.ConfigModule;
+import io.druid.guice.CoordinatorDiscoveryModule;
+import io.druid.guice.DruidGuiceExtensions;
+import io.druid.guice.LifecycleModule;
+import io.druid.guice.annotations.Self;
+import io.druid.guice.http.HttpClientModule;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.NoopQueryRunnerFactoryConglomerate;
 import io.druid.segment.IndexIO;
 import io.druid.segment.loading.CacheTestSegmentLoader;
 import io.druid.segment.loading.SegmentLoaderConfig;
+import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
@@ -250,7 +259,8 @@ public class ZkCoordinatorTest extends CuratorTestBase
               }
             };
           }
-        }
+        },
+        null
     );
   }
 
@@ -479,11 +489,20 @@ public class ZkCoordinatorTest extends CuratorTestBase
   public void testInjector() throws Exception
   {
     Injector injector = Guice.createInjector(
+        new DruidGuiceExtensions(),
+        new LifecycleModule(),
+        new ConfigModule(),
+        new DiscoveryModule(),
+        new CoordinatorDiscoveryModule(),
+        HttpClientModule.global(),
         new Module()
         {
           @Override
           public void configure(Binder binder)
           {
+            binder.bind(Key.get(DruidNode.class, Self.class))
+                  .toInstance(new DruidNode("coordinator", "localhost", 8081));
+
             binder.bind(ObjectMapper.class).toInstance(jsonMapper);
             binder.bind(SegmentLoaderConfig.class).toInstance(
                 new SegmentLoaderConfig()

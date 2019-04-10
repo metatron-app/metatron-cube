@@ -33,6 +33,8 @@ import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.selector.Server;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.Self;
+import io.druid.server.DruidNode;
 import io.druid.timeline.DataSegment;
 import net.spy.memcached.util.StringUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -50,17 +52,20 @@ public class CoordinatorClient
 {
   private static final StatusResponseHandler RESPONSE_HANDLER = new StatusResponseHandler(Charsets.UTF_8);
 
+  private final DruidNode server;
   private final HttpClient client;
   private final ObjectMapper jsonMapper;
   private final ServerDiscoverySelector selector;
 
   @Inject
   public CoordinatorClient(
+      @Self DruidNode server,
       @Global HttpClient client,
       ObjectMapper jsonMapper,
       @Coordinator ServerDiscoverySelector selector
   )
   {
+    this.server = server;
     this.client = client;
     this.jsonMapper = jsonMapper;
     this.selector = selector;
@@ -106,6 +111,17 @@ public class CoordinatorClient
     return execute(HttpMethod.POST, resource, segments, new TypeReference<Map<String, Object>>() {});
   }
 
+  public StatusResponseHolder reportFileNotFound(DataSegment[] segments)
+  {
+    String resource = String.format("/report/segment/FileNotFound/%s", server.getHostAndPort());
+    try {
+      return execute(HttpMethod.POST, new URL(baseUrl() + resource), segments);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
   private <T> T execute(HttpMethod method, String resource, TypeReference<T> resultType)
   {
     return execute(method, resource, null, resultType);
@@ -114,19 +130,31 @@ public class CoordinatorClient
   private <T> T execute(HttpMethod method, String resource, Object payload, TypeReference<T> resultType)
   {
     try {
-      Request request = new Request(method, new URL(baseUrl() + resource));
-      if (payload != null) {
-        request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(payload));
-      }
-      StatusResponseHolder response = client.go(request, RESPONSE_HANDLER).get();
+     URL coordinatorURL = new URL(baseUrl() + resource);
+     StatusResponseHolder response = execute(method, coordinatorURL, payload);
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
         throw new ISE(
-            "Error while fetching serverView status[%s] content[%s]",
+            "Error while executing [%s].. status[%s] content[%s]",
+            coordinatorURL,
             response.getStatus(),
             response.getContent()
         );
       }
       return jsonMapper.readValue(response.getContent(), resultType);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private StatusResponseHolder execute(HttpMethod method, URL coordinatorURL, Object payload)
+  {
+    try {
+      Request request = new Request(method, coordinatorURL);
+      if (payload != null) {
+        request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(payload));
+      }
+      return client.go(request, RESPONSE_HANDLER).get();
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

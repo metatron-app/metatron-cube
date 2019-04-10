@@ -36,6 +36,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
@@ -198,5 +199,16 @@ public class CoordinatorResource
     assertTimeout = assertTimeout <= 0 ? DEFAULT_ASSERT_TIMEOUT : assertTimeout;
     CoordinatorStats stats = coordinator.scheduleNow(segments, assertLoaded, assertTimeout);
     return Response.ok(stats.getGlobalStats()).build();
+  }
+
+  @POST
+  @Path("/report/segment/FileNotFound/{server}")
+  @Produces({MediaType.APPLICATION_JSON})
+  @Consumes({MediaType.APPLICATION_JSON})
+  public Response reportSegmentFileNotFound(@PathParam("server") String server, Set<DataSegment> segments)
+      throws InterruptedException, ExecutionException, TimeoutException
+  {
+    coordinator.reportSegmentFileNotFound(server, segments);
+    return Response.ok().build();
   }
 }

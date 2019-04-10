@@ -69,6 +69,9 @@ public class DruidCoordinatorRuleRunnerTest
   public void setUp()
   {
     coordinator = EasyMock.createMock(DruidCoordinator.class);
+    EasyMock.expect(coordinator.getRecentlyFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(null)
+            .anyTimes();
+
     mockPeon = EasyMock.createMock(LoadQueuePeon.class);
     emitter = EasyMock.createMock(ServiceEmitter.class);
     EmittingLogger.registerEmitter(emitter);

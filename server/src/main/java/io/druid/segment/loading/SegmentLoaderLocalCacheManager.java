@@ -169,7 +169,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     StorageLocation loc = findStorageLocationIfLoaded(segment);
 
     if (loc == null) {
-      log.info("Asked to cleanup something[%s] that didn't exist.  Skipping.", segment);
+      log.debug("Asked to cleanup something[%s] that didn't exist.  Skipping.", segment);
       return;
     }
 

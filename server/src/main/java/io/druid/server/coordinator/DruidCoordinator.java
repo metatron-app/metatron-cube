@@ -52,6 +52,7 @@ import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServiceAnnouncer;
+import io.druid.data.KeyedData.StringKeyed;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.CoordinatorIndexingServiceHelper;
 import io.druid.guice.annotations.Self;
@@ -83,6 +84,7 @@ import org.joda.time.Interval;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -755,6 +757,60 @@ public class DruidCoordinator
 
     log.info("Done making indexing service helpers [%s]", helpers);
     return ImmutableList.copyOf(helpers);
+  }
+
+  // keep latest only ?
+  // seemed possible to disable the segment
+  private final Map<DataSegment, Set<StringKeyed<Long>>> reports = Maps.newHashMap();
+
+  public void reportSegmentFileNotFound(String server, Set<DataSegment> segments)
+  {
+    final long current = System.currentTimeMillis();
+    final long threshold = current - (config.getCoordinatorPeriod().getMillis() << 2);
+    synchronized (reports) {
+      for (DataSegment segment : segments) {
+        Set<StringKeyed<Long>> report = reports.get(segment);
+        if (report == null) {
+          reports.put(segment, report = Sets.newHashSet());
+        }
+        expire(report, threshold);
+        report.add(StringKeyed.of(server, current));
+      }
+    }
+  }
+
+  public Pair<Long, List<String>> getRecentlyFailedServers(DataSegment segment)
+  {
+    synchronized (reports) {
+      Set<StringKeyed<Long>> report = reports.get(segment);
+      if (report != null) {
+        expire(report, System.currentTimeMillis() - (config.getCoordinatorPeriod().getMillis() << 2));
+        if (report.isEmpty()) {
+          reports.remove(segment);
+          return null;
+        }
+        Long max = null;
+        List<String> servers = Lists.newArrayListWithCapacity(report.size());
+        for (StringKeyed<Long> server : report) {
+          servers.add(server.key);
+          if (max == null || max < server.value) {
+            max = server.value;
+          }
+        }
+        return Pair.of(max, servers);
+      }
+      return null;
+    }
+  }
+
+  private void expire(Set<StringKeyed<Long>> report, long threshold)
+  {
+    final Iterator<StringKeyed<Long>> iterator = report.iterator();
+    while (iterator.hasNext()) {
+      if (iterator.next().value < threshold) {
+        iterator.remove();
+      }
+    }
   }
 
   public abstract class CoordinatorRunnable implements Runnable

@@ -20,6 +20,7 @@
 package io.druid.timeline;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -46,6 +47,15 @@ import java.util.Map;
  */
 public class DataSegment implements Comparable<DataSegment>
 {
+  private static final Predicate<String> NON_EMPTY = new Predicate<String>()
+  {
+    @Override
+    public boolean apply(String input)
+    {
+      return input != null && !input.isEmpty();
+    }
+  };
+
   public static Function<DataSegment, String> GET_ID = new Function<DataSegment, String>()
   {
     @Override
@@ -113,15 +123,6 @@ public class DataSegment implements Comparable<DataSegment>
       @JsonProperty("size") long size
   )
   {
-    final Predicate<String> nonEmpty = new Predicate<String>()
-    {
-      @Override
-      public boolean apply(String input)
-      {
-        return input != null && !input.isEmpty();
-      }
-    };
-
     // dataSource, dimensions & metrics are stored as canonical string values to decrease memory required for storing large numbers of segments.
     this.dataSource = interner.intern(dataSource);
     this.interval = interval;
@@ -129,11 +130,11 @@ public class DataSegment implements Comparable<DataSegment>
     this.version = version;
     this.dimensions = dimensions == null
                       ? ImmutableList.<String>of()
-                      : ImmutableList.copyOf(Iterables.transform(Iterables.filter(dimensions, nonEmpty), internFun));
+                      : ImmutableList.copyOf(Iterables.transform(Iterables.filter(dimensions, NON_EMPTY), internFun));
     this.metrics = metrics == null
                    ? ImmutableList.<String>of()
-                   : ImmutableList.copyOf(Iterables.transform(Iterables.filter(metrics, nonEmpty), internFun));
-    this.shardSpec = (shardSpec == null) ? NoneShardSpec.instance() : shardSpec;
+                   : ImmutableList.copyOf(Iterables.transform(Iterables.filter(metrics, NON_EMPTY), internFun));
+    this.shardSpec = shardSpec == null ? NoneShardSpec.instance() : shardSpec;
     this.binaryVersion = binaryVersion;
     this.size = size;
 
@@ -164,18 +165,20 @@ public class DataSegment implements Comparable<DataSegment>
   }
 
   @JsonProperty
-  public Map<String, Object> getLoadSpec()
-  {
-    return loadSpec;
-  }
-
-  @JsonProperty
   public String getVersion()
   {
     return version;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, Object> getLoadSpec()
+  {
+    return loadSpec;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   @JsonSerialize(using = CommaListJoinSerializer.class)
   public List<String> getDimensions()
   {
@@ -183,6 +186,7 @@ public class DataSegment implements Comparable<DataSegment>
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   @JsonSerialize(using = CommaListJoinSerializer.class)
   public List<String> getMetrics()
   {
@@ -190,12 +194,14 @@ public class DataSegment implements Comparable<DataSegment>
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public ShardSpec getShardSpec()
   {
     return shardSpec;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Integer getBinaryVersion()
   {
     return binaryVersion;
@@ -256,6 +262,11 @@ public class DataSegment implements Comparable<DataSegment>
   public DataSegment withBinaryVersion(int binaryVersion)
   {
     return builder(this).binaryVersion(binaryVersion).build();
+  }
+
+  public DataSegment withMinimum()
+  {
+    return new DataSegment(dataSource, interval, version, null, null, null, shardSpec, binaryVersion, size);
   }
 
   @Override
