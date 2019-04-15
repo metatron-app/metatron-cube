@@ -36,6 +36,7 @@ import io.druid.guice.annotations.Self;
 import io.druid.server.DruidNode;
 import org.junit.Assert;
 import org.junit.FixMethodOrder;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -244,7 +245,7 @@ public class InitializationTest
    * If druid.extension.load is not specified, Initialization.getExtensionFilesToLoad is supposed to return all the
    * extension folders under root extensions directory.
    */
-  @Test
+  @Ignore("It's absurd loading all extensions")
   public void testGetExtensionFilesToLoad_null_load_list() throws IOException
   {
     final File extensionsDir = temporaryFolder.newFolder();

@@ -20,7 +20,9 @@
 package io.druid.initialization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -31,6 +33,7 @@ import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.curator.CuratorModule;
 import io.druid.curator.discovery.DiscoveryModule;
 import io.druid.guice.AWSModule;
@@ -160,7 +163,7 @@ public class Initialization
         final URLClassLoader loader = getClassLoaderForExtension(extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
           if (module instanceof DruidModule.WithServices) {
-            for (Class service : ((DruidModule.WithServices)module).getServices()) {
+            for (Class service : ((DruidModule.WithServices) module).getServices()) {
               log.info(".. Loading aux service [%s] for extension [%s]", service.getName(), module.getClass());
               Iterator auxLoader = ServiceLoader.load(service, loader).iterator();
               // for aux service, we can ignore loading failure (avatica.UnregisteredDriver, for example)
@@ -219,27 +222,45 @@ public class Initialization
     if (rootExtensionsDir.exists() && !rootExtensionsDir.isDirectory()) {
       throw new ISE("Root extensions directory [%s] is not a directory!?", rootExtensionsDir);
     }
-    File[] extensionsToLoad;
     final List<String> toLoad = config.getLoadList();
-    if (toLoad == null) {
-      extensionsToLoad = rootExtensionsDir.listFiles();
-    } else {
-      int i = 0;
-      extensionsToLoad = new File[toLoad.size()];
-      for (final String extensionName : toLoad) {
-        final File extensionDir = new File(rootExtensionsDir, extensionName);
-        if (!extensionDir.isDirectory()) {
-          throw new ISE(
-              String.format(
-                  "Extension [%s] specified in \"druid.extensions.loadList\" didn't exist!?",
-                  extensionDir.getAbsolutePath()
-              )
-          );
-        }
-        extensionsToLoad[i++] = extensionDir;
+    if (GuavaUtils.isNullOrEmpty(toLoad)) {
+      return new File[0];
+    }
+    final Set<String> extensionsToLoad = Sets.newLinkedHashSet();
+    for (final String extensionName : toLoad) {
+      String parentModuleName = PARENT_MODULE.get(extensionName);
+      while (parentModuleName != null && !extensionsToLoad.contains(parentModuleName)) {
+        extensionsToLoad.add(parentModuleName);
+        parentModuleName = PARENT_MODULE.get(extensionName);
+      }
+      if (!extensionsToLoad.contains(extensionName)) {
+        extensionsToLoad.add(extensionName);
       }
     }
-    return extensionsToLoad == null ? new File[]{} : extensionsToLoad;
+    final List<File> moduleDirectories = Lists.newArrayList();
+    for (String extensionName : extensionsToLoad) {
+      moduleDirectories.add(toModuleDirectory(rootExtensionsDir, extensionName));
+    }
+    return moduleDirectories.toArray(new File[0]);
+  }
+
+  // -_-
+  private static final ImmutableMap<String, String> PARENT_MODULE = ImmutableMap.of(
+      "druid-geotools-extensions", "druid-lucene-extensions"
+  );
+
+  private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
+  {
+    final File extensionDir = new File(rootExtensionsDir, extensionName);
+    if (!extensionDir.isDirectory()) {
+      throw new ISE(
+          String.format(
+              "Extension [%s] specified in \"druid.extensions.loadList\" didn't exist!?",
+              extensionDir.getAbsolutePath()
+          )
+      );
+    }
+    return extensionDir;
   }
 
   /**
@@ -285,8 +306,14 @@ public class Initialization
    */
   public static URLClassLoader getClassLoaderForExtension(File extension) throws MalformedURLException
   {
-    URLClassLoader loader = getClassLoaderForExtension(extension.getName());
+    String extensionName = extension.getName();
+    URLClassLoader loader = getClassLoaderForExtension(extensionName);
     if (loader == null) {
+      final String parentModuleName = PARENT_MODULE.get(extensionName);
+      final ClassLoader parentLoader = parentModuleName == null
+                                       ? Initialization.class.getClassLoader()
+                                       : getClassLoaderForExtension(parentModuleName);
+      Preconditions.checkNotNull(parentLoader, "Cannot find parent module [%s]", parentModuleName);
       final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
       final URL[] urls = new URL[jars.size()];
       int i = 0;
@@ -295,8 +322,8 @@ public class Initialization
         log.info("added URL[%s]", url);
         urls[i++] = url;
       }
-      loader = new URLClassLoader(urls, Initialization.class.getClassLoader());
-      loadersMap.put(extension.getName(), loader);
+      loader = new URLClassLoader(urls, parentLoader);
+      loadersMap.put(extensionName, loader);
     }
     return loader;
   }
