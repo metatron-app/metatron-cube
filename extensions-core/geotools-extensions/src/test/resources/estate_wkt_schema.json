@@ -1,0 +1,38 @@
+{
+  "parser" : {
+    "format" : "csv"
+  },
+  "columns": [
+    "idx","gu","py","amt","wkt","addr"
+  ],
+  "timestampSpec": {
+    "column":"inspection_date", "format":"MM/dd/yyyy", "missingValue": "2018-07-16"
+  },
+  "dimensionsSpec": {
+    "dimensions": ["idx", "gu"]
+  },
+  "evaluations":[
+    { "outputName": "gis", "expressions": [ "shape_centroid_YX(shape_fromWKT(wkt))", "struct(\"_\"[0],\"_\"[1],addr)" ] }
+  ],
+  "metricsSpec": [
+    {"type": "relay", "name": "py", "typeName": "float"},
+    {"type": "relay", "name": "amt", "typeName": "long"},
+    {"type": "relay", "name": "gis", "typeName": "struct(lat:double,lon:double,addr:string)"}
+  ],
+  "queryGran": "DAY",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "gis": {
+        "type": "lucene",
+        "strategies": [
+          {"type": "latlon", "fieldName": "coord", "latitude": "lat", "longitude": "lon"},
+          {"type": "text", "fieldName": "addr"}
+        ]
+      }
+    }
+  }
+}

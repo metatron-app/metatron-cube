@@ -21,7 +21,9 @@ package io.druid.data;
 
 import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.operation.buffer.BufferParameters;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
@@ -425,6 +427,107 @@ public class GeoToolsFunctions implements Function.Library
           return ExprEval.of(geometry == null ? -1D : ShapeUtils.length(geometry));
         }
       };
+    }
+  }
+
+  @Function.Named("shape_centroid_XY")
+  public static class CentroidXY extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+        {
+          return ValueDesc.DOUBLE_ARRAY;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+          }
+          Point point = geometry instanceof Point ? (Point) geometry : geometry.getCentroid();
+          return ExprEval.of(toArray(point), ValueDesc.DOUBLE_ARRAY);
+        }
+      };
+    }
+
+    protected double[] toArray(Point point)
+    {
+      return new double[]{point.getX(), point.getY()};
+    }
+  }
+
+  @Function.Named("shape_centroid_YX")
+  public static class CentroidYX extends CentroidXY
+  {
+    @Override
+    protected double[] toArray(Point point)
+    {
+      return new double[]{point.getY(), point.getX()};
+    }
+  }
+
+  @Function.Named("shape_coordinates_XY")
+  public static class CoordinatesXY extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+        {
+          return ValueDesc.DOUBLE_ARRAY;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+          }
+          Coordinate[] coordinates = geometry.getCoordinates();
+          double[] array = new double[coordinates.length << 1];
+          int i = 0;
+          for (Coordinate coordinate : coordinates) {
+            i = addToArray(array, i, coordinate);
+          }
+          return ExprEval.of(array, ValueDesc.DOUBLE_ARRAY);
+        }
+      };
+    }
+
+    protected int addToArray(double[] array, int i, Coordinate coordinate)
+    {
+      array[i++] = coordinate.x;
+      array[i++] = coordinate.y;
+      return i;
+    }
+  }
+
+  @Function.Named("shape_coordinates_YX")
+  public static class CoordinatesYX extends CoordinatesXY
+  {
+    @Override
+    protected int addToArray(double[] array, int i, Coordinate coordinate)
+    {
+      array[i++] = coordinate.y;
+      array[i++] = coordinate.x;
+      return i;
     }
   }
 }

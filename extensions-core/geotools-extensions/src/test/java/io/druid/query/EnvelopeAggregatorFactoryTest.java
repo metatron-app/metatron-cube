@@ -23,18 +23,32 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.Iterables;
 import io.druid.data.EnvelopeAggregatorFactory;
 import io.druid.data.GeoToolsDruidModule;
+import io.druid.data.GeoToolsFunctions;
 import io.druid.data.input.Row;
+import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.aggregation.post.MathPostAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
 {
+  static {
+    Parser.register(GeoHashFunctions.class);
+    Parser.register(GeoToolsFunctions.class);
+    TestIndex.addIndex("estate_wkt", "estate_wkt_schema.json", "estate_wkt.csv", segmentWalker.getObjectMapper());
+  }
+
   @Test
   public void testGroupBy()
   {
@@ -76,5 +90,37 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
         (double[]) results.getRaw("envelope"),
         0.0001
     );
+  }
+
+  @Test
+  public void testIngestWKTPoingAsLatLon()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("estate_wkt")
+        .virtualColumns(new ExprVirtualColumn("to_geohash(gis.lat, gis.lon, 4)", "geo_hash"))
+        .setDimensions(DefaultDimensionSpec.of("geo_hash"))
+        .setAggregatorSpecs(
+            new GenericSumAggregatorFactory("_Y", "gis.lat", null),
+            new GenericSumAggregatorFactory("_X", "gis.lon", null),
+            new CountAggregatorFactory("_C")
+        )
+        .setPostAggregatorSpecs(
+            new MathPostAggregator("__geometry = concat('POINT(', _X/_C, ' ' , _Y/_C, ')')")
+        )
+        .setOutputColumns(Arrays.asList("geo_hash", "__geometry", "_C"))
+        .build();
+
+    String[] columns = new String[]{"__time", "geo_hash", "__geometry", "_C"};
+    List<Row> expected = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("-146136543-09-08T08:23:32.096Z", "wydj", "POINT(126.86819699923159 37.52744661814411)", 1692L),
+        array("-146136543-09-08T08:23:32.096Z", "wydm", "POINT(127.03139349879947 37.53857260418409)", 3083L),
+        array("-146136543-09-08T08:23:32.096Z", "wydn", "POINT(126.9135709 37.6189638)", 1L),
+        array("-146136543-09-08T08:23:32.096Z", "wydq", "POINT(127.04688547302038 37.6462112395949)", 1086L)
+    );
+
+    List<Row> result = runQuery(query);
+    GroupByQueryRunnerTestHelper.validate(columns, expected, result);
   }
 }

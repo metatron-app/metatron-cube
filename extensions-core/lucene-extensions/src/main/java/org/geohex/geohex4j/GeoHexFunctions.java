@@ -28,7 +28,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.query.H3Functions;
-import org.locationtech.spatial4j.io.GeohashUtils;
 
 import java.util.List;
 

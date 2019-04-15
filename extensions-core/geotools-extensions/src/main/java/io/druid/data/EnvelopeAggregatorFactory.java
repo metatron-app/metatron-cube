@@ -286,7 +286,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
             final double maxX = buf.getDouble(position + MAX_X);
             if (minX > maxX) {
               buf.putDouble(position + MIN_X, coordinates[0]);
-              buf.putDouble(position + MIN_X, coordinates[1]);
+              buf.putDouble(position + MAX_X, coordinates[1]);
               buf.putDouble(position + MIN_Y, coordinates[2]);
               buf.putDouble(position + MAX_Y, coordinates[3]);
             } else {
