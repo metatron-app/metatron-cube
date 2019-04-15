@@ -281,15 +281,15 @@ final class IdentifierExpr implements Expr
       type = resolve((TypeResolver) bindings);
     }
     Object binding = bindings.get(value);
-    if (indexed) {
+    if (indexed && binding != null) {
       if (binding instanceof List) {
         List list = (List) binding;
         final int length = list.size();
-        int x = index < 0 ? length + index : index;
+        final int x = index < 0 ? length + index : index;
         binding = x >= 0 && x < length ? list.get(x) : null;
       } else if (binding.getClass().isArray()) {
         final int length = Array.getLength(binding);
-        int x = index < 0 ? length + index : index;
+        final int x = index < 0 ? length + index : index;
         binding = x >= 0 && x < length ? Array.get(binding, x) : null;
       } else {
         binding = null;
@@ -306,7 +306,8 @@ final class IdentifierExpr implements Expr
   {
     return other instanceof IdentifierExpr
            && value.equals(((IdentifierExpr) other).value)
-           && index == ((IdentifierExpr) other).index;
+           && index == ((IdentifierExpr) other).index
+           && indexed == ((IdentifierExpr) other).indexed;
   }
 }
 
