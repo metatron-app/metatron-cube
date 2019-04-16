@@ -29,6 +29,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.NotDimFilter;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.SelectMetaQuery;
@@ -238,13 +240,18 @@ public class JoinElement
       if (!(query instanceof Query.ArrayOutputSupport)) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
       }
-      Query.ArrayOutputSupport array = (Query.ArrayOutputSupport) query;
-      if (GuavaUtils.isNullOrEmpty(array.estimatedOutputColumns())) {
+      if (GuavaUtils.isNullOrEmpty(((Query.ArrayOutputSupport) query).estimatedOutputColumns())) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
         if (!(query.getDataSource() instanceof QueryDataSource)) {
           query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
+        }
+        if (sortColumns.size() == 1 && query instanceof Query.DimFilterSupport) {
+          // for now, apply only for one column cause it can be slower
+          query = ((Query.DimFilterSupport) query).withDimFilter(
+              NotDimFilter.of(SelectorDimFilter.of(sortColumns.get(0), null))
+          );
         }
       }
       return query;
