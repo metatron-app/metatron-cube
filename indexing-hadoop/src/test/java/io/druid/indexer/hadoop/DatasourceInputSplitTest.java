@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,7 +52,7 @@ public class DatasourceInputSplitTest
                     ),
                     ImmutableList.of("host"),
                     ImmutableList.of("visited_sum", "unique_hosts"),
-                    new NoneShardSpec(),
+                    null,
                     9,
                     12334
                 ),

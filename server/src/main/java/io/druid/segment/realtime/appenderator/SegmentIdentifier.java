@@ -117,7 +117,7 @@ public class SegmentIdentifier
         segment.getDataSource(),
         segment.getInterval(),
         segment.getVersion(),
-        segment.getShardSpec()
+        segment.getShardSpecWithDefault()
     );
   }
 }

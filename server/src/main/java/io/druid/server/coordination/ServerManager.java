@@ -213,7 +213,7 @@ public class ServerManager implements ForwardingSegmentWalker
           segment.getInterval(),
           segment.getVersion()
       );
-      if ((entry != null) && (entry.getChunk(segment.getShardSpec().getPartitionNum()) != null)) {
+      if ((entry != null) && (entry.getChunk(segment.getShardSpecWithDefault().getPartitionNum()) != null)) {
         log.warn("Told to load a adapter for a segment[%s] that already exists", segment.getIdentifier());
         return false;
       }
@@ -221,7 +221,7 @@ public class ServerManager implements ForwardingSegmentWalker
       loadedIntervals.add(
           segment.getInterval(),
           segment.getVersion(),
-          segment.getShardSpec().createChunk(new ReferenceCountingSegment(adapter))
+          segment.getShardSpecWithDefault().createChunk(new ReferenceCountingSegment(adapter))
       );
       synchronized (dataSourceSizes) {
         dataSourceSizes.add(dataSource, segment.getSize());
@@ -247,7 +247,7 @@ public class ServerManager implements ForwardingSegmentWalker
       PartitionChunk<ReferenceCountingSegment> removed = loadedIntervals.remove(
           segment.getInterval(),
           segment.getVersion(),
-          segment.getShardSpec().createChunk((ReferenceCountingSegment) null)
+          segment.getShardSpecWithDefault().createChunk((ReferenceCountingSegment) null)
       );
       ReferenceCountingSegment oldQueryable = (removed == null) ? null : removed.getObject();
 

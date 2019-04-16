@@ -235,7 +235,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                             timeline.add(
                                 segment.getInterval(),
                                 segment.getVersion(),
-                                segment.getShardSpec().createChunk(segment)
+                                segment.getShardSpecWithDefault().createChunk(segment)
                             );
 
                             return timeline;

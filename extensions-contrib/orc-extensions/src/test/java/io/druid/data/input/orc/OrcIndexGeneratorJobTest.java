@@ -59,7 +59,6 @@ import org.apache.orc.CompressionKind;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -277,7 +276,7 @@ public class OrcIndexGeneratorJobTest
         Assert.assertEquals("unique_hosts", dataSegment.getMetrics().get(1));
 
         Integer[] hashShardInfo = shardInfo[partitionNum];
-        HashBasedNumberedShardSpec spec = (HashBasedNumberedShardSpec) dataSegment.getShardSpec();
+        HashBasedNumberedShardSpec spec = (HashBasedNumberedShardSpec) dataSegment.getShardSpecWithDefault();
         Assert.assertEquals((int) hashShardInfo[0], spec.getPartitionNum());
         Assert.assertEquals((int) hashShardInfo[1], spec.getPartitions());
 

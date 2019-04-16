@@ -266,7 +266,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
           DataSegment.class
       );
 
-      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment));
+      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
 
     }
 
@@ -469,7 +469,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
                 TimelineObjectHolder<String, DataSegment> existingHolder = Iterables.getOnlyElement(existingChunks);
                 for (PartitionChunk<DataSegment> existing : existingHolder.getObject()) {
                   if (max == null || max.getShardSpec().getPartitionNum() < existing.getObject()
-                                                                                    .getShardSpec()
+                                                                                    .getShardSpecWithDefault()
                                                                                     .getPartitionNum()) {
                     max = SegmentIdentifier.fromDataSegment(existing.getObject());
                   }
@@ -638,7 +638,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
             .bind("created_date", new DateTime().toString())
             .bind("start", segment.getInterval().getStart().toString())
             .bind("end", segment.getInterval().getEnd().toString())
-            .bind("partitioned", !(segment.getShardSpec() instanceof NoneShardSpec))
+            .bind("partitioned", !(segment.getShardSpecWithDefault() instanceof NoneShardSpec))
             .bind("version", segment.getVersion())
             .bind("used", true)
             .bind("payload", jsonMapper.writeValueAsBytes(segment))

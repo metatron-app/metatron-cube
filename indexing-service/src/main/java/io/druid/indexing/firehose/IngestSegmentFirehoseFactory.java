@@ -141,7 +141,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
       );
 
       for (DataSegment segment : usedSegments) {
-        timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment));
+        timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
       }
       final List<TimelineObjectHolder<String, DataSegment>> timeLineSegments = timeline.lookup(
           interval

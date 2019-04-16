@@ -308,7 +308,7 @@ public class FiniteAppenderatorDriverTest
         timeline.add(
             dataSegment.getInterval(),
             dataSegment.getVersion(),
-            dataSegment.getShardSpec().createChunk(dataSegment)
+            dataSegment.getShardSpecWithDefault().createChunk(dataSegment)
         );
       }
 

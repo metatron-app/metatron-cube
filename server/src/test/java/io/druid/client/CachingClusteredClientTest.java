@@ -19,6 +19,7 @@
 
 package io.druid.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
@@ -118,7 +119,6 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.TestHelper;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
@@ -2228,7 +2228,7 @@ public class CachingClusteredClientTest
             null,
             null,
             null,
-            new NoneShardSpec(),
+            null,
             null,
             -1
         );
@@ -2283,6 +2283,13 @@ public class CachingClusteredClientTest
       public ShardSpec getShardSpec()
       {
         return baseSegment.getShardSpec();
+      }
+
+      @Override
+      @JsonIgnore
+      public ShardSpec getShardSpecWithDefault()
+      {
+        return baseSegment.getShardSpecWithDefault();
       }
 
       @Override

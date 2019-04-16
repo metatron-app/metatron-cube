@@ -36,7 +36,6 @@ import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.PartitionHolder;
 import org.apache.curator.utils.ZKPaths;
 import org.joda.time.Interval;
@@ -354,7 +353,6 @@ public class CoordinatorServerViewTest extends CuratorTestBase
                       .version(version)
                       .dimensions(ImmutableList.<String>of())
                       .metrics(ImmutableList.<String>of())
-                      .shardSpec(new NoneShardSpec())
                       .binaryVersion(9)
                       .size(0)
                       .build();

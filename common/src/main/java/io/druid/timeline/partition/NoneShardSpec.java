@@ -33,11 +33,7 @@ public class NoneShardSpec implements ShardSpec
   @JsonCreator
   public static NoneShardSpec instance() { return INSTANCE; }
 
-  @Deprecated
-  // Use NoneShardSpec.instance() instead
-  public NoneShardSpec(){
-
-  }
+  private NoneShardSpec() {}
 
   @Override
   public <T> PartitionChunk<T> createChunk(T obj)

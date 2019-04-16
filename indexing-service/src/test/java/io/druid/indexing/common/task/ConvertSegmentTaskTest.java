@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.indexing.common.TestUtils;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -60,7 +59,7 @@ public class ConvertSegmentTaskTest
         ImmutableMap.<String, Object>of(),
         ImmutableList.<String>of(),
         ImmutableList.<String>of(),
-        new NoneShardSpec(),
+        null,
         9,
         102937
     );

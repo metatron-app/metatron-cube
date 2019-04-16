@@ -334,7 +334,7 @@ public class TaskSerdeTest
                 null,
                 null,
                 1,
-                new NoneShardSpec(),
+                NoneShardSpec.instance(),
                 indexSpec,
                 null,
                 0,
@@ -492,7 +492,7 @@ public class TaskSerdeTest
             ImmutableMap.<String, Object>of(),
             ImmutableList.of("dim1", "dim2"),
             ImmutableList.of("metric1", "metric2"),
-            new NoneShardSpec(),
+            null,
             0,
             12345L
         ),
@@ -516,7 +516,7 @@ public class TaskSerdeTest
         ImmutableMap.<String, Object>of(),
         ImmutableList.of("dim1", "dim2"),
         ImmutableList.of("metric1", "metric2"),
-        new NoneShardSpec(),
+        null,
         0,
         12345L
     );

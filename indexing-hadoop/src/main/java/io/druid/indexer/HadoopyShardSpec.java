@@ -20,7 +20,10 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 
 /**
@@ -43,9 +46,16 @@ public class HadoopyShardSpec
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public ShardSpec getActualSpec()
   {
     return actualSpec;
+  }
+
+  @JsonIgnore
+  public ShardSpec getActualSpecWithDefault()
+  {
+    return actualSpec == null ? NoneShardSpec.instance() : actualSpec;
   }
 
   @JsonProperty

@@ -41,7 +41,6 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.partitions.SingleDimensionPartitionsSpec;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.SingleDimensionShardSpec;
 import org.apache.hadoop.conf.Configurable;
@@ -644,7 +643,7 @@ public class DeterminePartitionsJob implements Jobby
             final ShardSpec shardSpec;
 
             if (currentDimPartitions.partitions.isEmpty()) {
-              shardSpec = new NoneShardSpec();
+              shardSpec = null;
             } else {
               if (currentDimPartition.rows < config.getTargetPartitionSize() * SHARD_COMBINE_THRESHOLD) {
                 // Combine with previous shard

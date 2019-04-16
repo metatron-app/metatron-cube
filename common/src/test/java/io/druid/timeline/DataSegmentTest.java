@@ -89,7 +89,7 @@ public class DataSegmentTest
         loadSpec,
         Arrays.asList("dim1", "dim2"),
         Arrays.asList("met1", "met2"),
-        new NoneShardSpec(),
+        NoneShardSpec.instance(),
         TEST_VERSION,
         1
     );
@@ -120,7 +120,7 @@ public class DataSegmentTest
     Assert.assertEquals(segment.getLoadSpec(), deserializedSegment.getLoadSpec());
     Assert.assertEquals(segment.getDimensions(), deserializedSegment.getDimensions());
     Assert.assertEquals(segment.getMetrics(), deserializedSegment.getMetrics());
-    Assert.assertEquals(segment.getShardSpec(), deserializedSegment.getShardSpec());
+    Assert.assertEquals(segment.getShardSpecWithDefault(), deserializedSegment.getShardSpecWithDefault());
     Assert.assertEquals(segment.getSize(), deserializedSegment.getSize());
     Assert.assertEquals(segment.getIdentifier(), deserializedSegment.getIdentifier());
 
@@ -141,7 +141,6 @@ public class DataSegmentTest
                                            .dataSource("foo")
                                            .interval(new Interval("2012-01-01/2012-01-02"))
                                            .version(new DateTime("2012-01-01T11:22:33.444Z").toString())
-                                           .shardSpec(new NoneShardSpec())
                                            .build();
 
     Assert.assertEquals(

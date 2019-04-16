@@ -37,7 +37,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -73,7 +72,7 @@ public class HadoopIngestionSpecUpdateDatasourcePathSpecSegmentsTest
       ),
       ImmutableList.of("host"),
       ImmutableList.of("visited_sum", "unique_hosts"),
-      new NoneShardSpec(),
+      null,
       9,
       2
   );

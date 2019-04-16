@@ -350,7 +350,7 @@ public class RealtimePlumber implements Plumber
                         final SegmentDescriptor descriptor = new SegmentDescriptor(
                             holder.getInterval(),
                             theSink.getSegment().getVersion(),
-                            theSink.getSegment().getShardSpec().getPartitionNum()
+                            theSink.getSegment().getShardSpecWithDefault().getPartitionNum()
                         );
 
                         return new SpecificSegmentQueryRunner<T>(
@@ -637,7 +637,7 @@ public class RealtimePlumber implements Plumber
               if (!isPushedMarker.createNewFile()) {
                 log.makeAlert("Failed to create marker file for [%s]", schema.getDataSource())
                    .addData("interval", sink.getInterval())
-                   .addData("partitionNum", segment.getShardSpec().getPartitionNum())
+                   .addData("partitionNum", segment.getShardSpecWithDefault().getPartitionNum())
                    .addData("marker", isPushedMarker)
                    .emit();
               }

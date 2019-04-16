@@ -59,7 +59,6 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -366,7 +365,7 @@ public class HdfsStorageHandler implements StorageHandler
               loadSpec,
               dimensions,
               metrics,
-              NoneShardSpec.instance(),
+              null,
               binaryVersion,
               length
           );

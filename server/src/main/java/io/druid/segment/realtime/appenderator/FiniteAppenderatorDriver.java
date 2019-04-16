@@ -463,7 +463,7 @@ public class FiniteAppenderatorDriver implements Closeable
               new SegmentDescriptor(
                   dataSegment.getInterval(),
                   dataSegment.getVersion(),
-                  dataSegment.getShardSpec().getPartitionNum()
+                  dataSegment.getShardSpecWithDefault().getPartitionNum()
               ),
               MoreExecutors.sameThreadExecutor(),
               new Runnable()

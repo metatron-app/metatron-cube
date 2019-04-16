@@ -20,7 +20,6 @@
 package io.druid.server.coordinator.rules;
 
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
@@ -32,9 +31,8 @@ import org.junit.Test;
 public class PeriodDropRuleTest
 {
   private final static DataSegment.Builder builder = DataSegment.builder()
-                                                          .dataSource("test")
-                                                          .version(new DateTime("2012-12-31T01:00:00").toString())
-                                                          .shardSpec(new NoneShardSpec());
+                                                                .dataSource("test")
+                                                                .version(new DateTime("2012-12-31T01:00:00").toString());
 
   @Test
   public void testAppliesToAll()

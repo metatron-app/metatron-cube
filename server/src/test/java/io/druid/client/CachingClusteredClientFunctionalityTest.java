@@ -40,7 +40,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
@@ -159,7 +158,6 @@ public class CachingClusteredClientFunctionalityTest {
                 .dataSource("test")
                 .interval(interval)
                 .version(version)
-                .shardSpec(new NoneShardSpec())
                 .build()
         )
     ));

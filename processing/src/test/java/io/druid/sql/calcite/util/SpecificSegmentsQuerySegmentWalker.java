@@ -122,7 +122,7 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     {
       int node = segment.getDataInterval().hashCode() % 2;
       VersionedIntervalTimeline<String, Segment> timeline = get(descriptor.getDataSource(), node);
-      timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
+      timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpecWithDefault().createChunk(segment));
       segments.add(descriptor);
     }
 
@@ -156,13 +156,13 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
           timeline1.add(
               descriptor.getInterval(),
               descriptor.getVersion(),
-              descriptor.getShardSpec().createChunk(pair.rhs)
+              descriptor.getShardSpecWithDefault().createChunk(pair.rhs)
           );
         } else {
           timeline2.add(
               descriptor.getInterval(),
               descriptor.getVersion(),
-              descriptor.getShardSpec().createChunk(pair.rhs)
+              descriptor.getShardSpecWithDefault().createChunk(pair.rhs)
           );
         }
         segments.add(descriptor);

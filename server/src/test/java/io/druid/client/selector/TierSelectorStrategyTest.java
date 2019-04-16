@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -123,7 +122,7 @@ public class TierSelectorStrategyTest
             com.google.common.collect.Maps.<String, Object>newHashMap(),
             Lists.<String>newArrayList(),
             Lists.<String>newArrayList(),
-            new NoneShardSpec(),
+            null,
             0,
             0L
         )

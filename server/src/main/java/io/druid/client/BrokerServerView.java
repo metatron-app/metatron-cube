@@ -297,7 +297,7 @@ public class BrokerServerView implements TimelineServerView
         timelines.put(segment.getDataSource(), timeline);
       }
 
-      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(selector));
+      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(selector));
       selectors.put(segmentId, selector);
     }
 
@@ -424,7 +424,7 @@ public class BrokerServerView implements TimelineServerView
         selectors.remove(segmentId);
 
         final PartitionChunk<ServerSelector> removedPartition = timeline.remove(
-            segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(selector)
+            segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(selector)
         );
 
         if (removedPartition == null) {

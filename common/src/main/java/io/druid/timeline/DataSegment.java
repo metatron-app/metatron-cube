@@ -20,6 +20,7 @@
 package io.druid.timeline;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -92,7 +93,7 @@ public class DataSegment implements Comparable<DataSegment>
       .append(end).append(delimiter)
       .append(version);
 
-    if (shardSpec.getPartitionNum() != 0) {
+    if (shardSpec != null && shardSpec.getPartitionNum() != 0) {
       sb.append(delimiter).append(shardSpec.getPartitionNum());
     }
 
@@ -134,7 +135,7 @@ public class DataSegment implements Comparable<DataSegment>
     this.metrics = metrics == null
                    ? ImmutableList.<String>of()
                    : ImmutableList.copyOf(Iterables.transform(Iterables.filter(metrics, NON_EMPTY), internFun));
-    this.shardSpec = shardSpec == null ? NoneShardSpec.instance() : shardSpec;
+    this.shardSpec = shardSpec;
     this.binaryVersion = binaryVersion;
     this.size = size;
 
@@ -200,6 +201,12 @@ public class DataSegment implements Comparable<DataSegment>
     return shardSpec;
   }
 
+  @JsonIgnore
+  public ShardSpec getShardSpecWithDefault()
+  {
+    return shardSpec == null ? NoneShardSpec.instance() : shardSpec;
+  }
+
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Integer getBinaryVersion()
@@ -221,7 +228,7 @@ public class DataSegment implements Comparable<DataSegment>
 
   public SegmentDescriptor toDescriptor()
   {
-    return new SegmentDescriptor(interval, version, shardSpec.getPartitionNum());
+    return new SegmentDescriptor(interval, version, shardSpec == null ? 0 : shardSpec.getPartitionNum());
   }
 
   public DataSegment withDataSource(String dataSource)
@@ -345,7 +352,7 @@ public class DataSegment implements Comparable<DataSegment>
       this.loadSpec = segment.getLoadSpec();
       this.dimensions = segment.getDimensions();
       this.metrics = segment.getMetrics();
-      this.shardSpec = segment.getShardSpec();
+      this.shardSpec = segment.getShardSpecWithDefault();
       this.binaryVersion = segment.getBinaryVersion();
       this.size = segment.getSize();
     }

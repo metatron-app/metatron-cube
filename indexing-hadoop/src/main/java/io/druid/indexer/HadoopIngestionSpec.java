@@ -199,7 +199,7 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
 
       VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>(Ordering.natural());
       for (DataSegment segment : segmentsList) {
-        timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment));
+        timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
       }
 
       final List<WindowedDataSegment> windowedSegments = Lists.newArrayList();

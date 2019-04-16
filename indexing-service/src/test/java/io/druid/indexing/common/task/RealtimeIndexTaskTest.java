@@ -544,7 +544,7 @@ public class RealtimeIndexTaskTest
           new SegmentDescriptor(
               publishedSegment.getInterval(),
               publishedSegment.getVersion(),
-              publishedSegment.getShardSpec().getPartitionNum()
+              publishedSegment.getShardSpecWithDefault().getPartitionNum()
           ),
           entry.getKey()
       );
@@ -700,7 +700,7 @@ public class RealtimeIndexTaskTest
           new SegmentDescriptor(
               publishedSegment.getInterval(),
               publishedSegment.getVersion(),
-              publishedSegment.getShardSpec().getPartitionNum()
+              publishedSegment.getShardSpecWithDefault().getPartitionNum()
           ),
           entry.getKey()
       );
@@ -799,7 +799,7 @@ public class RealtimeIndexTaskTest
             new SegmentDescriptor(
                 publishedSegment.getInterval(),
                 publishedSegment.getVersion(),
-                publishedSegment.getShardSpec().getPartitionNum()
+                publishedSegment.getShardSpecWithDefault().getPartitionNum()
             ),
             entry.getKey()
         );
@@ -895,7 +895,7 @@ public class RealtimeIndexTaskTest
             new SegmentDescriptor(
                 publishedSegment.getInterval(),
                 publishedSegment.getVersion(),
-                publishedSegment.getShardSpec().getPartitionNum()
+                publishedSegment.getShardSpecWithDefault().getPartitionNum()
             ),
             entry.getKey()
         );

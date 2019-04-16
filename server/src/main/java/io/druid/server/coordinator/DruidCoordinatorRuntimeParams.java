@@ -162,7 +162,7 @@ public class DruidCoordinatorRuntimeParams
         timelines.put(segment.getDataSource(), timeline);
       }
       timeline.add(
-          segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment)
+          segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
       );
     }
 

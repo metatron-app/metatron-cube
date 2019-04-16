@@ -33,7 +33,6 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
@@ -274,15 +273,9 @@ public class HadoopDruidIndexerConfigTest
             null,
             null,
             ImmutableMap.<Long, List<HadoopyShardSpec>>of(new DateTime("2010-01-01T01:00:00").getMillis(),
-                                                              Lists.newArrayList(new HadoopyShardSpec(
-                                                                  NoneShardSpec.instance(),
-                                                                  1
-                                                              )),
+                                                              Lists.newArrayList(new HadoopyShardSpec(null, 1)),
                                                               new DateTime("2010-01-01T02:00:00").getMillis(),
-                                                              Lists.newArrayList(new HadoopyShardSpec(
-                                                                  NoneShardSpec.instance(),
-                                                                  2
-                                                              ))
+                                                              Lists.newArrayList(new HadoopyShardSpec(null, 2))
             ),
             null,
             null,

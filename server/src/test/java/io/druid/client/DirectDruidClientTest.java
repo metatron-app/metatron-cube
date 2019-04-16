@@ -46,7 +46,6 @@ import io.druid.query.Result;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -111,7 +110,7 @@ public class DirectDruidClientTest
             Maps.<String, Object>newHashMap(),
             Lists.<String>newArrayList(),
             Lists.<String>newArrayList(),
-            new NoneShardSpec(),
+            null,
             0,
             0L
         )
@@ -227,7 +226,7 @@ public class DirectDruidClientTest
             Maps.<String, Object>newHashMap(),
             Lists.<String>newArrayList(),
             Lists.<String>newArrayList(),
-            new NoneShardSpec(),
+            null,
             0,
             0L
         )
@@ -296,7 +295,7 @@ public class DirectDruidClientTest
         Maps.<String, Object>newHashMap(),
         Lists.<String>newArrayList(),
         Lists.<String>newArrayList(),
-        new NoneShardSpec(),
+        null,
         0,
         0L
     );

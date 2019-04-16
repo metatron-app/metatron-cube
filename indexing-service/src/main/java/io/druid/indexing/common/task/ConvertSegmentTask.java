@@ -318,7 +318,7 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
               "sub",
               segment.getInterval().getStart(),
               segment.getInterval().getEnd(),
-              segment.getShardSpec().getPartitionNum()
+              segment.getShardSpecWithDefault().getPartitionNum()
           ),
           groupId,
           segment.getDataSource(),

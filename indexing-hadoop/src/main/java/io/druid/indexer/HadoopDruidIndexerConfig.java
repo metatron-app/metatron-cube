@@ -246,7 +246,7 @@ public class HadoopDruidIndexerConfig
       if (entry.getValue() == null || entry.getValue().isEmpty()) {
         continue;
       }
-      final ShardSpec actualSpec = entry.getValue().get(0).getActualSpec();
+      final ShardSpec actualSpec = entry.getValue().get(0).getActualSpecWithDefault();
       shardSpecLookups.put(
           entry.getKey(), actualSpec.getLookup(
               Lists.transform(
@@ -255,7 +255,7 @@ public class HadoopDruidIndexerConfig
                     @Override
                     public ShardSpec apply(HadoopyShardSpec input)
                     {
-                      return input.getActualSpec();
+                      return input.getActualSpecWithDefault();
                     }
                   }
               )
@@ -264,7 +264,7 @@ public class HadoopDruidIndexerConfig
 
       Map<ShardSpec, HadoopyShardSpec> innerHadoopShardSpecLookup = Maps.newHashMap();
       for (HadoopyShardSpec hadoopyShardSpec : entry.getValue()) {
-        innerHadoopShardSpecLookup.put(hadoopyShardSpec.getActualSpec(), hadoopyShardSpec);
+        innerHadoopShardSpecLookup.put(hadoopyShardSpec.getActualSpecWithDefault(), hadoopyShardSpec);
       }
       hadoopShardSpecLookup.put(entry.getKey(), innerHadoopShardSpecLookup);
 

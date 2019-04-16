@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
@@ -36,9 +35,8 @@ import org.junit.Test;
 public class PeriodLoadRuleTest
 {
   private final static DataSegment.Builder builder = DataSegment.builder()
-                                                            .dataSource("test")
-                                                            .version(new DateTime().toString())
-                                                            .shardSpec(new NoneShardSpec());
+                                                                .dataSource("test")
+                                                                .version(new DateTime().toString());
 
   @Test
   public void testAppliesToAll()

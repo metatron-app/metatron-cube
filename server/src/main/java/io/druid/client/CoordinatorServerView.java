@@ -156,7 +156,7 @@ public class CoordinatorServerView implements InventoryView
         timeline.add(
             segment.getInterval(),
             segment.getVersion(),
-            segment.getShardSpec().createChunk(segmentLoadInfo)
+            segment.getShardSpecWithDefault().createChunk(segmentLoadInfo)
         );
         segmentLoadInfos.put(segmentId, segmentLoadInfo);
       }
@@ -183,7 +183,7 @@ public class CoordinatorServerView implements InventoryView
         segmentLoadInfos.remove(segmentId);
 
         final PartitionChunk<SegmentLoadInfo> removedPartition = timeline.remove(
-            segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(
+            segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(
                 new SegmentLoadInfo(
                     segment
                 )

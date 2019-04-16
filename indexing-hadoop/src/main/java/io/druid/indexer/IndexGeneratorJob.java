@@ -812,7 +812,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
             null,
             ImmutableList.copyOf(allDimensionNames),
             metricNames,
-            config.getShardSpec(bucket).getActualSpec(),
+            config.getShardSpec(bucket).getActualSpecWithDefault(),
             -1,
             -1
         );

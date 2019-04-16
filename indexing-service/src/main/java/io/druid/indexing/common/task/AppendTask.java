@@ -77,7 +77,7 @@ public class AppendTask extends MergeTaskBase
     );
 
     for (DataSegment segment : segments.keySet()) {
-      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment));
+      timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
     }
 
     final Iterable<SegmentToMergeHolder> segmentsToMerge = Iterables.concat(

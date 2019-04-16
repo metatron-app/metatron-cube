@@ -29,7 +29,6 @@ import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.HadoopyShardSpec;
 import io.druid.indexer.Jobby;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -94,7 +93,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
 
         List<HadoopyShardSpec> actualSpecs = Lists.newArrayListWithCapacity(numberOfShards);
         if (numberOfShards == 1) {
-          actualSpecs.add(new HadoopyShardSpec(NoneShardSpec.instance(), 0));
+          actualSpecs.add(new HadoopyShardSpec(null, 0));
           log.info("DateTime[%s], partition[%d], spec[%s]", interval, 0, actualSpecs.get(0));
         } else {
           int shardCount = 0;

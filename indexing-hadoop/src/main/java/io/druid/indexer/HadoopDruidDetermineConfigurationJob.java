@@ -82,7 +82,7 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
           shardSpecs.put(bucket.getMillis(), specs);
           log.info("DateTime[%s], spec[%s]", bucket, specs);
         } else {
-          final HadoopyShardSpec spec = new HadoopyShardSpec(NoneShardSpec.instance(), shardCount++);
+          final HadoopyShardSpec spec = new HadoopyShardSpec(null, shardCount++);
           shardSpecs.put(bucket.getMillis(), Lists.newArrayList(spec));
           log.info("DateTime[%s], spec[%s]", bucket, spec);
         }

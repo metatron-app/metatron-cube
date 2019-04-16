@@ -470,7 +470,7 @@ public class ServerManagerTest
               ImmutableMap.<String, Object>of("version", version, "interval", interval),
               Arrays.asList("dim1", "dim2", "dim3"),
               Arrays.asList("metric1", "metric2"),
-              new NoneShardSpec(),
+              NoneShardSpec.instance(),
               IndexIO.CURRENT_VERSION_ID,
               123L
           )
@@ -492,7 +492,7 @@ public class ServerManagerTest
               ImmutableMap.<String, Object>of("version", version, "interval", interval),
               Arrays.asList("dim1", "dim2", "dim3"),
               Arrays.asList("metric1", "metric2"),
-              new NoneShardSpec(),
+              NoneShardSpec.instance(),
               IndexIO.CURRENT_VERSION_ID,
               123L
           )

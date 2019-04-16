@@ -69,7 +69,7 @@ public class SQLMetadataStorageUpdaterJobHandler implements MetadataStorageUpdat
                       .put("created_date", new DateTime().toString())
                       .put("start", segment.getInterval().getStart().toString())
                       .put("end", segment.getInterval().getEnd().toString())
-                      .put("partitioned", (segment.getShardSpec() instanceof NoneShardSpec) ? false : true)
+                      .put("partitioned", (segment.getShardSpecWithDefault() instanceof NoneShardSpec) ? false : true)
                       .put("version", segment.getVersion())
                       .put("used", true)
                       .put("payload", mapper.writeValueAsBytes(segment))

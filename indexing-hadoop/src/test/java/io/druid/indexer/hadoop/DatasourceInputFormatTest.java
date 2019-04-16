@@ -27,7 +27,6 @@ import com.google.common.collect.Sets;
 import io.druid.indexer.JobHelper;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -72,7 +71,7 @@ public class DatasourceInputFormatTest
                 ),
                 ImmutableList.of("host"),
                 ImmutableList.of("visited_sum", "unique_hosts"),
-                NoneShardSpec.instance(),
+                null,
                 9,
                 2
             )
@@ -88,7 +87,7 @@ public class DatasourceInputFormatTest
                 ),
                 ImmutableList.of("host"),
                 ImmutableList.of("visited_sum", "unique_hosts"),
-                NoneShardSpec.instance(),
+                null,
                 9,
                 11
             )
@@ -104,7 +103,7 @@ public class DatasourceInputFormatTest
                 ),
                 ImmutableList.of("host"),
                 ImmutableList.of("visited_sum", "unique_hosts"),
-                NoneShardSpec.instance(),
+                null,
                 9,
                 4
             )

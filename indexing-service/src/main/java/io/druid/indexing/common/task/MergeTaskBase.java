@@ -109,7 +109,7 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
                   @Override
                   public boolean apply(@Nullable DataSegment segment)
                   {
-                    return segment == null || !(segment.getShardSpec() instanceof NoneShardSpec);
+                    return segment == null || !(segment.getShardSpecWithDefault() instanceof NoneShardSpec);
                   }
                 }
             )
@@ -266,7 +266,7 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
                     x.getInterval().getStart(),
                     x.getInterval().getEnd(),
                     x.getVersion(),
-                    x.getShardSpec().getPartitionNum()
+                    x.getShardSpecWithDefault().getPartitionNum()
                 );
               }
             }
@@ -320,7 +320,6 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
                       .interval(mergedInterval)
                       .version(version)
                       .binaryVersion(IndexIO.CURRENT_VERSION_ID)
-                      .shardSpec(new NoneShardSpec())
                       .dimensions(Lists.newArrayList(mergedDimensions))
                       .metrics(Lists.newArrayList(mergedMetrics))
                       .build();

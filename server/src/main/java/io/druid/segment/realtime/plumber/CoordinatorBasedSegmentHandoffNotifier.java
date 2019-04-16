@@ -25,7 +25,6 @@ import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.client.ImmutableSegmentLoadInfo;
-import io.druid.client.SegmentLoadInfo;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.concurrent.Execs;
 import io.druid.query.SegmentDescriptor;
@@ -139,7 +138,7 @@ public class CoordinatorBasedSegmentHandoffNotifier implements SegmentHandoffNot
   {
     for (ImmutableSegmentLoadInfo segmentLoadInfo : serverView) {
       if (segmentLoadInfo.getSegment().getInterval().contains(descriptor.getInterval())
-          && segmentLoadInfo.getSegment().getShardSpec().getPartitionNum()
+          && segmentLoadInfo.getSegment().getShardSpecWithDefault().getPartitionNum()
              == descriptor.getPartitionNumber()
           && segmentLoadInfo.getSegment().getVersion().compareTo(descriptor.getVersion()) >= 0
           && Iterables.any(

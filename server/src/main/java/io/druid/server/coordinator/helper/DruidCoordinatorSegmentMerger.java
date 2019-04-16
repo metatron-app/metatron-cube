@@ -108,7 +108,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
         timeline.add(
             dataSegment.getInterval(),
             dataSegment.getVersion(),
-            dataSegment.getShardSpec().createChunk(dataSegment)
+            dataSegment.getShardSpecWithDefault().createChunk(dataSegment)
         );
       }
     }
@@ -272,7 +272,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
       Interval underlyingInterval = firstChunk.getObject().getInterval();
 
       for (final PartitionChunk<DataSegment> segment : timelineObject.getObject()) {
-        if (!(segment.getObject().getShardSpec() instanceof NoneShardSpec)) {
+        if (!(segment.getObject().getShardSpecWithDefault() instanceof NoneShardSpec)) {
           return false;
         }
 

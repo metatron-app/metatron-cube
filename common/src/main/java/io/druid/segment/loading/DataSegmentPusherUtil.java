@@ -54,7 +54,7 @@ public class DataSegmentPusherUtil
             interval.getEnd()
         ),
         segment.getVersion(),
-        segment.getShardSpec().getPartitionNum()
+        segment.getShardSpecWithDefault().getPartitionNum()
     );
   }
 
@@ -72,7 +72,7 @@ public class DataSegmentPusherUtil
             segment.getInterval().getEnd().toString(ISODateTimeFormat.basicDateTime())
         ),
         segment.getVersion().replaceAll(":", "_"),
-        segment.getShardSpec().getPartitionNum()
+        segment.getShardSpecWithDefault().getPartitionNum()
     );
   }
 }
