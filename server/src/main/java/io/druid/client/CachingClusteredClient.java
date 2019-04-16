@@ -22,6 +22,7 @@ package io.druid.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -71,6 +72,8 @@ import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
+import io.druid.segment.filter.Filters;
+import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
@@ -363,9 +366,21 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
+    Predicate<QueryableDruidServer> predicate = null;
+    if (queryConfig.isUseHandedOffSegmentsOnlyForLuceneIndex() && Filters.hasAnyLucene(BaseQuery.getDimFilter(query))) {
+      predicate = new Predicate<QueryableDruidServer>()
+      {
+        @Override
+        public boolean apply(QueryableDruidServer input)
+        {
+          return ServiceTypes.HISTORICAL.equals(input.getServer().getType());
+        }
+      };
+    }
+
     // Compile list of all segments not pulled from cache
     for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
-      final QueryableDruidServer queryableDruidServer = segment.lhs.pick(tierSelectorStrategy);
+      final QueryableDruidServer queryableDruidServer = segment.lhs.pick(tierSelectorStrategy, predicate);
 
       if (queryableDruidServer == null) {
         log.makeAlert(

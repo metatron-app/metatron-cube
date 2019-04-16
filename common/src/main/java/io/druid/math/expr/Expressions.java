@@ -207,29 +207,32 @@ public class Expressions
     }
   }
 
-  public static interface Visitor<V>
+  public static interface Visitor<T extends Expression, V>
   {
-    boolean visit(Expression expression);
+    // return false for exit
+    boolean visit(T expression);
 
     V get();
 
-    public abstract class Void implements Visitor<Void>
+    public abstract class Void<T extends Expression> implements Visitor<T, Void>
     {
       @Override
-      public Void get() { return null; }
+      public final Void get() { return null; }
     }
   }
 
-  public static <T extends Expression, V> boolean traverse(T expression, Visitor<V> visitor)
+  @SuppressWarnings("unchecked")
+  public static <T extends Expression, V> boolean traverse(T expression, Visitor<T, V> visitor)
   {
     if (expression instanceof NotExpression) {
-      return traverse(((NotExpression) expression).getChild(), visitor);
+      return traverse((T) ((NotExpression) expression).getChild(), visitor);
     } else if (expression instanceof RelationExpression) {
-      boolean result = true;
       for (Expression child : ((RelationExpression) expression).getChildren()) {
-        result &= traverse(child, visitor);
+        if (!traverse((T) child, visitor)) {
+          return false;
+        }
       }
-      return result;
+      return true;
     }
     return visitor.visit(expression);
   }

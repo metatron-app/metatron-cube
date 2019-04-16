@@ -43,6 +43,9 @@ public class QueryConfig
   @JsonProperty
   public boolean useCustomSerdeForDateTime;
 
+  @JsonProperty
+  public boolean useHandedOffSegmentsOnlyForLuceneIndex;
+
   @JacksonInject
   @NotNull
   public Supplier<GroupByQueryConfig> groupBy = Suppliers.ofInstance(new GroupByQueryConfig());
@@ -96,6 +99,11 @@ public class QueryConfig
       return !getSelect().isUseDateTime();
     }
     return true;
+  }
+
+  public boolean isUseHandedOffSegmentsOnlyForLuceneIndex()
+  {
+    return useHandedOffSegmentsOnlyForLuceneIndex;
   }
 
   public boolean useBulkRow(Query query)

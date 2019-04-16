@@ -185,7 +185,7 @@ public class DirectDruidClientTest
 
     Assert.assertTrue(client2.getNumOpenConnections() == 2);
 
-    Assert.assertNotNull(serverSelector.pick(strategy));
+    Assert.assertNotNull(serverSelector.pick(strategy, null));
 
     EasyMock.verify(httpClient);
   }

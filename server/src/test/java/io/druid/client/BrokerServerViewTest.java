@@ -134,7 +134,7 @@ public class BrokerServerViewTest extends CuratorTestBase
                                                    .next().getObject();
     Assert.assertFalse(selector.isEmpty());
     Assert.assertEquals(segment, selector.getSegment());
-    Assert.assertEquals(druidServer, selector.pick(strategy).getServer());
+    Assert.assertEquals(druidServer, selector.pick(strategy, null).getServer());
 
     unannounceSegmentForServer(druidServer, segment, zkPathsConfig);
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentRemovedLatch));
@@ -284,7 +284,7 @@ public class BrokerServerViewTest extends CuratorTestBase
       ServerSelector selector = actualPartitionHolder.iterator()
                                                      .next().getObject();
       Assert.assertFalse(selector.isEmpty());
-      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick(strategy).getServer());
+      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick(strategy, null).getServer());
       Assert.assertEquals(expectedPair.rhs.rhs.rhs, selector.getSegment());
     }
   }

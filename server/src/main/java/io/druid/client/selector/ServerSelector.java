@@ -19,6 +19,7 @@
 
 package io.druid.client.selector;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -39,7 +40,10 @@ public class ServerSelector
     return new ServerSelector(null)
     {
       @Override
-      public QueryableDruidServer pick(TierSelectorStrategy strategy) { return server; }
+      public QueryableDruidServer pick(TierSelectorStrategy strategy, Predicate<QueryableDruidServer> predicate)
+      {
+        return predicate == null || predicate.apply(server) ? server : null;
+      }
     };
   }
 
@@ -85,16 +89,23 @@ public class ServerSelector
     return result;
   }
 
-  public synchronized QueryableDruidServer pick(TierSelectorStrategy strategy)
+  public synchronized QueryableDruidServer pick(
+      TierSelectorStrategy strategy,
+      Predicate<QueryableDruidServer> predicate
+  )
   {
-    if (servers.isEmpty()) {
+    List<QueryableDruidServer> targets = servers;
+    if (predicate != null) {
+      targets = Lists.newArrayList(Iterables.filter(targets, predicate));
+    }
+    if (targets.isEmpty()) {
       return null;
     }
-    if (servers.size() == 1) {
-      return Iterables.getFirst(servers, null);
+    if (targets.size() == 1) {
+      return Iterables.getFirst(targets, null);
     }
     final TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers = new TreeMap<>(strategy.getComparator());
-    for (QueryableDruidServer server : servers) {
+    for (QueryableDruidServer server : targets) {
       Set<QueryableDruidServer> theServers = prioritizedServers.get(server.getServer().getPriority());
       if (theServers == null) {
         theServers = Sets.newHashSet();
