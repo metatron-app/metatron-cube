@@ -207,7 +207,7 @@ public class FiniteAppenderatorDriver implements Closeable
         }
       }
       catch (SegmentNotWritableException e) {
-        throw new ISE(e, "WTF?! Segment[%s] not writable when it should have been.", identifier);
+        throw new ISE(e, "Segment[%s] not writable when it should have been.", identifier);
       }
     }
 
@@ -355,7 +355,7 @@ public class FiniteAppenderatorDriver implements Closeable
           for (SegmentIdentifier identifier : appenderator.getSegments()) {
             if (identifier.equals(newSegment)) {
               throw new ISE(
-                  "WTF?! Allocated segment[%s] which conflicts with existing segment[%s].",
+                  "Allocated segment[%s] which conflicts with existing segment[%s].",
                   newSegment,
                   identifier
               );
@@ -386,14 +386,14 @@ public class FiniteAppenderatorDriver implements Closeable
     synchronized (activeSegments) {
       final NavigableMap<Long, SegmentIdentifier> activeSegmentsForSequence = activeSegments.get(sequenceName);
       if (activeSegmentsForSequence == null) {
-        throw new ISE("WTF?! Asked to remove segments for sequenceName[%s] which doesn't exist...", sequenceName);
+        throw new ISE("Asked to remove segments for sequenceName[%s] which doesn't exist...", sequenceName);
       }
 
       for (final SegmentIdentifier identifier : identifiers) {
         log.info("Moving segment[%s] out of active list.", identifier);
         final long key = identifier.getInterval().getStartMillis();
         if (activeSegmentsForSequence.remove(key) != identifier) {
-          throw new ISE("WTF?! Asked to remove segment[%s] that didn't exist...", identifier);
+          throw new ISE("Asked to remove segment[%s] that didn't exist...", identifier);
         }
       }
     }
@@ -424,7 +424,7 @@ public class FiniteAppenderatorDriver implements Closeable
         // Sanity check
         if (!segmentsToIdentifiers(segmentsAndMetadata.getSegments()).equals(Sets.newHashSet(theSegments))) {
           throw new ISE(
-              "WTF?! Pushed different segments than requested. Pushed[%s], requested[%s].",
+              "Pushed different segments than requested. Pushed[%s], requested[%s].",
               Joiner.on(", ").join(identifiersToStrings(segmentsToIdentifiers(segmentsAndMetadata.getSegments()))),
               Joiner.on(", ").join(identifiersToStrings(theSegments))
           );

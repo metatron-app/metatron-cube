@@ -399,7 +399,7 @@ public class WorkerTaskMonitor
 
       if (!status.isComplete()) {
         log.warn(
-            "WTF?! Got status notice for task [%s] that isn't complete (status = [%s])...",
+            "Got status notice for task [%s] that isn't complete (status = [%s])...",
             task.getId(),
             status.getStatusCode()
         );

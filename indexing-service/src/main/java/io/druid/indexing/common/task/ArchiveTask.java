@@ -67,11 +67,11 @@ public class ArchiveTask extends AbstractFixedIntervalTask
     final TaskLock myLock = Iterables.getOnlyElement(getTaskLocks(toolbox));
 
     if (!myLock.getDataSource().equals(getDataSource())) {
-      throw new ISE("WTF?! Lock dataSource[%s] != task dataSource[%s]", myLock.getDataSource(), getDataSource());
+      throw new ISE("Lock dataSource[%s] != task dataSource[%s]", myLock.getDataSource(), getDataSource());
     }
 
     if (!myLock.getInterval().equals(getInterval())) {
-      throw new ISE("WTF?! Lock interval[%s] != task interval[%s]", myLock.getInterval(), getInterval());
+      throw new ISE("Lock interval[%s] != task interval[%s]", myLock.getInterval(), getInterval());
     }
 
     // List unused segments
@@ -83,7 +83,7 @@ public class ArchiveTask extends AbstractFixedIntervalTask
     for (final DataSegment unusedSegment : unusedSegments) {
       if (unusedSegment.getVersion().compareTo(myLock.getVersion()) > 0) {
         throw new ISE(
-            "WTF?! Unused segment[%s] has version[%s] > task version[%s]",
+            "Unused segment[%s] has version[%s] > task version[%s]",
             unusedSegment.getIdentifier(),
             unusedSegment.getVersion(),
             myLock.getVersion()

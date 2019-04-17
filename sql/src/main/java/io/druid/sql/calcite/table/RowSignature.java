@@ -178,7 +178,7 @@ public class RowSignature
             type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.OTHER, true);
             break;
           default:
-            throw new ISE("WTF?! valueType[%s] not translatable?", columnType);
+            throw new ISE("valueType[%s] not translatable?", columnType);
         }
       }
 

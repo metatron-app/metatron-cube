@@ -571,7 +571,7 @@ public class DruidBaseQuery implements DruidQuery
       } else if (collation.getDirection() == RelFieldCollation.Direction.DESCENDING) {
         direction = Direction.DESCENDING;
       } else {
-        throw new ISE("WTF?! Don't know what to do with direction[%s]", collation.getDirection());
+        throw new ISE("Don't know what to do with direction[%s]", collation.getDirection());
       }
 
       // use natural ordering.. what so ever
@@ -906,7 +906,7 @@ public class DruidBaseQuery implements DruidQuery
     final List<String> rowOrder = outputRowSignature.getRowOrder();
     if (rowOrder.isEmpty()) {
       // Should never do a scan query without any columns that we're interested in. This is probably a planner bug.
-      throw new ISE("WTF?! Attempting to convert to Scan query without any columns?");
+      throw new ISE("Attempting to convert to Scan query without any columns?");
     }
 
     final Filtration filtration = Filtration.create(filter).optimize(sourceRowSignature);

@@ -761,7 +761,7 @@ public class AppenderatorImpl implements Appenderator
     }
 
     if (sink.isWritable()) {
-      throw new ISE("WTF?! Expected sink to be no longer writable before mergeAndPush. Segment[%s].", identifier);
+      throw new ISE("Expected sink to be no longer writable before mergeAndPush. Segment[%s].", identifier);
     }
 
     // Use a descriptor file to indicate that pushing has completed.
@@ -773,7 +773,7 @@ public class AppenderatorImpl implements Appenderator
     for (FireHydrant hydrant : sink) {
       synchronized (hydrant) {
         if (!hydrant.hasSwapped()) {
-          throw new ISE("WTF?! Expected sink to be fully persisted before mergeAndPush. Segment[%s].", identifier);
+          throw new ISE("Expected sink to be fully persisted before mergeAndPush. Segment[%s].", identifier);
         }
       }
     }

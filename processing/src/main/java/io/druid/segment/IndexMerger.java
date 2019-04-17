@@ -962,8 +962,9 @@ public class IndexMerger
         File dimOutFile = dimOuts.get(i).getFile();
         final MappedByteBuffer dimValsMapped = Files.map(dimOutFile);
 
-        if (!dimension.equals(SerializerUtils.readString(dimValsMapped))) {
-          throw new ISE("dimensions[%s] didn't equate!?  This is a major WTF moment.", dimension);
+        final String string = SerializerUtils.readString(dimValsMapped);
+        if (!dimension.equals(string)) {
+          throw new ISE("dimensions[%s] didn't match with [%s]", dimension, string);
         }
         Indexed<String> dimVals = GenericIndexed.read(dimValsMapped, ObjectStrategy.STRING_STRATEGY);
         log.info("Starting dimension[%s] with cardinality[%,d]", dimension, dimVals.size());

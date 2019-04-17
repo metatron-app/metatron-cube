@@ -32,7 +32,6 @@ import com.metamx.common.guava.TestSequence;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -286,16 +285,16 @@ public class OrderedMergeSequenceTest
     return new OrderedMergeSequence<T>(
         ordering,
         Sequences.simple(
-            Lists.transform( // OMG WTF, the java type system really annoys me at times...
-                             seqs,
-                             new Function<TestSequence<T>, Sequence<T>>()
-                             {
-                               @Override
-                               public Sequence<T> apply(@Nullable TestSequence<T> input)
-                               {
-                                 return input;
-                               }
-                             }
+            Lists.transform(
+                seqs,
+                new Function<TestSequence<T>, Sequence<T>>()
+                {
+                  @Override
+                  public Sequence<T> apply(TestSequence<T> input)
+                  {
+                    return input;
+                  }
+                }
             )
         )
     );
@@ -309,16 +308,16 @@ public class OrderedMergeSequenceTest
     return new MergeSequence<T>(
         ordering,
         Sequences.simple(
-            Lists.transform( // OMG WTF, the java type system really annoys me at times...
-                             seqs,
-                             new Function<TestSequence<T>, Sequence<T>>()
-                             {
-                               @Override
-                               public Sequence<T> apply(@Nullable TestSequence<T> input)
-                               {
-                                 return input;
-                               }
-                             }
+            Lists.transform(
+                seqs,
+                new Function<TestSequence<T>, Sequence<T>>()
+                {
+                  @Override
+                  public Sequence<T> apply(TestSequence<T> input)
+                  {
+                    return input;
+                  }
+                }
             )
         )
     );

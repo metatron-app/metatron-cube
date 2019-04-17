@@ -79,7 +79,7 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
     );
 
     if (condensedAggPostAggPair.lhs.isEmpty() && condensedAggPostAggPair.rhs.isEmpty()) {
-      throw new ISE("WTF! Can't find the metric to do topN over?");
+      throw new ISE("Can't find the metric to do topN over?");
     }
     // Run topN for only a single metric
     TopNQuery singleMetricQuery = new TopNQueryBuilder().copy(query)

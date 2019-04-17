@@ -206,8 +206,8 @@ public class RealtimeIndexTask extends AbstractTask
   {
     runThread = Thread.currentThread();
 
-    if (this.plumber != null) {
-      throw new IllegalStateException("WTF?!? run with non-null plumber??!");
+    if (plumber != null) {
+      throw new IllegalStateException("Should not run with plumber");
     }
     startTime = System.currentTimeMillis();
 

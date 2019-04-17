@@ -243,7 +243,7 @@ public abstract class LoadRule implements Rule
     while (currentNumReplicantsForTier > expectedNumReplicantsForTier) {
       final ServerHolder holder = serverQueue.pollLast();
       if (holder == null) {
-        log.warn("Wtf, holder was null?  I have no servers serving [%s]?", segment.getIdentifier());
+        log.warn("No servers serving [%s]?", segment.getIdentifier());
         break;
       }
 

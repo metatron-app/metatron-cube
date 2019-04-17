@@ -93,7 +93,7 @@ public class SearchQueryEngine
     final QueryableIndex index = segment.asQueryableIndex(true);
     final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {
-      log.makeAlert("WTF!? Unable to process search query on segment.")
+      log.makeAlert("Unable to process search query on segment.")
          .addData("segment", segment.getIdentifier())
          .addData("query", query).emit();
       throw new ISE(

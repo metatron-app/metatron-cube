@@ -155,7 +155,7 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
         final Task task = jsonMapper.readValue(taskFile, Task.class);
 
         if (!task.getId().equals(taskId)) {
-          throw new ISE("WTF?! Task[%s] restore file had wrong id[%s].", taskId, task.getId());
+          throw new ISE("Task[%s] restore file had wrong id[%s].", taskId, task.getId());
         }
 
         if (taskConfig.isRestoreTasksOnRestart() && task.canRestore()) {
@@ -265,12 +265,12 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                               }
 
                               if (taskWorkItem == null) {
-                                log.makeAlert("WTF?! TaskInfo disappeared!").addData("task", task.getId()).emit();
+                                log.makeAlert("TaskInfo disappeared!").addData("task", task.getId()).emit();
                                 throw new ISE("TaskInfo disappeared for task[%s]!", task.getId());
                               }
 
                               if (taskWorkItem.processHolder != null) {
-                                log.makeAlert("WTF?! TaskInfo already has a processHolder")
+                                log.makeAlert("TaskInfo already has a processHolder")
                                    .addData("task", task.getId())
                                    .emit();
                                 throw new ISE("TaskInfo already has processHolder for task[%s]!", task.getId());

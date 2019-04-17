@@ -466,7 +466,7 @@ public class DruidCoordinator
 
     for (DataSegment dataSegment : dataSegments) {
       if (dataSegment.getSize() < 0) {
-        log.makeAlert("No size on Segment, wtf?")
+        log.makeAlert("No size on Segment")
            .addData("segment", dataSegment)
            .emit();
       }

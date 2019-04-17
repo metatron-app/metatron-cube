@@ -130,7 +130,7 @@ public class QueryHostFinder
     Server server = selector == null ? null : selector.pick();
     if (server == null) {
       log.error(
-          "WTF?! No server found for serviceName[%s]. Using backup",
+          "No server found for serviceName[%s]. Using backup",
           serviceName
       );
 
@@ -138,7 +138,7 @@ public class QueryHostFinder
 
       if (server == null) {
         log.error(
-            "WTF?! No backup found for serviceName[%s]. Using default[%s]",
+            "No backup found for serviceName[%s]. Using default[%s]",
             serviceName,
             hostSelector.getDefaultServiceName()
         );

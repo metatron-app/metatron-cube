@@ -207,7 +207,7 @@ public class DruidServer implements Comparable
       DataSegment segment = segments.get(segmentId);
 
       if (segment == null) {
-        log.warn("Asked to remove data segment that doesn't exist!? server[%s], segment[%s]", getName(), segmentId);
+        log.info("Asked to remove data segment that doesn't exist. server[%s], segment[%s]", getName(), segmentId);
         return this;
       }
 
@@ -215,7 +215,7 @@ public class DruidServer implements Comparable
 
       if (dataSource == null) {
         log.warn(
-            "Asked to remove data segment from dataSource[%s] that doesn't exist, but the segment[%s] exists!?!?!?! wtf?  server[%s]",
+            "Asked to remove data segment from dataSource[%s] that doesn't exist, but the segment[%s] exists? server[%s]",
             segment.getDataSource(),
             segmentId,
             getName()

@@ -176,7 +176,7 @@ public class TieredBrokerHostSelector<T> implements HostSelector<T>
 
     if (brokerServiceName == null) {
       log.error(
-          "WTF?! No brokerServiceName found for datasource[%s], intervals[%s]. Using default[%s].",
+          "No brokerServiceName found for datasource[%s], intervals[%s]. Using default[%s].",
           query.getDataSource(),
           query.getIntervals(),
           tierConfig.getDefaultBrokerServiceName()
@@ -188,7 +188,7 @@ public class TieredBrokerHostSelector<T> implements HostSelector<T>
 
     if (retVal == null) {
       log.error(
-          "WTF?! No selector found for brokerServiceName[%s]. Using default selector for[%s]",
+          "No selector found for brokerServiceName[%s]. Using default selector for[%s]",
           brokerServiceName,
           tierConfig.getDefaultBrokerServiceName()
       );

@@ -92,7 +92,7 @@ public class GraphiteEmitter implements Emitter
   public void emit(Event event)
   {
     if (!started.get()) {
-      throw new ISE("WTF emit was called while service is not started yet");
+      throw new ISE("Emit was called while service is not started yet");
     }
     if (event instanceof ServiceMetricEvent) {
       final GraphiteEvent graphiteEvent = graphiteEventConverter.druidEventToGraphite((ServiceMetricEvent) event);

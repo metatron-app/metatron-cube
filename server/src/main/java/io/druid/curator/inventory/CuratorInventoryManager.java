@@ -134,7 +134,7 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
     for (String containerKey : Lists.newArrayList(containers.keySet())) {
       final ContainerHolder containerHolder = containers.remove(containerKey);
       if (containerHolder == null) {
-        log.wtf("!?  Got key[%s] from keySet() but it didn't have a value!?", containerKey);
+        log.error("Got key[%s] from keySet() but it didn't have a value!?", containerKey);
       } else {
         // This close() call actually calls shutdownNow() on the executor registered with the Cache object...
         containerHolder.getCache().close();

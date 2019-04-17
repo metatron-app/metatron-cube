@@ -139,7 +139,7 @@ public class Filtration
     );
 
     if (!transformed.getIntervals().equals(ImmutableList.of(eternity()))) {
-      throw new ISE("WTF?! optimizeFilterOnly was about to return filtration with intervals?!");
+      throw new ISE("Filtration [%s] has intervals [%s]", transformed.dimFilter, transformed.intervals);
     }
 
     return transformed;

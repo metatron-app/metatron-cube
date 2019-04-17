@@ -392,7 +392,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     }
 
     if (row == null) {
-      throw new IAE("Row is null? How can this be?!");
+      throw new IAE("Row should not be null");
     }
     return row;
   }

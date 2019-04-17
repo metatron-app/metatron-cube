@@ -243,7 +243,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
         if (null == prev) {
           numEntries.incrementAndGet();
         } else {
-          throw new ISE("WTF! we are in sychronized block.");
+          throw new ISE("'facts' is changed?");
         }
       }
     }

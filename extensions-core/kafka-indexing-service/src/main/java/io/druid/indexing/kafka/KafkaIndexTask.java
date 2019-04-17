@@ -314,7 +314,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         // Sanity checks.
         if (!restoredNextPartitions.getTopic().equals(ioConfig.getStartPartitions().getTopic())) {
           throw new ISE(
-              "WTF?! Restored topic[%s] but expected topic[%s]",
+              "Restored topic[%s] but expected topic[%s]",
               restoredNextPartitions.getTopic(),
               ioConfig.getStartPartitions().getTopic()
           );
@@ -322,7 +322,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
 
         if (!nextOffsets.keySet().equals(ioConfig.getStartPartitions().getPartitionOffsetMap().keySet())) {
           throw new ISE(
-              "WTF?! Restored partitions[%s] but expected partitions[%s]",
+              "Restored partitions[%s] but expected partitions[%s]",
               nextOffsets.keySet(),
               ioConfig.getStartPartitions().getPartitionOffsetMap().keySet()
           );
@@ -423,7 +423,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                   );
                 } else {
                   throw new ISE(
-                      "WTF?! Got offset[%,d] after offset[%,d] in partition[%d].",
+                      "Got offset[%,d] after offset[%,d] in partition[%d].",
                       record.offset(),
                       nextOffsets.get(record.partition()),
                       record.partition()
@@ -511,7 +511,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
 
           // Sanity check, we should only be publishing things that match our desired end state.
           if (!endOffsets.equals(finalPartitions.getPartitionOffsetMap())) {
-            throw new ISE("WTF?! Driver attempted to publish invalid metadata[%s].", commitMetadata);
+            throw new ISE("Driver attempted to publish invalid metadata[%s].", commitMetadata);
           }
 
           final SegmentTransactionalInsertAction action;
@@ -936,7 +936,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         log.info("Finished reading partition[%d].", entry.getKey());
       } else {
         throw new ISE(
-            "WTF?! Cannot start from offset[%,d] > endOffset[%,d]",
+            "Cannot start from offset[%,d] > endOffset[%,d]",
             entry.getValue(),
             endOffset
         );

@@ -90,7 +90,7 @@ public class CeilOperatorConversion implements SqlOperatorConversion
           ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
       );
     } else {
-      // WTF? CEIL with 3 arguments?
+      // CEIL with 3 arguments?
       return null;
     }
   }

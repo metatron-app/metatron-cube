@@ -25,6 +25,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
@@ -33,7 +34,6 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
-import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -496,7 +496,7 @@ public class AppenderatorTest
               return ((DataSegment) a).getIdentifier()
                                       .compareTo(((DataSegment) b).getIdentifier());
             } else {
-              throw new IllegalStateException("WTF??");
+              throw new ISE("%s vs %s", a.getClass(), b.getClass());
             }
           }
         }

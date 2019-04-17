@@ -291,7 +291,7 @@ public class IngestSegmentFirehoseFactoryTimelineTest
             if (action.getIntervals().equals(ImmutableList.of(testCase.interval))) {
               return (RetType) ImmutableList.copyOf(testCase.segments);
             } else {
-              throw new IllegalArgumentException("WTF");
+              throw new IllegalArgumentException("Action interval differs with test interval");
             }
           } else {
             throw new UnsupportedOperationException();

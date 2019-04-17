@@ -264,7 +264,7 @@ public class DetermineHashedPartitionsJob implements Jobby
                                                        .bucketInterval(new DateTime(inputRow.getTimestampFromEpoch()));
 
         if (!maybeInterval.isPresent()) {
-          throw new ISE("WTF?! No bucket found for timestamp: %s", inputRow.getTimestampFromEpoch());
+          throw new ISE("No bucket found for timestamp: %s", inputRow.getTimestampFromEpoch());
         }
         interval = maybeInterval.get();
       }
@@ -324,7 +324,7 @@ public class DetermineHashedPartitionsJob implements Jobby
       Optional<Interval> intervalOptional = config.getGranularitySpec().bucketInterval(new DateTime(key.get()));
 
       if (!intervalOptional.isPresent()) {
-        throw new ISE("WTF?! No bucket found for timestamp: %s", key.get());
+        throw new ISE("No bucket found for timestamp: %s", key.get());
       }
       Interval interval = intervalOptional.get();
       intervals.add(interval);

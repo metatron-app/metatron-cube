@@ -216,7 +216,7 @@ public class RabbitMQFirehoseFactory implements FirehoseFactory
           // A little unclear on how we should handle this.
 
           // At any rate, we're in an unknown state now so let's log something and return false.
-          log.wtf(e, "Got interrupted while waiting for next delivery. Doubt this should ever happen.");
+          log.error(e, "Got interrupted while waiting for next delivery. Doubt this should ever happen.");
         }
 
         // This means that delivery is null or we caught the exception above so we report that we have
@@ -229,7 +229,7 @@ public class RabbitMQFirehoseFactory implements FirehoseFactory
       {
         if (delivery == null) {
           //Just making sure.
-          log.wtf("I have nothing in delivery. Method hasMore() should have returned false.");
+          log.error("I have nothing in delivery. Method hasMore() should have returned false.");
           return null;
         }
 

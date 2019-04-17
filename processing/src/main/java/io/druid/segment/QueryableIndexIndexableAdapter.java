@@ -71,7 +71,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
       final Column col = input.getColumn(dim);
 
       if (col == null) {
-        log.warn("Wtf!? column[%s] didn't exist!?!?!?", dim);
+        log.warn("Column[%s] didn't exist", dim);
       } else if (col.getDictionaryEncoding() != null) {
         availableDimensions.add(dim);
       } else {

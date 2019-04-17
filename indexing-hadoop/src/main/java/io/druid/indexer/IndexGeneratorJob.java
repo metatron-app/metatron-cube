@@ -308,7 +308,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       final Optional<Bucket> bucket = getConfig().getBucket(inputRow);
 
       if (!bucket.isPresent()) {
-        throw new ISE("WTF?! No bucket found for row: %s", inputRow);
+        throw new ISE("No bucket found for row: %s", inputRow);
       }
 
       final long timestampFromEpoch = inputRow.getTimestampFromEpoch();

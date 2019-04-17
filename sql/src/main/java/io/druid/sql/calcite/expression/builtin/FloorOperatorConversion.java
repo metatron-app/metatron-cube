@@ -75,7 +75,7 @@ public class FloorOperatorConversion implements SqlOperatorConversion
 
       return TimeFloorOperatorConversion.applyTimestampFloor(druidExpression, granularity);
     } else {
-      // WTF? FLOOR with 3 arguments?
+      // FLOOR with 3 arguments?
       return null;
     }
   }

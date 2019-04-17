@@ -394,7 +394,7 @@ public class DeterminePartitionsJob implements Jobby
       final Optional<Interval> maybeInterval = config.getGranularitySpec().bucketInterval(timestamp);
 
       if (!maybeInterval.isPresent()) {
-        throw new ISE("WTF?! No bucket found for timestamp: %s", timestamp);
+        throw new ISE("No bucket found for timestamp: %s", timestamp);
       }
 
       final Interval interval = maybeInterval.get();
@@ -576,7 +576,7 @@ public class DeterminePartitionsJob implements Jobby
       final int totalRows = firstDvc.numRows;
 
       if (!firstDvc.dim.equals("") || !firstDvc.value.equals("")) {
-        throw new IllegalStateException("WTF?! Expected total row indicator on first k/v pair!");
+        throw new IllegalStateException("Expected total row indicator on first k/v pair!");
       }
 
       // "iterator" will now take us over many candidate dimensions

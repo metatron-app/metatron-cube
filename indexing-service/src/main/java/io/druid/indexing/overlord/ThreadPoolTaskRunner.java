@@ -161,7 +161,7 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
         entry.getValue().shutdown();
       }
       catch (SecurityException ex) {
-        log.wtf(ex, "I can't control my own threads!");
+        log.error(ex, "I can't control my own threads!");
       }
     }
 
@@ -230,7 +230,7 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
         entry.getValue().shutdownNow();
       }
       catch (SecurityException ex) {
-        log.wtf(ex, "I can't control my own threads!");
+        log.error(ex, "I can't control my own threads!");
       }
     }
   }
