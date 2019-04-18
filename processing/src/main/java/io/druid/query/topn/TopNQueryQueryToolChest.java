@@ -283,7 +283,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
       @Override
       public int applyAsInt(Object value)
       {
-        return ((Result<TopNResultValue>) value).getValue().size();
+        if (value instanceof Result) {
+          return ((Result<TopNResultValue>) value).getValue().size();
+        }
+        return 1;
       }
     };
   }

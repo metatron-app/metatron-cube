@@ -295,7 +295,10 @@ public class SelectQueryQueryToolChest
       @Override
       public int applyAsInt(Object value)
       {
-        return ((Result<SelectResultValue>) value).getValue().size();
+        if (value instanceof Result) {
+          return ((Result<SelectResultValue>) value).getValue().size();
+        }
+        return 1;
       }
     };
   }

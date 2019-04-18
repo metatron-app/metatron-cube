@@ -206,7 +206,10 @@ public class SearchQueryQueryToolChest
       @Override
       public int applyAsInt(Object value)
       {
-        return ((Result<SearchResultValue>) value).getValue().size();
+        if (value instanceof Result) {
+          return ((Result<SearchResultValue>) value).getValue().size();
+        }
+        return 1;
       }
     };
   }
