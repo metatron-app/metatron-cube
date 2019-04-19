@@ -102,7 +102,6 @@ import io.druid.server.DruidNode;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Hours;
@@ -507,7 +506,7 @@ public class TaskLifecycleTest
     taskLockbox = new TaskLockbox(taskStorage);
     tac = new LocalTaskActionClientFactory(taskStorage, new TaskActionToolbox(taskLockbox, null, mdc, emitter));
     File tmpDir = temporaryFolder.newFolder();
-    taskConfig = new TaskConfig(tmpDir.toString(), null, null, 50000, null, false, null, null);
+    taskConfig = new TaskConfig(tmpDir.toString(), null, null, 50000, null, null, false, null, null);
 
     return new TaskToolboxFactory(
         taskConfig,

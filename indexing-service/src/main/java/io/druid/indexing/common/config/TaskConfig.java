@@ -20,6 +20,7 @@
 package io.druid.indexing.common.config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.joda.time.Period;
@@ -27,6 +28,7 @@ import org.joda.time.Period;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 public class TaskConfig
 {
@@ -54,6 +56,9 @@ public class TaskConfig
   private final List<String> defaultHadoopCoordinates;
 
   @JsonProperty
+  private final Map<String, String> defaultHadoopJobProperties;
+
+  @JsonProperty
   private final boolean restoreTasksOnRestart;
 
   @JsonProperty
@@ -69,6 +74,7 @@ public class TaskConfig
       @JsonProperty("hadoopWorkingPath") String hadoopWorkingPath,
       @JsonProperty("defaultRowFlushBoundary") Integer defaultRowFlushBoundary,
       @JsonProperty("defaultHadoopCoordinates") List<String> defaultHadoopCoordinates,
+      @JsonProperty("defaultHadoopJobProperties") Map<String, String> defaultHadoopJobProperties,
       @JsonProperty("restoreTasksOnRestart") boolean restoreTasksOnRestart,
       @JsonProperty("gracefulShutdownTimeout") Period gracefulShutdownTimeout,
       @JsonProperty("directoryLockTimeout") Period directoryLockTimeout
@@ -82,6 +88,7 @@ public class TaskConfig
     this.defaultHadoopCoordinates = defaultHadoopCoordinates == null
                                     ? DEFAULT_DEFAULT_HADOOP_COORDINATES
                                     : defaultHadoopCoordinates;
+    this.defaultHadoopJobProperties = defaultHadoopJobProperties;
     this.restoreTasksOnRestart = restoreTasksOnRestart;
     this.gracefulShutdownTimeout = gracefulShutdownTimeout == null
                                    ? DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT
@@ -134,6 +141,13 @@ public class TaskConfig
   public List<String> getDefaultHadoopCoordinates()
   {
     return defaultHadoopCoordinates;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> getDefaultHadoopJobProperties()
+  {
+    return defaultHadoopJobProperties;
   }
 
   @JsonProperty

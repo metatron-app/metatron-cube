@@ -55,7 +55,6 @@ import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingCluster;
 import org.easymock.EasyMock;
-import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.junit.After;
 import org.junit.Assert;
@@ -81,7 +80,6 @@ public class WorkerTaskMonitorTest
 
   private Task task;
 
-  private Worker worker;
   private ObjectMapper jsonMapper;
   private IndexMerger indexMerger;
   private IndexMergerV9 indexMergerV9;
@@ -111,12 +109,7 @@ public class WorkerTaskMonitorTest
     cf.blockUntilConnected();
     cf.create().creatingParentsIfNeeded().forPath(basePath);
 
-    worker = new Worker(
-        "worker",
-        "localhost",
-        3,
-        "0"
-    );
+    Worker worker = new Worker("worker", "localhost", 3, "0");
 
     workerCuratorCoordinator = new WorkerCuratorCoordinator(
         jsonMapper,
@@ -153,6 +146,7 @@ public class WorkerTaskMonitorTest
         null,
         null,
         0,
+        null,
         null,
         false,
         null,

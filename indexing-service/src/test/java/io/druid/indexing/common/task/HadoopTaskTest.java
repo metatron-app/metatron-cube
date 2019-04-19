@@ -75,6 +75,7 @@ public class HadoopTaskTest
         null,
         null,
         ImmutableList.of("something:hadoop:1"),
+        null,
         false,
         null,
         null

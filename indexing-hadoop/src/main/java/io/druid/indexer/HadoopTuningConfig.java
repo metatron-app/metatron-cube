@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.segment.IndexSpec;
@@ -217,6 +218,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<Long, List<HadoopyShardSpec>> getShardSpecs()
   {
     return shardSpecs;
@@ -241,6 +243,7 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<String, String> getJobProperties()
   {
     return jobProperties;
@@ -427,6 +430,37 @@ public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
         useCombiner,
         numReducer,
         numReducer,
+        scatterParam,
+        DEFAULT_BYTES_PER_REDUCER,
+        getBuildV9Directly(),
+        numBackgroundPersistThreads
+    );
+  }
+
+  public HadoopTuningConfig withDefaultJobProeprties(Map<String, String> defaultHadoopJobProperties)
+  {
+    Map<String, String> mergedProeprties = Maps.newHashMap(defaultHadoopJobProperties);
+    mergedProeprties.putAll(jobProperties);
+
+    return new HadoopTuningConfig(
+        workingPath,
+        version,
+        partitionsSpec,
+        shardSpecs,
+        getIndexSpec(),
+        getMaxRowsInMemory(),
+        getMaxOccupationInMemory(),
+        getMaxShardLength(),
+        leaveIntermediate,
+        cleanupOnFailure,
+        overwriteFiles,
+        isIgnoreInvalidRows(),
+        mergedProeprties,
+        ingestionMode,
+        combineText,
+        useCombiner,
+        minReducer,
+        maxReducer,
         scatterParam,
         DEFAULT_BYTES_PER_REDUCER,
         getBuildV9Directly(),

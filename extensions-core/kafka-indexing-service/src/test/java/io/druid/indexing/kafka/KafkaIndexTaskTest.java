@@ -1477,6 +1477,7 @@ public class KafkaIndexTaskTest
         null,
         50000,
         null,
+        null,
         false,
         null,
         null

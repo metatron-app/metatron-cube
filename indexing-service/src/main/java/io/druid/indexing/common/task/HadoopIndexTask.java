@@ -52,6 +52,7 @@ import io.druid.indexing.common.actions.LockAcquireAction;
 import io.druid.indexing.common.actions.LockTryAcquireAction;
 import io.druid.indexing.common.actions.SegmentAppendingAction;
 import io.druid.indexing.common.actions.TaskActionClient;
+import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.hadoop.OverlordActionBasedUsedSegmentLister;
 import io.druid.query.SegmentDescriptor;
 import io.druid.segment.indexing.DataSchema;
@@ -237,6 +238,13 @@ public class HadoopIndexTask extends HadoopTask
     final ClassLoader loader = buildClassLoader(toolbox);
     boolean determineIntervals = !spec.getDataSchema().getGranularitySpec().bucketIntervals().isPresent();
 
+    final TaskConfig taskConfig = toolbox.getConfig();
+    if (!GuavaUtils.isNullOrEmpty(taskConfig.getDefaultHadoopJobProperties())) {
+      HadoopTuningConfig tunningConfig = spec.getTuningConfig();
+      spec = spec.withTuningConfig(
+          tunningConfig.withDefaultJobProeprties(taskConfig.getDefaultHadoopJobProperties())
+      );
+    }
     spec = HadoopIngestionSpec.updateSegmentListIfDatasourcePathSpecIsUsed(
         spec,
         jsonMapper,
@@ -248,7 +256,7 @@ public class HadoopIndexTask extends HadoopTask
         "io.druid.indexing.common.task.HadoopIndexTask$HadoopDetermineConfigInnerProcessing",
         new String[]{
             toolbox.getObjectMapper().writeValueAsString(spec),
-            toolbox.getConfig().getHadoopWorkingPath(),
+            taskConfig.getHadoopWorkingPath(),
             toolbox.getSegmentPusher().getPathForHadoop()
         },
         loader
