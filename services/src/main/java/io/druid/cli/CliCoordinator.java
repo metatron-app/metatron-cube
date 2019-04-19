@@ -132,7 +132,8 @@ public class CliCoordinator extends ServerRunnable
                 binder,
                 "druid.coordinator.dynamic",
                 CoordinatorDynamicConfig.class,
-                new CoordinatorDynamicConfig());
+                new CoordinatorDynamicConfig()
+            );
             JsonConfigProvider.bind(binder, "druid.coordinator.balancer", BalancerStrategyFactory.class);
 
             binder.bind(RedirectFilter.class).in(LazySingleton.class);

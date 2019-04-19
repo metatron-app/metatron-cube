@@ -145,6 +145,7 @@ public class ServerManager implements ForwardingSegmentWalker
           {
             Thread thread = factory.newThread(r);
             thread.setName("QueryManager");
+            thread.setDaemon(true);
             return thread;
           }
         }

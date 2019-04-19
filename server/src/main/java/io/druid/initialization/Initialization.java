@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -46,6 +47,8 @@ import io.druid.guice.FirehoseModule;
 import io.druid.guice.IndexingServiceDiscoveryModule;
 import io.druid.guice.JacksonConfigManagerModule;
 import io.druid.guice.JavaScriptModule;
+import io.druid.guice.JerseyModule;
+import io.druid.guice.Jerseys;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.MetadataConfigModule;
@@ -406,11 +409,25 @@ public class Initialization
         new StartupLoggingModule()
     );
 
+    final List<Class> resources = Lists.newArrayList();
     ModuleList actualModules = new ModuleList(baseInjector);
     actualModules.addModule(DruidSecondaryModule.class);
     for (Object module : modules) {
       actualModules.addModule(module);
+      if (module instanceof JerseyModule) {
+        resources.addAll(((JerseyModule) module).getResources());
+      }
     }
+    actualModules.addModule(new Module()
+    {
+      @Override
+      public void configure(Binder binder)
+      {
+        for (Class resource : resources) {
+          Jerseys.addResource(binder, resource);
+        }
+      }
+    });
 
     Module intermediateModules = Modules.override(defaultModules.getModules()).with(actualModules.getModules());
 

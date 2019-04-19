@@ -73,6 +73,7 @@ public class DruidBroker
           public Thread newThread(Runnable r)
           {
             Thread thread = factory.newThread(r);
+            thread.setDaemon(true);
             thread.setName("QueryManager");
             return thread;
           }

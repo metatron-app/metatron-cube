@@ -27,6 +27,7 @@ import com.google.inject.Injector;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
 import io.druid.guice.GuiceInjectors;
+import io.druid.server.Shutdown;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
@@ -40,7 +41,7 @@ import java.util.Properties;
 
 /**
  */
-public abstract class ServerRunnable extends GuiceRunnable
+public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.Proc
 {
   private static final Logger LOGGER = new Logger(ServerRunnable.class);
 
@@ -49,13 +50,21 @@ public abstract class ServerRunnable extends GuiceRunnable
     super(log);
   }
 
+  private volatile Thread runner;
+  private volatile Lifecycle lifecycle;
+
   @Override
   public void run()
   {
+    runner = Thread.currentThread();
     try {
-      start().join();
+      lifecycle = start();
+      lifecycle.join();
     }
     catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        return;
+      }
       throw Throwables.propagate(e);
     }
   }
@@ -63,6 +72,45 @@ public abstract class ServerRunnable extends GuiceRunnable
   protected Lifecycle start()
   {
     return initLifecycle(makeInjector());
+  }
+
+
+  @Override
+  public void shutdown()
+  {
+    startShutdown();
+  }
+
+  @Override
+  public boolean shutdown(long timeout)
+  {
+    final Thread shutdown = startShutdown();
+    if (timeout >= 0) {
+      try {
+        shutdown.join(timeout);
+      }
+      catch (InterruptedException e) {
+        throw Throwables.propagate(e);
+      }
+    }
+    return !shutdown.isAlive();
+  }
+
+  private Thread startShutdown()
+  {
+    final Thread shutdown = new Thread(new Runnable()
+    {
+      @Override
+      public void run()
+      {
+        lifecycle.stop();
+        runner.interrupt();
+      }
+    });
+    shutdown.setName("shutdown");
+    shutdown.setDaemon(true);
+    shutdown.start();
+    return shutdown;
   }
 
   private static final Map<String, Class<? extends ServerRunnable>> COMMANDS =
