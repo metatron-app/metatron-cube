@@ -87,6 +87,11 @@ public class DruidServerMetadata
     return priority;
   }
 
+  public boolean isDecommissioned()
+  {
+    return maxSize < 0;
+  }
+
   public boolean isAssignable()
   {
     return getType().equalsIgnoreCase("historical") || getType().equalsIgnoreCase("bridge");
@@ -95,6 +100,11 @@ public class DruidServerMetadata
   public boolean isHistorical()
   {
     return getType().equalsIgnoreCase("historical");
+  }
+
+  public DruidServerMetadata decommission()
+  {
+    return new DruidServerMetadata(name, host, -1, type, tier, priority);
   }
 
   @Override

@@ -48,10 +48,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 /**
  * Announces things on Zookeeper.
@@ -187,10 +189,17 @@ public class Announcer
       }
 
       // I don't have a watcher on this path yet, create a Map and start watching.
-      announcements.putIfAbsent(parentPath, new MapMaker().<String, byte[]>makeMap());
-
-      // Guaranteed to be non-null, but might be a map put in there by another thread.
-      final ConcurrentMap<String, byte[]> finalSubPaths = announcements.get(parentPath);
+      final ConcurrentMap<String, byte[]> finalSubPaths = announcements.computeIfAbsent(
+          parentPath,
+          new Function<String, ConcurrentMap<String, byte[]>>()
+          {
+            @Override
+            public ConcurrentMap<String, byte[]> apply(String path)
+            {
+              return new ConcurrentHashMap<>();
+            }
+          }
+      );
 
       // Synchronize to make sure that I only create a listener once.
       synchronized (finalSubPaths) {

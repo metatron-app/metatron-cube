@@ -144,6 +144,11 @@ public class DruidServer implements Comparable
     return metadata.isAssignable();
   }
 
+  public boolean isDecommissioned()
+  {
+    return metadata.isDecommissioned();
+  }
+
   public int getPriority()
   {
     return metadata.getPriority();

@@ -75,6 +75,11 @@ public class ServerHolder implements Comparable<ServerHolder>
     return (100 * getSizeUsed().doubleValue()) / getMaxSize();
   }
 
+  public boolean isDecommissioned()
+  {
+    return server.isDecommissioned();
+  }
+
   public int getNumExpectedSegments()
   {
     return peon.getSegmentsToLoad().size() - peon.getSegmentsToDrop().size() + server.getSegments().size();
@@ -87,6 +92,9 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public static long getAvailableSize(ImmutableDruidServer server, LoadQueuePeon peon)
   {
+    if (server.isDecommissioned()) {
+      return -1;
+    }
     long maxSize = server.getMaxSize();
     long sizeUsed = server.getCurrSize() + peon.getLoadQueueSize();
     long availableSize = maxSize - sizeUsed;

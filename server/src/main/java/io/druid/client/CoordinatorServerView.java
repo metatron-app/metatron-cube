@@ -95,7 +95,7 @@ public class CoordinatorServerView implements InventoryView
 
     baseView.registerServerCallback(
         exec,
-        new ServerView.ServerCallback()
+        new ServerView.AbstractServerCallback()
         {
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)

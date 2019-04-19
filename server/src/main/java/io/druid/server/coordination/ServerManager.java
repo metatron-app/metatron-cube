@@ -46,6 +46,7 @@ import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
+import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -58,8 +59,8 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
-import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.StorageHandler;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -67,7 +68,6 @@ import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
-import io.druid.query.ForwardingSegmentWalker;
 import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
@@ -162,6 +162,13 @@ public class ServerManager implements ForwardingSegmentWalker
   {
     synchronized (dataSourceCounts) {
       return dataSourceCounts.snapshot();
+    }
+  }
+
+  public boolean isEmpty()
+  {
+    synchronized (lock) {
+      return dataSources.isEmpty();
     }
   }
 
@@ -276,6 +283,9 @@ public class ServerManager implements ForwardingSegmentWalker
             segment.getInterval(),
             segment.getVersion()
         );
+      }
+      if (loadedIntervals.isEmpty()) {
+        dataSources.remove(dataSource);
       }
     }
     segmentLoader.cleanup(segment);

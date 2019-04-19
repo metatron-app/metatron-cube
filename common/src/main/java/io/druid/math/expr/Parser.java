@@ -25,6 +25,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.TypeResolver;
@@ -63,7 +64,7 @@ public class Parser
     if (registered.putIfAbsent(parent.getName(), new Object()) != null) {
       return;
     }
-    log.info("registering function in library %s", parent.getName());
+    log.info("registering functions in library [%s]", parent.getName());
 
     boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
                                  parent != PredicateFunctions.class &&
@@ -92,12 +93,12 @@ public class Parser
       String name = factory.name().toLowerCase();
       Function.Factory prev = functions.get(name);
       if (prev != null) {
-        throw new IllegalArgumentException("function '" + name + "' cannot not be overridden");
+        throw new IAE("function '%s' cannot not be overridden", name);
       }
       functions.put(name, factory);
 
       if (userDefinedLibrary) {
-        log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
+        log.info("> '%s' is registered with class %s", name, clazz.getSimpleName());
       }
     }
   }

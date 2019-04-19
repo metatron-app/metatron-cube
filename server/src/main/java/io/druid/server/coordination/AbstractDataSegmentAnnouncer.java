@@ -22,6 +22,7 @@ package io.druid.server.coordination;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
+import com.metamx.common.ISE;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.common.logger.Logger;
@@ -31,7 +32,7 @@ import org.apache.curator.utils.ZKPaths;
 
 /**
  */
-public abstract class AbstractDataSegmentAnnouncer implements DataSegmentAnnouncer
+public abstract class AbstractDataSegmentAnnouncer implements DataSegmentAnnouncer.Decommissionable
 {
   private static final Logger log = new Logger(AbstractDataSegmentAnnouncer.class);
 
@@ -43,6 +44,7 @@ public abstract class AbstractDataSegmentAnnouncer implements DataSegmentAnnounc
   private final Object lock = new Object();
 
   private volatile boolean started = false;
+  private volatile boolean decommissioned = false;
 
   protected AbstractDataSegmentAnnouncer(
       DruidServerMetadata server,
@@ -75,6 +77,35 @@ public abstract class AbstractDataSegmentAnnouncer implements DataSegmentAnnounc
       }
 
       started = true;
+    }
+  }
+
+  @Override
+  public boolean isDecommissioned()
+  {
+    return decommissioned;
+  }
+
+  @Override
+  public void decommission()
+  {
+    synchronized (lock) {
+      if (!started) {
+        throw new ISE("Cannot decommission not-started node");
+      }
+      if (decommissioned) {
+        return;
+      }
+      final DruidServerMetadata decommission = server.decommission();
+      try {
+        final String path = makeAnnouncementPath();
+        log.info("Decommission self[%s] at [%s]", decommission, path);
+        announcer.update(path, jsonMapper.writeValueAsBytes(decommission));
+        decommissioned = true;
+      }
+      catch (JsonProcessingException e) {
+        throw Throwables.propagate(e);
+      }
     }
   }
 

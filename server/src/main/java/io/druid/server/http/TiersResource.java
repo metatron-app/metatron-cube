@@ -83,8 +83,10 @@ public class TiersResource
         Long currSize = tierMetadata.get("currSize");
         tierMetadata.put("currSize", ((currSize == null) ? 0 : currSize) + druidServer.getCurrSize());
 
-        Long maxSize = tierMetadata.get("maxSize");
-        tierMetadata.put("maxSize", ((maxSize == null) ? 0 : maxSize) + druidServer.getMaxSize());
+        if (!druidServer.isDecommissioned()) {
+          Long maxSize = tierMetadata.get("maxSize");
+          tierMetadata.put("maxSize", ((maxSize == null) ? 0 : maxSize) + druidServer.getMaxSize());
+        }
       }
       return builder.entity(metadata).build();
     }

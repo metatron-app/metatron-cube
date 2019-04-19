@@ -120,13 +120,16 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
           public void deadContainer(DruidServer deadContainer)
           {
             log.info("[%s:%s] Disappeared", deadContainer.getType(), deadContainer.getName());
-            runServerCallbacks(deadContainer);
+            runServerCallback(deadContainer, ServerCallback.Type.REMOVED);
           }
 
           @Override
           public DruidServer updateContainer(DruidServer oldContainer, DruidServer newContainer)
           {
-            return newContainer.addDataSegments(oldContainer);
+            log.info("[%s:%s] Updated", oldContainer.getType(), newContainer);
+            DruidServer updated = newContainer.addDataSegments(oldContainer);
+            runServerCallback(updated, ServerCallback.Type.UPDATED);
+            return updated;
           }
 
           @Override
@@ -254,7 +257,7 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
     }
   }
 
-  protected void runServerCallbacks(final DruidServer server)
+  protected void runServerCallback(final DruidServer server, final ServerCallback.Type type)
   {
     for (final Map.Entry<ServerCallback, Executor> entry : serverCallbacks.entrySet()) {
       entry.getValue().execute(
@@ -263,7 +266,7 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
             @Override
             public void run()
             {
-              if (CallbackAction.UNREGISTER == entry.getKey().serverRemoved(server)) {
+              if (CallbackAction.UNREGISTER == type.execute(entry.getKey(), server)) {
                 serverCallbacks.remove(entry.getKey());
               }
             }

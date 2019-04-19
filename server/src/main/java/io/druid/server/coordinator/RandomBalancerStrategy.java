@@ -71,7 +71,8 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
               @Override
               public boolean apply(ServerHolder holder)
               {
-                return holder.getAvailableSize() > proposalSegmentSize &&
+                return holder.getMaxSize() > 0 &&
+                       holder.getAvailableSize() > proposalSegmentSize &&
                        !holder.isLoadingSegment(proposalSegment) &&
                        (includeCurrentServer || !holder.isServingSegment(proposalSegment));
               }

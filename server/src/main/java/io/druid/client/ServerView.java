@@ -55,6 +55,43 @@ public interface ServerView
      * should remain registered.
      */
     CallbackAction serverRemoved(DruidServer server);
+
+    CallbackAction serverUpdated(DruidServer server);
+
+    enum Type
+    {
+      REMOVED {
+        @Override
+        public CallbackAction execute(ServerCallback callback, DruidServer server)
+        {
+          return callback.serverRemoved(server);
+        }
+      },
+      UPDATED {
+        @Override
+        public CallbackAction execute(ServerCallback callback, DruidServer server)
+        {
+          return callback.serverUpdated(server);
+        }
+      };
+
+      public abstract CallbackAction execute(ServerCallback callback, DruidServer server);
+    }
+  }
+
+  class AbstractServerCallback implements ServerCallback
+  {
+    @Override
+    public CallbackAction serverRemoved(DruidServer server)
+    {
+      return CallbackAction.CONTINUE;
+    }
+
+    @Override
+    public CallbackAction serverUpdated(DruidServer server)
+    {
+      return CallbackAction.CONTINUE;
+    }
   }
 
   static interface SegmentCallback

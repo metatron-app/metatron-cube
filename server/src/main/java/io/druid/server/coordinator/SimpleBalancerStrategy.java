@@ -133,7 +133,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
 
         for (int from : excessive) {
           for (int to : deficit) {
-            if (segmentsPerServer[to].size() >= groupPerServer) {
+            if (servers[to].isDecommissioned() || segmentsPerServer[to].size() >= groupPerServer) {
               continue;
             }
             DataSegment segment = findTarget(servers[to], segmentsPerServer[from], segmentsPerServer[to]);

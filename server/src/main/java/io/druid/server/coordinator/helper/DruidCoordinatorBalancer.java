@@ -37,6 +37,7 @@ import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
 
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -83,6 +84,34 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    // bulk moving of segments for decommissioned historical node
+    final BalancerStrategy balancerStrategy = params.getBalancerStrategy();
+    for (MinMaxPriorityQueue<ServerHolder> servers : params.getDruidCluster().getSortedServersByTier()) {
+      List<ServerHolder> holders = Lists.newArrayList(servers);
+      Iterator<ServerHolder> iterator = holders.iterator();
+      Map<ServerHolder, List<DataSegment>> segmentsMap = Maps.newHashMap();
+      while (iterator.hasNext()) {
+        ServerHolder holder = iterator.next();
+        if (holder.getServer().isAssignable()) {
+          Map<String, DataSegment> segments = holder.getServer().getSegments();
+          if (holder.getMaxSize() < 0 && !segments.isEmpty()) {
+            segmentsMap.put(holder, Lists.newArrayList(segments.values()));
+            iterator.remove();
+          }
+        }
+      }
+      if (!segmentsMap.isEmpty() && !holders.isEmpty()) {
+        for (Map.Entry<ServerHolder, List<DataSegment>> entry : segmentsMap.entrySet()) {
+          for (DataSegment segment : entry.getValue()) {
+            ServerHolder target = balancerStrategy.findNewSegmentHomeReplicator(segment, holders);
+            if (target != null) {
+              BalancerSegmentHolder holder = new BalancerSegmentHolder(entry.getKey().getServer(), segment);
+              moveSegment(holder, target.getServer(), params);
+            }
+          }
+        }
+      }
+    }
     if (!params.isMajorTick()) {
       return params;
     }
@@ -93,16 +122,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         params.getDruidCluster().getCluster().entrySet()) {
       String tier = entry.getKey();
 
-      final ConcurrentHashMap<String, BalancerSegmentHolder> tierMap = currentlyMovingSegments.computeIfAbsent(
-          tier, new Function<String, ConcurrentHashMap<String, BalancerSegmentHolder>>()
-          {
-            @Override
-            public ConcurrentHashMap<String, BalancerSegmentHolder> apply(String s)
-            {
-              return new ConcurrentHashMap<String, BalancerSegmentHolder>();
-            }
-          }
-      );
+      final ConcurrentHashMap<String, BalancerSegmentHolder> tierMap = getTierMap(tier);
       if (!tierMap.isEmpty()) {
         reduceLifetimes(tier);
         log.info("[%s]: Still waiting on %,d segments to be moved", tier, currentlyMovingSegments.size());
@@ -168,7 +188,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         ServerHolder.getAvailableSize(toServer, toPeon) > segmentToMove.getSize()) {
       log.debug("Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName());
 
-      final Map<String, BalancerSegmentHolder> movingSegments = currentlyMovingSegments.get(toServer.getTier());
+      final Map<String, BalancerSegmentHolder> movingSegments = getTierMap(toServer.getTier());
       final LoadPeonCallback callback = new LoadPeonCallback()
       {
         @Override
@@ -192,5 +212,19 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         callback.execute();
       }
     }
+  }
+
+  private ConcurrentHashMap<String, BalancerSegmentHolder> getTierMap(String tier)
+  {
+    return currentlyMovingSegments.computeIfAbsent(
+        tier, new Function<String, ConcurrentHashMap<String, BalancerSegmentHolder>>()
+        {
+          @Override
+          public ConcurrentHashMap<String, BalancerSegmentHolder> apply(String s)
+          {
+            return new ConcurrentHashMap<String, BalancerSegmentHolder>();
+          }
+        }
+    );
   }
 }

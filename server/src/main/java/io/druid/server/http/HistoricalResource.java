@@ -28,6 +28,7 @@ import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -38,9 +39,7 @@ public class HistoricalResource
   private final ZkCoordinator coordinator;
 
   @Inject
-  public HistoricalResource(
-      ZkCoordinator coordinator
-  )
+  public HistoricalResource(ZkCoordinator coordinator)
   {
     this.coordinator = coordinator;
   }
@@ -51,5 +50,14 @@ public class HistoricalResource
   public Response getLoadStatus()
   {
     return Response.ok(ImmutableMap.of("cacheInitialized", coordinator.isStarted())).build();
+  }
+
+  @GET
+  @Path("/decommission")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response decommission(@QueryParam("timeout") Long timeout)
+  {
+    long wait = timeout == null ? 30000 : timeout;
+    return Response.ok(ImmutableMap.of("decommissioned", coordinator.decommission(wait))).build();
   }
 }

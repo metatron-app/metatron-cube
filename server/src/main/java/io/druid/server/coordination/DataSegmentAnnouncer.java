@@ -37,4 +37,11 @@ public interface DataSegmentAnnouncer
    * @return true if the segment was already announced, otherwise false
    */
   public boolean isAnnounced(DataSegment segment);
+
+  interface Decommissionable extends DataSegmentAnnouncer
+  {
+    boolean isDecommissioned();
+
+    void decommission();
+  }
 }

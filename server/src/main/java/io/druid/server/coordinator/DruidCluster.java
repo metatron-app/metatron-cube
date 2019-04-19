@@ -68,7 +68,9 @@ public class DruidCluster
     }
     long available = 0L;
     for (ServerHolder holder : tierServers) {
-      available += holder.getAvailableSize();
+      if (!holder.isDecommissioned()) {
+        available += holder.getAvailableSize();
+      }
     }
     return available;
   }

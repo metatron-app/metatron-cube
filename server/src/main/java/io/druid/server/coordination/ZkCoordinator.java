@@ -244,6 +244,28 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     }
   }
 
+  private static final long CHECK_INTERVAL = 1000;
+
+  public boolean decommission(long timeout)
+  {
+    if (announcer instanceof DataSegmentAnnouncer.Decommissionable) {
+      ((DataSegmentAnnouncer.Decommissionable) announcer).decommission();
+      for (;timeout > 0; timeout -= CHECK_INTERVAL) {
+        if (serverManager.isEmpty()) {
+          return true;
+        }
+        try {
+          Thread.sleep(Math.min(timeout, CHECK_INTERVAL));
+        }
+        catch (InterruptedException e) {
+          break;
+        }
+      }
+      return serverManager.isEmpty();
+    }
+    throw new UnsupportedOperationException("decommission");
+  }
+
   public boolean isStarted()
   {
     return started;
@@ -500,11 +522,16 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   @Override
   public void removeSegment(final DataSegment segment, final DataSegmentChangeCallback callback)
   {
+    int dropDelay = config.getDropSegmentDelayMillis();
+    if (announcer instanceof DataSegmentAnnouncer.Decommissionable &&
+        ((DataSegmentAnnouncer.Decommissionable) announcer).isDecommissioned()) {
+      dropDelay = Math.max(4000, dropDelay >> 3);
+    }
     try {
       announcer.unannounceSegment(segment);
       segmentsToDelete.add(segment);
 
-      log.info("Completely removing [%s] in [%,d] millis", segment.getIdentifier(), config.getDropSegmentDelayMillis());
+      log.info("Completely removing [%s] in [%,d] millis", segment.getIdentifier(), dropDelay);
       exec.schedule(
           new Runnable()
           {
@@ -530,7 +557,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
               }
             }
           },
-          config.getDropSegmentDelayMillis(),
+          dropDelay,
           TimeUnit.MILLISECONDS
       );
     }

@@ -95,7 +95,7 @@ public class CachingCostBalancerStrategyFactory implements BalancerStrategyFacto
 
     serverInventoryView.registerServerCallback(
         executor,
-        new ServerView.ServerCallback()
+        new ServerView.AbstractServerCallback()
         {
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)

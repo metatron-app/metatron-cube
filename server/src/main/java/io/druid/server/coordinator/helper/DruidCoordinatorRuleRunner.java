@@ -149,7 +149,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
             @Override
             public boolean apply(ServerHolder holder)
             {
-              return holder.getAvailableSize() < (1L << 30);
+              return holder.getAvailableSize() < (1L << 28);
             }
           }
       ), new com.google.common.base.Function<ServerHolder, String>()

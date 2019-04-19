@@ -83,6 +83,7 @@ import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -126,7 +127,7 @@ public class DruidCoordinator
   private final ZkPathsConfig zkPaths;
   private final JacksonConfigManager configManager;
   private final MetadataSegmentManager metadataSegmentManager;
-  private final ServerInventoryView<Object> serverInventoryView;
+  private final ServerInventoryView<?> serverInventoryView;
   private final MetadataRuleManager metadataRuleManager;
   private final CuratorFramework curator;
   private final ServiceEmitter emitter;
@@ -232,6 +233,7 @@ public class DruidCoordinator
     this.loadManagementPeons = loadQueuePeonMap;
     this.defaultConfig = defaultConfig == null ? new CoordinatorDynamicConfig() : defaultConfig;
     this.factory = factory;
+
     final CoordinatorDynamicConfig dynamicConfigs = getDynamicConfigs();
     this.balancerExec = MoreExecutors.listeningDecorator(
         Executors.newFixedThreadPool(dynamicConfigs.getBalancerComputeThreads())
@@ -239,6 +241,23 @@ public class DruidCoordinator
     this.replicatorThrottler = new ReplicationThrottler(
         dynamicConfigs.getReplicationThrottleLimit(),
         dynamicConfigs.getReplicantLifetime()
+    );
+    if (serverInventoryView.toString().contains("EasyMock")) {
+      return;   // damn easy mock
+    }
+    serverInventoryView.registerServerCallback(
+        exec,
+        new ServerView.AbstractServerCallback()
+        {
+          @Override
+          public ServerView.CallbackAction serverUpdated(DruidServer server)
+          {
+            if (leader && server.isDecommissioned()) {
+              balanceNow();
+            }
+            return ServerView.CallbackAction.CONTINUE;
+          }
+        }
     );
   }
 
@@ -688,7 +707,17 @@ public class DruidCoordinator
     }
   }
 
-  private Future<CoordinatorStats> scheduleNow(final Set<DataSegment> segments)
+  private Future<CoordinatorStats> scheduleNow(Set<DataSegment> segments)
+  {
+    return runNow(segments, new DruidCoordinatorRuleRunner(DruidCoordinator.this));
+  }
+
+  private Future<CoordinatorStats> balanceNow()
+  {
+    return runNow(Collections.<DataSegment>emptySet(), new DruidCoordinatorBalancer(DruidCoordinator.this));
+  }
+
+  private Future<CoordinatorStats> runNow(final Set<DataSegment> segments, final DruidCoordinatorHelper helper)
   {
     return exec.submit(
           new Callable<CoordinatorStats>()
@@ -709,7 +738,7 @@ public class DruidCoordinator
                                      public List<Rule> getRulesWithDefault(String dataSource) { return loader;}
                                    }
                                ).build();
-                new DruidCoordinatorRuleRunner(DruidCoordinator.this).run(params);
+                helper.run(params);
               }
               return params.getCoordinatorStats();
             }

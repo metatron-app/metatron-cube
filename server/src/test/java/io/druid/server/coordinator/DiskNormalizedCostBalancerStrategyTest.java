@@ -75,6 +75,8 @@ public class DiskNormalizedCostBalancerStrategyTest
     EasyMock.expect(druidServer.getName()).andReturn("BEST_SERVER").anyTimes();
     EasyMock.expect(druidServer.getCurrSize()).andReturn(3000L).anyTimes();
     EasyMock.expect(druidServer.getMaxSize()).andReturn(100000000L).anyTimes();
+    EasyMock.expect(druidServer.isAssignable()).andReturn(true).anyTimes();
+    EasyMock.expect(druidServer.isDecommissioned()).andReturn(false).anyTimes();
 
     EasyMock.expect(druidServer.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
     Map<String, DataSegment> segments = Maps.newHashMap();

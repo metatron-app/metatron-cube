@@ -117,6 +117,16 @@ public class ImmutableDruidServer
     return segments;
   }
 
+  public boolean isAssignable()
+  {
+    return metadata.isAssignable();
+  }
+
+  public boolean isDecommissioned()
+  {
+    return metadata.isDecommissioned();
+  }
+
   @Override
   public String toString()
   {

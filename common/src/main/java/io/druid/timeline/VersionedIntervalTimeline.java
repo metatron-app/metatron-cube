@@ -122,6 +122,11 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     return chunks;
   }
 
+  public boolean isEmpty()
+  {
+    return allTimelineEntries.isEmpty();
+  }
+
   public void add(final Interval interval, VersionType version, PartitionChunk<ObjectType> object)
   {
     lock.writeLock().lock();
