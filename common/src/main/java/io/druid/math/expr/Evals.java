@@ -439,11 +439,11 @@ public class Evals
       return null;
     }
     final ValueDesc type = arg.type();
-    final DateTimeZone timeZone = formatter.getZone();
     try {
       if (type.isString()) {
         return formatter.parseDateTime(arg.asString());
       }
+      final DateTimeZone timeZone = formatter.getZone();
       if (type.isDateTime()) {
         return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
       }

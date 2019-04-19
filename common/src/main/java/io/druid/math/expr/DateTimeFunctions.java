@@ -749,19 +749,29 @@ public interface DateTimeFunctions extends Function.Library
       final DateTimeFormatter outputFormat = (DateTimeFormatter) parameter.get("output.formatter");
       return new StringChild()
       {
+        private StringBuilder builder = new StringBuilder();
         private long prevTime = -1;
         private String prevValue;
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          ExprEval eval = args.get(0).eval(bindings);
-          DateTime dateTime = Evals.toDateTime(eval, formatter);
+          final ExprEval eval = args.get(0).eval(bindings);
+          if (!eval.isNull() && eval.isLong()) {
+            // quick path for __time
+            final long instant = eval.asLong();
+            if (prevValue == null || instant != prevTime) {
+              prevTime = instant;
+              prevValue = JodaUtils.printTo(outputFormat, builder, instant);
+            }
+            return ExprEval.of(prevValue);
+          }
+          final DateTime dateTime = Evals.toDateTime(eval, formatter);
           if (dateTime == null) {
             return ExprEval.of((String) null);
           }
           if (prevValue == null || dateTime.getMillis() != prevTime) {
             prevTime = dateTime.getMillis();
-            prevValue = outputFormat.print(dateTime);
+            prevValue = JodaUtils.printTo(outputFormat, builder, dateTime);
           }
           return ExprEval.of(prevValue);
         }

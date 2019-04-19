@@ -41,6 +41,7 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.DateTimeParser;
 import sun.util.calendar.ZoneInfo;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -435,5 +436,29 @@ public class JodaUtils
   public static Locale toLocale(String locale)
   {
     return locale == null ? null : new Locale(locale);
+  }
+
+  public static String printTo(DateTimeFormatter formatter, StringBuilder builder, long instant)
+  {
+    try {
+      builder.setLength(0);
+      formatter.printTo(builder, instant);
+    }
+    catch (IOException ex) {
+      // StringBuilder does not throw IOException
+    }
+    return builder.toString();
+  }
+
+  public static String printTo(DateTimeFormatter formatter, StringBuilder builder, DateTime instant)
+  {
+    try {
+      builder.setLength(0);
+      formatter.printTo(builder, instant);
+    }
+    catch (IOException ex) {
+      // StringBuilder does not throw IOException
+    }
+    return builder.toString();
   }
 }

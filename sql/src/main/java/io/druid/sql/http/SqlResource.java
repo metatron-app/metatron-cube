@@ -31,6 +31,7 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.logger.Logger;
 import io.druid.client.BrokerServerView;
 import io.druid.common.Yielders;
+import io.druid.common.utils.JodaUtils;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
 import io.druid.server.QueryStats;
@@ -144,7 +145,8 @@ public class SqlResource
               {
                 Yielder<Object[]> yielder = yielder0;
 
-                CountingOutputStream os = new CountingOutputStream(outputStream);
+                final StringBuilder builder = new StringBuilder();
+                final CountingOutputStream os = new CountingOutputStream(outputStream);
                 try (final JsonGenerator jsonGenerator = jsonMapper.getFactory().createGenerator(os)) {
                   jsonGenerator.writeStartArray();
 
@@ -155,11 +157,11 @@ public class SqlResource
                       final Object value;
 
                       if (timeColumns[i]) {
-                        value = ISODateTimeFormat.dateTime().print(
+                        value = JodaUtils.printTo(ISODateTimeFormat.dateTime(), builder,
                             Calcites.calciteTimestampToJoda((long) row[i], timeZone)
                         );
                       } else if (dateColumns[i]) {
-                        value = ISODateTimeFormat.dateTime().print(
+                        value = JodaUtils.printTo(ISODateTimeFormat.dateTime(), builder,
                             Calcites.calciteDateToJoda((int) row[i], timeZone)
                         );
                       } else {
