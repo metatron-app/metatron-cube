@@ -28,6 +28,7 @@ import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JettyMonitoringConnectionFactory extends ContainerLifeCycle implements ConnectionFactory
@@ -46,6 +47,12 @@ public class JettyMonitoringConnectionFactory extends ContainerLifeCycle impleme
   public String getProtocol()
   {
     return connectionFactory.getProtocol();
+  }
+
+  @Override
+  public List<String> getProtocols()
+  {
+    return connectionFactory.getProtocols();
   }
 
   @Override

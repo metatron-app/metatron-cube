@@ -55,7 +55,6 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
     root.addEventListener(new GuiceServletConfig(injector));
     root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
     JettyServerInitUtils.addExtensionFilters(root, injector);
-    root.addFilter(JettyServerInitUtils.defaultGzipFilterHolder(), "/*", null);
 
     root.addFilter(DelegatedGuiceFilter.class, "/*", null);
 
@@ -72,7 +71,7 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
       handlerList.addHandler(handler);
     }
 
-    handlerList.addHandler(root);
+    handlerList.addHandler(JettyServerInitUtils.wrapWithDefaultGzipHandler(root));
 
     server.setHandler(handlerList);
   }

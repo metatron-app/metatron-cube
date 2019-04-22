@@ -98,12 +98,14 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
 
     root.addServlet(sh, "/druid/v2/*");
     JettyServerInitUtils.addExtensionFilters(root, injector);
-    root.addFilter(JettyServerInitUtils.defaultAsyncGzipFilterHolder(), "/*", null);
     // Can't use '/*' here because of Guice conflicts with AsyncQueryForwardingServlet path
     root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
 
     final HandlerList handlerList = new HandlerList();
-    handlerList.setHandlers(new Handler[]{JettyServerInitUtils.getJettyRequestLogHandler(), root});
+    handlerList.setHandlers(new Handler[]{
+        JettyServerInitUtils.getJettyRequestLogHandler(),
+        JettyServerInitUtils.wrapWithDefaultGzipHandler(root)
+    });
     server.setHandler(handlerList);
   }
 }
