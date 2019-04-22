@@ -40,7 +40,7 @@ public abstract class CovarianceAggregator extends Aggregator.Abstract
   @Override
   public Object get()
   {
-    return holder;
+    return holder.duplicate();
   }
 
   public static Aggregator create(

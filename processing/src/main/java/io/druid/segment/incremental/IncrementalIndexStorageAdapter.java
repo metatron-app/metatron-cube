@@ -310,6 +310,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public DateTime getRowTime()
+              {
+                return gran.toDateTime(currEntry.getKey().getTimestamp());
+              }
+
+              @Override
               public void advance()
               {
                 if (!baseIter.hasNext()) {

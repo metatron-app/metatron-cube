@@ -96,11 +96,6 @@ public class TimeseriesQuery extends BaseAggregationQuery
     return ImmutableList.of();
   }
 
-  public boolean isSkipEmptyBuckets()
-  {
-    return getContextBoolean("skipEmptyBuckets", false);
-  }
-
   @Override
   public TimeseriesQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
   {

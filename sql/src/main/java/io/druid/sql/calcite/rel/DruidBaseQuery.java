@@ -733,7 +733,6 @@ public class DruidBaseQuery implements DruidQuery
     }
 
     final Map<String, Object> theContext = new HashMap<>();
-    theContext.put("skipEmptyBuckets", true);
     theContext.putAll(plannerContext.getQueryContext());
 
     return new TimeseriesQuery(

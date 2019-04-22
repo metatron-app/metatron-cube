@@ -215,6 +215,11 @@ class KurtosisAggregatorCollector
                      .putDouble(M4);
   }
 
+  public KurtosisAggregatorCollector duplicate()
+  {
+    return new KurtosisAggregatorCollector(n, mean, M2, M3, M4);
+  }
+
   @VisibleForTesting
   boolean equalsWithEpsilon(KurtosisAggregatorCollector o, double epsilon)
   {

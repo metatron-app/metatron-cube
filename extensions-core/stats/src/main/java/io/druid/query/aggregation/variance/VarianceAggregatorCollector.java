@@ -182,6 +182,11 @@ public class VarianceAggregatorCollector
     }
   }
 
+  public VarianceAggregatorCollector duplicate()
+  {
+    return new VarianceAggregatorCollector(count, sum, nvariance);
+  }
+
   @JsonValue
   public byte[] toByteArray()
   {

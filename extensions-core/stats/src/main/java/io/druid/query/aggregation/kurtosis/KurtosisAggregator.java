@@ -40,7 +40,7 @@ public abstract class KurtosisAggregator extends Aggregator.Abstract
   @Override
   public Object get()
   {
-    return holder;
+    return holder.duplicate();
   }
 
   public static Aggregator create(

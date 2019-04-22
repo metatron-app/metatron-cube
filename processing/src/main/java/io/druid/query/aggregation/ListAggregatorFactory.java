@@ -97,7 +97,7 @@ public class ListAggregatorFactory extends AggregatorFactory
 
   private Object finalizeCollection(Collection collection)
   {
-    List finalized = dedup ? Lists.newArrayList(collection) : (List) collection;
+    List finalized = Lists.newArrayList(collection);
     if (sort) {
       Collections.sort(finalized);
     }
@@ -121,6 +121,12 @@ public class ListAggregatorFactory extends AggregatorFactory
         }
 
         private final Collection<Object> list = createCollection();
+
+        @Override
+        public void reset()
+        {
+          list.clear();
+        }
 
         @Override
         public void aggregate()
@@ -154,6 +160,12 @@ public class ListAggregatorFactory extends AggregatorFactory
       }
 
       private final Collection<Object> list = createCollection();
+
+      @Override
+      public void reset()
+      {
+        list.clear();
+      }
 
       @Override
       public void aggregate()

@@ -57,6 +57,28 @@ import java.util.concurrent.Future;
  */
 public class Sequences extends com.metamx.common.guava.Sequences
 {
+  public static <T> Sequence<T> simple(final Iterable<T> iterable)
+  {
+    return new BaseSequence<>(
+        new BaseSequence.IteratorMaker<T, Iterator<T>>()
+        {
+          @Override
+          public Iterator<T> make()
+          {
+            return iterable.iterator();
+          }
+
+          @Override
+          public void cleanup(Iterator<T> iterator)
+          {
+            if (iterator instanceof Closeable) {
+              IOUtils.closeQuietly((Closeable) iterator);
+            }
+          }
+        }
+    );
+  }
+
   public static <T> Sequence<T> lazy(Supplier<Sequence<T>> supplier)
   {
     return new LazySequence<>(supplier);

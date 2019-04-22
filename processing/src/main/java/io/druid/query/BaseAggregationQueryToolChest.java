@@ -114,20 +114,21 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     return new Function<Row, Row>()
     {
       private final Granularity granularity = query.getGranularity();
-      private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-      private final List<String> metrics = AggregatorFactory.toNames(query.getAggregatorSpecs());
+      private final String[] columns = GuavaUtils.concat(
+          Row.TIME_COLUMN_NAME,
+          GuavaUtils.concat(
+              DimensionSpecs.toOutputNames(query.getDimensions()),
+              AggregatorFactory.toNames(query.getAggregatorSpecs())
+          )
+      ).toArray(new String[0]);
 
       @Override
       public Row apply(Row input)
       {
         final Object[] values = ((CompactRow) input).getValues();
         final Map<String, Object> event = Maps.newLinkedHashMap();
-        int x = 1;
-        for (String dimension : dimensions) {
-          event.put(dimension, values[x++]);
-        }
-        for (String metric : metrics) {
-          event.put(metric, values[x++]);
+        for (int i = 1; i < columns.length; i++) {
+          event.put(columns[i], values[i]);
         }
         return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
       }

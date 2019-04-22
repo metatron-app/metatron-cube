@@ -35,6 +35,8 @@ public class HllSketchBuildAggregator extends Aggregator.Abstract
 {
 
   private final ObjectColumnSelector<Object> selector;
+  private final int lgK;
+  private final TgtHllType tgtHllType;
   private HllSketch sketch;
 
   public HllSketchBuildAggregator(
@@ -44,7 +46,15 @@ public class HllSketchBuildAggregator extends Aggregator.Abstract
   )
   {
     this.selector = selector;
+    this.lgK = lgK;
+    this.tgtHllType = tgtHllType;
     this.sketch = new HllSketch(lgK, tgtHllType);
+  }
+
+  @Override
+  public void reset()
+  {
+    sketch = new HllSketch(lgK, tgtHllType);
   }
 
   /*

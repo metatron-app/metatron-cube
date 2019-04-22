@@ -435,6 +435,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public DateTime getRowTime()
+                    {
+                      return gran.toDateTime(timestamps.getLong(cursorOffset.getOffset()));
+                    }
+
+                    @Override
                     public void advance()
                     {
                       if (Thread.interrupted()) {

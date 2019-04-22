@@ -75,6 +75,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -636,18 +637,9 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    List<Row> lotsOfZeroes = Lists.newArrayList();
     final Iterable<Interval> iterable = QueryGranularities.HOUR.getIterable(
         new Interval(DateTimes.of("2011-04-14T01"), DateTimes.of("2011-04-15"))
     );
-    for (Interval interval : iterable) {
-      lotsOfZeroes.add(
-          new MapBasedRow(
-              interval.getStart(),
-              ImmutableMap.<String, Object>of("rows", 0L, "idx", 0L)
-          )
-      );
-    }
     List<Row> expectedResults1 = Lists.newArrayList(
         Iterables.concat(
             Arrays.<Row>asList(
@@ -656,7 +648,6 @@ public class TimeseriesQueryRunnerTest
                     ImmutableMap.<String, Object>of("rows", 13L, "idx", 4907L)
                 )
             ),
-            lotsOfZeroes,
             Arrays.<Row>asList(
                 new MapBasedRow(
                     new DateTime("2011-04-15T00"),
@@ -1425,26 +1416,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Row> expectedResults = Arrays.<Row>asList(
-        new MapBasedRow(
-            new DateTime("2011-04-01"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-            )
-        ),
-        new MapBasedRow(
-            new DateTime("2011-04-02"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-                )
-        )
-    );
+    List<Row> expectedResults = Arrays.<Row>asList();
 
     Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
@@ -1463,7 +1435,6 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
-                                  .context(ImmutableMap.<String, Object>of("skipEmptyBuckets", "true"))
                                   .descending(descending)
                                   .build();
 
@@ -1571,26 +1542,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Row> expectedResults = Arrays.<Row>asList(
-        new MapBasedRow(
-            new DateTime("2011-04-01"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-            )
-        ),
-        new MapBasedRow(
-            new DateTime("2011-04-02"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-                )
-        )
-    );
+    List<Row> expectedResults = Arrays.<Row>asList();
 
     Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
@@ -1616,26 +1568,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    List<Row> expectedResults = Arrays.<Row>asList(
-        new MapBasedRow(
-            new DateTime("2011-04-01"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-                )
-        ),
-        new MapBasedRow(
-            new DateTime("2011-04-02"),
-                ImmutableMap.<String, Object>of(
-                    "rows", 0L,
-                    "index", 0.0,
-                    "addRowsIndexConstant", 1.0,
-                    "uniques", 0.0
-                )
-        )
-    );
+    List<Row> expectedResults = Arrays.<Row>asList();
 
     Iterable<Row> results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),
@@ -2302,7 +2235,6 @@ public class TimeseriesQueryRunnerTest
         new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051},
         new Object[]{"2011-01-19",  9L, 4243.135475158691, 4253.135475158691},
         new Object[]{"2011-01-20",  9L, 4076.9225158691406, 4086.9225158691406},
-        new Object[]{"2011-01-21",  0L, 0.0, 1.0},
         new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582},
         new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242},
         new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383},
@@ -2366,8 +2298,7 @@ public class TimeseriesQueryRunnerTest
         new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051, -334.2064895629883, 64L},
         new Object[]{"2011-01-19", 9L, 4243.135475158691, 4253.135475158691, 115.40200805664062, 73L},
         new Object[]{"2011-01-20", 9L, 4076.9225158691406, 4086.9225158691406, -166.21295928955078, 82L},
-        new Object[]{"2011-01-21", 0L, 0.0, 1.0, -4076.9225158691406, 82L},
-        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582, 5874.600471496582, 92L},
+        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582, 1797.6779556274414, 92L},
         new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242, -473.92391204833984, 103L},
         new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383, -689.7044372558594, 113L},
         new Object[]{"2011-01-25", 10L, 4906.999092102051, 4917.999092102051, 196.02696990966797, 123L},

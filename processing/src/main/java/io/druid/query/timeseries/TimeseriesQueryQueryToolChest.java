@@ -20,7 +20,6 @@
 package io.druid.query.timeseries;
 
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
@@ -105,18 +104,17 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
       @Override
       protected Function<Cursor, Sequence<Row>> streamQuery(Query<Row> query)
       {
-        final Function<Row, Row> postProcessing = toPostAggregator((TimeseriesQuery) query);
-        return Functions.compose(
-            new Function<Row, Sequence<Row>>()
-            {
-              @Override
-              public Sequence<Row> apply(Row input)
-              {
-                return Sequences.of(postProcessing.apply(input));
-              }
-            },
-            TimeseriesQueryEngine.processor((TimeseriesQuery) query, false)
-        );
+        final TimeseriesQuery timeseries = (TimeseriesQuery) query;
+        return new Function<Cursor, Sequence<Row>>() {
+          @Override
+          public Sequence<Row> apply(Cursor input)
+          {
+            return Sequences.map(
+                TimeseriesQueryEngine.processor(timeseries, false).apply(input),
+                toPostAggregator(timeseries)
+            );
+          }
+        };
       }
     };
   }

@@ -186,6 +186,11 @@ class CovarianceAggregatorCollector
                      .putDouble(covar);
   }
 
+  public CovarianceAggregatorCollector duplicate()
+  {
+    return new CovarianceAggregatorCollector(count, xavg, yavg, covar);
+  }
+
   @VisibleForTesting
   boolean equalsWithEpsilon(CovarianceAggregatorCollector o, double epsilon)
   {

@@ -42,7 +42,7 @@ public abstract class VarianceAggregator extends Aggregator.Abstract
   @Override
   public Object get()
   {
-    return holder;
+    return holder.duplicate();
   }
 
   public static Aggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)

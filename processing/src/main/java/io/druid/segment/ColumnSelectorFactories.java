@@ -225,6 +225,12 @@ public class ColumnSelectorFactories
     }
 
     @Override
+    public DateTime getRowTime()
+    {
+      throw new UnsupportedOperationException("getRowTime");
+    }
+
+    @Override
     public boolean isDone()
     {
       return true;
@@ -947,6 +953,12 @@ public class ColumnSelectorFactories
               {
                 final DateTime timestamp = input.getStart();
                 return granularity == null ? timestamp : granularity.bucketStart(timestamp);
+              }
+
+              @Override
+              public DateTime getRowTime()
+              {
+                return input.getStart();
               }
 
               @Override
