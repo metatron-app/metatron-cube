@@ -252,7 +252,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     {
       // not null only with HadoopCombineInputFormat
       final String dataSource = dynamicDataSource ? HadoopCombineInputFormat.CURRENT_DATASOURCE.get() : currentDataSource;
-      if (!indices.isEmpty() && !Objects.equals(currentDataSource, dataSource)) {
+      if (dynamicDataSource && !Objects.equals(currentDataSource, dataSource) && !indices.isEmpty()) {
         persistAll(context);
       }
 
@@ -375,6 +375,9 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
     private IntervalIndex selectTarget(IntervalIndex current)
     {
+      if (!current.index().canAppendRow()) {
+        return current;
+      }
       long leastAccessTime = -1;
       IntervalIndex found = null;
       for (IntervalIndex entry : indices) {

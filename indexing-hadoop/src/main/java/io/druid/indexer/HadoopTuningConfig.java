@@ -30,7 +30,6 @@ import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.incremental.BaseTuningConfig;
-import io.druid.segment.indexing.TuningConfig;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -39,7 +38,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("hadoop")
-public class HadoopTuningConfig extends BaseTuningConfig implements TuningConfig
+public class HadoopTuningConfig extends BaseTuningConfig
 {
   private static final PartitionsSpec DEFAULT_PARTITIONS_SPEC = HashedPartitionsSpec.makeDefaultHashedPartitionsSpec();
   private static final Map<Long, List<HadoopyShardSpec>> DEFAULT_SHARD_SPECS = ImmutableMap.of();

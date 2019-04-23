@@ -246,6 +246,12 @@ public class HadoopCombineInputFormat extends FileInputFormat
         splits.put(dataSource, splitList);
       }
     }
+
+    @Override
+    public String toString()
+    {
+      return splits.toString();
+    }
   }
 
   @Override
