@@ -74,8 +74,7 @@ public class TimeseriesQueryEngine
             Iterables.getOnlyElement(query.getIntervals()),
             RowResolver.of(adapter, BaseQuery.getVirtualColumns(query)),
             Granularities.ALL,
-            cache,
-            query.isDescending()
+            query.isDescending(), cache
         ),
         processor(query, compact)
     );

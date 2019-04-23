@@ -60,6 +60,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
@@ -493,7 +494,7 @@ public class AppenderatorImpl implements Appenderator
                                                 // Prevent the underlying segment from swapping when its being iterated
                                                 final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
                                                 try {
-                                                  QueryRunner<T> baseRunner = QueryRunnerHelper.makeClosingQueryRunner(
+                                                  QueryRunner<T> baseRunner = QueryRunners.withResource(
                                                       factory.createRunner(segment.lhs, optimizer),
                                                       segment.rhs
                                                   );

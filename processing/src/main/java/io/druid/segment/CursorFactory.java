@@ -19,9 +19,12 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Iterables;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilter;
 import org.joda.time.Interval;
@@ -34,8 +37,26 @@ public interface CursorFactory extends SchemaProvider
       DimFilter filter,
       Interval interval,
       RowResolver resolver,
-      Granularity gran,
-      Cache cache,
-      boolean descending
+      Granularity granularity,
+      boolean descending,
+      Cache cache
   );
+
+  Sequence<Cursor> makeCursors(Query<?> query, Cache cache);
+
+  abstract class Abstract implements CursorFactory
+  {
+    @Override
+    public Sequence<Cursor> makeCursors(Query<?> query, Cache cache)
+    {
+      return makeCursors(
+          BaseQuery.getDimFilter(query),
+          Iterables.getOnlyElement(query.getIntervals()),
+          RowResolver.of(this, BaseQuery.getVirtualColumns(query)),
+          query.getGranularity(),
+          query.isDescending(),
+          cache
+      );
+    }
+  }
 }

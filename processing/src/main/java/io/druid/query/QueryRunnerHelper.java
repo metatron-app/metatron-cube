@@ -32,7 +32,6 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.segment.Cursor;
 import io.druid.segment.CursorFactory;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -51,28 +50,21 @@ public class QueryRunnerHelper
       final Function<Cursor, T> mapFn
   )
   {
-    return Sequences.filterNull(Sequences.map(
-        factory.makeCursors(
-            BaseQuery.getDimFilter(query),
-            Iterables.getOnlyElement(query.getIntervals()),
-            RowResolver.of(factory, BaseQuery.getVirtualColumns(query)),
-            query.getGranularity(),
-            cache,
-            query.isDescending()
-        ),
-        mapFn
-    ));
+    return Sequences.filterNull(
+        Sequences.map(factory.makeCursors(query, cache), mapFn)
+    );
   }
 
-  public static <T>  QueryRunner<T> makeClosingQueryRunner(final QueryRunner<T> runner, final Closeable closeable){
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return Sequences.withBaggage(runner.run(query, responseContext), closeable);
-      }
-    };
+  public static <T> Sequence<T> makeCursorBasedQueryConcat(
+      final CursorFactory factory,
+      final Query<?> query,
+      final Cache cache,
+      final Function<Cursor, Sequence<T>> mapFn
+  )
+  {
+    return Sequences.concat(Sequences.filterNull(
+        Sequences.map(factory.makeCursors(query, cache), mapFn)
+    ));
   }
 
   public static <T> QueryRunner<T> toManagementRunner(

@@ -5,6 +5,7 @@ import com.google.common.collect.Iterables;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 
+import java.io.Closeable;
 import java.util.Map;
 
 public class QueryRunners
@@ -66,5 +67,17 @@ public class QueryRunners
   public static <T> QueryRunner<T> empty()
   {
     return new NoopQueryRunner<>();
+  }
+
+  public static <T> QueryRunner<T> withResource(final QueryRunner<T> runner, final Closeable closeable)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return Sequences.withBaggage(runner.run(query, responseContext), closeable);
+      }
+    };
   }
 }

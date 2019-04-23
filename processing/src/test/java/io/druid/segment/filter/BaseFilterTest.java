@@ -279,8 +279,7 @@ public abstract class BaseFilterTest
         new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT),
         RowResolver.of(adapter, ImmutableList.<VirtualColumn>of()),
         QueryGranularities.ALL,
-        null,
-        false
+        false, null
     );
   }
 

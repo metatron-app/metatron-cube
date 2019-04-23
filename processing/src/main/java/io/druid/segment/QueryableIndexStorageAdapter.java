@@ -71,7 +71,7 @@ import java.util.Map;
 
 /**
  */
-public class QueryableIndexStorageAdapter implements StorageAdapter
+public class QueryableIndexStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
 {
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
 
@@ -243,16 +243,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       final DimFilter filter,
       final Interval interval,
       final RowResolver resolver,
-      final Granularity gran,
-      final Cache cache,
-      final boolean descending
+      final Granularity granularity,
+      final boolean descending,
+      final Cache cache
   )
   {
     DateTime minTime = getMinTime();
     long minDataTimestamp = minTime.getMillis();
     DateTime maxTime = getMaxTime();
     long maxDataTimestamp = maxTime.getMillis();
-    final Interval dataInterval = new Interval(minTime, gran.bucketEnd(maxTime));
+    final Interval dataInterval = new Interval(minTime, granularity.bucketEnd(maxTime));
 
     if (interval != null && !interval.overlaps(dataInterval)) {
       return Sequences.empty();
@@ -301,7 +301,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 index,
                 actualInterval,
                 resolver,
-                gran,
+                granularity,
                 offset,
                 Filters.toFilter(valuesFilter),
                 minDataTimestamp,
@@ -332,7 +332,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final QueryableIndex index;
     private final Interval interval;
     private final RowResolver resolver;
-    private final Granularity gran;
+    private final Granularity granularity;
     private final Offset offset;
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
@@ -345,7 +345,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         QueryableIndex index,
         Interval interval,
         RowResolver resolver,
-        Granularity gran,
+        Granularity granularity,
         Offset offset,
         Filter filter,
         long minDataTimestamp,
@@ -357,7 +357,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.index = index;
       this.interval = interval;
       this.resolver = resolver;
-      this.gran = gran;
+      this.granularity = granularity;
       this.offset = offset;
       this.filter = filter;
       this.minDataTimestamp = minDataTimestamp;
@@ -375,7 +375,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
       final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
 
-      Iterable<Interval> iterable = gran.getIterable(interval);
+      Iterable<Interval> iterable = granularity.getIterable(interval);
       if (descending) {
         iterable = Lists.reverse(ImmutableList.copyOf(iterable));
       }
@@ -391,7 +391,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   final long timeStart = Math.max(interval.getStartMillis(), inputInterval.getStartMillis());
                   final long timeEnd = Math.min(
                       interval.getEndMillis(),
-                      gran.increment(inputInterval.getStart()).getMillis()
+                      granularity.increment(inputInterval.getStart()).getMillis()
                   );
 
                   if (descending) {
@@ -416,7 +416,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = baseOffset.clone();
-                    final DateTime myBucket = gran.toDateTime(inputInterval.getStartMillis());
+                    private final DateTime myBucket = granularity.toDateTime(inputInterval.getStartMillis());
                     private final ValueMatcher filterMatcher =
                         filter == null ? BooleanValueMatcher.TRUE : filter.makeMatcher(this);
                     private Offset cursorOffset = baseOffset;
@@ -437,7 +437,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public DateTime getRowTime()
                     {
-                      return gran.toDateTime(timestamps.getLong(cursorOffset.getOffset()));
+                      return granularity.toDateTime(timestamps.getLong(cursorOffset.getOffset()));
                     }
 
                     @Override
@@ -486,16 +486,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public DimensionSelector makeDimensionSelector(
-                        DimensionSpec dimensionSpec
-                    )
+                    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
                     {
                       return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
                     }
 
-                    private DimensionSelector makeDimensionSelectorUndecorated(
-                        DimensionSpec dimensionSpec
-                    )
+                    private DimensionSelector makeDimensionSelectorUndecorated(DimensionSpec dimensionSpec)
                     {
                       final String dimension = dimensionSpec.getDimension();
                       final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();

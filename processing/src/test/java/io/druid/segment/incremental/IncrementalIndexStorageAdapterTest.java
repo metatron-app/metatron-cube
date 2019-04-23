@@ -260,7 +260,7 @@ public class IncrementalIndexStorageAdapterTest
           interval,
           RowResolver.of(adapter, ImmutableList.<VirtualColumn>of()),
           QueryGranularities.NONE,
-          null, descending
+          descending, null
       );
 
       Cursor cursor = Sequences.toList(Sequences.limit(cursorSequence, 1), Lists.<Cursor>newArrayList()).get(0);
@@ -403,8 +403,7 @@ public class IncrementalIndexStorageAdapterTest
         new Interval(timestamp - 60_000, timestamp + 60_000),
         RowResolver.of(sa, ImmutableList.<VirtualColumn>of()),
         QueryGranularities.ALL,
-        null,
-        false
+        false, null
     );
 
     Sequences.toList(

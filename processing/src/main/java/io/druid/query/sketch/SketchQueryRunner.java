@@ -33,7 +33,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
@@ -184,7 +184,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
     } else {
       final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
-          filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, cache, false
+          filter, segment.getDataInterval(), resolver, Granularities.ALL, false, cache
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }

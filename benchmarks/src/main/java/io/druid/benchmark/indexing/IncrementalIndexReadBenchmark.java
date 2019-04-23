@@ -29,6 +29,7 @@ import io.druid.benchmark.datagen.BenchmarkSchemaInfo;
 import io.druid.benchmark.datagen.BenchmarkSchemas;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -132,7 +133,7 @@ public class IncrementalIndexReadBenchmark
   public void read(Blackhole blackhole) throws Exception
   {
     IncrementalIndexStorageAdapter sa = new IncrementalIndexStorageAdapter(incIndex);
-    Sequence<Cursor> cursors = sa.makeCursors(null, schemaInfo.getDataInterval(), null, QueryGranularities.ALL, null, false);
+    Sequence<Cursor> cursors = sa.makeCursors(null, schemaInfo.getDataInterval(), null, Granularities.ALL, false, null);
     Cursor cursor = Sequences.toList(Sequences.limit(cursors, 1), Lists.<Cursor>newArrayList()).get(0);
 
     List<DimensionSelector> selectors = new ArrayList<>();

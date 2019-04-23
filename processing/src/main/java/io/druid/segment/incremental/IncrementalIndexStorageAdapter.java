@@ -44,6 +44,7 @@ import io.druid.query.select.Schema;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
+import io.druid.segment.CursorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -75,7 +76,7 @@ import java.util.Map;
 
 /**
  */
-public class IncrementalIndexStorageAdapter implements StorageAdapter
+public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
 {
   private final String segmentIdentifier;
   private final IncrementalIndex<?> index;
@@ -251,16 +252,16 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       final DimFilter filter,
       final Interval interval,
       final RowResolver resolver,
-      final Granularity gran,
-      final Cache cache,
-      final boolean descending
+      final Granularity granularity,
+      final boolean descending,
+      final Cache cache
   )
   {
     if (index.isEmpty()) {
       return Sequences.empty();
     }
 
-    final Interval dataInterval = new Interval(getMinTime(), gran.bucketEnd(getMaxTime()));
+    final Interval dataInterval = new Interval(getMinTime(), granularity.bucketEnd(getMaxTime()));
 
     if (interval != null && !interval.overlaps(dataInterval)) {
       return Sequences.empty();
@@ -268,7 +269,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
     final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
-    Iterable<Interval> iterable = gran.getIterable(actualInterval);
+    Iterable<Interval> iterable = granularity.getIterable(actualInterval);
     if (descending) {
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
@@ -293,12 +294,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               private final ValueMatcher filterMatcher;
               {
                 long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
-                long timeEnd = Math.min(gran.increment(interval.getStart()).getMillis(), actualInterval.getEndMillis());
+                long timeEnd = Math.min(granularity.increment(
+                    interval.getStart()).getMillis(), actualInterval.getEndMillis()
+                );
                 if (timeEnd == dataInterval.getEndMillis()) {
                   timeEnd = timeEnd + 1;    // inclusive
                 }
                 cursorMap = index.getRangeOf(timeStart, timeEnd, descending);
-                time = gran.toDateTime(interval.getStartMillis());
+                time = granularity.toDateTime(interval.getStartMillis());
                 filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter().makeMatcher(this);
                 reset();
               }
@@ -312,7 +315,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public DateTime getRowTime()
               {
-                return gran.toDateTime(currEntry.getKey().getTimestamp());
+                return granularity.toDateTime(currEntry.getKey().getTimestamp());
               }
 
               @Override

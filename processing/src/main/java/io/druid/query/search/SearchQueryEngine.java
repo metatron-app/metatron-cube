@@ -172,7 +172,7 @@ public class SearchQueryEngine
     }
 
     final Sequence<Cursor> cursors = adapter.makeCursors(
-        filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, null, descending
+        filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, descending, null
     );
 
     final Map<SearchHit, MutableInt> retVal = cursors.accumulate(

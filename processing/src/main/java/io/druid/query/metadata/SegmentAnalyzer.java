@@ -325,7 +325,7 @@ public class SegmentAnalyzer
       Accumulator<T, Cursor> accumulator
   )
   {
-    return storageAdapter.makeCursors(null, null, resolver, QueryGranularities.ALL, null, false)
+    return storageAdapter.makeCursors(null, null, resolver, QueryGranularities.ALL, false, null)
                          .accumulate(initial, accumulator);
   }
 }

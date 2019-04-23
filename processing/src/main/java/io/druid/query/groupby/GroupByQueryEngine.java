@@ -30,10 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.BaseSequence;
-import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
@@ -52,7 +49,7 @@ import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
-import io.druid.query.RowResolver;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
@@ -73,7 +70,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedInts;
 import org.joda.time.DateTime;
-import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -127,78 +123,52 @@ public class GroupByQueryEngine
     return process(query, segment, compact, null);
   }
 
-  public Sequence<Row> process(final GroupByQuery query, final Segment segment, final boolean compact, final Cache cache)
+  public Sequence<Row> process(
+      final GroupByQuery query,
+      final Segment segment,
+      final boolean compact,
+      final Cache cache
+  )
   {
     final OrderedLimitSpec segmentLimit = query.getLimitSpec().getSegmentLimit();
     return Sequences.map(
-        takeTopN(query, segmentLimit).apply(processInternal(query, Sequences.simple(Arrays.asList(segment)), cache)),
+        takeTopN(query, segmentLimit).apply(processInternal(query, segment, cache)),
         arrayToRow(query, compact)
     );
   }
 
   private Sequence<Object[]> processInternal(
       final GroupByQuery query,
-      final Sequence<Segment> sequences,
+      final Segment segment,
       final Cache cache
   )
   {
-    Sequence<Cursor> cursors = Sequences.explode(
-        sequences, new Function<Segment, Sequence<Cursor>>()
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
+    if (adapter == null) {
+      throw new ISE(
+          "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
+      );
+    }
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(adapter, query, cache, processor(query));
+  }
+
+  private Function<Cursor, Sequence<Object[]>> processor(final GroupByQuery query)
+  {
+    return new Function<Cursor, Sequence<Object[]>>()
+    {
+      @Override
+      public Sequence<Object[]> apply(final Cursor cursor)
+      {
+        return Sequences.simple(new Iterable<Object[]>()
         {
           @Override
-          public Sequence<Cursor> apply(Segment segment)
+          public Iterator<Object[]> iterator()
           {
-            final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
-            if (storageAdapter == null) {
-              throw new ISE(
-                  "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
-              );
-            }
-            final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
-
-            final List<Interval> intervals = query.getIntervals();
-            if (intervals.size() != 1) {
-              throw new IAE("Should only have one interval, got[%s]", intervals);
-            }
-
-            return storageAdapter.makeCursors(
-                query.getDimFilter(),
-                intervals.get(0),
-                resolver,
-                query.getGranularity(),
-                cache,
-                false
-            );
+            return new RowIterator(query, cursor, intermediateResultsBufferPool, 1);
           }
-        }
-    );
-
-    return Sequences.explode(
-        cursors,
-        new Function<Cursor, Sequence<Object[]>>()
-        {
-          @Override
-          public Sequence<Object[]> apply(final Cursor cursor)
-          {
-            return new BaseSequence<>(
-                new BaseSequence.IteratorMaker<Object[], RowIterator>()
-                {
-                  @Override
-                  public RowIterator make()
-                  {
-                    return new RowIterator(query, cursor, intermediateResultsBufferPool, 1);
-                  }
-
-                  @Override
-                  public void cleanup(RowIterator iterFromMake)
-                  {
-                    CloseQuietly.close(iterFromMake);
-                  }
-                }
-            );
-          }
-        }
-    );
+        });
+      }
+    };
   }
 
   private static final int DEFAULT_INITIAL_CAPACITY = 1 << 10;
