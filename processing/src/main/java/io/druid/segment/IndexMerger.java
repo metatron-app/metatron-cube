@@ -35,6 +35,7 @@ import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
+import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
@@ -94,6 +95,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.MappedByteBuffer;
@@ -949,11 +951,11 @@ public class IndexMerger
 
       final File invertedFile = new File(v8OutDir, "inverted.drd");
       Files.touch(invertedFile);
-      OutputSupplier<FileOutputStream> invertedOut = Files.newOutputStreamSupplier(invertedFile, true);
+      OutputSupplier<OutputStream> invertedOut = Files.asByteSink(invertedFile, FileWriteMode.APPEND);
 
       final File geoFile = new File(v8OutDir, "spatial.drd");
       Files.touch(geoFile);
-      OutputSupplier<FileOutputStream> spatialOut = Files.newOutputStreamSupplier(geoFile, true);
+      OutputSupplier<OutputStream> spatialOut = Files.asByteSink(geoFile, FileWriteMode.APPEND);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
         long dimStartTime = System.currentTimeMillis();

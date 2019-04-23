@@ -31,7 +31,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
@@ -556,8 +555,7 @@ public class IndexIO
       v9Dir.mkdirs();
       final FileSmoosher v9Smoosher = new FileSmoosher(v9Dir);
 
-      ByteStreams.write(Ints.toByteArray(9), Files.newOutputStreamSupplier(new File(v9Dir, "version.bin")));
-
+      Files.asByteSink(new File(v9Dir, "version.bin")).write(Ints.toByteArray(9));
       Map<String, GenericIndexed<ImmutableBitmap>> bitmapIndexes = Maps.newHashMap();
       final ByteBuffer invertedBuffer = v8SmooshedFiles.mapFile("inverted.drd");
       BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();

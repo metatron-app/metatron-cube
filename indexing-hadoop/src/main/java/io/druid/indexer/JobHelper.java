@@ -23,9 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
-import com.google.common.io.OutputSupplier;
 import com.metamx.common.FileUtils;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
@@ -78,7 +76,7 @@ public class JobHelper
   private static final int NUM_RETRIES = 8;
   private static final int SECONDS_BETWEEN_RETRIES = 2;
   private static final int DEFAULT_FS_BUFFER_SIZE = 1 << 18; // 256KB
-  private static final Pattern SNAPSHOT_JAR = Pattern.compile(".*\\-SNAPSHOT(-selfcontained)?\\.jar$");
+  private static final Pattern SNAPSHOT_JAR = Pattern.compile(".*-SNAPSHOT(-selfcontained)?\\.jar$");
 
   public static Path distributedClassPath(String path)
   {
@@ -152,7 +150,7 @@ public class JobHelper
     }
   }
 
-  public static final Predicate<Throwable> shouldRetryPredicate()
+  public static Predicate<Throwable> shouldRetryPredicate()
   {
     return new Predicate<Throwable>()
     {
@@ -257,17 +255,9 @@ public class JobHelper
   static void uploadJar(File jarFile, final Path path, final FileSystem fs) throws IOException
   {
     log.info("Uploading jar to path[%s]", path);
-    ByteStreams.copy(
-        Files.newInputStreamSupplier(jarFile),
-        new OutputSupplier<OutputStream>()
-        {
-          @Override
-          public OutputStream getOutput() throws IOException
-          {
-            return fs.create(path);
-          }
-        }
-    );
+    try (OutputStream out = fs.create(path)) {
+      Files.asByteSource(jarFile).copyTo(out);
+    }
   }
 
   static boolean isSnapshot(File jarFile)

@@ -165,10 +165,7 @@ public class IndexMergerV9 extends IndexMerger
     log.info("Start making v9 index files from %d indices, outDir:%s", adapters.size(), outDir);
     try {
       long startTime = System.currentTimeMillis();
-      ByteStreams.write(
-          Ints.toByteArray(IndexIO.V9_VERSION),
-          Files.newOutputStreamSupplier(new File(outDir, "version.bin"))
-      );
+      Files.asByteSink(new File(outDir, "version.bin")).write(Ints.toByteArray(IndexIO.V9_VERSION));
       log.info("Completed version.bin in %,d millis.", System.currentTimeMillis() - startTime);
 
       progress.progress();
