@@ -127,11 +127,6 @@ public class HadoopDruidIndexerConfig
     INDEX_MERGER_V9 = injector.getInstance(IndexMergerV9.class);
   }
 
-  public enum IndexJobCounters
-  {
-    INVALID_ROW_COUNTER
-  }
-
   public static HadoopDruidIndexerConfig fromSpec(HadoopIngestionSpec spec)
   {
     return new HadoopDruidIndexerConfig(spec);

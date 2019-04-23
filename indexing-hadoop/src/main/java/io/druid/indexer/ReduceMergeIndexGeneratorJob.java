@@ -247,7 +247,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
 
     @Override
-    protected void innerMap(InputRow row, Object value, Context context)
+    protected void innerMap(InputRow row, Context context)
         throws IOException, InterruptedException
     {
       // not null only with HadoopCombineInputFormat

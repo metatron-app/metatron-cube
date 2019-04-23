@@ -241,7 +241,6 @@ public class DetermineHashedPartitionsJob implements Jobby
     @Override
     protected void innerMap(
         InputRow inputRow,
-        Object value,
         Context context
     ) throws IOException, InterruptedException
     {

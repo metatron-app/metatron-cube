@@ -22,31 +22,23 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.hadoop.mapreduce.Counters;
 
-import static io.druid.indexer.HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER;
-
 /**
  */
 public class IndexGeneratorStats
 {
-  private long invalidRowCount = 0;
   private long indexedRows = 0;
   private long oobRows = 0;
   private long errRows = 0;
+  private long nullRows = 0;
   private long flushedIndex = 0;
 
   public void setStats(Counters counters)
   {
-    this.invalidRowCount = counters.findCounter(INVALID_ROW_COUNTER).getValue();
     this.indexedRows = counters.findCounter("druid.internal", "indexed-row-num").getValue();
     this.oobRows = counters.findCounter("druid.internal", "oob-row-num").getValue();
     this.errRows = counters.findCounter("druid.internal", "err-row-num").getValue();
+    this.nullRows = counters.findCounter("druid.internal", "null-row-num").getValue();
     this.flushedIndex = counters.findCounter("druid.internal", "index-flush-count").getValue();
-  }
-
-  @JsonProperty
-  public long getInvalidRowCount()
-  {
-    return invalidRowCount;
   }
 
   @JsonProperty
@@ -65,6 +57,12 @@ public class IndexGeneratorStats
   public long getErrRows()
   {
     return errRows;
+  }
+
+  @JsonProperty
+  public long getNullRows()
+  {
+    return nullRows;
   }
 
   @JsonProperty

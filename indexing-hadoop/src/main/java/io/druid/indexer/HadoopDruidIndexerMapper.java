@@ -19,8 +19,10 @@
 
 package io.druid.indexer;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
@@ -30,9 +32,11 @@ import io.druid.indexer.hadoop.HadoopInputContext.MapperContext;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.SortedSet;
 
 public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<Object, Object, KEYOUT, VALUEOUT>
 {
@@ -43,11 +47,12 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   protected HadoopDruidIndexerConfig config;
   private InputRowParser parser;
   protected GranularitySpec granularitySpec;
+  private List<Interval> intervals;
 
   private Counter indexedRows;
-  private Counter invalidRows;
   private Counter oobRows;
   private Counter errRows;
+  private Counter nullRows;
 
   private boolean oobLogged;
 
@@ -59,10 +64,15 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     parser = config.getParser();
     granularitySpec = config.getGranularitySpec();
 
+    Optional<SortedSet<Interval>> buckets = granularitySpec.bucketIntervals();
+    if (buckets.isPresent()) {
+      intervals = JodaUtils.condenseIntervals(buckets.get());
+    }
+
     indexedRows = context.getCounter("druid.internal", "indexed-row-num");
-    invalidRows = context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
     oobRows = context.getCounter("druid.internal", "oob-row-num");
     errRows = context.getCounter("druid.internal", "err-row-num");
+    nullRows = context.getCounter("druid.internal", "null-row-num");
 
     setupHadoopAwareParser(parser, new MapperContext(context));
   }
@@ -90,57 +100,57 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   @Override
   protected void map(Object key, Object value, Context context) throws IOException, InterruptedException
   {
+    final InputRow inputRow;
     try {
-      final InputRow inputRow = parseInputRow(value, parser);
-      if (inputRow == null) {
-        return;
-      }
-      if (!granularitySpec.bucketIntervals().isPresent()
-          || granularitySpec.bucketInterval(new DateTime(inputRow.getTimestampFromEpoch()))
-                            .isPresent()) {
-        indexedRows.increment(1);
-        innerMap(inputRow, value, context);
-      } else {
-        oobRows.increment(1);
-        if (!oobLogged) {
-          log.info("Out of bound row [%s]. will be ignored in next", inputRow);
-          oobLogged = true;
-        }
-      }
+      inputRow = parseInputRow(value, parser);
     }
     catch (Throwable e) {
-      errRows.increment(1);
+      Throwables.propagateIfInstanceOf(e, Error.class);
+      Throwables.propagateIfInstanceOf(e, ParserInitializationFail.class);  // invalid configuration, etc.. fail early
+
+      handleInvalidRow(value, e);
+
       if (config.isIgnoreInvalidRows()) {
-        handelInvalidRow(value, e);
         return; // we're ignoring this invalid row
       }
-      if (e instanceof ParsingFail) {
-        Object target = ((ParsingFail) e).getInput();
-        e = e.getCause() == null ? e : e.getCause();
-        log.info(e, "Ignoring invalid row due to parsing fail of %s", target == null ? value : target);
-      }
-      if (e instanceof IOException) {
-        throw (IOException) e;
-      }
-      if (e instanceof InterruptedException) {
-        throw (InterruptedException) e;
-      }
+      Throwables.propagateIfInstanceOf(e, IOException.class);
+      Throwables.propagateIfInstanceOf(e, InterruptedException.class);
       throw Throwables.propagate(e);
+    }
+    process(inputRow, context);
+  }
+
+  private void process(InputRow inputRow, Context context) throws IOException, InterruptedException
+  {
+    if (inputRow == null) {
+      nullRows.increment(1);
+      return;
+    }
+    if (intervals == null || JodaUtils.contains(inputRow.getTimestampFromEpoch(), intervals)) {
+      indexedRows.increment(1);
+      innerMap(inputRow, context);
+    } else {
+      oobRows.increment(1);
+      if (!oobLogged) {
+        log.info("Out of bound row [%s]. will be ignored in next", inputRow);
+        oobLogged = true;
+      }
     }
   }
 
-  private void handelInvalidRow(Object value, Throwable e)
+  private void handleInvalidRow(Object value, Throwable e)
   {
-    invalidRows.increment(1);
-    if (invalidRows.getValue() <= INVALID_LOG_THRESHOLD) {
+    errRows.increment(1);
+    if (e instanceof ParsingFail) {
+      value = ((ParsingFail) e).getInput() == null ? value : ((ParsingFail) e).getInput();
+      e = e.getCause() == null ? e : e.getCause();
+    }
+    if (errRows.getValue() <= INVALID_LOG_THRESHOLD) {
       log.warn(
           e,
-          "Ignoring invalid [%d]th row [%s] due to parsing error.. %s", invalidRows.getValue(), value,
-          invalidRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
+          "Invalid row [%s] ([%d]th) due to parsing error.. %s", errRows.getValue(), value,
+          errRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
       );
-    }
-    if (e instanceof ParserInitializationFail) {
-      throw (ParserInitializationFail) e;   // invalid configuration, etc.. fail early
     }
   }
 
@@ -150,6 +160,6 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     return value instanceof InputRow ? (InputRow) value : parser.parse(value);
   }
 
-  protected abstract void innerMap(InputRow inputRow, Object value, Context context)
+  protected abstract void innerMap(InputRow inputRow, Context context)
       throws IOException, InterruptedException;
 }

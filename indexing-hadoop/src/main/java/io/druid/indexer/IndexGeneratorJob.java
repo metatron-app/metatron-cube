@@ -300,7 +300,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
     @Override
     protected void innerMap(
         InputRow inputRow,
-        Object value,
         Context context
     ) throws IOException, InterruptedException
     {

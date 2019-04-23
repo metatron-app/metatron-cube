@@ -197,7 +197,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
 
     @Override
     protected void innerMap(
-        InputRow row, Object value, Context context
+        InputRow row, Context context
     ) throws IOException, InterruptedException
     {
       if (interval == null) {

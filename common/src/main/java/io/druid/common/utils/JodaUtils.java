@@ -153,19 +153,32 @@ public class JodaUtils
     return new Interval(startDate, endDate);
   }
 
+  public static boolean contains(final long timestamp, final Iterable<Interval> intervals)
+  {
+    return Iterables.any(
+        intervals, new Predicate<Interval>()
+        {
+          @Override
+          public boolean apply(Interval input)
+          {
+            return input.contains(timestamp);
+          }
+        }
+    );
+  }
+
   public static boolean overlaps(final Interval i, Iterable<Interval> intervals)
   {
     return Iterables.any(
         intervals, new Predicate<Interval>()
-    {
-      @Override
-      public boolean apply(Interval input)
-      {
-        return input.overlaps(i);
-      }
-    }
+        {
+          @Override
+          public boolean apply(Interval input)
+          {
+            return input.overlaps(i);
+          }
+        }
     );
-
   }
 
   public static List<Interval> overlapping(final Interval interval, Iterable<Interval> intervals)
