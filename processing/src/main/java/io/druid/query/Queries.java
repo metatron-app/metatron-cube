@@ -340,7 +340,7 @@ public class Queries
   {
     Map<String, Object> context = query.getContext();
     if (context == null) {
-      context = Maps.newHashMap();
+      return Maps.newHashMap();
     }
     Map<String, Object> extracted = Maps.newHashMap();
     for (String key : keys) {

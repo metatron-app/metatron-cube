@@ -19,6 +19,7 @@
 
 package io.druid.query.kmeans;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharSource;
 import io.druid.common.Intervals;
 import io.druid.data.ValueDesc;
@@ -175,7 +176,7 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
         1000,
         0.0000001,
         null,
-        null
+        ImmutableMap.<String, Object>of("$seed", 1)
     );
     List<Centroid> centroids = runQuery(kMeans);
     Collections.sort(centroids);

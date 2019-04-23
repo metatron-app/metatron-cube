@@ -340,7 +340,7 @@ public class KMeansQuery
       double max = ((Number) analysis.getMaxValue()).doubleValue();
       ranges.add(Range.closed(min, max));
     }
-    Random random = new Random();
+    Random random = getContextValue("$seed") != null ? new Random(getContextInt("$seed", 1)) : new Random();
     List<Centroid> centroids = Lists.newArrayList();
     for (int i = 0; i < numK; i++) {
       double[] centroid = new double[metrics.size()];
