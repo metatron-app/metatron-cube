@@ -41,7 +41,7 @@ public interface QueryContextKeys
   public static final String MAJOR_TYPES = "#majorTypes";   // for sketch
 
   // group-by config.. overriding
-  public static final String GBY_USE_PARALLEL = "groupByUseParallel";
+  public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
@@ -83,7 +83,7 @@ public interface QueryContextKeys
       QUERYID,
       PRIORITY,
       TIMEOUT,
-      GBY_USE_PARALLEL,
+      GBY_USE_PARALLEL_SORT,
       GBY_MERGE_PARALLELISM,
       GBY_CONVERT_TIMESERIES,
       GBY_ESTIMATE_TOPN_FACTOR,

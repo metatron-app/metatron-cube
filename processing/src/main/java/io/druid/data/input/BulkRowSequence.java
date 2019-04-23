@@ -213,7 +213,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
         }
       }
       index = 0;
-      return retValue = accumulator.accumulate(retValue, new BulkRow(copy));
+      return retValue = accumulator.accumulate(retValue, new BulkRow(size, copy));
     }
   }
 }

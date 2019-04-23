@@ -17,12 +17,20 @@ public class BulkRow extends AbstractRow
 {
   private static final LZ4FastDecompressor LZ4 = LZ4Factory.fastestInstance().fastDecompressor();
 
+  private final int count;    // just for counting number of rows in local nodes
   private final Object[] values;
 
   @JsonCreator
-  public BulkRow(@JsonProperty("values") Object[] values)
+  public BulkRow(@JsonProperty("count") int count, @JsonProperty("values") Object[] values)
   {
+    this.count = count;
     this.values = values;
+  }
+
+  @JsonProperty
+  public int count()
+  {
+    return count;
   }
 
   @JsonProperty

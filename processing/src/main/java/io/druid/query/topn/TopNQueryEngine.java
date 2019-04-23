@@ -135,7 +135,7 @@ public class TopNQueryEngine
       topNAlgorithm = new PooledTopNAlgorithm(capabilities, query, bufferPool);
     }
 
-    log.info("with [%s].. using algorithm [%s]", selector, topNAlgorithm.getClass().getSimpleName());
+    log.debug("with [%s].. using algorithm [%s]", selector, topNAlgorithm.getClass().getSimpleName());
 
     return new TopNMapFn(query, topNAlgorithm);
   }

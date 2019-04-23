@@ -86,7 +86,7 @@ public class QueryConfig
 
   public boolean useParallelSort(Query<?> query)
   {
-    return query.getContextBoolean(Query.GBY_USE_PARALLEL, getGroupBy().isUseParallelSort());
+    return query.getContextBoolean(Query.GBY_USE_PARALLEL_SORT, getGroupBy().isUseParallelSort());
   }
 
   public boolean useCustomSerdeForDateTime(Query query)

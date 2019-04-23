@@ -52,6 +52,7 @@ import org.joda.time.DateTime;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  */
@@ -213,6 +214,22 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       sequence = new BulkRowSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()));
     }
     return super.serializeSequence(query, sequence, segmentWalker);
+  }
+
+  @Override
+  public ToIntFunction numRows(T query)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return new ToIntFunction()
+      {
+        @Override
+        public int applyAsInt(Object value)
+        {
+          return ((BulkRow) value).count();
+        }
+      };
+    }
+    return super.numRows(query);
   }
 
   @Override
