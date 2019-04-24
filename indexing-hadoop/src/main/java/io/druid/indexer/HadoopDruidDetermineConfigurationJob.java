@@ -25,7 +25,6 @@ import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -64,7 +63,7 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
       int shardCount = 0;
       for (Interval segmentGranularity : config.getSegmentGranularIntervals().get()) {
         DateTime bucket = segmentGranularity.getStart();
-        if (shardsPerInterval > 0) {
+        if (shardsPerInterval > 1) {
           List<HadoopyShardSpec> specs = Lists.newArrayListWithCapacity(shardsPerInterval);
           for (int i = 0; i < shardsPerInterval; i++) {
             specs.add(
