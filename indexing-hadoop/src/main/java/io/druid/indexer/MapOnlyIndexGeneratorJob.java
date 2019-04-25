@@ -70,6 +70,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       );
 
       job.getConfiguration().set("io.sort.record.percent", "0.23");
+      job.getConfiguration().setInt("mapreduce.task.io.sort.mb", 4);
 
       JobHelper.injectSystemProperties(job);
       config.addJobProperties(job);
