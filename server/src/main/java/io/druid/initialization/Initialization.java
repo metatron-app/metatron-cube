@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -66,6 +67,7 @@ import io.druid.guice.http.HttpClientModule;
 import io.druid.guice.security.DruidAuthModule;
 import io.druid.jackson.FunctionInitializer;
 import io.druid.metadata.storage.derby.DerbyMetadataStorageDruidModule;
+import io.druid.query.ordering.StringComparators;
 import io.druid.server.initialization.EmitterModule;
 import io.druid.server.initialization.jetty.JettyServerModule;
 import io.druid.server.metrics.MetricsModule;
@@ -80,6 +82,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -163,7 +166,7 @@ public class Initialization
     for (File extension : getExtensionFilesToLoad(config)) {
       log.info("Loading extension [%s] for class [%s]", extension.getName(), clazz.getName());
       try {
-        final URLClassLoader loader = getClassLoaderForExtension(extension);
+        final URLClassLoader loader = getClassLoaderForExtension(config, extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
           if (module instanceof DruidModule.WithServices) {
             for (Class service : ((DruidModule.WithServices) module).getServices()) {
@@ -231,10 +234,10 @@ public class Initialization
     }
     final Set<String> extensionsToLoad = Sets.newLinkedHashSet();
     for (final String extensionName : toLoad) {
-      String parentModuleName = PARENT_MODULE.get(extensionName);
+      String parentModuleName = PARENT_MODULES.get(extensionName);
       while (parentModuleName != null && !extensionsToLoad.contains(parentModuleName)) {
         extensionsToLoad.add(parentModuleName);
-        parentModuleName = PARENT_MODULE.get(extensionName);
+        parentModuleName = PARENT_MODULES.get(extensionName);
       }
       if (!extensionsToLoad.contains(extensionName)) {
         extensionsToLoad.add(extensionName);
@@ -248,8 +251,13 @@ public class Initialization
   }
 
   // -_-
-  private static final ImmutableMap<String, String> PARENT_MODULE = ImmutableMap.of(
+  private static final ImmutableMap<String, String> PARENT_MODULES = ImmutableMap.of(
       "druid-geotools-extensions", "druid-lucene-extensions"
+  );
+
+  // -_-;;;
+  private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
+      "druid-hive-udf-extensions"
   );
 
   private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
@@ -300,6 +308,21 @@ public class Initialization
     return hadoopDependenciesToLoad;
   }
 
+  private static File getHadoopDependencyFilesToLoad(ExtensionsConfig extensionsConfig)
+  {
+    final File rootHadoopDependenciesDir = new File(extensionsConfig.getHadoopDependenciesDir());
+    if (rootHadoopDependenciesDir.exists() && !rootHadoopDependenciesDir.isDirectory()) {
+      throw new ISE("Root Hadoop dependencies directory [%s] is not a directory!?", rootHadoopDependenciesDir);
+    }
+    final File hadoopDependencyDir = new File(rootHadoopDependenciesDir, "hadoop-client");
+    final String[] versions = hadoopDependencyDir.list();
+    if (versions == null || versions.length == 0) {
+      return null;
+    }
+    Arrays.sort(versions, StringComparators.ALPHANUMERIC);
+    return new File(hadoopDependencyDir, versions[0]);
+  }
+
   /**
    * @param extension The File instance of the extension we want to load
    *
@@ -307,33 +330,69 @@ public class Initialization
    *
    * @throws MalformedURLException
    */
-  public static URLClassLoader getClassLoaderForExtension(File extension) throws MalformedURLException
+  public static URLClassLoader getClassLoaderForExtension(ExtensionsConfig config, File extension)
+      throws MalformedURLException
   {
     String extensionName = extension.getName();
     URLClassLoader loader = getClassLoaderForExtension(extensionName);
     if (loader == null) {
-      final String parentModuleName = PARENT_MODULE.get(extensionName);
-      final ClassLoader parentLoader = parentModuleName == null
+      final String parentModuleName = PARENT_MODULES.get(extensionName);
+      ClassLoader parentLoader = parentModuleName == null
                                        ? Initialization.class.getClassLoader()
                                        : getClassLoaderForExtension(parentModuleName);
       Preconditions.checkNotNull(parentLoader, "Cannot find parent module [%s]", parentModuleName);
-      final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
-      final URL[] urls = new URL[jars.size()];
-      int i = 0;
-      for (File jar : jars) {
-        final URL url = jar.toURI().toURL();
-        log.info("added URL[%s]", url);
-        urls[i++] = url;
+      if (HADOOP_DEPENDENT.contains(extensionName)) {
+        parentLoader = appendHadoopLoader(config, parentLoader);
       }
-      loader = new URLClassLoader(urls, parentLoader);
+      loader = new URLClassLoader(toURLs(extension), parentLoader);
       loadersMap.put(extensionName, loader);
     }
     return loader;
   }
 
+  private static URL[] toURLs(File extension) throws MalformedURLException
+  {
+    final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
+    final URL[] urls = new URL[jars.size()];
+    int i = 0;
+    for (File jar : jars) {
+      final URL url = jar.toURI().toURL();
+      log.info("added URL[%s]", url);
+      urls[i++] = url;
+    }
+    return urls;
+  }
+
   public static URLClassLoader getClassLoaderForExtension(String extensionName)
   {
     return loadersMap.get(extensionName);
+  }
+
+  private static ClassLoader appendHadoopLoader(ExtensionsConfig config, ClassLoader loader)
+      throws MalformedURLException
+  {
+    if (!hasHadoopLoader(loader)) {
+      loader = new HadoopClassLoader(toURLs(getHadoopDependencyFilesToLoad(config)), loader);
+    }
+    return loader;
+  }
+
+  private static boolean hasHadoopLoader(ClassLoader loader)
+  {
+    for (ClassLoader current = loader; current != null; current = current.getParent()) {
+      if (current instanceof HadoopClassLoader) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static class HadoopClassLoader extends URLClassLoader
+  {
+    public HadoopClassLoader(URL[] urls, ClassLoader parent)
+    {
+      super(urls, parent);
+    }
   }
 
   public static List<URL> getURLsForClasspath(String cp)

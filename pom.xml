@@ -129,6 +129,7 @@
         <module>extensions-core/lookups-cached-global</module>
         <module>extensions-core/s3-extensions</module>
         <module>extensions-core/hive-extensions</module>
+        <module>extensions-core/hive-udf-extensions</module>
         <module>extensions-core/lucene-extensions</module>
         <module>extensions-core/esri-extensions</module>
         <module>extensions-core/geotools-extensions</module>

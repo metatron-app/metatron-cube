@@ -158,7 +158,7 @@ public class InitializationTest
     a_jar.createNewFile();
     b_jar.createNewFile();
     c_jar.createNewFile();
-    final URLClassLoader loader = Initialization.getClassLoaderForExtension(some_extension_dir);
+    final URLClassLoader loader = Initialization.getClassLoaderForExtension(null, some_extension_dir);
     final URL[] expectedURLs = new URL[]{a_jar.toURI().toURL(), b_jar.toURI().toURL(), c_jar.toURI().toURL()};
     final URL[] actualURLs = loader.getURLs();
     Arrays.sort(

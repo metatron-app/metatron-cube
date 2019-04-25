@@ -19,29 +19,30 @@
 
 package io.druid.hive;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Binder;
-import io.druid.initialization.DruidModule;
+import com.google.common.collect.Maps;
+import io.druid.common.guava.DSuppliers;
+import io.druid.data.ValueDesc;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.Parser;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.util.List;
+import java.util.Map;
 
-/**
- */
-public class HiveDruidModule implements DruidModule
+public class HiveFunctionsTest
 {
-  @Override
-  public List<? extends Module> getJacksonModules()
-  {
-    return ImmutableList.of(
-        new SimpleModule("HiveDruidModule")
-            .registerSubtypes(HivePathSpec.class)
-    );
+  static {
+    Parser.register(HiveFunctions.class);
   }
 
-  @Override
-  public void configure(Binder binder)
+  @Test
+  public void test()
   {
+    Map<String, DSuppliers.TypedSupplier> mapping = Maps.newHashMap();
+    mapping.put("x", new DSuppliers.TypedSupplier.Simple<String>("   xxx  ", ValueDesc.STRING));
+    Expr expr = Parser.parse("hive.trim(x)", true);
+    ExprEval eval = expr.eval(Parser.withTypedSuppliers(mapping));
+    Assert.assertEquals("xxx", eval.value());
   }
 }

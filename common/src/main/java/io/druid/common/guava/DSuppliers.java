@@ -37,6 +37,29 @@ public class DSuppliers
 
   public static interface TypedSupplier<T> extends Supplier<T>, Typed
   {
+    public static class Simple<T> implements TypedSupplier<T>
+    {
+      private final T value;
+      private final ValueDesc type;
+
+      public Simple(T value, ValueDesc type)
+      {
+        this.value = value;
+        this.type = type;
+      }
+
+      @Override
+      public T get()
+      {
+        return value;
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        return type;
+      }
+    }
   }
 
   public static <T> Supplier<T> of(final AtomicReference<T> ref)

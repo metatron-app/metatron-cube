@@ -27,7 +27,6 @@ import io.druid.indexer.hadoop.QueryBasedInputFormat;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.EventHolder;
-import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;

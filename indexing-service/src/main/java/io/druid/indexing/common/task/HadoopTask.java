@@ -147,7 +147,7 @@ public abstract class HadoopTask extends AbstractTask
     );
 
     for (final File extension : Initialization.getExtensionFilesToLoad(extensionsConfig)) {
-      final ClassLoader extensionLoader = Initialization.getClassLoaderForExtension(extension);
+      final ClassLoader extensionLoader = Initialization.getClassLoaderForExtension(extensionsConfig, extension);
       jobURLs.addAll(Arrays.asList(((URLClassLoader) extensionLoader).getURLs()));
     }
 
@@ -156,7 +156,7 @@ public abstract class HadoopTask extends AbstractTask
     // hadoop dependencies come before druid classes because some extensions depend on them
     for (File hadoopDependency :
         Initialization.getHadoopDependencyFilesToLoad(hadoopDependencyCoordinates, extensionsConfig)) {
-      final ClassLoader hadoopLoader = Initialization.getClassLoaderForExtension(hadoopDependency);
+      final ClassLoader hadoopLoader = Initialization.getClassLoaderForExtension(extensionsConfig, hadoopDependency);
       localClassLoaderURLs.addAll(Arrays.asList(((URLClassLoader) hadoopLoader).getURLs()));
     }
 

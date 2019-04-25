@@ -165,7 +165,7 @@ public interface Function
 
   class Stateless implements Factory
   {
-    private final Function function;
+    final Function function;
 
     public Stateless(Function function)
     {
@@ -183,14 +183,26 @@ public interface Function
     {
       return function;
     }
+
+    @Override
+    public String toString()
+    {
+      return function.getClass().getSimpleName();
+    }
   }
 
   interface Library
   {
   }
 
+  interface Provider extends Library
+  {
+    Iterable<Function.Factory> getFunctions();
+  }
+
   abstract class StringOut extends NamedFunction
   {
+
     @Override
     public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
     {

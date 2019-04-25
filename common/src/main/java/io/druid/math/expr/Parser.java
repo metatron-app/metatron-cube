@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -66,31 +67,12 @@ public class Parser
     }
     log.info("registering functions in library [%s]", parent.getName());
 
-    boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
+    final boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
                                  parent != PredicateFunctions.class &&
                                  parent != DateTimeFunctions.class &&
                                  parent != ExcelFunctions.class;
-    for (Class clazz : parent.getClasses()) {
-      if (Modifier.isAbstract(clazz.getModifiers())) {
-        continue;
-      }
-      Function.Factory factory = null;
-      try {
-        if (Function.Factory.class.isAssignableFrom(clazz)) {
-          factory = (Function.Factory) clazz.newInstance();
-        } else if (Function.class.isAssignableFrom(clazz)) {
-          Function function = (Function) clazz.newInstance();
-          factory = new Function.Stateless(function);
-        }
-      }
-      catch (Throwable t) {
-        log.warn("failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
-        continue;
-      }
-      if (factory == null || factory.name() == null) {
-        continue;
-      }
-      String name = factory.name().toLowerCase();
+    for (Function.Factory factory : getFunctions(parent)) {
+      String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
       Function.Factory prev = functions.get(name);
       if (prev != null) {
         throw new IAE("function '%s' cannot not be overridden", name);
@@ -98,9 +80,43 @@ public class Parser
       functions.put(name, factory);
 
       if (userDefinedLibrary) {
-        log.info("> '%s' is registered with class %s", name, clazz.getSimpleName());
+        String className = factory instanceof Function.Stateless
+                         ? factory.toString()
+                         : factory.getClass().getSimpleName();
+        log.info("> '%s' is registered with class %s", name, className);
       }
     }
+  }
+
+  private static Iterable<Function.Factory> getFunctions(Class parent)
+  {
+    try {
+      if (Function.Provider.class.isAssignableFrom(parent)) {
+        return ((Function.Provider)parent.newInstance()).getFunctions();
+      }
+    }
+    catch (Throwable t) {
+      log.warn(t, "failed to load functions from %s by %s .. ignoring", parent.getName(), t);
+      return ImmutableList.of();
+    }
+    final List<Function.Factory> factories = Lists.newArrayList();
+    for (Class clazz : parent.getClasses()) {
+      if (Modifier.isAbstract(clazz.getModifiers())) {
+        continue;
+      }
+      try {
+        if (Function.Factory.class.isAssignableFrom(clazz)) {
+          factories.add((Function.Factory) clazz.newInstance());
+        } else if (Function.class.isAssignableFrom(clazz)) {
+          Function function = (Function) clazz.newInstance();
+          factories.add(new Function.Stateless(function));
+        }
+      }
+      catch (Throwable t) {
+        log.warn(t, "failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
+      }
+    }
+    return factories;
   }
 
   public static Expr parse(String in)
