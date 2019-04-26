@@ -40,7 +40,6 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
-import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
@@ -50,7 +49,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -291,7 +289,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   private GenericUDAFResolver getUDAFResolver() throws SemanticException
   {
     FunctionInfo functionInfo = Preconditions.checkNotNull(
-        FunctionRegistry.getFunctionInfo(udafName), "%s is not exists", udafName
+        HiveFunctions.getFunctionInfo(udafName), "%s is not exists", udafName
     );
     Preconditions.checkArgument(functionInfo.isGenericUDAF(), "%s is not udaf", udafName);
     return functionInfo.getGenericUDAFResolver();

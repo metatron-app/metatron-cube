@@ -29,39 +29,73 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.exec.Registry;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 
 import java.util.List;
+import java.util.Set;
 
 public class HiveFunctions implements Function.Provider
 {
   private static final Logger LOG = new Logger(HiveFunctions.class);
 
+  private static final Registry REGISTRY = new Registry();
+  private static final SessionState DUMMY = new SessionState(new HiveConf());
+
+  public static Set<String> getFunctionNames()
+  {
+    Set<String> names = FunctionRegistry.getFunctionNames();
+    names.addAll(REGISTRY.getCurrentFunctionNames());
+    return names;
+  }
+
+  public static FunctionInfo getFunctionInfo(String name) throws SemanticException
+  {
+    SessionState.setCurrentSessionState(DUMMY);
+    try {
+      FunctionInfo functionInfo = REGISTRY.getFunctionInfo(name);
+      if (functionInfo == null) {
+        functionInfo = FunctionRegistry.getFunctionInfo(name);
+      }
+      return functionInfo;
+    }
+    finally {
+      SessionState.detachSession();
+    }
+  }
+
+  public static FunctionInfo registerFunction(String functionName, Class<?> udfClass)
+  {
+    return REGISTRY.registerFunction(functionName, udfClass);
+  }
+
   @Override
   public Iterable<Function.Factory> getFunctions()
   {
+    final List<Function.Factory> factories = Lists.newArrayList();
+
     // ReflectionUtils uses context loader
     final ClassLoader prev = Thread.currentThread().getContextClassLoader();
-    final List<Function.Factory> factories;
+    Thread.currentThread().setContextClassLoader(HiveFunctions.class.getClassLoader());
     try {
-      Thread.currentThread().setContextClassLoader(HiveFunctions.class.getClassLoader());
-      factories = Lists.newArrayList();
-      for (String name : FunctionRegistry.getFunctionNames()) {
+      for (String name : HiveFunctions.getFunctionNames()) {
         FunctionInfo function;
         try {
-          function = FunctionRegistry.getFunctionInfo(name);
+          function = HiveFunctions.getFunctionInfo(name);
         }
         catch (SemanticException e) {
           continue; // ignore.. blocked function ?
         }
-        if (function.isGenericUDF()) {
+        if (function != null && function.isGenericUDF()) {
           factories.add(new HiveAdapter("hive." + name, function));
         }
       }
