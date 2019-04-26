@@ -31,6 +31,7 @@ import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -133,16 +134,16 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
-  public static List<Row> runQuery(GroupByQuery query)
+  public static List<Row> runQuery(BaseAggregationQuery query)
   {
     return runQuery(query, false);
   }
 
-  public static List<Row> runQuery(GroupByQuery query, boolean checkCount)
+  public static List<Row> runQuery(BaseAggregationQuery query, boolean checkCount)
   {
     List<Row> rows = Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
-    if (checkCount) {
-      int sum = count(query);
+    if (query instanceof GroupByQuery && checkCount) {
+      int sum = count((GroupByQuery) query);
       Assert.assertEquals(sum, rows.size());
     }
     return rows;

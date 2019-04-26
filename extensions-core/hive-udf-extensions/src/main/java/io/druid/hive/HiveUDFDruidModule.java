@@ -39,6 +39,7 @@ public class HiveUDFDruidModule implements DruidModule
         new SimpleModule("HiveUDFDruidModule")
             .registerSubtypes(HivemallFunctions.class)
             .registerSubtypes(HiveFunctions.class)
+            .registerSubtypes(HiveUDAFAggregatorFactory.class)
     );
   }
 

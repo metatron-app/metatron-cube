@@ -479,7 +479,7 @@ public class Aggregators
     };
   }
 
-  private static abstract class RelayBufferAggregator extends BufferAggregator.Abstract
+  public static abstract class RelayBufferAggregator extends BufferAggregator.Abstract
   {
     private final Map<IntArray, Aggregator> mapping = Maps.newHashMap();
 

@@ -97,9 +97,19 @@ public class ValueDesc implements Serializable, Cacheable
     return ofArray(valueType.typeName);
   }
 
+  public static ValueDesc ofList(ValueDesc valueType)
+  {
+    return ofList(valueType.typeName);
+  }
+
   public static ValueDesc ofArray(String typeName)
   {
     return ValueDesc.of(ARRAY_PREFIX + typeName);
+  }
+
+  public static ValueDesc ofList(String element)
+  {
+    return ValueDesc.of(LIST_TYPE + "(" + element + ")");
   }
 
   public static ValueDesc ofStruct(String elements)
@@ -512,9 +522,24 @@ public class ValueDesc implements Serializable, Cacheable
     return typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 
+  public boolean isList()
+  {
+    return typeName.toLowerCase().startsWith(LIST_TYPE);
+  }
+
   public boolean isUnknown()
   {
     return typeName.equals(UNKNOWN_TYPE);
+  }
+
+  public boolean hasDescription()
+  {
+    return typeName.endsWith(")") && typeName.indexOf('(') > 0;
+  }
+
+  public String[] getDescription()
+  {
+    return TypeUtils.splitDescriptiveType(typeName);
   }
 
   public Comparable cast(Object value)

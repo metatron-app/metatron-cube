@@ -35,10 +35,7 @@ import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
-import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 
 import java.util.List;
@@ -123,23 +120,13 @@ public class HiveFunctions implements Function.Provider
           for (int i = 0; i < params.length; i++) {
             params[i] = new GenericUDF.DeferredJavaObject(Evals.eval(args.get(i), bindings).value());
           }
-          Object result;
           try {
-            result = genericUDF.evaluate(params);
+            Object result = genericUDF.evaluate(params);
+            return ExprEval.of(ObjectInspectors.evaluate(output, result), outputType);
           }
           catch (HiveException e) {
             throw Throwables.propagate(e);
           }
-
-          Object value = null;
-          if (output instanceof PrimitiveObjectInspector) {
-            value = ((PrimitiveObjectInspector) output).getPrimitiveJavaObject(result);
-          } else if (output instanceof ListObjectInspector) {
-            value = ((ListObjectInspector) output).getList(result);
-          } else if (output instanceof MapObjectInspector) {
-            value = ((MapObjectInspector) output).getMap(result);
-          }
-          return ExprEval.of(value, outputType);
         }
 
         public ValueDesc intialize(List<Expr> args, TypeResolver bindings)
@@ -163,7 +150,7 @@ public class HiveFunctions implements Function.Provider
     {
       final List<ObjectInspector> inspectors = Lists.newArrayList();
       for (Expr arg : args) {
-        ObjectInspector inspector = ObjectInspectors.newJavaOI(arg.resolve(bindings));
+        ObjectInspector inspector = ObjectInspectors.toObjectInspector(arg.resolve(bindings));
         if (inspector == null) {
           throw new IllegalArgumentException("cannot resolve " + args);
         }
