@@ -1534,6 +1534,54 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("isNotNull")
+  final class IsNotNullFunc extends SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(!param.isNull());
+    }
+  }
+
+  @Function.Named("IsTrue")
+  final class IsTrue extends SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(param.asBoolean());
+    }
+  }
+
+  @Function.Named("isFalse")
+  final class isFalse extends SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(!param.asBoolean());
+    }
+  }
+
   @Function.Named("nvl")
   final class NvlFunc extends Function.NamedFunction
   {

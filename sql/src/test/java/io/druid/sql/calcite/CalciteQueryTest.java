@@ -1664,34 +1664,24 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testNullEmptyStringEquality() throws Exception
   {
-    // Doesn't conform to the SQL standard, but it's how we do it.
-    // This example is used in the sql.md doc.
-
-    final ImmutableList<String> wheres = ImmutableList.of(
-        "NULLIF(dim2, 'a') = ''",
-        "NULLIF(dim2, 'a') IS NULL"
+    testQuery(
+        "SELECT COUNT(*)\n"
+        + "FROM druid.foo\n"
+        + "WHERE NULLIF(dim2, 'a') IS NULL",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .granularity(Granularities.ALL)
+                  .filters(EXPR_FILTER("case((\"dim2\" == 'a'),1,isNull(\"dim2\"))"))
+                  .aggregators(CountAggregatorFactory.of("a0"))
+                  .context(TIMESERIES_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            // Matches everything but "abc"
+            new Object[]{5L}
+        )
     );
-
-    for (String where : wheres) {
-      testQuery(
-          "SELECT COUNT(*)\n"
-          + "FROM druid.foo\n"
-          + "WHERE " + where,
-          ImmutableList.of(
-              Druids.newTimeseriesQueryBuilder()
-                    .dataSource(CalciteTests.DATASOURCE1)
-                    .granularity(Granularities.ALL)
-                    .filters(EXPR_FILTER("case((\"dim2\" == 'a'),1,(\"dim2\" == ''))"))
-                    .aggregators(CountAggregatorFactory.of("a0"))
-                    .context(TIMESERIES_CONTEXT_DEFAULT)
-                    .build()
-          ),
-          ImmutableList.of(
-              // Matches everything but "abc"
-              new Object[]{5L}
-          )
-      );
-    }
   }
 
   @Test
@@ -1709,7 +1699,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .setVirtualColumns(
                             EXPR_VC(
                                 "d0:v",
-                                "case((\"dim2\" != ''),\"dim2\",\"dim1\")"
+                                "case(isNotNull(\"dim2\"),\"dim2\",\"dim1\")"
                             )
                         )
                         .setDimensions(DefaultDimensionSpec.of("d0:v", "d0"))
@@ -1953,7 +1943,7 @@ public class CalciteQueryTest extends CalciteTestBase
                       new FilteredAggregatorFactory(
                           CountAggregatorFactory.of("a0"),
                           EXPR_FILTER(
-                              "(case((\"dim2\" == 'abc'),'yes',(\"dim2\" == 'def'),'yes','') != '')"
+                              "isNotNull(case((\"dim2\" == 'abc'),'yes',(\"dim2\" == 'def'),'yes',''))"
                           )
                       )
                   )

@@ -37,7 +37,6 @@ import io.druid.sql.calcite.expression.BinaryOperatorConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
-import io.druid.sql.calcite.expression.UnarySuffixOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CeilOperatorConversion;
@@ -117,14 +116,14 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new DirectOperatorConversion(SqlStdOperatorTable.REPLACE, "replace"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.SQRT, "sqrt"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.UPPER, "upper"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NULL, "isNull"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NOT_NULL, "isNotNull"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_FALSE, "isFalse"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NOT_TRUE, "isFalse"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_TRUE, "isTrue"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NOT_FALSE, "isTrue"))
           .add(new UnaryPrefixOperatorConversion(SqlStdOperatorTable.NOT, "!"))
           .add(new UnaryPrefixOperatorConversion(SqlStdOperatorTable.UNARY_MINUS, "-"))
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_NULL, "== ''"))
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_NOT_NULL, "!= ''"))
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_FALSE, "<= 0")) // Matches Evals.asBoolean
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_NOT_TRUE, "<= 0")) // Matches Evals.asBoolean
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_TRUE, "> 0")) // Matches Evals.asBoolean
-          .add(new UnarySuffixOperatorConversion(SqlStdOperatorTable.IS_NOT_FALSE, "> 0")) // Matches Evals.asBoolean
           .add(new BinaryOperatorConversion(SqlStdOperatorTable.MULTIPLY, "*"))
           .add(new BinaryOperatorConversion(SqlStdOperatorTable.MOD, "%"))
           .add(new BinaryOperatorConversion(SqlStdOperatorTable.DIVIDE, "/"))
