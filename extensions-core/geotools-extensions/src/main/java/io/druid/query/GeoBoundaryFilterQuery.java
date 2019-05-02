@@ -40,11 +40,8 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.lucene.SpatialOperations;
-import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.ShapeReader;
-import org.locationtech.spatial4j.io.WKTReader;
 import org.locationtech.spatial4j.shape.Shape;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 import java.util.Arrays;
 import java.util.List;
@@ -246,13 +243,15 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     }
     final List<Object[]> rows = Lists.newArrayList();
     final List<Geometry> geometries = Lists.newArrayList();
-    final ShapeReader reader = new WKTReader(JtsSpatialContext.GEO, null);
+    final ShapeReader reader = ShapeUtils.newWKTReader();
     for (Object[] row : Sequences.toList(boundary.run(segmentWalker, BaseQuery.copyContextForMeta(getContext())))) {
       String boundary = Objects.toString(row[geomIndex], null);
       if (!StringUtils.isNullOrEmpty(boundary)) {
         Shape shape = reader.readIfSupported(boundary);
         if (shape != null) {
-          geometries.add(((JtsGeometry) shape).getGeom());
+          geometries.add(Preconditions.checkNotNull(
+              ShapeUtils.toGeometry(shape), "cannot convert shape [%s] to geometry", shape
+          ));
           rows.add(row);
         }
       }

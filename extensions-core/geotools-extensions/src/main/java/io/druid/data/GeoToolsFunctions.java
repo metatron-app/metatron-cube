@@ -36,12 +36,9 @@ import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.ShapeWriter;
-import org.locationtech.spatial4j.io.WKTReader;
 import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
 import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
-import org.locationtech.spatial4j.shape.jts.JtsPoint;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
@@ -116,19 +113,6 @@ public class GeoToolsFunctions implements Function.Library
   static ExprEval ofShape(Shape shape)
   {
     return ExprEval.of(shape, ValueDesc.SHAPE);
-  }
-
-  static Geometry toGeometry(ExprEval eval)
-  {
-    if (ValueDesc.SHAPE.equals(eval.type())) {
-      Shape shape = (Shape) eval.value();
-      if (shape instanceof JtsGeometry) {
-        return ((JtsGeometry) shape).getGeom();
-      } else if (shape instanceof JtsPoint) {
-        return ((JtsPoint) shape).getGeom();
-      }
-    }
-    return null;
   }
 
   static abstract class ShapeFuncFactory extends Function.AbstractFactory
@@ -225,7 +209,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     protected ShapeReader newReader()
     {
-      return new WKTReader(JtsSpatialContext.GEO, null);
+      return ShapeUtils.newWKTReader();
     }
   }
 
@@ -255,7 +239,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry != null) {
             buffer.getBuffer().setLength(0);
             try {
@@ -317,7 +301,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ofShape(null);
           }
@@ -349,7 +333,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return geometry == null ? null : op(geometry);
         }
       };
@@ -402,7 +386,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return ExprEval.of(geometry == null ? -1D : ShapeUtils.area(geometry));
         }
       };
@@ -423,7 +407,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return ExprEval.of(geometry == null ? -1D : ShapeUtils.length(geometry));
         }
       };
@@ -450,7 +434,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
           }
@@ -496,7 +480,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
           }

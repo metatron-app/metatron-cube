@@ -25,6 +25,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiPolygon;
+import io.druid.query.ShapeUtils;
 import org.apache.lucene.geo.Polygon;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.exception.InvalidShapeException;
@@ -32,11 +33,9 @@ import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.GeoJSONWriter;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.ShapeWriter;
-import org.locationtech.spatial4j.io.WKTReader;
 import org.locationtech.spatial4j.io.WKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -65,7 +64,7 @@ public enum ShapeFormat
     @Override
     public ShapeReader newReader(SpatialContext context)
     {
-      return new WKTReader(context, null);
+      return ShapeUtils.newWKTReader(context);
     }
 
     @Override
@@ -121,7 +120,7 @@ public enum ShapeFormat
               coordinates[1] != coordinates[coordinates.length - 1]) {
             builder.pointXY(coordinates[0], coordinates[1]);
           }
-          return builder.buildOrRect();
+          return builder.build();
         }
 
         @Override
@@ -168,8 +167,8 @@ public enum ShapeFormat
       return Polygon.fromGeoJSON(shapeString);
     }
     final Shape shape = WKT.newReader(context).read(shapeString);
-    if (shape instanceof JtsGeometry) {
-      Geometry geometry = ((JtsGeometry)shape).getGeom();
+    final Geometry geometry = ShapeUtils.toGeometry(shape);
+    if (geometry != null) {
       if (geometry instanceof com.vividsolutions.jts.geom.Polygon) {
         return new Polygon[]{toLucenePolygon((com.vividsolutions.jts.geom.Polygon) geometry)};
       }

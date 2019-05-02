@@ -33,7 +33,7 @@ import org.opengis.referencing.operation.TransformException;
 
 import java.util.Map;
 
-public class ShapeUtils
+public class ShapeUtils extends io.druid.query.ShapeUtils
 {
   static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
 

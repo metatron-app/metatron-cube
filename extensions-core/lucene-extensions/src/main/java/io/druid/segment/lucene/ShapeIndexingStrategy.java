@@ -32,6 +32,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.query.ShapeUtils;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
@@ -59,7 +60,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       boolean validate(Shape shape)
       {
         if (shape instanceof JtsGeometry) {
-          Geometry geometry = ((JtsGeometry) shape).getGeom();
+          Geometry geometry = ShapeUtils.toGeometry(shape);
           return geometry instanceof com.vividsolutions.jts.geom.Point ||
                  geometry instanceof com.vividsolutions.jts.geom.MultiPoint;
         }
@@ -70,24 +71,18 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       @Override
       boolean validate(Shape shape)
       {
-        if (shape instanceof JtsGeometry) {
-          Geometry geometry = ((JtsGeometry) shape).getGeom();
-          return geometry instanceof com.vividsolutions.jts.geom.LineString ||
-                 geometry instanceof com.vividsolutions.jts.geom.MultiLineString;
-        }
-        return false;
+        Geometry geometry = ShapeUtils.toGeometry(shape);
+        return geometry instanceof com.vividsolutions.jts.geom.LineString ||
+               geometry instanceof com.vividsolutions.jts.geom.MultiLineString;
       }
     },
     POLYGON {
       @Override
       boolean validate(Shape shape)
       {
-        if (shape instanceof JtsGeometry) {
-          Geometry geometry = ((JtsGeometry) shape).getGeom();
-          return geometry instanceof com.vividsolutions.jts.geom.Polygon ||
-                 geometry instanceof com.vividsolutions.jts.geom.MultiPolygon;
-        }
-        return false;
+        Geometry geometry = ShapeUtils.toGeometry(shape);
+        return geometry instanceof com.vividsolutions.jts.geom.Polygon ||
+               geometry instanceof com.vividsolutions.jts.geom.MultiPolygon;
       }
     },
     ALL;

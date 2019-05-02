@@ -28,6 +28,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.query.H3Functions;
+import io.druid.query.ShapeUtils;
 
 import java.util.List;
 
@@ -70,7 +71,7 @@ public class GeoHexFunctions implements Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = H3Functions.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }

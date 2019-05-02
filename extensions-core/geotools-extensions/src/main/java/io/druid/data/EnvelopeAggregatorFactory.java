@@ -32,7 +32,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
+import org.locationtech.spatial4j.shape.Shape;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -78,8 +78,12 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public void aggregate()
         {
-          final Geometry geometry = ((JtsGeometry) selector.get()).getGeom();
-          envelope.expandToInclude(geometry.getEnvelopeInternal());
+          final Geometry geometry = ShapeUtils.toGeometry((Shape) selector.get());
+          if (geometry != null) {
+            synchronized (envelope) {
+              envelope.expandToInclude(geometry.getEnvelopeInternal());
+            }
+          }
         }
 
         @Override
@@ -91,7 +95,8 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public Object get()
         {
-          return new double[]{envelope.getMinX(), envelope.getMaxX(), envelope.getMinY(), envelope.getMaxY()};
+          return envelope.isNull() ? null :
+                 new double[]{envelope.getMinX(), envelope.getMaxX(), envelope.getMinY(), envelope.getMaxY()};
         }
       };
     }
@@ -121,7 +126,10 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public void aggregate(ByteBuffer buf, int position)
         {
-          final Geometry geometry = ((JtsGeometry) selector.get()).getGeom();
+          final Geometry geometry = ShapeUtils.toGeometry((Shape) selector.get());
+          if (geometry == null) {
+            return;
+          }
           final Envelope envelope = geometry.getEnvelopeInternal();
           final double minX = buf.getDouble(position + MIN_X);
           final double maxX = buf.getDouble(position + MAX_X);
@@ -151,9 +159,14 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public Object get(ByteBuffer buf, int position)
         {
+          final double minX = buf.getDouble(position + MIN_X);
+          final double maxX = buf.getDouble(position + MAX_X);
+          if (minX > maxX) {
+            return null;
+          }
           return new double[]{
-              buf.getDouble(position + MIN_X),
-              buf.getDouble(position + MAX_X),
+              minX,
+              maxX,
               buf.getDouble(position + MIN_Y),
               buf.getDouble(position + MAX_Y)
           };
