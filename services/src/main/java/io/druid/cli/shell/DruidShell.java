@@ -39,12 +39,14 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.History;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.reader.impl.completer.AggregateCompleter;
+import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 
@@ -55,10 +57,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  */
@@ -386,7 +390,30 @@ public class DruidShell implements CommonShell
         taskCompleter,
         optionCompleter
     );
-    LineReader reader = LineReaderBuilder.builder()
+
+    final StringBuilder builder = new StringBuilder();
+    final AtomicBoolean inSQL = new AtomicBoolean();
+    final History history = new DefaultHistory()
+    {
+      @Override
+      public void add(Instant time, String line)
+      {
+        if (inSQL.get()) {
+          if (builder.length() > 0) {
+            builder.append('\n');
+          }
+          if (line.endsWith(";")) {
+            line = builder.append(line).toString();
+          } else {
+            builder.append(line);
+            return;
+          }
+        }
+        super.add(time, line);
+      }
+    };
+    final LineReader reader = LineReaderBuilder.builder()
+                                         .history(history)
                                          .terminal(terminal)
                                          .completer(completer)
                                          .parser(parser)
@@ -398,26 +425,23 @@ public class DruidShell implements CommonShell
         return;
       }
       if (line.equals("sql")) {
-        StringBuilder builder = new StringBuilder();
+        inSQL.set(true);
         while (true) {
           String sqlPart = readLine(reader, SQL_PROMPT);
           if (sqlPart == null) {
             return;
           }
           if (sqlPart.endsWith(";")) {
-            builder.append(sqlPart.substring(0, sqlPart.length() - 1).trim());
-            if (builder.length() == 0) {
+            String SQL = builder.toString();
+            if (SQL.length() == 1) {
               break;
             }
-            runSQL(brokerURLs, writer, builder.toString());
+            runSQL(brokerURLs, writer, SQL.substring(0, SQL.length() - 1));
             builder.setLength(0);
-          } else {
-            if (builder.length() > 0 && sqlPart.charAt(0) != ' ' && sqlPart.charAt(0) != '\t') {
-              builder.append(' ');
-            }
-            builder.append(sqlPart);
           }
         }
+        builder.setLength(0);
+        inSQL.set(false);
         continue;
       }
       if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")) {
