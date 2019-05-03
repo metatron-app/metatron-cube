@@ -9,6 +9,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | expr '=' expr                                  # assignExpr
      | '(' expr ')'                                   # nestedExpr
      | 'NULL'                                         # string
+     | BOOLEAN                                        # booleanExpr
      | IDENTIFIER '(' fnArgs ')'                      # functionExpr
      | IDENTIFIER                                     # identifierExpr
      | IDENTIFIER '[' ('-')? LONG ']'                 # identifierExpr
@@ -20,6 +21,10 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
 
 fnArgs : expr? (',' expr?)*                           # functionArgs
      ;
+
+BOOLEAN : TRUE | FALSE ;
+fragment TRUE : [Tt] [Rr] [Uu] [Ee];
+fragment FALSE : [Ff] [Aa] [Ll] [Ss] [Ee];
 
 IDENTIFIER : [_$#a-zA-Z\uAC00-\uD7AF][._$#a-zA-Z0-9\[\]\uAC00-\uD7AF]* | '"' ~["]+ '"';
 LONG : [0-9]+ ;

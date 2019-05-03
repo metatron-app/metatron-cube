@@ -29,6 +29,21 @@ import org.joda.time.DateTime;
  */
 public class Rows
 {
+  public static Boolean parseBoolean(Object value)
+  {
+    if (value == null || value instanceof Boolean) {
+      return (Boolean) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).doubleValue() != 0;
+    } else if (value instanceof DateTime) {
+      return (float) ((DateTime) value).getMillis() != 0;
+    } else if (value instanceof String) {
+      return Boolean.valueOf((String) value);
+    } else {
+      throw new ParseException("Unknown type[%s]", value.getClass());
+    }
+  }
+
   public static Float parseFloat(Object value)
   {
     if (value == null) {

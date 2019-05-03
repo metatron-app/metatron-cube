@@ -325,8 +325,10 @@ public class QueryMaker
     } else if (sqlType == SqlTypeName.BOOLEAN) {
       if (value instanceof String) {
         coercedValue = Evals.asBoolean(((String) value));
+      } else if (value instanceof Boolean) {
+        coercedValue = value != null && (Boolean) value;
       } else if (value instanceof Number) {
-        coercedValue = Evals.asBoolean(((Number) value).longValue());
+        coercedValue = Evals.asBoolean((Number) value);
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }

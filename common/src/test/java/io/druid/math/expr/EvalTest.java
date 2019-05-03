@@ -64,6 +64,13 @@ public class EvalTest
     return ret.longValue();
   }
 
+  private Boolean evalBoolean(String x, Expr.NumericBinding bindings)
+  {
+    ExprEval ret = _eval(x, bindings);
+    Assert.assertEquals(ValueDesc.BOOLEAN, ret.type());
+    return ret.isNull() ? null : ret.asBoolean();
+  }
+
   private double evalDouble(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
@@ -91,6 +98,26 @@ public class EvalTest
   }
 
   @Test
+  public void testBoolean()
+  {
+    ExprEval eval = Parser.parse("true").eval(null);
+    Assert.assertEquals(ValueDesc.BOOLEAN, eval.type());
+    Assert.assertTrue((Boolean) eval.value());
+
+    eval = Parser.parse("TRUE").eval(null);
+    Assert.assertEquals(ValueDesc.BOOLEAN, eval.type());
+    Assert.assertTrue((Boolean) eval.value());
+
+    eval = Parser.parse("false").eval(null);
+    Assert.assertEquals(ValueDesc.BOOLEAN, eval.type());
+    Assert.assertFalse((Boolean) eval.value());
+
+    eval = Parser.parse("FALSE").eval(null);
+    Assert.assertEquals(ValueDesc.BOOLEAN, eval.type());
+    Assert.assertFalse((Boolean) eval.value());
+  }
+
+  @Test
   public void testDoubleEval()
   {
     Map<String, Number> mapping = new HashMap<>();
@@ -102,18 +129,18 @@ public class EvalTest
     Assert.assertEquals(2.0, evalDouble("\"x\"", bindings), 0.0001);
     Assert.assertEquals(304.0, evalDouble("300 + \"x\" * 2", bindings), 0.0001);
 
-    Assert.assertFalse(evalDouble("1.0 && 0.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("1.0 && 2.0", bindings) > 0.0);
+    Assert.assertFalse(evalBoolean("1.0 && 0.0", bindings));
+    Assert.assertTrue(evalBoolean("1.0 && 2.0", bindings));
 
-    Assert.assertTrue(evalDouble("1.0 || 0.0", bindings) > 0.0);
-    Assert.assertFalse(evalDouble("0.0 || 0.0", bindings) > 0.0);
+    Assert.assertTrue(evalBoolean("1.0 || 0.0", bindings));
+    Assert.assertFalse(evalBoolean("0.0 || 0.0", bindings));
 
-    Assert.assertTrue(evalLong("2.0 > 1.0", bindings) > 0.0);
-    Assert.assertTrue(evalLong("2.0 >= 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalLong("1.0 < 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalLong("2.0 <= 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalLong("2.0 == 2.0", bindings) > 0.0);
-    Assert.assertTrue(evalLong("2.0 != 1.0", bindings) > 0.0);
+    Assert.assertTrue(evalBoolean("2.0 > 1.0", bindings));
+    Assert.assertTrue(evalBoolean("2.0 >= 2.0", bindings));
+    Assert.assertTrue(evalBoolean("1.0 < 2.0", bindings));
+    Assert.assertTrue(evalBoolean("2.0 <= 2.0", bindings));
+    Assert.assertTrue(evalBoolean("2.0 == 2.0", bindings));
+    Assert.assertTrue(evalBoolean("2.0 != 1.0", bindings));
 
     Assert.assertEquals(3.5, evalDouble("2.0 + 1.5", bindings), 0.0001);
     Assert.assertEquals(0.5, evalDouble("2.0 - 1.5", bindings), 0.0001);
@@ -123,9 +150,9 @@ public class EvalTest
     Assert.assertEquals(8.0, evalDouble("2.0 ^ 3.0", bindings), 0.0001);
     Assert.assertEquals(-1.5, evalDouble("-1.5", bindings), 0.0001);
 
-    Assert.assertTrue(evalDouble("!-1.0", bindings) > 0.0);
-    Assert.assertTrue(evalDouble("!0.0", bindings) > 0.0);
-    Assert.assertFalse(evalDouble("!2.0", bindings) > 0.0);
+    Assert.assertTrue(evalBoolean("!-1.0", bindings));
+    Assert.assertTrue(evalBoolean("!0.0", bindings));
+    Assert.assertFalse(evalBoolean("!2.0", bindings));
 
     Assert.assertEquals(2.0, evalDouble("sqrt(4.0)", bindings), 0.0001);
     Assert.assertEquals(2.0, evalDouble("if(1.0, 2.0, 3.0)", bindings), 0.0001);
@@ -213,20 +240,20 @@ public class EvalTest
     Assert.assertEquals(9223372036854775807L, evalLong("\"x\"", bindings));
     Assert.assertEquals(92233720368547759L, evalLong("\"x\" / 100 + 1", bindings));
 
-    Assert.assertFalse(evalLong("9223372036854775807 && 0", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775807 && 9223372036854775806", bindings) > 0);
+    Assert.assertFalse(evalBoolean("9223372036854775807 && 0", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775807 && 9223372036854775806", bindings));
 
-    Assert.assertTrue(evalLong("9223372036854775807 || 0", bindings) > 0);
-    Assert.assertFalse(evalLong("-9223372036854775807 || -9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("-9223372036854775807 || 9223372036854775807", bindings) > 0);
-    Assert.assertFalse(evalLong("0 || 0", bindings) > 0);
+    Assert.assertTrue(evalBoolean("9223372036854775807 || 0", bindings));
+    Assert.assertFalse(evalBoolean("-9223372036854775807 || -9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("-9223372036854775807 || 9223372036854775807", bindings));
+    Assert.assertFalse(evalBoolean("0 || 0", bindings));
 
-    Assert.assertTrue(evalLong("9223372036854775807 > 9223372036854775806", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775807 >= 9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775806 < 9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775807 <= 9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775807 == 9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("9223372036854775807 != 9223372036854775806", bindings) > 0);
+    Assert.assertTrue(evalBoolean("9223372036854775807 > 9223372036854775806", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775807 >= 9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775806 < 9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775807 <= 9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775807 == 9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("9223372036854775807 != 9223372036854775806", bindings));
 
     Assert.assertEquals(9223372036854775807L, evalLong("9223372036854775806 + 1", bindings));
     Assert.assertEquals(9223372036854775806L, evalLong("9223372036854775807 - 1", bindings));
@@ -236,9 +263,9 @@ public class EvalTest
     Assert.assertEquals(9223372030926249001L, evalLong("3037000499 ^ 2", bindings));
     Assert.assertEquals(-9223372036854775807L, evalLong("-9223372036854775807", bindings));
 
-    Assert.assertTrue(evalLong("!-9223372036854775807", bindings) > 0);
-    Assert.assertTrue(evalLong("!0", bindings) > 0);
-    Assert.assertFalse(evalLong("!9223372036854775807", bindings) > 0);
+    Assert.assertTrue(evalBoolean("!-9223372036854775807", bindings));
+    Assert.assertTrue(evalBoolean("!0", bindings));
+    Assert.assertFalse(evalBoolean("!9223372036854775807", bindings));
 
     Assert.assertEquals(3037000499L, evalLong("cast(sqrt(9223372036854775807), 'long')", bindings));
     Assert.assertEquals(

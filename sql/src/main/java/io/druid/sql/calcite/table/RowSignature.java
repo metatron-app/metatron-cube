@@ -164,6 +164,9 @@ public class RowSignature
             // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
             type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.VARCHAR, true);
             break;
+          case BOOLEAN:
+            type = Calcites.createSqlType(typeFactory, SqlTypeName.BOOLEAN);
+            break;
           case LONG:
             type = Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
             break;

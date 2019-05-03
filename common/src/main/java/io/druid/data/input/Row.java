@@ -74,6 +74,8 @@ public interface Row extends Comparable<Row>
    */
   Object getRaw(String dimension);
 
+  Boolean getBoolean(String metric);
+
   Float getFloat(String metric);
 
   Double getDouble(String metric);

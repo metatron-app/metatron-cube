@@ -70,6 +70,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
+  public static ValueDesc BOOLEAN = new ValueDesc(ValueType.BOOLEAN);
   public static ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT);
   public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
   public static ValueDesc LONG = new ValueDesc(ValueType.LONG);
@@ -472,6 +473,11 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean isPrimitiveNumeric()
   {
     return type.isNumeric();
+  }
+
+  public boolean isBoolean()
+  {
+    return type == ValueType.BOOLEAN;
   }
 
   public boolean isNumeric()

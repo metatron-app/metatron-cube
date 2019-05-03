@@ -131,6 +131,12 @@ public class SpatialDimensionRowTransformer implements Function<InputRow, InputR
       }
 
       @Override
+      public Boolean getBoolean(String metric)
+      {
+        return row.getBoolean(metric);
+      }
+
+      @Override
       public Float getFloat(String metric)
       {
         return row.getFloat(metric);

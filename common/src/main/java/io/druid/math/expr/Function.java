@@ -136,6 +136,15 @@ public interface Function
       }
     }
 
+    public abstract class BooleanChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return ValueDesc.BOOLEAN;
+      }
+    }
+
     public abstract class LongChild extends Child
     {
       @Override

@@ -37,6 +37,37 @@ import java.util.Objects;
  */
 public enum ValueType
 {
+  BOOLEAN {
+    @Override
+    public Class classOfObject()
+    {
+      return Boolean.class;
+    }
+
+    @Override
+    public Object get(Row row, String column)
+    {
+      return row.getFloat(column);
+    }
+
+    @Override
+    public Comparable cast(Object value)
+    {
+      return Rows.parseFloat(value);
+    }
+
+    @Override
+    public int lengthOfBinary()
+    {
+      return Byte.SIZE;
+    }
+
+    @Override
+    public boolean isNumeric()
+    {
+      return false;
+    }
+  },
   FLOAT {
     @Override
     public Class classOfObject()
@@ -245,6 +276,7 @@ public enum ValueType
       return null;
     }
     switch (name.toUpperCase()) {
+      case "BOOLEAN" : return BOOLEAN;
       case "FLOAT" : return FLOAT;
       case "DOUBLE" : return DOUBLE;
       case "LONG" : return LONG;
@@ -276,6 +308,9 @@ public enum ValueType
   {
     if (clazz == String.class) {
       return STRING;
+    }
+    if (clazz == Boolean.TYPE || clazz == Boolean.class) {
+      return BOOLEAN;
     }
     if (clazz == Long.TYPE || clazz == Long.class) {
       return LONG;

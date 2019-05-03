@@ -613,7 +613,7 @@ public interface EsriFunctions extends Function.Library
         @Override
         public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
-          return ValueDesc.LONG;
+          return ValueDesc.BOOLEAN;
         }
 
         @Override
@@ -639,7 +639,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public ValueDesc returns()
     {
-      return ValueDesc.LONG;
+      return ValueDesc.BOOLEAN;
     }
   }
 

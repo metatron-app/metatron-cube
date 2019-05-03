@@ -72,6 +72,46 @@ interface UnaryOp extends Expr
   Expr getChild();
 }
 
+final class BooleanExpr implements Constant
+{
+  private final boolean value;
+
+  public BooleanExpr(boolean value)
+  {
+    this.value = value;
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.valueOf(value);
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.BOOLEAN;
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    return ExprEval.of(value);
+  }
+
+  @Override
+  public Boolean get()
+  {
+    return value;
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof BooleanExpr && value == ((BooleanExpr) other).value;
+  }
+}
+
 final class LongExpr implements Constant
 {
   private final long value;
@@ -452,27 +492,18 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc type = expr.resolve(bindings);
-    return type.isDecimal() ? ValueDesc.DECIMAL : type;
+    return ValueDesc.BOOLEAN;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
     final ExprEval ret = expr.eval(bindings);
-    final ValueDesc type = ret.type();
     if (ret.isNull()) {
-      return ExprEval.of(null, type);
-    } else if (type.isLong()) {
-      return ExprEval.of(ret.asBoolean() ? 0L : 1L);
-    } else if (type.isFloat()) {
-      return ExprEval.of(ret.asBoolean() ? 0.0f : 1.0f);
-    } else if (type.isDouble()) {
-      return ExprEval.of(ret.asBoolean() ? 0.0d : 1.0d);
-    } else if (type.isDecimal()) {
-      return ExprEval.of(ret.asBoolean() ? BigDecimal.ZERO : BigDecimal.ONE, ValueDesc.DECIMAL);
+      return ExprEval.NULL_BOOL;
+    } else {
+      return ExprEval.of(!ret.asBoolean());
     }
-    throw new IllegalArgumentException("unsupported type " + type);
   }
 
   @Override
@@ -525,6 +556,8 @@ abstract interface BooleanBinaryOp {}
 
 abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpression
 {
+  private final boolean booleanOp = this instanceof BooleanBinaryOp;
+
   public BinaryOpExprBase(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -540,8 +573,8 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    if (this instanceof BooleanBinaryOp) {
-      return ValueDesc.LONG;
+    if (booleanOp) {
+      return ValueDesc.BOOLEAN;
     }
     ValueDesc lt = left.resolve(bindings);
     ValueDesc rt = right.resolve(bindings);
@@ -602,7 +635,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     if (supportsDecimalEval() && (lt.isDecimal() || rt.isDecimal())) {
       BigDecimal decimal1 = lt.isDecimal() ? (BigDecimal) leftVal.value() : BigDecimal.valueOf(leftVal.doubleValue());
       BigDecimal decimal2 = rt.isDecimal() ? (BigDecimal) rightVal.value() : BigDecimal.valueOf(rightVal.doubleValue());
-      return ExprEval.of(evalDecimal(decimal1, decimal2));
+      return evalDecimal(decimal1, decimal2);
     }
     return evalDouble(leftVal.doubleValue(), rightVal.doubleValue());
   }
@@ -636,7 +669,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     return true;
   }
 
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
     throw new IllegalArgumentException("unsupported type " + ValueDesc.DECIMAL + " in operation " + op);
   }
@@ -675,9 +708,9 @@ final class BinMinusExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.subtract(right);
+    return ExprEval.of(left.subtract(right));
   }
 }
 
@@ -753,9 +786,9 @@ final class BinMulExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.multiply(right);
+    return ExprEval.of(left.multiply(right));
   }
 }
 
@@ -792,9 +825,9 @@ final class BinDivExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.divide(right, MathContext.DECIMAL64);
+    return ExprEval.of(left.divide(right, MathContext.DECIMAL64));
   }
 }
 
@@ -868,9 +901,9 @@ final class BinPlusExpr extends BinaryOpExprBase
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.add(right);
+    return ExprEval.of(left.add(right));
   }
 }
 
@@ -884,31 +917,31 @@ final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(left.compareTo(right) < 0 ? 1L : 0L);
+    return ExprEval.of(left.compareTo(right) < 0);
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left < right ? 1L : 0L);
+    return ExprEval.of(left < right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left < right ? 1L : 0L);
+    return ExprEval.of(left < right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left < right ? 1L : 0L);
+    return ExprEval.of(left < right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) < 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) < 0);
   }
 }
 
@@ -922,31 +955,31 @@ final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(left.compareTo(right) <= 0 ? 1L : 0L);
+    return ExprEval.of(left.compareTo(right) <= 0);
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left <= right ? 1L : 0L);
+    return ExprEval.of(left <= right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left <= right ? 1L : 0L);
+    return ExprEval.of(left <= right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left <= right ? 1L : 0L);
+    return ExprEval.of(left <= right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) <= 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) <= 0);
   }
 }
 
@@ -960,31 +993,31 @@ final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(left.compareTo(right) > 0 ? 1L : 0L);
+    return ExprEval.of(left.compareTo(right));
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left > right ? 1L : 0L);
+    return ExprEval.of(left > right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left > right ? 1L : 0L);
+    return ExprEval.of(left > right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left > right ? 1L : 0L);
+    return ExprEval.of(left > right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) > 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) > 0);
   }
 }
 
@@ -998,31 +1031,31 @@ final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(left.compareTo(right) >= 0 ? 1L : 0L);
+    return ExprEval.of(left.compareTo(right) >= 0);
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left >= right ? 1L : 0L);
+    return ExprEval.of(left >= right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left >= right ? 1L : 0L);
+    return ExprEval.of(left >= right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left >= right ? 1L : 0L);
+    return ExprEval.of(left >= right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) >= 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) >= 0);
   }
 }
 
@@ -1036,31 +1069,31 @@ final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(left.equals(right) ? 1L : 0L);
+    return ExprEval.of(left.equals(right));
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left == right ? 1L : 0L);
+    return ExprEval.of(left == right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left == right ? 1L : 0L);
+    return ExprEval.of(left == right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left == right ? 1L : 0L);
+    return ExprEval.of(left == right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) == 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) == 0);
   }
 }
 
@@ -1074,31 +1107,31 @@ final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   @Override
   protected ExprEval evalString(String left, String right)
   {
-    return ExprEval.of(!Objects.equals(left, right) ? 1L : 0L);
+    return ExprEval.of(!Objects.equals(left, right));
   }
 
   @Override
   protected ExprEval evalLong(long left, long right)
   {
-    return ExprEval.of(left != right ? 1L : 0L);
+    return ExprEval.of(left != right);
   }
 
   @Override
   protected ExprEval evalFloat(float left, float right)
   {
-    return ExprEval.of(left != right ? 1L : 0L);
+    return ExprEval.of(left != right);
   }
 
   @Override
   protected ExprEval evalDouble(double left, double right)
   {
-    return ExprEval.of(left != right ? 1L : 0L);
+    return ExprEval.of(left != right);
   }
 
   @Override
-  protected BigDecimal evalDecimal(BigDecimal left, BigDecimal right)
+  protected ExprEval evalDecimal(BigDecimal left, BigDecimal right)
   {
-    return left.compareTo(right) != 0 ? BigDecimal.ONE : BigDecimal.ZERO;
+    return ExprEval.of(left.compareTo(right) != 0);
   }
 }
 
@@ -1112,16 +1145,24 @@ final class BinAndExpr extends BinaryOp implements Expression.AndExpression
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.resolve(bindings);
-    ValueDesc rightType = right.resolve(bindings);
-    return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
+    return ValueDesc.BOOLEAN;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    ExprEval leftVal = left.eval(bindings);
-    return leftVal.asBoolean() ? right.eval(bindings) : leftVal;
+    final ExprEval l = left.eval(bindings);
+    if (l == null) {
+      return ExprEval.NULL_BOOL;
+    } else if (!l.asBoolean()) {
+      return ExprEval.FALSE;
+    }
+    final ExprEval r = right.eval(bindings);
+    if (r == null) {
+      return ExprEval.NULL_BOOL;
+    } else {
+      return ExprEval.of(r.asBoolean());
+    }
   }
 
   @Override
@@ -1142,16 +1183,24 @@ final class BinOrExpr extends BinaryOp implements Expression.OrExpression
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    ValueDesc leftType = left.resolve(bindings);
-    ValueDesc rightType = right.resolve(bindings);
-    return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
+    return ValueDesc.BOOLEAN;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    ExprEval leftVal = left.eval(bindings);
-    return leftVal.asBoolean() ? leftVal : right.eval(bindings);
+    final ExprEval l = left.eval(bindings);
+    if (l == null) {
+      return ExprEval.NULL_BOOL;
+    } else if (l.asBoolean()) {
+      return ExprEval.TRUE;
+    }
+    final ExprEval r = right.eval(bindings);
+    if (r == null) {
+      return ExprEval.NULL_BOOL;
+    } else {
+      return ExprEval.of(r.asBoolean());
+    }
   }
 
   @Override

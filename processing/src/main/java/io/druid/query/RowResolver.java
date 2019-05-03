@@ -142,6 +142,8 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       return ValueDesc.UNKNOWN;
     } else if (clazz == String.class) {
       return ValueDesc.STRING;
+    } else if (clazz == Boolean.class || clazz == Boolean.TYPE) {
+      return ValueDesc.BOOLEAN;
     } else if (clazz == Float.class || clazz == Float.TYPE) {
       return ValueDesc.FLOAT;
     } else if (clazz == Double.class || clazz == Double.TYPE) {

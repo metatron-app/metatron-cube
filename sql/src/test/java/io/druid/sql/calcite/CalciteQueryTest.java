@@ -1672,7 +1672,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(EXPR_FILTER("case((\"dim2\" == 'a'),1,isNull(\"dim2\"))"))
+                  .filters(EXPR_FILTER("case((\"dim2\" == 'a'),true,isNull(\"dim2\"))"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -5943,7 +5943,7 @@ public class CalciteQueryTest extends CalciteTestBase
         + "        BindableJoin(condition=[true], joinType=[inner])\n"
         + "          DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n"
         + "          DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
-        + "        DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"d1:v\",\"outputName\":\"d1\"}],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"1\",\"outputName\":\"d1:v\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:long}])\n";
+        + "        DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"d1:v\",\"outputName\":\"d1\"}],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"true\",\"outputName\":\"d1:v\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:boolean}])\n";
     final String theQuery = "SELECT dim1, dim2, COUNT(*) FROM druid.foo\n"
                             + "WHERE dim1 = 'xxx' OR dim2 IN (SELECT dim1 FROM druid.foo WHERE dim1 LIKE '%bc')\n"
                             + "group by dim1, dim2 ORDER BY dim2";

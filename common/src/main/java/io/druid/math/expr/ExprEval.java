@@ -33,6 +33,10 @@ import java.util.Objects;
  */
 public class ExprEval extends Pair<Object, ValueDesc>
 {
+  public static final ExprEval TRUE = ExprEval.of(true);
+  public static final ExprEval FALSE = ExprEval.of(false);
+  public static final ExprEval NULL_BOOL = ExprEval.of(null, ValueDesc.BOOLEAN);
+
   public static final ExprEval UNKNOWN = ExprEval.of(null, ValueDesc.UNKNOWN);
 
   public static ExprEval bestEffortOf(Object val)
@@ -47,6 +51,9 @@ public class ExprEval extends Pair<Object, ValueDesc>
     }
     if (val instanceof ExprEval) {
       return (ExprEval) val;
+    }
+    if (val instanceof Boolean) {
+      return ExprEval.of(val, ValueDesc.BOOLEAN);
     }
     if (val instanceof String) {
       return ExprEval.of(val, ValueDesc.STRING);
@@ -112,9 +119,9 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return of(stringValue, ValueDesc.STRING);
   }
 
-  public static ExprEval of(boolean bool)
+  public static ExprEval of(Boolean bool)
   {
-    return of(bool ? 1L : 0L);
+    return of(bool, ValueDesc.BOOLEAN);
   }
 
   public ExprEval(Object lhs, ValueDesc rhs)
@@ -142,6 +149,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return rhs.isPrimitive();
   }
 
+  public boolean isBoolean()
+  {
+    return rhs.isBoolean();
+  }
+
   public boolean isString()
   {
     return rhs.isStringOrDimension();
@@ -165,6 +177,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public boolean isDouble()
   {
     return rhs.isDouble();
+  }
+
+  public boolean booleanValue()
+  {
+    return lhs != null && (Boolean) lhs;
   }
 
   public int intValue()
@@ -214,10 +231,14 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public boolean asBoolean()
   {
-    if (rhs.isNumeric()) {
+    if (isNull()) {
+      return false;
+    } else if (rhs.isBoolean()) {
+      return (Boolean) value();
+    } else if (rhs.isNumeric()) {
       return doubleValue() > 0;
     } else if (rhs.isStringOrDimension()) {
-      return !isNull() && Boolean.valueOf(stringValue());
+      return Boolean.valueOf(stringValue());
     } else {
       return !isNull();
     }
@@ -290,6 +311,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public ExprEval defaultValue()
   {
     switch (rhs.type()) {
+      case BOOLEAN:
+        return ExprEval.of(false);
       case FLOAT:
         return ExprEval.of(0F);
       case DOUBLE:

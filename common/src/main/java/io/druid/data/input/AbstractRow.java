@@ -79,6 +79,12 @@ public abstract class AbstractRow implements Row
   }
 
   @Override
+  public Boolean getBoolean(String metric)
+  {
+    return Rows.parseBoolean(getRaw(metric));
+  }
+
+  @Override
   public Float getFloat(String metric)
   {
     return Rows.parseFloat(getRaw(metric));

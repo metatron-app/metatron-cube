@@ -47,6 +47,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
   static {
     final ImmutableMap.Builder<SqlTypeName, ValueType> builder = ImmutableMap.builder();
 
+    builder.put(SqlTypeName.BOOLEAN, ValueType.BOOLEAN);
     builder.put(SqlTypeName.FLOAT, ValueType.FLOAT);
     builder.put(SqlTypeName.DOUBLE, ValueType.DOUBLE);
     builder.put(SqlTypeName.REAL, ValueType.DOUBLE);
@@ -59,9 +60,6 @@ public class CastOperatorConversion implements SqlOperatorConversion
     for (SqlTypeName type : SqlTypeName.STRING_TYPES) {
       builder.put(type, ValueType.STRING);
     }
-
-    // Booleans are treated as longs in Druid expressions, using two-value logic (positive = true, nonpositive = false).
-    builder.put(SqlTypeName.BOOLEAN, ValueType.LONG);
 
     // Timestamps are treated as longs (millis since the epoch) in Druid expressions.
     builder.put(SqlTypeName.TIMESTAMP, ValueType.LONG);

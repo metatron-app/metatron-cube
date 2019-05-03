@@ -191,7 +191,7 @@ public class Expressions
           );
         }
       } else if (SqlTypeName.BOOLEAN == sqlTypeName) {
-        return DruidExpression.fromExpression(DruidExpression.numberLiteral(RexLiteral.booleanValue(rexNode) ? 1 : 0));
+        return DruidExpression.fromExpression(String.valueOf(RexLiteral.booleanValue(rexNode)));
       } else {
         // Can't translate other literals.
         return null;

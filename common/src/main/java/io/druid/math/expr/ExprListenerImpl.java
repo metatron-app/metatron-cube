@@ -70,6 +70,15 @@ public class ExprListenerImpl extends ExprBaseListener
   }
 
   @Override
+  public void exitBooleanExpr(ExprParser.BooleanExprContext ctx)
+  {
+    nodes.put(
+        ctx,
+        new BooleanExpr(Boolean.valueOf(ctx.getText()))
+    );
+  }
+
+  @Override
   public void exitFloatExpr(ExprParser.FloatExprContext ctx)
   {
     nodes.put(

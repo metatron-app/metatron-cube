@@ -558,14 +558,9 @@ public class Evals
     }
   }
 
-  public static boolean asBoolean(long x)
+  public static boolean asBoolean(Number x)
   {
-    return x > 0;
-  }
-
-  public static boolean asBoolean(double x)
-  {
-    return x > 0;
+    return x != null && x.doubleValue() != 0;
   }
 
   public static boolean asBoolean(String x)

@@ -40,6 +40,8 @@ import java.util.Map;
 
 public class ObjectInspectors
 {
+  static final JavaBooleanObjectInspector BOOLEAN = new JavaBooleanObjectInspector();
+
   static final JavaFloatObjectInspector FLOAT = new JavaFloatObjectInspector()
   {
     @Override
@@ -103,6 +105,8 @@ public class ObjectInspectors
   public static ObjectInspector toPrimitiveOI(ValueType type)
   {
     switch (type) {
+      case BOOLEAN:
+        return BOOLEAN;
       case FLOAT:
         return FLOAT;
       case LONG:
@@ -154,6 +158,8 @@ public class ObjectInspectors
   public static TypeInfo toPrimitiveType(ValueType type)
   {
     switch (type) {
+      case BOOLEAN:
+        return TypeInfoFactory.booleanTypeInfo;
       case FLOAT:
         return TypeInfoFactory.floatTypeInfo;
       case LONG:
@@ -198,6 +204,7 @@ public class ObjectInspectors
         PrimitiveObjectInspector poi = (PrimitiveObjectInspector) inspector;
         switch (poi.getPrimitiveCategory()) {
           case BOOLEAN:
+            return ValueDesc.BOOLEAN;
           case BYTE:
           case SHORT:
           case INT:

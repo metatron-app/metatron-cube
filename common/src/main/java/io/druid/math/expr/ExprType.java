@@ -32,6 +32,8 @@ public class ExprType
       return ValueDesc.STRING;
     }
     switch (name.toUpperCase()) {
+      case "BOOLEAN":
+        return ValueDesc.BOOLEAN;
       case "FLOAT":
         return ValueDesc.FLOAT;
       case "DOUBLE":

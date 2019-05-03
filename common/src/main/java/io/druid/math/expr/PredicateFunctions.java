@@ -19,8 +19,12 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.google.common.net.InetAddresses;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
 
@@ -33,6 +37,70 @@ import java.util.regex.Pattern;
  */
 public interface PredicateFunctions extends Function.Library
 {
+  @Function.Named("isNull")
+  final class IsNullFunc extends BuiltinFunctions.SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.BOOLEAN;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(param.isNull());
+    }
+  }
+
+  @Function.Named("isNotNull")
+  final class IsNotNullFunc extends BuiltinFunctions.SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.BOOLEAN;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(!param.isNull());
+    }
+  }
+
+  @Function.Named("IsTrue")
+  final class IsTrue extends BuiltinFunctions.SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.BOOLEAN;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(param.asBoolean());
+    }
+  }
+
+  @Function.Named("isFalse")
+  final class isFalse extends BuiltinFunctions.SingleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc param)
+    {
+      return ValueDesc.BOOLEAN;
+    }
+
+    @Override
+    public ExprEval eval(ExprEval param)
+    {
+      return ExprEval.of(!param.asBoolean());
+    }
+  }
+
   @Function.Named("like")
   final class Like extends Function.AbstractFactory
   {
@@ -43,7 +111,7 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function '" + name() + "' needs 2 arguments");
       }
       final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -68,7 +136,7 @@ public interface PredicateFunctions extends Function.Library
       for (int i = 1; i < args.size(); i++) {
         set.add(Evals.getConstant(args.get(i)));
       }
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -92,7 +160,7 @@ public interface PredicateFunctions extends Function.Library
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
       final ValueDesc type = eval1.type();
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -114,7 +182,7 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'startsWith' needs 2 arguments");
       }
       final String prefix = Evals.getConstantString(args.get(1));
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -136,7 +204,7 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'endsWith' needs 2 arguments");
       }
       final String suffix = Evals.getConstantString(args.get(1));
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -159,7 +227,7 @@ public interface PredicateFunctions extends Function.Library
       }
       String value = Evals.getConstantString(args.get(1));
       final String prefix = value == null ? null : value.toLowerCase();
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -182,7 +250,7 @@ public interface PredicateFunctions extends Function.Library
       }
       String value = Evals.getConstantString(args.get(1));
       final String suffix = value == null ? null : value.toLowerCase();
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -204,7 +272,7 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'contains' needs 2 arguments");
       }
       final String contained = Evals.getConstantString(args.get(1));
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -226,13 +294,67 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'match' needs 2 arguments");
       }
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      return new LongChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval != null && matcher.reset(eval).find());
+        }
+      };
+    }
+  }
+
+  @Function.Named("ipv4_in")
+  final class IPv4In extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'ipv4_in' needs at least 2 arguments");
+      }
+      final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
+      final byte[] end;
+      Preconditions.checkArgument(start.length == 4);
+      if (args.size() > 2) {
+        end = InetAddresses.forString(Evals.getConstantString(args.get(2))).getAddress();
+        Preconditions.checkArgument(end.length == 4);
+      } else {
+        end = Ints.toByteArray(-1);
+      }
+      for (int i = 0; i < 4; i++) {
+        if (UnsignedBytes.compare(start[i], end[i]) > 0) {
+          throw new IllegalArgumentException("start[n] <= end[n]");
+        }
+      }
+      return new BooleanChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String ipString = Evals.evalString(args.get(0), bindings);
+          try {
+            return ExprEval.of(evaluate(ipString));
+          }
+          catch (Exception e) {
+            return ExprEval.of(false);
+          }
+        }
+
+        private boolean evaluate(String ipString)
+        {
+          final byte[] address = InetAddresses.forString(ipString).getAddress();
+          if (address.length != 4) {
+            return false;
+          }
+          for (int i = 0; i < 4; i++) {
+            if (UnsignedBytes.compare(address[i], start[i]) < 0 || UnsignedBytes.compare(address[i], end[i]) > 0) {
+              return false;
+            }
+          }
+          return true;
         }
       };
     }

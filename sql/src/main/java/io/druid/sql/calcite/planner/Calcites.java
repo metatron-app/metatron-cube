@@ -128,13 +128,14 @@ public class Calcites
 
   public static ValueDesc getValueDescForSqlTypeName(SqlTypeName sqlTypeName)
   {
-    if (SqlTypeName.FLOAT == sqlTypeName) {
+    if (SqlTypeName.BOOLEAN == sqlTypeName) {
+      return ValueDesc.BOOLEAN;
+    } else if (SqlTypeName.FLOAT == sqlTypeName) {
       return ValueDesc.FLOAT;
     } else if (SqlTypeName.FRACTIONAL_TYPES.contains(sqlTypeName)) {
       return ValueDesc.DOUBLE;
     } else if (SqlTypeName.TIMESTAMP == sqlTypeName
                || SqlTypeName.DATE == sqlTypeName
-               || SqlTypeName.BOOLEAN == sqlTypeName
                || SqlTypeName.INT_TYPES.contains(sqlTypeName)) {
       return ValueDesc.LONG;
     } else if (SqlTypeName.CHAR_TYPES.contains(sqlTypeName)) {

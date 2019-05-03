@@ -26,12 +26,10 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
@@ -1518,70 +1516,6 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  @Function.Named("isNull")
-  final class IsNullFunc extends SingleParam
-  {
-    @Override
-    public ValueDesc type(ValueDesc param)
-    {
-      return ValueDesc.LONG;
-    }
-
-    @Override
-    public ExprEval eval(ExprEval param)
-    {
-      return ExprEval.of(param.isNull());
-    }
-  }
-
-  @Function.Named("isNotNull")
-  final class IsNotNullFunc extends SingleParam
-  {
-    @Override
-    public ValueDesc type(ValueDesc param)
-    {
-      return ValueDesc.LONG;
-    }
-
-    @Override
-    public ExprEval eval(ExprEval param)
-    {
-      return ExprEval.of(!param.isNull());
-    }
-  }
-
-  @Function.Named("IsTrue")
-  final class IsTrue extends SingleParam
-  {
-    @Override
-    public ValueDesc type(ValueDesc param)
-    {
-      return ValueDesc.LONG;
-    }
-
-    @Override
-    public ExprEval eval(ExprEval param)
-    {
-      return ExprEval.of(param.asBoolean());
-    }
-  }
-
-  @Function.Named("isFalse")
-  final class isFalse extends SingleParam
-  {
-    @Override
-    public ValueDesc type(ValueDesc param)
-    {
-      return ValueDesc.LONG;
-    }
-
-    @Override
-    public ExprEval eval(ExprEval param)
-    {
-      return ExprEval.of(!param.asBoolean());
-    }
-  }
-
   @Function.Named("nvl")
   final class NvlFunc extends Function.NamedFunction
   {
@@ -2394,60 +2328,6 @@ public interface BuiltinFunctions extends Function.Library
             array[i] = fieldTypes[i].cast(args.get(i + 1).eval(bindings).value());
           }
           return ExprEval.of(array, type);
-        }
-      };
-    }
-  }
-
-  @Function.Named("ipv4_in")
-  final class IPv4In extends Function.AbstractFactory
-  {
-    @Override
-    public Function create(List<Expr> args)
-    {
-      if (args.size() < 2) {
-        throw new RuntimeException("function 'ipv4_in' needs at least 2 arguments");
-      }
-      final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
-      final byte[] end;
-      Preconditions.checkArgument(start.length == 4);
-      if (args.size() > 2) {
-        end = InetAddresses.forString(Evals.getConstantString(args.get(2))).getAddress();
-        Preconditions.checkArgument(end.length == 4);
-      } else {
-        end = Ints.toByteArray(-1);
-      }
-      for (int i = 0; i < 4; i++) {
-        if (UnsignedBytes.compare(start[i], end[i]) > 0) {
-          throw new IllegalArgumentException("start[n] <= end[n]");
-        }
-      }
-      return new LongChild()
-      {
-        @Override
-        public ExprEval apply(List<Expr> args, NumericBinding bindings)
-        {
-          String ipString = Evals.evalString(args.get(0), bindings);
-          try {
-            return ExprEval.of(evaluate(ipString));
-          }
-          catch (Exception e) {
-            return ExprEval.of(false);
-          }
-        }
-
-        private boolean evaluate(String ipString)
-        {
-          final byte[] address = InetAddresses.forString(ipString).getAddress();
-          if (address.length != 4) {
-            return false;
-          }
-          for (int i = 0; i < 4; i++) {
-            if (UnsignedBytes.compare(address[i], start[i]) < 0 || UnsignedBytes.compare(address[i], end[i]) > 0) {
-              return false;
-            }
-          }
-          return true;
         }
       };
     }
