@@ -48,9 +48,9 @@ public class SqlDescTable
   )
   {
     List<SqlNode> select = Arrays.asList(
-        new SqlIdentifier(InformationSchema.COLUMN_NAME, SqlParserPos.ZERO),
-        new SqlIdentifier(InformationSchema.DATA_TYPE, SqlParserPos.ZERO),
-        new SqlIdentifier(InformationSchema.IS_NULLABLE, SqlParserPos.ZERO)
+        Utils.zero(InformationSchema.COLUMN_NAME),
+        Utils.zero(InformationSchema.DATA_TYPE),
+        Utils.zero(InformationSchema.IS_NULLABLE)
     );
 
     SqlNode fromClause = new SqlIdentifier(
@@ -58,7 +58,7 @@ public class SqlDescTable
     );
 
     String tableName = Util.last(table.names);
-    SqlNode tableNameColumn = new SqlIdentifier(InformationSchema.TABLE_NAME, SqlParserPos.ZERO);
+    SqlNode tableNameColumn = Utils.zero(InformationSchema.TABLE_NAME);
 
     SqlNode where = Utils.createCondition(
         tableNameColumn,
@@ -72,13 +72,13 @@ public class SqlDescTable
           Utils.createCondition(
               SqlStdOperatorTable.LOWER.createCall(
                   SqlParserPos.ZERO,
-                  new SqlIdentifier(InformationSchema.COLUMN_NAME, SqlParserPos.ZERO)
+                  Utils.zero(InformationSchema.COLUMN_NAME)
               ),
               SqlStdOperatorTable.EQUALS,
               SqlLiteral.createCharString(column.toString().toLowerCase(), SqlParserPos.ZERO)
           );
     } else if (columnPattern != null) {
-      SqlNode columnNameColumn = new SqlIdentifier(InformationSchema.COLUMN_NAME, SqlParserPos.ZERO);
+      SqlNode columnNameColumn = Utils.zero(InformationSchema.COLUMN_NAME);
       if (columnPattern instanceof SqlCharStringLiteral) {
         NlsString conditionString = ((SqlCharStringLiteral) columnPattern).getNlsString();
         columnPattern = SqlCharStringLiteral.createCharString(

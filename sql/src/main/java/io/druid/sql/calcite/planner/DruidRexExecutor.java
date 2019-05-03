@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import io.druid.common.DateTimes;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -104,8 +105,11 @@ public class DruidRexExecutor implements RexExecutor
           }
 
           literal = rexBuilder.makeLiteral(bigDecimal, constExp.getType(), true);
-        } else {
+        } else if (!ValueDesc.SHAPE.equals(exprResult.type()) && !ValueDesc.OGC_GEOMETRY.equals(exprResult.type())) {
+          // hack.. skip shapes & geometries
           literal = rexBuilder.makeLiteral(exprResult.value(), constExp.getType(), true);
+        } else {
+          literal = constExp;
         }
 
         reducedValues.add(literal);

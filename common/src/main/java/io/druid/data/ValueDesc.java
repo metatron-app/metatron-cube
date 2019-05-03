@@ -29,8 +29,11 @@ import io.druid.common.utils.StringUtils;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -73,24 +76,25 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
 
   // dimension
-  public static ValueDesc DIM_STRING = new ValueDesc(DIMENSION_PREFIX + STRING_TYPE);
+  public static ValueDesc DIM_STRING = ValueDesc.of(DIMENSION_PREFIX + STRING_TYPE);
 
   // internal types
-  public static ValueDesc MAP = new ValueDesc(MAP_TYPE);
-  public static ValueDesc LIST = new ValueDesc(LIST_TYPE);
-  public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
+  public static ValueDesc MAP = ValueDesc.of(MAP_TYPE);
+  public static ValueDesc LIST = ValueDesc.of(LIST_TYPE);
+  public static ValueDesc INDEXED_ID = ValueDesc.of(INDEXED_ID_TYPE);
 
   // from expression
-  public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE);
-  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE);
-  public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
+  public static ValueDesc DECIMAL = ValueDesc.of(DECIMAL_TYPE);
+  public static ValueDesc STRUCT = ValueDesc.of(STRUCT_TYPE);
+  public static ValueDesc UNKNOWN = ValueDesc.of(UNKNOWN_TYPE);
 
-  public static ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
-  public static ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
-  public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
-  public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
+  public static ValueDesc STRING_ARRAY = ValueDesc.of(ARRAY_PREFIX + STRING_TYPE);
+  public static ValueDesc LONG_ARRAY = ValueDesc.of(ARRAY_PREFIX + LONG_TYPE);
+  public static ValueDesc FLOAT_ARRAY = ValueDesc.of(ARRAY_PREFIX + FLOAT_TYPE);
+  public static ValueDesc DOUBLE_ARRAY = ValueDesc.of(ARRAY_PREFIX + DOUBLE_TYPE);
 
-  public static ValueDesc SHAPE = new ValueDesc("SHAPE");
+  public static ValueDesc SHAPE = ValueDesc.of("SHAPE");
+  public static ValueDesc OGC_GEOMETRY = ValueDesc.of("OGC_GEOMETRY");
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -317,18 +321,21 @@ public class ValueDesc implements Serializable, Cacheable
 
   private final ValueType type;
   private final String typeName;
+  private final Class clazz;
 
   private ValueDesc(ValueType primitive)
   {
     Preconditions.checkArgument(primitive.isPrimitive(), "should be primitive type");
     this.type = primitive;
     this.typeName = primitive.getName();
+    this.clazz = null;
   }
 
-  private ValueDesc(String typeName)
+  private ValueDesc(String typeName, Class clazz)
   {
     this.type = ValueType.of(Preconditions.checkNotNull(typeName, "typeName cannot be null"));
     this.typeName = type.isPrimitive() ? type.getName() : normalize(typeName);
+    this.clazz = clazz;
   }
 
   // complex types are case sensitive (same with serde-name) but primitive types are not.. fuck
@@ -414,12 +421,17 @@ public class ValueDesc implements Serializable, Cacheable
   @JsonCreator
   public static ValueDesc of(String typeName)
   {
-    return typeName == null ? null : new ValueDesc(typeName);
+    return typeName == null ? null : new ValueDesc(typeName, null);
   }
 
   public static ValueDesc of(ValueType valueType)
   {
     return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType);
+  }
+
+  public static ValueDesc of(String typeName, Class clazz)
+  {
+    return typeName == null ? null : new ValueDesc(typeName, clazz);
   }
 
   public static boolean isMap(ValueDesc type)
@@ -542,9 +554,31 @@ public class ValueDesc implements Serializable, Cacheable
     return TypeUtils.splitDescriptiveType(typeName);
   }
 
-  public Comparable cast(Object value)
+  public Object cast(Object value)
   {
-    return type.cast(value);
+    return clazz == null ? type.cast(value) : clazz.cast(value);
+  }
+
+  public Class asClass()
+  {
+    if (clazz != null) {
+      return clazz;
+    }
+    if (isPrimitive()) {
+      return type.classOfObject();
+    }
+    String type = typeName.toLowerCase();
+    if (type.startsWith(STRUCT_TYPE) || type.startsWith(LIST_TYPE)) {
+      return List.class;
+    } else if (type.startsWith(MAP_TYPE)) {
+      return Map.class;
+    } else if (type.startsWith(DECIMAL_TYPE)) {
+      return BigDecimal.class;
+    } else if (type.startsWith(ARRAY_PREFIX)) {
+      Class elementType = ValueDesc.of(subElementOf(type)).asClass();
+      return Array.newInstance(elementType, 0).getClass();
+    }
+    return Object.class;
   }
 
   @Override

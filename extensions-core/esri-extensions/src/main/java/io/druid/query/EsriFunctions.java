@@ -58,7 +58,7 @@ import static io.druid.query.EsriUtils.OGC_GEOMETRY_TYPE;
 public interface EsriFunctions extends Function.Library
 {
   @Function.Named("ST_AsText")
-  class ST_AsText extends Function.AbstractFactory
+  class ST_AsText extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -75,10 +75,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING;
+    }
   }
 
   @Function.Named("ST_Buffer")
-  class ST_Buffer extends Function.AbstractFactory
+  class ST_Buffer extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -109,10 +115,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_GeomFromText")
-  class ST_GeomFromText extends Function.AbstractFactory
+  class ST_GeomFromText extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -139,10 +151,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_GeomFromGeoJson")
-  class ST_GeomFromGeoJson extends Function.AbstractFactory
+  class ST_GeomFromGeoJson extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -174,10 +192,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_Point")
-  class ST_Point extends Function.AbstractFactory
+  class ST_Point extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -207,10 +231,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_Polygon")
-  class ST_Polygon extends Function.AbstractFactory
+  class ST_Polygon extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -228,7 +258,14 @@ public interface EsriFunctions extends Function.Library
           @Override
           public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
           {
-            return ExprEval.of(EsriUtils.evaluate(Evals.evalString(args.get(0), bindings)), OGC_GEOMETRY_TYPE);
+            OGCGeometry evaluate = EsriUtils.evaluate(Evals.evalString(args.get(0), bindings));
+            if (evaluate != null) {
+              final Geometry.Type type = evaluate.getEsriGeometry().getType();
+              if (type != Geometry.Type.Polygon) {
+                evaluate = null;
+              }
+            }
+            return ExprEval.of(evaluate, OGC_GEOMETRY_TYPE);
           }
         };
       }
@@ -254,14 +291,44 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_LineString")
-  class ST_LineString extends Function.AbstractFactory
+  class ST_LineString extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
     {
+      if (args.size() == 1) {
+        // from wkt
+        return new Child()
+        {
+          @Override
+          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+          {
+            return OGC_GEOMETRY_TYPE;
+          }
+
+          @Override
+          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            OGCGeometry evaluate = EsriUtils.evaluate(Evals.evalString(args.get(0), bindings));
+            if (evaluate != null) {
+              final Geometry.Type type = evaluate.getEsriGeometry().getType();
+              if (type != Geometry.Type.Line || type != Geometry.Type.Polyline) {
+                evaluate = null;
+              }
+            }
+            return ExprEval.of(evaluate, OGC_GEOMETRY_TYPE);
+          }
+        };
+      }
       if (args.isEmpty() || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 2 & even numbered arguments", name());
       }
@@ -289,10 +356,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_Area")
-  class ST_Area extends Function.AbstractFactory
+  class ST_Area extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -313,10 +386,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
   }
 
   @Function.Named("ST_Length")
-  class ST_Length extends Function.AbstractFactory
+  class ST_Length extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -337,10 +416,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
   }
 
   @Function.Named("ST_Centroid")
-  class ST_Centroid extends Function.AbstractFactory
+  class ST_Centroid extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -390,10 +475,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_SRID")
-  class ST_SRID extends Function.AbstractFactory
+  class ST_SRID extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -410,10 +501,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
   }
 
   @Function.Named("ST_SetSRID")
-  class ST_SetSRID extends Function.AbstractFactory
+  class ST_SetSRID extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -444,10 +541,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return EsriUtils.OGC_GEOMETRY_TYPE;
+    }
   }
 
   @Function.Named("ST_GeodesicLengthWGS84")
-  class ST_GeodesicLengthWGS84 extends Function.AbstractFactory
+  class ST_GeodesicLengthWGS84 extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(final List<Expr> args)
@@ -461,7 +564,9 @@ public interface EsriFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
-
+          if (ogcGeometry == null) {
+            return ExprEval.of(0D);
+          }
           Geometry esriGeom = ogcGeometry.getEsriGeometry();
           if (esriGeom.getType() == Geometry.Type.Point || esriGeom.getType() == Geometry.Type.MultiPoint) {
             return ExprEval.of(0D);
@@ -483,9 +588,15 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
   }
 
-  abstract class ST_GeometryRelational extends Function.AbstractFactory
+  abstract class ST_GeometryRelational extends Function.AbstractFactory implements Function.FixedTyped
   {
     protected abstract OperatorSimpleRelation getRelationOperator();
 
@@ -523,6 +634,12 @@ public interface EsriFunctions extends Function.Library
           );
         }
       };
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
     }
   }
 
@@ -607,7 +724,7 @@ public interface EsriFunctions extends Function.Library
   }
 
   @Function.Named("ST_Distance")
-  class ST_Distance extends Function.AbstractFactory
+  class ST_Distance extends Function.AbstractFactory implements Function.FixedTyped
   {
     @Override
     public Function create(List<Expr> args)
@@ -635,6 +752,12 @@ public interface EsriFunctions extends Function.Library
           return ExprEval.of(ogcGeom1.distance(ogcGeom2));
         }
       };
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
     }
   }
 
@@ -666,7 +789,7 @@ public interface EsriFunctions extends Function.Library
             wkid = ogcGeometry.SRID();
           }
           Geometry[] convexHull = GeometryEngine.convexHull(geometries.toArray(new Geometry[0]), true);
-  		    if (convexHull.length == 1) {
+          if (convexHull.length == 1) {
             SpatialReference reference = wkid == GeometryUtils.WKID_UNKNOWN ? null : SpatialReference.create(wkid);
             return ExprEval.of(
                 OGCGeometry.createFromEsriGeometry(convexHull[0], reference), OGC_GEOMETRY_TYPE

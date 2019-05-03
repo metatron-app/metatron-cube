@@ -35,6 +35,8 @@ import java.text.ParseException;
 
 public class ShapeUtils
 {
+  public static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE", Shape.class);
+
   public static ShapeReader newWKTReader()
   {
     return newWKTReader(JtsSpatialContext.GEO);

@@ -412,6 +412,9 @@ public class DruidShell implements CommonShell
             runSQL(brokerURLs, writer, builder.toString());
             builder.setLength(0);
           } else {
+            if (builder.length() > 0 && sqlPart.charAt(0) != ' ' && sqlPart.charAt(0) != '\t') {
+              builder.append(' ');
+            }
             builder.append(sqlPart);
           }
         }

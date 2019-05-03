@@ -51,6 +51,16 @@ public interface Function
     Function create(List<Expr> args);
   }
 
+  // can be registered to SQL
+  interface FixedTyped
+  {
+    String name();
+
+    ValueDesc returns();
+
+    interface Factory extends Function.Factory, FixedTyped {}
+  }
+
   @Target({ElementType.TYPE})
   @Retention(RetentionPolicy.RUNTIME)
   @interface Named
@@ -160,34 +170,6 @@ public interface Function
       {
         return ValueDesc.DATETIME;
       }
-    }
-  }
-
-  class Stateless implements Factory
-  {
-    final Function function;
-
-    public Stateless(Function function)
-    {
-      this.function = function;
-    }
-
-    @Override
-    public String name()
-    {
-      return function.name();
-    }
-
-    @Override
-    public Function create(List<Expr> args)
-    {
-      return function;
-    }
-
-    @Override
-    public String toString()
-    {
-      return function.getClass().getSimpleName();
     }
   }
 

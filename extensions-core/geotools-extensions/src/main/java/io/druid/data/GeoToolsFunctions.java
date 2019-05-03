@@ -105,14 +105,14 @@ public class GeoToolsFunctions implements Function.Library
     }
   }
 
-  static ExprEval ofGeom(Geometry geometry)
+  static ExprEval asShapeEval(Geometry geometry)
   {
-    return ofShape(ShapeUtils.toShape(geometry));
+    return asShapeEval(ShapeUtils.toShape(geometry));
   }
 
-  static ExprEval ofShape(Shape shape)
+  static ExprEval asShapeEval(Shape shape)
   {
-    return ExprEval.of(shape, ValueDesc.SHAPE);
+    return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
   }
 
   static abstract class ShapeFuncFactory extends Function.AbstractFactory
@@ -122,13 +122,13 @@ public class GeoToolsFunctions implements Function.Library
       @Override
       public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
-        return ValueDesc.SHAPE;
+        return ShapeUtils.SHAPE_TYPE;
       }
 
       @Override
       public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
       {
-        return ofShape(_eval(args, bindings));
+        return asShapeEval(_eval(args, bindings));
       }
 
       protected abstract Shape _eval(List<Expr> args, Expr.NumericBinding bindings);
@@ -295,7 +295,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ValueDesc apply(List<Expr> args, TypeResolver bindings)
         {
-          return ValueDesc.SHAPE;
+          return ShapeUtils.SHAPE_TYPE;
         }
 
         @Override
@@ -303,17 +303,17 @@ public class GeoToolsFunctions implements Function.Library
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ofShape(null);
+            return asShapeEval((Shape) null);
           }
           double distance = Evals.evalDouble(args.get(1), bindings);
           if (args.size() > 2) {
             distance = ShapeUtils.toMeters(distance, Evals.evalString(args.get(2), bindings));
           }
           try {
-            return ofGeom(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
+            return asShapeEval(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
           }
           catch (TransformException e) {
-            return ofShape(null);
+            return asShapeEval((Shape) null);
           }
         }
       };

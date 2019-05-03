@@ -34,7 +34,7 @@ import io.druid.math.expr.ExprEval;
  */
 public class EsriUtils
 {
-  static final ValueDesc OGC_GEOMETRY_TYPE = ValueDesc.of("OGC_GEOMETRY");
+  static final ValueDesc OGC_GEOMETRY_TYPE = ValueDesc.of("OGC_GEOMETRY", OGCGeometry.class);
 
   static OGCGeometry toGeometry(ExprEval eval)
   {

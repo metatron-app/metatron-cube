@@ -68,10 +68,16 @@ public class Parser
     log.info("registering functions in library [%s]", parent.getName());
 
     final boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
-                                 parent != PredicateFunctions.class &&
-                                 parent != DateTimeFunctions.class &&
-                                 parent != ExcelFunctions.class;
-    for (Function.Factory factory : getFunctions(parent)) {
+                                       parent != PredicateFunctions.class &&
+                                       parent != DateTimeFunctions.class &&
+                                       parent != ExcelFunctions.class;
+    for (Object function : getFunctions(parent)) {
+      Function.Factory factory;
+      if (function instanceof Function.Factory) {
+        factory = (Function.Factory) function;
+      } else {
+        factory = asStateless((Function) function);
+      }
       String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
       Function.Factory prev = functions.get(name);
       if (prev != null) {
@@ -80,43 +86,88 @@ public class Parser
       functions.put(name, factory);
 
       if (userDefinedLibrary) {
-        String className = factory instanceof Function.Stateless
-                         ? factory.toString()
-                         : factory.getClass().getSimpleName();
-        log.info("> '%s' is registered with class %s", name, className);
+        log.info("> '%s' is registered with class %s", name, function.getClass().getSimpleName());
       }
     }
   }
 
-  private static Iterable<Function.Factory> getFunctions(Class parent)
+  private static Iterable getFunctions(Class parent)
   {
     try {
       if (Function.Provider.class.isAssignableFrom(parent)) {
-        return ((Function.Provider)parent.newInstance()).getFunctions();
+        return ((Function.Provider) parent.newInstance()).getFunctions();
       }
     }
     catch (Throwable t) {
       log.warn(t, "failed to load functions from %s by %s .. ignoring", parent.getName(), t);
       return ImmutableList.of();
     }
-    final List<Function.Factory> factories = Lists.newArrayList();
+    final List<Object> functions = Lists.newArrayList();
     for (Class clazz : parent.getClasses()) {
       if (Modifier.isAbstract(clazz.getModifiers())) {
         continue;
       }
       try {
-        if (Function.Factory.class.isAssignableFrom(clazz)) {
-          factories.add((Function.Factory) clazz.newInstance());
-        } else if (Function.class.isAssignableFrom(clazz)) {
-          Function function = (Function) clazz.newInstance();
-          factories.add(new Function.Stateless(function));
+        if (Function.Factory.class.isAssignableFrom(clazz) || Function.class.isAssignableFrom(clazz)) {
+          functions.add(clazz.newInstance());
         }
       }
       catch (Throwable t) {
         log.warn(t, "failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
       }
     }
-    return factories;
+    return functions;
+  }
+
+  public static List<Function.FixedTyped> getStrictTypedFunctions()
+  {
+    List<Function.FixedTyped> strict = Lists.newArrayList();
+    for (Function.Factory factory : functions.values()) {
+      if (factory instanceof Function.FixedTyped) {
+        strict.add((Function.FixedTyped) factory);
+      }
+    }
+    return strict;
+  }
+
+  private static Function.Factory asStateless(final Function function)
+  {
+    if (function instanceof Function.FixedTyped) {
+      return new Function.FixedTyped.Factory()
+      {
+        @Override
+        public String name()
+        {
+          return function.name();
+        }
+
+        @Override
+        public Function create(List<Expr> args)
+        {
+          return function;
+        }
+
+        @Override
+        public ValueDesc returns()
+        {
+          return ((Function.FixedTyped) function).returns();
+        }
+      };
+    }
+    return new Function.Factory()
+    {
+      @Override
+      public String name()
+      {
+        return function.name();
+      }
+
+      @Override
+      public Function create(List<Expr> args)
+      {
+        return function;
+      }
+    };
   }
 
   public static Expr parse(String in)
@@ -240,11 +291,17 @@ public class Parser
   public static interface Visitor<T>
   {
     T visit(Constant expr);
+
     T visit(IdentifierExpr expr);
+
     T visit(AssignExpr expr, T assignee, T assigned);
+
     T visit(UnaryOp expr, T child);
+
     T visit(BinaryOp expr, T left, T right);
+
     T visit(FunctionExpr expr, List<T> children);
+
     T visit(Expr other);
   }
 

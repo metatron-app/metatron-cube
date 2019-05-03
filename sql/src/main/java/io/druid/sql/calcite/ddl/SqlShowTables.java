@@ -41,7 +41,7 @@ public class SqlShowTables
       SqlNode whereNode
   )
   {
-    SqlIdentifier tableName = new SqlIdentifier(InformationSchema.TABLE_NAME, SqlParserPos.ZERO);
+    SqlIdentifier tableName = Utils.zero(InformationSchema.TABLE_NAME);
     List<SqlNode> selectList = ImmutableList.of(tableName);
 
     SqlNode fromClause = new SqlIdentifier(
@@ -51,7 +51,7 @@ public class SqlShowTables
     String schema = dbNode != null ? dbNode.toString() : "druid";
 
     SqlNode where = Utils.createCondition(
-        new SqlIdentifier(InformationSchema.TABLE_SCHEMA, SqlParserPos.ZERO),
+        Utils.zero(InformationSchema.TABLE_SCHEMA),
         SqlStdOperatorTable.EQUALS,
         SqlLiteral.createCharString(schema, SqlParserPos.ZERO)
     );

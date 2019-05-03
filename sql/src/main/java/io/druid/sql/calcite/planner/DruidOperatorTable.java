@@ -24,6 +24,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Parser;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.ApproxCountDistinctSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.AvgSqlAggregator;
@@ -62,12 +64,18 @@ import io.druid.sql.calcite.expression.builtin.TimestampToMillisOperatorConversi
 import io.druid.sql.calcite.expression.builtin.TrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -215,6 +223,32 @@ public class DruidOperatorTable implements SqlOperatorTable
       }
 
       this.operatorConversions.putIfAbsent(operatorKey, operatorConversion);
+    }
+
+    for (io.druid.math.expr.Function.FixedTyped factory : Parser.getStrictTypedFunctions()) {
+      Class clazz = factory.returns().asClass();
+      if (clazz == null || clazz == Object.class) {
+        continue;
+      }
+
+      SqlReturnTypeInference retType = ReturnTypes.cascade(
+          ReturnTypes.explicit(Utils.asRelDataType(clazz)), SqlTypeTransforms.TO_NULLABLE
+      );
+      String name = factory.name().toUpperCase();
+      SqlOperator operator = new SqlFunction(
+          name,
+          SqlKind.OTHER_FUNCTION,
+          retType,
+          null,
+          OperandTypes.VARIADIC,
+          SqlFunctionCategory.SYSTEM
+      );
+
+      final OperatorKey operatorKey = OperatorKey.of(operator);
+      if (this.aggregators.containsKey(operatorKey)) {
+        continue;
+      }
+      this.operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
     }
   }
 

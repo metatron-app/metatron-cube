@@ -22,11 +22,14 @@ package io.druid.sql.calcite;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.sql.calcite.rel.DruidRel;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -38,6 +41,13 @@ import java.util.List;
 
 public class Utils
 {
+  private static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl();
+
+  public static SqlIdentifier zero(String name)
+  {
+    return new SqlIdentifier(name, SqlParserPos.ZERO);
+  }
+
   public static SqlNode createCondition(SqlNode left, SqlOperator op, SqlNode right)
   {
     List<Object> listCondition = Lists.newArrayList();
@@ -85,5 +95,10 @@ public class Utils
       }
     }
     return rel instanceof DruidRel ? (DruidRel) rel : null;
+  }
+
+  public static RelDataType asRelDataType(Class clazz)
+  {
+    return TYPE_FACTORY.createType(clazz);
   }
 }
