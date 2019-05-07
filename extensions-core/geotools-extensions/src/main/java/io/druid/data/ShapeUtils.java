@@ -81,6 +81,21 @@ public class ShapeUtils extends io.druid.query.ShapeUtils
           .put("nmi", 1852d)
           .build();
 
+  static enum CAP
+  {
+    CAP_ROUND, CAP_FLAT, CAP_SQUARE;
+  }
+
+  static CAP capStyle(String name)
+  {
+    try {
+      return CAP.valueOf(name.toUpperCase());
+    }
+    catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
   static CoordinateReferenceSystem getCRS(String name)
   {
     return CRSS.computeIfAbsent(name, new Function<String, CoordinateReferenceSystem>()

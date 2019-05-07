@@ -100,6 +100,12 @@ public class ShapeFunctionsTest
         "POLYGON ((127.02322274435886 37.490896786023136, 127.02150725564114 37.49047321337635, 127.01957525564113 37.49539922734416, 127.02129074435885 37.49582277205532, 127.02322274435886 37.490896786023136))",
         geom3.toText()
     );
+
+    final Shape flat2 = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100, 'CAP_FLAT')");
+    Assert.assertEquals(flat, flat2);
+
+    final Shape flat3 = evalShape("shape_buffer(shape_fromWKT('" + 서초대로64 + "'), 100, 'meters', 'CAP_FLAT')");
+    Assert.assertEquals(flat, flat3);
   }
 
   @Test

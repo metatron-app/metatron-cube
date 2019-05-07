@@ -22,6 +22,7 @@ package io.druid.data;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -295,11 +296,37 @@ public class ShapeFunctions implements Function.Library
     @Override
     protected final Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter)
     {
-      if (start != 2 && start != 3) {
-        throw new IAE("Function[%s] must have 2 or 3 arguments", name());
+      if (start < 2) {
+        throw new IAE("Function[%s] must have at least 2 arguments", name());
       }
+      double d = Evals.getConstantEval(args.get(1)).asDouble();
+
+      Double m = null;
       ExprEval qs = parameter.get("quadrantSegments");
       ExprEval ecs = parameter.get("endCapStyle");
+
+      // for SQL
+      for (Expr arg : args.subList(2, start)) {
+        String value = String.valueOf(Evals.getConstant(arg)).toLowerCase();
+        if (ShapeUtils.DIST_UNITS.containsKey(value)) {
+          m = ShapeUtils.DIST_UNITS.get(value);
+          continue;
+        }
+        if (ecs == null) {
+          ShapeUtils.CAP cap = ShapeUtils.capStyle(value);
+          if (cap != null) {
+            ecs = ExprEval.of(cap.ordinal() + 1);
+            continue;
+          }
+        }
+        if (qs == null) {
+          Long parsed = Longs.tryParse(value);
+          if (parsed != null) {
+            qs = ExprEval.of(parsed);
+          }
+        }
+      }
+      final double distance = m == null ? d : d * m;
       final int quadrantSegments = qs != null ? qs.asInt() : BufferParameters.DEFAULT_QUADRANT_SEGMENTS;
       final int endCapStyle = ecs != null ? ecs.asInt() : BufferParameters.CAP_ROUND;
       return new Child()
@@ -316,10 +343,6 @@ public class ShapeFunctions implements Function.Library
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return asShapeEval((Shape) null);
-          }
-          double distance = Evals.evalDouble(args.get(1), bindings);
-          if (args.size() > 2) {
-            distance = ShapeUtils.toMeters(distance, Evals.evalString(args.get(2), bindings));
           }
           try {
             return asShapeEval(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
