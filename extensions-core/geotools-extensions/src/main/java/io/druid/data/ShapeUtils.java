@@ -19,7 +19,9 @@
 
 package io.druid.data;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import org.geotools.geometry.jts.JTS;
@@ -32,6 +34,7 @@ import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
 import java.util.Map;
+import java.util.function.Function;
 
 public class ShapeUtils extends io.druid.query.ShapeUtils
 {
@@ -43,12 +46,16 @@ public class ShapeUtils extends io.druid.query.ShapeUtils
   static final MathTransform T_4326_3857;
   static final MathTransform T_3857_4326;
 
+  static final Map<String, CoordinateReferenceSystem> CRSS = Maps.newConcurrentMap();
+
   static {
     try {
       EPSG_4326 = CRS.decode("EPSG:" + 4326);
       EPSG_3857 = CRS.decode("EPSG:" + 3857);
       T_4326_3857 = CRS.findMathTransform(EPSG_4326, EPSG_3857, true);
       T_3857_4326 = CRS.findMathTransform(EPSG_3857, EPSG_4326, true);
+      CRSS.put("EPSG:" + 4326, EPSG_4326);
+      CRSS.put("EPSG:" + 3857, EPSG_3857);
     }
     catch (Exception e) {
       throw new RuntimeException(e);
@@ -57,22 +64,51 @@ public class ShapeUtils extends io.druid.query.ShapeUtils
 
   static final Map<String, Double> DIST_UNITS =
       ImmutableMap.<String, Double>builder()
-                  .put("millimeter", 0.001)
-                  .put("mm", 0.001)
-                  .put("cm", 0.01)
-                  .put("meters", 1.0)
-                  .put("kilometers", 1000.0)
-                  .put("kilometer", 1000.0)
-                  .put("km", 1000.0)
-                  .put("in", 0.0254)
-                  .put("ft", 0.3048)
-                  .put("feet", 0.3048)
-                  .put("yd", 0.9144)
-                  .put("mi", 1609.344)
-                  .put("miles", 1609.344)
-                  .put("NM", 1852d)
-                  .put("nmi", 1852d)
-                  .build();
+          .put("millimeter", 0.001)
+          .put("mm", 0.001)
+          .put("cm", 0.01)
+          .put("meters", 1.0)
+          .put("kilometers", 1000.0)
+          .put("kilometer", 1000.0)
+          .put("km", 1000.0)
+          .put("in", 0.0254)
+          .put("ft", 0.3048)
+          .put("feet", 0.3048)
+          .put("yd", 0.9144)
+          .put("mi", 1609.344)
+          .put("miles", 1609.344)
+          .put("NM", 1852d)
+          .put("nmi", 1852d)
+          .build();
+
+  static CoordinateReferenceSystem getCRS(String name)
+  {
+    return CRSS.computeIfAbsent(name, new Function<String, CoordinateReferenceSystem>()
+    {
+      @Override
+      public CoordinateReferenceSystem apply(String code)
+      {
+        try {
+          return CRS.decode(code);
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    });
+  }
+
+  static MathTransform getTransform(String fromCRS, String toCRS)
+  {
+    final CoordinateReferenceSystem sourceCRS = getCRS(fromCRS);
+    final CoordinateReferenceSystem targetCRS = getCRS(toCRS);
+    try {
+      return CRS.findMathTransform(sourceCRS, targetCRS, true);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
 
   static double toMeters(double distance, String unit)
   {

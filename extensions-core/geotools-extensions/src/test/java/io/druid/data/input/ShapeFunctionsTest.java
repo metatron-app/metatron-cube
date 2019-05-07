@@ -20,7 +20,7 @@
 package io.druid.data.input;
 
 import com.vividsolutions.jts.geom.Geometry;
-import io.druid.data.GeoToolsFunctions;
+import io.druid.data.ShapeFunctions;
 import io.druid.math.expr.Parser;
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,10 +28,10 @@ import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.SpatialRelation;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
-public class GeoToolsFunctionsTest
+public class ShapeFunctionsTest
 {
   static {
-    Parser.register(GeoToolsFunctions.class);
+    Parser.register(ShapeFunctions.class);
   }
 
   @Test
