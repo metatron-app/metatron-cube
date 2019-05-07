@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.data.ConstantQuery;
 import io.druid.data.ShapeFunctions;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
@@ -44,6 +45,8 @@ public class GeoToolsTestHelper extends QueryRunnerTestHelper
     mapper.registerSubtypes(LuceneSpatialFilter.class);
     TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
 
+    mapper.registerSubtypes(ConstantQuery.class);
+    mapper.registerSubtypes(GeoBoundaryFilterQuery.class);
     segmentWalker = TestIndex.segmentWalker.withObjectMapper(mapper)
                                            .withExecutor(Executors.newWorkStealingPool(2));
   }

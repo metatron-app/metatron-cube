@@ -37,7 +37,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.lucene.SpatialOperations;
 import org.locationtech.spatial4j.io.ShapeReader;
@@ -58,7 +57,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   private final String pointColumn;
   private final String shapeColumn;
 
-  private final StreamQuery boundary;
+  private final Query.ArrayOutputSupport boundary;
   private final String boundaryColumn;
   private final boolean boundaryUnion;
   private final Map<String, String> boundaryJoin;
@@ -69,7 +68,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       @JsonProperty("query") Query.ArrayOutputSupport query,
       @JsonProperty("pointColumn") String pointColumn,
       @JsonProperty("shapeColumn") String shapeColumn,
-      @JsonProperty("boundary") StreamQuery boundary,
+      @JsonProperty("boundary") Query.ArrayOutputSupport<?> boundary,
       @JsonProperty("boundaryColumn") String boundaryColumn,
       @JsonProperty("boundaryUnion") Boolean boundaryUnion,
       @JsonProperty("boundaryJoin") Map<String, String> boundaryJoin,
@@ -91,10 +90,11 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         pointColumn == null ^ shapeColumn == null,
         "Must have a valid, non-null 'pointColumn' xor 'shapeColumn'"
     );
+    List<String> boundaryColumns = boundary.estimatedOutputColumns();
     if (boundaryColumn == null) {
-      Preconditions.checkArgument(boundary.getColumns().size() == 1, "invalid 'boundaryColumn'");
+      Preconditions.checkArgument(boundaryColumns.size() == 1, "invalid 'boundaryColumn'");
     } else {
-      Preconditions.checkArgument(boundary.getColumns().contains(boundaryColumn), "invalid 'boundaryColumn'");
+      Preconditions.checkArgument(boundaryColumns.contains(boundaryColumn), "invalid 'boundaryColumn'");
     }
     if (pointColumn != null) {
       Preconditions.checkArgument(
@@ -108,7 +108,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   @Override
   public String getType()
   {
-    return "boundary";
+    return "geo.boundary";
   }
 
   @JsonProperty
@@ -132,7 +132,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public StreamQuery getBoundary()
+  public Query.ArrayOutputSupport getBoundary()
   {
     return boundary;
   }
@@ -222,7 +222,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   {
     final ObjectMapper mapper = segmentWalker.getObjectMapper();
     final int executor = parallelism == null ? DEFAULT_PARALLELISM : parallelism;
-    final List<String> columns = boundary.getColumns();
+    final List<String> columns = boundary.estimatedOutputColumns();
     final String boundaryColumn = this.boundaryColumn == null ? columns.get(0) : this.boundaryColumn;
     final int geomIndex = columns.indexOf(boundaryColumn);
 
@@ -244,7 +244,9 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final List<Object[]> rows = Lists.newArrayList();
     final List<Geometry> geometries = Lists.newArrayList();
     final ShapeReader reader = ShapeUtils.newWKTReader();
-    for (Object[] row : Sequences.toList(boundary.run(segmentWalker, BaseQuery.copyContextForMeta(getContext())))) {
+    final Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
+    final Sequence<Object[]> array = boundary.array(boundary.run(segmentWalker, context));
+    for (Object[] row : Sequences.toList(array)) {
       String boundary = Objects.toString(row[geomIndex], null);
       if (!StringUtils.isNullOrEmpty(boundary)) {
         Shape shape = reader.readIfSupported(boundary);
@@ -385,6 +387,30 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   public Sequence<Object[]> array(Sequence<Object[]> sequence)
   {
     return sequence;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    GeoBoundaryFilterQuery that = (GeoBoundaryFilterQuery) o;
+    return boundaryUnion == that.boundaryUnion &&
+           Objects.equals(query, that.query) &&
+           Objects.equals(pointColumn, that.pointColumn) &&
+           Objects.equals(shapeColumn, that.shapeColumn) &&
+           Objects.equals(boundary, that.boundary) &&
+           Objects.equals(boundaryColumn, that.boundaryColumn) &&
+           Objects.equals(boundaryJoin, that.boundaryJoin) &&
+           Objects.equals(operation, that.operation) &&
+           Objects.equals(parallelism, that.parallelism);
   }
 
   @Override
