@@ -264,7 +264,7 @@ public class QueryResource
           null,
           new YieldingAccumulator()
           {
-            private final ToIntFunction numRows = QueryToolChest.numRows(query, toolChest);
+            private final ToIntFunction numRows = QueryToolChest.numRows(prepared, toolChest);
 
             @Override
             public Object accumulate(Object accumulated, Object in)
