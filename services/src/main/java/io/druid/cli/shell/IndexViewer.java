@@ -118,39 +118,44 @@ public class IndexViewer implements CommonShell
         }
       }
     }
-    File baseDir = config.getInfoDir();
-    if (!baseDir.exists() && !config.getInfoDir().mkdirs()) {
-      return;
-    }
-    File[] segmentsToLoad = baseDir.listFiles();
-    if (segmentsToLoad == null) {
-      return;
-    }
-    List<File> locations = Lists.newArrayList();
-    for (StorageLocationConfig conf : config.getLocations()) {
-      locations.add(conf.getPath());
-    }
     // segmentId to index
     Map<String, IndexMeta> mapping1 = Maps.newHashMap();
     // ds to indices
     Map<String, List<IndexMeta>> mapping2 = Maps.newHashMap();
-    LOG.info("Total %d segments found in %s", segmentsToLoad.length, baseDir);
-    int fails = 0;
-    for (File file : segmentsToLoad) {
-      DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
-      IndexMeta index = find(locations, segment, timeZone);
-      if (index == null) {
-        if (fails++ > 100) {
-          throw new IllegalArgumentException("too many fails.. invalid timezone?");
+
+    if (GuavaUtils.isNullOrEmpty(config.getLocations())) {
+      LOG.info("druid.segmentCache.locations is not specified.. use -p <property-file>");
+    } else {
+      File baseDir = config.getInfoDir();
+      if (!baseDir.exists() && !config.getInfoDir().mkdirs()) {
+        return;
+      }
+      File[] segmentsToLoad = baseDir.listFiles();
+      if (segmentsToLoad == null) {
+        return;
+      }
+      List<File> locations = Lists.newArrayList();
+      for (StorageLocationConfig conf : config.getLocations()) {
+        locations.add(conf.getPath());
+      }
+      LOG.info("Total %d segments found in %s", segmentsToLoad.length, baseDir);
+      int fails = 0;
+      for (File file : segmentsToLoad) {
+        DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
+        IndexMeta index = find(locations, segment, timeZone);
+        if (index == null) {
+          if (fails++ > 100) {
+            throw new IllegalArgumentException("too many fails.. invalid timezone?");
+          }
+          continue;
         }
-        continue;
+        List<IndexMeta> indices = mapping2.get(segment.getDataSource());
+        if (indices == null) {
+          mapping2.put(segment.getDataSource(), indices = Lists.<IndexMeta>newArrayList());
+        }
+        indices.add(index);
+        mapping1.put(segment.getIdentifier(), index);
       }
-      List<IndexMeta> indices = mapping2.get(segment.getDataSource());
-      if (indices == null) {
-        mapping2.put(segment.getDataSource(), indices = Lists.<IndexMeta>newArrayList());
-      }
-      indices.add(index);
-      mapping1.put(segment.getIdentifier(), index);
     }
 
     // sort on time
@@ -224,7 +229,14 @@ public class IndexViewer implements CommonShell
         break;
       }
       if (line.equalsIgnoreCase("help")) {
-          writer.println(Arrays.asList(";", "?", "<datasource>", "<segment-id>"));
+        writer.println(Arrays.asList(";", "?", "<datasource>", "<segment-id>"));
+        continue;
+      }
+      String[] commands = line.split(" ");
+      if (commands[0].trim().equalsIgnoreCase("segment")) {
+        IndexMeta index = new IndexMeta(new File(commands[1].trim()), null);
+        dumpIndex(index, writer);
+        continue;
       }
       if (line.equalsIgnoreCase("?")) {
         for (String ds : mapping2.keySet()) {
@@ -573,7 +585,7 @@ public class IndexViewer implements CommonShell
 
     public Interval getDataInterval()
     {
-      return segment.getInterval();
+      return segment != null ? segment.getInterval() : index().getDataInterval();
     }
 
     public Metadata getMetadata()
