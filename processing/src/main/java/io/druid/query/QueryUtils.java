@@ -110,8 +110,9 @@ public class QueryUtils
   }
 
   @SuppressWarnings("unchecked")
-  public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, final Query query)
+  public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
   {
+    // this is for queries no need of resolving something like summary or covariance query
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
     Map<String, Object> context = BaseQuery.copyContextForMeta(query);
     context.put(Query.BY_SEGMENT, true);
@@ -128,7 +129,7 @@ public class QueryUtils
           {
             BySegmentResultValue<Schema> bySegment = in.getValue();
             for (Schema schema : bySegment.getResults()) {
-              for (Pair<String, ValueDesc> pair : schema.resolve(query, false).columnAndTypes()) {
+              for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
                 Map<ValueDesc, MutableInt> counters = results.get(pair.lhs);
                 if (counters == null) {
                   results.put(pair.lhs, counters = Maps.newHashMap());
