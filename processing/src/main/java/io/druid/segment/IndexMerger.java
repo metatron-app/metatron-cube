@@ -740,7 +740,7 @@ public class IndexMerger
       for (String dimension : mergedDimensions) {
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
-        ColumnPartWriter<String> writer = GenericIndexedWriter.dimWriter(ioPeon, dimension);
+        ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionary(ioPeon, dimension);
         writer.open();
 
         boolean dimHasNull = false;
@@ -875,7 +875,6 @@ public class IndexMerger
         metWriter.open();
       }
 
-      int rowCount = 0;
       long time = System.currentTimeMillis();
       int[][] rowNumConversions = new int[indexes.size()][];
       for (int i = 0; i < rowNumConversions.length; i++) {
@@ -883,13 +882,14 @@ public class IndexMerger
         Arrays.fill(rowNumConversions[i], INVALID_ROW);
       }
 
+      int rowCount = 0;
       for (Rowboat theRow : theRows) {
         progress.progress();
         timeWriter.add(theRow.getTimestamp());
 
         final Object[] metrics = theRow.getMetrics();
         for (int i = 0; i < metrics.length; ++i) {
-          metWriters.get(i).serialize(metrics[i]);
+          metWriters.get(i).serialize(rowCount, metrics[i]);
         }
 
         int[][] dims = theRow.getDims();

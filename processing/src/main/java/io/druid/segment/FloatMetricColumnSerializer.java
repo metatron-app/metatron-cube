@@ -63,7 +63,7 @@ public class FloatMetricColumnSerializer implements MetricColumnSerializer
   }
 
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     float val = (obj == null) ? 0 : ((Number) obj).floatValue();
     writer.add(val);

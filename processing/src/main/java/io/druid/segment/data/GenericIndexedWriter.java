@@ -37,41 +37,39 @@ import java.nio.channels.WritableByteChannel;
  */
 public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
 {
-  private static Logger LOG = new Logger(GenericIndexedWriter.class);
+  static Logger LOG = new Logger(GenericIndexedWriter.class);
 
-  public static GenericIndexedWriter<String> dimWriter(
-      IOPeon ioPeon,
-      String filenameBase
-  )
+  public static GenericIndexedWriter<String> forDictionary(IOPeon ioPeon, String filenameBase)
   {
     return new GenericIndexedWriter<>(
         ioPeon,
         filenameBase,
-        ObjectStrategy.STRING_STRATEGY
+        ObjectStrategy.STRING_STRATEGY,
+        true
     );
   }
 
-  private final IOPeon ioPeon;
-  private final String filenameBase;
-  private final ObjectStrategy<T> strategy;
+  final IOPeon ioPeon;
+  final String filenameBase;
+  final ObjectStrategy<T> strategy;
+  final boolean dictionary;
 
-  private boolean objectsSorted = true;
-  private T prevObject = null;
+  CountingOutputStream headerOut = null;
+  CountingOutputStream valuesOut = null;
 
-  private CountingOutputStream headerOut = null;
-  private CountingOutputStream valuesOut = null;
   int numWritten = 0;
 
-  public GenericIndexedWriter(
-      IOPeon ioPeon,
-      String filenameBase,
-      ObjectStrategy<T> strategy
-  )
+  public GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
+  {
+    this(ioPeon, filenameBase, strategy, false);
+  }
+
+  GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean dictionary)
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.strategy = strategy;
-    this.objectsSorted = !(strategy instanceof ObjectStrategy.NotComparable);
+    this.dictionary = dictionary;
   }
 
   @Override
@@ -81,28 +79,24 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("values")));
   }
 
+  String makeFilename(String suffix)
+  {
+    return String.format("%s.%s", filenameBase, suffix);
+  }
+
   @Override
-  @SuppressWarnings("unchecked")
   public void add(T objectToWrite) throws IOException
   {
-    if (objectsSorted && prevObject != null && strategy.compare(prevObject, objectToWrite) >= 0) {
-      objectsSorted = false;
-    }
+    writeValue(strategy.toBytes(objectToWrite));
+  }
 
-    byte[] bytesToWrite = strategy.toBytes(objectToWrite);
-
+  void writeValue(final byte[] bytesToWrite) throws IOException
+  {
     ++numWritten;
     valuesOut.write(Ints.toByteArray(bytesToWrite.length));
     valuesOut.write(bytesToWrite);
 
     headerOut.write(Ints.toByteArray((int) valuesOut.getCount()));
-
-    prevObject = objectToWrite;
-  }
-
-  private String makeFilename(String suffix)
-  {
-    return String.format("%s.%s", filenameBase, suffix);
   }
 
   @Override
@@ -125,16 +119,11 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
         numBytesWritten < Integer.MAX_VALUE, "Wrote[%s] bytes, which is too many.", numBytesWritten
     );
 
-    OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"));
-
-    try {
+    try (OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"))) {
       metaOut.write(0x1);
-      metaOut.write(objectsSorted ? 0x1 : 0x0);
+      metaOut.write(dictionary ? 0x1 : 0x0);
       metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
       metaOut.write(Ints.toByteArray(numWritten));
-    }
-    finally {
-      metaOut.close();
     }
   }
 
@@ -153,7 +142,7 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     byte flag = 0;
-    if (objectsSorted) {
+    if (dictionary) {
       flag |= GenericIndexed.Feature.SORTED.getMask();
     }
     channel.write(ByteBuffer.wrap(new byte[] {GenericIndexed.version, flag}));

@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
@@ -789,7 +788,7 @@ public class IndexMergerV9 extends IndexMerger
   {
     ArrayList<GenericIndexedWriter<String>> dimValueWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
     for (String dimension : mergedDimensions) {
-      final GenericIndexedWriter<String> writer = GenericIndexedWriter.dimWriter(
+      final GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionary(
           ioPeon, String.format("%s.dim_values", dimension)
       );
       writer.open();

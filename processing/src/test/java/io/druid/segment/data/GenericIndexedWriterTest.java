@@ -15,8 +15,7 @@ public class GenericIndexedWriterTest
   public void test() throws IOException
   {
     IOPeon ioPeon = new TmpFileIOPeon();
-    ObjectStrategy<String> strategy = ObjectStrategy.STRING_STRATEGY;
-    GenericIndexedWriter<String> writer = new GenericIndexedWriter<String>(ioPeon, "test", strategy);
+    GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionary(ioPeon, "test");
     writer.open();
     writer.add("a");
     writer.add("b");
@@ -29,7 +28,7 @@ public class GenericIndexedWriterTest
     }
     Assert.assertEquals(writer.getSerializedSize(), out.size());
 
-    GenericIndexed<String> indexed = GenericIndexed.read(ByteBuffer.wrap(out.toByteArray()), strategy);
+    GenericIndexed<String> indexed = GenericIndexed.read(ByteBuffer.wrap(out.toByteArray()), ObjectStrategy.STRING_STRATEGY);
     Assert.assertEquals(3, indexed.size());
     Assert.assertEquals(0, indexed.indexOf("a"));
     Assert.assertEquals(1, indexed.indexOf("b"));

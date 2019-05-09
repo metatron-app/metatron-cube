@@ -63,7 +63,7 @@ public class DoubleMetricColumnSerializer implements MetricColumnSerializer
   }
 
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     double val = (obj == null) ? 0 : ((Number) obj).doubleValue();
     writer.add(val);

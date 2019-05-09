@@ -19,13 +19,13 @@
 
 package io.druid.segment;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  */
-public interface MetricColumnSerializer
+public interface MetricColumnSerializer extends Closeable
 {
-  public void open() throws IOException;
-  public void serialize(Object aggs) throws IOException;
-  public void close() throws IOException;
+  void open() throws IOException;
+  void serialize(int rowNum, Object aggs) throws IOException;
 }

@@ -74,7 +74,7 @@ public class CompressedPools
     return outputBytesPool.take();
   }
 
-  private static final StupidPool<ByteBuffer> bigEndByteBufPool = new StupidPool<ByteBuffer>(
+  private static final StupidPool<ByteBuffer> bufPool = new StupidPool<ByteBuffer>(
       new Supplier<ByteBuffer>()
       {
         private final AtomicLong counter = new AtomicLong(0);
@@ -82,31 +82,18 @@ public class CompressedPools
         @Override
         public ByteBuffer get()
         {
-          log.debug("Allocating new bigEndByteBuf[%,d]", counter.incrementAndGet());
-          return ByteBuffer.allocateDirect(BUFFER_SIZE).order(ByteOrder.BIG_ENDIAN);
-        }
-      }
-  );
-
-  private static final StupidPool<ByteBuffer> littleEndByteBufPool = new StupidPool<ByteBuffer>(
-      new Supplier<ByteBuffer>()
-      {
-        private final AtomicLong counter = new AtomicLong(0);
-
-        @Override
-        public ByteBuffer get()
-        {
-          log.debug("Allocating new littleEndByteBuf[%,d]", counter.incrementAndGet());
-          return ByteBuffer.allocateDirect(BUFFER_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+          log.debug("Allocating new ByteBuf[%,d]", counter.incrementAndGet());
+          return ByteBuffer.allocateDirect(BUFFER_SIZE);
         }
       }
   );
 
   public static ResourceHolder<ByteBuffer> getByteBuf(ByteOrder order)
   {
-    if (order == ByteOrder.LITTLE_ENDIAN) {
-      return littleEndByteBufPool.take();
-    }
-    return bigEndByteBufPool.take();
+    ResourceHolder<ByteBuffer> holder = bufPool.take();
+    ByteBuffer buffer = holder.get();
+    buffer.position(0).limit(buffer.capacity());
+    buffer.order(order);
+    return holder;
   }
 }

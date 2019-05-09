@@ -285,8 +285,6 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
   {
     final ResourceHolder<ByteBuffer> bufHolder = CompressedPools.getByteBuf(order);
     final ByteBuffer buf = bufHolder.get();
-    buf.position(0);
-    buf.limit(buf.capacity());
 
     decompress(buffer, numBytes, buf);
     return new ResourceHolder<T>()

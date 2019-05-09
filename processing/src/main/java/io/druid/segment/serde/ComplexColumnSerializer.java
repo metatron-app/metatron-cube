@@ -55,7 +55,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
 
-public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnPartSerde.Serializer
+public class ComplexColumnSerializer implements GenericColumnSerializer
 {
   public static ComplexColumnSerializer create(
       IOPeon ioPeon,

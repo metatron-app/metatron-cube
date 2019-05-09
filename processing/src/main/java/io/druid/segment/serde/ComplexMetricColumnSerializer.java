@@ -69,7 +69,7 @@ public class ComplexMetricColumnSerializer implements MetricColumnSerializer
   }
 
   @Override
-  public void serialize(Object agg) throws IOException
+  public void serialize(int rowNum, Object agg) throws IOException
   {
     writer.add(agg);
   }

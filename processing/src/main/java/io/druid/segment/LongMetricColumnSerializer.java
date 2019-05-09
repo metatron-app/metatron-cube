@@ -63,7 +63,7 @@ public class LongMetricColumnSerializer implements MetricColumnSerializer
   }
 
   @Override
-  public void serialize(Object obj) throws IOException
+  public void serialize(int rowNum, Object obj) throws IOException
   {
     long val = (obj == null) ? 0 : ((Number) obj).longValue();
     writer.add(val);
