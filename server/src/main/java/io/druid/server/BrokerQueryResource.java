@@ -64,11 +64,10 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.RegexDataSource;
-import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.StorageHandler;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
-import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
@@ -102,7 +101,6 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
@@ -325,10 +323,6 @@ public class BrokerQueryResource extends QueryResource
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
       final DimensionsSpec dimensionsSpec = parser.getDimensionsSpec();
-      final String timestampColumn = Objects.toString(
-          parser.getTimestampSpec().getTimestampColumn(),
-          EventHolder.timestampKey
-      );
       if (!dimensionsSpec.hasCustomDimensions()) {
         throw new IllegalArgumentException("Need to specify dimension specs, for now");
       }
@@ -355,7 +349,7 @@ public class BrokerQueryResource extends QueryResource
       forwardContext.put("format", "index");
       forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
       forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() { } ));
-      forwardContext.put("timestampColumn", timestampColumn);
+      forwardContext.put("timestampColumn", Row.TIME_COLUMN_NAME);
       forwardContext.put("dataSource", schema.getDataSource());
       forwardContext.put("registerTable", true);
       forwardContext.put("temporary", temporary == null || temporary);
@@ -382,7 +376,7 @@ public class BrokerQueryResource extends QueryResource
             @Override
             public Sequence<Map<String, Object>> run(Query query, Map responseContext)
             {
-              return Sequences.map(sequence, Rows.rowToMap(timestampColumn));
+              return Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME));
             }
           }
       );
