@@ -193,17 +193,16 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
       )
       {
         // column-name.field-name or field-name (regarded same with column-name)
-        int index = field.indexOf('.');
         String columnName = field;
         String fieldName = field;
-        if (index >= 0) {
+        LuceneIndex lucene = selector.getLuceneIndex(columnName);
+        for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
           fieldName = field.substring(index + 1);
+          lucene = selector.getLuceneIndex(columnName);
         }
-        LuceneIndex lucene = Preconditions.checkNotNull(
-            selector.getLuceneIndex(columnName),
-            "no lucene index for " + columnName
-        );
+        Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
+
         JtsSpatialContext ctx = JtsSpatialContext.GEO;
         try {
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);

@@ -373,16 +373,15 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return supports(column, EnumSet.of(type, types));
   }
 
-  private boolean supports(String column, EnumSet<BitmapType> using)
+  private boolean supports(final String column, EnumSet<BitmapType> using)
   {
-    String field = null;
-    ColumnCapabilities capabilities = schema.getColumnCapability(column);
-    if (capabilities == null && column.indexOf('.') > 0) {
-      // struct type (mostly for lucene)
-      int index = column.indexOf('.');
+    String current = column;
+    String field = column;
+    ColumnCapabilities capabilities = schema.getColumnCapability(current);
+    for (int index = column.indexOf('.'); capabilities == null && index > 0; index = column.indexOf('.', index + 1)) {
+      current = column.substring(0, index);
       field = column.substring(index + 1);
-      column = column.substring(0, index);
-      capabilities = schema.getColumnCapability(column);
+      capabilities = schema.getColumnCapability(current);
     }
     if (capabilities == null) {
       return false;   // dimension type does not assert existence of bitmap (incremental index, for example)
@@ -391,8 +390,8 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
       return true;
     }
     if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
-      final Map<String, String> descriptor = getDescriptor(column);
-      return descriptor != null && descriptor.get(field != null ? field : column) != null;
+      final Map<String, String> descriptor = getDescriptor(current);
+      return descriptor != null && descriptor.get(field) != null;
     }
     if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
       return true;
