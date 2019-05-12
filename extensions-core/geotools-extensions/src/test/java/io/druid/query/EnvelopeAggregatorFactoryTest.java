@@ -32,6 +32,8 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.select.Schema;
+import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -47,6 +49,22 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
     Parser.register(GeoHashFunctions.class);
     Parser.register(ShapeFunctions.class);
     TestIndex.addIndex("estate_wkt", "estate_wkt_schema.json", "estate_wkt.csv", segmentWalker.getObjectMapper());
+  }
+
+  @Test
+  public void testSchema()
+  {
+    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate_wkt")));
+    Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
+    Assert.assertEquals(Arrays.asList("gis", "amt", "py"), schema.getMetricNames());
+    Assert.assertEquals(
+        "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), long, float]",
+        schema.getColumnTypes().toString()
+    );
+    Assert.assertEquals(
+        "{gis={coord=point(latitude=lat,longitude=lon), addr=text}}",
+        schema.getDescriptors().toString()
+    );
   }
 
   @Test

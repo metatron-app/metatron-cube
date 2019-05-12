@@ -21,8 +21,11 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.filter.LuceneSpatialFilter;
+import io.druid.query.select.Schema;
+import io.druid.query.select.SchemaQuery;
 import io.druid.segment.TestIndex;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.ShapeIndexingStrategy;
@@ -30,6 +33,7 @@ import io.druid.segment.lucene.SpatialOperations;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +43,20 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);
     TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
+  }
+
+  @Test
+  public void testSchema()
+  {
+    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads")));
+    Assert.assertEquals(Arrays.asList("__time", "id", "name"), schema.getDimensionNames());
+    Assert.assertEquals(Arrays.asList("geom"), schema.getMetricNames());
+    Assert.assertEquals(
+        "[long, dimension.string, dimension.string, string]", schema.getColumnTypes().toString()
+    );
+    Assert.assertEquals(
+        "{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString()
+    );
   }
 
   @Test

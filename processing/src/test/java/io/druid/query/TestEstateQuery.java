@@ -1,16 +1,35 @@
 package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import io.druid.query.filter.LucenePointFilter;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.select.Schema;
+import io.druid.query.select.SchemaQuery;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 public class TestEstateQuery extends QueryRunnerTestHelper
 {
+  @Test
+  public void testSchema()
+  {
+    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate")));
+    Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
+    Assert.assertEquals(Arrays.asList("gis", "amt", "py"), schema.getMetricNames());
+    Assert.assertEquals(
+        "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), long, float]",
+        schema.getColumnTypes().toString()
+    );
+    Assert.assertEquals(
+        "{gis={coord=point(latitude=lat,longitude=lon), addr=text}}", schema.getDescriptors().toString()
+    );
+  }
+
   @Test
   public void testPointFilter()
   {
