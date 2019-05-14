@@ -22,8 +22,11 @@ package io.druid.sql.calcite.aggregation;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -38,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -154,6 +158,32 @@ public class Aggregation
     return postAggregator != null
            ? postAggregator.getName()
            : Iterables.getOnlyElement(aggregatorFactories).getName();
+  }
+
+  public ValueDesc getOutputType(TypeResolver resolver)
+  {
+    if (postAggregator == null) {
+      return resolver.resolve(getOutputName());
+    }
+    final Map<String, ValueDesc> overrides = Maps.newHashMap();
+    for (AggregatorFactory factory : aggregatorFactories) {
+      overrides.put(factory.getName(), factory.getOutputType());
+    }
+    final TypeResolver overriden = new TypeResolver.Delegate(resolver)
+    {
+      @Override
+      public ValueDesc resolve(String column)
+      {
+        return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column);
+      }
+
+      @Override
+      public ValueDesc resolve(String column, ValueDesc defaultType)
+      {
+        return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column, defaultType);
+      }
+    };
+    return postAggregator.resolve(overriden);
   }
 
   public Aggregation filter(final RowSignature sourceRowSignature, final DimFilter filter)

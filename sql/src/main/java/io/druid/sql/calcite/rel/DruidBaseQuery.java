@@ -25,8 +25,11 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -94,6 +97,8 @@ import java.util.TreeSet;
  */
 public class DruidBaseQuery implements DruidQuery
 {
+  private static final Logger LOG = new Logger(DruidBaseQuery.class);
+
   private final DataSource dataSource;
   private final RowSignature sourceRowSignature;
   private final PlannerContext plannerContext;
@@ -274,14 +279,11 @@ public class DruidBaseQuery implements DruidQuery
                 aggregations.stream().map(Aggregation::getOutputName).iterator()
             )
         ),
-        aggregate.getRowType()
+        aggregate.getRowType(),
+        asTypeResolver(sourceRowSignature, aggregations)
     );
 
-    final HavingSpec havingFilter = computeHavingFilter(
-        partialQuery,
-        aggregateRowSignature,
-        plannerContext
-    );
+    final HavingSpec havingFilter = computeHavingFilter(partialQuery, aggregateRowSignature, plannerContext);
 
     if (aggregateProject == null) {
       return Grouping.create(dimensions, aggregations, havingFilter, aggregateRowSignature);
@@ -312,9 +314,22 @@ public class DruidBaseQuery implements DruidQuery
           dimensions,
           aggregations,
           havingFilter,
-          RowSignature.from(projectRowOrderAndPostAggregations.rowOrder, aggregateProject.getRowType())
+          RowSignature.from(
+              projectRowOrderAndPostAggregations.rowOrder,
+              aggregateProject.getRowType(),
+              asTypeResolver(aggregateRowSignature, aggregations)
+          )
       );
     }
+  }
+
+  private static TypeResolver asTypeResolver(RowSignature rowSignature, List<Aggregation> aggregations)
+  {
+    final Map<String, ValueDesc> overrides = Maps.newHashMap();
+    for (Aggregation aggregation : aggregations) {
+      overrides.put(aggregation.getOutputName(), aggregation.getOutputType(rowSignature));
+    }
+    return new TypeResolver.WithMap(overrides);
   }
 
   @Nullable

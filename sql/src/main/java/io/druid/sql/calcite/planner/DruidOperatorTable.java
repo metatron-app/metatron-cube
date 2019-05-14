@@ -19,13 +19,22 @@
 
 package io.druid.sql.calcite.planner;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
+import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.ApproxCountDistinctSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.AvgSqlAggregator;
@@ -37,6 +46,7 @@ import io.druid.sql.calcite.aggregation.builtin.SumZeroSqlAggregator;
 import io.druid.sql.calcite.expression.AliasedOperatorConversion;
 import io.druid.sql.calcite.expression.BinaryOperatorConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
+import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
@@ -63,6 +73,10 @@ import io.druid.sql.calcite.expression.builtin.TimeShiftOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TimestampToMillisOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
+import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -77,6 +91,7 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +103,8 @@ import java.util.stream.Collectors;
 
 public class DruidOperatorTable implements SqlOperatorTable
 {
+  private static final Logger LOG = new Logger(DruidOperatorTable.class);
+
   private static final List<SqlAggregator> STANDARD_AGGREGATORS =
       ImmutableList.<SqlAggregator>builder()
           .add(new ApproxCountDistinctSqlAggregator())
@@ -185,16 +202,17 @@ public class DruidOperatorTable implements SqlOperatorTable
 
   @Inject
   public DruidOperatorTable(
-      final Set<SqlAggregator> aggregators,
-      final Set<SqlOperatorConversion> operatorConversions
+      final Set<SqlAggregator> userAggregators,
+      final Set<AggregatorFactory.WithName> userAggregatorFactories,
+      final Set<SqlOperatorConversion> userOperatorConversions
   )
   {
     this.aggregators = new HashMap<>();
     this.operatorConversions = new HashMap<>();
 
-    for (SqlAggregator aggregator : aggregators) {
+    for (SqlAggregator aggregator : userAggregators) {
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
-      if (this.aggregators.put(operatorKey, aggregator) != null) {
+      if (aggregators.put(operatorKey, aggregator) != null) {
         throw new ISE("Cannot have two operators with key[%s]", operatorKey);
       }
     }
@@ -203,13 +221,27 @@ public class DruidOperatorTable implements SqlOperatorTable
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
 
       // Don't complain if the name already exists; we allow standard operators to be overridden.
-      this.aggregators.putIfAbsent(operatorKey, aggregator);
+      aggregators.putIfAbsent(operatorKey, aggregator);
     }
 
-    for (SqlOperatorConversion operatorConversion : operatorConversions) {
+    for (AggregatorFactory.WithName named : userAggregatorFactories) {
+      final AggregatorFactory factory = named.getValue();
+      if (!(factory instanceof AggregatorFactory.SQLSupport)) {
+        continue;
+      }
+      final Class clazz = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN).asClass();
+      final SqlReturnTypeInference retType = ReturnTypes.cascade(
+          ReturnTypes.explicit(Utils.asRelDataType(clazz)), SqlTypeTransforms.TO_NULLABLE
+      );
+      final SqlAggFunction function = new DummyAggregatorFunction(named.getKey(), retType);
+      final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
+      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
+      aggregators.putIfAbsent(operatorKey, aggregator);
+    }
+
+    for (SqlOperatorConversion operatorConversion : userOperatorConversions) {
       final OperatorKey operatorKey = OperatorKey.of(operatorConversion.calciteOperator());
-      if (this.aggregators.containsKey(operatorKey)
-          || this.operatorConversions.put(operatorKey, operatorConversion) != null) {
+      if (aggregators.containsKey(operatorKey) || operatorConversions.put(operatorKey, operatorConversion) != null) {
         throw new ISE("Cannot have two operators with key[%s]", operatorKey);
       }
     }
@@ -218,11 +250,11 @@ public class DruidOperatorTable implements SqlOperatorTable
       final OperatorKey operatorKey = OperatorKey.of(operatorConversion.calciteOperator());
 
       // Don't complain if the name already exists; we allow standard operators to be overridden.
-      if (this.aggregators.containsKey(operatorKey)) {
+      if (aggregators.containsKey(operatorKey)) {
         continue;
       }
 
-      this.operatorConversions.putIfAbsent(operatorKey, operatorConversion);
+      operatorConversions.putIfAbsent(operatorKey, operatorConversion);
     }
 
     for (io.druid.math.expr.Function.FixedTyped factory : Parser.getStrictTypedFunctions()) {
@@ -244,19 +276,37 @@ public class DruidOperatorTable implements SqlOperatorTable
           SqlFunctionCategory.SYSTEM
       );
 
-      final OperatorKey operatorKey = OperatorKey.of(operator);
-      if (this.aggregators.containsKey(operatorKey)) {
-        continue;
+      OperatorKey operatorKey = OperatorKey.of(operator);
+      if (!aggregators.containsKey(operatorKey)) {
+        operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
       }
-      this.operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
     }
   }
 
-  public SqlAggregator lookupAggregator(final SqlAggFunction aggFunction)
+  public Aggregation lookupAggregator(
+      final PlannerContext plannerContext,
+      final RowSignature rowSignature,
+      final RexBuilder rexBuilder,
+      final String name,
+      final AggregateCall aggregateCall,
+      final Project project,
+      final List<Aggregation> existingAggregations,
+      final boolean finalizeAggregations
+  )
   {
-    final SqlAggregator sqlAggregator = aggregators.get(OperatorKey.of(aggFunction));
-    if (sqlAggregator != null && sqlAggregator.calciteFunction().equals(aggFunction)) {
-      return sqlAggregator;
+    final SqlAggFunction aggregation = aggregateCall.getAggregation();
+    final SqlAggregator sqlAggregator = aggregators.get(OperatorKey.of(aggregation));
+    if (sqlAggregator != null) {
+      return sqlAggregator.toDruidAggregation(
+          plannerContext,
+          rowSignature,
+          rexBuilder,
+          name,
+          aggregateCall,
+          project,
+          existingAggregations,
+          finalizeAggregations
+      );
     } else {
       return null;
     }
@@ -264,7 +314,8 @@ public class DruidOperatorTable implements SqlOperatorTable
 
   public SqlOperatorConversion lookupOperatorConversion(final SqlOperator operator)
   {
-    final SqlOperatorConversion operatorConversion = operatorConversions.get(OperatorKey.of(operator));
+    final OperatorKey operatorKey = OperatorKey.of(operator);
+    final SqlOperatorConversion operatorConversion = operatorConversions.get(operatorKey);
     if (operatorConversion != null && operatorConversion.calciteOperator().equals(operator)) {
       return operatorConversion;
     } else {
@@ -384,6 +435,89 @@ public class DruidOperatorTable implements SqlOperatorTable
              "name='" + name + '\'' +
              ", syntax=" + syntax +
              '}';
+    }
+  }
+
+  private static class DummySqlAggregator implements SqlAggregator
+  {
+    private final SqlAggFunction function;
+    private final AggregatorFactory.SQLSupport factory;
+
+    private DummySqlAggregator(SqlAggFunction function, AggregatorFactory.SQLSupport factory)
+    {
+      this.function = function;
+      this.factory = factory;
+    }
+
+    @Override
+    public SqlAggFunction calciteFunction()
+    {
+      return function;
+    }
+
+    @Nullable
+    @Override
+    public Aggregation toDruidAggregation(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexBuilder rexBuilder,
+        String name,
+        AggregateCall aggregateCall,
+        Project project,
+        List<Aggregation> existingAggregations,
+        boolean finalizeAggregations
+    )
+    {
+      if (aggregateCall.isDistinct()) {
+        return null;
+      }
+      final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
+          plannerContext,
+          rowSignature,
+          aggregateCall,
+          project
+      );
+      if (arguments == null) {
+        return null;
+      }
+      List<String> fieldNames = Lists.newArrayList();
+      List<VirtualColumn> virtualColumns = Lists.newArrayList();
+      for (DruidExpression expression : arguments) {
+        if (expression.isDirectColumnAccess()) {
+          fieldNames.add(expression.getDirectColumn());
+        } else {
+          ExprVirtualColumn virtualColumn = expression.toVirtualColumn(Calcites.makePrefixedName(name, "v"));
+          fieldNames.add(virtualColumn.getOutputName());
+          virtualColumns.add(virtualColumn);
+        }
+      }
+      AggregatorFactory rewritten = factory.rewrite(name, fieldNames, rowSignature);
+      if (rewritten == null) {
+        return null;
+      }
+      if (finalizeAggregations) {
+        return Aggregation.create(virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(rewritten));
+      } else {
+        return Aggregation.create(virtualColumns, rewritten);
+      }
+    }
+  }
+
+  private static class DummyAggregatorFunction extends SqlAggFunction
+  {
+    public DummyAggregatorFunction(String name, SqlReturnTypeInference retType)
+    {
+      super(
+          name,
+          null,
+          SqlKind.OTHER_FUNCTION,
+          retType,
+          null,
+          OperandTypes.VARIADIC,
+          SqlFunctionCategory.SYSTEM,
+          false,
+          false
+      );
     }
   }
 }

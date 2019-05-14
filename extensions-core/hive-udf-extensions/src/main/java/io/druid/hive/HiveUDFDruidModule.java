@@ -23,13 +23,17 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.inject.Binder;
+import com.google.inject.multibindings.Multibinder;
 import com.metamx.common.logger.Logger;
 import hivemall.anomaly.HivemallFunctions;
 import io.druid.common.utils.StringUtils;
 import io.druid.initialization.DruidModule;
+import io.druid.query.aggregation.AggregatorFactory;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +42,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  */
@@ -60,6 +65,24 @@ public class HiveUDFDruidModule implements DruidModule
   public void configure(Binder binder)
   {
     final ClassLoader loader = HiveUDFDruidModule.class.getClassLoader();
+
+    // ReflectionUtils uses context loader
+    final ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(loader);
+    try {
+      bindFunctions(binder, loader);
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
+  }
+
+  public void bindFunctions(Binder binder, ClassLoader loader)
+  {
+    final Multibinder<AggregatorFactory.WithName> set = Multibinder.newSetBinder(
+        binder, AggregatorFactory.WithName.class
+    );
+    Set<String> userDefind = Sets.newHashSet();
     for (Properties properties : loadProperties(loader)) {
       for (String name : properties.stringPropertyNames()) {
         String className = properties.getProperty(name);
@@ -68,12 +91,27 @@ public class HiveUDFDruidModule implements DruidModule
             FunctionInfo info = HiveFunctions.registerFunction(name, Class.forName(className, false, loader));
             if (info != null) {
               LOG.info("> '%s' is registered with class %s", name, className);
+              userDefind.add(name);
             }
           }
         }
         catch (Exception e) {
           LOG.info("> Failed to register function [%s] with class %s by %s.. skip", name, className, e);
         }
+      }
+    }
+    for (String name : HiveFunctions.getFunctionNames()) {
+      try {
+        FunctionInfo info = HiveFunctions.getFunctionInfo(name);
+        if (info != null && info.isGenericUDAF()) {
+          String registered = userDefind.contains(name) || name.startsWith("hive") ? name : "hive_" + name;
+          HiveUDAFAggregatorFactory udaf = new HiveUDAFAggregatorFactory("<name>", Arrays.<String>asList(), name);
+          set.addBinding().toInstance(new AggregatorFactory.WithName(registered, udaf));
+          LOG.info("> hive UDAF '%s' is registered as %s", name, registered);
+        }
+      }
+      catch (SemanticException e) {
+        // ignore
       }
     }
   }

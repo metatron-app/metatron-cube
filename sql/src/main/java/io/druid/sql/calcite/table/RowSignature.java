@@ -27,6 +27,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.ordering.StringComparator;
@@ -50,7 +51,7 @@ import java.util.Map;
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature
+public class RowSignature implements TypeResolver
 {
   private final Map<String, ValueDesc> columnTypes;
   private final List<String> columnNames;
@@ -77,6 +78,11 @@ public class RowSignature
 
   public static RowSignature from(final List<String> rowOrder, final RelDataType rowType)
   {
+    return from(rowOrder, rowType, null);
+  }
+
+  public static RowSignature from(final List<String> rowOrder, final RelDataType rowType, final TypeResolver resolver)
+  {
     if (rowOrder.size() != rowType.getFieldCount()) {
       throw new IAE("Field count %d != %d", rowOrder.size(), rowType.getFieldCount());
     }
@@ -86,6 +92,14 @@ public class RowSignature
     for (int i = 0; i < rowOrder.size(); i++) {
       final RelDataTypeField field = rowType.getFieldList().get(i);
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
+      if (resolver != null && sqlTypeName == SqlTypeName.NULL) {
+        // unknown types are mapped to null type.. we cannot know exact return type a-priori for some UDAFs
+        ValueDesc resolved = resolver.resolve(rowOrder.get(i), ValueDesc.UNKNOWN);
+        if (!resolved.isUnknown()) {
+          rowSignatureBuilder.add(rowOrder.get(i), resolved);
+          continue;
+        }
+      }
       final ValueDesc valueType;
 
       valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
@@ -251,6 +265,19 @@ public class RowSignature
       s.append(columnName).append(":").append(getColumnType(columnName));
     }
     return s.append("}").toString();
+  }
+
+  @Override
+  public ValueDesc resolve(String column)
+  {
+    return columnTypes.get(column);
+  }
+
+  @Override
+  public ValueDesc resolve(String column, ValueDesc defaultType)
+  {
+    final ValueDesc resolved = resolve(column);
+    return resolved != null ? resolved : defaultType;
   }
 
   public static class Builder

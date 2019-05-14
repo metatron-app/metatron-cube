@@ -361,6 +361,8 @@ public class QueryMaker
       catch (Exception e) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
+    } else if (sqlType == SqlTypeName.NULL) {
+      coercedValue = value;
     } else if (sqlType == SqlTypeName.OTHER) {
       // Complex type got out somehow.
       coercedValue = value.getClass().getName();

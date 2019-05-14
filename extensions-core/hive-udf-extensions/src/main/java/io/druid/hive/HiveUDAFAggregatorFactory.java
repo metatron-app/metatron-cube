@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
@@ -56,6 +57,7 @@ import java.util.List;
 
 @JsonTypeName("hive.udaf")
 public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
+    implements AggregatorFactory.SQLSupport
 {
   private static final Logger LOG = new Logger(HiveUDAFAggregatorFactory.class);
 
@@ -416,6 +418,14 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  @Override
+  public AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
+  {
+    return new HiveUDAFAggregatorFactory(
+        name, fieldNames, udafName, inputTypes, outputType, finalizedType, merge
+    ).resolve(Suppliers.ofInstance(resolver));
   }
 
   @Override

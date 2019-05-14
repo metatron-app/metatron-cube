@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,7 +43,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("covariance")
-public class CovarianceAggregatorFactory extends AggregatorFactory
+public class CovarianceAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 22;
 
@@ -89,7 +90,7 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("covariance");
+    return ValueDesc.of("covariance", CovarianceAggregatorCollector.class);
   }
 
   @Override
@@ -247,6 +248,17 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
                      .put(predicateBytes)
                      .put(inputTypeBytes)
                      .array();
+  }
+
+  @Override
+  public CovarianceAggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
+  {
+    if (fieldNames.size() != 2) {
+      return null;
+    }
+    String fieldName1 = fieldNames.get(0);
+    String fieldName2 = fieldNames.get(1);
+    return new CovarianceAggregatorFactory(name, fieldName1, fieldName2, predicate, inputType.typeName());
   }
 
   @Override

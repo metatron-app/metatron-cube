@@ -28,6 +28,7 @@ import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.server.initialization.jetty.JettyBindings;
 import io.druid.server.metrics.MetricsModule;
 import io.druid.sql.avatica.AvaticaMonitor;
@@ -70,6 +71,9 @@ public class SqlModule implements Module
 
       // Add empty SqlAggregator binder.
       Multibinder.newSetBinder(binder, SqlAggregator.class);
+
+      // Add empty AggregatorFactory binder.
+      Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class);
 
       // LookupOperatorConversion isn't in DruidOperatorTable since it needs a LookupReferencesManager injected.
       SqlBindings.addOperatorConversion(binder, LookupOperatorConversion.class);

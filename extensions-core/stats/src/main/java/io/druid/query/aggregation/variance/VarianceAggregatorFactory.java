@@ -22,8 +22,10 @@ package io.druid.query.aggregation.variance;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.Iterables;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -35,12 +37,13 @@ import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 /**
  */
 @JsonTypeName("variance")
-public class VarianceAggregatorFactory extends GenericAggregatorFactory
+public class VarianceAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 16;
 
@@ -75,7 +78,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   @Override
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    ValueDesc variance = ValueDesc.of("variance");
+    ValueDesc variance = ValueDesc.of("variance", VarianceAggregatorCollector.class);
     return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(variance) : variance;
   }
 
@@ -268,6 +271,17 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                      .put(superKey)
                      .put(isVariancePop ? (byte) 1 : 0)
                      .array();
+  }
+
+  @Override
+  public VarianceAggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
+  {
+    if (fieldNames.size() != 1) {
+      return null;
+    }
+    String fieldName = Iterables.getOnlyElement(fieldNames);
+    ValueDesc inputType = resolver.resolve(fieldName);
+    return new VarianceAggregatorFactory(name, fieldName, null, predicate, estimator, inputType);
   }
 
   @Override

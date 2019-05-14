@@ -81,13 +81,6 @@ public class GroupByRules
       filter = null;
     }
 
-    final SqlAggregator sqlAggregator = plannerContext.getOperatorTable()
-                                                      .lookupAggregator(call.getAggregation());
-
-    if (sqlAggregator == null) {
-      return null;
-    }
-
     // Compute existingAggregations for SqlAggregator impls that want it.
     final List<Aggregation> existingAggregationsWithSameFilter = new ArrayList<>();
     for (Aggregation existingAggregation : existingAggregations) {
@@ -119,7 +112,7 @@ public class GroupByRules
       }
     }
 
-    final Aggregation retVal = sqlAggregator.toDruidAggregation(
+    Aggregation aggregation = plannerContext.getOperatorTable().lookupAggregator(
         plannerContext,
         sourceRowSignature,
         rexBuilder,
@@ -130,14 +123,14 @@ public class GroupByRules
         finalizeAggregations
     );
 
-    if (retVal == null) {
+    if (aggregation == null) {
       return null;
     } else {
       // Check if this refers to the existingAggregationsWithSameFilter. If so, no need to apply the filter.
-      if (isUsingExistingAggregation(retVal, existingAggregationsWithSameFilter)) {
-        return retVal;
+      if (isUsingExistingAggregation(aggregation, existingAggregationsWithSameFilter)) {
+        return aggregation;
       } else {
-        return retVal.filter(sourceRowSignature, filter);
+        return aggregation.filter(sourceRowSignature, filter);
       }
     }
   }

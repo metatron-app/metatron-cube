@@ -250,7 +250,7 @@ public class CalciteTests
     try {
       final Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
 //      extractionOperators.add(INJECTOR.getInstance(LookupOperatorConversion.class));
-      return new DruidOperatorTable(ImmutableSet.of(), extractionOperators);
+      return new DruidOperatorTable(ImmutableSet.of(), ImmutableSet.of(), extractionOperators);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

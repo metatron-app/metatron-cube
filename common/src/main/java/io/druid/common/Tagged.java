@@ -19,9 +19,19 @@
 
 package io.druid.common;
 
+import io.druid.data.Pair;
+
 /**
  */
 public interface Tagged
 {
   String getTag();
+
+  class Entity<T> extends Pair<String, T>
+  {
+    public Entity(String tag, T rhs)
+    {
+      super(tag, rhs);
+    }
+  }
 }

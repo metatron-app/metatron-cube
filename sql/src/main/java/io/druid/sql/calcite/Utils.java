@@ -99,6 +99,6 @@ public class Utils
 
   public static RelDataType asRelDataType(Class clazz)
   {
-    return TYPE_FACTORY.createType(clazz);
+    return clazz != null && clazz != Object.class ? TYPE_FACTORY.createType(clazz) : TYPE_FACTORY.createUnknownType();
   }
 }

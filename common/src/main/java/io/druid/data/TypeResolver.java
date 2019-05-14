@@ -57,4 +57,23 @@ public interface TypeResolver
       return mapping.get(column);
     }
   }
+
+  class Delegate implements TypeResolver
+  {
+    private final TypeResolver delegated;
+
+    public Delegate(TypeResolver delegated) {this.delegated = delegated;}
+
+    @Override
+    public ValueDesc resolve(String column)
+    {
+      return delegated.resolve(column);
+    }
+
+    @Override
+    public ValueDesc resolve(String column, ValueDesc defaultType)
+    {
+      return delegated.resolve(column, defaultType);
+    }
+  }
 }

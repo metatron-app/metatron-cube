@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,11 +29,13 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
+import io.druid.common.Tagged;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.ordering.Comparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
+import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -189,6 +192,11 @@ public abstract class AggregatorFactory implements Cacheable
       }
     }
     return this;
+  }
+
+  public static interface SQLSupport
+  {
+    AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver);
   }
 
   /**
@@ -390,5 +398,49 @@ public abstract class AggregatorFactory implements Cacheable
   public static interface Combiner<T>
   {
     T combine(T param1, T param2);
+  }
+
+  public static class WithName extends Tagged.Entity<AggregatorFactory>
+  {
+    public WithName(String tag, AggregatorFactory factory)
+    {
+      super(tag, factory);
+    }
+  }
+
+  public static PostAggregator asFinalizer(final AggregatorFactory factory)
+  {
+    return new PostAggregator()
+    {
+      @Override
+      public Set<String> getDependentFields()
+      {
+        return ImmutableSet.of(factory.getName());
+      }
+
+      @Override
+      public Comparator getComparator()
+      {
+        return factory.getFinalizedComparator();
+      }
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        return factory.finalizeComputation(combinedAggregators.get(factory.getName()));
+      }
+
+      @Override
+      public String getName()
+      {
+        return factory.getName();
+      }
+
+      @Override
+      public ValueDesc resolve(TypeResolver bindings)
+      {
+        return factory.finalizedType();
+      }
+    };
   }
 }

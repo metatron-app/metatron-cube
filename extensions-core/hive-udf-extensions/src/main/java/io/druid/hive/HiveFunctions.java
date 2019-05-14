@@ -96,7 +96,7 @@ public class HiveFunctions implements Function.Provider
           continue; // ignore.. blocked function ?
         }
         if (function != null && function.isGenericUDF()) {
-          factories.add(new HiveAdapter("hive." + name, function));
+          factories.add(new HiveAdapter("hive_" + name, function));
         }
       }
     }

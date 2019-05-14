@@ -23,8 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,7 +44,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("kurtosis")
-public class KurtosisAggregatorFactory extends AggregatorFactory
+public class KurtosisAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 23;
 
@@ -81,7 +83,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("kurtosis");
+    return ValueDesc.of("kurtosis", KurtosisAggregatorCollector.class);
   }
 
   @Override
@@ -228,6 +230,17 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
                      .put(predicateBytes)
                      .put(inputTypeBytes)
                      .array();
+  }
+
+  @Override
+  public KurtosisAggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
+  {
+    if (fieldNames.size() != 1) {
+      return null;
+    }
+    String fieldName = Iterables.getOnlyElement(fieldNames);
+    ValueDesc inputType = resolver.resolve(fieldName);
+    return new KurtosisAggregatorFactory(name, fieldName, predicate, inputType);
   }
 
   @Override

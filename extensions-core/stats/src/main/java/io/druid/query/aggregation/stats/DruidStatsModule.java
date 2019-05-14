@@ -23,7 +23,9 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
+import com.google.inject.multibindings.Multibinder;
 import io.druid.initialization.DruidModule;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonSerde;
@@ -35,7 +37,11 @@ import io.druid.query.aggregation.covariance.CovarianceSerde;
 import io.druid.query.aggregation.kurtosis.KurtosisAggregatorFactory;
 import io.druid.query.aggregation.kurtosis.KurtosisFoldingAggregatorFactory;
 import io.druid.query.aggregation.kurtosis.KurtosisSerde;
-import io.druid.query.aggregation.variance.*;
+import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
+import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
+import io.druid.query.aggregation.variance.VarianceCombinedSerde;
+import io.druid.query.aggregation.variance.VarianceFoldingAggregatorFactory;
+import io.druid.query.aggregation.variance.VarianceSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.util.List;
@@ -82,5 +88,27 @@ public class DruidStatsModule implements DruidModule
     if (ComplexMetrics.getSerdeForType("kurtosis") == null) {
       ComplexMetrics.registerSerde("kurtosis", new KurtosisSerde());
     }
+    if (binder == null) {
+      return; // in test
+    }
+    Multibinder<AggregatorFactory.WithName> typedSet = Multibinder.newSetBinder(
+        binder, AggregatorFactory.WithName.class
+    );
+    typedSet.addBinding().toInstance(
+        new AggregatorFactory.WithName("variance", new VarianceAggregatorFactory("<name>", "<fieldName1>"))
+    );
+    typedSet.addBinding().toInstance(
+        new AggregatorFactory.WithName("pearson", new PearsonAggregatorFactory(
+            "<name>", "<fieldName1>", "<fieldName2>", null, null)
+        )
+    );
+    typedSet.addBinding().toInstance(
+        new AggregatorFactory.WithName("covariance", new CovarianceAggregatorFactory(
+            "<name>", "<fieldName1>", "<fieldName2>", null, null)
+        )
+    );
+    typedSet.addBinding().toInstance(
+        new AggregatorFactory.WithName("kurtosis", new KurtosisAggregatorFactory("<name>", "<fieldName1>", null, null))
+    );
   }
 }
