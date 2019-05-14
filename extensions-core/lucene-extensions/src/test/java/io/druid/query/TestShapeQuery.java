@@ -92,7 +92,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
-        SpatialOperations.BBOX_WINTHIN,
+        SpatialOperations.BBOX_WITHIN,
         ShapeFormat.WKT,
         "MULTIPOINT ((127.017827 37.484505), (127.034182 37.521752))"
     ));

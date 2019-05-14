@@ -237,7 +237,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
     switch (operation) {
       case BBOX_INTERSECTS:
         return new SpatialArgs(SpatialOperation.Intersects, shape.getBoundingBox());
-      case BBOX_WINTHIN:
+      case BBOX_WITHIN:
         return new SpatialArgs(SpatialOperation.IsWithin, shape.getBoundingBox());
       case EQUALTO:
       case OVERLAPS:

@@ -82,7 +82,7 @@ public enum SpatialOperations
     @Override
     public boolean isLuceneNative() { return false;}
   },
-  BBOX_WINTHIN {
+  BBOX_WITHIN {
     @Override
     public SpatialOperation op()
     {
