@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import com.metamx.common.IAE;
-import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -126,6 +125,11 @@ public class Calcites
 
   }
 
+  public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
+  {
+    return getValueDescForSqlTypeName(dataType.getSqlTypeName());
+  }
+
   public static ValueDesc getValueDescForSqlTypeName(SqlTypeName sqlTypeName)
   {
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
@@ -157,7 +161,7 @@ public class Calcites
     } else if (valueDesc.isStringOrDimension()) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
-      throw new ISE("Unrecognized valueDesc[%s]", valueDesc);
+      return null;    // regard as natural ordering
     }
   }
 

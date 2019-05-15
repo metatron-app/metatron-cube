@@ -75,7 +75,7 @@ public class SumSqlAggregator implements SqlAggregator
     }
 
     final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueDesc valueDesc = Calcites.getValueDescForSqlTypeName(aggregateCall.getType().getSqlTypeName());
+    final ValueDesc valueDesc = Calcites.getValueDescForRelDataType(aggregateCall.getType());
 
     final String fieldName;
     final String expression;

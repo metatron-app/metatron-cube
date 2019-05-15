@@ -619,7 +619,7 @@ public class DruidBaseQuery implements DruidQuery
     // Check if a cast is necessary.
     final ValueDesc toExprType = aggregateRowSignature.getColumnType(expression.getDirectColumn());
 
-    final ValueDesc fromExprType = Calcites.getValueDescForSqlTypeName(rexNode.getType().getSqlTypeName());
+    final ValueDesc fromExprType = Calcites.getValueDescForRelDataType(rexNode.getType());
 
     return toExprType.equals(fromExprType);
   }
