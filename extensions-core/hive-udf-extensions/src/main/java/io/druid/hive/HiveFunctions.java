@@ -95,7 +95,8 @@ public class HiveFunctions implements Function.Provider
         catch (SemanticException e) {
           continue; // ignore.. blocked function ?
         }
-        if (function != null && function.isGenericUDF()) {
+        if (function != null && function.isGenericUDF() &&
+            !FunctionRegistry.HIVE_OPERATORS.contains(function.getDisplayName())) {
           factories.add(new HiveAdapter("hive_" + name, function));
         }
       }
