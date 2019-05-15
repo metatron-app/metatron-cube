@@ -24,10 +24,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharSource;
+import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
@@ -60,8 +62,10 @@ import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -244,40 +248,28 @@ public class TestIndex
             final Granularity granularity = schema.getSegmentGran();
             final InputRowParser parser = schema.getParser(mapper, false);
 
-            List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
-            try {
-              for (Map.Entry<Long, IncrementalIndex> entry : asCharSource(sourceFile).readLines(
-                  new LineProcessor<Map<Long, IncrementalIndex>>()
-                  {
-                    private final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
-
-                    @Override
-                    public boolean processLine(String line) throws IOException
+            final List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
+            final CharSource charSource = asCharSource(sourceFile);
+            try (Reader reader = charSource.openStream()) {
+              final Iterator<InputRow> rows = readRows(reader, parser);
+              final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
+              while (rows.hasNext()) {
+                InputRow inputRow = rows.next();
+                DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
+                IncrementalIndex index = indices.computeIfAbsent(
+                    dateTime.getMillis(),
+                    new Function<Long, IncrementalIndex>()
                     {
-                      InputRow inputRow = parser.parse(line);
-                      DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
-                      IncrementalIndex index = indices.computeIfAbsent(
-                          dateTime.getMillis(),
-                          new Function<Long, IncrementalIndex>()
-                          {
-                            @Override
-                            public IncrementalIndex apply(Long aLong)
-                            {
-                              return new OnheapIncrementalIndex(schema, true, 10000);
-                            }
-                          }
-                      );
-                      index.add((Row) inputRow);
-                      return true;
+                      @Override
+                      public IncrementalIndex apply(Long aLong)
+                      {
+                        return new OnheapIncrementalIndex(schema, true, 10000);
+                      }
                     }
-
-                    @Override
-                    public Map<Long, IncrementalIndex> getResult()
-                    {
-                      return indices;
-                    }
-                  }
-              ).entrySet()) {
+                );
+                index.add((Row) inputRow);
+              }
+              for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
                 Interval interval = new Interval(entry.getKey(), granularity.next(entry.getKey()));
                 DataSegment segment = new DataSegment(
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
@@ -291,6 +283,28 @@ public class TestIndex
               throw Throwables.propagate(e);
             }
             return segments;
+          }
+        }
+    );
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Iterator<InputRow> readRows(final Reader reader, final InputRowParser parser) throws IOException
+  {
+    if (parser instanceof InputRowParser.Streaming) {
+      InputRowParser.Streaming streaming = ((InputRowParser.Streaming) parser);
+      if (streaming.accept(reader)) {
+        return streaming.parseStream(reader);
+      }
+    }
+    return Iterators.transform(
+        CharStreams.readLines(reader).iterator(),
+        new com.google.common.base.Function<String, InputRow>()
+        {
+          @Override
+          public InputRow apply(String input)
+          {
+            return parser.parse(input);
           }
         }
     );

@@ -43,6 +43,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);
     TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
+    TestIndex.addIndex("world_border", "world_schema.json", "world.csv", mapper);
   }
 
   @Test
@@ -56,6 +57,18 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     );
     Assert.assertEquals(
         "{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString()
+    );
+
+    schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border")));
+    System.out.println(schema);
+    Assert.assertEquals("[__time, CODE, CNTRY_NAME, CURR_TYPE, CURR_CODE, FIPS]", schema.getDimensionNames().toString());
+    Assert.assertEquals("[POP_CNTRY, WKT]", schema.getMetricNames().toString());
+    Assert.assertEquals(
+        "[long, dimension.string, dimension.string, dimension.string, dimension.string, dimension.string, double, string]",
+        schema.getColumnTypes().toString()
+    );
+    Assert.assertEquals(
+        "{WKT={shape=shape(format=WKT)}}", schema.getDescriptors().toString()
     );
   }
 
@@ -114,5 +127,33 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
+  }
+
+  @Test
+  public void testAllBoundary()
+  {
+    String[] columns = new String[]{"CNTRY_NAME", "WKT"};
+    Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
+        .dataSource("world_border")
+        .columns(columns)
+        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
+
+    int all = runQuery(builder.streaming()).size();
+
+    builder.filters(new LuceneSpatialFilter(
+        "WKT.shape",
+        SpatialOperations.BBOX_WITHIN,
+        ShapeFormat.WKT,
+        "MULTIPOINT ((-180.0 -90.0), (180.0 90.0))"
+    ));
+    Assert.assertEquals(all, runQuery(builder.streaming()).size());
+
+    builder.filters(new LuceneSpatialFilter(
+        "WKT.shape",
+        SpatialOperations.BBOX_WITHIN,
+        ShapeFormat.WKT,
+        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))"
+    ));
+    Assert.assertEquals(all, runQuery(builder.streaming()).size());
   }
 }

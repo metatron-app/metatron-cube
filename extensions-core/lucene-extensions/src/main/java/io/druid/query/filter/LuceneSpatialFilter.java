@@ -40,6 +40,7 @@ import org.apache.lucene.spatial.query.SpatialOperation;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
+import org.locationtech.spatial4j.shape.Rectangle;
 import org.locationtech.spatial4j.shape.Shape;
 
 import java.io.IOException;
@@ -234,11 +235,16 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
     if (operation.isLuceneNative()) {
       return new SpatialArgs(operation.op(), shape);
     }
+    final Rectangle boundingBox = shape.getBoundingBox();
+    if (boundingBox.getMinX() > boundingBox.getMaxX()) {
+      // strange result for (180.0 -90.0), (-180.0 90.0)
+      boundingBox.reset(boundingBox.getMaxX(), boundingBox.getMinX(), boundingBox.getMinY(), boundingBox.getMaxY());
+    }
     switch (operation) {
       case BBOX_INTERSECTS:
-        return new SpatialArgs(SpatialOperation.Intersects, shape.getBoundingBox());
+        return new SpatialArgs(SpatialOperation.Intersects, boundingBox);
       case BBOX_WITHIN:
-        return new SpatialArgs(SpatialOperation.IsWithin, shape.getBoundingBox());
+        return new SpatialArgs(SpatialOperation.IsWithin, boundingBox);
       case EQUALTO:
       case OVERLAPS:
     }

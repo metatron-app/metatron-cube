@@ -4,11 +4,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.Validation;
-import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
@@ -51,7 +51,7 @@ public class TestLoadSpec extends IncrementalIndexSchema
   )
   {
     super(minTimestamp, queryGran, segmentGran, dimensionsSpec, metricsSpec, rollup, fixedSchema);
-    this.parser = parser;
+    this.parser = parser == null ? Maps.<String, Object>newHashMap() : parser;
     this.columns = columns;
     this.timestampSpec = timestampSpec;
     this.evaluations = evaluations == null ? ImmutableList.<Evaluation>of() : evaluations;
@@ -62,19 +62,17 @@ public class TestLoadSpec extends IncrementalIndexSchema
 
   public InputRowParser getParser(ObjectMapper mapper, boolean ignoreInvalidRows)
   {
-    DimensionsSpec dimensionsSpec = getDimensionsSpec();
-    ParseSpec spec;
-    if (parser == null) {
-      spec = new DelimitedParseSpec(timestampSpec, dimensionsSpec, null, null, columns);
-    } else {
-      if (!parser.containsKey("columns")) {
-        parser.put("columns", columns);
-      }
-      spec = mapper.convertValue(parser, ParseSpec.class);
-      spec = spec.withDimensionsSpec(dimensionsSpec).withTimestampSpec(timestampSpec);
+    Map<String, Object> parsing = Maps.newHashMap(parser);
+    parsing.put("dimensionsSpec", getDimensionsSpec());
+    parsing.put("timestampSpec", timestampSpec);
+    parsing.put("columns", columns);
+
+    InputRowParser rowParser = parser.containsKey("type") ? mapper.convertValue(parsing, InputRowParser.class) : null;
+    if (rowParser == null) {
+      rowParser = new StringInputRowParser(mapper.convertValue(parsing, ParseSpec.class), null);
     }
     return InputRowParsers.wrap(
-        new StringInputRowParser(spec, null),
+        rowParser,
         getMetrics(),
         evaluations,
         validations,

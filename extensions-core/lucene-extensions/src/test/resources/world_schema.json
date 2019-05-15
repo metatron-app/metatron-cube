@@ -1,0 +1,44 @@
+{
+  "parser": {
+    "type": "csv.stream",
+    "delimiter": ",",
+    "recordSeparator": "\n",
+    "skipHeaderRecord": true
+  },
+  "columns": ["WKT", "CODE", "CNTRY_NAME", "POP_CNTRY", "CURR_TYPE", "CURR_CODE", "FIPS"],
+  "timestampSpec": {
+    "column": "current_datetime",
+    "missingValue": "2019-05-14T04:56:25.901Z",
+    "invalidValue": "2019-05-14T04:56:25.901Z",
+    "replaceWrongColumn": true
+  },
+  "dimensionsSpec": {
+    "dimensions": ["CODE", "CNTRY_NAME", "CURR_TYPE", "CURR_CODE", "FIPS"]
+  },
+  "metricsSpec": [
+    {
+      "type": "relay", "name": "WKT", "columnName": "WKT", "typeName": "string"
+    },
+    {
+      "type": "relay", "name": "POP_CNTRY", "columnName": "POP_CNTRY", "typeName": "double"
+    }
+  ],
+  "queryGran": "MONTH",
+  "segmentGran": "MONTH",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "WKT" : {
+        "type" : "lucene",
+        "strategies" : [ {
+          "type" : "shape",
+          "fieldName" : "shape",
+          "shapeFormat" : "wkt",
+          "maxLevels" : 2
+        } ]
+      }
+    }
+  }
+}
