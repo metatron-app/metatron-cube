@@ -67,4 +67,41 @@ public class SimilarityQueryTest extends SketchQueryRunnerTest
       Assert.assertTrue(x instanceof Similarity);
     }
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testSimilarityOnAllColumns() throws Exception
+  {
+    UnionAllQuery query = new UnionAllQuery(
+        null,
+        Arrays.<Query>asList(
+            SketchQuery.theta(TestIndex.MMAPPED_SPLIT, TestIndex.INTERVAL_TOP),
+            SketchQuery.theta(TestIndex.MMAPPED_SPLIT, TestIndex.INTERVAL_BOTTOM)
+        ),
+        false, 0, 2,
+        ImmutableMap.of("postProcessing", new SimilarityProcessingOperator(0, null))
+    );
+    List result = Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    Assert.assertEquals(5, result.size());
+    Assert.assertEquals(
+        "Similarity{from='mmapped-split.market', to='mmapped-split.market', relations={similarity=1.0, A=3, B=3, A or B=3, A and B=3, A-B=0, B-A=0}}",
+        result.get(0).toString()
+    );
+    Assert.assertEquals(
+        "Similarity{from='mmapped-split.placementish', to='mmapped-split.placementish', relations={similarity=1.0, A=9, B=9, A or B=9, A and B=9, A-B=0, B-A=0}}",
+        result.get(1).toString()
+    );
+    Assert.assertEquals(
+        "Similarity{from='mmapped-split.placement', to='mmapped-split.placement', relations={similarity=1.0, A=1, B=1, A or B=1, A and B=1, A-B=0, B-A=0}}",
+        result.get(2).toString()
+    );
+    Assert.assertEquals(
+        "Similarity{from='mmapped-split.partial_null_column', to='mmapped-split.partial_null_column', relations={similarity=1.0, A=1, B=1, A or B=1, A and B=1, A-B=0, B-A=0}}",
+        result.get(3).toString()
+    );
+    Assert.assertEquals(
+        "Similarity{from='mmapped-split.quality', to='mmapped-split.quality', relations={similarity=1.0, A=9, B=9, A or B=9, A and B=9, A-B=0, B-A=0}}",
+        result.get(4).toString()
+    );
+  }
 }

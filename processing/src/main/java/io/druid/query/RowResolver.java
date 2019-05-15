@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Expression;
@@ -194,6 +195,16 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public List<String> getDimensionNames()
   {
     return schema.getDimensionNames();
+  }
+
+  public List<String> getDimensionNamesExceptTime()
+  {
+    final List<String> dimensions = schema.getDimensionNames();
+    final int index = dimensions.indexOf(Row.TIME_COLUMN_NAME);
+    if (index >= 0) {
+      dimensions.remove(index);
+    }
+    return dimensions;
   }
 
   public List<ValueDesc> getDimensionTypes()

@@ -50,7 +50,7 @@ public class ViewSupportHelper
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
       if (dimensionSupport.getDimensions().isEmpty() && dimensionSupport.allDimensionsForEmpty()) {
         query = dimensionSupport.withDimensionSpecs(
-            DefaultDimensionSpec.toSpec(supplier.get().getDimensionNames())
+            DefaultDimensionSpec.toSpec(supplier.get().getDimensionNamesExceptTime())
         );
       }
     }

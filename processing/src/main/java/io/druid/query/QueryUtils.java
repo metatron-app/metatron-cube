@@ -308,7 +308,7 @@ public class QueryUtils
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport) query;
       if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
-        List<String> dimensions = GuavaUtils.retain(schema.get().getDimensionNames(), view.getColumns());
+        List<String> dimensions = GuavaUtils.retain(schema.get().getDimensionNamesExceptTime(), view.getColumns());
         query = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions));
       }
     }
