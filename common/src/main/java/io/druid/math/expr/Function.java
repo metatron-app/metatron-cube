@@ -90,9 +90,17 @@ public interface Function
 
   abstract class NamedFunction extends NamedEntity implements Function
   {
+    static abstract class WithFixedType extends NamedFunction implements FixedTyped
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return returns();
+      }
+    }
   }
 
-  abstract class AbstractFactory extends NamedEntity implements Factory
+  abstract class NamedFactory extends NamedEntity implements Factory
   {
     public abstract class Child implements Function
     {
@@ -115,15 +123,6 @@ public interface Function
       public final String name()
       {
         return name;
-      }
-    }
-
-    public abstract class ExternalChild extends Child implements External
-    {
-      @Override
-      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
-      {
-        return ValueDesc.UNKNOWN;
       }
     }
 
@@ -163,7 +162,16 @@ public interface Function
       }
     }
 
-    public abstract class IndecisiveChild extends Child
+    public abstract class DateTimeChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return ValueDesc.DATETIME;
+      }
+    }
+
+    public abstract class ExternalChild extends Child implements External
     {
       @Override
       public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -172,12 +180,75 @@ public interface Function
       }
     }
 
-    public abstract class DateTimeChild extends Child
+    public abstract class IndecisiveChild extends Child
     {
       @Override
       public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
-        return ValueDesc.DATETIME;
+        return ValueDesc.UNKNOWN;
+      }
+    }
+  }
+
+  abstract class StringFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.STRING;
+    }
+  }
+
+  abstract class BooleanFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.BOOLEAN;
+    }
+  }
+
+  abstract class LongFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
+  }
+
+  abstract class DoubleFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
+  }
+
+  abstract class DateTimeFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.DATETIME;
+    }
+  }
+
+  static abstract class DoubleArrayFactory extends NamedFactory implements FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE_ARRAY;
+    }
+
+    public abstract class DoubleArrayChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return ValueDesc.DOUBLE_ARRAY;
       }
     }
   }
@@ -191,38 +262,37 @@ public interface Function
     Iterable<Function.Factory> getFunctions();
   }
 
-  abstract class StringOut extends NamedFunction
+  abstract class StringOut extends NamedFunction.WithFixedType
   {
-
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return ValueDesc.STRING;
     }
   }
 
-  abstract class LongOut extends NamedFunction
+  abstract class LongOut extends NamedFunction.WithFixedType
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return ValueDesc.LONG;
     }
   }
 
-  abstract class DoubleOut extends NamedFunction
+  abstract class DoubleOut extends NamedFunction.WithFixedType
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return ValueDesc.DOUBLE;
     }
   }
 
-  abstract class DateTimeOut extends NamedFunction
+  abstract class DateTimeOut extends NamedFunction.WithFixedType
   {
     @Override
-    public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return ValueDesc.DATETIME;
     }

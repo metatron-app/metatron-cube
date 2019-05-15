@@ -53,7 +53,7 @@ import java.util.Map;
 public interface DateTimeFunctions extends Function.Library
 {
   @Function.Named("now")
-  class Now extends Function.LongOut
+  final class Now extends Function.LongOut
   {
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -63,7 +63,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("current_time")
-  class CurrentTime extends Function.DateTimeOut
+  final class CurrentTime extends Function.DateTimeOut
   {
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -73,15 +73,21 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("recent")
-  class Recent extends Function.IndecisiveOut
+  final class Recent extends Function.NamedFunction.WithFixedType
   {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.INTERVAL;
+    }
+
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
     {
       if (args.size() != 1 && args.size() != 2) {
         throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
       }
-      return ExprEval.of(toInterval(args, bindings), ValueDesc.UNKNOWN);
+      return ExprEval.of(toInterval(args, bindings), ValueDesc.INTERVAL);
     }
 
     public Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
@@ -96,7 +102,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  public abstract static class GranularFunc extends Function.AbstractFactory
+  public abstract static class GranularFunc extends Function.NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -118,7 +124,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("bucketStart")
-  public static class BucketStart extends GranularFunc
+  public static class BucketStart extends GranularFunc implements Function.FixedTyped
   {
     @Override
     protected Function newInstance(final Granularity granularity)
@@ -133,10 +139,16 @@ public interface DateTimeFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
   }
 
   @Function.Named("bucketEnd")
-  public static class BucketEnd extends GranularFunc
+  public static class BucketEnd extends GranularFunc implements Function.FixedTyped
   {
     @Override
     protected Function newInstance(final Granularity granularity)
@@ -151,57 +163,63 @@ public interface DateTimeFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
   }
 
   @Function.Named("bucketStartDateTime")
-  public static class BucketStartDT extends GranularFunc
+  public static class BucketStartDT extends GranularFunc implements Function.FixedTyped
   {
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new DateTimeChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DATETIME;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
-          return ExprEval.of(dateTime == null ? null : granularity.bucketStart(dateTime));
+          return ExprEval.of(dateTime == null ? null : granularity.bucketStart(dateTime), ValueDesc.DATETIME);
         }
       };
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DATETIME;
     }
   }
 
   @Function.Named("bucketEndDateTime")
-  public static class BucketEndDT extends GranularFunc
+  public static class BucketEndDT extends GranularFunc implements Function.FixedTyped
   {
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new DateTimeChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DATETIME;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
-          return ExprEval.of(dateTime == null ? null : granularity.bucketEnd(dateTime));
+          return ExprEval.of(dateTime == null ? null : granularity.bucketEnd(dateTime), ValueDesc.DATETIME);
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DATETIME;
+    }
   }
 
-  abstract class UnaryTimeMath extends Function.AbstractFactory
+  abstract class UnaryTimeMath extends Function.NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -215,9 +233,18 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     protected abstract Function evaluate(DateTimeZone timeZone, Locale locale);
+
+    static abstract class LongType extends UnaryTimeMath implements Function.FixedTyped
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.LONG;
+      }
+    }
   }
 
-  abstract class BinaryTimeMath extends Function.AbstractFactory
+  abstract class BinaryTimeMath extends Function.DateTimeFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -229,19 +256,13 @@ public interface DateTimeFunctions extends Function.Library
                                     ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2)))
                                     : null;
       final Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
-      return new Child()
+      return new DateTimeChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DATETIME;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return base == null ? ExprEval.of(base) : evaluate(base, period);
+          return base == null ? ExprEval.of(base, ValueDesc.DATETIME) : evaluate(base, period);
         }
       };
     }
@@ -250,7 +271,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("add_time")
-  class AddTime extends BinaryTimeMath
+  final class AddTime extends BinaryTimeMath
   {
     @Override
     protected final ExprEval evaluate(DateTime base, Period period)
@@ -260,7 +281,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("sub_time")
-  class SubTime extends BinaryTimeMath
+  final class SubTime extends BinaryTimeMath
   {
     @Override
     protected final ExprEval evaluate(DateTime base, Period period)
@@ -282,7 +303,7 @@ public interface DateTimeFunctions extends Function.Library
 
   // whole time based
   @Function.Named("difftime")
-  class DiffTime extends Function.AbstractFactory
+  final class DiffTime extends Function.LongFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -301,7 +322,6 @@ public interface DateTimeFunctions extends Function.Library
           args.size() == 4 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(3))) : null;
       return new LongChild()
       {
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -336,7 +356,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("dayname")
-  final class DayName extends UnaryTimeMath
+  final class DayName extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -353,7 +373,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("dayofmonth")
-  class DayOfMonth extends UnaryTimeMath
+  final class DayOfMonth extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -370,7 +390,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("lastdayofmonth")
-  class LastDayOfMonth extends UnaryTimeMath
+  final class LastDayOfMonth extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -387,7 +407,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("dayofweek")
-  class DayOfWeek extends UnaryTimeMath
+  final class DayOfWeek extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -404,7 +424,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("dayofyear")
-  class DayOfYear extends UnaryTimeMath
+  final class DayOfYear extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -421,7 +441,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("weekofweekyear")
-  class WeekOfWeekYear extends UnaryTimeMath
+  final class WeekOfWeekYear extends UnaryTimeMath
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -439,7 +459,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("weekyear")
-  class WeekYear extends UnaryTimeMath
+  final class WeekYear extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -457,7 +477,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("hour")
-  class Hour extends UnaryTimeMath
+  class Hour extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -474,7 +494,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("month")
-  class Month extends UnaryTimeMath
+  final class Month extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -491,7 +511,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("monthname")
-  class MonthName extends UnaryTimeMath
+  final class MonthName extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -508,7 +528,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("year")
-  class Year extends UnaryTimeMath
+  final class Year extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -525,7 +545,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("first_day")
-  class FirstDay extends UnaryTimeMath
+  final class FirstDay extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -542,7 +562,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("last_day")
-  class LastDay extends UnaryTimeMath
+  final class LastDay extends UnaryTimeMath.LongType
   {
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
@@ -626,18 +646,30 @@ public interface DateTimeFunctions extends Function.Library
     {
       throw new IllegalArgumentException("Invalid value " + value.value());
     }
+
+    static abstract class LongType extends DateTimeInput implements Function.FixedTyped
+    {
+      @Override
+      public final ValueDesc returns() { return ValueDesc.LONG;}
+
+      @Override
+      public final ValueDesc eval(List<Expr> args, TypeResolver bindings) { return ValueDesc.LONG;}
+    }
+
+    static abstract class BooleanType extends DateTimeInput implements Function.FixedTyped
+    {
+      @Override
+      public final ValueDesc returns() { return ValueDesc.BOOLEAN;}
+
+      @Override
+      public final ValueDesc eval(List<Expr> args, TypeResolver bindings) { return ValueDesc.BOOLEAN;}
+    }
   }
 
   // string/long to long
   @Function.Named("timestamp")
-  class TimestampFromEpochFunc extends DateTimeInput
+  class TimestampFromEpochFunc extends DateTimeInput.LongType
   {
-    @Override
-    public ValueDesc eval(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.LONG;
-    }
-
     @Override
     protected ExprEval eval(DateTime date)
     {
@@ -656,7 +688,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("datetime")
-  class DateTimeFunc extends DateTimeParser
+  class DateTimeFunc extends DateTimeParser implements Function.FixedTyped
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, final Map<String, ExprEval> namedParam)
@@ -691,17 +723,17 @@ public interface DateTimeFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DATETIME;
+    }
   }
 
   @Function.Named("datetime_millis")
-  class DateTimeMillisFunc extends DateTimeInput
+  class DateTimeMillisFunc extends DateTimeInput.LongType
   {
-    @Override
-    public ValueDesc eval(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.LONG;
-    }
-
     @Override
     protected final ExprEval eval(DateTime date)
     {
@@ -710,7 +742,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_validate")
-  class TimestampValidateFunc extends TimestampFromEpochFunc
+  class TimestampValidateFunc extends DateTimeInput.BooleanType
   {
     @Override
     protected ExprEval eval(DateTime date)
@@ -727,7 +759,7 @@ public interface DateTimeFunctions extends Function.Library
 
   // string/long to string
   @Function.Named("time_format")
-  class TimeFormatFunc extends DateTimeParser
+  class TimeFormatFunc extends DateTimeParser implements Function.FixedTyped
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, final Map<String, ExprEval> namedParam)
@@ -777,10 +809,16 @@ public interface DateTimeFunctions extends Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING;
+    }
   }
 
   @Function.Named("datetime_extract")
-  class DateTimeExtractFunc extends Function.AbstractFactory
+  class DateTimeExtractFunc extends Function.LongFactory
   {
     @Override
     public Function create(List<Expr> args)

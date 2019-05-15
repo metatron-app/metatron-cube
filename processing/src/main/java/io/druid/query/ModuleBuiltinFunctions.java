@@ -26,6 +26,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Json;
@@ -57,7 +58,7 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static @Json ObjectMapper jsonMapper;
 
   @Function.Named("truncatedRecent")
-  public static class TruncatedRecent extends Function.AbstractFactory
+  public static class TruncatedRecent extends Function.NamedFactory implements Function.FixedTyped
   {
     @Override
     public Function create(List<Expr> args)
@@ -66,9 +67,15 @@ public class ModuleBuiltinFunctions implements Function.Library
         throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
       }
       final Granularity granularity = Granularity.fromString(Evals.getConstantString(args.get(args.size() - 1)));
-      return new IndecisiveChild()
+      return new Child()
       {
         final DateTimeFunctions.Recent recent = new DateTimeFunctions.Recent();
+
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+        {
+          return ValueDesc.INTERVAL;
+        }
 
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -85,14 +92,20 @@ public class ModuleBuiltinFunctions implements Function.Library
                 granularity.bucketEnd(interval.getEnd())
             );
           }
-          return ExprEval.of(interval, ValueDesc.UNKNOWN);
+          return ExprEval.of(interval, ValueDesc.INTERVAL);
         }
       };
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.INTERVAL;
     }
   }
 
   @Function.Named("lookupMap")
-  public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams
+  public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.FixedTyped
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
@@ -141,10 +154,16 @@ public class ModuleBuiltinFunctions implements Function.Library
         }
       };
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING;
+    }
   }
 
   @Function.Named("lookup")
-  public static class LookupFunc extends BuiltinFunctions.ParameterizingNamedParams
+  public static class LookupFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.FixedTyped
   {
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
@@ -194,6 +213,12 @@ public class ModuleBuiltinFunctions implements Function.Library
           return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
         }
       };
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING;
     }
   }
 

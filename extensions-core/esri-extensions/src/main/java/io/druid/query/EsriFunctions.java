@@ -57,8 +57,26 @@ import static io.druid.query.EsriUtils.OGC_GEOMETRY_TYPE;
  */
 public interface EsriFunctions extends Function.Library
 {
+  abstract class GeomFactory extends Function.NamedFactory implements Function.FixedTyped
+  {
+    public abstract class GeomChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return OGC_GEOMETRY_TYPE;
+      }
+    }
+
+    @Override
+    public final ValueDesc returns()
+    {
+      return OGC_GEOMETRY_TYPE;
+    }
+  }
+
   @Function.Named("ST_AsText")
-  class ST_AsText extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_AsText extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -75,16 +93,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.STRING;
-    }
   }
 
   @Function.Named("ST_Buffer")
-  class ST_Buffer extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Buffer extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -92,14 +104,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have at least 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -115,16 +121,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_GeomFromText")
-  class ST_GeomFromText extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_GeomFromText extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -132,14 +132,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 1 || args.size() > 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -151,16 +145,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_GeomFromGeoJson")
-  class ST_GeomFromGeoJson extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_GeomFromGeoJson extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -168,14 +156,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 1 || args.size() > 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -192,16 +174,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_Point")
-  class ST_Point extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Point extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -209,14 +185,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -231,30 +201,18 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_Polygon")
-  class ST_Polygon extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Polygon extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
     {
       if (args.size() == 1) {
         // from wkt
-        return new Child()
+        return new GeomChild()
         {
-          @Override
-          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-          {
-            return OGC_GEOMETRY_TYPE;
-          }
-
           @Override
           public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
           {
@@ -272,14 +230,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 6 || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 6 & even numbered arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -291,30 +243,18 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_LineString")
-  class ST_LineString extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_LineString extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
     {
       if (args.size() == 1) {
         // from wkt
-        return new Child()
+        return new GeomChild()
         {
-          @Override
-          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-          {
-            return OGC_GEOMETRY_TYPE;
-          }
-
           @Override
           public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
           {
@@ -332,14 +272,8 @@ public interface EsriFunctions extends Function.Library
       if (args.isEmpty() || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 2 & even numbered arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -356,16 +290,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_Area")
-  class ST_Area extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Area extends Function.DoubleFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -386,16 +314,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.DOUBLE;
-    }
   }
 
   @Function.Named("ST_Length")
-  class ST_Length extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Length extends Function.DoubleFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -416,16 +338,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.DOUBLE;
-    }
   }
 
   @Function.Named("ST_Centroid")
-  class ST_Centroid extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Centroid extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -433,14 +349,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -475,16 +385,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_SRID")
-  class ST_SRID extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_SRID extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -501,16 +405,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.LONG;
-    }
   }
 
   @Function.Named("ST_SetSRID")
-  class ST_SetSRID extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_SetSRID extends GeomFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -518,14 +416,8 @@ public interface EsriFunctions extends Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -541,16 +433,10 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return EsriUtils.OGC_GEOMETRY_TYPE;
-    }
   }
 
   @Function.Named("ST_GeodesicLengthWGS84")
-  class ST_GeodesicLengthWGS84 extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_GeodesicLengthWGS84 extends Function.DoubleFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -588,15 +474,9 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.DOUBLE;
-    }
   }
 
-  abstract class ST_GeometryRelational extends Function.AbstractFactory implements Function.FixedTyped
+  abstract class ST_GeometryRelational extends Function.BooleanFactory
   {
     protected abstract OperatorSimpleRelation getRelationOperator();
 
@@ -634,12 +514,6 @@ public interface EsriFunctions extends Function.Library
           );
         }
       };
-    }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.BOOLEAN;
     }
   }
 
@@ -724,7 +598,7 @@ public interface EsriFunctions extends Function.Library
   }
 
   @Function.Named("ST_Distance")
-  class ST_Distance extends Function.AbstractFactory implements Function.FixedTyped
+  class ST_Distance extends Function.DoubleFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -733,14 +607,8 @@ public interface EsriFunctions extends Function.Library
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
 
-      return new Child()
+      return new DoubleChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -753,28 +621,16 @@ public interface EsriFunctions extends Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.DOUBLE;
-    }
   }
 
   @Function.Named("ST_ConvexHull")
-  public class ST_ConvexHull extends Function.AbstractFactory
+  class ST_ConvexHull extends GeomFactory
   {
     @Override
     public Function create(List<Expr> args)
     {
-      return new Child()
+      return new GeomChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return OGC_GEOMETRY_TYPE;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {

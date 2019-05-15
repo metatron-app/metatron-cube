@@ -34,12 +34,10 @@ import org.locationtech.spatial4j.shape.Rectangle;
 
 import java.util.List;
 
-import static io.druid.data.ValueDesc.DOUBLE_ARRAY;
-
 public class GeoHashFunctions implements Function.Library
 {
   @Function.Named("to_geohash")
-  public static class ToGeoHash extends Function.AbstractFactory
+  public static class ToGeoHash extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -65,7 +63,7 @@ public class GeoHashFunctions implements Function.Library
   }
 
   @Function.Named("geom_to_geohash")
-  public static class GeomToGeoHash extends Function.AbstractFactory
+  public static class GeomToGeoHash extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -96,8 +94,26 @@ public class GeoHashFunctions implements Function.Library
 
   public static final ValueDesc LATLON = ValueDesc.of("struct(latitude:double,longitude:double)");
 
+  static abstract class LatLonFactory extends Function.NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public final ValueDesc returns()
+    {
+      return LATLON;
+    }
+
+    public abstract class LatLonChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
+      {
+        return LATLON;
+      }
+    }
+  }
+
   @Function.Named("geohash_to_center")
-  public static class GeoHashToCenter extends Function.AbstractFactory
+  public static class GeoHashToCenter extends LatLonFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -105,14 +121,8 @@ public class GeoHashFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new LatLonChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return LATLON;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -124,7 +134,7 @@ public class GeoHashFunctions implements Function.Library
   }
 
   @Function.Named("geohash_to_center_wkt")
-  public static class GeoHashToCenterWKT extends Function.AbstractFactory
+  public static class GeoHashToCenterWKT extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -145,7 +155,7 @@ public class GeoHashFunctions implements Function.Library
   }
 
   @Function.Named("geohash_to_boundary")
-  public static class GeoHashToBoundary extends Function.AbstractFactory
+  public static class GeoHashToBoundary extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -153,14 +163,8 @@ public class GeoHashFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return DOUBLE_ARRAY;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -181,14 +185,14 @@ public class GeoHashFunctions implements Function.Library
           result[6] = boundary.getMaxX();
           result[7] = boundary.getMinY();
 
-          return ExprEval.of(result, DOUBLE_ARRAY);
+          return ExprEval.of(result, ValueDesc.DOUBLE_ARRAY);
         }
       };
     }
   }
 
   @Function.Named("geohash_to_boundary_wkt")
-  public static class GeoHashToBoundaryWKT extends Function.AbstractFactory
+  public static class GeoHashToBoundaryWKT extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)

@@ -27,7 +27,6 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
-import io.druid.query.H3Functions;
 import io.druid.query.ShapeUtils;
 
 import java.util.List;
@@ -35,7 +34,7 @@ import java.util.List;
 public class GeoHexFunctions implements Function.Library
 {
   @Function.Named("to_geohex")
-  public static class ToGeoHex extends Function.AbstractFactory
+  public static class ToGeoHex extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -58,7 +57,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geom_to_geohex")
-  public static class GeomToGeoHex extends Function.AbstractFactory
+  public static class GeomToGeoHex extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -84,7 +83,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geohex_to_boundary")
-  public static class GeoHexToBoundary extends Function.AbstractFactory
+  public static class GeoHexToBoundary extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -92,14 +91,8 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -116,7 +109,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geohex_to_boundary_wkt")
-  public static class GeoHexToBoundaryWKT extends Function.AbstractFactory
+  public static class GeoHexToBoundaryWKT extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)

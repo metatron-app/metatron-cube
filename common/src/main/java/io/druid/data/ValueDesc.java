@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -95,6 +96,7 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc DOUBLE_ARRAY = ValueDesc.of(ARRAY_PREFIX + DOUBLE_TYPE);
 
   public static ValueDesc SHAPE = ValueDesc.of("SHAPE");
+  public static ValueDesc INTERVAL = ValueDesc.of("INTERVAL", Interval.class);
   public static ValueDesc OGC_GEOMETRY = ValueDesc.of("OGC_GEOMETRY");
 
   public static ValueDesc ofArray(ValueDesc valueType)

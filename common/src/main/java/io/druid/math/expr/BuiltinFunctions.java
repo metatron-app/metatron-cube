@@ -37,7 +37,10 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
+import io.druid.math.expr.Function.NamedFactory;
 import io.druid.math.expr.Function.Factory;
+import io.druid.math.expr.Function.FixedTyped;
+import io.druid.math.expr.Function.NamedFunction;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -83,7 +86,7 @@ public interface BuiltinFunctions extends Function.Library
 {
   static final Logger log = new Logger(BuiltinFunctions.class);
 
-  abstract class SingleParam extends Function.NamedFunction
+  abstract class SingleParam extends NamedFunction
   {
     @Override
     public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -109,7 +112,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ValueDesc type(ValueDesc param);
   }
 
-  abstract class DoubleParam extends Function.NamedFunction
+  abstract class DoubleParam extends NamedFunction
   {
     @Override
     public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -133,7 +136,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprEval eval(ExprEval x, ExprEval y);
   }
 
-  abstract class TripleParam extends Function.NamedFunction
+  abstract class TripleParam extends NamedFunction
   {
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
@@ -150,7 +153,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprEval eval(ExprEval x, ExprEval y, ExprEval z);
   }
 
-  abstract class NamedParams extends Function.AbstractFactory
+  abstract class NamedParams extends NamedFactory
   {
     @Override
     public final Function create(List<Expr> args)
@@ -235,8 +238,14 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract Function toFunction(final Map<String, Object> parameter);
   }
 
-  abstract class SingleParamDoubleMath extends SingleParam
+  abstract class SingleParamDoubleMath extends SingleParam implements FixedTyped
   {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
+
     @Override
     public ValueDesc type(ValueDesc param)
     {
@@ -294,7 +303,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("size")
-  final class Size extends SingleParam
+  final class Size extends SingleParam implements FixedTyped
   {
     @Override
     public ValueDesc type(ValueDesc param)
@@ -317,17 +326,17 @@ public interface BuiltinFunctions extends Function.Library
       }
       throw new IllegalArgumentException("parameter is not a collection");
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
   }
 
   @Function.Named("array.string")
-  class StringArray extends Function.NamedFunction
+  class StringArray extends NamedFunction.WithFixedType
   {
-    @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.STRING_ARRAY;
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -337,17 +346,17 @@ public interface BuiltinFunctions extends Function.Library
       }
       return ExprEval.of(strings, ValueDesc.STRING_ARRAY);
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING_ARRAY;
+    }
   }
 
   @Function.Named("array.long")
-  final class LongArray extends Function.NamedFunction
+  final class LongArray extends NamedFunction.WithFixedType
   {
-    @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.LONG_ARRAY;
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -357,17 +366,17 @@ public interface BuiltinFunctions extends Function.Library
       }
       return ExprEval.of(doubles, ValueDesc.LONG_ARRAY);
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG_ARRAY;
+    }
   }
 
   @Function.Named("array.double")
-  class DoubleArray extends Function.NamedFunction
+  class DoubleArray extends NamedFunction.WithFixedType
   {
-    @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.DOUBLE_ARRAY;
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -377,6 +386,12 @@ public interface BuiltinFunctions extends Function.Library
       }
       return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE_ARRAY;
+    }
   }
 
   @Function.Named("array")
@@ -385,7 +400,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("regex")
-  final class Regex extends Function.AbstractFactory
+  final class Regex extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -408,7 +423,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractRFunc extends Function.AbstractFactory
+  abstract class AbstractRFunc extends NamedFactory
   {
     private static final Rengine r;
     private static final Map<String, String> functions = Maps.newHashMap();
@@ -637,7 +652,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractPythonFunc extends Function.AbstractFactory
+  abstract class AbstractPythonFunc extends NamedFactory
   {
     static final boolean init;
 
@@ -986,8 +1001,14 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("getExponent")
-  final class GetExponent extends SingleParam
+  final class GetExponent extends SingleParam implements FixedTyped
   {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
+
     @Override
     protected ValueDesc type(ValueDesc param)
     {
@@ -1058,7 +1079,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("round")
-  final class Round extends Function.AbstractFactory
+  final class Round extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1444,7 +1465,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("if")
-  final class IfFunc extends Function.NamedFunction
+  final class IfFunc extends NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -1485,7 +1506,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("cast")
-  final class CastFunc extends Function.AbstractFactory
+  final class CastFunc extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1517,7 +1538,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("nvl")
-  final class NvlFunc extends Function.NamedFunction
+  final class NvlFunc extends NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -1547,7 +1568,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("coalesce")
-  final class Coalesce extends Function.NamedFunction
+  final class Coalesce extends NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -1577,14 +1598,11 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("datediff")
-  final class DateDiffFunc extends Function.NamedFunction
+  final class DateDiffFunc extends NamedFunction.WithFixedType
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
-      if (args.size() < 2) {
-        throw new RuntimeException("function 'datediff' need at least 2 arguments");
-      }
       return ValueDesc.LONG;
     }
 
@@ -1601,7 +1619,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("switch")
-  final class SwitchFunc extends Function.NamedFunction
+  final class SwitchFunc extends NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -1642,7 +1660,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("case")
-  final class CaseFunc extends Function.NamedFunction
+  final class CaseFunc extends NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeResolver bindings)
@@ -1688,7 +1706,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("javascript")
-  final class JavaScriptFunc extends Function.AbstractFactory
+  final class JavaScriptFunc extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1759,7 +1777,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("format")
-  final class FormatFunc extends Function.AbstractFactory
+  final class FormatFunc extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1789,7 +1807,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("lpad")
-  final class LPadFunc extends Function.AbstractFactory
+  final class LPadFunc extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1816,7 +1834,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("rpad")
-  final class RPadFunc extends Function.AbstractFactory
+  final class RPadFunc extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1894,7 +1912,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("split")
-  final class Split extends Function.AbstractFactory
+  final class Split extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -1970,7 +1988,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("left")
-  final class LeftFunc extends Function.AbstractFactory
+  final class LeftFunc extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -2026,7 +2044,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("right")
-  final class RightFunc extends Function.AbstractFactory
+  final class RightFunc extends Function.StringFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -2082,7 +2100,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("mid")
-  class MidFunc extends Function.AbstractFactory
+  class MidFunc extends Function.StringFactory
   {
     @Override
     public final Function create(List<Expr> args)
@@ -2272,10 +2290,10 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("struct")
-  final class Struct extends Function.NamedFunction
+  final class Struct extends NamedFunction.WithFixedType
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.STRUCT;
     }
@@ -2292,7 +2310,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("struct_desc")
-  final class StructDesc extends Function.AbstractFactory
+  final class StructDesc extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -2333,7 +2351,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class PartitionFunction extends Function.NamedFunction implements Factory
+  abstract class PartitionFunction extends NamedFunction implements Factory
   {
     protected String fieldName;
     protected ValueDesc fieldType;
@@ -3176,7 +3194,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$assign")
-  final class PartitionEval extends Function.AbstractFactory
+  final class PartitionEval extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -3201,7 +3219,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$assignFirst")
-  final class AssignFirst extends Function.AbstractFactory
+  final class AssignFirst extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args)

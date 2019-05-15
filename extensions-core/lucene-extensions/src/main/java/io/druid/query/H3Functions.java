@@ -27,7 +27,6 @@ import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.Point;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -56,7 +55,7 @@ public class H3Functions implements Function.Library
   });
 
   @Function.Named("to_h3")
-  public static class ToH3 extends Function.AbstractFactory
+  public static class ToH3 extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -80,7 +79,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("geom_to_h3")
-  public static class GeomToH3 extends Function.AbstractFactory
+  public static class GeomToH3 extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -107,7 +106,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("to_h3_address")
-  public static class ToH3Address extends Function.AbstractFactory
+  public static class ToH3Address extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -131,7 +130,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("h3_to_center")
-  public static class H3ToCenter extends Function.AbstractFactory
+  public static class H3ToCenter extends GeoHashFunctions.LatLonFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -140,14 +139,8 @@ public class H3Functions implements Function.Library
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new LatLonChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return LATLON;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -165,7 +158,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("h3_to_center_wkt")
-  public static class H3ToCenterWKT extends Function.AbstractFactory
+  public static class H3ToCenterWKT extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -193,7 +186,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("h3_to_boundary")
-  public static class H3ToBoundary extends Function.AbstractFactory
+  public static class H3ToBoundary extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -202,14 +195,8 @@ public class H3Functions implements Function.Library
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new DoubleArrayChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -233,7 +220,7 @@ public class H3Functions implements Function.Library
   }
 
   @Function.Named("h3_to_boundary_wkt")
-  public static class H3ToBoundaryWKT extends Function.AbstractFactory
+  public static class H3ToBoundaryWKT extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)

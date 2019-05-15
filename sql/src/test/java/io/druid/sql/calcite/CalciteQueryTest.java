@@ -6715,6 +6715,27 @@ public class CalciteQueryTest extends CalciteTestBase
     );
   }
 
+  @Test
+  public void testExpressionFunctions() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_DEFAULT,
+        "SELECT distinct time_format(bucketStart(__time, 'MONTH'), 'yyyy-MM-dd HH:mm:SS') FROM foo",
+        ImmutableList.of(
+            new GroupByQuery.Builder()
+                .dataSource("foo")
+                .granularity(Granularities.ALL)
+                .addDimension(DefaultDimensionSpec.of("d0:v", "d0"))
+                .virtualColumns(EXPR_VC("d0:v", "timestamp_format(BUCKETSTART(\"__time\",'MONTH'),'yyyy-MM-dd HH:mm:SS','UTC')"))
+                .build()
+        )
+        , ImmutableList.of(
+            new Object[]{"2000-01-01 00:00:00"},
+            new Object[]{"2001-01-01 00:00:00"}
+        )
+    );
+  }
+
   private void testQuery(
       final String sql,
       final List<Query> expectedQueries,

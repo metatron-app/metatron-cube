@@ -102,7 +102,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("like")
-  final class Like extends Function.AbstractFactory
+  final class Like extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -124,7 +124,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("in")
-  final class InFunc extends Function.AbstractFactory
+  final class InFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -148,7 +148,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("between")
-  final class BetweenFunc extends Function.AbstractFactory
+  final class BetweenFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -173,7 +173,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("startsWith")
-  final class StartsWithFunc extends Function.AbstractFactory
+  final class StartsWithFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -195,7 +195,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("endsWith")
-  final class EndsWithFunc extends Function.AbstractFactory
+  final class EndsWithFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -217,7 +217,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("startsWithIgnoreCase")
-  final class StartsWithIgnoreCaseFunc extends Function.AbstractFactory
+  final class StartsWithIgnoreCaseFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -240,7 +240,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("endsWithIgnoreCase")
-  final class EndsWithIgnoreCaseFunc extends Function.AbstractFactory
+  final class EndsWithIgnoreCaseFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -263,7 +263,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("contains")
-  final class ContainsFunc extends Function.AbstractFactory
+  final class ContainsFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -285,7 +285,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("match")
-  final class MatchFunc extends Function.AbstractFactory
+  final class MatchFunc extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -307,7 +307,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("ipv4_in")
-  final class IPv4In extends Function.AbstractFactory
+  final class IPv4In extends Function.BooleanFactory
   {
     @Override
     public Function create(List<Expr> args)

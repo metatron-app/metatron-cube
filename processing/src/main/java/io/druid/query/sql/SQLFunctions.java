@@ -49,7 +49,7 @@ import java.util.List;
 public interface SQLFunctions extends Function.Library
 {
   @Function.Named("timestamp_ceil")
-  class TimestampCeilExprMacro extends Function.AbstractFactory
+  class TimestampCeilExprMacro extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -109,7 +109,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_floor")
-  class TimestampFloorExprMacro extends Function.AbstractFactory
+  class TimestampFloorExprMacro extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -155,7 +155,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_format")
-  public class TimestampFormatExprMacro extends Function.AbstractFactory
+  public class TimestampFormatExprMacro extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -197,7 +197,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_parse")
-  public class TimestampParseExprMacro extends Function.AbstractFactory
+  public class TimestampParseExprMacro extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -246,7 +246,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_shift")
-  public class TimestampShiftExprMacro extends Function.AbstractFactory
+  public class TimestampShiftExprMacro extends Function.LongFactory
   {
     @Override
     public Function create(final List<Expr> args)

@@ -58,7 +58,7 @@ public class ShapeFunctions implements Function.Library
 {
   @Deprecated
   @Function.Named("lonlat.to4326")
-  public static class LonLatTo4326 extends Function.AbstractFactory
+  public static class LonLatTo4326 extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -79,16 +79,10 @@ public class ShapeFunctions implements Function.Library
       catch (Exception e) {
         throw Throwables.propagate(e);
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         private final DirectPosition2D from = new DirectPosition2D(sourceCRS);
         private final DirectPosition2D to = new DirectPosition2D(targetCRS);
-
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
 
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -122,14 +116,14 @@ public class ShapeFunctions implements Function.Library
     return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
   }
 
-  static abstract class ShapeFuncFactory extends Function.AbstractFactory implements Function.FixedTyped
+  static abstract class ShapeFuncFactory extends Function.NamedFactory implements Function.FixedTyped
   {
     public abstract class ShapeChild extends Child
     {
       @Override
       public final ValueDesc apply(List<Expr> args, TypeResolver bindings)
       {
-        return ShapeUtils.SHAPE_TYPE;
+        return returns();
       }
 
       @Override
@@ -236,7 +230,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public static abstract class ShapeTo extends Function.AbstractFactory
+  public static abstract class ShapeTo extends Function.StringFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -383,7 +377,7 @@ public class ShapeFunctions implements Function.Library
     protected abstract Shape op(Geometry geometry);
   }
 
-  public abstract static class DoubleShapeFunc extends ShapeFuncFactory
+  public abstract static class BinaryShapeFunc extends ShapeFuncFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -447,7 +441,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_area")
-  public static class Area extends Function.AbstractFactory
+  public static class Area extends Function.DoubleFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -468,7 +462,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_length")
-  public static class Length extends Function.AbstractFactory
+  public static class Length extends Function.DoubleFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -489,7 +483,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_centroid_XY")
-  public static class CentroidXY extends Function.AbstractFactory
+  public static class CentroidXY extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -497,14 +491,8 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -535,7 +523,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_coordinates_XY")
-  public static class CoordinatesXY extends Function.AbstractFactory
+  public static class CoordinatesXY extends Function.DoubleArrayFactory
   {
     @Override
     public Function create(List<Expr> args)
@@ -543,14 +531,8 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
-        @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
-
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
@@ -590,7 +572,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_difference")
-  public static class Difference extends DoubleShapeFunc
+  public static class Difference extends BinaryShapeFunc
   {
     @Override
     protected Shape op(Geometry geom1, Geometry geom2)
@@ -605,7 +587,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_intersection")
-  public static class Intersection extends DoubleShapeFunc
+  public static class Intersection extends BinaryShapeFunc
   {
     @Override
     protected Shape op(Geometry geom1, Geometry geom2)
@@ -658,7 +640,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  static abstract class ShapeRelational extends Function.AbstractFactory implements Function.FixedTyped
+  static abstract class ShapeRelational extends Function.BooleanFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -682,12 +664,6 @@ public class ShapeFunctions implements Function.Library
     }
 
     protected abstract boolean execute(Geometry geom1, Geometry geom2);
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.BOOLEAN;
-    }
   }
 
   @Function.Named("shape_intersects")
@@ -801,7 +777,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_withinDistance")
-  public static class WithinDistance extends Function.AbstractFactory implements Function.FixedTyped
+  public static class WithinDistance extends Function.BooleanFactory
   {
     @Override
     public Function create(final List<Expr> args)
@@ -823,12 +799,6 @@ public class ShapeFunctions implements Function.Library
           return ExprEval.of(geom1.isWithinDistance(geom2, distance));
         }
       };
-    }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.BOOLEAN;
     }
   }
 

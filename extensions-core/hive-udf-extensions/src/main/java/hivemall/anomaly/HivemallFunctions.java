@@ -280,7 +280,7 @@ public interface HivemallFunctions extends Function.Library
   }
 
   @Function.Named("rescale")
-  class RescaleFunc extends Function.AbstractFactory
+  class RescaleFunc extends Function.NamedFactory
   {
     @Override
     public Function create(List<Expr> args)
