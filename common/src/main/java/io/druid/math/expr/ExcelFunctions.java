@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import io.druid.math.expr.Expr.NumericBinding;
+import io.druid.math.expr.Function.NamedFunction;
 import org.apache.poi.ss.formula.functions.Finance;
 import org.apache.poi.ss.formula.functions.FinanceLib;
 import org.apache.poi.ss.formula.functions.Irr;
@@ -33,10 +34,10 @@ public interface ExcelFunctions extends Function.Library
 {
   // fv(double r, double n, double y, double p, boolean t = false)
   @Function.Named("fv")
-  class ExcelFV extends Function.DoubleOut
+  class ExcelFV extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 4) {
         throw new RuntimeException("function 'fv' needs at least 4 arguments");
@@ -55,10 +56,10 @@ public interface ExcelFunctions extends Function.Library
 
   // pv(double r, double n, double y, double f, boolean t = false)
   @Function.Named("pv")
-  class ExcelPV extends Function.DoubleOut
+  class ExcelPV extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 4) {
         throw new RuntimeException("function 'pv' needs at least 4 arguments");
@@ -77,10 +78,10 @@ public interface ExcelFunctions extends Function.Library
 
   // nper(double r, double y, double p, double f, boolean t = false)
   @Function.Named("nper")
-  class ExcelNPER extends Function.DoubleOut
+  class ExcelNPER extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 5) {
         throw new RuntimeException("function 'nper' at least 4 arguments");
@@ -129,10 +130,10 @@ public interface ExcelFunctions extends Function.Library
 
   // pmt(double r, double n, double p, double f = 0D, boolean t = false)
   @Function.Named("pmt")
-  class ExcelPMT extends Function.DoubleOut
+  class ExcelPMT extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 3) {
         throw new RuntimeException("function 'pmt' needs at least 3 arguments");
@@ -151,10 +152,10 @@ public interface ExcelFunctions extends Function.Library
 
   // ipmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
   @Function.Named("ipmt")
-  class ExcelIPMT extends Function.DoubleOut
+  class ExcelIPMT extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 4) {
         throw new RuntimeException("function 'ipmt' needs at least 4 arguments");
@@ -174,10 +175,10 @@ public interface ExcelFunctions extends Function.Library
 
   // ppmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
   @Function.Named("ppmt")
-  class ExcelPPMT extends Function.DoubleOut
+  class ExcelPPMT extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 4) {
         throw new RuntimeException("function 'ppmt' needs at least 4 arguments");

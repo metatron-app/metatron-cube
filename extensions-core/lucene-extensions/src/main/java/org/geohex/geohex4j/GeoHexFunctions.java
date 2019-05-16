@@ -21,12 +21,12 @@ package org.geohex.geohex4j;
 
 import com.metamx.common.IAE;
 import com.vividsolutions.jts.geom.Geometry;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.math.expr.Function.NamedFactory;
 import io.druid.query.ShapeUtils;
 
 import java.util.List;
@@ -34,7 +34,7 @@ import java.util.List;
 public class GeoHexFunctions implements Function.Library
 {
   @Function.Named("to_geohex")
-  public static class ToGeoHex extends Function.StringFactory
+  public static class ToGeoHex extends NamedFactory.StringType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -42,10 +42,10 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 3) {
         throw new IAE("Function[%s] must have 3 arguments", name());
       }
-      return new StringChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
@@ -57,7 +57,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geom_to_geohex")
-  public static class GeomToGeoHex extends Function.LongFactory
+  public static class GeomToGeoHex extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -65,10 +65,10 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new LongChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -83,7 +83,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geohex_to_boundary")
-  public static class GeoHexToBoundary extends Function.DoubleArrayFactory
+  public static class GeoHexToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -91,10 +91,10 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new DoubleArrayChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
           double[] result = new double[coords.length << 1];
@@ -109,7 +109,7 @@ public class GeoHexFunctions implements Function.Library
   }
 
   @Function.Named("geohex_to_boundary_wkt")
-  public static class GeoHexToBoundaryWKT extends Function.StringFactory
+  public static class GeoHexToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -117,10 +117,10 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new StringChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
           StringBuilder builder = new StringBuilder("POLYGON((");

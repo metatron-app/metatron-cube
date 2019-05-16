@@ -426,13 +426,13 @@ final class FunctionExpr implements Expr, Expression.FuncExpression
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    return function.apply(args, bindings);
+    return function.returns(args, bindings);
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return function.apply(args, bindings);
+    return function.evlaluate(args, bindings);
   }
 }
 

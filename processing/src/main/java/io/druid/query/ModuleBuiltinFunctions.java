@@ -36,6 +36,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.math.expr.Function.NamedFunction;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
@@ -58,8 +59,14 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static @Json ObjectMapper jsonMapper;
 
   @Function.Named("truncatedRecent")
-  public static class TruncatedRecent extends Function.NamedFactory implements Function.FixedTyped
+  public static class TruncatedRecent extends Function.NamedFactory implements Function.TypeFixed
   {
+    @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      return ValueDesc.INTERVAL;
+    }
+
     @Override
     public Function create(List<Expr> args)
     {
@@ -72,13 +79,7 @@ public class ModuleBuiltinFunctions implements Function.Library
         final DateTimeFunctions.Recent recent = new DateTimeFunctions.Recent();
 
         @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.INTERVAL;
-        }
-
-        @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Interval interval = recent.toInterval(args, bindings);
           if (args.size() == 2) {
@@ -96,17 +97,17 @@ public class ModuleBuiltinFunctions implements Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.INTERVAL;
-    }
   }
 
   @Function.Named("lookupMap")
-  public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.FixedTyped
+  public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.TypeFixed
   {
+    @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      return ValueDesc.STRING;
+    }
+
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
@@ -140,10 +141,10 @@ public class ModuleBuiltinFunctions implements Function.Library
       final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
       final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
 
-      return new StringChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Object key = args.get(1).eval(bindings).value();
           String evaluated = Objects.toString(lookup.get(key), null);
@@ -154,17 +155,17 @@ public class ModuleBuiltinFunctions implements Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.STRING;
-    }
   }
 
   @Function.Named("lookup")
-  public static class LookupFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.FixedTyped
+  public static class LookupFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.TypeFixed
   {
+    @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      return ValueDesc.STRING;
+    }
+
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
@@ -190,10 +191,10 @@ public class ModuleBuiltinFunctions implements Function.Library
       final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
       final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
 
-      return new StringChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String evaluated = null;
           if (args.size() == 2) {
@@ -214,19 +215,13 @@ public class ModuleBuiltinFunctions implements Function.Library
         }
       };
     }
-
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.STRING;
-    }
   }
 
   @Function.Named("haversin_meter")
-  public static class HaversinMeter extends Function.DoubleOut
+  public static class HaversinMeter extends NamedFunction.DoubleType
   {
     @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
     {
       if (args.size() != 4) {
         throw new RuntimeException("function 'haversin_meter' needs 4 arguments (lat1,lon1,lat2,lon2)");

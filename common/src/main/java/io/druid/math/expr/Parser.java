@@ -76,7 +76,7 @@ public class Parser
       if (function instanceof Function.Factory) {
         factory = (Function.Factory) function;
       } else {
-        factory = asStateless((Function) function);
+        factory = wrapStateless((Function) function);
       }
       String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
       Function.Factory prev = functions.get(name);
@@ -119,21 +119,15 @@ public class Parser
     return functions;
   }
 
-  public static List<Function.FixedTyped> getStrictTypedFunctions()
+  public static List<Function.Factory> getAllFunctions()
   {
-    List<Function.FixedTyped> strict = Lists.newArrayList();
-    for (Function.Factory factory : functions.values()) {
-      if (factory instanceof Function.FixedTyped) {
-        strict.add((Function.FixedTyped) factory);
-      }
-    }
-    return strict;
+    return Lists.newArrayList(functions.values());
   }
 
-  private static Function.Factory asStateless(final Function function)
+  private static Function.Factory wrapStateless(final Function function)
   {
-    if (function instanceof Function.FixedTyped) {
-      return new Function.FixedTyped.Factory()
+    if (function instanceof Function.TypeFixed) {
+      return new Function.TypeFixed.Factory()
       {
         @Override
         public String name()
@@ -148,26 +142,33 @@ public class Parser
         }
 
         @Override
-        public ValueDesc returns()
+        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
         {
-          return ((Function.FixedTyped) function).returns();
+          return function.returns(args, bindings);
+        }
+      };
+    } else {
+      return new Function.Factory()
+      {
+        @Override
+        public String name()
+        {
+          return function.name();
+        }
+
+        @Override
+        public Function create(List<Expr> args)
+        {
+          return function;
+        }
+
+        @Override
+        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+        {
+          return function.returns(args, bindings);
         }
       };
     }
-    return new Function.Factory()
-    {
-      @Override
-      public String name()
-      {
-        return function.name();
-      }
-
-      @Override
-      public Function create(List<Expr> args)
-      {
-        return function;
-      }
-    };
   }
 
   public static Expr parse(String in)

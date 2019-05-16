@@ -23,11 +23,15 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.ExprVirtualColumn;
@@ -76,6 +80,7 @@ import io.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -83,6 +88,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -98,7 +104,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class DruidOperatorTable implements SqlOperatorTable
@@ -195,7 +200,7 @@ public class DruidOperatorTable implements SqlOperatorTable
   private static final Map<OperatorKey, SqlOperator> CONVERTLET_OPERATORS =
       DruidConvertletTable.knownOperators()
                           .stream()
-                          .collect(Collectors.toMap(OperatorKey::of, Function.identity()));
+                          .collect(Collectors.toMap(OperatorKey::of, java.util.function.Function.identity()));
 
   private final Map<OperatorKey, SqlAggregator> aggregators;
   private final Map<OperatorKey, SqlOperatorConversion> operatorConversions;
@@ -257,20 +262,46 @@ public class DruidOperatorTable implements SqlOperatorTable
       operatorConversions.putIfAbsent(operatorKey, operatorConversion);
     }
 
-    for (io.druid.math.expr.Function.FixedTyped factory : Parser.getStrictTypedFunctions()) {
-      Class clazz = factory.returns().asClass();
-      if (clazz == null || clazz == Object.class) {
-        continue;
+    for (final Function.Factory factory : Parser.getAllFunctions()) {
+      SqlReturnTypeInference retType;
+      if (factory instanceof Function.TypeFixed) {
+        ValueDesc type = factory.returns(null, null);
+        if (type == null || type.asClass() == Object.class) {
+          continue;
+        }
+        retType = ReturnTypes.explicit(Utils.asRelDataType(type.asClass()));
+      } else {
+        retType = new SqlReturnTypeInference()
+        {
+          @Override
+          public RelDataType inferReturnType(SqlOperatorBinding opBinding)
+          {
+            List<Expr> operands = Lists.newArrayList();
+            Map<String, ValueDesc> binding = Maps.newHashMap();
+            for (int i = 0; i < opBinding.getOperandCount(); i++) {
+              final ValueDesc type = Calcites.getValueDescForRelDataType(opBinding.getOperandType(i));
+              if (opBinding.isOperandNull(i, false) || opBinding.isOperandLiteral(i, false)) {
+                operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, Object.class), type));
+              } else {
+                String identifier = "p" + i;
+                operands.add(Evals.identifier(identifier));
+                binding.put(identifier, type);
+              }
+            }
+            ValueDesc type = factory.returns(operands, Parser.withTypeMap(binding));
+            if (type != null && type.asClass() != null) {
+              return Utils.asRelDataType(type.asClass());
+            }
+            return null;
+          }
+        };
       }
 
-      SqlReturnTypeInference retType = ReturnTypes.cascade(
-          ReturnTypes.explicit(Utils.asRelDataType(clazz)), SqlTypeTransforms.TO_NULLABLE
-      );
       String name = factory.name().toUpperCase();
       SqlOperator operator = new SqlFunction(
           name,
           SqlKind.OTHER_FUNCTION,
-          retType,
+          ReturnTypes.cascade(retType, SqlTypeTransforms.TO_NULLABLE),
           null,
           OperandTypes.VARIADIC,
           SqlFunctionCategory.SYSTEM

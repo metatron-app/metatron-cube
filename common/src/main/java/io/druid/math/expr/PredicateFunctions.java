@@ -27,6 +27,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Function.NamedFactory;
 
 import java.util.List;
 import java.util.Set;
@@ -41,13 +42,13 @@ public interface PredicateFunctions extends Function.Library
   final class IsNullFunc extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public ValueDesc returns(ValueDesc param)
     {
       return ValueDesc.BOOLEAN;
     }
 
     @Override
-    public ExprEval eval(ExprEval param)
+    public ExprEval evaluate(ExprEval param)
     {
       return ExprEval.of(param.isNull());
     }
@@ -57,13 +58,13 @@ public interface PredicateFunctions extends Function.Library
   final class IsNotNullFunc extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public ValueDesc returns(ValueDesc param)
     {
       return ValueDesc.BOOLEAN;
     }
 
     @Override
-    public ExprEval eval(ExprEval param)
+    public ExprEval evaluate(ExprEval param)
     {
       return ExprEval.of(!param.isNull());
     }
@@ -73,13 +74,13 @@ public interface PredicateFunctions extends Function.Library
   final class IsTrue extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public ValueDesc returns(ValueDesc param)
     {
       return ValueDesc.BOOLEAN;
     }
 
     @Override
-    public ExprEval eval(ExprEval param)
+    public ExprEval evaluate(ExprEval param)
     {
       return ExprEval.of(param.asBoolean());
     }
@@ -89,20 +90,20 @@ public interface PredicateFunctions extends Function.Library
   final class isFalse extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public ValueDesc returns(ValueDesc param)
     {
       return ValueDesc.BOOLEAN;
     }
 
     @Override
-    public ExprEval eval(ExprEval param)
+    public ExprEval evaluate(ExprEval param)
     {
       return ExprEval.of(!param.asBoolean());
     }
   }
 
   @Function.Named("like")
-  final class Like extends Function.BooleanFactory
+  final class Like extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -111,10 +112,10 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function '" + name() + "' needs 2 arguments");
       }
       final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = args.get(0).eval(bindings);
           return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
@@ -124,7 +125,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("in")
-  final class InFunc extends Function.BooleanFactory
+  final class InFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -136,10 +137,10 @@ public interface PredicateFunctions extends Function.Library
       for (int i = 1; i < args.size(); i++) {
         set.add(Evals.getConstant(args.get(i)));
       }
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
         }
@@ -148,7 +149,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("between")
-  final class BetweenFunc extends Function.BooleanFactory
+  final class BetweenFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -160,10 +161,10 @@ public interface PredicateFunctions extends Function.Library
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
       final ValueDesc type = eval1.type();
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
           return ExprEval.of(range.contains((Comparable) eval.value()));
@@ -173,7 +174,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("startsWith")
-  final class StartsWithFunc extends Function.BooleanFactory
+  final class StartsWithFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -182,10 +183,10 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'startsWith' needs 2 arguments");
       }
       final String prefix = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
@@ -195,7 +196,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("endsWith")
-  final class EndsWithFunc extends Function.BooleanFactory
+  final class EndsWithFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -204,10 +205,10 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'endsWith' needs 2 arguments");
       }
       final String suffix = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.endsWith(suffix));
@@ -217,7 +218,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("startsWithIgnoreCase")
-  final class StartsWithIgnoreCaseFunc extends Function.BooleanFactory
+  final class StartsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -227,10 +228,10 @@ public interface PredicateFunctions extends Function.Library
       }
       String value = Evals.getConstantString(args.get(1));
       final String prefix = value == null ? null : value.toLowerCase();
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
@@ -240,7 +241,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("endsWithIgnoreCase")
-  final class EndsWithIgnoreCaseFunc extends Function.BooleanFactory
+  final class EndsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -250,10 +251,10 @@ public interface PredicateFunctions extends Function.Library
       }
       String value = Evals.getConstantString(args.get(1));
       final String suffix = value == null ? null : value.toLowerCase();
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.toLowerCase().endsWith(suffix));
@@ -263,7 +264,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("contains")
-  final class ContainsFunc extends Function.BooleanFactory
+  final class ContainsFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -272,10 +273,10 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'contains' needs 2 arguments");
       }
       final String contained = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
@@ -285,7 +286,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("match")
-  final class MatchFunc extends Function.BooleanFactory
+  final class MatchFunc extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -294,10 +295,10 @@ public interface PredicateFunctions extends Function.Library
         throw new RuntimeException("function 'match' needs 2 arguments");
       }
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval != null && matcher.reset(eval).find());
@@ -307,7 +308,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("ipv4_in")
-  final class IPv4In extends Function.BooleanFactory
+  final class IPv4In extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args)
@@ -329,10 +330,10 @@ public interface PredicateFunctions extends Function.Library
           throw new IllegalArgumentException("start[n] <= end[n]");
         }
       }
-      return new BooleanChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String ipString = Evals.evalString(args.get(0), bindings);
           try {

@@ -58,17 +58,23 @@ public class Functions
           }
 
           @Override
-          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
           {
             return expr;
           }
 
           @Override
-          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+          public ValueDesc returns(List<Expr> args, TypeResolver bindings)
           {
             return expr.type();
           }
         };
+      }
+
+      @Override
+      public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      {
+        return expr.type();
       }
     };
   }

@@ -310,8 +310,8 @@ public class ExprListenerImpl extends ExprBaseListener
   public void exitFunctionExpr(ExprParser.FunctionExprContext ctx)
   {
     String fnName = ctx.getChild(0).getText();
-    Function.Factory function = functions.get(fnName.toLowerCase());
-    if (function == null) {
+    Function.Factory factory = functions.get(fnName.toLowerCase());
+    if (factory == null) {
       throw new RuntimeException("function " + fnName + " is not defined.");
     }
 
@@ -322,7 +322,7 @@ public class ExprListenerImpl extends ExprBaseListener
     }
     nodes.put(
         ctx,
-        new FunctionExpr(function.create(args), fnName, args)
+        new FunctionExpr(factory.create(args), fnName, args)
     );
   }
 

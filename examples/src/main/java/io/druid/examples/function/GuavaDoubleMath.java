@@ -38,13 +38,13 @@ public class GuavaDoubleMath implements Function.Library
   public static class Factorial extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public ValueDesc returns(ValueDesc param)
     {
       return ValueDesc.DOUBLE;
     }
 
     @Override
-    protected ExprEval eval(ExprEval param)
+    protected ExprEval evaluate(ExprEval param)
     {
       return ExprEval.of(DoubleMath.factorial(Ints.checkedCast(param.longValue())));
     }
@@ -54,7 +54,7 @@ public class GuavaDoubleMath implements Function.Library
   public static class FuzzyCompare extends BuiltinFunctions.TripleParam
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
     {
       return ValueDesc.DOUBLE;
     }

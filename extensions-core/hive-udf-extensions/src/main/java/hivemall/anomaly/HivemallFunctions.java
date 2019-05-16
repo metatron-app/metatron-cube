@@ -29,6 +29,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.math.expr.Function.NamedFactory;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
@@ -50,6 +51,12 @@ public interface HivemallFunctions extends Function.Library
   @Function.Named("changefinder")
   class ChangeFinderFunc extends BuiltinFunctions.NamedParams
   {
+    @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      return ValueDesc.UNKNOWN;   // todo
+    }
+
     @Override
     protected Function toFunction(List<Expr> args, final int start, final Map<String, ExprEval> parameter)
     {
@@ -108,13 +115,7 @@ public interface HivemallFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return output;
-        }
-
-        @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Object arg;
           if (start == 1) {
@@ -171,6 +172,12 @@ public interface HivemallFunctions extends Function.Library
   @Function.Named("sst")
   class SingularSpectrumTransformFunc extends BuiltinFunctions.NamedParams
   {
+    @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      return ValueDesc.UNKNOWN;   // todo
+    }
+
     @Override
     protected Function toFunction(List<Expr> args, final int start, final Map<String, ExprEval> parameter)
     {
@@ -232,13 +239,7 @@ public interface HivemallFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-        {
-          return output;
-        }
-
-        @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           try {
             sst.update(Evals.evalDouble(args.get(0), bindings), _scores);
@@ -280,7 +281,7 @@ public interface HivemallFunctions extends Function.Library
   }
 
   @Function.Named("rescale")
-  class RescaleFunc extends Function.NamedFactory
+  class RescaleFunc extends NamedFactory.DoubleType
   {
     @Override
     public Function create(List<Expr> args)
@@ -290,10 +291,10 @@ public interface HivemallFunctions extends Function.Library
       if (min > max) {
         throw new IllegalArgumentException("min value `" + min + "` SHOULD be less than max value `" + max + '`');
       }
-      return new DoubleChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final double value = Evals.evalDouble(args.get(0), bindings);
           if (min == max) {

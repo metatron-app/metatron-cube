@@ -125,6 +125,19 @@ public class HiveFunctions implements Function.Provider
     }
 
     @Override
+    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    {
+      final GenericUDF genericUDF = functionInfo.getGenericUDF();
+      final ObjectInspector[] arguments = toObjectInspectors(args, bindings);
+      try {
+        return ObjectInspectors.typeOf(genericUDF.initializeAndFoldConstants(arguments), ValueDesc.UNKNOWN);
+      }
+      catch (UDFArgumentException e) {
+        throw new IllegalArgumentException(e);
+      }
+    }
+
+    @Override
     public Function create(List<Expr> args)
     {
       final GenericUDF genericUDF = functionInfo.getGenericUDF();
@@ -142,13 +155,13 @@ public class HiveFunctions implements Function.Provider
         }
 
         @Override
-        public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
         {
           return intialize(args, bindings);
         }
 
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Preconditions.checkArgument(bindings instanceof TypeResolver, "Hive function needs type binding");
           intialize(args, (TypeResolver) bindings);

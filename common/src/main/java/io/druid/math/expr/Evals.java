@@ -294,6 +294,10 @@ public class Evals
   {
     ValueDesc type = eval.type();
     switch (type.type()) {
+      case BOOLEAN:
+        return new BooleanExpr(eval.asBoolean());
+      case FLOAT:
+        return new FloatExpr(eval.asFloat());
       case DOUBLE:
         return new DoubleExpr(eval.asDouble());
       case LONG:
@@ -311,6 +315,16 @@ public class Evals
       return eval.asLong();
     }
     throw new IllegalArgumentException("invalid type " + eval.type());
+  }
+
+  public static Expr constant(Object value, ValueDesc type)
+  {
+    return new RelayExpr(ExprEval.of(value, type));
+  }
+
+  public static Expr identifier(String identifier)
+  {
+    return new IdentifierExpr(identifier);
   }
 
   private static class RelayExpr implements Constant

@@ -24,7 +24,6 @@ import com.metamx.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -34,6 +33,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.math.expr.Function.NamedFactory;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
@@ -49,7 +49,7 @@ import java.util.List;
 public interface SQLFunctions extends Function.Library
 {
   @Function.Named("timestamp_ceil")
-  class TimestampCeilExprMacro extends Function.LongFactory
+  class TimestampCeilExprMacro extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -61,10 +61,10 @@ public interface SQLFunctions extends Function.Library
         throw new IAE("granularity should be constant value", name());
       }
       final Granularity granularity = ExprUtils.toPeriodGranularity(args, 1);
-      return new LongChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(granularity.bucketEnd(DateTimes.utc(args.get(0).eval(bindings).asLong())).getMillis());
         }
@@ -90,15 +90,9 @@ public interface SQLFunctions extends Function.Library
             return new HoldingChild<Object>(holder)
             {
               @Override
-              public ValueDesc apply(List<Expr> args, TypeResolver bindings)
+              public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
               {
-                return ValueDesc.LONG;
-              }
-
-              @Override
-              public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-              {
-                return function.apply(args, bindings);
+                return function.evlaluate(args, bindings);
               }
             };
           }
@@ -109,7 +103,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_floor")
-  class TimestampFloorExprMacro extends Function.LongFactory
+  class TimestampFloorExprMacro extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -126,22 +120,16 @@ public interface SQLFunctions extends Function.Library
         return new HoldingChild<PeriodGranularity>(granularity)
         {
           @Override
-          public ValueDesc apply(List<Expr> args, TypeResolver bindings)
-          {
-            return ValueDesc.LONG;
-          }
-
-          @Override
-          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
           {
             return evaluate(args.get(0).eval(bindings), granularity);
           }
         };
       }
-      return new LongChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return evaluate(args.get(0).eval(bindings), granularity);
         }
@@ -155,7 +143,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_format")
-  public class TimestampFormatExprMacro extends Function.StringFactory
+  public class TimestampFormatExprMacro extends NamedFactory.StringType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -185,10 +173,10 @@ public interface SQLFunctions extends Function.Library
                                           ? ISODateTimeFormat.dateTime()
                                           : DateTimeFormat.forPattern(formatString).withZone(timeZone);
 
-      return new StringChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(formatter.print(arg.eval(bindings).asLong()));
         }
@@ -197,7 +185,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_parse")
-  public class TimestampParseExprMacro extends Function.LongFactory
+  public class TimestampParseExprMacro extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -222,10 +210,10 @@ public interface SQLFunctions extends Function.Library
               JodaUtils.STANDARD_PARSER : DateTimeFormat.forPattern(formatString).withZone(timeZone)
           );
 
-      return new LongChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final String value = arg.eval(bindings).asString();
           if (value == null) {
@@ -246,7 +234,7 @@ public interface SQLFunctions extends Function.Library
   }
 
   @Function.Named("timestamp_shift")
-  public class TimestampShiftExprMacro extends Function.LongFactory
+  public class TimestampShiftExprMacro extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args)
@@ -264,15 +252,14 @@ public interface SQLFunctions extends Function.Library
       final Chronology chronology = ISOChronology.getInstance(granularity.getTimeZone());
       final int step = Evals.getConstantInt(args.get(2));
 
-      return new LongChild()
+      return new Child()
       {
         @Override
-        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(chronology.add(period, args.get(0).eval(bindings).asLong(), step));
         }
       };
     }
-
   }
 }
