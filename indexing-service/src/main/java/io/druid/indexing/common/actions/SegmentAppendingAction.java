@@ -39,6 +39,7 @@ import org.joda.time.Interval;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor>>
@@ -182,17 +183,16 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
   @Override
   public int hashCode()
   {
-    int result = dataSource.hashCode();
-    result = 31 * result + intervals.hashCode();
-    return result;
+    return Objects.hash(dataSource, intervals, segmentGranularity);
   }
 
   @Override
   public String toString()
   {
-    return "FindAppendingSegmentsAction{" +
+    return "SegmentAppendingAction{" +
            "dataSource='" + dataSource + '\'' +
            ", intervals=" + intervals +
+           ", segmentGranularity=" + segmentGranularity +
            '}';
   }
 }

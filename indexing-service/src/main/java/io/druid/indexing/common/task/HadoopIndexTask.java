@@ -279,17 +279,16 @@ public class HadoopIndexTask extends HadoopTask
     } else {
       lock = Iterables.get(getTaskLocks(toolbox), 0);
     }
-    String version = lock.getVersion();
-
     if (granularitySpec.isAppending()) {
       List<SegmentDescriptor> descriptors = actionClient.submit(
           new SegmentAppendingAction(dataSource, intervals, granularitySpec.getSegmentGranularity())
       );
-      indexerSchema = indexerSchema.withDataSchema(
-          dataSchema.withGranularitySpec(new AppendingGranularitySpec(granularitySpec, descriptors))
-      );
+      AppendingGranularitySpec appendingSpec = new AppendingGranularitySpec(granularitySpec, descriptors);
+      indexerSchema = indexerSchema.withDataSchema(dataSchema.withGranularitySpec(appendingSpec));
+      log.info("Granularity spec is rewritten as %s", appendingSpec);
     }
 
+    String version = lock.getVersion();
     log.info("Setting version to: %s", version);
 
     final String segments = invokeForeignLoader(

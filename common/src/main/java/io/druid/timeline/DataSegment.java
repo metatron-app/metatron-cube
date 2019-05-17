@@ -271,6 +271,11 @@ public class DataSegment implements Comparable<DataSegment>
     return builder(this).binaryVersion(binaryVersion).build();
   }
 
+  public DataSegment withShardSpec(ShardSpec shardSpec)
+  {
+    return builder(this).shardSpec(shardSpec).build();
+  }
+
   public DataSegment withMinimum()
   {
     return new DataSegment(dataSource, interval, version, null, null, null, shardSpec, binaryVersion, size);

@@ -22,6 +22,7 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.druid.common.utils.UUIDUtils;
@@ -67,6 +68,13 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
     this.ioConfig = ioConfig;
     this.tuningConfig = tuningConfig == null ? HadoopTuningConfig.makeDefaultTuningConfig() : tuningConfig;
     this.uniqueId = uniqueId == null ? UUIDUtils.generateUuid() : uniqueId;
+    if (dataSchema != null && dataSchema.getGranularitySpec() != null) {
+      Preconditions.checkArgument(
+          !dataSchema.getGranularitySpec().isAppending() ||
+          tuningConfig.getIngestionMode() != IngestionMode.MAPRED,
+          "Appending is not supported in MAPRED mode"
+      );
+    }
   }
 
   //for unit tests

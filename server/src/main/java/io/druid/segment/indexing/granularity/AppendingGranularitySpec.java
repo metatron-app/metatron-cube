@@ -110,4 +110,13 @@ public class AppendingGranularitySpec implements GranularitySpec
   {
     return true;
   }
+
+  @Override
+  public String toString()
+  {
+    return "AppendingGranularitySpec{" +
+           "granularitySpec=" + granularitySpec +
+           ", descriptors=" + descriptors +
+           '}';
+  }
 }

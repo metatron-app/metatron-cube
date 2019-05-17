@@ -89,6 +89,12 @@ public class FireDepartment extends IngestionSpec<RealtimeIOConfig, RealtimeTuni
     return tuningConfig;
   }
 
+  @Override
+  public FireDepartment withDataSchema(DataSchema dataSchema)
+  {
+    return new FireDepartment(dataSchema, ioConfig, tuningConfig);
+  }
+
   public Plumber findPlumber()
   {
     return ioConfig.getPlumberSchool().findPlumber(dataSchema, tuningConfig, metrics);

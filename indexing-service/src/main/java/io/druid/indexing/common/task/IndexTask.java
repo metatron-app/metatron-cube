@@ -30,7 +30,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -53,8 +52,11 @@ import io.druid.guice.GuiceInjectors;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
+import io.druid.indexing.common.actions.SegmentAppendingAction;
+import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.index.YeOldePlumberSchool;
 import io.druid.initialization.Initialization;
+import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.incremental.BaseTuningConfig;
@@ -62,6 +64,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.IOConfig;
 import io.druid.segment.indexing.IngestionSpec;
 import io.druid.segment.indexing.RealtimeTuningConfig;
+import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
@@ -69,6 +72,7 @@ import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
@@ -207,43 +211,50 @@ public class IndexTask extends AbstractFixedIntervalTask
   @Override
   public TaskStatus run(TaskToolbox toolbox) throws Exception
   {
-    final GranularitySpec granularitySpec = ingestionSchema.getDataSchema().getGranularitySpec();
+    final DataSchema dataSchema = ingestionSchema.getDataSchema();
+    final GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
     final IndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
 
     final TaskLock myLock = Iterables.getOnlyElement(getTaskLocks(toolbox));
     final Set<DataSegment> segments = Sets.newHashSet();
 
-    final Set<Interval> validIntervals = Sets.intersection(granularitySpec.bucketIntervals().get(), getDataIntervals());
+    final Set<Interval> validIntervals = Sets.intersection(
+        granularitySpec.bucketIntervals().get(), getDataIntervals(ingestionSchema)
+    );
     if (validIntervals.isEmpty()) {
       throw new ISE("No valid data intervals found. Check your configs!");
     }
 
+    IndexIngestionSpec ingestionSpec = ingestionSchema;
+    if (granularitySpec.isAppending()) {
+      TaskActionClient actionClient = toolbox.getTaskActionClient();
+      List<Interval> intervals = JodaUtils.condenseIntervals(validIntervals);
+      List<SegmentDescriptor> descriptors = actionClient.submit(
+          new SegmentAppendingAction(getDataSource(), intervals, granularitySpec.getSegmentGranularity())
+      );
+      AppendingGranularitySpec appendingSpec = new AppendingGranularitySpec(granularitySpec, descriptors);
+      ingestionSpec = ingestionSpec.withDataSchema(dataSchema.withGranularitySpec(appendingSpec));
+      log.info("Granularity spec is rewritten as %s", appendingSpec);
+    }
+
+    String version = myLock.getVersion();
+    log.info("Setting version to: %s", version);
+
     for (final Interval bucket : validIntervals) {
-      final List<ShardSpec> shardSpecs;
+      final int numShards;
       if (tuningConfig.getTargetPartitionSize() != null) {
-        int targetPartitionSize = tuningConfig.getTargetPartitionSize();
-        shardSpecs = determinePartitions(bucket, targetPartitionSize, granularitySpec.getQueryGranularity());
+        numShards = determineNumShards(ingestionSpec, bucket, tuningConfig.getTargetPartitionSize());
       } else {
-        int numShards = tuningConfig.getNumShards();
-        if (numShards > 0) {
-          shardSpecs = Lists.newArrayList();
-          for (int i = 0; i < numShards; i++) {
-            shardSpecs.add(new HashBasedNumberedShardSpec(i, numShards, null, jsonMapper));
-          }
-        } else {
-          shardSpecs = ImmutableList.<ShardSpec>of(NoneShardSpec.instance());
-        }
+        numShards = tuningConfig.getNumShards();
       }
-      for (final ShardSpec shardSpec : shardSpecs) {
-        final DataSegment segment = generateSegment(
-            toolbox,
-            ingestionSchema.getDataSchema(),
-            shardSpec,
-            bucket,
-            myLock.getVersion()
-        );
-        segments.add(segment);
-      }
+      final List<DataSegment> generated = generateSegment(
+          ingestionSpec,
+          toolbox,
+          bucket,
+          myLock.getVersion(),
+          numShards
+      );
+      segments.addAll(generated);
     }
     toolbox.publishSegments(segments);
     return TaskStatus.success(getId());
@@ -272,7 +283,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     return null;
   }
 
-  private SortedSet<Interval> getDataIntervals() throws IOException
+  private SortedSet<Interval> getDataIntervals(IndexIngestionSpec ingestionSchema) throws IOException
   {
     final FirehoseFactory firehoseFactory = ingestionSchema.getIOConfig().getFirehoseFactory();
     final GranularitySpec granularitySpec = ingestionSchema.getDataSchema().getGranularitySpec();
@@ -301,22 +312,23 @@ public class IndexTask extends AbstractFixedIntervalTask
     return retVal;
   }
 
-  private List<ShardSpec> determinePartitions(
+  private int determineNumShards(
+      final IndexIngestionSpec ingestionSpec,
       final Interval interval,
-      final int targetPartitionSize,
-      final Granularity queryGranularity
+      final int targetPartitionSize
   ) throws IOException
   {
     log.info("Determining partitions for interval[%s] with targetPartitionSize[%d]", interval, targetPartitionSize);
 
-    final FirehoseFactory firehoseFactory = ingestionSchema.getIOConfig().getFirehoseFactory();
+    final FirehoseFactory firehoseFactory = ingestionSpec.getIOConfig().getFirehoseFactory();
+    final Granularity queryGranularity = ingestionSpec.getDataSchema().getGranularitySpec().getQueryGranularity();
 
     // The implementation of this determine partitions stuff is less than optimal.  Should be done better.
     // Use HLL to estimate number of rows
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     // Load data
-    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser())) {
+    try (Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -342,27 +354,32 @@ public class IndexTask extends AbstractFixedIntervalTask
       numberOfShards = (int) numRows;
     }
     log.info("Will require [%,d] shard(s).", numberOfShards);
+    return numberOfShards;
+  }
 
-    // ShardSpecs we will return
-    final List<ShardSpec> shardSpecs = Lists.newArrayList();
-
-    if (numberOfShards == 1) {
-      shardSpecs.add(NoneShardSpec.instance());
-    } else {
-      for (int i = 0; i < numberOfShards; ++i) {
-        shardSpecs.add(new HashBasedNumberedShardSpec(i, numberOfShards, null, jsonMapper));
-      }
+  private List<DataSegment> generateSegment(
+      final IndexIngestionSpec ingestionSpec,
+      final TaskToolbox toolbox,
+      final Interval interval,
+      final String version,
+      final int numShards
+  ) throws IOException
+  {
+    List<DataSegment> segments = Lists.newArrayList();
+    for (int i = 0; i < numShards; i++) {
+      ShardSpec shardSpec = numShards == 1 ?
+                            NoneShardSpec.instance() : new HashBasedNumberedShardSpec(i, numShards, null, jsonMapper);
+      segments.add(generateSegment(ingestionSpec, toolbox, interval, version, shardSpec));
     }
-
-    return shardSpecs;
+    return segments;
   }
 
   private DataSegment generateSegment(
+      final IndexIngestionSpec ingestionSpec,
       final TaskToolbox toolbox,
-      final DataSchema schema,
-      final ShardSpec shardSpec,
       final Interval interval,
-      final String version
+      final String version,
+      final ShardSpec shardSpec
   ) throws IOException
   {
     // Set up temporary directory.
@@ -370,7 +387,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         toolbox.getTaskWorkDir(),
         String.format(
             "%s_%s_%s_%s_%s",
-            this.getDataSource(),
+            getDataSource(),
             interval.getStart(),
             interval.getEnd(),
             version,
@@ -378,8 +395,10 @@ public class IndexTask extends AbstractFixedIntervalTask
         )
     );
 
-    final FirehoseFactory firehoseFactory = ingestionSchema.getIOConfig().getFirehoseFactory();
-    final IndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
+    final DataSchema schema = ingestionSpec.getDataSchema();
+    final GranularitySpec granularity = schema.getGranularitySpec();
+    final FirehoseFactory firehoseFactory = ingestionSpec.getIOConfig().getFirehoseFactory();
+    final IndexTuningConfig tuningConfig = ingestionSpec.getTuningConfig();
     final int rowFlushBoundary = tuningConfig.getMaxRowsInMemory();
 
     // We need to track published segments.
@@ -402,9 +421,21 @@ public class IndexTask extends AbstractFixedIntervalTask
       @Override
       public DataSegment push(File file, DataSegment segment) throws IOException
       {
-        final DataSegment pushedSegment = toolbox.getSegmentPusher().push(file, segment);
-        pushedSegments.add(pushedSegment);
-        return pushedSegment;
+        if (granularity instanceof AppendingGranularitySpec) {
+          AppendingGranularitySpec appending = (AppendingGranularitySpec) granularity;
+          int appendingPartitionNum = 0;
+          String appendingVersion = version;
+          SegmentDescriptor descriptor = appending.getSegmentDescriptor(interval.getStartMillis());
+          if (descriptor != null) {
+            appendingPartitionNum = descriptor.getPartitionNumber();
+            appendingVersion = descriptor.getVersion();
+          }
+          segment = segment.withVersion(appendingVersion)
+                           .withShardSpec(LinearShardSpec.of(appendingPartitionNum + shardSpec.getPartitionNum()));
+        }
+        DataSegment pushed = toolbox.getSegmentPusher().push(file, segment);
+        pushedSegments.add(pushed);
+        return pushed;
       }
     };
 
@@ -415,7 +446,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Create firehose + plumber
     final FireDepartmentMetrics metrics = new FireDepartmentMetrics();
-    final Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser());
+    final Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser());
     final Supplier<Committer> committerSupplier = Committers.supplierFromFirehose(firehose);
     final Plumber plumber = new YeOldePlumberSchool(
         interval,
@@ -436,7 +467,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         metrics
     );
 
-    final Granularity rollupGran = ingestionSchema.getDataSchema().getGranularitySpec().getQueryGranularity();
+    final Granularity rollupGran = schema.getGranularitySpec().getQueryGranularity();
     try {
       plumber.startJob();
 
@@ -561,6 +592,12 @@ public class IndexTask extends AbstractFixedIntervalTask
     public IndexTuningConfig getTuningConfig()
     {
       return tuningConfig;
+    }
+
+    @Override
+    public IndexIngestionSpec withDataSchema(DataSchema dataSchema)
+    {
+      return new IndexIngestionSpec(dataSchema, ioConfig, tuningConfig);
     }
   }
 
