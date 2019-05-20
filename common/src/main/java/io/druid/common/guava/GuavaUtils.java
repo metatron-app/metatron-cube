@@ -404,9 +404,18 @@ public class GuavaUtils
 
   public static int[] indexOf(List<String> list, List<String> indexing)
   {
+    return indexOf(list, indexing, false);
+  }
+
+  public static int[] indexOf(List<String> list, List<String> indexing, boolean assertExistence)
+  {
     List<Integer> indices = Lists.newArrayList();
     for (String index : indexing) {
-      indices.add(list.indexOf(index));
+      final int i = list.indexOf(index);
+      if (assertExistence && i < 0) {
+        return null;
+      }
+      indices.add(i);
     }
     return Ints.toArray(indices);
   }

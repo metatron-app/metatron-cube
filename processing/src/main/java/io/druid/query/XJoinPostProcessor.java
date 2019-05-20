@@ -31,6 +31,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
+import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -210,7 +211,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport impl
     final JoinType type = toJoinType(index);
     final List<String> joinColumns = toJoinColumns(index);
     final List<String> aliases = Arrays.asList(alias);
-    final int[] indices = GuavaUtils.indexOf(columnNames, joinColumns);
+    final int[] indices = GuavaUtils.indexOf(columnNames, joinColumns, true);
+    if (indices == null) {
+      throw new IAE("Cannot find join column %s in %s", joinColumns, columnNames);
+    }
     if (hashing) {
       return new PrioritizedCallable.Background<JoinAlias>()
       {
