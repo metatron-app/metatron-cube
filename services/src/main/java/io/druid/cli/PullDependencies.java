@@ -255,23 +255,44 @@ public class PullDependencies implements Runnable
       }
 
       log.info("Start downloading dependencies for hadoop extension coordinates: [%s]", hadoopCoordinates);
-      for (final String hadoopCoordinate : hadoopCoordinates) {
-        final Artifact versionedArtifact = getArtifact(hadoopCoordinate);
+      for (String hadoopCoordinate : hadoopCoordinates) {
+        if (hadoopCoordinate.endsWith(":${hadoop.dist.version}")) {
+          if (noDefaultHadoop) {
+            continue;
+          }
+          hadoopCoordinate = "org.apache.hadoop:hadoop-client:2.3.0";
+        }
+        for (Artifact versionedArtifact : getArtifacts(hadoopCoordinate)) {
 
-        File currExtensionDir = new File(hadoopDependenciesDir, versionedArtifact.getArtifactId());
-        createExtensionDirectory(hadoopCoordinate, currExtensionDir);
+          File currExtensionDir = new File(hadoopDependenciesDir, versionedArtifact.getArtifactId());
+          createExtensionDirectory(hadoopCoordinate, currExtensionDir);
 
-        // add a version folder for hadoop dependency directory
-        currExtensionDir = new File(currExtensionDir, versionedArtifact.getVersion());
-        createExtensionDirectory(hadoopCoordinate, currExtensionDir);
+          // add a version folder for hadoop dependency directory
+          currExtensionDir = new File(currExtensionDir, versionedArtifact.getVersion());
+          createExtensionDirectory(hadoopCoordinate, currExtensionDir);
 
-        downloadExtension(versionedArtifact, currExtensionDir);
+          downloadExtension(versionedArtifact, currExtensionDir);
+        }
+        log.info("Finish downloading dependencies for hadoop extension coordinates: [%s]", hadoopCoordinates);
       }
-      log.info("Finish downloading dependencies for hadoop extension coordinates: [%s]", hadoopCoordinates);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private List<Artifact> getArtifacts(String coordinate)
+  {
+    int last = coordinate.lastIndexOf(':');
+    int comma = coordinate.indexOf(',', last);
+    if (comma < 0) {
+      return ImmutableList.of(getArtifact(coordinate));
+    }
+    List<Artifact> artifacts = Lists.newArrayList();
+    for (String version : coordinate.substring(last + 1).split(",")) {
+      artifacts.add(new DefaultArtifact(coordinate.substring(0, last + 1) + version));
+    }
+    return artifacts;
   }
 
   private Artifact getArtifact(String coordinate)

@@ -36,11 +36,11 @@
             <id>aether</id>
             <activation>
                 <property>
-                    <name>thrift.dist.version</name>
+                    <name>thrift.aether.version</name>
                 </property>
             </activation>
             <properties>
-                <thrift.compile.version>${thrift.dist.version}</thrift.compile.version>
+                <thrift.compile.version>${thrift.aether.version}</thrift.compile.version>
             </properties>
         </profile>
     </profiles>

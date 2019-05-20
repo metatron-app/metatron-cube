@@ -36,11 +36,11 @@
             <id>aether</id>
             <activation>
                 <property>
-                    <name>hadoop.dist.version</name>
+                    <name>hadoop.aether.version</name>
                 </property>
             </activation>
             <properties>
-                <hadoop.compile.version>${hadoop.dist.version}</hadoop.compile.version>
+                <hadoop.compile.version>${hadoop.aether.version}</hadoop.compile.version>
             </properties>
         </profile>
     </profiles>
