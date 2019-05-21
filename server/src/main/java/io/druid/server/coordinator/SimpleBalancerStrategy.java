@@ -92,7 +92,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
 
       final int numSegments = allSegments.size();
       final int groupPerServer = Math.max(1, numSegments / serverCount / 12);
-      final int tolerance = groupPerServer / 6;
+      final int tolerance = Math.max(1, groupPerServer / 6);
 
       final List<Integer> deficit = Lists.newArrayList();
       final List<Integer> excessive = Lists.newArrayList();
