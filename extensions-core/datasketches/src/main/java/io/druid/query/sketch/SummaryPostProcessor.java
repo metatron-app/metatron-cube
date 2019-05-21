@@ -40,6 +40,7 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
@@ -431,7 +432,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
       ValueDesc type
   )
   {
-    String escaped = "\"" + column + "\"";
+    String escaped = StringUtils.identifier(column);
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     List<PostAggregator> postAggregators = Lists.newArrayList();
@@ -452,7 +453,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
       aggregators.add(new VarianceAggregatorFactory(column + ".variance", column, inputType));
       aggregators.add(new KurtosisAggregatorFactory(column + ".skewness", column, null, inputType));
 
-      postAggregators.add(new MathPostAggregator(column + ".mean", column + ".sum / count"));
+      postAggregators.add(new MathPostAggregator(column + ".mean", StringUtils.identifier(column + ".sum") + "/count"));
       postAggregators.add(new StandardDeviationPostAggregator(column + ".stddev", column + ".variance", null));
     }
 

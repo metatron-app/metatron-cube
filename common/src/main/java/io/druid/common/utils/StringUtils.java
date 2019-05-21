@@ -259,4 +259,14 @@ public class StringUtils extends com.metamx.common.StringUtils
   {
     return text == null || text.length() < limit ? text : text.substring(limit) + "...";
   }
+
+  public static String identifier(String string)
+  {
+    return quote(string, '"');
+  }
+
+  public static String quote(String string, char quote)
+  {
+    return quote + string + quote;
+  }
 }
