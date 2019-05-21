@@ -25,9 +25,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.parsers.Parser;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.jackson.FunctionInitializer;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -144,10 +146,15 @@ public class RequestLogParseSpec implements ParseSpec
           }
           event.put("postAggregators", postAggregators);
         }
+        if (query instanceof BaseAggregationQuery) {
+          BaseAggregationQuery aggregationQuery = (BaseAggregationQuery) query;
+          event.put("hasWindowing", GuavaUtils.isNullOrEmpty(aggregationQuery.getLimitSpec().getWindowingSpecs()));
+        }
         boolean success = (boolean) result.get("success");
         event.put("success", String.valueOf(success));
         event.put("queryTime", result.get("query/time"));
         if (success) {
+          event.put("queryRows", result.get("query/rows"));
           event.put("queryBytes", result.get("query/bytes"));
         } else {
           event.put("exception", result.get("exception"));
