@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -59,6 +60,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -134,11 +137,36 @@ public class DruidShell implements CommonShell
     }
   }
 
-  private List<URL> discover(String service) throws Exception
+  private List<URL> discover(final String service) throws Exception
   {
+    Collection<ServiceInstance<String>> services = discovery.queryForInstances(service);
+    if (services.isEmpty()) {
+      services = Lists.newArrayList(
+          Iterables.concat(Iterables.transform(Iterables.filter(discovery.queryForNames(), new Predicate<String>()
+          {
+            @Override
+            public boolean apply(String input)
+            {
+              return input != null && input.contains(service);
+            }
+          }), new Function<String, Collection<ServiceInstance<String>>>()
+          {
+            @Override
+            public Collection<ServiceInstance<String>> apply(String input)
+            {
+              try {
+                return discovery.queryForInstances(input);
+              }
+              catch (Exception e) {
+                return Collections.emptyList();
+              }
+            }
+          }))
+      );
+    }
     return Lists.newArrayList(
         Iterables.transform(
-            discovery.queryForInstances(service),
+            services,
             new Function<ServiceInstance<String>, URL>()
             {
               @Override
