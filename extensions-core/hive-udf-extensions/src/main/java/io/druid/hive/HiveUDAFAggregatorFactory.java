@@ -31,6 +31,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
@@ -50,6 +51,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -68,9 +71,6 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   private final ValueDesc outputType;
   private final ValueDesc finalizedType;
   private final boolean merge;
-
-  private transient GenericUDAFEvaluator evaluator;
-  private transient ObjectInspector outputOI;
 
   public HiveUDAFAggregatorFactory(
       @JsonProperty("name") String name,
@@ -200,15 +200,17 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     }
     final Object[] params = new Object[selectors.length];
 
-    final GenericUDAFEvaluator evaluator;
+    final EvalInspector prepared;
     final GenericUDAFEvaluator.AggregationBuffer buffer;
     try {
-      evaluator = prepare(toAggregationMode());
-      buffer = evaluator.getNewAggregationBuffer();
+      prepared = prepare(toAggregationMode());
+      buffer = prepared.evaluator().getNewAggregationBuffer();
     }
     catch (HiveException e) {
       throw Throwables.propagate(e);
     }
+    final GenericUDAFEvaluator evaluator = prepared.evaluator();
+    final ObjectInspector outputOI = prepared.outputOI();
 
     return new Aggregator.Abstract()
     {
@@ -249,6 +251,17 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
           throw Throwables.propagate(e);
         }
       }
+
+      @Override
+      public void close()
+      {
+        try {
+          prepared.close();
+        }
+        catch (Exception e) {
+          // ignore
+        }
+      }
     };
   }
 
@@ -257,35 +270,29 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     return merge ? Mode.PARTIAL2 : Mode.PARTIAL1;
   }
 
-  private GenericUDAFEvaluator prepare(Mode mode) throws SemanticException
+  private EvalInspector prepare(Mode mode) throws SemanticException
   {
-    if (evaluator == null) {
-      synchronized (this) {
-        if (evaluator == null) {
-          try {
-            final TypeInfo[] typeInfos = new TypeInfo[inputTypes.size()];
-            for (int i = 0; i < typeInfos.length; i++) {
-              typeInfos[i] = ObjectInspectors.toTypeInfo(inputTypes.get(i));
-            }
-            final ObjectInspector[] inputOIs;
-            if (merge) {
-              inputOIs = new ObjectInspector[]{ObjectInspectors.toObjectInspector(outputType)};
-            } else {
-              inputOIs = new ObjectInspector[inputTypes.size()];
-              for (int i = 0; i < inputOIs.length; i++) {
-                inputOIs[i] = ObjectInspectors.toObjectInspector(inputTypes.get(i));
-              }
-            }
-            evaluator = getUDAFResolver().getEvaluator(typeInfos);
-            outputOI = evaluator.init(mode, inputOIs);
-          }
-          catch (Exception e) {
-            throw Throwables.propagate(e);
-          }
+    try {
+      final TypeInfo[] typeInfos = new TypeInfo[inputTypes.size()];
+      for (int i = 0; i < typeInfos.length; i++) {
+        typeInfos[i] = ObjectInspectors.toTypeInfo(inputTypes.get(i));
+      }
+      final ObjectInspector[] inputOIs;
+      if (merge) {
+        inputOIs = new ObjectInspector[]{ObjectInspectors.toObjectInspector(outputType)};
+      } else {
+        inputOIs = new ObjectInspector[inputTypes.size()];
+        for (int i = 0; i < inputOIs.length; i++) {
+          inputOIs[i] = ObjectInspectors.toObjectInspector(inputTypes.get(i));
         }
       }
+      GenericUDAFEvaluator evaluator = getUDAFResolver().getEvaluator(typeInfos);
+      ObjectInspector outputOI = evaluator.init(mode, inputOIs);
+      return EvalInspector.of(evaluator, outputOI);
     }
-    return evaluator;
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   private GenericUDAFResolver getUDAFResolver() throws SemanticException
@@ -325,9 +332,10 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
 
   private Combiner<Object> toCombiner(Mode mode)
   {
-    final HiveUDAFAggregatorFactory factory = withMerge(true);
-    try (GenericUDAFEvaluator evaluator = factory.prepare(mode)) {
+    try (EvalInspector prepared = withMerge(true).prepare(mode)) {
+      final GenericUDAFEvaluator evaluator = prepared.evaluator();
       final GenericUDAFEvaluator.AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
+      final ObjectInspector outputOI = prepared.outputOI();
       return new Combiner<Object>()
       {
         @Override
@@ -337,7 +345,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
             evaluator.reset(buffer);
             evaluator.merge(buffer, param1);
             evaluator.merge(buffer, param2);
-            return ObjectInspectors.evaluate(factory.outputOI, evaluator.evaluate(buffer));
+            return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(buffer));
           }
           catch (HiveException e) {
             throw Throwables.propagate(e);
@@ -412,8 +420,10 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
 
   private ValueDesc resolveType(Mode mode)
   {
-    try (GenericUDAFEvaluator evaluator = prepare(mode)) {
-      return Preconditions.checkNotNull(ObjectInspectors.typeOf(outputOI, null), "Cannot resolve output type");
+    try (EvalInspector prepared = prepare(mode)) {
+      return Preconditions.checkNotNull(
+          ObjectInspectors.typeOf(prepared.outputOI(), null), "Cannot resolve output type"
+      );
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
@@ -440,5 +450,34 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
            ", finalizedType=" + finalizedType +
            ", merge=" + merge +
            '}';
+  }
+
+  private static class EvalInspector extends Pair<GenericUDAFEvaluator, ObjectInspector> implements Closeable
+  {
+    private static EvalInspector of(GenericUDAFEvaluator lhs, ObjectInspector rhs)
+    {
+      return new EvalInspector(lhs, rhs);
+    }
+
+    private EvalInspector(GenericUDAFEvaluator lhs, ObjectInspector rhs)
+    {
+      super(lhs, rhs);
+    }
+
+    public GenericUDAFEvaluator evaluator()
+    {
+      return lhs;
+    }
+
+    public ObjectInspector outputOI()
+    {
+      return rhs;
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      lhs.close();
+    }
   }
 }
