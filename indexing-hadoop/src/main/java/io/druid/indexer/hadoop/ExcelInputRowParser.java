@@ -95,7 +95,7 @@ public class ExcelInputRowParser implements InputRowParser<ExcelRow>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new ExcelInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         columns,
         sheetNameColumn
     );

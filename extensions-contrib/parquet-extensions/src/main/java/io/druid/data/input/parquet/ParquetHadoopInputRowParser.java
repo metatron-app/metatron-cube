@@ -95,7 +95,7 @@ public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new ParquetHadoopInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions))
     );
   }
 }

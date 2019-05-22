@@ -68,7 +68,7 @@ public class NoopInputRowParser implements InputRowParser<InputRow>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new NoopInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions))
     );
   }
 

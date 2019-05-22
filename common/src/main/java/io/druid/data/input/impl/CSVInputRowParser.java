@@ -110,7 +110,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   {
     return new CSVInputRowParser(
         timestampSpec,
-        dimensionsSpec.withDimensionExclusions(exclusions),
+        DimensionsSpec.withExclusions(dimensionsSpec, exclusions),
         columns,
         delimiter,
         quoteCharacter,

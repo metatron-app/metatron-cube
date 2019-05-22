@@ -43,7 +43,6 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
@@ -317,15 +316,11 @@ public class BrokerQueryResource extends QueryResource
     if (!(segmentWalker instanceof ForwardingSegmentWalker)) {
       throw new UnsupportedOperationException("loadToIndex");
     }
-    final DataSchema schema = loadSpec.getSchema();
-    final InputRowParser parser = loadSpec.getParser();
-
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
-      final DimensionsSpec dimensionsSpec = parser.getDimensionsSpec();
-      if (!dimensionsSpec.hasCustomDimensions()) {
-        throw new IllegalArgumentException("Need to specify dimension specs, for now");
-      }
+      final DataSchema schema = loadSpec.getSchema();
+      final InputRowParser parser = loadSpec.getParser();
+
       List<URI> locations = loadSpec.getURIs();
       String scheme = locations.get(0).getScheme();
       StorageHandler writer = ((ForwardingSegmentWalker) segmentWalker).getHandler(scheme);
@@ -337,7 +332,7 @@ public class BrokerQueryResource extends QueryResource
       final GranularitySpec granularitySpec = schema.getGranularitySpec();
 
       IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
-          .withDimensionsSpec(dimensionsSpec)
+          .withDimensionsSpec(parser.getDimensionsSpec())
           .withMetrics(schema.getAggregators())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())

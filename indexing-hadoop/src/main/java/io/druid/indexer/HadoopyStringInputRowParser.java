@@ -92,7 +92,7 @@ public class HadoopyStringInputRowParser implements InputRowParser<Object>
   {
     ParseSpec parseSpec = parser.getParseSpec();
     return new HadoopyStringInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         encoding
     );
   }

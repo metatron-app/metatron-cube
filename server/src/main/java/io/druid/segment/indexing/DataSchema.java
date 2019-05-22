@@ -141,6 +141,9 @@ public class DataSchema
     }
 
     DimensionsSpec dimensionsSpec = inputRowParser.getDimensionsSpec();
+    if (dimensionsSpec == null) {
+      dimensionsSpec = new DimensionsSpec(null, null, null);
+    }
     TimestampSpec timestampSpec = inputRowParser.getTimestampSpec();
 
     // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions

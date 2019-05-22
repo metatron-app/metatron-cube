@@ -302,7 +302,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new OrcHadoopInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         typeString,
         null
     );

@@ -42,6 +42,15 @@ public class DimensionsSpec
   private final Set<String> dimensionExclusions;
   private final Map<String, DimensionSchema> dimensionSchemaMap;
 
+  public static DimensionsSpec withExclusions(DimensionsSpec current, Set<String> exclusions)
+  {
+    if (current == null) {
+      return new DimensionsSpec(null, Lists.<String>newArrayList(exclusions), null);
+    } else {
+      return current.withDimensionExclusions(exclusions);
+    }
+  }
+
   public static DimensionsSpec ofStringDimensions(List<String> dimensions)
   {
     return new DimensionsSpec(getDefaultSchemas(dimensions), null, null);
@@ -103,6 +112,7 @@ public class DimensionsSpec
 
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<DimensionSchema> getDimensions()
   {
     return dimensions;

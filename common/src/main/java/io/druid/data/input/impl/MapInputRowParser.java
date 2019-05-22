@@ -100,7 +100,7 @@ public class MapInputRowParser implements InputRowParser<Map<String, Object>>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new MapInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions))
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions))
     );
   }
 }

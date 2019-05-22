@@ -99,7 +99,7 @@ public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new AvroStreamInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         avroBytesDecoder
     );
   }

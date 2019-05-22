@@ -80,7 +80,7 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new ProtoBufInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         descriptorFileInClasspath
     );
   }

@@ -79,7 +79,7 @@ public class AvroHadoopInputRowParser implements InputRowParser<GenericRecord>
   public InputRowParser withDimensionExclusions(Set<String> exclusions)
   {
     return new AvroHadoopInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         fromPigAvroStorage
     );
   }

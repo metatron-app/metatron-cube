@@ -115,7 +115,7 @@ public class StringInputRowParser implements InputRowParser
   public InputRowParser withDimensionExclusions(Set exclusions)
   {
     return new StringInputRowParser(
-        parseSpec.withDimensionsSpec(parseSpec.getDimensionsSpec().withDimensionExclusions(exclusions)),
+        parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         getEncoding()
     );
   }
