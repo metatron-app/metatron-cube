@@ -412,7 +412,7 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                                 jsonMapper.writeValue(taskFile, task);
                               }
 
-                              log.info("Running command: %s", Joiner.on(" ").join(command));
+                              log.info("Forking java processor with: %s", Joiner.on(" ").join(Iterables.skip(command, 3)));
                               taskWorkItem.processHolder = new ProcessHolder(
                                   new ProcessBuilder(ImmutableList.copyOf(command)).redirectErrorStream(true).start(),
                                   logFile,
