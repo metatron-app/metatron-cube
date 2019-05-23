@@ -14,7 +14,6 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -28,7 +27,7 @@ import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.Metadata;
-import io.druid.segment.SimpleQueryableIndex;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
@@ -66,11 +65,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 
 /**
  */
@@ -81,7 +75,6 @@ public class IndexViewer implements CommonShell
   private final IndexIO indexIO;
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
-  private final ExecutorService executor;
 
   @Inject
   public IndexViewer(
@@ -93,19 +86,6 @@ public class IndexViewer implements CommonShell
     this.indexIO = indexIO;
     this.config = config;
     this.jsonMapper = jsonMapper;
-    this.executor = Executors.newFixedThreadPool(
-        10, new ThreadFactory()
-        {
-          private final ThreadFactory factory = Executors.defaultThreadFactory();
-          @Override
-          public Thread newThread(Runnable r)
-          {
-            Thread thread = factory.newThread(r);
-            thread.setDaemon(true);
-            return thread;
-          }
-        }
-    );
   }
 
   public void run(List<String> arguments) throws Exception
@@ -240,7 +220,7 @@ public class IndexViewer implements CommonShell
       }
       if (line.equalsIgnoreCase("?")) {
         for (String ds : mapping2.keySet()) {
-          writer.println("> " + ds);
+          writer.println("  " + ds);
         }
         continue;
       }
@@ -282,6 +262,9 @@ public class IndexViewer implements CommonShell
           catch (NumberFormatException e) {
             // ignore
           }
+          catch (Exception e) {
+            LOG.info("! Exception occurred.. %s", e);
+          }
         }
         continue;
       }
@@ -313,15 +296,24 @@ public class IndexViewer implements CommonShell
     }
   }
 
-  private void dumpIndex(IndexMeta index, PrintWriter writer)
+  private void dumpIndex(IndexMeta indexMeta, PrintWriter writer)
+  {
+    try (QueryableIndex index = indexMeta.index()) {
+      dumpIndex(index, indexMeta.offsets.get(), writer);
+    }
+    catch (IOException e) {
+      // ignore
+    }
+  }
+
+  private void dumpIndex(QueryableIndex index, Map<String, int[]> offsets, PrintWriter writer)
   {
     long totalSize = 0;
-    Map<String, int[]> offsets = index.offsets.get();
     List<Pair<String, int[]>> values = Lists.newArrayList();
-    Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.index().getColumnNames());
+    Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.getColumnNames());
     for (String column : columns) {
       values.add(Pair.of(column, offsets.get(column)));
-      totalSize += index.index().getColumn(column).getSerializedSize();
+      totalSize += index.getColumn(column).getSerializedSize();
     }
     Collections.sort(
         values, new Comparator<Pair<String, int[]>>()
@@ -340,7 +332,7 @@ public class IndexViewer implements CommonShell
     writer.println();
     writer.println(format("> Size of Index (except metadata) : %,d bytes", totalSize));
     writer.println(
-        format("  Number of Rows in index : %,d", index.index().getColumn(Column.TIME_COLUMN_NAME).getLength())
+        format("  Number of Rows in index : %,d", index.getColumn(Column.TIME_COLUMN_NAME).getLength())
     );
     Metadata metadata = index.getMetadata();
     if (metadata == null) {
@@ -364,18 +356,18 @@ public class IndexViewer implements CommonShell
         }
       }
     }
-    String bitmapFactory = index.index().getBitmapFactoryForDimensions().getClass().getSimpleName();
+    String bitmapFactory = index.getBitmapFactoryForDimensions().getClass().getSimpleName();
     writer.println(format("  Bitmap Factory : %s", bitmapFactory));
     writer.println();
 
-    Set<String> dimensions = Sets.newHashSet(index.index().getAvailableDimensions());
+    Set<String> dimensions = Sets.newHashSet(index.getAvailableDimensions());
     dimensions.add(Column.TIME_COLUMN_NAME);
 
     for (Pair<String, int[]> value : values) {
       String columnName = value.lhs;
       int[] offset = value.rhs;
 
-      Column column = index.index().getColumn(columnName);
+      Column column = index.getColumn(columnName);
       ColumnCapabilities capabilities = column.getCapabilities();
 
       long columnSize = column.getSerializedSize();
@@ -508,12 +500,6 @@ public class IndexViewer implements CommonShell
       if (splits.length != 3) {
         throw new ISE("Wrong number of splits[%d] in line[%s]", splits.length, line);
       }
-      final Integer numFiles = Integer.valueOf(splits[2]);
-      List<File> outFiles = Lists.newArrayListWithExpectedSize(numFiles);
-
-      for (int i = 0; i < numFiles; ++i) {
-        outFiles.add(new File(baseDir, toChunkFile(i)));
-      }
 
       Map<String, int[]> internalFiles = Maps.newTreeMap();
       while ((line = in.readLine()) != null) {
@@ -543,23 +529,27 @@ public class IndexViewer implements CommonShell
     private final File location;
     private final long size;
     private final DataSegment segment;
-    private final Future<SimpleQueryableIndex> index;
+    private final Supplier<QueryableIndex> index;
 
-    private IndexMeta(final File location, DataSegment segment) throws IOException
+    private IndexMeta(final File location, final DataSegment segment) throws IOException
     {
       this.location = location;
       this.size = FileUtils.sizeOfDirectory(location);
       this.segment = segment;
-      this.index = executor.submit(
-          new Callable<SimpleQueryableIndex>()
-          {
-            @Override
-            public SimpleQueryableIndex call() throws Exception
-            {
-              return (SimpleQueryableIndex) indexIO.loadIndex(location);
-            }
+      this.index = new Supplier<QueryableIndex>()
+      {
+        @Override
+        public QueryableIndex get()
+        {
+          try {
+            return indexIO.loadIndex(location);
           }
-      );
+          catch (Exception e) {
+            LOG.info(e, "Failed to load segment %s from %s", Objects.toString(segment, "x"), location);
+            throw Throwables.propagate(e);
+          }
+        }
+      };
     }
 
     private final Supplier<Map<String, int[]>> offsets = Suppliers.memoize(
@@ -578,19 +568,14 @@ public class IndexViewer implements CommonShell
         }
     );
 
-    public SimpleQueryableIndex index()
+    public QueryableIndex index()
     {
-      return Futures.getUnchecked(index);
+      return index.get();
     }
 
     public Interval getDataInterval()
     {
       return segment != null ? segment.getInterval() : index().getDataInterval();
-    }
-
-    public Metadata getMetadata()
-    {
-      return index().getMetadata();
     }
   }
 }
