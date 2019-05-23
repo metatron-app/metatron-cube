@@ -237,7 +237,11 @@ public class QueryResource
     final long start = System.currentTimeMillis();
     final Query query = readQuery(in, context);
     try {
-      log.info("Got query [%s]", log.isDebugEnabled() ? query : "[" + query.getType() + "]" + query.getId());
+      if (log.isDebugEnabled()) {
+        log.info("Got query [%s]", query);
+      } else {
+        log.info("Got query [%s:%s]", query.getType(), query.getId());
+      }
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
       final Query prepared = prepareQuery(query);

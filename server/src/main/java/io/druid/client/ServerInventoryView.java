@@ -113,20 +113,20 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
           @Override
           public void newContainer(DruidServer container)
           {
-            log.info("[%s:%s] Created", container.getType(), container.getName());
+            log.debug("[%s:%s] Created", container.getType(), container.getName());
           }
 
           @Override
           public void deadContainer(DruidServer deadContainer)
           {
-            log.info("[%s:%s] Disappeared", deadContainer.getType(), deadContainer.getName());
+            log.debug("[%s:%s] Disappeared", deadContainer.getType(), deadContainer.getName());
             runServerCallback(deadContainer, ServerCallback.Type.REMOVED);
           }
 
           @Override
           public DruidServer updateContainer(DruidServer oldContainer, DruidServer newContainer)
           {
-            log.info("[%s:%s] Updated", oldContainer.getType(), newContainer);
+            log.debug("[%s:%s] Updated", oldContainer.getType(), newContainer);
             DruidServer updated = newContainer.addDataSegments(oldContainer);
             runServerCallback(updated, ServerCallback.Type.UPDATED);
             return updated;

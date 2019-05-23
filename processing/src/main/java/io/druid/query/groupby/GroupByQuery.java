@@ -141,7 +141,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         context
     );
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
-    this.groupingSets = groupingSets;
+    this.groupingSets = groupingSets == null || groupingSets.isEmpty() ? null : groupingSets;
     for (DimensionSpec spec : this.dimensions) {
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }

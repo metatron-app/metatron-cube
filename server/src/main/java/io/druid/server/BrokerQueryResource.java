@@ -268,7 +268,7 @@ public class BrokerQueryResource extends QueryResource
       query = new SelectForwardQuery(query, context);
     }
     if (query != baseQuery) {
-      log.info("Base query is rewritten to %s", query);
+      log.debug("Base query is rewritten to %s", query);
     }
     return query;
   }

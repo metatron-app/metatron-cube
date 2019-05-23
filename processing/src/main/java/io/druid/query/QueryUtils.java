@@ -347,7 +347,9 @@ public class QueryUtils
         dimension = ((BaseFilteredDimensionSpec)dimension).getDelegate();
       }
       if (dimension instanceof DefaultDimensionSpec) {
-        mapping.put(dimension.getOutputName(), dimension.getDimension());
+        if (!dimension.getOutputName().equals(dimension.getDimension())) {
+          mapping.put(dimension.getOutputName(), dimension.getDimension());
+        }
       }
     }
     return mapping;

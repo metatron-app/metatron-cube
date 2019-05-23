@@ -470,7 +470,7 @@ public class DruidSchema extends AbstractSchema
       yielder.close();
     }
 
-    log.info(
+    log.debug(
         "Refreshed metadata for dataSource[%s] in %,d ms (%d segments queried, %d segments left).",
         dataSource,
         System.currentTimeMillis() - startTime,

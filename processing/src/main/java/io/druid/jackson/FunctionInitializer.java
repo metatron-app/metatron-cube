@@ -48,7 +48,7 @@ public class FunctionInitializer implements Module
   public static void init(ObjectMapper mapper)
   {
     log.info("finding expression functions..");
-    Parser.parse("");  // load builtin functions first
+    Parser.parse("1");  // load builtin functions first
     for (NamedType subType : resolveSubtypes(mapper, Function.Library.class)) {
       Parser.register(subType.getType());
     }

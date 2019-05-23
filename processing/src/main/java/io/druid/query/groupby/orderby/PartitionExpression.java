@@ -156,8 +156,8 @@ public class PartitionExpression implements Cacheable
   public String toString()
   {
     return "PartitionExpression{" +
-           (condition == null ? "" : "condition=" + condition) +
-           ", expression='" + expression + '\'' +
+           "expression='" + expression + '\'' +
+           (condition == null ? "" : ", condition=" + condition) +
            '}';
   }
 }

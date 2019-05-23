@@ -47,6 +47,8 @@ public interface GroupingSetSpec
 
   int[][] getGroupings(List<String> dimensions);
 
+  boolean isEmpty();
+
   public static class Names implements GroupingSetSpec
   {
     private final List<List<String>> names;
@@ -91,6 +93,12 @@ public interface GroupingSetSpec
         }
       }
       return groupings;
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      return names.isEmpty();
     }
 
     @Override
@@ -177,6 +185,12 @@ public interface GroupingSetSpec
     }
 
     @Override
+    public boolean isEmpty()
+    {
+      return indices.isEmpty();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       return o instanceof Indices && indices.equals(((Indices) o).indices);
@@ -256,6 +270,12 @@ public interface GroupingSetSpec
     }
 
     @Override
+    public boolean isEmpty()
+    {
+      return ids.isEmpty();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       return o instanceof Ids && ids.equals(((Ids) o).ids);
@@ -295,6 +315,12 @@ public interface GroupingSetSpec
       }
       groups[length] = new int[0];
       return groups;
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      return false;
     }
 
     @Override

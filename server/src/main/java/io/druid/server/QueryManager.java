@@ -52,6 +52,7 @@ public class QueryManager implements QueryWatcher, Runnable
   private static final Logger LOG = new Logger(QueryManager.class);
 
   private static final long DEFAULT_EXPIRE = 300_000;   // 5 min
+  private static final long LOG_THRESHOLD = 200;
 
   private final Map<String, QueryStatus> queries;
 
@@ -278,6 +279,10 @@ public class QueryManager implements QueryWatcher, Runnable
         return;
       }
       Collections.sort(filtered);
+      if (filtered.get(0).elapsed < LOG_THRESHOLD) {
+        // skip for trivial queries (meta queries, etc.)
+        return;
+      }
       long total = 0;
       int counter = 0;
       for (Timer timer : filtered) {
@@ -286,12 +291,8 @@ public class QueryManager implements QueryWatcher, Runnable
           counter++;
         }
       }
-      if (filtered.get(0).elapsed < 100) {
-        // skip for trivial queries (meta queries, etc.)
-        return;
-      }
       final long mean = total / counter;
-      final double threshold = mean * 1.2;
+      final double threshold = Math.max(LOG_THRESHOLD / 2, mean * 1.2);
 
       List<Timer> log = Lists.newArrayList(
           Iterables.filter(
