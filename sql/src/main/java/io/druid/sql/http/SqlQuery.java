@@ -25,26 +25,45 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
+import java.util.Objects;
 
 public class SqlQuery
 {
   private final String query;
+  private final ResultFormat resultFormat;
+  private final boolean header;
   private final Map<String, Object> context;
 
   @JsonCreator
   public SqlQuery(
       @JsonProperty("query") final String query,
+      @JsonProperty("resultFormat") final ResultFormat resultFormat,
+      @JsonProperty("header") final boolean header,
       @JsonProperty("context") final Map<String, Object> context
   )
   {
     this.query = Preconditions.checkNotNull(query, "query");
-    this.context = context == null ? ImmutableMap.<String, Object>of() : context;
+    this.resultFormat = resultFormat == null ? ResultFormat.OBJECT : resultFormat;
+    this.header = header;
+    this.context = context == null ? ImmutableMap.of() : context;
   }
 
   @JsonProperty
   public String getQuery()
   {
     return query;
+  }
+
+  @JsonProperty
+  public ResultFormat getResultFormat()
+  {
+    return resultFormat;
+  }
+
+  @JsonProperty("header")
+  public boolean includeHeader()
+  {
+    return header;
   }
 
   @JsonProperty
@@ -62,21 +81,17 @@ public class SqlQuery
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
     final SqlQuery sqlQuery = (SqlQuery) o;
-
-    if (query != null ? !query.equals(sqlQuery.query) : sqlQuery.query != null) {
-      return false;
-    }
-    return context != null ? context.equals(sqlQuery.context) : sqlQuery.context == null;
+    return header == sqlQuery.header &&
+           Objects.equals(query, sqlQuery.query) &&
+           resultFormat == sqlQuery.resultFormat &&
+           Objects.equals(context, sqlQuery.context);
   }
 
   @Override
   public int hashCode()
   {
-    int result = query != null ? query.hashCode() : 0;
-    result = 31 * result + (context != null ? context.hashCode() : 0);
-    return result;
+    return Objects.hash(query, resultFormat, header, context);
   }
 
   @Override
@@ -84,6 +99,8 @@ public class SqlQuery
   {
     return "SqlQuery{" +
            "query='" + query + '\'' +
+           ", resultFormat=" + resultFormat +
+           ", header=" + header +
            ", context=" + context +
            '}';
   }

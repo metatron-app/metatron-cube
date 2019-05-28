@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.metamx.common.IAE;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.io.AppendableByteArrayInputStream;
@@ -37,6 +38,9 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.Intervals;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunnerTestHelper;
@@ -53,6 +57,7 @@ import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.sql.calcite.planner.PlannerConfig;
+import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
@@ -89,6 +94,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+
+import static io.druid.data.ValueDesc.DOUBLE;
+import static io.druid.data.ValueDesc.FLOAT;
+import static io.druid.data.ValueDesc.STRING;
 
 public class SystemSchemaTest extends CalciteTestBase
 {
@@ -283,14 +292,14 @@ public class SystemSchemaTest extends CalciteTestBase
       MoreExecutors.sameThreadExecutor()
   );
   private final ImmutableDruidServer druidServer1 = new ImmutableDruidServer(
-      new DruidServerMetadata("server1", "localhost:0000", 5L, "ServerType.REALTIME", DruidServer.DEFAULT_TIER, 0),
+      new DruidServerMetadata("server1", "localhost:0000", 5L, "realtime", DruidServer.DEFAULT_TIER, 0),
       1L,
       null,
       ImmutableMap.of("segment1", segment1, "segment2", segment2)
   );
 
   private final ImmutableDruidServer druidServer2 = new ImmutableDruidServer(
-      new DruidServerMetadata("server2", "server2:1234", 5L, "ServerType.HISTORICAL", DruidServer.DEFAULT_TIER, 0),
+      new DruidServerMetadata("server2", "server2:1234", 5L, "historical", DruidServer.DEFAULT_TIER, 0),
       1L,
       null,
       ImmutableMap.of("segment2", segment2, "segment4", segment4, "segment5", segment5)
@@ -495,14 +504,17 @@ public class SystemSchemaTest extends CalciteTestBase
         return CalciteTests.SUPER_USER_AUTH_RESULT;
       }
     };
-    Enumerable<Object[]> rows = serversTable.scan(dataContext);
-    Assert.assertEquals(2, rows.count());
-    Object[] row1 = rows.first();
+    final List<Object[]> rows = serversTable.scan(dataContext).toList();
+    Assert.assertEquals(2, rows.size());
+    Object[] row1 = rows.get(0);
     Assert.assertEquals("localhost:0000", row1[0]);
-    Assert.assertEquals("ServerType.REALTIME", row1[4].toString());
-    Object[] row2 = rows.last();
+    Assert.assertEquals("realtime", row1[4].toString());
+    Object[] row2 = rows.get(1);
     Assert.assertEquals("server2:1234", row2[0]);
-    Assert.assertEquals("ServerType.HISTORICAL", row2[4].toString());
+    Assert.assertEquals("historical", row2[4].toString());
+
+    // Verify value types.
+    verifyTypes(rows, SystemSchema.SERVERS_SIGNATURE);
   }
 
   @Test
@@ -586,26 +598,79 @@ public class SystemSchemaTest extends CalciteTestBase
         return CalciteTests.SUPER_USER_AUTH_RESULT;
       }
     };
-    Enumerable<Object[]> rows = tasksTable.scan(dataContext);
-    Enumerator<Object[]> enumerator = rows.enumerator();
+    final List<Object[]> rows = tasksTable.scan(dataContext).toList();
 
-    Assert.assertEquals(true, enumerator.moveNext());
-    Object[] row1 = enumerator.current();
-    Assert.assertEquals("index_wikipedia_2018-09-20T22:33:44.911Z", row1[0].toString());
-    Assert.assertEquals("FAILED", row1[5].toString());
-    Assert.assertEquals("NONE", row1[6].toString());
-    Assert.assertEquals(-1L, row1[7]);
-    Assert.assertEquals("testHost:1234", row1[8]);
+    Object[] row0 = rows.get(0);
+    Assert.assertEquals("index_wikipedia_2018-09-20T22:33:44.911Z", row0[0].toString());
+    Assert.assertEquals("FAILED", row0[5].toString());
+    Assert.assertEquals("NONE", row0[6].toString());
+    Assert.assertEquals(-1L, row0[7]);
+    Assert.assertEquals("testHost:1234", row0[8]);
 
-    Assert.assertEquals(true, enumerator.moveNext());
-    Object[] row2 = enumerator.current();
-    Assert.assertEquals("index_wikipedia_2018-09-21T18:38:47.773Z", row2[0].toString());
-    Assert.assertEquals("RUNNING", row2[5].toString());
-    Assert.assertEquals("RUNNING", row2[6].toString());
-    Assert.assertEquals(null, row2[7]);
-    Assert.assertEquals("192.168.1.6:8100", row2[8]);
+    Object[] row1 = rows.get(1);
+    Assert.assertEquals("index_wikipedia_2018-09-21T18:38:47.773Z", row1[0].toString());
+    Assert.assertEquals("RUNNING", row1[5].toString());
+    Assert.assertEquals("RUNNING", row1[6].toString());
+    Assert.assertEquals(0L, row1[7]);
+    Assert.assertEquals("192.168.1.6:8100", row1[8]);
 
-    Assert.assertEquals(false, enumerator.moveNext());
+    // Verify value types.
+    verifyTypes(rows, SystemSchema.TASKS_SIGNATURE);
+  }
+
+  private static void verifyTypes(final List<Object[]> rows, final RowSignature signature)
+  {
+    final RelDataType rowType = signature.getRelDataType(new JavaTypeFactoryImpl());
+
+    for (Object[] row : rows) {
+      Assert.assertEquals(row.length, signature.getRowOrder().size());
+
+      for (int i = 0; i < row.length; i++) {
+        final Class<?> expectedClass;
+
+        final ValueDesc columnType = signature.getColumnType(signature.getRowOrder().get(i));
+        final boolean nullable = rowType.getFieldList().get(i).getType().isNullable();
+
+        switch (columnType.type()) {
+          case LONG:
+            expectedClass = Long.class;
+            break;
+          case FLOAT:
+            expectedClass = Float.class;
+            break;
+          case DOUBLE:
+            expectedClass = Double.class;
+            break;
+          case STRING:
+            expectedClass = String.class;
+            break;
+          default:
+            throw new IAE("Don't know what class to expect for valueType[%s]", columnType);
+        }
+
+        if (nullable) {
+          Assert.assertTrue(
+              StringUtils.format(
+                  "Column[%s] is a [%s] or null (was %s)",
+                  signature.getRowOrder().get(i),
+                  expectedClass.getName(),
+                  row[i] == null ? null : row[i].getClass().getName()
+              ),
+              row[i] == null || expectedClass.isAssignableFrom(row[i].getClass())
+          );
+        } else {
+          Assert.assertTrue(
+              StringUtils.format(
+                  "Column[%s] is a [%s] (was %s)",
+                  signature.getRowOrder().get(i),
+                  expectedClass.getName(),
+                  row[i] == null ? null : row[i].getClass().getName()
+              ),
+              row[i] != null && expectedClass.isAssignableFrom(row[i].getClass())
+          );
+        }
+      }
+    }
   }
 
 }

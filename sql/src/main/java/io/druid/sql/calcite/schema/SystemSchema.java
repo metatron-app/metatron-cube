@@ -26,25 +26,21 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.http.client.Request;
-import io.druid.client.DruidLeaderClient;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.JsonParserIterator;
 import io.druid.client.TimelineServerView;
-import io.druid.client.coordinator.Coordinator;
 import io.druid.client.coordinator.CoordinatorClient;
-import io.druid.client.indexing.IndexingService;
 import io.druid.client.indexing.IndexingServiceClient;
-import io.druid.client.selector.Server;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
-import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.timeline.DataSegment;
 import org.apache.calcite.DataContext;
@@ -60,12 +56,10 @@ import org.apache.calcite.schema.impl.AbstractSchema;
 import org.apache.calcite.schema.impl.AbstractTable;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -83,7 +77,7 @@ public class SystemSchema extends AbstractSchema
   private static final String SERVER_SEGMENTS_TABLE = "server_segments";
   private static final String TASKS_TABLE = "tasks";
 
-  private static final RowSignature SEGMENTS_SIGNATURE = RowSignature
+  static final RowSignature SEGMENTS_SIGNATURE = RowSignature
       .builder()
       .add("segment_id", ValueDesc.STRING)
       .add("datasource", ValueDesc.STRING)
@@ -91,7 +85,7 @@ public class SystemSchema extends AbstractSchema
       .add("end", ValueDesc.STRING)
       .add("size", ValueDesc.LONG)
       .add("version", ValueDesc.STRING)
-      .add("partition_num", ValueDesc.STRING)
+      .add("partition_num", ValueDesc.LONG)
       .add("num_replicas", ValueDesc.LONG)
       .add("num_rows", ValueDesc.LONG)
       .add("is_published", ValueDesc.LONG)
@@ -100,25 +94,25 @@ public class SystemSchema extends AbstractSchema
       .add("payload", ValueDesc.STRING)
       .build();
 
-  private static final RowSignature SERVERS_SIGNATURE = RowSignature
+  static final RowSignature SERVERS_SIGNATURE = RowSignature
       .builder()
       .add("server", ValueDesc.STRING)
       .add("host", ValueDesc.STRING)
-      .add("plaintext_port", ValueDesc.STRING)
-      .add("tls_port", ValueDesc.STRING)
+      .add("plaintext_port", ValueDesc.LONG)
+      .add("tls_port", ValueDesc.LONG)
       .add("server_type", ValueDesc.STRING)
       .add("tier", ValueDesc.STRING)
       .add("curr_size", ValueDesc.LONG)
       .add("max_size", ValueDesc.LONG)
       .build();
 
-  private static final RowSignature SERVER_SEGMENTS_SIGNATURE = RowSignature
+  static final RowSignature SERVER_SEGMENTS_SIGNATURE = RowSignature
       .builder()
       .add("server", ValueDesc.STRING)
       .add("segment_id", ValueDesc.STRING)
       .build();
 
-  private static final RowSignature TASKS_SIGNATURE = RowSignature
+  static final RowSignature TASKS_SIGNATURE = RowSignature
       .builder()
       .add("task_id", ValueDesc.STRING)
       .add("type", ValueDesc.STRING)
@@ -130,8 +124,8 @@ public class SystemSchema extends AbstractSchema
       .add("duration", ValueDesc.LONG)
       .add("location", ValueDesc.STRING)
       .add("host", ValueDesc.STRING)
-      .add("plaintext_port", ValueDesc.STRING)
-      .add("tls_port", ValueDesc.STRING)
+      .add("plaintext_port", ValueDesc.LONG)
+      .add("tls_port", ValueDesc.LONG)
       .add("error_msg", ValueDesc.STRING)
       .build();
 
@@ -148,12 +142,25 @@ public class SystemSchema extends AbstractSchema
   {
     Preconditions.checkNotNull(serverView, "serverView");
     BytesAccumulatingResponseHandler responseHandler = new BytesAccumulatingResponseHandler();
-    this.tableMap = ImmutableMap.of(
-        SEGMENTS_TABLE, new SegmentsTable(druidSchema, coordinatorDruidLeaderClient, jsonMapper, responseHandler),
-        SERVERS_TABLE, new ServersTable(serverView),
-        SERVER_SEGMENTS_TABLE, new ServerSegmentsTable(serverView),
-        TASKS_TABLE, new TasksTable(overlordDruidLeaderClient, jsonMapper, responseHandler)
-    );
+    this.tableMap = ImmutableMap.<String, Table>builder()
+      .put(
+          SEGMENTS_TABLE,
+          new SegmentsTable(druidSchema, coordinatorDruidLeaderClient, jsonMapper, responseHandler)
+      )
+      .put(
+          SERVERS_TABLE,
+          new ServersTable(serverView)
+      )
+      .put(
+          SERVER_SEGMENTS_TABLE,
+          new ServerSegmentsTable(serverView)
+      )
+      .put(
+          TASKS_TABLE,
+          new TasksTable(overlordDruidLeaderClient, jsonMapper, responseHandler)
+      )
+      .build();
+
   }
 
   @Override
@@ -226,14 +233,14 @@ public class SystemSchema extends AbstractSchema
               return new Object[]{
                   val.getKey().getIdentifier(),
                   val.getKey().getDataSource(),
-                  val.getKey().getInterval().getStart(),
-                  val.getKey().getInterval().getEnd(),
+                  val.getKey().getInterval().getStart().toString(),
+                  val.getKey().getInterval().getEnd().toString(),
                   val.getKey().getSize(),
                   val.getKey().getVersion(),
-                  val.getKey().getShardSpecWithDefault().getPartitionNum(),
+                  Long.valueOf(val.getKey().getShardSpecWithDefault().getPartitionNum()),
                   val.getValue().getNumReplicas(),
                   val.getValue().getNumRows(),
-                  val.getValue().isPublished(),
+                  val.getValue().isPublished(), // 1L, //is_published is true for published segments
                   val.getValue().isAvailable(),
                   val.getValue().isRealtime(),
                   jsonMapper.writeValueAsString(val.getKey())
@@ -262,16 +269,16 @@ public class SystemSchema extends AbstractSchema
               return new Object[]{
                   val.getIdentifier(),
                   val.getDataSource(),
-                  val.getInterval().getStart(),
-                  val.getInterval().getEnd(),
+                  val.getInterval().getStart().toString(),
+                  val.getInterval().getEnd().toString(),
                   val.getSize(),
                   val.getVersion(),
-                  val.getShardSpecWithDefault().getPartitionNum(),
+                  Long.valueOf(val.getShardSpecWithDefault().getPartitionNum()),
                   0L,
                   -1L,
                   1L,
                   0L,
-                  0L,
+                  0L, // TODO numReplicas
                   jsonMapper.writeValueAsString(val)
               };
             }
@@ -370,10 +377,10 @@ public class SystemSchema extends AbstractSchema
           .from(druidServers)
           .transform(val -> new Object[]{
               val.getHost(),
-              val.getHost().split(":")[0],
-              val.getHostAndPort() == null ? -1 : val.getHostAndPort().split(":")[1],
-              val.getHostAndTlsPort() == null ? -1 : val.getHostAndTlsPort().split(":")[1],
-              val.getType(),
+              extractHost(val.getHost()),
+              (long) extractPort(val.getHostAndPort()),
+              (long) extractPort(val.getHostAndTlsPort()),
+              toStringOrNull(val.getType()),
               val.getTier(),
               val.getCurrSize(),
               val.getMaxSize()
@@ -478,20 +485,31 @@ public class SystemSchema extends AbstractSchema
             public Object[] current()
             {
               TaskStatusPlus task = it.next();
-              // # 4270 tlsPort
-              return new Object[]{task.getId(),
-                                  task.getType(),
-                                  task.getDataSource(),
-                                  task.getCreatedTime(),
-                                  task.getQueueInsertionTime(),
-                                  task.getStatusCode(),
-                                  task.getRunnerStatusCode(),
-                                  task.getDuration(),
-                                  task.getLocation().getHost() + ":" + (task.getLocation().getPort()),
-                                  task.getLocation().getHost(),
-                                  task.getLocation().getPort(),
-                                  -1,
-                                  task.getErrorMsg()};
+              // TODO # 4270 tlsPort
+              final String hostAndPort;
+
+              if (task.getLocation().getHost() == null) {
+                hostAndPort = null;
+              } else {
+                final int port = task.getLocation().getPort();
+
+                hostAndPort = HostAndPort.fromParts(task.getLocation().getHost(), port).toString();
+              }
+              return new Object[]{
+                  task.getId(),
+                  task.getType(),
+                  task.getDataSource(),
+                  toStringOrNull(task.getCreatedTime()),
+                  toStringOrNull(task.getQueueInsertionTime()),
+                  toStringOrNull(task.getStatusCode()),
+                  toStringOrNull(task.getRunnerStatusCode()),
+                  task.getDuration() == null ? 0L : task.getDuration(),
+                  hostAndPort,
+                  task.getLocation().getHost(),
+                  (long) task.getLocation().getPort(),
+                  -1L,
+                  task.getErrorMsg()
+              };
             }
 
             @Override
@@ -598,6 +616,33 @@ public class SystemSchema extends AbstractSchema
     };
   }
 
+  @Nullable
+  private static String extractHost(@Nullable final String hostAndPort)
+  {
+    if (hostAndPort == null) {
+      return null;
+    }
 
+    return HostAndPort.fromString(hostAndPort).getHostText();
+  }
+
+  private static int extractPort(@Nullable final String hostAndPort)
+  {
+    if (hostAndPort == null) {
+      return -1;
+    }
+
+    return HostAndPort.fromString(hostAndPort).getPortOrDefault(-1);
+  }
+
+  @Nullable
+  private static String toStringOrNull(@Nullable final Object object)
+  {
+    if (object == null) {
+      return null;
+    }
+
+    return object.toString();
+  }
 
 }

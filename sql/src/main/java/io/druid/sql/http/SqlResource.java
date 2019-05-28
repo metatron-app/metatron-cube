@@ -61,6 +61,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -96,7 +97,7 @@ public class SqlResource
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(sqlQuery, ImmutableMap.of(), req);
+    return execute(new SqlQuery(sqlQuery, null, false, null), ImmutableMap.of(), req);
   }
 
   @POST
@@ -107,11 +108,11 @@ public class SqlResource
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(sqlQuery.getQuery(), sqlQuery.getContext(), req);
+    return execute(sqlQuery, sqlQuery.getContext(), req);
   }
 
   private Response execute(
-      final String query,
+      final SqlQuery sqlQuery,
       final Map<String, Object> context,
       final HttpServletRequest req
   ) throws SQLException, IOException
@@ -119,19 +120,24 @@ public class SqlResource
     final PlannerResult plannerResult;
     final DateTimeZone timeZone;
 
+    final String query = sqlQuery.getQuery();
     final long start = System.currentTimeMillis();
     try (final DruidPlanner planner = plannerFactory.createPlanner(context)) {
       plannerResult = planner.plan(query, brokerServerView, req);
       timeZone = planner.getPlannerContext().getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.
+      // Also store list of all column names, for X-Druid-Sql-Columns header.
       final List<RelDataTypeField> fieldList = plannerResult.rowType().getFieldList();
       final boolean[] timeColumns = new boolean[fieldList.size()];
       final boolean[] dateColumns = new boolean[fieldList.size()];
+      final String[] columnNames = new String[fieldList.size()];
+
       for (int i = 0; i < fieldList.size(); i++) {
         final SqlTypeName sqlTypeName = fieldList.get(i).getType().getSqlTypeName();
         timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
         dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
+        columnNames[i] = fieldList.get(i).getName();
       }
 
       final Yielder<Object[]> yielder0 = Yielders.each(plannerResult.run());
@@ -146,42 +152,41 @@ public class SqlResource
                 Yielder<Object[]> yielder = yielder0;
 
                 final StringBuilder builder = new StringBuilder();
+                Exception e = null;
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
-                try (final JsonGenerator jsonGenerator = jsonMapper.getFactory().createGenerator(os)) {
-                  jsonGenerator.writeStartArray();
+                try (final ResultFormat.Writer writer = sqlQuery.getResultFormat()
+                                                                .createFormatter(os, jsonMapper)) {
+                  writer.writeResponseStart();
+
+                  if (sqlQuery.includeHeader()) {
+                    writer.writeHeader(Arrays.asList(columnNames));
+                  }
 
                   while (!yielder.isDone()) {
                     final Object[] row = yielder.get();
-                    jsonGenerator.writeStartObject();
+                    writer.writeRowStart();
                     for (int i = 0; i < fieldList.size(); i++) {
                       final Object value;
 
                       if (timeColumns[i]) {
-                        value = JodaUtils.printTo(ISODateTimeFormat.dateTime(), builder,
+                        value = ISODateTimeFormat.dateTime().print(
                             Calcites.calciteTimestampToJoda((long) row[i], timeZone)
                         );
                       } else if (dateColumns[i]) {
-                        value = JodaUtils.printTo(ISODateTimeFormat.dateTime(), builder,
+                        value = ISODateTimeFormat.dateTime().print(
                             Calcites.calciteDateToJoda((int) row[i], timeZone)
                         );
                       } else {
                         value = row[i];
                       }
 
-                      jsonGenerator.writeObjectField(fieldList.get(i).getName(), value);
+                      writer.writeRowField(fieldList.get(i).getName(), value);
                     }
-                    jsonGenerator.writeEndObject();
+                    writer.writeRowEnd();
                     yielder = yielder.next(null);
                   }
 
-                  jsonGenerator.writeEndArray();
-                  jsonGenerator.flush();
-
-                  // End with CRLF
-                  os.write('\r');
-                  os.write('\n');
-
-                  os.flush(); // Some types of OutputStream suppress flush errors in the .close() method.
+                  writer.writeResponseEnd();
                 }
                 finally {
                   yielder.close();

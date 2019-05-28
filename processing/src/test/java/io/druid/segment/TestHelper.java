@@ -44,6 +44,7 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 
@@ -127,6 +128,16 @@ public class TestHelper
     catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static ObjectMapper makeJsonMapper()
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    mapper.setInjectableValues(
+        new InjectableValues.Std()
+            .addValue(ObjectMapper.class.getName(), mapper)
+    );
+    return mapper;
   }
 
   public static <T> Iterable<T> revert(Iterable<T> input) {

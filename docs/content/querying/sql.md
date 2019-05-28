@@ -6,6 +6,68 @@ Full SQL is currently not supported with Druid. SQL libraries on top of Druid ha
 
 The community SQL libraries are not yet as expressive as Druid's native query language. 
 
+## Client APIs
+
+### JSON over HTTP
+
+You can make Druid SQL queries using JSON over HTTP by posting to the endpoint `/druid/v2/sql/`. The request should
+be a JSON object with a "query" field, like `{"query" : "SELECT COUNT(*) FROM data_source WHERE foo = 'bar'"}`.
+
+You can use _curl_ to send SQL queries from the command-line:
+
+```bash
+$ cat query.json
+{"query":"SELECT COUNT(*) AS TheCount FROM data_source"}
+
+$ curl -XPOST -H'Content-Type: application/json' http://BROKER:8082/druid/v2/sql/ -d @query.json
+[{"TheCount":24433}]
+```
+#### Responses
+
+Druid SQL supports a variety of result formats. You can specify these by adding a "resultFormat" parameter, like:
+
+```json
+{
+  "query" : "SELECT COUNT(*) FROM data_source WHERE foo = 'bar' AND __time > TIMESTAMP '2000-01-01 00:00:00'",
+  "resultFormat" : "object"
+}
+```
+
+The supported result formats are:
+
+|Format|Description|Content-Type|
+|------|-----------|------------|
+|`object`|The default, a JSON array of JSON objects. Each object's field names match the columns returned by the SQL query, and are provided in the same order as the SQL query.|application/json|
+|`array`|JSON array of JSON arrays. Each inner array has elements matching the columns returned by the SQL query, in order.|application/json|
+|`objectLines`|Like "object", but the JSON objects are separated by newlines instead of being wrapped in a JSON array. This can make it easier to parse the entire response set as a stream, if you do not have ready access to a streaming JSON parser. To make it possible to detect a truncated response, this format includes a trailer of one blank line.|text/plain|
+|`arrayLines`|Like "array", but the JSON arrays are separated by newlines instead of being wrapped in a JSON array. This can make it easier to parse the entire response set as a stream, if you do not have ready access to a streaming JSON parser. To make it possible to detect a truncated response, this format includes a trailer of one blank line.|text/plain|
+
+You can additionally request a header by setting "header" to true in your request, like:
+
+```json
+{
+  "query" : "SELECT COUNT(*) FROM data_source WHERE foo = 'bar' AND __time > TIMESTAMP '2000-01-01 00:00:00'",
+  "resultFormat" : "arrayLines",
+  "header" : true
+}
+```
+
+In this case, the first result returned will be a header. For the `csv`, `array`, and `arrayLines` formats, the header
+will be a list of column names. For the `object` and `objectLines` formats, the header will be an object where the
+keys are column names, and the values are null.
+
+Errors that occur before the response body is sent will be reported in JSON, with an HTTP 500 status code, in the
+same format as [native Druid query errors](../querying#query-errors). If an error occurs while the response body is
+being sent, at that point it is too late to change the HTTP status code or report a JSON error, so the response will
+simply end midstream and an error will be logged by the Druid server that was handling your request.
+
+As a caller, it is important that you properly handle response truncation. This is easy for the "object" and "array"
+formats, since truncated responses will be invalid JSON. For the line-oriented formats, you should check the
+trailer they all include: one blank line at the end of the result set. If you detect a truncated response, either
+through a JSON parsing error or through a missing trailing newline, you should assume the response was not fully
+delivered due to an error.
+
+
 ## SYSTEM SCHEMA
 
 The "sys" schema provides visibility into Druid segments, servers and tasks.
