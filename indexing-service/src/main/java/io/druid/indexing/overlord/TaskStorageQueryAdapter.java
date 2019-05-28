@@ -22,7 +22,6 @@ package io.druid.indexing.overlord;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.data.Pair;
 import io.druid.indexer.TaskInfo;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
@@ -30,7 +29,6 @@ import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.timeline.DataSegment;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
@@ -55,12 +53,12 @@ public class TaskStorageQueryAdapter
     return storage.getActiveTasks();
   }
 
-  public List<TaskInfo<Task>> getActiveTaskInfo()
+  public List<TaskInfo<Task, TaskStatus>> getActiveTaskInfo(@Nullable String dataSource)
   {
-    return storage.getActiveTaskInfo();
+    return storage.getActiveTaskInfo(dataSource);
   }
 
-  public List<TaskInfo<Task>> getRecentlyCompletedTaskInfo(
+  public List<TaskInfo<Task, TaskStatus>> getRecentlyCompletedTaskInfo(
       @Nullable Integer maxTaskStatuses,
       @Nullable Duration duration,
       @Nullable String dataSource
@@ -105,8 +103,4 @@ public class TaskStorageQueryAdapter
     return segments;
   }
 
-  public Pair<DateTime, String> getCreatedDateAndDataSource(String taskId)
-  {
-    return storage.getCreatedDateTimeAndDataSource(taskId);
-  }
 }

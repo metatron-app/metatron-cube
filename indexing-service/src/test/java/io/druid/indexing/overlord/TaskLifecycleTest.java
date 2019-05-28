@@ -71,7 +71,7 @@ import io.druid.indexing.common.task.TaskResource;
 import io.druid.indexing.overlord.config.TaskQueueConfig;
 import io.druid.indexing.test.TestIndexerMetadataStorageCoordinator;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.metadata.SQLMetadataStorageActionHandlerFactory;
+import io.druid.metadata.DerbyMetadataStorageActionHandlerFactory;
 import io.druid.metadata.TestDerbyConnector;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.SegmentDescriptor;
@@ -391,7 +391,7 @@ public class TaskLifecycleTest
         taskStorage = new MetadataTaskStorage(
             testDerbyConnector,
             new TaskStorageConfig(null),
-            new SQLMetadataStorageActionHandlerFactory(
+            new DerbyMetadataStorageActionHandlerFactory(
                 testDerbyConnector,
                 derbyConnectorRule.metadataTablesConfigSupplier().get(),
                 mapper

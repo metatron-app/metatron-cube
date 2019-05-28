@@ -54,6 +54,7 @@ import io.druid.indexing.common.tasklogs.SwitchingTaskLogStreamer;
 import io.druid.indexing.common.tasklogs.TaskRunnerTaskLogStreamer;
 import io.druid.indexing.overlord.ForkingTaskRunnerFactory;
 import io.druid.indexing.overlord.HeapMemoryTaskStorage;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.MetadataTaskStorage;
 import io.druid.indexing.overlord.RemoteTaskRunnerFactory;
 import io.druid.indexing.overlord.TaskLockbox;
@@ -149,6 +150,7 @@ public class CliOverlord extends ServerRunnable
             binder.bind(TaskLockbox.class).in(LazySingleton.class);
             binder.bind(CoordinatorClient.class).in(LazySingleton.class);
             binder.bind(TaskStorageQueryAdapter.class).in(LazySingleton.class);
+            binder.bind(IndexerMetadataStorageAdapter.class).in(LazySingleton.class);
 
             binder.bind(ChatHandlerProvider.class).toProvider(Providers.<ChatHandlerProvider>of(null));
 

@@ -55,6 +55,7 @@ import io.druid.server.DruidNode;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -424,6 +425,19 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
     public TaskLocation getLocation()
     {
       return location;
+    }
+
+    @Nullable
+    @Override
+    public String getTaskType()
+    {
+      return "";
+    }
+
+    @Override
+    public String getDataSource()
+    {
+      return "";
     }
   }
 

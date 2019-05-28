@@ -36,11 +36,13 @@ import io.druid.curator.discovery.NoopServiceAnnouncer;
 import io.druid.indexer.TaskLocation;
 import io.druid.indexer.TaskState;
 import io.druid.indexer.TaskStatus;
+import io.druid.indexer.TaskStatusPlus;
 import io.druid.indexing.common.actions.TaskActionClientFactory;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.NoopTask;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.HeapMemoryTaskStorage;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskRunner;
@@ -202,10 +204,13 @@ public class OverlordTest
       Thread.sleep(10);
     }
     Assert.assertEquals(taskMaster.getLeader(), druidNode.getHostAndPort());
+
+    final TaskStorageQueryAdapter taskStorageQueryAdapter = new TaskStorageQueryAdapter(taskStorage);
     // Test Overlord resource stuff
     overlordResource = new OverlordResource(
         taskMaster,
-        new TaskStorageQueryAdapter(taskStorage),
+        taskStorageQueryAdapter,
+        new IndexerMetadataStorageAdapter(taskStorageQueryAdapter, null),
         null,
         null,
         null,
@@ -259,10 +264,10 @@ public class OverlordTest
     response = overlordResource.getRunningTasks(null, req);
     // 1 task that was manually inserted should be in running state
     Assert.assertEquals(1, (((List) response.getEntity()).size()));
-    final OverlordResource.TaskResponseObject taskResponseObject = ((List<OverlordResource.TaskResponseObject>) response
+    final TaskStatusPlus taskResponseObject = ((List<TaskStatusPlus>) response
         .getEntity()).get(0);
-    Assert.assertEquals(taskId_1, taskResponseObject.toJson().get("id"));
-    Assert.assertEquals(TASK_LOCATION, taskResponseObject.toJson().get("location"));
+    Assert.assertEquals(taskId_1, taskResponseObject.getId());
+    Assert.assertEquals(TASK_LOCATION, taskResponseObject.getLocation());
 
     // Simulate completion of task_1
     taskCompletionCountDownLatches[Integer.parseInt(taskId_1)].countDown();

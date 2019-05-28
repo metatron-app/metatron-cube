@@ -26,7 +26,9 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.PolyBind;
 import io.druid.guice.SQLMetadataStorageDruidModule;
 import io.druid.initialization.DruidModule;
+import io.druid.metadata.MetadataStorageActionHandlerFactory;
 import io.druid.metadata.MetadataStorageConnector;
+import io.druid.metadata.PostgreSQLMetadataStorageActionHandlerFactory;
 import io.druid.metadata.SQLMetadataConnector;
 
 import java.util.List;
@@ -60,6 +62,11 @@ public class PostgreSQLMetadataStorageModule extends SQLMetadataStorageDruidModu
     PolyBind.optionBinder(binder, Key.get(SQLMetadataConnector.class))
             .addBinding(TYPE)
             .to(PostgreSQLConnector.class)
+            .in(LazySingleton.class);
+
+    PolyBind.optionBinder(binder, Key.get(MetadataStorageActionHandlerFactory.class))
+            .addBinding(TYPE)
+            .to(PostgreSQLMetadataStorageActionHandlerFactory.class)
             .in(LazySingleton.class);
   }
 }

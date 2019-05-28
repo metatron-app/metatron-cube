@@ -20,14 +20,12 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.base.Optional;
-import io.druid.data.Pair;
 import io.druid.indexer.TaskInfo;
 import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.metadata.EntryExistsException;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
@@ -127,7 +125,7 @@ public interface TaskStorage
    *
    * @return list of {@link TaskInfo}
    */
-  List<TaskInfo<Task>> getActiveTaskInfo();
+  List<TaskInfo<Task, TaskStatus>> getActiveTaskInfo(@Nullable String dataSource);
 
   /**
    * Returns up to {@code maxTaskStatuses} {@link TaskInfo} objects of recently finished tasks as stored in the storage facility. No
@@ -139,14 +137,11 @@ public interface TaskStorage
    *
    * @return list of {@link TaskInfo}
    */
-  List<TaskInfo<Task>> getRecentlyFinishedTaskInfo(
+  List<TaskInfo<Task, TaskStatus>> getRecentlyFinishedTaskInfo(
       @Nullable Integer maxTaskStatuses,
       @Nullable Duration duration,
       @Nullable String datasource
   );
-
-  @Nullable
-  Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId);
 
   /**
    * Returns a list of locks for a particular task.

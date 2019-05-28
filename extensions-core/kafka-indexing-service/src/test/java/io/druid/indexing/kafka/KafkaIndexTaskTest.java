@@ -78,9 +78,9 @@ import io.druid.indexing.overlord.TaskStorage;
 import io.druid.indexing.test.TestDataSegmentAnnouncer;
 import io.druid.indexing.test.TestDataSegmentKiller;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.metadata.DerbyMetadataStorageActionHandlerFactory;
 import io.druid.metadata.EntryExistsException;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
-import io.druid.metadata.SQLMetadataStorageActionHandlerFactory;
 import io.druid.metadata.TestDerbyConnector;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.Druids;
@@ -1494,7 +1494,7 @@ public class KafkaIndexTaskTest
     taskStorage = new MetadataTaskStorage(
         derbyConnector,
         new TaskStorageConfig(null),
-        new SQLMetadataStorageActionHandlerFactory(
+        new DerbyMetadataStorageActionHandlerFactory(
             derbyConnector,
             derby.metadataTablesConfigSupplier().get(),
             objectMapper

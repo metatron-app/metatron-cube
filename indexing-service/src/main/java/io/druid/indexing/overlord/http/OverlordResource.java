@@ -61,9 +61,6 @@ import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
 import io.druid.indexer.RunnerTaskState;
 import io.druid.indexer.TaskInfo;
-import io.druid.indexer.TaskLocation;
-import io.druid.indexer.TaskState;
-import io.druid.indexer.TaskStatus;
 import io.druid.indexer.TaskStatusPlus;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.actions.TaskActionHolder;
@@ -71,6 +68,7 @@ import io.druid.indexing.common.task.HadoopIndexTask;
 import io.druid.indexing.common.task.IndexTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskQueue;
 import io.druid.indexing.overlord.TaskRunner;
@@ -127,7 +125,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 /**
  */
@@ -138,6 +135,7 @@ public class OverlordResource
 
   private final TaskMaster taskMaster;
   private final TaskStorageQueryAdapter taskStorageQueryAdapter;
+  private final IndexerMetadataStorageAdapter indexerMetadataStorageAdapter;
   private final TaskLogStreamer taskLogStreamer;
   private final JacksonConfigManager configManager;
   private final AuditManager auditManager;
@@ -154,6 +152,7 @@ public class OverlordResource
   public OverlordResource(
       TaskMaster taskMaster,
       TaskStorageQueryAdapter taskStorageQueryAdapter,
+      IndexerMetadataStorageAdapter indexerMetadataStorageAdapter,
       TaskLogStreamer taskLogStreamer,
       JacksonConfigManager configManager,
       AuditManager auditManager,
@@ -165,6 +164,7 @@ public class OverlordResource
   {
     this.taskMaster = taskMaster;
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
+    this.indexerMetadataStorageAdapter = indexerMetadataStorageAdapter;
     this.taskLogStreamer = taskLogStreamer;
     this.configManager = configManager;
     this.auditManager = auditManager;
@@ -230,6 +230,7 @@ public class OverlordResource
     return Response.ok(taskMaster.getLeader()).build();
   }
 
+  // TODO DruidShell
 //  @GET
 //  @Path("/tasks")
 //  @Produces(MediaType.APPLICATION_JSON)
@@ -653,11 +654,11 @@ public class OverlordResource
       }
     };
 
-    Function<TaskInfo<Task>, TaskStatusPlus> completeTaskTransformFunc = new Function<TaskInfo<Task>, TaskStatusPlus>()
+    Function<TaskInfo<Task, TaskStatus>, TaskStatusPlus> completeTaskTransformFunc = new Function<TaskInfo<Task, TaskStatus>, TaskStatusPlus>()
     {
       @Nullable
       @Override
-      public TaskStatusPlus apply(@Nullable TaskInfo<Task> taskInfo)
+      public TaskStatusPlus apply(@Nullable TaskInfo<Task, TaskStatus> taskInfo)
       {
         return new TaskStatusPlus(
             taskInfo.getId(),
@@ -683,18 +684,18 @@ public class OverlordResource
         final Interval theInterval = Intervals.of(interval.replace("_", "/"));
         duration = theInterval.toDuration();
       }
-      final List<TaskInfo<Task>> taskInfoList = taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(
+      final List<TaskInfo<Task, TaskStatus>> taskInfoList = taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(
           maxCompletedTasks, duration, dataSource
       );
       final List<TaskStatusPlus> completedTasks = Lists.transform(taskInfoList, completeTaskTransformFunc);
       finalTaskList.addAll(completedTasks);
     }
 
-    List<TaskInfo<Task>> allActiveTaskInfo = Lists.newArrayList();
+    final List<TaskInfo<Task, TaskStatus>> allActiveTaskInfo;
     final List<AnyTask> allActiveTasks = Lists.newArrayList();
     if (state == null || !"complete".equals(StringUtils.toLowerCase(state))) {
-      allActiveTaskInfo = taskStorageQueryAdapter.getActiveTaskInfo();
-      for (final TaskInfo<Task> task : allActiveTaskInfo) {
+      allActiveTaskInfo = taskStorageQueryAdapter.getActiveTaskInfo(dataSource);
+      for (final TaskInfo<Task, TaskStatus> task : allActiveTaskInfo) {
         allActiveTasks.add(
             new AnyTask(
                 task.getId(),
@@ -1073,22 +1074,28 @@ public class OverlordResource
     final AuthorizationInfo authorizationInfo =
         (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
 
-    Function<TaskStatusPlus, Iterable<ResourceAction>> raGenerator = taskStatusPlus -> {
-      final String taskId = taskStatusPlus.getId();
-      final String taskDatasource = taskStatusPlus.getDataSource();
-      if (taskDatasource == null) {
-        throw new WebApplicationException(
-            Response.serverError().entity(
-                StringUtils.format("No task information found for task with id: [%s]", taskId)
-            ).build()
+    final Function<TaskStatusPlus, Iterable<ResourceAction>> raGenerator = new Function<TaskStatusPlus, Iterable<ResourceAction>>()
+    {
+      @Nullable
+      @Override
+      public Iterable<ResourceAction> apply(@Nullable TaskStatusPlus taskStatusPlus)
+      {
+        final String taskId = taskStatusPlus.getId();
+        final String taskDatasource = taskStatusPlus.getDataSource();
+        if (taskDatasource == null) {
+          throw new WebApplicationException(
+              Response.serverError().entity(
+                  StringUtils.format("No task information found for task with id: [%s]", taskId)
+              ).build()
+          );
+        }
+        return Lists.newArrayList(
+            new ResourceAction(
+                new Resource(taskDatasource, ResourceType.DATASOURCE),
+                Action.READ
+            )
         );
       }
-      return Lists.newArrayList(
-          new ResourceAction(
-              new Resource(taskDatasource, ResourceType.DATASOURCE),
-              Action.READ
-          )
-      );
     };
 
     List<TaskStatusPlus> optionalTypeFilteredList = collectionToFilter;
@@ -1136,6 +1143,10 @@ public class OverlordResource
   }
 
 
+  /**
+   * Use {@link TaskStatusPlus}
+   */
+  @Deprecated
   static class TaskResponseObject
   {
     private final String id;

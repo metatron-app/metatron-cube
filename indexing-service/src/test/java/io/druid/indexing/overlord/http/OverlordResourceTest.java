@@ -31,6 +31,7 @@ import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.task.AbstractTask;
 import io.druid.indexing.common.task.NoopTask;
 import io.druid.indexing.common.task.Task;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
@@ -60,7 +61,8 @@ public class OverlordResourceTest
 {
   private OverlordResource overlordResource;
   private TaskMaster taskMaster;
-  private TaskStorageQueryAdapter tsqa;
+  private TaskStorageQueryAdapter taskStorageQueryAdapter;
+  private IndexerMetadataStorageAdapter indexerMetadataStorageAdapter;
   private HttpServletRequest req;
   private TaskRunner taskRunner;
 
@@ -69,7 +71,8 @@ public class OverlordResourceTest
   {
     taskRunner = EasyMock.createMock(TaskRunner.class);
     taskMaster = EasyMock.createStrictMock(TaskMaster.class);
-    tsqa = EasyMock.createStrictMock(TaskStorageQueryAdapter.class);
+    taskStorageQueryAdapter = EasyMock.createStrictMock(TaskStorageQueryAdapter.class);
+    indexerMetadataStorageAdapter = EasyMock.createStrictMock(IndexerMetadataStorageAdapter.class);
     req = EasyMock.createStrictMock(HttpServletRequest.class);
 
     EasyMock.expect(taskMaster.getTaskRunner()).andReturn(
@@ -78,7 +81,8 @@ public class OverlordResourceTest
 
     overlordResource = new OverlordResource(
         taskMaster,
-        tsqa,
+        taskStorageQueryAdapter,
+        indexerMetadataStorageAdapter,
         null,
         null,
         null,
@@ -103,14 +107,14 @@ public class OverlordResourceTest
             }
           }
         }
-    );
+    ).anyTimes();
   }
 
   @Test
-  public void testSecuredGetWaitingTask() throws Exception
+  public void testSecuredGetWaitingTask()
   {
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -149,12 +153,12 @@ public class OverlordResourceTest
         )
     );
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
 
-    List<OverlordResource.TaskResponseObject> responseObjects = (List) overlordResource.getWaitingTasks(req)
+    List<TaskStatusPlus> responseObjects = (List) overlordResource.getWaitingTasks(req)
                                                                                        .getEntity();
     Assert.assertEquals(1, responseObjects.size());
-    Assert.assertEquals("id_2", responseObjects.get(0).toJson().get("id"));
+    Assert.assertEquals("id_2", responseObjects.get(0).getId());
   }
 
   @Test
@@ -167,8 +171,8 @@ public class OverlordResourceTest
             new MockTaskRunnerWorkItem(tasksIds.get(1), null),
             new MockTaskRunnerWorkItem(tasksIds.get(2), null)));
 
-    EasyMock.expect(tsqa.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -192,8 +196,8 @@ public class OverlordResourceTest
             )
         )
     );
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
-    Assert.assertTrue(tsqa.getRecentlyCompletedTaskInfo(null, null, null).size() == 3);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
+    Assert.assertTrue(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null).size() == 3);
     Assert.assertTrue(taskRunner.getRunningTasks().size() == 3);
     List<TaskStatusPlus> responseObjects = (List) overlordResource
           .getCompleteTasks(null, req).getEntity();
@@ -213,8 +217,8 @@ public class OverlordResourceTest
             new MockTaskRunnerWorkItem(tasksIds.get(1), null)
         )
     );
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -232,21 +236,21 @@ public class OverlordResourceTest
         )
     );
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
 
-    List<OverlordResource.TaskResponseObject> responseObjects = (List) overlordResource.getRunningTasks(null,req)
+    List<TaskStatusPlus> responseObjects = (List) overlordResource.getRunningTasks(null,req)
                                                                                        .getEntity();
 
     Assert.assertEquals(1, responseObjects.size());
-    Assert.assertEquals(tasksIds.get(1), responseObjects.get(0).toJson().get("id"));
+    Assert.assertEquals(tasksIds.get(1), responseObjects.get(0).getId());
   }
 
   @Test
   public void testGetTasks()
   {
     //completed tasks
-    EasyMock.expect(tsqa.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_5",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -271,8 +275,8 @@ public class OverlordResourceTest
         )
     );
     //active tasks
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -323,7 +327,7 @@ public class OverlordResourceTest
         )
     );
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks(null, null, null, null, null, req, null)
         .getEntity();
@@ -334,8 +338,8 @@ public class OverlordResourceTest
   public void testGetTasksFilterDataSource()
   {
     //completed tasks
-    EasyMock.expect(tsqa.getRecentlyCompletedTaskInfo(null, null, "allow")).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, "allow")).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_5",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -360,8 +364,8 @@ public class OverlordResourceTest
         )
     );
     //active tasks
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo("allow")).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -409,7 +413,7 @@ public class OverlordResourceTest
             new MockTaskRunnerWorkItem("id_1", null)
         )
     );
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
 
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks(null, "allow", null, null, null, req, null)
@@ -423,8 +427,8 @@ public class OverlordResourceTest
   public void testGetTasksFilterWaitingState()
   {
     //active tasks
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -463,7 +467,7 @@ public class OverlordResourceTest
         )
     );
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks(
             "waiting",
@@ -481,8 +485,8 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterRunningState()
   {
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo("allow")).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -523,7 +527,7 @@ public class OverlordResourceTest
     );
 
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
 
     List<TaskStatusPlus> responseObjects = (List) overlordResource
         .getTasks("running", "allow", null, null, null, req, null)
@@ -546,8 +550,8 @@ public class OverlordResourceTest
             new MockTaskRunnerWorkItem(tasksIds.get(1), null)
         )
     );
-    EasyMock.expect(tsqa.getActiveTaskInfo()).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -580,7 +584,7 @@ public class OverlordResourceTest
     );
 
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
 
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks("pending", null, null, null, null, req, null)
@@ -595,8 +599,8 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterCompleteState()
   {
-    EasyMock.expect(tsqa.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -620,7 +624,7 @@ public class OverlordResourceTest
             )
         )
     );
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks("complete", null, null, null, null, req, null)
         .getEntity();
@@ -634,8 +638,8 @@ public class OverlordResourceTest
   {
     List<String> tasksIds = ImmutableList.of("id_1", "id_2", "id_3");
     Duration duration = new Period("PT86400S").toStandardDuration();
-    EasyMock.expect(tsqa.getRecentlyCompletedTaskInfo(null, duration, null)).andStubReturn(
-        ImmutableList.of(
+    EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, duration, null)).andStubReturn(
+        ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
                 "id_1",
                 DateTime.now(ISOChronology.getInstanceUTC()),
@@ -660,7 +664,7 @@ public class OverlordResourceTest
         )
     );
 
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     String interval = "2010-01-01_P1D";
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
         .getTasks("complete", null, interval, null, null, req, null)
@@ -673,7 +677,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksNegativeState()
   {
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     Object responseObject = overlordResource
         .getTasks("blah", "ds_test", null, null, null, req, null)
         .getEntity();
@@ -686,7 +690,7 @@ public class OverlordResourceTest
   @Test
   public void testSecuredTaskPost()
   {
-    EasyMock.replay(taskRunner, taskMaster, tsqa, req);
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     Task task = NoopTask.create();
     Response response = overlordResource.taskPost(task, req);
     Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
@@ -695,7 +699,7 @@ public class OverlordResourceTest
   @After
   public void tearDown()
   {
-    EasyMock.verify(taskRunner, taskMaster, tsqa, req);
+    EasyMock.verify(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
   }
 
   private Task getTaskWithIdAndDatasource(String id, String datasource)
@@ -735,7 +739,7 @@ public class OverlordResourceTest
     @Override
     public TaskLocation getLocation()
     {
-      return null;
+      return TaskLocation.unknown();
     }
 
     @Nullable

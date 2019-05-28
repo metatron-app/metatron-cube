@@ -25,6 +25,8 @@ import io.druid.indexer.TaskStatus;
 import io.druid.indexing.worker.Worker;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nullable;
+
 /**
  */
 public class RemoteTaskRunnerWorkItem extends TaskRunnerWorkItem
@@ -90,6 +92,21 @@ public class RemoteTaskRunnerWorkItem extends TaskRunnerWorkItem
   public TaskLocation getLocation()
   {
     return location;
+  }
+
+  @Nullable
+  @Override
+  public String getTaskType()
+  {
+    // TODO #5102
+    return "";
+  }
+
+  @Override
+  public String getDataSource()
+  {
+    // TODO #5260
+    return "";
   }
 
   public Worker getWorker()

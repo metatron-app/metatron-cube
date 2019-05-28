@@ -17,34 +17,23 @@
  * under the License.
  */
 
-package io.druid.server.security;
+package io.druid.indexing.overlord;
 
-public class Access
+import com.google.inject.Inject;
+
+public class IndexerMetadataStorageAdapter
 {
-  private final boolean allowed;
-  private final String message;
+  private final TaskStorageQueryAdapter taskStorageQueryAdapter;
+  private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
 
-  public Access(boolean allowed) {
-    this(allowed, "");
-  }
-
-  public Access(boolean allowed, String message) {
-    this.allowed = allowed;
-    this.message = message;
-  }
-
-  public boolean isAllowed() {
-    return allowed;
-  }
-
-  public String getMessage()
+  @Inject
+  public IndexerMetadataStorageAdapter(
+      TaskStorageQueryAdapter taskStorageQueryAdapter,
+      IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator
+  )
   {
-    return message;
+    this.taskStorageQueryAdapter = taskStorageQueryAdapter;
+    this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
   }
 
-  @Override
-  public String toString()
-  {
-    return String.format("Allowed:%s, Message:%s", allowed, message);
-  }
 }

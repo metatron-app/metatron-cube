@@ -27,6 +27,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.metamx.common.Pair;
+import io.druid.common.DateTimes;
+import io.druid.common.utils.StringUtils;
+import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskStatus;
 import io.druid.jackson.DefaultObjectMapper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -35,7 +39,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 public class SQLMetadataStorageActionHandlerTest
@@ -59,13 +65,11 @@ public class SQLMetadataStorageActionHandlerTest
     final String logTable = "logs";
     final String lockTable = "locks";
 
-
     connector.createEntryTable(entryTable);
     connector.createLockTable(lockTable, entryType);
     connector.createLogTable(logTable, entryType);
 
-
-    handler = new SQLMetadataStorageActionHandler<>(
+    handler = new DerbyMetadataStorageActionHandler<>(
         connector,
         jsonMapper,
         new MetadataStorageActionHandlerTypes<Map<String, Integer>, Map<String, Integer>, Map<String, String>, Map<String, Integer>>()
@@ -133,21 +137,34 @@ public class SQLMetadataStorageActionHandlerTest
 
     Assert.assertTrue(handler.setStatus(entryId, true, status1));
 
+    List<Pair<Map<String, Integer>, Map<String, Integer>>> list = new ArrayList<>();
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> mapMapTaskInfo : handler.getActiveTaskInfo(null)) {
+      Pair<Map<String, Integer>, Map<String, Integer>> of = Pair.of(
+          mapMapTaskInfo.getTask(),
+          mapMapTaskInfo.getStatus()
+      );
+      list.add(of);
+    }
     Assert.assertEquals(
         ImmutableList.of(Pair.of(entry, status1)),
-        handler.getActiveEntriesWithStatus(Predicates.<Map<String, Integer>>alwaysTrue())
+        list
     );
 
     Assert.assertTrue(handler.setStatus(entryId, true, status2));
 
+    List<Pair<Map<String, Integer>, Map<String, Integer>>> result = new ArrayList<>();
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> taskInfo : handler.getActiveTaskInfo(null)) {
+      Pair<Map<String, Integer>, Map<String, Integer>> of = Pair.of(taskInfo.getTask(), taskInfo.getStatus());
+      result.add(of);
+    }
     Assert.assertEquals(
         ImmutableList.of(Pair.of(entry, status2)),
-        handler.getActiveEntriesWithStatus(Predicates.<Map<String, Integer>>alwaysTrue())
+        result
     );
 
     Assert.assertEquals(
         ImmutableList.of(),
-        handler.getInactiveStatusesSince(new DateTime("2014-01-01"))
+        handler.getCompletedTaskInfo(DateTimes.of("2014-01-01"), null, null)
     );
 
     Assert.assertTrue(handler.setStatus(entryId, false, status1));
@@ -172,13 +189,65 @@ public class SQLMetadataStorageActionHandlerTest
 
     Assert.assertEquals(
         ImmutableList.of(),
-        handler.getInactiveStatusesSince(new DateTime("2014-01-03"))
+        handler.getCompletedTaskInfo(DateTimes.of("2014-01-03"), null, null)
     );
 
+    List<Map<String, Integer>> list1 = new ArrayList<>();
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> mapMapTaskInfo : handler.getCompletedTaskInfo(DateTimes.of(
+        "2014-01-01"), null, null)) {
+      Map<String, Integer> status = mapMapTaskInfo.getStatus();
+      list1.add(status);
+    }
     Assert.assertEquals(
         ImmutableList.of(status1),
-        handler.getInactiveStatusesSince(new DateTime("2014-01-01"))
+        list1
     );
+  }
+
+  @Test
+  public void testGetRecentStatuses() throws EntryExistsException
+  {
+    for (int i = 1; i < 11; i++) {
+      final String entryId = "abcd_" + i;
+      final Map<String, Integer> entry = ImmutableMap.of("a", i);
+
+      final Map<String, Integer> status = ImmutableMap.of("count", i * 10);
+      handler.insert(entryId, DateTimes.of(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
+    }
+
+    final List<TaskInfo<Map<String, Integer>, Map<String, Integer>>> statuses = handler.getCompletedTaskInfo(
+        DateTimes.of("2014-01-01"),
+        7,
+        null
+    );
+    Assert.assertEquals(7, statuses.size());
+    int i = 10;
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> status : statuses) {
+      Assert.assertEquals(ImmutableMap.of("count", i-- * 10), status.getStatus());
+    }
+  }
+
+  @Test
+  public void testGetRecentStatuses2() throws EntryExistsException
+  {
+    for (int i = 1; i < 6; i++) {
+      final String entryId = "abcd_" + i;
+      final Map<String, Integer> entry = ImmutableMap.of("a", i);
+      final Map<String, Integer> status = ImmutableMap.of("count", i * 10);
+
+      handler.insert(entryId, DateTimes.of(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
+    }
+
+    final List<TaskInfo<Map<String, Integer>, Map<String, Integer>>> statuses = handler.getCompletedTaskInfo(
+        DateTimes.of("2014-01-01"),
+        10,
+        null
+    );
+    Assert.assertEquals(5, statuses.size());
+    int i = 5;
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> status : statuses) {
+      Assert.assertEquals(ImmutableMap.of("count", i-- * 10), status.getStatus());
+    }
   }
 
   @Test(timeout = 10_000L)

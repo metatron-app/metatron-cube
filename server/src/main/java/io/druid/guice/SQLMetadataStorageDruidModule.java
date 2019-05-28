@@ -200,11 +200,6 @@ public class SQLMetadataStorageDruidModule implements Module
             .to(SQLMetadataSegmentPublisherProvider.class)
             .in(LazySingleton.class);
 
-    PolyBind.optionBinder(binder, Key.get(MetadataStorageActionHandlerFactory.class))
-            .addBinding(type)
-            .to(SQLMetadataStorageActionHandlerFactory.class)
-            .in(LazySingleton.class);
-
     PolyBind.optionBinder(binder, Key.get(IndexerMetadataStorageCoordinator.class))
             .addBinding(type)
             .to(IndexerSQLMetadataStorageCoordinator.class)
