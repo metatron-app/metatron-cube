@@ -93,6 +93,7 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 
 import java.util.List;
@@ -264,7 +265,7 @@ public class CliOverlord extends ServerRunnable
       final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
       root.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
       root.setInitParameter("org.eclipse.jetty.servlet.Default.redirectWelcome", "true");
-      root.setWelcomeFiles(new String[]{"index.html", "console.html"});
+      root.setWelcomeFiles(new String[]{"console.html"});
       root.addEventListener(new GuiceServletConfig(injector));
 
       ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
@@ -272,10 +273,7 @@ public class CliOverlord extends ServerRunnable
       root.addServlet(holderPwd, "/");
       root.setBaseResource(
           new ResourceCollection(
-              new String[]{
-                  TaskMaster.class.getClassLoader().getResource("static").toExternalForm(),
-                  TaskMaster.class.getClassLoader().getResource("indexer_static").toExternalForm()
-              }
+              Resource.newClassPathResource("org/apache/druid/console")
           )
       );
       JettyServerInitUtils.addExtensionFilters(root, injector);

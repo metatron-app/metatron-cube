@@ -42,6 +42,7 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 
 /**
  */
@@ -79,8 +80,15 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
   public void initialize(Server server, Injector injector)
   {
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    root.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
+    root.setInitParameter("org.eclipse.jetty.servlet.Default.redirectWelcome", "true");
+    // index.html is the welcome file for old-console
+    root.setWelcomeFiles(new String[]{"unified-console.html", "index.html"});
     root.addEventListener(new GuiceServletConfig(injector));
     root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
+
+    //FIXME seoeun
+    root.setBaseResource(Resource.newClassPathResource("org/apache/druid/console"));
 
     final AsyncQueryForwardingServlet asyncQueryForwardingServlet = new AsyncQueryForwardingServlet(
         jsonMapper,

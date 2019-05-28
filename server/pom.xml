@@ -43,7 +43,7 @@
         <dependency>
             <groupId>io.druid</groupId>
             <artifactId>druid-console</artifactId>
-            <version>0.0.2</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>com.metamx</groupId>

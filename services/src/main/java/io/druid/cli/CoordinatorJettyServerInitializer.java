@@ -55,17 +55,16 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
   {
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
     root.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
+    root.setInitParameter("org.eclipse.jetty.servlet.Default.redirectWelcome", "true");
+    // index.html is the welcome file for old-console
+    root.setWelcomeFiles(new String[]{"index.html"});
     root.addEventListener(new GuiceServletConfig(injector));
 
     ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
 
     root.addServlet(holderPwd, "/");
     if(config.getConsoleStatic() == null) {
-      ResourceCollection staticResources = new ResourceCollection(
-          Resource.newClassPathResource("io/druid/console"),
-          Resource.newClassPathResource("static")
-      );
-      root.setBaseResource(staticResources);
+      root.setBaseResource(Resource.newClassPathResource("org/apache/druid/console"));
     } else {
       // used for console development
       root.setResourceBase(config.getConsoleStatic());

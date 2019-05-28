@@ -159,7 +159,10 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
     final String defaultHost = hostFinder.getDefaultHost();
     request.setAttribute(HOST_ATTRIBUTE, defaultHost);
 
-    final boolean isQueryEndpoint = request.getRequestURI().startsWith("/druid/v2");
+    // The Router does not have the ability to look inside SQL queries and route them intelligently, so just treat
+    // them as a generic request.
+    final boolean isQueryEndpoint = request.getRequestURI().startsWith("/druid/v2")
+                                    && !request.getRequestURI().startsWith("/druid/v2/sql");
 
     if (isQueryEndpoint && HttpMethod.DELETE.is(request.getMethod())) {
       // query cancellation request
