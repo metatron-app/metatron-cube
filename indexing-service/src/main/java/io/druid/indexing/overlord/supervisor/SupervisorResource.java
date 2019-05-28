@@ -45,9 +45,11 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,7 +122,9 @@ public class SupervisorResource
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Response specGetAll(@Context final HttpServletRequest req)
+  public Response specGetAll(
+      @QueryParam("full") final String full,
+      @Context final HttpServletRequest req)
   {
     return asLeaderWithSupervisorManager(
         new Function<SupervisorManager, Response>()
@@ -155,7 +159,21 @@ public class SupervisorResource
             } else {
               supervisorIds = manager.getSupervisorIds();
             }
-            return Response.ok(supervisorIds).build();
+
+            if (full == null) {
+              return Response.ok(supervisorIds).build();
+            } else {
+              List<Map<String, ?>> all =
+                  new ArrayList<>();
+              for (String x : supervisorIds) {
+                ImmutableMap<String, Object> build = ImmutableMap.<String, Object>builder()
+                    .put("id", x)
+                    .put("spec", manager.getSupervisorSpec(x).get())
+                    .build();
+                all.add(build);
+              }
+              return Response.ok(all).build();
+            }
           }
         }
     );

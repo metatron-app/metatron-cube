@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.TaskMaster;
-import org.easymock.*;
 import org.easymock.Capture;
 import io.druid.server.security.AuthConfig;
 import org.easymock.EasyMock;
@@ -41,6 +40,7 @@ import org.junit.runner.RunWith;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,7 +99,7 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(supervisorIds);
     replayAll();
 
-    Response response = supervisorResource.specGetAll(request);
+    Response response = supervisorResource.specGetAll(null, request);
     verifyAll();
 
     Assert.assertEquals(200, response.getStatus());
@@ -109,10 +109,58 @@ public class SupervisorResourceTest extends EasyMockSupport
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.<SupervisorManager>absent());
     replayAll();
 
-    response = supervisorResource.specGetAll(request);
+    response = supervisorResource.specGetAll(null, request);
     verifyAll();
 
     Assert.assertEquals(503, response.getStatus());
+  }
+
+  @Test
+  public void testSpecGetAllFull()
+  {
+    Set<String> supervisorIds = ImmutableSet.of("id1", "id2");
+
+    SupervisorSpec spec1 = new TestSupervisorSpec("id1", null) {
+
+      @Override
+      public List<String> getDataSources()
+      {
+        return Collections.singletonList("datasource1");
+      }
+    };
+    SupervisorSpec spec2 = new TestSupervisorSpec("id2", null) {
+
+      @Override
+      public List<String> getDataSources()
+      {
+        return Collections.singletonList("datasource2");
+      }
+    };
+
+    EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.of(supervisorManager));
+    EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(supervisorIds).atLeastOnce();
+    EasyMock.expect(supervisorManager.getSupervisorSpec("id1")).andReturn(Optional.of(spec1));
+    EasyMock.expect(supervisorManager.getSupervisorSpec("id2")).andReturn(Optional.of(spec2));
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
+    replayAll();
+
+    Response response = supervisorResource.specGetAll("", request);
+    verifyAll();
+
+    Assert.assertEquals(200, response.getStatus());
+    List<Map<String, Object>> specs = (List<Map<String, Object>>) response.getEntity();
+    boolean b = true;
+    for (Map<String, Object> spec : specs) {
+      if ((!"id1".equals(spec.get("id")) || !spec1.equals(spec.get("spec"))) &&
+          (!"id2".equals(spec.get("id")) || !spec2.equals(spec.get("spec")))) {
+        b = false;
+        break;
+      }
+    }
+    Assert.assertTrue(
+        b
+    );
   }
 
   @Test
