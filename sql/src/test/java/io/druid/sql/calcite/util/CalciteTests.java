@@ -31,6 +31,12 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.metamx.http.client.HttpClient;
+import io.druid.client.DruidLeaderClient;
+import io.druid.client.DruidServer;
+import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -54,14 +60,18 @@ import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.server.DruidNode;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
+import org.apache.curator.x.discovery.ServiceProvider;
+import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
@@ -84,6 +94,8 @@ public class CalciteTests
   public static final String TEST_SUPERUSER_NAME = "testSuperuser";
 
   private static final String TIMESTAMP_COLUMN = "t";
+
+  public static final String SUPER_USER_AUTH_RESULT = "SUPER_USER_AUTH_RESULT";
 
   public static final Injector INJECTOR = Guice.createInjector(
       new Module()
@@ -305,5 +317,43 @@ public class CalciteTests
             "m1", m1
         )
     );
+  }
+
+  public static SystemSchema createMockSystemSchema(
+      final DruidSchema druidSchema,
+      final SpecificSegmentsQuerySegmentWalker walker
+  )
+  {
+    final DruidLeaderClient druidLeaderClient = new DruidLeaderClient(
+        EasyMock.createMock(HttpClient.class),
+        "nodetype",
+        "/simple/leader",
+        new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
+    )
+    {
+    };
+    final CoordinatorClient coordinatorClient = new CoordinatorClient(
+        EasyMock.createMock(DruidNode.class),
+        EasyMock.createMock(HttpClient.class),
+        getJsonMapper(),
+        new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
+    )
+    {
+    };
+    final IndexingServiceClient indexingServiceClient = new IndexingServiceClient(
+        EasyMock.createMock(HttpClient.class),
+        getJsonMapper(),
+        new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
+    ){
+
+    };
+    final SystemSchema schema = new SystemSchema(
+        druidSchema,
+        new TestServerInventoryView(walker.getSegments()),
+        coordinatorClient,
+        indexingServiceClient,
+        getJsonMapper()
+    );
+    return schema;
   }
 }

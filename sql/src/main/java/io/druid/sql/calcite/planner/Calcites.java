@@ -30,6 +30,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
+import io.druid.sql.calcite.schema.SystemSchema;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -95,11 +96,14 @@ public class Calcites
     return DEFAULT_CHARSET;
   }
 
-  public static SchemaPlus createRootSchema(final DruidSchema druidSchema, final QuerySegmentWalker segmentWalker)
+  public static SchemaPlus createRootSchema(final DruidSchema druidSchema,
+                                            final QuerySegmentWalker segmentWalker,
+                                            final SystemSchema systemSchema)
   {
     final SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
     rootSchema.add(DruidSchema.NAME, druidSchema);
     rootSchema.add(InformationSchema.NAME, new InformationSchema(rootSchema, segmentWalker));
+    rootSchema.add(SystemSchema.NAME, systemSchema);
     return rootSchema;
   }
 

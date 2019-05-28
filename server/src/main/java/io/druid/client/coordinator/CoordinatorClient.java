@@ -23,10 +23,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
+import com.metamx.http.client.response.HttpResponseHandler;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.client.ImmutableSegmentLoadInfo;
@@ -42,6 +44,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Interval;
 
 import javax.ws.rs.core.MediaType;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.List;
@@ -182,5 +185,25 @@ public class CoordinatorClient
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  /**
+   * Make a Request object aimed at the leader. Throws IOException if the leader cannot be located.
+   */
+  public Request makeRequest(HttpMethod httpMethod, String urlPath) throws IOException
+  {
+    return new Request(httpMethod, new URL(io.druid.common.utils.StringUtils.format("%s%s", baseUrl(), urlPath)));
+  }
+
+  /**
+   * Executes the request object aimed at the leader and process the response with given handler
+   * Note: this method doesn't do retrying on errors or handle leader changes occurred during communication
+   */
+  public <Intermediate, Final> ListenableFuture<Final> goAsync(
+      final Request request,
+      final HttpResponseHandler<Intermediate, Final> handler
+  )
+  {
+    return client.go(request, handler);
   }
 }

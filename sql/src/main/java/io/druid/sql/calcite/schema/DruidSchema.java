@@ -131,6 +131,7 @@ public class DruidSchema extends AbstractSchema
   )
   {
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
+    Preconditions.checkNotNull(serverView, "serverView");
     this.config = Preconditions.checkNotNull(config, "config");
     this.viewManager = Preconditions.checkNotNull(viewManager, "viewManager");
     this.cacheExec = ScheduledExecutors.fixed(1, "DruidSchema-Cache-%d");

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.indexing.common;
+package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,9 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
- * Use {@link io.druid.indexer.TaskLocation}.
+ * It is copied from indexing-service to use globally.
  */
-@Deprecated
 public class TaskLocation
 {
   private static final TaskLocation UNKNOWN = new TaskLocation(null, -1);

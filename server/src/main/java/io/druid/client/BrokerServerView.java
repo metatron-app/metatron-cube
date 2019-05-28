@@ -87,6 +87,7 @@ import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -703,5 +704,16 @@ public class BrokerServerView implements TimelineServerView
           }
       );
     }
+  }
+
+  @Override
+  public List<ImmutableDruidServer> getDruidServers()
+  {
+    List<ImmutableDruidServer> servers = new ArrayList<>();
+    List<QueryableDruidServer> queryableDruidServers = new ArrayList<>(clients.values());
+    for (QueryableDruidServer queryableDruidServer: queryableDruidServers) {
+      servers.add(queryableDruidServer.getServer().toImmutableDruidServer());
+    }
+    return servers;
   }
 }

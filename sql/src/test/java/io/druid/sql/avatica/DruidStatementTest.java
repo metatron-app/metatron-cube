@@ -27,6 +27,7 @@ import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
@@ -63,9 +64,11 @@ public class DruidStatementTest extends CalciteTestBase
         walker,
         plannerConfig
     );
+    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     plannerFactory = new PlannerFactory(
         druidSchema,
+        systemSchema,
         walker,
         operatorTable,
         plannerConfig,

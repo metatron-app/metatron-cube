@@ -19,6 +19,9 @@
 
 package io.druid.server.http;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
@@ -48,11 +51,16 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,17 +73,20 @@ public class MetadataResource
   private final MetadataSegmentManager metadataSegmentManager;
   private final IndexerMetadataStorageCoordinator metadataStorageCoordinator;
   private final AuthConfig authConfig;
+  private final ObjectMapper jsonMapper;
 
   @Inject
   public MetadataResource(
       MetadataSegmentManager metadataSegmentManager,
       IndexerMetadataStorageCoordinator metadataStorageCoordinator,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      ObjectMapper jsonMapper
   )
   {
     this.metadataSegmentManager = metadataSegmentManager;
     this.metadataStorageCoordinator = metadataStorageCoordinator;
     this.authConfig = authConfig;
+    this.jsonMapper = jsonMapper;
   }
 
   @GET
@@ -173,6 +184,39 @@ public class MetadataResource
     }
 
     return Response.status(Response.Status.OK).entity(dataSource).build();
+  }
+
+  @GET
+  @Path("/segments")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getDatabaseSegments(@Context final HttpServletRequest req)
+  {
+    final Collection<DruidDataSource> druidDataSources = metadataSegmentManager.getInventory();
+
+    final Set<DataSegment> metadataSegments = new HashSet<>();
+    for (DruidDataSource druidDataSource: druidDataSources) {
+      metadataSegments.addAll(druidDataSource.getSegmentsSorted());
+    }
+
+    final StreamingOutput stream = new StreamingOutput()
+    {
+      @Override
+      public void write(OutputStream outputStream) throws IOException, WebApplicationException
+      {
+        final JsonFactory jsonFactory = jsonMapper.getFactory();
+        try (final JsonGenerator jsonGenerator = jsonFactory.createGenerator(outputStream)) {
+          jsonGenerator.writeStartArray();
+          for (DataSegment ds : metadataSegments) {
+            jsonGenerator.writeObject(ds);
+            jsonGenerator.flush();
+          }
+          jsonGenerator.writeEndArray();
+        }
+      }
+    };
+
+    Response.ResponseBuilder builder = Response.status(Response.Status.OK);
+    return builder.entity(stream).build();
   }
 
   @GET

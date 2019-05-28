@@ -62,6 +62,18 @@ public class ImmutableDruidServer
     return metadata.getHost();
   }
 
+  public String getHostAndPort()
+  {
+    // #4270
+    return null;
+  }
+
+  public String getHostAndTlsPort()
+  {
+    // #4270
+    return null;
+  }
+
   public long getCurrSize()
   {
     return currSize;
