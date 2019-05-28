@@ -51,8 +51,8 @@ import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Self;
-import io.druid.indexing.common.TaskLocation;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.common.tasklogs.LogUtils;
@@ -749,6 +749,18 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
       } else {
         return TaskLocation.create(processHolder.host, processHolder.port);
       }
+    }
+
+    @Override
+    public String getTaskType()
+    {
+      return task.getType();
+    }
+
+    @Override
+    public String getDataSource()
+    {
+      return task.getDataSource();
     }
   }
 

@@ -33,8 +33,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.ByteSource;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -47,14 +47,24 @@ import com.metamx.http.client.response.StatusResponseHolder;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
+import io.druid.common.DateTimes;
+import io.druid.common.Intervals;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Self;
-import io.druid.indexing.common.TaskLocation;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskState;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexer.RunnerTaskState;
+import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskState;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexer.TaskStatusPlus;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.actions.TaskActionHolder;
 import io.druid.indexing.common.task.HadoopIndexTask;
@@ -81,14 +91,17 @@ import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 import io.druid.tasklogs.TaskLogStreamer;
 import io.druid.timeline.DataSegment;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -105,13 +118,16 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -131,6 +147,8 @@ public class OverlordResource
   private final ObjectMapper jsonMapper;
 
   private AtomicReference<WorkerBehaviorConfig> workerConfigRef = null;
+  private static final List API_TASK_STATES = ImmutableList.of("pending", "waiting", "running", "complete");
+
 
   @Inject
   public OverlordResource(
@@ -212,74 +230,74 @@ public class OverlordResource
     return Response.ok(taskMaster.getLeader()).build();
   }
 
-  @GET
-  @Path("/tasks")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Response getTasks(
-      @QueryParam("full") String full,
-      @QueryParam("completed") String completed,
-      @QueryParam("recent") String recent,
-      @Context final HttpServletRequest req)
-  {
-    if (completed != null) {
-      List<TaskStatus> finished = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
-      if (full == null) {
-        List<String> ids = Lists.newArrayList();
-        for (TaskStatus status : finished) {
-          ids.add(status.getId());
-        }
-        return Response.ok(ids).build();
-      } else {
-        return Response.ok(finished).build();
-      }
-    }
-    List<Task> activeTasks = taskStorageQueryAdapter.getActiveTasks();
-    if (authConfig.isEnabled()) {
-      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
-      List<Task> filtered = Lists.newArrayList();
-      for (Task task : activeTasks) {
-        Access authResult = authorization.isAuthorized(
-            new Resource(task.getDataSource(), ResourceType.DATASOURCE),
-            Action.READ
-        );
-        if (authResult.isAllowed()) {
-          filtered.add(task);
-        }
-      }
-      activeTasks = filtered;
-    }
-    List<String> tasks = Lists.transform(
-        activeTasks, new Function<Task, String>()
-        {
-          @Override
-          public String apply(Task input)
-          {
-            return input.getId();
-          }
-        }
-    );
-    if (full == null) {
-      return Response.ok(tasks).build();
-    }
-
-    final TaskRunner taskRunner = taskMaster.getTaskRunner().orNull();
-    final Collection<TaskRunnerWorkItem> pending = getTaskWorkItems(taskRunner, Mode.PENDING, req);
-    final Collection<TaskRunnerWorkItem> running = getTaskWorkItems(taskRunner, Mode.RUNNING, req);
-
-    return Response.ok(
-        Lists.transform(
-            tasks, new Function<String, Map<String, Object>>()
-            {
-              @Override
-              public Map<String, Object> apply(final String taskId)
-              {
-                return toTaskDetail(taskId, pending, running);
-              }
-            }
-        )
-    ).build();
-  }
+//  @GET
+//  @Path("/tasks")
+//  @Produces(MediaType.APPLICATION_JSON)
+//  public Response getTasks(
+//      @QueryParam("full") String full,
+//      @QueryParam("completed") String completed,
+//      @QueryParam("recent") String recent,
+//      @Context final HttpServletRequest req)
+//  {
+//    if (completed != null) {
+//      List<TaskStatus> finished = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
+//      if (full == null) {
+//        List<String> ids = Lists.newArrayList();
+//        for (TaskStatus status : finished) {
+//          ids.add(status.getId());
+//        }
+//        return Response.ok(ids).build();
+//      } else {
+//        return Response.ok(finished).build();
+//      }
+//    }
+//    List<Task> activeTasks = taskStorageQueryAdapter.getActiveTasks();
+//    if (authConfig.isEnabled()) {
+//      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+//      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
+//      List<Task> filtered = Lists.newArrayList();
+//      for (Task task : activeTasks) {
+//        Access authResult = authorization.isAuthorized(
+//            new Resource(task.getDataSource(), ResourceType.DATASOURCE),
+//            Action.READ
+//        );
+//        if (authResult.isAllowed()) {
+//          filtered.add(task);
+//        }
+//      }
+//      activeTasks = filtered;
+//    }
+//    List<String> tasks = Lists.transform(
+//        activeTasks, new Function<Task, String>()
+//        {
+//          @Override
+//          public String apply(Task input)
+//          {
+//            return input.getId();
+//          }
+//        }
+//    );
+//    if (full == null) {
+//      return Response.ok(tasks).build();
+//    }
+//
+//    final TaskRunner taskRunner = taskMaster.getTaskRunner().orNull();
+//    final Collection<TaskRunnerWorkItem> pending = getTaskWorkItems(taskRunner, Mode.PENDING, req);
+//    final Collection<TaskRunnerWorkItem> running = getTaskWorkItems(taskRunner, Mode.RUNNING, req);
+//
+//    return Response.ok(
+//        Lists.transform(
+//            tasks, new Function<String, Map<String, Object>>()
+//            {
+//              @Override
+//              public Map<String, Object> apply(final String taskId)
+//              {
+//                return toTaskDetail(taskId, pending, running);
+//              }
+//            }
+//        )
+//    ).build();
+//  }
 
   private Map<String, Object> toTaskDetail(
       final String taskId,
@@ -296,10 +314,10 @@ public class OverlordResource
       result.put("status", "UNKNOWN");
       return result;
     }
-    TaskStatus.Status code = status.get().getStatusCode();
+    TaskState code = status.get().getStatusCode();
     result.put("status", code.name());
 
-    if (code != TaskStatus.Status.RUNNING) {
+    if (code != TaskState.RUNNING) {
       return result;
     }
     Collection<? extends TaskRunnerWorkItem> pendingItems = Collections2.filter(
@@ -378,7 +396,7 @@ public class OverlordResource
     Optional<TaskStatus> status = taskStorageQueryAdapter.getStatus(taskid);
     Optional<TaskRunner> taskRunner = taskMaster.getTaskRunner();
     if (taskRunner.isPresent() && task.isPresent() &&
-        status.isPresent() && status.get().getStatusCode() == TaskStatus.Status.RUNNING) {
+        status.isPresent() && status.get().getStatusCode() == TaskState.RUNNING) {
       Map<String, Object> results = makeStatusDetail(taskid, task.get(), taskRunner.get());
       results.put("task", taskid);
       results.put("status", status.get());
@@ -537,84 +555,7 @@ public class OverlordResource
   @Produces(MediaType.APPLICATION_JSON)
   public Response getWaitingTasks(@Context final HttpServletRequest req)
   {
-    return workItemsResponse(
-        new Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>>()
-        {
-          @Override
-          public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
-          {
-            // A bit roundabout, but works as a way of figuring out what tasks haven't been handed
-            // off to the runner yet:
-            final List<Task> allActiveTasks = taskStorageQueryAdapter.getActiveTasks();
-            final List<Task> activeTasks;
-            if (authConfig.isEnabled()) {
-              // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-              final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-              final AuthorizationInfo authorizationInfo =
-                  (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-              activeTasks = ImmutableList.copyOf(
-                  Iterables.filter(
-                      allActiveTasks,
-                      new Predicate<Task>()
-                      {
-                        @Override
-                        public boolean apply(Task input)
-                        {
-                          Resource resource = new Resource(input.getDataSource(), ResourceType.DATASOURCE);
-                          Action action = Action.READ;
-                          Pair<Resource, Action> key = new Pair<>(resource, action);
-                          if (resourceAccessMap.containsKey(key)) {
-                            return resourceAccessMap.get(key).isAllowed();
-                          } else {
-                            Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-                            resourceAccessMap.put(key, access);
-                            return access.isAllowed();
-                          }
-                        }
-                      }
-                  )
-              );
-            } else {
-              activeTasks = allActiveTasks;
-            }
-            final Set<String> runnersKnownTasks = Sets.newHashSet(
-                Iterables.transform(
-                    taskRunner.getKnownTasks(),
-                    new Function<TaskRunnerWorkItem, String>()
-                    {
-                      @Override
-                      public String apply(final TaskRunnerWorkItem workItem)
-                      {
-                        return workItem.getTaskId();
-                      }
-                    }
-                )
-            );
-            final List<TaskRunnerWorkItem> waitingTasks = Lists.newArrayList();
-            for (final Task task : activeTasks) {
-              if (!runnersKnownTasks.contains(task.getId())) {
-                waitingTasks.add(
-                    // Would be nice to include the real created date, but the TaskStorage API doesn't yet allow it.
-                    new TaskRunnerWorkItem(
-                        task.getId(),
-                        SettableFuture.<TaskStatus>create(),
-                        new DateTime(0),
-                        new DateTime(0)
-                    )
-                    {
-                      @Override
-                      public TaskLocation getLocation()
-                      {
-                        return TaskLocation.unknown();
-                      }
-                    }
-                );
-              }
-            }
-            return waitingTasks;
-          }
-        }
-    );
+    return getTasks("waiting", null, null, null, null, req, null);
   }
 
   @GET
@@ -622,38 +563,187 @@ public class OverlordResource
   @Produces(MediaType.APPLICATION_JSON)
   public Response getPendingTasks(@Context final HttpServletRequest req)
   {
-    return workItemsResponse(
-        new Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>>()
-        {
-          @Override
-          public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
-          {
-            return getTaskWorkItems(taskRunner, Mode.PENDING, req);
-          }
-        }
-    );
+    return getTasks("pending", null, null, null, null, req, null);
   }
 
   @GET
   @Path("/runningTasks")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getRunningTasks(@Context final HttpServletRequest req)
+  public Response getRunningTasks(
+      @QueryParam("type") String taskType,
+      @Context final HttpServletRequest req)
   {
-    return workItemsResponse(
-        new Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>>()
-        {
-          @Override
-          public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
-          {
-            return getTaskWorkItems(taskRunner, Mode.RUNNING, req);
-          }
-        }
+    return getTasks("running", null, null, null, taskType, req, null);
+  }
+
+  @GET
+  @Path("/completeTasks")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getCompleteTasks(
+      @QueryParam("n") final Integer maxTaskStatuses,
+      @Context final HttpServletRequest req
+  )
+  {
+    return getTasks("complete", null, null, maxTaskStatuses, null, req, null);
+  }
+
+  @GET
+  @Path("/tasks")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getTasks(
+      @QueryParam("state") final String state,
+      @QueryParam("datasource") final String dataSource,
+      @QueryParam("interval") final String interval,
+      @QueryParam("max") final Integer maxCompletedTasks,
+      @QueryParam("type") final String type,
+      @Context final HttpServletRequest req,
+      @QueryParam("simple") final String simple
+  )
+  {
+    //check for valid state
+    if (state != null) {
+      if (!API_TASK_STATES.contains(StringUtils.toLowerCase(state))) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                       .entity(StringUtils.format("Invalid state : %s, valid values are: %s", state, API_TASK_STATES))
+                       .build();
+      }
+    }
+
+    // early authorization check if datasource != null
+    // fail fast if user not authorized to access datasource
+    if (dataSource != null && authConfig.isEnabled()) {
+      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
+
+      final ResourceAction resourceAction = new ResourceAction(
+          new Resource(dataSource, ResourceType.DATASOURCE),
+          Action.READ
+      );
+      final Access authResult = authorization.isAuthorized(
+          resourceAction.getResource(),
+          resourceAction.getAction()
+      );
+      if (!authResult.isAllowed()) {
+        throw new WebApplicationException(
+            Response.status(Response.Status.FORBIDDEN)
+                    .entity(StringUtils.format("Access-Check-Result: %s", authResult.toString()))
+                    .build()
+        );
+      }
+    }
+    List<TaskStatusPlus> finalTaskList = new ArrayList<>();
+    Function<AnyTask, TaskStatusPlus> activeTaskTransformFunc = new Function<AnyTask, TaskStatusPlus>()
+    {
+      @Nullable
+      @Override
+      public TaskStatusPlus apply(@Nullable AnyTask workItem)
+      {
+        return new TaskStatusPlus(
+            workItem.getTaskId(),
+            workItem.getTaskType(),
+            workItem.getCreatedTime(),
+            workItem.getQueueInsertionTime(),
+            workItem.getTaskState(),
+            workItem.getRunnerTaskState(),
+            null,
+            workItem.getLocation(),
+            workItem.getDataSource(),
+            null
+        );
+      }
+    };
+
+    Function<TaskInfo<Task>, TaskStatusPlus> completeTaskTransformFunc = new Function<TaskInfo<Task>, TaskStatusPlus>()
+    {
+      @Nullable
+      @Override
+      public TaskStatusPlus apply(@Nullable TaskInfo<Task> taskInfo)
+      {
+        return new TaskStatusPlus(
+            taskInfo.getId(),
+            taskInfo.getTask().getType(),
+            taskInfo.getCreatedTime(),
+            // Would be nice to include the real queue insertion time, but the
+            // TaskStorage API doesn't yet allow it.
+            DateTimes.EPOCH,
+            taskInfo.getStatus().getStatusCode(),
+            RunnerTaskState.NONE,
+            taskInfo.getStatus().getDuration(),
+            TaskLocation.unknown(),
+            taskInfo.getDataSource(),
+            taskInfo.getStatus().getReason()
+        );
+      }
+    };
+
+    //checking for complete tasks first to avoid querying active tasks if user only wants complete tasks
+    if (state == null || "complete".equals(StringUtils.toLowerCase(state))) {
+      Duration duration = null;
+      if (interval != null) {
+        final Interval theInterval = Intervals.of(interval.replace("_", "/"));
+        duration = theInterval.toDuration();
+      }
+      final List<TaskInfo<Task>> taskInfoList = taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(
+          maxCompletedTasks, duration, dataSource
+      );
+      final List<TaskStatusPlus> completedTasks = Lists.transform(taskInfoList, completeTaskTransformFunc);
+      finalTaskList.addAll(completedTasks);
+    }
+
+    List<TaskInfo<Task>> allActiveTaskInfo = Lists.newArrayList();
+    final List<AnyTask> allActiveTasks = Lists.newArrayList();
+    if (state == null || !"complete".equals(StringUtils.toLowerCase(state))) {
+      allActiveTaskInfo = taskStorageQueryAdapter.getActiveTaskInfo();
+      for (final TaskInfo<Task> task : allActiveTaskInfo) {
+        allActiveTasks.add(
+            new AnyTask(
+                task.getId(),
+                task.getTask() == null ? null : task.getTask().getType(),
+                SettableFuture.<TaskStatus>create(),
+                task.getDataSource(),
+                null,
+                null,
+                task.getCreatedTime(),
+                DateTimes.EPOCH,
+                TaskLocation.unknown()
+            ));
+
+      }
+    }
+    if (state == null || "waiting".equals(StringUtils.toLowerCase(state))) {
+      final List<AnyTask> waitingWorkItems = filterActiveTasks(RunnerTaskState.WAITING, allActiveTasks);
+      List<TaskStatusPlus> transformedWaitingList = Lists.transform(waitingWorkItems, activeTaskTransformFunc);
+      finalTaskList.addAll(transformedWaitingList);
+    }
+    if (state == null || "pending".equals(StringUtils.toLowerCase(state))) {
+      final List<AnyTask> pendingWorkItems = filterActiveTasks(RunnerTaskState.PENDING, allActiveTasks);
+      List<TaskStatusPlus> transformedPendingList = Lists.transform(pendingWorkItems, activeTaskTransformFunc);
+      finalTaskList.addAll(transformedPendingList);
+    }
+    if (state == null || "running".equals(StringUtils.toLowerCase(state))) {
+      final List<AnyTask> runningWorkItems = filterActiveTasks(RunnerTaskState.RUNNING, allActiveTasks);
+      List<TaskStatusPlus> transformedRunningList = Lists.transform(runningWorkItems, activeTaskTransformFunc);
+      finalTaskList.addAll(transformedRunningList);
+    }
+    final List<TaskStatusPlus> authorizedList = securedTaskStatusPlus(
+        finalTaskList,
+        dataSource,
+        type,
+        req
     );
+    if (simple != null) {
+      List<String> ids = new ArrayList<>();
+      for (TaskStatusPlus taskStatusPlus: authorizedList) {
+        ids.add(taskStatusPlus.getId());
+      }
+    }
+    return Response.ok(authorizedList).build();
   }
 
   @GET
   @Path("/knownTasks")
   @Produces(MediaType.APPLICATION_JSON)
+  @Deprecated
   public Response getAllTasks(@Context final HttpServletRequest req)
   {
     return workItemsResponse(
@@ -673,6 +763,7 @@ public class OverlordResource
     RUNNING, PENDING, KNOWN
   }
 
+  @Deprecated
   private Collection<TaskRunnerWorkItem> getTaskWorkItems(TaskRunner taskRunner, Mode mode, HttpServletRequest req)
   {
     if (taskRunner == null) {
@@ -695,74 +786,6 @@ public class OverlordResource
     } else {
       return tasks;
     }
-  }
-
-  @GET
-  @Path("/completeTasks")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Response getCompleteTasks(
-      @QueryParam("recent") String recent,
-      @Context final HttpServletRequest req)
-  {
-    final List<TaskStatus> recentlyFinishedTasks;
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      recentlyFinishedTasks = ImmutableList.copyOf(
-          Iterables.filter(
-              taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent),
-              new Predicate<TaskStatus>()
-              {
-                @Override
-                public boolean apply(TaskStatus input)
-                {
-                  final String taskId = input.getId();
-                  final Optional<Task> optionalTask = taskStorageQueryAdapter.getTask(taskId);
-                  if (!optionalTask.isPresent()) {
-                    throw new WebApplicationException(
-                        Response.serverError().entity(
-                            String.format("No task information found for task with id: [%s]", taskId)
-                        ).build()
-                    );
-                  }
-                  Resource resource = new Resource(optionalTask.get().getDataSource(), ResourceType.DATASOURCE);
-                  Action action = Action.READ;
-                  Pair<Resource, Action> key = new Pair<>(resource, action);
-                  if (resourceAccessMap.containsKey(key)) {
-                    return resourceAccessMap.get(key).isAllowed();
-                  } else {
-                    Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-                    resourceAccessMap.put(key, access);
-                    return access.isAllowed();
-                  }
-                }
-              }
-          )
-      );
-    } else {
-      recentlyFinishedTasks = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
-    }
-
-    final List<TaskResponseObject> completeTasks = Lists.transform(
-        recentlyFinishedTasks,
-        new Function<TaskStatus, TaskResponseObject>()
-        {
-          @Override
-          public TaskResponseObject apply(TaskStatus taskStatus)
-          {
-            // Would be nice to include the real created date, but the TaskStorage API doesn't yet allow it.
-            return new TaskResponseObject(
-                taskStatus.getId(),
-                new DateTime(0),
-                new DateTime(0),
-                Optional.of(taskStatus),
-                TaskLocation.unknown()
-            );
-          }
-        }
-    );
-    return Response.ok(completeTasks).build();
   }
 
   @GET
@@ -902,6 +925,99 @@ public class OverlordResource
     }
   }
 
+  private List<AnyTask> filterActiveTasks(
+    RunnerTaskState state,
+    List<OverlordResource.AnyTask> allTasks
+)
+{
+  //divide active tasks into 3 lists : running, pending, waiting
+  Optional<TaskRunner> taskRunnerOpt = taskMaster.getTaskRunner();
+  if (!taskRunnerOpt.isPresent()) {
+    throw new WebApplicationException(
+        Response.serverError().entity("No task runner found").build()
+    );
+  }
+  TaskRunner runner = taskRunnerOpt.get();
+  // the order of tasks below is waiting, pending, running to prevent
+  // skipping a task, it's the order in which tasks will change state
+  // if they do while this is code is executing, so a task might be
+  // counted twice but never skipped
+  if (RunnerTaskState.WAITING.equals(state)) {
+    Collection<? extends TaskRunnerWorkItem> runnersKnownTasks = runner.getKnownTasks();
+    Set<String> runnerKnownTaskIds = new HashSet<>();
+    for(TaskRunnerWorkItem workItem: runnersKnownTasks) {
+      runnerKnownTaskIds.add(workItem.getTaskId());
+    }
+    final List<OverlordResource.AnyTask> waitingTasks = Lists.newArrayList();
+    for (TaskRunnerWorkItem task : allTasks) {
+      if (!runnerKnownTaskIds.contains(task.getTaskId())) {
+        waitingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+            TaskState.RUNNING,
+            RunnerTaskState.WAITING,
+            task.getCreatedTime(),
+            task.getQueueInsertionTime(),
+            task.getLocation()
+        ));
+      }
+    }
+    return waitingTasks;
+  }
+
+  if (RunnerTaskState.PENDING.equals(state)) {
+    Collection<? extends TaskRunnerWorkItem> knownPendingTasks = runner.getPendingTasks();
+    Set<String> pendingTaskIds = new HashSet<>();
+    for(TaskRunnerWorkItem workItem: knownPendingTasks) {
+      pendingTaskIds.add(workItem.getTaskId());
+    }
+    Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
+    for (TaskRunnerWorkItem knownPendingTask: knownPendingTasks) {
+      workItemIdMap.put(knownPendingTask.getTaskId(), knownPendingTask);
+    }
+    final List<OverlordResource.AnyTask> pendingTasks = Lists.newArrayList();
+    for (TaskRunnerWorkItem task : allTasks) {
+      if (pendingTaskIds.contains(task.getTaskId())) {
+        pendingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+            TaskState.RUNNING,
+            RunnerTaskState.PENDING,
+            workItemIdMap.get(task.getTaskId()).getCreatedTime(),
+            workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
+            workItemIdMap.get(task.getTaskId()).getLocation()
+        ));
+      }
+    }
+    return pendingTasks;
+  }
+
+  if (RunnerTaskState.RUNNING.equals(state)) {
+    Collection<? extends TaskRunnerWorkItem> knownRunningTasks = runner.getRunningTasks();
+    Set<String> runningTaskIds = new HashSet<>();
+    for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
+      String taskId = knownRunningTask.getTaskId();
+      runningTaskIds.add(taskId);
+    }
+    Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
+    for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
+      workItemIdMap.put(knownRunningTask.getTaskId(), knownRunningTask);
+    }
+    final List<OverlordResource.AnyTask> runningTasks = Lists.newArrayList();
+    for (TaskRunnerWorkItem task : allTasks) {
+      if (runningTaskIds.contains(task.getTaskId())) {
+        runningTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+            TaskState.RUNNING,
+            RunnerTaskState.RUNNING,
+            workItemIdMap.get(task.getTaskId()).getCreatedTime(),
+            workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
+            workItemIdMap.get(task.getTaskId()).getLocation()
+        ));
+      }
+    }
+    return runningTasks;
+  }
+  return allTasks;
+}
+
+
+  @Deprecated
   private Collection<TaskRunnerWorkItem> securedTaskRunnerWorkItem(
       Collection<TaskRunnerWorkItem> collectionToFilter,
       HttpServletRequest req
@@ -940,6 +1056,85 @@ public class OverlordResource
         }
     );
   }
+
+  private List<TaskStatusPlus> securedTaskStatusPlus(
+      List<TaskStatusPlus> collectionToFilter,
+      @Nullable String dataSource,
+      @Nullable String type,
+      HttpServletRequest req
+  )
+  {
+    if (!authConfig.isEnabled()) {
+      return collectionToFilter;
+    }
+
+    // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
+    final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
+    final AuthorizationInfo authorizationInfo =
+        (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+
+    Function<TaskStatusPlus, Iterable<ResourceAction>> raGenerator = taskStatusPlus -> {
+      final String taskId = taskStatusPlus.getId();
+      final String taskDatasource = taskStatusPlus.getDataSource();
+      if (taskDatasource == null) {
+        throw new WebApplicationException(
+            Response.serverError().entity(
+                StringUtils.format("No task information found for task with id: [%s]", taskId)
+            ).build()
+        );
+      }
+      return Lists.newArrayList(
+          new ResourceAction(
+              new Resource(taskDatasource, ResourceType.DATASOURCE),
+              Action.READ
+          )
+      );
+    };
+
+    List<TaskStatusPlus> optionalTypeFilteredList = collectionToFilter;
+    if (type != null) {
+      List<TaskStatusPlus> list = new ArrayList<>();
+      for (TaskStatusPlus task : collectionToFilter) {
+        if (task.getType().equals(type)) {
+          list.add(task);
+        }
+      }
+      optionalTypeFilteredList = list;
+    }
+    if (dataSource != null) {
+      //skip auth check here, as it's already done in getTasks
+      return optionalTypeFilteredList;
+    }
+
+    Iterable<TaskStatusPlus> list = Iterables.filter(optionalTypeFilteredList, new Predicate<TaskStatusPlus>()
+    {
+      @Override
+      public boolean apply(@Nullable TaskStatusPlus input)
+      {
+        final Iterable<ResourceAction> resourceActions = raGenerator.apply(input);
+        if (resourceActions == null) {
+          return false;
+        }
+        for (ResourceAction resourceAction: resourceActions) {
+          Pair<Resource, Action> key = new Pair<>(resourceAction.getResource(), resourceAction.getAction());
+          if (!resourceAccessMap.containsKey(key)) {
+            Access access = authorizationInfo.isAuthorized(resourceAction.getResource(), resourceAction.getAction());
+            resourceAccessMap.put(key, access);
+          }
+
+          Access access = resourceAccessMap.get(key);
+          if (access == null || !access.isAllowed()) {
+            return false;
+          }
+        }
+        return true;
+      }
+    });
+
+    // Use AuthorizationUtils.filterAuthorizedResources if authorization needed.
+    return Lists.newArrayList(list);
+  }
+
 
   static class TaskResponseObject
   {
@@ -1062,4 +1257,100 @@ public class OverlordResource
     }
     return false;
   }
+
+
+  private static class AnyTask extends TaskRunnerWorkItem
+  {
+    private final String taskType;
+    private final String dataSource;
+    private final TaskState taskState;
+    private final RunnerTaskState runnerTaskState;
+    private final DateTime createdTime;
+    private final DateTime queueInsertionTime;
+    private final TaskLocation taskLocation;
+
+    AnyTask(
+        String taskId,
+        String taskType,
+        ListenableFuture<TaskStatus> result,
+        String dataSource,
+        TaskState state,
+        RunnerTaskState runnerState,
+        DateTime createdTime,
+        DateTime queueInsertionTime,
+        TaskLocation taskLocation
+    )
+    {
+      super(taskId, result, DateTimes.EPOCH, DateTimes.EPOCH);
+      this.taskType = taskType;
+      this.dataSource = dataSource;
+      this.taskState = state;
+      this.runnerTaskState = runnerState;
+      this.createdTime = createdTime;
+      this.queueInsertionTime = queueInsertionTime;
+      this.taskLocation = taskLocation;
+    }
+
+    @Override
+    public TaskLocation getLocation()
+    {
+      return taskLocation;
+    }
+
+    @Override
+    public String getTaskType()
+    {
+      return taskType;
+    }
+
+    @Override
+    public String getDataSource()
+    {
+      return dataSource;
+    }
+
+    public TaskState getTaskState()
+    {
+      return taskState;
+    }
+
+    public RunnerTaskState getRunnerTaskState()
+    {
+      return runnerTaskState;
+    }
+
+    @Override
+    public DateTime getCreatedTime()
+    {
+      return createdTime;
+    }
+
+    @Override
+    public DateTime getQueueInsertionTime()
+    {
+      return queueInsertionTime;
+    }
+
+    public AnyTask withTaskState(
+        TaskState newTaskState,
+        RunnerTaskState runnerState,
+        DateTime createdTime,
+        DateTime queueInsertionTime,
+        TaskLocation taskLocation
+    )
+    {
+      return new AnyTask(
+          getTaskId(),
+          getTaskType(),
+          getResult(),
+          getDataSource(),
+          newTaskState,
+          runnerState,
+          createdTime,
+          queueInsertionTime,
+          taskLocation
+      );
+    }
+  }
+
 }

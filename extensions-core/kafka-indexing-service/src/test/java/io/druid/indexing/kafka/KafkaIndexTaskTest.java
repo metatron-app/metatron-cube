@@ -57,9 +57,10 @@ import io.druid.data.input.impl.JSONPathSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
+import io.druid.indexer.TaskState;
 import io.druid.indexing.common.SegmentLoaderFactory;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.TaskToolboxFactory;
 import io.druid.indexing.common.TestUtils;
@@ -334,7 +335,7 @@ public class KafkaIndexTaskTest
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -390,7 +391,7 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -446,7 +447,7 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -497,7 +498,7 @@ public class KafkaIndexTaskTest
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(0, task.getFireDepartmentMetrics().processed());
@@ -540,7 +541,7 @@ public class KafkaIndexTaskTest
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -594,7 +595,7 @@ public class KafkaIndexTaskTest
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.FAILED, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.FAILED, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -647,7 +648,7 @@ public class KafkaIndexTaskTest
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.FAILED, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.FAILED, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -706,8 +707,8 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for tasks to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future1.get().getStatusCode());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future2.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future2.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task1.getFireDepartmentMetrics().processed());
@@ -776,11 +777,11 @@ public class KafkaIndexTaskTest
 
     // Run first task
     final ListenableFuture<TaskStatus> future1 = runTask(task1);
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future1.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
 
     // Run second task
     final ListenableFuture<TaskStatus> future2 = runTask(task2);
-    Assert.assertEquals(TaskStatus.Status.FAILED, future2.get().getStatusCode());
+    Assert.assertEquals(TaskState.FAILED, future2.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task1.getFireDepartmentMetrics().processed());
@@ -849,7 +850,7 @@ public class KafkaIndexTaskTest
 
     // Run first task
     final ListenableFuture<TaskStatus> future1 = runTask(task1);
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future1.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
 
     // Check published segments & metadata
     SegmentDescriptor desc1 = SD(task1, "2010/P1D", 0);
@@ -859,7 +860,7 @@ public class KafkaIndexTaskTest
 
     // Run second task
     final ListenableFuture<TaskStatus> future2 = runTask(task2);
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future2.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future2.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task1.getFireDepartmentMetrics().processed());
@@ -913,7 +914,7 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for tasks to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(5, task.getFireDepartmentMetrics().processed());
@@ -989,8 +990,8 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for tasks to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future1.get().getStatusCode());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future2.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future2.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(3, task1.getFireDepartmentMetrics().processed());
@@ -1053,7 +1054,7 @@ public class KafkaIndexTaskTest
 
     // Stop without publishing segment
     task1.stopGracefully();
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future1.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
 
     // Start a new task
     final KafkaIndexTask task2 = createTask(
@@ -1083,7 +1084,7 @@ public class KafkaIndexTaskTest
     }
 
     // Wait for task to exit
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future2.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future2.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(2, task1.getFireDepartmentMetrics().processed());
@@ -1171,7 +1172,7 @@ public class KafkaIndexTaskTest
 
     task.resume();
 
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
     Assert.assertEquals(task.getEndOffsets(), task.getCurrentOffsets());
 
     // Check metrics
@@ -1259,7 +1260,7 @@ public class KafkaIndexTaskTest
 
     task.resume();
 
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, future.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
 
     // Check metrics
     Assert.assertEquals(4, task.getFireDepartmentMetrics().processed());

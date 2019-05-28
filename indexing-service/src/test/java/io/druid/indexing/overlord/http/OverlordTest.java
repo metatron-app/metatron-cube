@@ -33,8 +33,9 @@ import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.discovery.NoopServiceAnnouncer;
-import io.druid.indexing.common.TaskLocation;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskState;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.actions.TaskActionClientFactory;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.NoopTask;
@@ -245,7 +246,7 @@ public class OverlordTest
     // Simulate completion of task_0
     taskCompletionCountDownLatches[Integer.parseInt(taskId_0)].countDown();
     // Wait for taskQueue to handle success status of task_0
-    waitForTaskStatus(taskId_0, TaskStatus.Status.SUCCESS);
+    waitForTaskStatus(taskId_0, TaskState.SUCCESS);
 
     // Manually insert task in taskStorage
     // Verifies sync from storage
@@ -255,7 +256,7 @@ public class OverlordTest
     // Wait for task runner to run task_1
     runTaskCountDownLatches[Integer.parseInt(taskId_1)].await();
 
-    response = overlordResource.getRunningTasks(req);
+    response = overlordResource.getRunningTasks(null, req);
     // 1 task that was manually inserted should be in running state
     Assert.assertEquals(1, (((List) response.getEntity()).size()));
     final OverlordResource.TaskResponseObject taskResponseObject = ((List<OverlordResource.TaskResponseObject>) response
@@ -266,7 +267,7 @@ public class OverlordTest
     // Simulate completion of task_1
     taskCompletionCountDownLatches[Integer.parseInt(taskId_1)].countDown();
     // Wait for taskQueue to handle success status of task_1
-    waitForTaskStatus(taskId_1, TaskStatus.Status.SUCCESS);
+    waitForTaskStatus(taskId_1, TaskState.SUCCESS);
 
     // should return number of tasks which are not in running state
     response = overlordResource.getCompleteTasks(null, req);
@@ -280,7 +281,7 @@ public class OverlordTest
    * These method will not timeout until the condition is met so calling method should ensure timeout
    * This method also assumes that the task with given taskId is present
    * */
-  private void waitForTaskStatus(String taskId, TaskStatus.Status status) throws InterruptedException
+  private void waitForTaskStatus(String taskId, TaskState status) throws InterruptedException
   {
     while (true) {
       Response response = overlordResource.getTaskStatus(taskId);
@@ -377,6 +378,19 @@ public class OverlordTest
         {
           return TASK_LOCATION;
         }
+
+        @Override
+        public String getTaskType()
+        {
+          return task.getType();
+        }
+
+        @Override
+        public String getDataSource()
+        {
+          return task.getDataSource();
+        }
+
       };
       taskRunnerWorkItems.put(taskId, taskRunnerWorkItem);
       return future;

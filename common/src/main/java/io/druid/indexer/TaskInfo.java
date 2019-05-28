@@ -16,34 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package io.druid.indexer;
 
-package io.druid.testing.clients;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.indexer.TaskStatus;
 import org.joda.time.DateTime;
 
-public class TaskResponseObject
+/**
+ * This class is used to store task info from runner query and cache in OverlordResource
+ */
+public class TaskInfo<EntryType>
 {
-
   private final String id;
   private final DateTime createdTime;
-  private final DateTime queueInsertionTime;
   private final TaskStatus status;
+  private final String dataSource;
+  private final EntryType task;
 
-  @JsonCreator
-  private TaskResponseObject(
-      @JsonProperty("id") String id,
-      @JsonProperty("createdTime") DateTime createdTime,
-      @JsonProperty("queueInsertionTime") DateTime queueInsertionTime,
-      @JsonProperty("status") TaskStatus status
-  )
+  public TaskInfo(String id, DateTime createdTime, TaskStatus status, String dataSource, EntryType task)
   {
     this.id = id;
     this.createdTime = createdTime;
-    this.queueInsertionTime = queueInsertionTime;
     this.status = status;
+    this.dataSource = dataSource;
+    this.task = task;
   }
 
   public String getId()
@@ -56,13 +50,19 @@ public class TaskResponseObject
     return createdTime;
   }
 
-  public DateTime getQueueInsertionTime()
-  {
-    return queueInsertionTime;
-  }
-
   public TaskStatus getStatus()
   {
     return status;
   }
+
+  public String getDataSource()
+  {
+    return dataSource;
+  }
+
+  public EntryType getTask()
+  {
+    return task;
+  }
 }
+

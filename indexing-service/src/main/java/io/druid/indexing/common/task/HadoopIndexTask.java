@@ -46,7 +46,7 @@ import io.druid.indexer.MetadataStorageUpdaterJobHandler;
 import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.LockAcquireAction;
 import io.druid.indexing.common.actions.LockTryAcquireAction;

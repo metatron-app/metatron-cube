@@ -20,8 +20,8 @@
 package io.druid.indexing.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.indexing.common.TaskLocation;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TestUtils;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;

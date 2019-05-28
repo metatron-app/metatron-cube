@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.indexing.common;
+package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import io.druid.query.QueryInterruptedException;
+import io.druid.common.utils.ExceptionUtils;
 
 /**
  * Represents the status of a task from the perspective of the coordinator. The task may be ongoing
@@ -36,14 +36,7 @@ import io.druid.query.QueryInterruptedException;
  */
 public class TaskStatus
 {
-  public static enum Status
-  {
-    RUNNING,
-    SUCCESS,
-    FAILED
-  }
-
-  public static Predicate<TaskStatus> asPredicate(final Status status)
+  public static Predicate<TaskStatus> asPredicate(final TaskState status)
   {
     return new Predicate<TaskStatus>()
     {
@@ -57,38 +50,38 @@ public class TaskStatus
 
   public static TaskStatus running(String taskId)
   {
-    return new TaskStatus(taskId, Status.RUNNING, -1, null);
+    return new TaskStatus(taskId, TaskState.RUNNING, -1, null);
   }
 
   public static TaskStatus success(String taskId)
   {
-    return new TaskStatus(taskId, Status.SUCCESS, -1, null);
+    return new TaskStatus(taskId, TaskState.SUCCESS, -1, null);
   }
 
   public static TaskStatus failure(String taskId, String reason)
   {
-    return new TaskStatus(taskId, Status.FAILED, -1, reason);
+    return new TaskStatus(taskId, TaskState.FAILED, -1, reason);
   }
 
   public static TaskStatus failure(String taskId, Throwable t)
   {
-    return new TaskStatus(taskId, Status.FAILED, -1, "Exception: " + QueryInterruptedException.stackTrace(t));
+    return new TaskStatus(taskId, TaskState.FAILED, -1, "Exception: " + ExceptionUtils.stackTrace(t));
   }
 
-  public static TaskStatus fromCode(String taskId, Status code, String reason)
+  public static TaskStatus fromCode(String taskId, TaskState code, String reason)
   {
     return new TaskStatus(taskId, code, -1, reason);
   }
 
   private final String id;
-  private final Status status;
+  private final TaskState status;
   private final long duration;
   private final String reason;
 
   @JsonCreator
   private TaskStatus(
       @JsonProperty("id") String id,
-      @JsonProperty("status") Status status,
+      @JsonProperty("status") TaskState status,
       @JsonProperty("duration") long duration,
       @JsonProperty("reason") String reason
   )
@@ -110,7 +103,7 @@ public class TaskStatus
   }
 
   @JsonProperty("status")
-  public Status getStatusCode()
+  public TaskState getStatusCode()
   {
     return status;
   }
@@ -137,7 +130,7 @@ public class TaskStatus
   @JsonIgnore
   public boolean isRunnable()
   {
-    return status == Status.RUNNING;
+    return status == TaskState.RUNNING;
   }
 
   /**
@@ -160,7 +153,7 @@ public class TaskStatus
   @JsonIgnore
   public boolean isSuccess()
   {
-    return status == Status.SUCCESS;
+    return status == TaskState.SUCCESS;
   }
 
   /**
@@ -172,7 +165,7 @@ public class TaskStatus
   @JsonIgnore
   public boolean isFailure()
   {
-    return status == Status.FAILED;
+    return status == TaskState.FAILED;
   }
 
   public TaskStatus withDuration(long _duration)

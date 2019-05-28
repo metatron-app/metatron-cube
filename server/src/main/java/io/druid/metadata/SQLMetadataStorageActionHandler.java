@@ -30,13 +30,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
-import com.metamx.common.StringUtils;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.StringUtils;
+import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskStatus;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.FoldController;
 import org.skife.jdbi.v2.Folder3;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.exceptions.StatementException;
@@ -44,13 +47,14 @@ import org.skife.jdbi.v2.tweak.HandleCallback;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.ByteArrayMapper;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, LockType>
+public abstract class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, LockType>
     implements MetadataStorageActionHandler<EntryType, StatusType, LogType, LockType>
 {
   private static final EmittingLogger log = new EmittingLogger(SQLMetadataStorageActionHandler.class);
@@ -89,6 +93,26 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
     this.lockTable = lockTable;
   }
 
+  protected SQLMetadataConnector getConnector()
+  {
+    return connector;
+  }
+
+  protected ObjectMapper getJsonMapper()
+  {
+    return jsonMapper;
+  }
+
+  protected TypeReference getStatusType()
+  {
+    return statusType;
+  }
+
+  protected String getEntryTable()
+  {
+    return entryTable;
+  }
+
   protected String getLogTable()
   {
     return logTable;
@@ -97,6 +121,11 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
   protected String getEntryTypeName()
   {
     return entryTypeName;
+  }
+
+  public TypeReference getEntryType()
+  {
+    return entryType;
   }
 
   @Override
@@ -337,6 +366,81 @@ public class SQLMetadataStorageActionHandler<EntryType, StatusType, LogType, Loc
         }
     );
   }
+
+  @Override
+  public List<TaskInfo<EntryType>> getCompletedTaskInfo(
+      DateTime timestamp,
+      @Nullable Integer maxNumStatuses,
+      @Nullable String datasource
+  )
+  {
+    return getConnector().retryWithHandle(
+        new HandleCallback<List<TaskInfo<EntryType>>>()
+        {
+          @Override
+          public List<TaskInfo<EntryType>> withHandle(Handle handle) throws Exception
+          {
+            final Query<Map<String, Object>> query = createInactiveStatusesSinceQuery(
+                handle,
+                timestamp,
+                maxNumStatuses,
+                datasource
+            );
+            return query.map(new TaskInfoMapper()).list();
+          }
+        }
+    );
+  }
+
+  @Override
+  public List<TaskInfo<EntryType>> getActiveTaskInfo()
+  {
+    return getConnector().retryWithHandle(
+        new HandleCallback<List<TaskInfo<EntryType>>>()
+        {
+          @Override
+          public List<TaskInfo<EntryType>> withHandle(Handle handle) throws Exception
+          {
+            return handle.createQuery(
+                StringUtils.format(
+                    "SELECT id, status_payload, payload, datasource, created_date FROM %s WHERE active = TRUE ORDER BY created_date",
+                    entryTable
+                )
+            ).map(new TaskInfoMapper()).list();
+          }
+        }
+    );
+  }
+
+  class TaskInfoMapper implements ResultSetMapper<TaskInfo<EntryType>>
+  {
+    @Override
+    public TaskInfo<EntryType> map(int index, ResultSet resultSet, StatementContext context) throws SQLException
+    {
+      final TaskInfo<EntryType> taskInfo;
+      try {
+        TaskStatus status = getJsonMapper().readValue(resultSet.getBytes("status_payload"), getStatusType());
+        taskInfo = new TaskInfo<>(
+            resultSet.getString("id"),
+            DateTimes.of(resultSet.getString("created_date")),
+            status,
+            resultSet.getString("datasource"),
+            getJsonMapper().readValue(resultSet.getBytes("payload"), getEntryType())
+        );
+      }
+      catch (IOException e) {
+        throw new SQLException(e);
+      }
+      return taskInfo;
+    }
+  }
+
+  protected abstract Query<Map<String, Object>> createInactiveStatusesSinceQuery(
+      Handle handle,
+      DateTime timestamp,
+      @Nullable Integer maxNumStatuses,
+      @Nullable String datasource
+  );
 
   @Override
   public boolean addLock(final String entryId, final LockType lock)

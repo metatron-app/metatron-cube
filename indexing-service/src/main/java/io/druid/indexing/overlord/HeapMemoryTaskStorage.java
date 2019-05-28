@@ -30,8 +30,11 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
+import io.druid.common.DateTimes;
+import io.druid.data.Pair;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexer.TaskInfo;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.Task;
@@ -39,11 +42,11 @@ import io.druid.metadata.EntryExistsException;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 /**
  * Implements an in-heap TaskStorage facility, with no persistence across restarts. This class is not
@@ -86,7 +89,7 @@ public class HeapMemoryTaskStorage implements TaskStorage
       }
 
       log.info("Inserting task %s with status: %s", task.getId(), status);
-      tasks.put(task.getId(), new TaskStuff(task, status, new DateTime()));
+      tasks.put(task.getId(), new TaskStuff(task, status, new DateTime(), task.getDataSource()));
     } finally {
       giant.unlock();
     }
@@ -163,12 +166,36 @@ public class HeapMemoryTaskStorage implements TaskStorage
   }
 
   @Override
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent)
+  public List<TaskInfo<Task>> getActiveTaskInfo()
   {
-    Duration duration = recent == null ? config.getRecentlyFinishedThreshold() : new Duration(recent);
-    final long start = System.currentTimeMillis() - duration.getMillis();
-    final List<TaskStatus> returns = Lists.newArrayList();
+    giant.lock();
 
+    try {
+      final ImmutableList.Builder<TaskInfo<Task>> listBuilder = ImmutableList.builder();
+      for (final TaskStuff taskStuff : tasks.values()) {
+        if (taskStuff.getStatus().isRunnable()) {
+          TaskInfo t = new TaskInfo(
+              taskStuff.getTask().getId(),
+              taskStuff.getCreatedDate(),
+              taskStuff.getStatus(),
+              taskStuff.getDataSource(),
+              taskStuff.getTask()
+          );
+          listBuilder.add(t);
+        }
+      }
+      return listBuilder.build();
+    }
+    finally {
+      giant.unlock();
+    }
+  }
+
+  @Override
+  public List<TaskInfo<Task>> getRecentlyFinishedTaskInfo(
+      @Nullable Integer maxTaskStatuses, @Nullable Duration duration, @Nullable String datasource
+  )
+  {
     giant.lock();
 
     try {
@@ -180,13 +207,90 @@ public class HeapMemoryTaskStorage implements TaskStorage
           return a.getCreatedDate().compareTo(b.getCreatedDate());
         }
       }.reverse();
-      for(final TaskStuff taskStuff : createdDateDesc.sortedCopy(tasks.values())) {
-        if(taskStuff.getStatus().isComplete() && taskStuff.getCreatedDate().getMillis() > start) {
-          returns.add(taskStuff.getStatus());
+
+      return maxTaskStatuses == null ?
+             getRecentlyFinishedTaskInfoSince(
+                 DateTimes.nowUtc().minus(duration == null ? config.getRecentlyFinishedThreshold() : duration),
+                 createdDateDesc
+             ) :
+             getNRecentlyFinishedTaskInfo(maxTaskStatuses, createdDateDesc);
+
+    } finally {
+      giant.unlock();
+    }
+  }
+
+  private List<TaskInfo<Task>> getRecentlyFinishedTaskInfoSince(DateTime start, Ordering<TaskStuff> createdDateDesc)
+  {
+    giant.lock();
+
+    try {
+      final List<TaskStuff> list = Lists.newArrayList();
+
+      List<TaskStuff> sortedCopy = createdDateDesc.sortedCopy(tasks.values());
+      for(final TaskStuff taskStuff : sortedCopy) {
+        if(taskStuff.getStatus().isComplete() && taskStuff.getCreatedDate().isAfter(start)) {
+          list.add(taskStuff);
         }
       }
-      return returns;
-    } finally {
+
+      final ImmutableList.Builder<TaskInfo<Task>> listBuilder = ImmutableList.builder();
+      for (final TaskStuff taskStuff : list) {
+        String id = taskStuff.getTask().getId();
+        TaskInfo t = new TaskInfo(
+            id,
+            taskStuff.getCreatedDate(),
+            taskStuff.getStatus(),
+            taskStuff.getDataSource(),
+            taskStuff.getTask()
+        );
+        listBuilder.add(t);
+      }
+      return listBuilder.build();
+    }
+    finally {
+      giant.unlock();
+    }
+  }
+
+  private List<TaskInfo<Task>> getNRecentlyFinishedTaskInfo(int n, Ordering<TaskStuff> createdDateDesc)
+  {
+    giant.lock();
+
+    try {
+      List<TaskStuff> sortedCopy = createdDateDesc.sortedCopy(tasks.values());
+      List<TaskStuff> list = sortedCopy.subList(0, n <= sortedCopy.size() -1 ? n : sortedCopy.size() -1);
+
+      final ImmutableList.Builder<TaskInfo<Task>> listBuilder = ImmutableList.builder();
+      for (final TaskStuff taskStuff : list) {
+        String id = taskStuff.getTask().getId();
+        TaskInfo t = new TaskInfo(
+            id,
+            taskStuff.getCreatedDate(),
+            taskStuff.getStatus(),
+            taskStuff.getDataSource(),
+            taskStuff.getTask()
+        );
+        listBuilder.add(t);
+      }
+      return listBuilder.build();
+    }
+    finally {
+      giant.unlock();
+    }
+  }
+
+  @Nullable
+  @Override
+  public Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId)
+  {
+    giant.lock();
+
+    try {
+      final TaskStuff taskStuff = tasks.get(taskId);
+      return taskStuff == null ? null : Pair.of(taskStuff.getCreatedDate(), taskStuff.getDataSource());
+    }
+    finally {
       giant.unlock();
     }
   }
@@ -281,16 +385,19 @@ public class HeapMemoryTaskStorage implements TaskStorage
     final Task task;
     final TaskStatus status;
     final DateTime createdDate;
+    final String dataSource;
 
-    private TaskStuff(Task task, TaskStatus status, DateTime createdDate)
+    private TaskStuff(Task task, TaskStatus status, DateTime createdDate, String dataSource)
     {
       Preconditions.checkNotNull(task);
       Preconditions.checkNotNull(status);
       Preconditions.checkArgument(task.getId().equals(status.getId()));
+      Preconditions.checkNotNull(dataSource);
 
       this.task = task;
       this.status = status;
       this.createdDate = Preconditions.checkNotNull(createdDate, "createdDate");
+      this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     }
 
     public Task getTask()
@@ -308,9 +415,13 @@ public class HeapMemoryTaskStorage implements TaskStorage
       return createdDate;
     }
 
+    public String getDataSource() {
+      return dataSource;
+    }
+
     private TaskStuff withStatus(TaskStatus _status)
     {
-      return new TaskStuff(task, _status, createdDate);
+      return new TaskStuff(task, _status, createdDate, dataSource);
     }
   }
 }

@@ -21,6 +21,12 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import org.joda.time.DateTime;
+import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
+
+import javax.annotation.Nullable;
+import java.util.Map;
 
 public class SQLMetadataStorageActionHandlerFactory implements MetadataStorageActionHandlerFactory
 {
@@ -45,7 +51,7 @@ public class SQLMetadataStorageActionHandlerFactory implements MetadataStorageAc
       MetadataStorageActionHandlerTypes<A,B,C,D> payloadTypes
   )
   {
-    return new SQLMetadataStorageActionHandler<>(
+    return new SQLMetadataStorageActionHandler(
         connector,
         jsonMapper,
         payloadTypes,
@@ -53,6 +59,16 @@ public class SQLMetadataStorageActionHandlerFactory implements MetadataStorageAc
         config.getEntryTable(entryType),
         config.getLogTable(entryType),
         config.getLockTable(entryType)
-    );
+    )
+    {
+      @Override
+      protected Query<Map<String, Object>> createInactiveStatusesSinceQuery(
+          Handle handle, DateTime timestamp, @Nullable Integer maxNumStatuses, @Nullable String datasource
+      )
+      {
+        //TOD seoeun
+        return null;
+      }
+    };
   }
 }

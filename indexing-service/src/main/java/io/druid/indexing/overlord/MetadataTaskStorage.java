@@ -32,8 +32,16 @@ import com.metamx.common.Pair;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.common.DateTimes;
+import io.druid.indexer.TaskState;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.actions.TaskAction;
+import io.druid.indexing.common.config.TaskStorageConfig;
+import io.druid.indexing.common.task.Task;
+import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.Task;
@@ -46,6 +54,7 @@ import io.druid.metadata.MetadataStorageTablesConfig;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
@@ -183,31 +192,43 @@ public class MetadataTaskStorage implements TaskStorage
   {
     return ImmutableList.copyOf(
         Iterables.transform(
-            handler.getActiveEntriesWithStatus(TaskStatus.asPredicate(TaskStatus.Status.RUNNING)),
+            handler.getActiveEntriesWithStatus(TaskStatus.asPredicate(TaskState.RUNNING)),
             Pair.<Task, TaskStatus>lhsFn()
         )
     );
   }
 
   @Override
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent)
+  public List<TaskInfo<Task>> getActiveTaskInfo()
   {
-    Duration duration = recent == null ? config.getRecentlyFinishedThreshold() : new Duration(recent);
-    final DateTime start = new DateTime().minus(duration);
+    return ImmutableList.copyOf(
+        handler.getActiveTaskInfo()
+    );
+  }
+
+  @Override
+  public List<TaskInfo<Task>> getRecentlyFinishedTaskInfo(
+      @Nullable Integer maxTaskStatuses,
+      @Nullable Duration duration,
+      @Nullable String datasource
+  )
+  {
 
     return ImmutableList.copyOf(
-        Iterables.filter(
-            handler.getInactiveStatusesSince(start),
-            new Predicate<TaskStatus>()
-            {
-              @Override
-              public boolean apply(TaskStatus status)
-              {
-                return status.isComplete();
-              }
-            }
+        handler.getCompletedTaskInfo(
+            DateTimes.nowUtc().minus(duration == null ? config.getRecentlyFinishedThreshold() : duration),
+            maxTaskStatuses,
+            datasource
         )
     );
+  }
+
+  @Nullable
+  @Override
+  public io.druid.data.Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId)
+  {
+    //FIXME seoeun
+    return null;
   }
 
   @Override

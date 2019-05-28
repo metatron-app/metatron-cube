@@ -20,13 +20,17 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.base.Optional;
+import io.druid.data.Pair;
+import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.metadata.EntryExistsException;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 public interface TaskStorage
@@ -118,14 +122,31 @@ public interface TaskStorage
   public List<Task> getActiveTasks();
 
   /**
-   * Returns a list of recently finished task statuses as stored in the storage facility. No particular order
-   * is guaranteed, but implementations are encouraged to return tasks in descending order of creation. No particular
-   * standard of "recent" is guaranteed, and in fact, this method is permitted to simply return nothing.
+   * Returns a list of currently running or pending tasks as stored in the storage facility as {@link TaskInfo}. No particular order
+   * is guaranteed, but implementations are encouraged to return tasks in ascending order of creation.
    *
-   * @return list of recently finished tasks
-   * @param recent
+   * @return list of {@link TaskInfo}
    */
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent);
+  List<TaskInfo<Task>> getActiveTaskInfo();
+
+  /**
+   * Returns up to {@code maxTaskStatuses} {@link TaskInfo} objects of recently finished tasks as stored in the storage facility. No
+   * particular order is guaranteed, but implementations are encouraged to return tasks in descending order of creation.
+   * No particular standard of "recent" is guaranteed, and in fact, this method is permitted to simply return nothing.
+   *
+   * @param maxTaskStatuses maxTaskStatuses
+   * @param duration duration
+   *
+   * @return list of {@link TaskInfo}
+   */
+  List<TaskInfo<Task>> getRecentlyFinishedTaskInfo(
+      @Nullable Integer maxTaskStatuses,
+      @Nullable Duration duration,
+      @Nullable String datasource
+  );
+
+  @Nullable
+  Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId);
 
   /**
    * Returns a list of locks for a particular task.

@@ -26,7 +26,7 @@ import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentListUnusedAction;
 import io.druid.indexing.common.actions.SegmentNukeAction;

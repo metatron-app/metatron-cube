@@ -22,14 +22,18 @@ package io.druid.indexing.overlord;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import io.druid.data.Pair;
+import io.druid.indexer.TaskInfo;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
 
@@ -51,9 +55,18 @@ public class TaskStorageQueryAdapter
     return storage.getActiveTasks();
   }
 
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String duration)
+  public List<TaskInfo<Task>> getActiveTaskInfo()
   {
-    return storage.getRecentlyFinishedTaskStatuses(duration);
+    return storage.getActiveTaskInfo();
+  }
+
+  public List<TaskInfo<Task>> getRecentlyCompletedTaskInfo(
+      @Nullable Integer maxTaskStatuses,
+      @Nullable Duration duration,
+      @Nullable String dataSource
+  )
+  {
+    return storage.getRecentlyFinishedTaskInfo(maxTaskStatuses, duration, dataSource);
   }
 
   public Optional<Task> getTask(final String taskid)
@@ -90,5 +103,10 @@ public class TaskStorageQueryAdapter
       }
     }
     return segments;
+  }
+
+  public Pair<DateTime, String> getCreatedDateAndDataSource(String taskId)
+  {
+    return storage.getCreatedDateTimeAndDataSource(taskId);
   }
 }

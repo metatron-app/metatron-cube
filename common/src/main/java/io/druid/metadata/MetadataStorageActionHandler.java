@@ -22,6 +22,7 @@ package io.druid.metadata;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.metamx.common.Pair;
+import io.druid.indexer.TaskInfo;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -93,6 +94,28 @@ public interface MetadataStorageActionHandler<EntryType, StatusType, LogType, Lo
    * @return list of statuses
    */
   public List<StatusType> getInactiveStatusesSince(DateTime timestamp);
+
+  /**
+   * Return up to {@code maxNumStatuses} {@link TaskInfo} objects for all inactive entries
+   * created on or later than the given timestamp
+   *
+   * @param timestamp      timestamp
+   * @param maxNumStatuses maxNumStatuses
+   *
+   * @return list of {@link TaskInfo}
+   */
+  List<TaskInfo<EntryType>> getCompletedTaskInfo(
+      DateTime timestamp,
+      @Nullable Integer maxNumStatuses,
+      @Nullable String datasource
+  );
+
+  /**
+   * Return {@link TaskInfo} objects for all active entries
+   *
+   * @return list of {@link TaskInfo}
+   */
+  List<TaskInfo<EntryType>> getActiveTaskInfo();
 
   /**
    * Add a lock to the given entry

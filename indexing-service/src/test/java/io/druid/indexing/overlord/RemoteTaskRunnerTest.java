@@ -29,8 +29,9 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.indexer.TaskState;
 import io.druid.indexing.common.IndexingServiceCondition;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TestRealtimeTask;
 import io.druid.indexing.common.TestTasks;
 import io.druid.indexing.common.TestUtils;
@@ -101,7 +102,7 @@ public class RemoteTaskRunnerTest
     Assert.assertTrue(workerCompletedTask(result));
 
     Assert.assertEquals(task.getId(), result.get().getId());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, result.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, result.get().getStatusCode());
   }
 
   @Test
@@ -127,7 +128,7 @@ public class RemoteTaskRunnerTest
     Assert.assertTrue(workerCompletedTask(result));
 
     Assert.assertEquals(task.getId(), result.get().getId());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, result.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, result.get().getStatusCode());
   }
 
   @Test
@@ -148,7 +149,7 @@ public class RemoteTaskRunnerTest
     Assert.assertTrue(workerCompletedTask(result));
 
     Assert.assertEquals(task.getId(), result.get().getId());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, result.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, result.get().getStatusCode());
   }
 
   @Test
@@ -310,7 +311,7 @@ public class RemoteTaskRunnerTest
 
     TaskStatus status = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-    Assert.assertEquals(status.getStatusCode(), TaskStatus.Status.FAILED);
+    Assert.assertEquals(status.getStatusCode(), TaskState.FAILED);
   }
 
   @Test
@@ -363,7 +364,7 @@ public class RemoteTaskRunnerTest
 
     TaskStatus status = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, status.getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, status.getStatusCode());
   }
 
   @Test
@@ -381,7 +382,7 @@ public class RemoteTaskRunnerTest
 
     TaskStatus status = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-    Assert.assertEquals(TaskStatus.Status.FAILED, status.getStatusCode());
+    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
     RemoteTaskRunnerConfig config = remoteTaskRunner.getRemoteTaskRunnerConfig();
     Assert.assertTrue(
         TestUtils.conditionValid(
@@ -417,7 +418,7 @@ public class RemoteTaskRunnerTest
     mockWorkerCompleteSuccessfulTask(task);
     Assert.assertTrue(workerCompletedTask(result));
     Assert.assertEquals(task.getId(), result.get().getId());
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, result.get().getStatusCode());
+    Assert.assertEquals(TaskState.SUCCESS, result.get().getStatusCode());
 
     // Confirm RTR thinks the worker is disabled.
     Assert.assertEquals("", Iterables.getOnlyElement(remoteTaskRunner.getWorkers()).getWorker().getVersion());
@@ -586,8 +587,8 @@ public class RemoteTaskRunnerTest
 
     mockWorkerCompleteSuccessfulTask(task);
     TaskStatus status = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    Assert.assertEquals(status.getStatusCode(), TaskStatus.Status.SUCCESS);
-    Assert.assertEquals(TaskStatus.Status.SUCCESS, status.getStatusCode());
+    Assert.assertEquals(status.getStatusCode(), TaskState.SUCCESS);
+    Assert.assertEquals(TaskState.SUCCESS, status.getStatusCode());
   }
 
 }

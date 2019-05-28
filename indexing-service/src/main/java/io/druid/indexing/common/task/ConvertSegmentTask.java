@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.SegmentListUsedAction;

@@ -37,8 +37,8 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.TaskInfoProvider;
-import io.druid.indexing.common.TaskLocation;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.kafka.KafkaDataSourceMetadata;
@@ -80,6 +80,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1729,6 +1730,19 @@ public class KafkaSupervisorTest extends EasyMockSupport
     public TaskLocation getLocation()
     {
       return location;
+    }
+
+    @Nullable
+    @Override
+    public String getTaskType()
+    {
+      return null;
+    }
+
+    @Override
+    public String getDataSource()
+    {
+      return null;
     }
   }
 

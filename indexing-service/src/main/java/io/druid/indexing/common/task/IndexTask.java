@@ -50,7 +50,7 @@ import io.druid.granularity.Granularity;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentAppendingAction;
 import io.druid.indexing.common.actions.TaskActionClient;

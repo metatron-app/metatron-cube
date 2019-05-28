@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.FirehoseFactory;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.TaskActionClient;
 import org.joda.time.DateTime;

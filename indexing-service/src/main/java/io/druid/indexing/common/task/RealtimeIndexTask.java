@@ -39,7 +39,7 @@ import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.FirehoseFactoryV2;
 import io.druid.data.input.FirehoseV2;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexing.common.TaskStatus;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.LockAcquireAction;
 import io.druid.indexing.common.actions.LockReleaseAction;
