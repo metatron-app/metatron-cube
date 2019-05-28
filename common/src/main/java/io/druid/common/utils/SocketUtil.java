@@ -55,4 +55,20 @@ public class SocketUtil
 
     throw new ISE("Unable to find open port between[%d] and [%d]", startPort, currPort);
   }
+
+  public static int findOpenPortFrom(int startPort)
+  {
+    int currPort = startPort;
+
+    while (currPort < 0xffff) {
+      try (ServerSocket socket = new ServerSocket(currPort)) {
+        return currPort;
+      }
+      catch (IOException e) {
+        ++currPort;
+      }
+    }
+
+    throw new ISE("Unable to find open port between [%d] and [%d]", startPort, currPort);
+  }
 }

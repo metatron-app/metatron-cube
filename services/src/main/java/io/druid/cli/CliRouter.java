@@ -40,6 +40,7 @@ import io.druid.server.ServiceTypes;
 import io.druid.server.ShutdownModule;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.router.CoordinatorRuleManager;
+import io.druid.server.router.ManagementProxyConfig;
 import io.druid.server.router.QueryHostFinder;
 import io.druid.server.router.Router;
 import io.druid.server.router.TieredBrokerConfig;
@@ -70,6 +71,7 @@ public class CliRouter extends ServerRunnable
   {
     return ImmutableList.of(
         new JettyHttpClientModule("druid.router.http", Router.class),
+        JettyHttpClientModule.global(),
         new Module()
         {
           @Override
@@ -79,6 +81,7 @@ public class CliRouter extends ServerRunnable
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8888);
 
             JsonConfigProvider.bind(binder, "druid.router", TieredBrokerConfig.class);
+            JsonConfigProvider.bind(binder, "druid.router.managementProxy", ManagementProxyConfig.class);
 
             binder.bind(CoordinatorRuleManager.class);
             LifecycleModule.register(binder, CoordinatorRuleManager.class);

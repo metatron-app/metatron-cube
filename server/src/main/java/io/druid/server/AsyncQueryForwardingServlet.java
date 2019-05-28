@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -98,6 +99,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
 
   private HttpClient broadcastClient;
 
+  @Inject
   public AsyncQueryForwardingServlet(
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
