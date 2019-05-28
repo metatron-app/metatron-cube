@@ -318,7 +318,7 @@ public class GuavaUtils
 
   public static <T> List<T> concat(T element, Iterable<T> list2)
   {
-    return concat(Arrays.asList(element), Lists.newArrayList(list2));
+    return concat(element, Lists.newArrayList(list2));
   }
 
   public static <T> List<T> concat(List<T> list1, List<T> list2)
@@ -638,6 +638,12 @@ public class GuavaUtils
           throw e;
         }
       }
+
+      @Override
+      public void remove()
+      {
+
+      }
     };
   }
 
@@ -712,6 +718,12 @@ public class GuavaUtils
       public T next()
       {
         return current.next();
+      }
+
+      @Override
+      public void remove()
+      {
+
       }
     };
   }
