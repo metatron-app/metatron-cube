@@ -393,7 +393,7 @@ public class DruidShell implements CommonShell
           candidates.add(new Candidate("-discover"));
         }
         if (line.wordIndex() > 0 && command.equals("tasks")) {
-          if (!commands.contains("-full")) {
+          if (commands.contains("-simple")) {
             candidates.add(new Candidate("-completed"));
           }
           if (commands.contains("-completed")) {
@@ -559,7 +559,7 @@ public class DruidShell implements CommonShell
         writer.println("rule <datasource-name> [-full]");
         writer.println("lookups [-discover]");
         writer.println("lookup <tier-name> [lookup-name]");
-        writer.println("tasks [-full] [-completed [-recent=<duration>]]");
+        writer.println("tasks [-simple] [-completed [-recent=<duration>]]");
         writer.println("task <task-id> [-status|-segments|-log]");
         writer.println("query <datasource-name> <intervals> [-full]");
         writer.println("sql <sql-string>");
@@ -882,35 +882,36 @@ public class DruidShell implements CommonShell
         return;
       case "tasks":
         resource.append("/druid/indexer/v1/tasks");
-        boolean hasFull = false;
+        boolean hasSimple = false;
         boolean hasCompleted = false;
         String recentOption = null;
         while (cursor.hasMore()) {
           String current = cursor.next();
-          if (current.equals("-full")) {
-            hasFull = true;
+          if (current.equals("-simple")) {
+            hasSimple = true;
           } else if (current.equals("-completed")) {
             hasCompleted = true;
           } else if (current.startsWith("-recent=")) {
-            recentOption = current;
+            recentOption = current.substring(8);
           }
         }
-        if (hasFull) {
-          resource.appendOption("full");
+        if (hasSimple) {
+          resource.appendOption("simple");
         }
         if (hasCompleted || recentOption != null) {
-          resource.appendOption("completed");
+          resource.appendOption("state=complete");
         }
         if (recentOption != null) {
-          resource.appendOption(recentOption);
+          resource.appendOption("period=" + recentOption);
         }
-        if (hasFull) {
+
+        if (hasSimple) {
+          writer.println(PREFIX[0] + execute(overlordURL, resource.get(), LIST));
+        } else {
           resource.appendOption(cursor.current());
           for (Map<String, Object> value : execute(overlordURL, resource.get(), LIST_MAP)) {
             writer.println(PREFIX[0] + value);
           }
-        } else {
-          writer.println(PREFIX[0] + execute(overlordURL, resource.get(), LIST));
         }
         return;
       case "task":

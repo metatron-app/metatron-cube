@@ -48,7 +48,6 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
 import io.druid.common.DateTimes;
-import io.druid.common.Intervals;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -98,6 +97,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
+import org.joda.time.Period;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
@@ -229,76 +229,6 @@ public class OverlordResource
   {
     return Response.ok(taskMaster.getLeader()).build();
   }
-
-  // TODO DruidShell
-//  @GET
-//  @Path("/tasks")
-//  @Produces(MediaType.APPLICATION_JSON)
-//  public Response getTasks(
-//      @QueryParam("full") String full,
-//      @QueryParam("completed") String completed,
-//      @QueryParam("recent") String recent,
-//      @Context final HttpServletRequest req)
-//  {
-//    if (completed != null) {
-//      List<TaskStatus> finished = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
-//      if (full == null) {
-//        List<String> ids = Lists.newArrayList();
-//        for (TaskStatus status : finished) {
-//          ids.add(status.getId());
-//        }
-//        return Response.ok(ids).build();
-//      } else {
-//        return Response.ok(finished).build();
-//      }
-//    }
-//    List<Task> activeTasks = taskStorageQueryAdapter.getActiveTasks();
-//    if (authConfig.isEnabled()) {
-//      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-//      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
-//      List<Task> filtered = Lists.newArrayList();
-//      for (Task task : activeTasks) {
-//        Access authResult = authorization.isAuthorized(
-//            new Resource(task.getDataSource(), ResourceType.DATASOURCE),
-//            Action.READ
-//        );
-//        if (authResult.isAllowed()) {
-//          filtered.add(task);
-//        }
-//      }
-//      activeTasks = filtered;
-//    }
-//    List<String> tasks = Lists.transform(
-//        activeTasks, new Function<Task, String>()
-//        {
-//          @Override
-//          public String apply(Task input)
-//          {
-//            return input.getId();
-//          }
-//        }
-//    );
-//    if (full == null) {
-//      return Response.ok(tasks).build();
-//    }
-//
-//    final TaskRunner taskRunner = taskMaster.getTaskRunner().orNull();
-//    final Collection<TaskRunnerWorkItem> pending = getTaskWorkItems(taskRunner, Mode.PENDING, req);
-//    final Collection<TaskRunnerWorkItem> running = getTaskWorkItems(taskRunner, Mode.RUNNING, req);
-//
-//    return Response.ok(
-//        Lists.transform(
-//            tasks, new Function<String, Map<String, Object>>()
-//            {
-//              @Override
-//              public Map<String, Object> apply(final String taskId)
-//              {
-//                return toTaskDetail(taskId, pending, running);
-//              }
-//            }
-//        )
-//    ).build();
-//  }
 
   private Map<String, Object> toTaskDetail(
       final String taskId,
@@ -594,7 +524,7 @@ public class OverlordResource
   public Response getTasks(
       @QueryParam("state") final String state,
       @QueryParam("datasource") final String dataSource,
-      @QueryParam("interval") final String interval,
+      @QueryParam("period") final String period,
       @QueryParam("max") final Integer maxCompletedTasks,
       @QueryParam("type") final String type,
       @Context final HttpServletRequest req,
@@ -680,9 +610,8 @@ public class OverlordResource
     //checking for complete tasks first to avoid querying active tasks if user only wants complete tasks
     if (state == null || "complete".equals(StringUtils.toLowerCase(state))) {
       Duration duration = null;
-      if (interval != null) {
-        final Interval theInterval = Intervals.of(interval.replace("_", "/"));
-        duration = theInterval.toDuration();
+      if (period != null) {
+        duration = new Period(period).toStandardDuration();
       }
       final List<TaskInfo<Task, TaskStatus>> taskInfoList = taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(
           maxCompletedTasks, duration, dataSource
@@ -737,6 +666,7 @@ public class OverlordResource
       for (TaskStatusPlus taskStatusPlus: authorizedList) {
         ids.add(taskStatusPlus.getId());
       }
+      return Response.ok(ids).build();
     }
     return Response.ok(authorizedList).build();
   }
