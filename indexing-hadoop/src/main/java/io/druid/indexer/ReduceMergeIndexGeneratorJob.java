@@ -370,12 +370,13 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     {
       IntervalIndex found = selectTarget(current);
       persist(context, found);
-      return found != current ? current : null;
+      return found == current ? null : current;
     }
 
     private IntervalIndex selectTarget(IntervalIndex current)
     {
       if (!current.index().canAppendRow()) {
+        indices.remove(current);
         return current;
       }
       long leastAccessTime = -1;
