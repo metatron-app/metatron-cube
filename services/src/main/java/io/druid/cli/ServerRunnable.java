@@ -120,13 +120,15 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
                   .put("broker", CliBroker.class)
                   .put("overlord", CliOverlord.class)
                   .put("middleManager", CliMiddleManager.class)
-                  .put("realtime", CliRealtime.class).build();
+                  .put("realtime", CliRealtime.class)
+                  .put("router", CliRouter.class)
+                  .build();
 
   public static void main(String[] args) throws Exception
   {
     // coordinator starts storage module. for derby, it starts derby server in it
     Ordering<String> ordering = Ordering.explicit(
-        "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime"
+        "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime", "router"
     );
     Arrays.sort(args, ordering);
     List<String> params = Lists.newArrayList(Arrays.asList(args));
