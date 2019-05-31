@@ -144,7 +144,6 @@ public class Sequences extends com.metamx.common.guava.Sequences
     return seq.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
   }
 
-  // todo : limit on concat is not working.. fuck
   public static <T> Sequence<T> concat(List<Sequence<T>> sequences)
   {
     return sequences.isEmpty() ? Sequences.<T>empty()

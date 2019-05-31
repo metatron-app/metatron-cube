@@ -22,6 +22,7 @@ package io.druid.query.filter;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.LuceneIndex;
@@ -35,6 +36,7 @@ import java.io.Closeable;
  */
 public interface BitmapIndexSelector extends Closeable
 {
+  public Schema getSchema(boolean prependTime);
   public Indexed<String> getDimensionValues(String dimension);
   public int getNumRows();
   public BitmapFactory getBitmapFactory();
@@ -48,6 +50,12 @@ public interface BitmapIndexSelector extends Closeable
   public void close();
 
   class Abstract implements BitmapIndexSelector {
+
+    @Override
+    public Schema getSchema(boolean prependTime)
+    {
+      return null;
+    }
 
     @Override
     public Indexed<String> getDimensionValues(String dimension)

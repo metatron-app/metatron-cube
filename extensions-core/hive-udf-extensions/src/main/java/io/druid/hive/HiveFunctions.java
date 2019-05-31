@@ -19,9 +19,9 @@
 
 package io.druid.hive;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -125,46 +125,30 @@ public class HiveFunctions implements Function.Provider
     }
 
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       final GenericUDF genericUDF = functionInfo.getGenericUDF();
-      final ObjectInspector[] arguments = toObjectInspectors(args, bindings);
+      final ObjectInspector[] arguments = toObjectInspectors(args, resolver);
+      final ObjectInspector output;
       try {
-        return ObjectInspectors.typeOf(genericUDF.initializeAndFoldConstants(arguments), ValueDesc.UNKNOWN);
+        output = genericUDF.initializeAndFoldConstants(arguments);
       }
       catch (UDFArgumentException e) {
-        throw new IllegalArgumentException(e);
+        throw new IAE(e, "failed to initialize UDF [%s]", genericUDF.getUdfName());
       }
-    }
-
-    @Override
-    public Function create(List<Expr> args)
-    {
-      final GenericUDF genericUDF = functionInfo.getGenericUDF();
+      final ValueDesc outputType = ObjectInspectors.typeOf(output, ValueDesc.UNKNOWN);
       final GenericUDF.DeferredObject[] params = new GenericUDF.DeferredObject[args.size()];
       return new Function()
       {
-        private ObjectInspector[] arguments;
-        private ObjectInspector output;
-        private ValueDesc outputType;
-
         @Override
-        public String name()
+        public ValueDesc returns()
         {
-          return name;
+          return outputType;
         }
 
         @Override
-        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return intialize(args, bindings);
-        }
-
-        @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          Preconditions.checkArgument(bindings instanceof TypeResolver, "Hive function needs type binding");
-          intialize(args, (TypeResolver) bindings);
           for (int i = 0; i < params.length; i++) {
             params[i] = new GenericUDF.DeferredJavaObject(Evals.eval(args.get(i), bindings).value());
           }
@@ -176,21 +160,6 @@ public class HiveFunctions implements Function.Provider
             throw Throwables.propagate(e);
           }
         }
-
-        public ValueDesc intialize(List<Expr> args, TypeResolver bindings)
-        {
-          if (arguments == null) {
-            arguments = toObjectInspectors(args, bindings);
-            try {
-              output = genericUDF.initializeAndFoldConstants(arguments);
-            }
-            catch (UDFArgumentException e) {
-              throw new IllegalArgumentException(e);
-            }
-            outputType = ObjectInspectors.typeOf(output, ValueDesc.UNKNOWN);
-          }
-          return outputType;
-        }
       };
     }
 
@@ -198,7 +167,7 @@ public class HiveFunctions implements Function.Provider
     {
       final List<ObjectInspector> inspectors = Lists.newArrayList();
       for (Expr arg : args) {
-        ObjectInspector inspector = ObjectInspectors.toObjectInspector(arg.resolve(bindings));
+        ObjectInspector inspector = ObjectInspectors.toObjectInspector(arg.returns());
         if (inspector == null) {
           throw new IllegalArgumentException("cannot resolve " + args);
         }

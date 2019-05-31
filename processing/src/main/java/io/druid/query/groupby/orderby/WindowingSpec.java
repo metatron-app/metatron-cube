@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
@@ -169,18 +171,20 @@ public class WindowingSpec implements Cacheable
 
   public PartitionEvaluator toEvaluator(final WindowContext context)
   {
-    final List<WindowContext.Frame> frames = Lists.newArrayList();
-    for (String expression : expressions) {
-      frames.add(WindowContext.Frame.of(null, Evals.splitAssign(expression)));
-    }
-
-    PartitionEvaluator evaluator = frames.isEmpty() ? new PartitionEvaluator() : new PartitionEvaluator()
+    PartitionEvaluator evaluator = expressions.isEmpty() ? new PartitionEvaluator() : new PartitionEvaluator()
     {
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
-        context.with(partition).evaluate(frames);
-        return partition;
+        return context.with(partition)
+                      .evaluate(Iterables.transform(expressions, new Function<String, WindowContext.Frame>()
+                      {
+                        @Override
+                        public WindowContext.Frame apply(String expression)
+                        {
+                          return WindowContext.Frame.of(Evals.splitAssign(expression, context));
+                        }
+                      }));
       }
     };
     if (flattenSpec != null) {
@@ -332,18 +336,17 @@ public class WindowingSpec implements Cacheable
 
   public static class PartitionEvaluator
   {
-    private final List<String> retainColumns;
-
-    public PartitionEvaluator(List<String> retainColumns) {this.retainColumns = retainColumns;}
-
-    public PartitionEvaluator() {this(null);}
-
     public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
     {
       return partition;
     }
 
     public List<Row> finalize(List<Row> partition)
+    {
+      return partition;
+    }
+
+    protected List<Row> retainColumns(List<Row> partition, List<String> retainColumns)
     {
       if (GuavaUtils.isNullOrEmpty(retainColumns)) {
         return partition;

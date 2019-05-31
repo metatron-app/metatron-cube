@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -68,7 +69,7 @@ public class MathExprFilter implements DimFilter
     final Expr expr = Parser.parse(expression);
     if (Evals.isConstant(expr)) {
       final boolean check = Evals.getConstantEval(expr).asBoolean();
-      return check ? new DimFilters.ALL() : new DimFilters.NONE();
+      return check ? DimFilters.ALL : DimFilters.NONE;
     }
     return this;
   }
@@ -86,7 +87,7 @@ public class MathExprFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return Filters.ofExpr(Parser.parse(expression));
   }

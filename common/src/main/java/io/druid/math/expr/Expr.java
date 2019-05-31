@@ -37,8 +37,10 @@ import java.util.Objects;
 
 /**
  */
-public interface Expr extends Expression, TypeResolver.Resolvable
+public interface Expr extends Expression
 {
+  ValueDesc returns();
+
   ExprEval eval(NumericBinding bindings);
 
   interface NumericBinding
@@ -60,6 +62,7 @@ public interface Expr extends Expression, TypeResolver.Resolvable
     Iterable<Object> iterator(int startRel, int endRel, String name);
     int size();
     int index();
+    boolean hasMore();
   }
 }
 
@@ -70,6 +73,8 @@ interface Constant extends Expr, Expression.ConstExpression
 interface UnaryOp extends Expr
 {
   Expr getChild();
+
+  UnaryOp with(Expr child);
 }
 
 final class BooleanExpr implements Constant
@@ -88,7 +93,7 @@ final class BooleanExpr implements Constant
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     return ValueDesc.BOOLEAN;
   }
@@ -128,7 +133,7 @@ final class LongExpr implements Constant
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     return ValueDesc.LONG;
   }
@@ -168,7 +173,7 @@ final class StringExpr implements Constant
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     return ValueDesc.STRING;
   }
@@ -208,7 +213,7 @@ final class FloatExpr implements Constant
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     return ValueDesc.FLOAT;
   }
@@ -248,7 +253,7 @@ final class DoubleExpr implements Constant
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     return ValueDesc.DOUBLE;
   }
@@ -275,19 +280,22 @@ final class DoubleExpr implements Constant
 final class IdentifierExpr implements Expr
 {
   private final String value;
+  private final ValueDesc type;
   private final int index;
   private final boolean indexed;
 
-  public IdentifierExpr(String value, int index)
+  public IdentifierExpr(String value, ValueDesc type, int index)
   {
     this.value = value;
+    this.type = ValueDesc.isArray(type) ? ValueDesc.elementOfArray(type) : type;
     this.index = index;
     this.indexed = true;
   }
 
-  public IdentifierExpr(String value)
+  public IdentifierExpr(String value, ValueDesc type)
   {
     this.value = value;
+    this.type = type;
     this.index = -1;
     this.indexed = false;
   }
@@ -304,22 +312,14 @@ final class IdentifierExpr implements Expr
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
-    ValueDesc resolved = bindings.resolve(value, ValueDesc.UNKNOWN);
-    if (indexed) {
-      resolved = ValueDesc.isArray(resolved) ? ValueDesc.elementOfArray(resolved) : ValueDesc.UNKNOWN;
-    }
-    return resolved;
+    return type;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    ValueDesc type = null;
-    if (bindings instanceof TypeResolver) {
-      type = resolve((TypeResolver) bindings);
-    }
     Object binding = bindings.get(value);
     if (indexed && binding != null) {
       if (binding instanceof List) {
@@ -369,7 +369,7 @@ final class AssignExpr implements Expr
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     throw new IllegalStateException("cannot evaluated directly");
   }
@@ -391,15 +391,22 @@ final class AssignExpr implements Expr
 
 final class FunctionExpr implements Expr, Expression.FuncExpression
 {
+  final java.util.function.Function<List<Expr>, Function> provider;
   final Function function;
   final String name;
   final List<Expr> args;
 
-  public FunctionExpr(Function function, String name, List<Expr> args)
+  public FunctionExpr(java.util.function.Function<List<Expr>, Function> provider, String name, List<Expr> args)
   {
-    this.function = function;
+    this.provider = provider;
+    this.function = provider.apply(args);
     this.name = name;
     this.args = args;
+  }
+
+  FunctionExpr with(List<Expr> args)
+  {
+    return new FunctionExpr(provider, name, args);
   }
 
   @Override
@@ -424,15 +431,15 @@ final class FunctionExpr implements Expr, Expression.FuncExpression
   public Function getFunction() { return function;}
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
-    return function.returns(args, bindings);
+    return function.returns();
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return function.evlaluate(args, bindings);
+    return function.evaluate(args, bindings);
   }
 }
 
@@ -446,15 +453,21 @@ final class UnaryMinusExpr implements UnaryOp
   }
 
   @Override
+  public UnaryMinusExpr with(Expr child)
+  {
+    return new UnaryMinusExpr(child);
+  }
+
+  @Override
   public Expr getChild()
   {
     return expr;
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
-    return expr.resolve(bindings);
+    return expr.returns();
   }
 
   @Override
@@ -490,7 +503,13 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public UnaryNotExpr with(Expr child)
+  {
+    return new UnaryNotExpr(child);
+  }
+
+  @Override
+  public ValueDesc returns()
   {
     return ValueDesc.BOOLEAN;
   }
@@ -545,6 +564,8 @@ abstract class BinaryOp implements Expr
     return op;
   }
 
+  abstract BinaryOp with(Expr left, Expr right);
+
   @Override
   public String toString()
   {
@@ -571,13 +592,13 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public ValueDesc returns()
   {
     if (booleanOp) {
       return ValueDesc.BOOLEAN;
     }
-    ValueDesc lt = left.resolve(bindings);
-    ValueDesc rt = right.resolve(bindings);
+    ValueDesc lt = left.returns();
+    ValueDesc rt = right.returns();
     if (lt.isDateTime() || rt.isDateTime()) {
       return ValueDesc.DATETIME;
     }
@@ -677,10 +698,15 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
 
 final class BinMinusExpr extends BinaryOpExprBase
 {
-
   BinMinusExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  public BinaryOp with(Expr left, Expr right)
+  {
+    return new BinMinusExpr(op, left, right);
   }
 
   @Override
@@ -716,10 +742,15 @@ final class BinMinusExpr extends BinaryOpExprBase
 
 final class BinPowExpr extends BinaryOpExprBase
 {
-
   BinPowExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinPowExpr with(Expr left, Expr right)
+  {
+    return new BinPowExpr(op, left, right);
   }
 
   @Override
@@ -755,10 +786,15 @@ final class BinPowExpr extends BinaryOpExprBase
 
 final class BinMulExpr extends BinaryOpExprBase
 {
-
   BinMulExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinMulExpr with(Expr left, Expr right)
+  {
+    return new BinMulExpr(op, left, right);
   }
 
   @Override
@@ -794,10 +830,15 @@ final class BinMulExpr extends BinaryOpExprBase
 
 final class BinDivExpr extends BinaryOpExprBase
 {
-
   BinDivExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinDivExpr with(Expr left, Expr right)
+  {
+    return new BinDivExpr(op, left, right);
   }
 
   @Override
@@ -833,10 +874,15 @@ final class BinDivExpr extends BinaryOpExprBase
 
 final class BinModuloExpr extends BinaryOpExprBase
 {
-
   BinModuloExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinModuloExpr with(Expr left, Expr right)
+  {
+    return new BinModuloExpr(op, left, right);
   }
 
   @Override
@@ -874,6 +920,12 @@ final class BinPlusExpr extends BinaryOpExprBase
   BinPlusExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinPlusExpr with(Expr left, Expr right)
+  {
+    return new BinPlusExpr(op, left, right);
   }
 
   @Override
@@ -915,6 +967,12 @@ final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
+  BinLtExpr with(Expr left, Expr right)
+  {
+    return new BinLtExpr(op, left, right);
+  }
+
+  @Override
   protected ExprEval evalString(String left, String right)
   {
     return ExprEval.of(left.compareTo(right) < 0);
@@ -950,6 +1008,12 @@ final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   BinLeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinLeqExpr with(Expr left, Expr right)
+  {
+    return new BinLeqExpr(op, left, right);
   }
 
   @Override
@@ -991,6 +1055,12 @@ final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
+  BinGtExpr with(Expr left, Expr right)
+  {
+    return new BinGtExpr(op, left, right);
+  }
+
+  @Override
   protected ExprEval evalString(String left, String right)
   {
     return ExprEval.of(left.compareTo(right));
@@ -1026,6 +1096,12 @@ final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   BinGeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinGeqExpr with(Expr left, Expr right)
+  {
+    return new BinGeqExpr(op, left, right);
   }
 
   @Override
@@ -1067,6 +1143,12 @@ final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
+  BinEqExpr with(Expr left, Expr right)
+  {
+    return new BinEqExpr(op, left, right);
+  }
+
+  @Override
   protected ExprEval evalString(String left, String right)
   {
     return ExprEval.of(left.equals(right));
@@ -1102,6 +1184,12 @@ final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   BinNeqExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  BinNeqExpr with(Expr left, Expr right)
+  {
+    return new BinNeqExpr(op, left, right);
   }
 
   @Override
@@ -1143,7 +1231,13 @@ final class BinAndExpr extends BinaryOp implements Expression.AndExpression
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  BinAndExpr with(Expr left, Expr right)
+  {
+    return new BinAndExpr(op, left, right);
+  }
+
+  @Override
+  public ValueDesc returns()
   {
     return ValueDesc.BOOLEAN;
   }
@@ -1181,7 +1275,13 @@ final class BinOrExpr extends BinaryOp implements Expression.OrExpression
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  BinOrExpr with(Expr left, Expr right)
+  {
+    return new BinOrExpr(op, left, right);
+  }
+
+  @Override
+  public ValueDesc returns()
   {
     return ValueDesc.BOOLEAN;
   }

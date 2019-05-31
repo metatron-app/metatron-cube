@@ -76,7 +76,7 @@ public class ColumnSelectorFactories
       @Override
       public ValueDesc resolve(String column)
       {
-        return factory.getColumnType(column);
+        return factory.resolve(column);
       }
     };
   }
@@ -120,7 +120,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       throw new UnsupportedOperationException("getColumnType");
     }
@@ -184,9 +184,9 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
-      return delegate.getColumnType(columnName);
+      return delegate.resolve(columnName);
     }
 
     @Override
@@ -198,12 +198,9 @@ public class ColumnSelectorFactories
 
   public static class DelegatedCursor extends Delegated implements Cursor
   {
-    private final RowResolver resolver;
-
-    public DelegatedCursor(ColumnSelectorFactory delegate, RowResolver resolver)
+    public DelegatedCursor(ColumnSelectorFactory delegate)
     {
       super(delegate);
-      this.resolver = resolver;
     }
 
     @Override
@@ -234,12 +231,6 @@ public class ColumnSelectorFactories
     public boolean isDone()
     {
       return true;
-    }
-
-    @Override
-    public RowResolver resolver()
-    {
-      return resolver;
     }
 
     @Override
@@ -278,7 +269,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       throw new UnsupportedOperationException("getColumnType");
     }
@@ -400,12 +391,11 @@ public class ColumnSelectorFactories
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
-      return dimensionSpec.decorate(
-          VirtualColumns.toDimensionSelector(
-              makeObjectColumnSelector(dimensionSpec.getDimension()),
-              dimensionSpec.getExtractionFn()
-          )
+      DimensionSelector selector = VirtualColumns.toDimensionSelector(
+          makeObjectColumnSelector(dimensionSpec.getDimension()),
+          dimensionSpec.getExtractionFn()
       );
+      return dimensionSpec.decorate(selector, this);
     }
 
     @Override
@@ -454,7 +444,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       return resolver.resolve(columnName);
     }
@@ -570,7 +560,7 @@ public class ColumnSelectorFactories
         };
       }
 
-      final ValueDesc type = getColumnType(column);
+      final ValueDesc type = resolve(column);
       if (type == null || type.equals(ValueDesc.UNKNOWN)) {
         return new ObjectColumnSelector()
         {
@@ -649,7 +639,7 @@ public class ColumnSelectorFactories
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
-      return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
+      return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec), this);
     }
 
     private DimensionSelector makeDimensionSelectorUndecorated(DimensionSpec dimensionSpec)
@@ -734,7 +724,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       return required.contains(columnName) ? valueDesc : null;
     }
@@ -892,7 +882,7 @@ public class ColumnSelectorFactories
     if (filter == null) {
       matcher = ValueMatcher.TRUE;
     } else {
-      matcher = filter.toFilter().makeMatcher(factory);
+      matcher = filter.toFilter(resolver).makeMatcher(factory);
     }
     final PeekingIterator<Row> peeker = Iterators.peekingIterator(iterator);
 
@@ -944,7 +934,7 @@ public class ColumnSelectorFactories
               return null;    // skip
             }
 
-            return new DelegatedCursor(factory, resolver)
+            return new DelegatedCursor(factory)
             {
               private boolean done;
 

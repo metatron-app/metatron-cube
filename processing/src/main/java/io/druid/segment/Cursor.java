@@ -33,7 +33,6 @@ public interface Cursor extends ColumnSelectorFactory
   public void advanceTo(int offset);
   public boolean isDone();
   public void reset();
-  public RowResolver resolver();
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor {
   }

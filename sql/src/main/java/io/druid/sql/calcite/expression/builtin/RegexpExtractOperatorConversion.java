@@ -66,9 +66,9 @@ public class RegexpExtractOperatorConversion implements SqlOperatorConversion
         "regex",
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
-          final Expr patternExpr = inputExpressions.get(1).parse();
+          final Expr patternExpr = inputExpressions.get(1).parse(rowSignature);
           final Expr indexExpr = inputExpressions.size() > 2
-                                 ? inputExpressions.get(2).parse()
+                                 ? inputExpressions.get(2).parse(rowSignature)
                                  : null;
 
           if (arg.isSimpleExtraction() && Evals.isConstantString(patternExpr) &&

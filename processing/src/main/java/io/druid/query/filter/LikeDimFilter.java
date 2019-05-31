@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.filter.DimensionPredicateFilter;
@@ -37,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-public class LikeDimFilter implements DimFilter
+public class LikeDimFilter extends DimFilter.NotOptimizable
 {
   // Regex matching characters that are definitely okay to include unescaped in a regex.
   // Leads to excessively paranoid escaping, although shouldn't affect runtime beyond compiling the regex.
@@ -237,12 +238,6 @@ public class LikeDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
@@ -259,7 +254,7 @@ public class LikeDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new DimensionPredicateFilter(dimension, likeMatcher, extractionFn);
   }

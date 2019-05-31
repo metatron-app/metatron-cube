@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
-import io.druid.math.expr.Parser;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -49,29 +48,19 @@ public class LegacySegmentSpec extends MultipleIntervalSegmentSpec
       throw new IAE("Unknown type[%s] for intervals[%s]", intervals.getClass(), intervals);
     }
 
-    try {
-      return Lists.newArrayList(
-          Lists.transform(
-              intervalStringList,
-              new Function<Object, Interval>()
+    return Lists.newArrayList(
+        Lists.transform(
+            intervalStringList,
+            new Function<Object, Interval>()
+            {
+              @Override
+              public Interval apply(Object input)
               {
-                @Override
-                public Interval apply(Object input)
-                {
-                  return new Interval(input);
-                }
+                return new Interval(input);
               }
-          )
-      );
-    }
-    catch (IllegalArgumentException iae) {
-      // last try
-      if (intervals instanceof String) {
-        Interval interval = (Interval)Parser.parse((String) intervals).eval(null).value();
-        return Arrays.asList(interval);
-      }
-      throw iae;
-    }
+            }
+        )
+    );
   }
 
   @JsonCreator

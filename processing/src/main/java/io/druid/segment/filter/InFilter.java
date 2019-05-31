@@ -126,7 +126,7 @@ public class InFilter implements Filter
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
     final boolean allowsNull = values.contains("");
-    ValueDesc type = factory.getColumnType(dimension);
+    ValueDesc type = factory.resolve(dimension);
     if (type == null) {
       // should handle extract fn
       return BooleanValueMatcher.of(toPredicate(allowsNull, null).apply(null));

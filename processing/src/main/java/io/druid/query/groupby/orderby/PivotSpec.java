@@ -24,16 +24,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.math.expr.Evals;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Frame;
+import io.druid.query.groupby.orderby.WindowContext.FrameFactory;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.segment.StringArray;
 import org.joda.time.DateTime;
@@ -67,7 +71,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   private final String nullValue;
   private final List<String> rowExpressions;
   private final List<PartitionExpression> partitionExpressions;
-  private final boolean tabularFormat;  // I really fucking hate this
+  private final boolean tabularFormat;  // I really hate this
   private final boolean appendValueColumn;
 
   @JsonCreator
@@ -319,35 +323,52 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            '}';
   }
 
+  private static Iterable<Frame> toEvaluators(
+      final Iterable<PartitionExpression> partitionExpressions,
+      final WindowContext context,
+      final List<String> columns
+  )
+  {
+    return JodaUtils.explode(partitionExpressions, new Function<PartitionExpression, Iterable<Frame>>()
+    {
+      @Override
+      public Iterable<Frame> apply(PartitionExpression expression)
+      {
+        return new FrameFactory(expression.getCondition(), expression.getExpression()).intialize(context, columns);
+      }
+    });
+  }
+
   @Override
   public PartitionEvaluator create(final WindowContext context)
   {
     if (pivotColumns.isEmpty()) {
       // just for metatron.. I hate this
-      final List<Frame> rowEvals = PartitionExpression.toEvaluators(PartitionExpression.from(rowExpressions));
-      final List<Frame> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
-      // it's actually not pivoting.. so group-by columns are valid (i don't know why other metrics should be removed)
-      final List<String> retainColumns = GuavaUtils.dedupConcat(
-          context.partitionColumns(),
-          WindowContext.outputNames(rowEvals, valueColumns),
-          WindowContext.outputNames(partitionEvals, valueColumns),
-          valueColumns
-      );
-      if (rowEvals.isEmpty() && partitionEvals.isEmpty()) {
-        return new PartitionEvaluator(retainColumns);
+      if (rowExpressions.isEmpty() && partitionExpressions.isEmpty()) {
+        return new PartitionEvaluator()
+        {
+          @Override
+          public List<Row> finalize(List<Row> partition)
+          {
+            return retainColumns(partition, context.getOutputColumns(valueColumns));
+          }
+        };
       }
-      return new PartitionEvaluator(retainColumns)
+      // it's actually not pivoting.. so group-by columns are valid (i don't know why other metrics should be removed)
+      return new PartitionEvaluator()
       {
         @Override
         public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
         {
-          return super.evaluate(partitionKey, context.with(partition).evaluate(rowEvals, valueColumns));
+          Iterable<Frame> expressions = toEvaluators(PartitionExpression.from(rowExpressions), context, valueColumns);
+          return super.evaluate(partitionKey, context.with(partition).evaluate(expressions));
         }
 
         @Override
         public List<Row> finalize(List<Row> partition)
         {
-          return super.finalize(context.with(partition).evaluate(partitionEvals, valueColumns));
+          Iterable<Frame> expressions = toEvaluators(partitionExpressions, context, valueColumns);
+          return retainColumns(context.with(partition).evaluate(expressions), context.getOutputColumns(valueColumns));
         }
       };
     }
@@ -355,10 +376,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns, nullValue);
 
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
-    final String[] values = valueColumns.toArray(new String[valueColumns.size()]);
+    final String[] values = valueColumns.toArray(new String[0]);
 
-    // when tabularFormat = true, '_' is replaced with pivot column names
-    final List<Frame> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> allPivotColumns = Sets.newHashSet();
@@ -421,7 +440,7 @@ next:
         // handle single partition
         WindowContext current = context.on(null, null).with(partition);
         if (tabularFormat) {
-          StringArray[] pivotColumns = allPivotColumns.toArray(new StringArray[allPivotColumns.size()]);
+          StringArray[] pivotColumns = allPivotColumns.toArray(new StringArray[0]);
           Arrays.parallelSort(pivotColumns, makeColumnOrdering());
           final String[] sortedKeys = new String[pivotColumns.length];
           for (int i = 0; i < sortedKeys.length; i++) {
@@ -429,7 +448,7 @@ next:
           }
           allColumns.removeAll(partitionColumns);
           allColumns.removeAll(Arrays.asList(sortedKeys));
-          String[] remainingColumns = allColumns.toArray(new String[allColumns.size()]);
+          String[] remainingColumns = allColumns.toArray(new String[0]);
           Arrays.parallelSort(remainingColumns);
           // rewrite with whole pivot columns
           for (int i = 0; i < partition.size(); i++) {
@@ -446,9 +465,14 @@ next:
             }
             partition.set(i, new MapBasedRow(row.getTimestamp(), event));
           }
-          current.evaluate(partitionEvals, Arrays.asList(sortedKeys));
+          // '_' is replaced with pivot column names
+          current.evaluate(toEvaluators(partitionExpressions, context, Arrays.asList(sortedKeys)));
         } else {
-          current.evaluate(partitionEvals);
+          final List<WindowContext.Frame> frames = Lists.newArrayList();
+          for (PartitionExpression expression : partitionExpressions) {
+            frames.add(WindowContext.Frame.of(Evals.splitAssign(expression.getExpression(), context)));
+          }
+          current.evaluate(frames);
         }
         return partition;
       }

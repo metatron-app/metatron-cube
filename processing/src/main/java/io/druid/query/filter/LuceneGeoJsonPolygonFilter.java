@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import org.apache.lucene.document.LatLonPoint;
@@ -39,7 +40,7 @@ import java.util.Set;
 
 /**
  */
-public class LuceneGeoJsonPolygonFilter implements DimFilter.LuceneFilter
+public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
 {
   private final String field;
   private final String geoJson;
@@ -81,12 +82,6 @@ public class LuceneGeoJsonPolygonFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(field);
@@ -103,7 +98,7 @@ public class LuceneGeoJsonPolygonFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {

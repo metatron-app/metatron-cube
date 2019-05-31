@@ -25,6 +25,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.table.RowSignature;
@@ -43,8 +44,6 @@ import java.util.List;
  */
 public class DruidRexExecutor implements RexExecutor
 {
-  private static final RowSignature EMPTY_ROW_SIGNATURE = RowSignature.builder().build();
-
   private final PlannerContext plannerContext;
 
   public DruidRexExecutor(final PlannerContext plannerContext)
@@ -62,7 +61,7 @@ public class DruidRexExecutor implements RexExecutor
     for (RexNode constExp : constExps) {
       final DruidExpression druidExpression = Expressions.toDruidExpression(
           plannerContext,
-          EMPTY_ROW_SIGNATURE,
+          Utils.EMPTY_ROW_SIGNATURE,
           constExp
       );
 
@@ -70,7 +69,7 @@ public class DruidRexExecutor implements RexExecutor
         reducedValues.add(constExp);
       } else {
         final SqlTypeName sqlTypeName = constExp.getType().getSqlTypeName();
-        final Expr expr = Parser.parse(druidExpression.getExpression());
+        final Expr expr = Parser.parse(druidExpression.getExpression(), Utils.EMPTY_ROW_SIGNATURE);
 
         final ExprEval exprResult = Evals.getConstantEval(expr);
 

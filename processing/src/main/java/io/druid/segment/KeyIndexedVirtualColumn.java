@@ -237,7 +237,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       return selector;
     }
     final IteratingIndexedInts iterator = new IteratingIndexedInts(selector);
-    final ValueMatcher keyMatcher = Filters.toFilter(keyFilter).makeMatcher(
+    final ValueMatcher keyMatcher = Filters.toFilter(keyFilter, factory).makeMatcher(
         new ColumnSelectorFactories.NotSupports()
         {
           @Override
@@ -263,7 +263,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           }
 
           @Override
-          public ValueDesc getColumnType(String columnName)
+          public ValueDesc resolve(String columnName)
           {
             Preconditions.checkArgument(
                 columnName.equals(outputName), "cannot reference column '" + columnName + "' in current context"

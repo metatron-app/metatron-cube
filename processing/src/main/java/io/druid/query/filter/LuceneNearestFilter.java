@@ -28,6 +28,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.Lucenes;
@@ -42,7 +43,7 @@ import java.util.Set;
 
 /**
  */
-public class LuceneNearestFilter implements DimFilter.LuceneFilter
+public class LuceneNearestFilter extends DimFilter.LuceneFilter
 {
   private final String field;
   private final double latitude;
@@ -103,12 +104,6 @@ public class LuceneNearestFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(field);
@@ -125,7 +120,7 @@ public class LuceneNearestFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {

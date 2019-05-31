@@ -87,7 +87,7 @@ public class ArrayVirtualColumn implements VirtualColumn
     if (access == null || access < 0) {
       throw new IllegalArgumentException("expects index attached in " + column);
     }
-    ValueDesc indexed = factory.getColumnType(columnName);
+    ValueDesc indexed = factory.resolve(columnName);
     if (ValueDesc.isArray(indexed)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(columnName);

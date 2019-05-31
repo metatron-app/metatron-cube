@@ -117,7 +117,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       };
     }
 
-    ValueDesc columnType = metricFactory.getColumnType(fieldName);
+    ValueDesc columnType = metricFactory.resolve(fieldName);
     if (columnType == null) {
       return Aggregator.NULL;
     }
@@ -274,7 +274,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       };
     }
 
-    ValueDesc columnType = metricFactory.getColumnType(fieldName);
+    ValueDesc columnType = metricFactory.resolve(fieldName);
     if (columnType == null) {
       return BufferAggregator.NULL;
     }

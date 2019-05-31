@@ -52,12 +52,6 @@ public interface HivemallFunctions extends Function.Library
   class ChangeFinderFunc extends BuiltinFunctions.NamedParams
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.UNKNOWN;   // todo
-    }
-
-    @Override
     protected Function toFunction(List<Expr> args, final int start, final Map<String, ExprEval> parameter)
     {
       if (start == 0) {
@@ -115,7 +109,13 @@ public interface HivemallFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ValueDesc returns()
+        {
+          return output;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Object arg;
           if (start == 1) {
@@ -172,12 +172,6 @@ public interface HivemallFunctions extends Function.Library
   @Function.Named("sst")
   class SingularSpectrumTransformFunc extends BuiltinFunctions.NamedParams
   {
-    @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.UNKNOWN;   // todo
-    }
-
     @Override
     protected Function toFunction(List<Expr> args, final int start, final Map<String, ExprEval> parameter)
     {
@@ -239,7 +233,13 @@ public interface HivemallFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ValueDesc returns()
+        {
+          return output;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           try {
             sst.update(Evals.evalDouble(args.get(0), bindings), _scores);
@@ -284,17 +284,17 @@ public interface HivemallFunctions extends Function.Library
   class RescaleFunc extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       final double min = Evals.getConstantEval(args.get(1)).asDouble();
       final double max = Evals.getConstantEval(args.get(2)).asDouble();
       if (min > max) {
         throw new IllegalArgumentException("min value `" + min + "` SHOULD be less than max value `" + max + '`');
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final double value = Evals.evalDouble(args.get(0), bindings);
           if (min == max) {

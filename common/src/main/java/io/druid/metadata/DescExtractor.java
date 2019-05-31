@@ -153,18 +153,12 @@ public enum DescExtractor
         }
 
         @Override
-        public Function create(List<Expr> args)
+        public Function create(List<Expr> args, TypeResolver resolver)
         {
           return new Function()
           {
             @Override
-            public String name()
-            {
-              return functionName();
-            }
-
-            @Override
-            public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+            public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
             {
               Preconditions.checkArgument(args.size() == 2);
               String column = args.get(0).eval(bindings).asString();
@@ -177,17 +171,11 @@ public enum DescExtractor
             }
 
             @Override
-            public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+            public ValueDesc returns()
             {
               return ValueDesc.STRING;
             }
           };
-        }
-
-        @Override
-        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-        {
-          return ValueDesc.STRING;
         }
       };
     }
@@ -229,35 +217,24 @@ public enum DescExtractor
     }
 
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       return new Function()
       {
-        @Override
-        public String name()
-        {
-          return functionName;
-        }
 
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Preconditions.checkArgument(args.size() == 1);
           return ExprEval.of(mapping.get(args.get(0).eval(bindings).asString()));
         }
 
         @Override
-        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+        public ValueDesc returns()
         {
           return ValueDesc.STRING;
         }
       };
-    }
-
-    @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-    {
-      return ValueDesc.STRING;
     }
   }
 }

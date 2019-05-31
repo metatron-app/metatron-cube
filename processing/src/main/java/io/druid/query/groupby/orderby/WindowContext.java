@@ -20,16 +20,19 @@
 package io.druid.query.groupby.orderby;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.metamx.common.IAE;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -40,6 +43,7 @@ import io.druid.segment.column.Column;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,27 +70,11 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
     return this;
   }
 
-  public static List<String> outputNames(List<Frame> frames, List<String> valueColumns)
-  {
-    List<String> outputNames = Lists.newArrayList();
-    for (Frame frame : frames) {
-      if (frame.outputName == null) {
-        for (String valueColumn : valueColumns) {
-          String outputName = frame.outputName(valueColumn);
-          if (!outputName.startsWith("#")) {
-            outputNames.add(outputName);
-          }
-        }
-      } else if (!frame.outputName.startsWith("#")) {
-        outputNames.add(frame.outputName);
-      }
-    }
-    return outputNames;
-  }
-
   private final List<String> groupByColumns;
   private final Map<String, ValueDesc> expectedTypes;
   private final Map<String, Object> temporary;
+
+  private final Set<String> assignedColumns;
 
   private List<String> partitionColumns;
   private List<OrderByColumnSpec> orderingSpecs;
@@ -95,41 +83,20 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
 
   private int index;
 
-  // redirected name for "_".. todo replace expression itself
-  private transient String redirection;
-
-  private WindowContext(
-      List<String> groupByColumns,
-      Map<String, ValueDesc> expectedTypes
-  )
+  private WindowContext(List<String> groupByColumns, Map<String, ValueDesc> expectedTypes)
   {
     this.groupByColumns = groupByColumns == null ? ImmutableList.<String>of() : groupByColumns;
     this.expectedTypes = Maps.newHashMap(expectedTypes);
+    this.assignedColumns = Sets.newHashSet();
     this.temporary = Maps.newHashMap();
   }
 
-  public List<Row> evaluate(Iterable<Frame> expressions, List<String> sortedKeys)
+  public List<Row> evaluate(Iterable<Frame> expressions)
   {
-    boolean hasRedirection = false;
     for (Frame frame : expressions) {
-      List<String> required = Parser.findRequiredBindings(frame.assigned);
-      if (required.contains("_") || required.contains("#_")) {
-        hasRedirection = true;
-        break;
-      }
-    }
-    if (hasRedirection) {
-      for (Frame expression : expressions) {
-        for (String sortedKey : expression.filter(sortedKeys)) {
-          redirection = sortedKey;
-          _evaluate(expression);
-        }
-      }
-    } else {
-      evaluate(expressions);
+      _evaluate(frame);
     }
     // clear temporary contexts
-    redirection = null;
     for (String temporaryKey : temporary.keySet()) {
       expectedTypes.remove(temporaryKey);
     }
@@ -137,33 +104,38 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
     return partition;
   }
 
-  public void evaluate(Iterable<Frame> expressions)
-  {
-    for (Frame expression : expressions) {
-      _evaluate(expression);
-    }
-  }
-
   private void _evaluate(Frame expression)
   {
+    Parser.init(expression.expression);
+
     final int[] window = expression.toEvalWindow(length);
-    final String outputName = expression.outputName(redirection);
-    final boolean temporaryAssign = outputName.startsWith("#");
+    final boolean temporaryAssign = expression.isTemporaryAssign();
 
     ExprEval eval = null;
     for (index = window[0]; index < window[1]; index++) {
-      eval = expression.assigned.eval(this);
+      eval = expression.expression.eval(this);
       if (!temporaryAssign) {
-        expectedTypes.put(outputName, eval.type());
-        Map<String, Object> event = ((MapBasedRow) partition.get(index)).getEvent();
-        event.put(outputName, eval.value());
+        expectedTypes.put(expression.outputName, eval.type());
+        Row.Updatable row = (Row.Updatable) partition.get(index);
+        row.set(expression.outputName, eval.value());
       }
     }
     if (eval != null && temporaryAssign) {
-      temporary.put(outputName, eval.value());
-      expectedTypes.put(outputName, eval.type());
+      temporary.put(expression.outputName, eval.value());
+      expectedTypes.put(expression.outputName, eval.type());
     }
-    Parser.reset(expression.assigned);
+    if (!temporaryAssign) {
+      assignedColumns.add(expression.outputName);
+    }
+  }
+
+  public List<String> getOutputColumns(List<String> valueColumns)
+  {
+    return GuavaUtils.dedupConcat(
+        partitionColumns,
+        assignedColumns,
+        valueColumns
+    );
   }
 
   public List<OrderByColumnSpec> orderingSpecs()
@@ -195,13 +167,7 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
       return partition.get(index).getTimestampFromEpoch();
     }
     if (name.startsWith("#")) {
-      if ("#_".equals(name)) {
-        return temporary.get("#" + redirection);
-      }
       return temporary.get(name);
-    }
-    if (redirection != null && "_".equals(name)) {
-      name = redirection;
     }
     return partition.get(index).getRaw(name);
   }
@@ -209,15 +175,7 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
   @Override
   public ValueDesc resolve(String name)
   {
-    if (name.equals(Column.TIME_COLUMN_NAME)) {
-      return ValueDesc.LONG;
-    }
-    if ("_".equals(name)) {
-      name = redirection;
-    } else if ("#_".equals(name)) {
-      name = "#" + redirection;
-    }
-    return expectedTypes.get(name);
+    return Column.TIME_COLUMN_NAME.equals(name) ? ValueDesc.LONG : expectedTypes.get(name);
   }
 
   public void addType(String name, ValueDesc type)
@@ -263,9 +221,32 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
   }
 
   @Override
+  public boolean hasMore()
+  {
+    return index < length - 1;
+  }
+
+  @Override
   public String toString()
   {
-    return "expectedTypes = " + expectedTypes + (redirection == null ? "" : ", redirection = " + redirection);
+    return "expectedTypes = " + expectedTypes;
+  }
+
+  private static Iterable<String> filter(final List<String> columns, final Matcher matcher)
+  {
+    if (matcher == null) {
+      return columns;
+    }
+    return Iterables.filter(
+        columns, new Predicate<String>()
+        {
+          @Override
+          public boolean apply(String input)
+          {
+            return matcher.reset(input).find();
+          }
+        }
+    );
   }
 
   private Function<Row, Object> accessFunction(final String name)
@@ -280,76 +261,67 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
     };
   }
 
+  static class FrameFactory
+  {
+    private final Matcher matcher;
+    private final String expression;
+
+    public FrameFactory(String condition, String expression)
+    {
+      this.matcher = condition == null ? null : Pattern.compile(condition).matcher("");
+      this.expression = Preconditions.checkNotNull(expression);
+    }
+
+    public Iterable<Frame> intialize(final WindowContext context, List<String> redirections)
+    {
+      return Iterables.transform(WindowContext.filter(redirections, matcher), new Function<String, Frame>()
+      {
+        @Override
+        public Frame apply(String redirection)
+        {
+          Map<String, String> mapping = ImmutableMap.<String, String>of("_", redirection, "#_", "#" + redirection);
+          context.addType("#" + redirection, context.resolve(redirection, ValueDesc.UNKNOWN));
+          Expr parsed = Parser.parse(expression, mapping, context);
+          return Frame.of(Evals.splitAssign(parsed));
+        }
+      });
+    }
+  }
+
   static class Frame
   {
-    public static Frame of(String condition, Pair<Expr, Expr> assign)
+    public static Frame of(Pair<Expr, Expr> assign)
     {
-      return new Frame(condition, assign.lhs, assign.rhs);
-    }
-
-    private final Matcher matcher;
-    private final String outputName;
-    private final int[] window;
-    private final Expr assignee;
-    private final Expr assigned;
-
-    private Frame(String condition, Expr assignee, Expr assigned)
-    {
-      this.assignee = assignee;
-      this.assigned = assigned;
-
-      if (containsRedirect(assigned)) {
-        outputName = null;
+      Object eval = Evals.toAssigneeEval(assign.lhs).value();
+      String outputName;
+      int[] window;
+      if (eval instanceof Object[]) {
+        Object[] windowed = (Object[]) eval;
+        outputName = (String) windowed[0];
+        window = new int[]{(Integer) windowed[1], (Integer) windowed[2]};
+      } else if (eval instanceof String) {
+        outputName = (String) eval;
         window = new int[0];
       } else {
-        Object eval = Evals.toAssigneeEval(assignee).value();
-        if (eval instanceof Object[]) {
-          Object[] windowed = (Object[]) eval;
-          outputName = (String) windowed[0];
-          window = new int[]{(Integer)windowed[1], (Integer)windowed[2]};
-        } else if (eval instanceof String) {
-          outputName = (String) eval;
-          window = new int[0];
-        } else {
-          throw new IllegalArgumentException("invalid assignee expression " + assignee);
-        }
+        throw new IAE("invalid assignee expression %s", assign.lhs);
       }
-      this.matcher = condition == null ? null : Pattern.compile(condition).matcher("");
+      return new Frame(assign.rhs, outputName, window);
     }
 
-    private boolean containsRedirect(Expr expr)
+    private final Expr expression;
+    private final String outputName;
+    private final int[] window;
+
+    private Frame(Expr expression, String outputName, int[] window)
     {
-      final List<String> required = Parser.findRequiredBindings(expr);
-      return required.contains("_") || required.contains("#_");
+      this.expression = expression;
+      this.outputName = outputName;
+      this.window = window;
     }
 
-    private Iterable<String> filter(List<String> columns)
+    private boolean isTemporaryAssign()
     {
-      if (matcher == null) {
-        return columns;
-      }
-      return Iterables.filter(
-          columns, new Predicate<String>()
-          {
-            @Override
-            public boolean apply(String input)
-            {
-              return matcher.reset(input).find();
-            }
-          }
-      );
-    }
-
-    private String outputName(String redirection)
-    {
-      if (outputName != null) {
-        return outputName;
-      }
-      ImmutableMap<String, Object> overrides = ImmutableMap.<String, Object>of(
-          "_", redirection,
-          "#_", "#" + redirection
-      );
-      return Evals.toAssigneeEval(assignee, overrides).asString();
+      return outputName.startsWith("#");
     }
 
     private int[] toEvalWindow(int limit)
@@ -363,17 +335,17 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
       }
       int start = index;
       if (start < 0 || start >= limit) {
-        throw new IllegalArgumentException("invalid window start " + start + "/" + limit);
+        throw new IAE("invalid window start %s / %s", start, limit);
       }
       int end = start + 1;
       if (window.length > 1) {
         end = start + window[1];
       }
       if (end < 0 || end > limit) {
-        throw new IllegalArgumentException("invalid window end " + end + "/" + limit);
+        throw new IAE("invalid window end  %s / %s", end, limit);
       }
       if (start > end) {
-        throw new IllegalArgumentException("invalid window " + start + " ~ " + end);
+        throw new IAE("invalid window %s ~ %s", start, end);
       }
       return new int[]{start, end};
     }

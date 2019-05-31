@@ -152,7 +152,7 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public DimensionSelector decorate(DimensionSelector selector)
+  public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
   {
     return selector;
   }

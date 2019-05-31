@@ -64,6 +64,7 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
@@ -132,9 +133,10 @@ public class Filters
    *
    * @param dimFilters list of DimFilters, should all be non-null
    *
+   * @param resolver
    * @return list of Filters
    */
-  public static List<Filter> toFilters(List<DimFilter> dimFilters)
+  public static List<Filter> toFilters(List<DimFilter> dimFilters, final TypeResolver resolver)
   {
     return ImmutableList.copyOf(
         FunctionalIterable
@@ -145,7 +147,7 @@ public class Filters
                   @Override
                   public Filter apply(DimFilter input)
                   {
-                    return input.toFilter();
+                    return input.toFilter(resolver);
                   }
                 }
             )
@@ -157,17 +159,18 @@ public class Filters
    *
    * @param dimFilter dimFilter
    *
+   * @param resolver
    * @return converted filter, or null if input was null
    */
-  public static Filter toFilter(DimFilter dimFilter)
+  public static Filter toFilter(DimFilter dimFilter, TypeResolver resolver)
   {
-    return dimFilter == null ? null : dimFilter.toFilter();
+    return dimFilter == null ? null : dimFilter.toFilter(resolver);
   }
 
   @SuppressWarnings("unchecked")
   public static ValueMatcher toValueMatcher(ColumnSelectorFactory factory, String column, Predicate predicate)
   {
-    ValueDesc columnType = factory.getColumnType(column);
+    ValueDesc columnType = factory.resolve(column);
     if (columnType == null) {
       return BooleanValueMatcher.of(predicate.apply(null));
     }
@@ -666,14 +669,16 @@ public class Filters
   )
   {
     // sync with RowResolver.supportsBitmap
+    final BitmapIndexSelector selector = context.selector;
+    final Schema schema = selector.getSchema(true);
     if (filter instanceof MathExprFilter) {
-      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression());
+      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression(), schema);
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
       ImmutableBitmap bitmap = toExprBitmap(cnf, context, using, false);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     } else if (filter instanceof DimFilter.LuceneFilter) {
       // throws exception.. cannot support value matcher
-      return BitmapHolder.exact(filter.toFilter().getBitmapIndex(context.selector, using, context.baseBitmap));
+      return BitmapHolder.exact(filter.toFilter(schema).getBitmapIndex(selector, using, context.baseBitmap));
     }
 
     Set<String> dependents = Filters.getDependents(filter);
@@ -682,19 +687,18 @@ public class Filters
     }
     String column = Iterables.getOnlyElement(dependents);
     if (using.contains(BitmapType.DIMENSIONAL)) {
-      BitmapIndexSelector selector = context.selector;
       ColumnCapabilities capabilities = selector.getCapabilities(column);
       if (capabilities != null && capabilities.hasBitmapIndexes()) {
-        return BitmapHolder.exact(filter.toFilter().getBitmapIndex(selector, using, context.baseBitmap));
+        return BitmapHolder.exact(filter.toFilter(schema).getBitmapIndex(selector, using, context.baseBitmap));
       }
     }
-    SecondaryIndex index = getWhatever(context.selector, column, using);
+    SecondaryIndex index = getWhatever(selector, column, using);
     if (index == null) {
       return null;
     }
     if (filter instanceof DimFilter.RangeFilter) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Range range : ((DimFilter.RangeFilter)filter).toRanges(asTypeResolver(context.selector))) {
+      for (Range range : ((DimFilter.RangeFilter)filter).toRanges(asTypeResolver(selector))) {
         bitmaps.add(index.filterFor(range, context.baseBitmap));
       }
       ImmutableBitmap bitmap = context.union(bitmaps);
@@ -1140,4 +1144,50 @@ public class Filters
       }
     };
   }
+
+  public static final Filter NONE = new Filter()
+  {
+    @Override
+    public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+    {
+      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapIndex(
+        BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
+    )
+    {
+      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+    }
+
+    @Override
+    public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+    {
+      return ValueMatcher.FALSE;
+    }
+  };
+
+  public static final Filter ALL = new Filter()
+  {
+    @Override
+    public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+    {
+      return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapIndex(
+        BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
+    )
+    {
+      return baseBitmap != null ? baseBitmap : DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+    }
+
+    @Override
+    public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+    {
+      return ValueMatcher.TRUE;
+    }
+  };
 }

@@ -372,13 +372,13 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public ValueDesc getColumnType(String columnName)
+      public ValueDesc resolve(String columnName)
       {
         ColumnSelectorFactory wrapped = delegate.get(columnName);
         if (wrapped != null) {
-          return wrapped.getColumnType(columnName);
+          return wrapped.resolve(columnName);
         }
-        return factory.getColumnType(columnName);
+        return factory.resolve(columnName);
       }
     };
   }
@@ -461,12 +461,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       if (metricColumns.contains(columnName)) {
-        throw new UnsupportedOperationException("getColumnType");
+        return virtualColumn.resolveType(columnName, factory);
       }
-      return factory.getColumnType(columnName);
+      return factory.resolve(columnName);
     }
   }
 

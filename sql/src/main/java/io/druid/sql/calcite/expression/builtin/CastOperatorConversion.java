@@ -96,7 +96,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
     final SqlTypeName toType = rexNode.getType().getSqlTypeName();
 
     if (SqlTypeName.CHAR_TYPES.contains(fromType) && SqlTypeName.DATETIME_TYPES.contains(toType)) {
-      return castCharToDateTime(plannerContext, operandExpression, toType);
+      return castCharToDateTime(plannerContext, operandExpression, toType, rowSignature);
     } else if (SqlTypeName.DATETIME_TYPES.contains(fromType) && SqlTypeName.CHAR_TYPES.contains(toType)) {
       return castDateTimeToChar(plannerContext, operandExpression, fromType);
     } else {
@@ -125,7 +125,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
         // Floor to day when casting to DATE.
         return TimeFloorOperatorConversion.applyTimestampFloor(
             typeCastExpression,
-            new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone())
+            new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
+            rowSignature
         );
       } else {
         return typeCastExpression;
@@ -136,7 +137,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
   private static DruidExpression castCharToDateTime(
       final PlannerContext plannerContext,
       final DruidExpression operand,
-      final SqlTypeName toType
+      final SqlTypeName toType,
+      final RowSignature signature
   )
   {
     // Cast strings to datetimes by parsing them from SQL format.
@@ -152,7 +154,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
     if (toType == SqlTypeName.DATE) {
       return TimeFloorOperatorConversion.applyTimestampFloor(
           timestampExpression,
-          new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone())
+          new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
+          signature
       );
     } else if (toType == SqlTypeName.TIMESTAMP) {
       return timestampExpression;

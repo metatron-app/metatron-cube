@@ -22,6 +22,7 @@ package io.druid.sql.calcite;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.sql.calcite.rel.DruidRel;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -41,7 +42,8 @@ import java.util.List;
 
 public class Utils
 {
-  private static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl();
+  public static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl();
+  public static final RowSignature EMPTY_ROW_SIGNATURE = RowSignature.builder().build();
 
   public static SqlIdentifier zero(String name)
   {

@@ -360,7 +360,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new BoundFilter(this);
   }

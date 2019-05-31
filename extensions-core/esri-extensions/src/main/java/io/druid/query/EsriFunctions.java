@@ -58,10 +58,19 @@ import static io.druid.query.EsriUtils.OGC_GEOMETRY_TYPE;
  */
 public interface EsriFunctions extends Function.Library
 {
-  abstract class GeomFactory extends NamedFactory implements Function.TypeFixed
+  abstract class GeomFactory extends NamedFactory implements Function.FixedTyped
   {
+    public abstract class GeomChild extends Child
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return OGC_GEOMETRY_TYPE;
+      }
+    }
+
     @Override
-    public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return OGC_GEOMETRY_TYPE;
     }
@@ -71,15 +80,15 @@ public interface EsriFunctions extends Function.Library
   class ST_AsText extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).asText());
         }
@@ -91,15 +100,15 @@ public interface EsriFunctions extends Function.Library
   class ST_Buffer extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have at least 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry geometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -119,15 +128,15 @@ public interface EsriFunctions extends Function.Library
   class ST_GeomFromText extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry geometry = OGCGeometry.fromText(Evals.evalString(args.get(0), bindings));
           if (args.size() > 1) {
@@ -143,15 +152,15 @@ public interface EsriFunctions extends Function.Library
   class ST_GeomFromGeoJson extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           try {
             OGCGeometry geometry = OGCGeometry.fromGeoJson(Evals.evalString(args.get(0), bindings));
@@ -172,15 +181,15 @@ public interface EsriFunctions extends Function.Library
   class ST_Point extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Point point = new Point(Evals.evalDouble(args.get(0), bindings), Evals.evalDouble(args.get(1), bindings));
           if (args.size() > 2) {
@@ -199,14 +208,14 @@ public interface EsriFunctions extends Function.Library
   class ST_Polygon extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() == 1) {
         // from wkt
-        return new Child()
+        return new GeomChild()
         {
           @Override
-          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
           {
             OGCGeometry evaluate = EsriUtils.evaluate(Evals.evalString(args.get(0), bindings));
             if (evaluate != null) {
@@ -222,10 +231,10 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 6 || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 6 & even numbered arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           double[] doubles = new double[args.size()];
           for (int i = 0; i < args.size(); i++) {
@@ -241,14 +250,14 @@ public interface EsriFunctions extends Function.Library
   class ST_LineString extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() == 1) {
         // from wkt
-        return new Child()
+        return new GeomChild()
         {
           @Override
-          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
           {
             OGCGeometry evaluate = EsriUtils.evaluate(Evals.evalString(args.get(0), bindings));
             if (evaluate != null) {
@@ -264,10 +273,10 @@ public interface EsriFunctions extends Function.Library
       if (args.isEmpty() || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 2 & even numbered arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Polyline linestring = new Polyline();
           linestring.startPath(Evals.evalDouble(args.get(0), bindings), Evals.evalDouble(args.get(1), bindings));
@@ -288,15 +297,15 @@ public interface EsriFunctions extends Function.Library
   class ST_Area extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have at 1 arguments", name());
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (ogcGeometry == null) {
@@ -312,15 +321,15 @@ public interface EsriFunctions extends Function.Library
   class ST_Length extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have at 1 arguments", name());
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (ogcGeometry == null) {
@@ -336,17 +345,16 @@ public interface EsriFunctions extends Function.Library
   class ST_Centroid extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (ogcGeometry == null) {
             return ExprEval.of(null, OGC_GEOMETRY_TYPE);
@@ -383,15 +391,15 @@ public interface EsriFunctions extends Function.Library
   class ST_SRID extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 arguments", name());
       }
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).SRID());
         }
@@ -403,15 +411,15 @@ public interface EsriFunctions extends Function.Library
   class ST_SetSRID extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           Geometry esriGeometry = ogcGeometry.getEsriGeometry();
@@ -431,15 +439,15 @@ public interface EsriFunctions extends Function.Library
   class ST_GeodesicLengthWGS84 extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 arguments", name());
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (ogcGeometry == null) {
@@ -473,17 +481,17 @@ public interface EsriFunctions extends Function.Library
     protected abstract OperatorSimpleRelation getRelationOperator();
 
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have at 2 arguments", name());
       }
-      return new Child()
+      return new BooleanChild()
       {
         final OperatorSimpleRelation relation = getRelationOperator();
 
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry geom1 = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           OGCGeometry geom2 = EsriUtils.toGeometry(Evals.eval(args.get(1), bindings));
@@ -587,16 +595,16 @@ public interface EsriFunctions extends Function.Library
   class ST_Distance extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
 
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeom1 = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           OGCGeometry ogcGeom2 = EsriUtils.toGeometry(Evals.eval(args.get(1), bindings));
@@ -613,12 +621,12 @@ public interface EsriFunctions extends Function.Library
   class ST_ConvexHull extends GeomFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
-      return new Child()
+      return new GeomChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           int wkid = GeometryUtils.WKID_UNKNOWN;
           List<Geometry> geometries = Lists.newArrayList();

@@ -29,6 +29,7 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
@@ -196,6 +197,12 @@ public class BoundFilterBenchmark
       @Override
       public void close()
       {
+      }
+
+      @Override
+      public Schema getSchema(boolean prependTime)
+      {
+        return Schema.EMPTY;
       }
 
       @Override

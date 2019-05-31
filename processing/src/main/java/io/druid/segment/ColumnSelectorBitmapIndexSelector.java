@@ -25,22 +25,20 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.guava.CloseQuietly;
-import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.SecondaryIndex;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
-import io.druid.segment.data.ListIndexed;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -49,7 +47,7 @@ import java.util.Map;
 public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
 {
   private final BitmapFactory bitmapFactory;
-  private final ColumnSelector index;
+  private final QueryableIndex index;
   private final int numRows;
   private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
@@ -65,34 +63,10 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     this.numRows = index.getNumRows();
   }
 
-  public ColumnSelectorBitmapIndexSelector(
-      final BitmapFactory bitmapFactory,
-      final String name,
-      final Column column
-  )
+  @Override
+  public Schema getSchema(boolean prependTime)
   {
-    this.bitmapFactory = bitmapFactory;
-    this.index = new ColumnSelector()
-    {
-      @Override
-      public Indexed<String> getColumnNames()
-      {
-        return new ListIndexed<String>(Arrays.asList(name), String.class);
-      }
-
-      @Override
-      public Column getColumn(String columnName)
-      {
-        return name.equals(columnName) ? column : null;
-      }
-
-      @Override
-      public ValueDesc getColumnType(String columnName)
-      {
-        return index.getColumnType(columnName);
-      }
-    };
-    this.numRows = column.getLength();
+    return index.asSchema(prependTime);
   }
 
   @Override

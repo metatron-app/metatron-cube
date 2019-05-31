@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BooleanValueMatcher;
 
@@ -30,18 +31,12 @@ import java.util.Set;
 
 /**
  */
-public class NoopDimFilter implements DimFilter
+public class NoopDimFilter extends DimFilter.NotOptimizable
 {
   @Override
   public byte[] getCacheKey()
   {        
     return ByteBuffer.allocate(1).put(DimFilterCacheHelper.NOOP_CACHE_ID).array();
-  }
-
-  @Override
-  public DimFilter optimize()
-  {
-    return this;
   }
 
   @Override
@@ -56,7 +51,7 @@ public class NoopDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {

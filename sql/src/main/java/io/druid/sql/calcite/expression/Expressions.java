@@ -384,7 +384,7 @@ public class Expressions
       }
 
       // Special handling for filters on FLOOR(__time TO granularity).
-      final Granularity queryGranularity = asGranularity(lhsExpression);
+      final Granularity queryGranularity = asGranularity(lhsExpression, rowSignature);
       if (queryGranularity != null) {
         // lhs is FLOOR(__time TO granularity); rhs must be a timestamp
         final long rhsMillis = Calcites.calciteDateTimeLiteralToJoda(rhs, plannerContext.getTimeZone()).getMillis();
@@ -534,9 +534,9 @@ public class Expressions
    * @return granularity or null if not possible
    */
   @Nullable
-  public static PeriodGranularity asGranularity(final DruidExpression expression)
+  public static PeriodGranularity asGranularity(final DruidExpression expression, final RowSignature signature)
   {
-    final Expr expr = Parser.parse(expression.getExpression());
+    final Expr expr = Parser.parse(expression.getExpression(), signature);
     final List<String> bindings = Parser.findRequiredBindings(expr);
     if (bindings.size() != 1 || !Row.TIME_COLUMN_NAME.equals(bindings.get(0))) {
       return null;

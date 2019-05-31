@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.JavaScriptFilter;
@@ -39,7 +40,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
-public class JavaScriptDimFilter implements DimFilter
+public class JavaScriptDimFilter extends DimFilter.NotOptimizable
 {
   private final String dimension;
   private final String function;
@@ -107,12 +108,6 @@ public class JavaScriptDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
@@ -129,7 +124,7 @@ public class JavaScriptDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     if (config.isDisabled()) {
       throw new ISE("JavaScript is disabled");

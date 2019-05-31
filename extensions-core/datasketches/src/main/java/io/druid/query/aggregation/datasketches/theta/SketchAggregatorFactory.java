@@ -77,7 +77,7 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    ValueDesc type = metricFactory.getColumnType(fieldName);
+    ValueDesc type = metricFactory.resolve(fieldName);
     if (type == null) {
       return new EmptySketchAggregator();
     }
@@ -91,7 +91,7 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    ValueDesc type = metricFactory.getColumnType(fieldName);
+    ValueDesc type = metricFactory.resolve(fieldName);
     if (type == null) {
       return new EmptySketchBufferAggregator();
     }

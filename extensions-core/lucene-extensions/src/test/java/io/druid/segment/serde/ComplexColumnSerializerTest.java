@@ -19,8 +19,11 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.collect.ImmutableMap;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Parser;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.segment.column.Column;
@@ -193,7 +196,8 @@ public class ComplexColumnSerializerTest
       }
     };
     LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동);
-    ImmutableBitmap bitmap = filter.toFilter().getBitmapIndex(selector, null, null);
+    TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("geom", ValueDesc.STRING));
+    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(selector, null, null);
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(2));

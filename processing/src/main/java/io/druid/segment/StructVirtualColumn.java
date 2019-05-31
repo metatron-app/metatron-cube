@@ -76,7 +76,7 @@ public class StructVirtualColumn implements VirtualColumn
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(dimension.startsWith(outputName));
-    ValueDesc columnType = factory.getColumnType(columnName);
+    ValueDesc columnType = factory.resolve(columnName);
     Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);

@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.druid.common.Cacheable;
@@ -253,6 +254,27 @@ public class ValueDesc implements Serializable, Cacheable
     return valueDesc;
   }
 
+  public static Function<String, ValueDesc> resolving(final TypeResolver resolver)
+  {
+    return new Function<String, ValueDesc>()
+    {
+      @Override
+      public ValueDesc apply(String input)
+      {
+        return resolver.resolve(input);
+      }
+    };
+  }
+
+  public static ValueDesc toCommonType(Iterable<ValueDesc> valueDescs, ValueDesc notFound)
+  {
+    ValueDesc current = null;
+    for (ValueDesc valueDesc : valueDescs) {
+      current = toCommonType(current, valueDesc);
+    }
+    return current == null || current.isUnknown() ? notFound : current;
+  }
+
   public static ValueDesc toCommonType(@Nullable ValueDesc type1, @NotNull ValueDesc type2)
   {
     if (type1 == null) {
@@ -341,7 +363,7 @@ public class ValueDesc implements Serializable, Cacheable
     this.clazz = clazz;
   }
 
-  // complex types are case sensitive (same with serde-name) but primitive types are not.. fuck
+  // complex types are case sensitive (same with serde-name) but primitive types are not.. hate this
   private String normalize(String typeName)
   {
     ValueType valueType = ValueType.of(typeName);

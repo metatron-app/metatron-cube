@@ -99,7 +99,7 @@ public class SelectorFilter implements Filter
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
     final boolean allowsNull = Strings.isNullOrEmpty(value);
-    final ValueDesc valueType = factory.getColumnType(dimension);
+    final ValueDesc valueType = factory.resolve(dimension);
     if (valueType == null) {
       return BooleanValueMatcher.of(allowsNull);
     }

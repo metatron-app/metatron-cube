@@ -1211,7 +1211,7 @@ public class EvalTest
     Expr.NumericBinding bindings = Parser.withMap(
         ImmutableMap.<String, Object>of("r", 0.5d, "n", 0.1d, "y", 3.5d, "p", -2.5d)
     );
-    // don't know what the fuck is this
+    // don't know what the hell is this
     Assert.assertEquals(2.168962048d, Parser.parse("fv (r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
     Assert.assertEquals(1.983438510d, Parser.parse("pv (r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
     Assert.assertEquals(-9.22213780d, Parser.parse("pmt(r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
@@ -1242,31 +1242,31 @@ public class EvalTest
             "a", ValueDesc.LONG, "b", ValueDesc.STRING, "c", ValueDesc.DOUBLE, "d", ValueDesc.DIM_STRING
         )
     );
-    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("a * cast(b, 'double')").resolve(bindings));
-    Assert.assertEquals(ValueDesc.STRING, Parser.parse("concat(a, cast(b, 'double'))").resolve(bindings));
-    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')").resolve(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("a * cast(b, 'double')", bindings).returns());
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("concat(a, cast(b, 'double'))", bindings).returns());
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").resolve(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10d)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0d, CAST(C, 'INT') / 10 * 10d)").resolve(bindings));
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10d)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0d, CAST(C, 'INT') / 10 * 10d)", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', b, 'x')").resolve(bindings));
-    Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', d, 'x')").resolve(bindings));
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', b, 'x')", bindings).returns());
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', d, 'x')", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.LONG, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10.0)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0.0, '', CAST(C, 'INT') / 10 * 10.0)").resolve(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0.0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10d)").resolve(bindings));
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0d, '', CAST(C, 'INT') / 10 * 10d)").resolve(bindings));
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns());
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0d, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', b, '', 'x')").resolve(bindings));
-    Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', d, '', 'x')").resolve(bindings));
-    Assert.assertEquals(ValueDesc.UNKNOWN, Parser.parse("switch(C, '', d, '', 'x', 3)").resolve(bindings));
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', b, '', 'x')", bindings).returns());
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', d, '', 'x')", bindings).returns());
+    Assert.assertEquals(ValueDesc.UNKNOWN, Parser.parse("switch(C, '', d, '', 'x', 3)", bindings).returns());
   }
 
   @Test

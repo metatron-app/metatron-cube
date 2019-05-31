@@ -21,7 +21,6 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.common.StringUtils;
@@ -83,16 +82,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
   @Override
   public ValueDesc resolve(final TypeResolver resolver)
   {
-    return Parser.parse(expression).resolve(
-        new TypeResolver.Abstract()
-        {
-          @Override
-          public ValueDesc resolve(String name)
-          {
-            return resolver.resolve(name, ValueDesc.UNKNOWN);
-          }
-        }
-    );
+    return Parser.parse(expression, resolver).returns();
   }
 
   @Override
@@ -102,13 +92,11 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public DimensionSelector decorate(final DimensionSelector selector)
+  public DimensionSelector decorate(final DimensionSelector selector, final TypeResolver resolver)
   {
     final String dimension = getDimension();
-    final Expr expr = Parser.parse(expression);
-    final ValueDesc resultType = expr.resolve(
-        Parser.withTypeMap(ImmutableMap.<String, ValueDesc>of(dimension, selector.type()))
-    );
+    final Expr expr = Parser.parse(expression, resolver);
+    final ValueDesc resultType = expr.returns();
     if (!Comparable.class.isAssignableFrom(RowResolver.toClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
     }

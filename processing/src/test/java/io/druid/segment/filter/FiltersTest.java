@@ -170,8 +170,7 @@ public class FiltersTest
   @Test
   public void testAllFilter()
   {
-    DimFilters.ALL all = new DimFilters.ALL();
-    Assert.assertSame(all, DimFilters.convertToCNF(all));
+    Assert.assertSame(DimFilters.ALL, DimFilters.convertToCNF(DimFilters.ALL));
   }
 
   private void assertEquals(DimFilter expected, DimFilter result)

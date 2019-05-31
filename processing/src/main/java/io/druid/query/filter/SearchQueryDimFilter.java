@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.filter.SearchQueryFilter;
@@ -34,7 +35,7 @@ import java.util.Set;
 
 /**
  */
-public class SearchQueryDimFilter implements DimFilter
+public class SearchQueryDimFilter extends DimFilter.NotOptimizable
 {
   private final String dimension;
   private final SearchQuerySpec query;
@@ -91,12 +92,6 @@ public class SearchQueryDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
@@ -113,7 +108,7 @@ public class SearchQueryDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new SearchQueryFilter(dimension, query, extractionFn);
   }

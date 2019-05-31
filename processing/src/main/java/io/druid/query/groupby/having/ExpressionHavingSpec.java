@@ -52,7 +52,7 @@ public class ExpressionHavingSpec implements HavingSpec
   @Override
   public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
-    final Expr expr = Parser.parse(expression);
+    final Expr expr = Parser.parse(expression, resolver);
     final RowBinding binding = new RowBinding(resolver);
     return new Predicate<Row>()
     {

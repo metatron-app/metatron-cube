@@ -62,7 +62,7 @@ public class ShapeFunctions implements Function.Library
   public static class LonLatTo4326 extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have at least 2 arguments", name());
@@ -80,13 +80,13 @@ public class ShapeFunctions implements Function.Library
       catch (Exception e) {
         throw Throwables.propagate(e);
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         private final DirectPosition2D from = new DirectPosition2D(sourceCRS);
         private final DirectPosition2D to = new DirectPosition2D(targetCRS);
 
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           if (args.size() == 2) {
             double[] lonlat = (double[]) Evals.eval(args.get(1), bindings).value();
@@ -117,10 +117,10 @@ public class ShapeFunctions implements Function.Library
     return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
   }
 
-  static abstract class ShapeFuncFactory extends NamedFactory implements Function.TypeFixed
+  static abstract class ShapeFuncFactory extends NamedFactory implements Function.FixedTyped
   {
     @Override
-    public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ShapeUtils.SHAPE_TYPE;
     }
@@ -128,7 +128,13 @@ public class ShapeFunctions implements Function.Library
     public abstract class ShapeChild extends Child
     {
       @Override
-      public final ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+      public ValueDesc returns()
+      {
+        return ShapeUtils.SHAPE_TYPE;
+      }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
       {
         return asShapeEval(_eval(args, bindings));
       }
@@ -141,7 +147,7 @@ public class ShapeFunctions implements Function.Library
   public static class FromLatLon extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1 && args.size() != 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
@@ -185,7 +191,7 @@ public class ShapeFunctions implements Function.Library
   public static abstract class ShapeFrom extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
@@ -228,18 +234,18 @@ public class ShapeFunctions implements Function.Library
   public static abstract class ShapeTo extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new StringChild()
       {
         private final ShapeWriter writer = newWriter();
         private final StringWriter buffer = new StringWriter();
 
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry != null) {
@@ -280,10 +286,10 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_buffer")
-  public static class Buffer extends BuiltinFunctions.NamedParams implements Function.TypeFixed
+  public static class Buffer extends BuiltinFunctions.NamedParams implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ShapeUtils.SHAPE_TYPE;
     }
@@ -327,7 +333,13 @@ public class ShapeFunctions implements Function.Library
       return new Child()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ValueDesc returns()
+        {
+          return ShapeUtils.SHAPE_TYPE;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -347,7 +359,7 @@ public class ShapeFunctions implements Function.Library
   public abstract static class SingleShapeFunc extends ShapeFuncFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
@@ -369,7 +381,7 @@ public class ShapeFunctions implements Function.Library
   public abstract static class BinaryShapeFunc extends ShapeFuncFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
@@ -433,15 +445,15 @@ public class ShapeFunctions implements Function.Library
   public static class Area extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return ExprEval.of(geometry == null ? -1D : ShapeUtils.area(geometry));
@@ -454,15 +466,15 @@ public class ShapeFunctions implements Function.Library
   public static class Length extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return ExprEval.of(geometry == null ? -1D : ShapeUtils.length(geometry));
@@ -475,15 +487,15 @@ public class ShapeFunctions implements Function.Library
   public static class CentroidXY extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -515,15 +527,15 @@ public class ShapeFunctions implements Function.Library
   public static class CoordinatesXY extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -597,7 +609,7 @@ public class ShapeFunctions implements Function.Library
   public static class ShapeUnion extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have at least 2 arguments", name());
@@ -632,15 +644,15 @@ public class ShapeFunctions implements Function.Library
   static abstract class ShapeRelational extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have at 2 arguments", name());
       }
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = ShapeUtils.toGeometry(Evals.eval(args.get(1), bindings));
@@ -769,15 +781,15 @@ public class ShapeFunctions implements Function.Library
   public static class WithinDistance extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 3) {
         throw new IAE("Function[%s] must have at 3 arguments", name());
       }
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = ShapeUtils.toGeometry(Evals.eval(args.get(1), bindings));
@@ -795,7 +807,7 @@ public class ShapeFunctions implements Function.Library
   public static class Transform extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have 3 arguments", name());
@@ -828,7 +840,7 @@ public class ShapeFunctions implements Function.Library
   public static class Smooth extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have at 3 arguments", name());

@@ -19,8 +19,10 @@
 
 package io.druid.math.expr;
 
+import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr.NumericBinding;
-import io.druid.math.expr.Function.NamedFunction;
 import org.apache.poi.ss.formula.functions.Finance;
 import org.apache.poi.ss.formula.functions.FinanceLib;
 import org.apache.poi.ss.formula.functions.Irr;
@@ -34,253 +36,338 @@ public interface ExcelFunctions extends Function.Library
 {
   // fv(double r, double n, double y, double p, boolean t = false)
   @Function.Named("fv")
-  class ExcelFV extends NamedFunction.DoubleType
+  class ExcelFV extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 4) {
-        throw new RuntimeException("function 'fv' needs at least 4 arguments");
+        throw new IAE("function 'fv' needs at least 4 arguments");
       }
-      return ExprEval.of(
-          FinanceLib.fv(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asDouble(),
-              args.get(2).eval(bindings).asDouble(),
-              args.get(3).eval(bindings).asDouble(),
-              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-          )
-      );
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              FinanceLib.fv(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asDouble(),
+                  args.get(2).eval(bindings).asDouble(),
+                  args.get(3).eval(bindings).asDouble(),
+                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
+              )
+          );
+        }
+      };
     }
   }
 
   // pv(double r, double n, double y, double f, boolean t = false)
   @Function.Named("pv")
-  class ExcelPV extends NamedFunction.DoubleType
+  class ExcelPV extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 4) {
-        throw new RuntimeException("function 'pv' needs at least 4 arguments");
+        throw new IAE("function 'pv' needs at least 4 arguments");
       }
-      return ExprEval.of(
-          FinanceLib.pv(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asDouble(),
-              args.get(2).eval(bindings).asDouble(),
-              args.get(3).eval(bindings).asDouble(),
-              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-          )
-      );
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              FinanceLib.pv(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asDouble(),
+                  args.get(2).eval(bindings).asDouble(),
+                  args.get(3).eval(bindings).asDouble(),
+                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
+              )
+          );
+        }
+      };
     }
   }
 
   // nper(double r, double y, double p, double f, boolean t = false)
   @Function.Named("nper")
-  class ExcelNPER extends NamedFunction.DoubleType
+  class ExcelNPER extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 5) {
-        throw new RuntimeException("function 'nper' at least 4 arguments");
+      if (args.size() < 4) {
+        throw new IAE("function 'nper' needs at least 4 arguments");
       }
-      return ExprEval.of(
-          FinanceLib.nper(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asDouble(),
-              args.get(2).eval(bindings).asDouble(),
-              args.get(3).eval(bindings).asDouble(),
-              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-          )
-      );
-    }
-  }
-
-  // npv(double[] cfs, double discountRate)
-  @Function.Named("$npv")
-  class ExcelNPV extends BuiltinFunctions.PartitionFunction
-  {
-    private double discountRate;
-    private double[] values;
-
-    @Override
-    protected void initialize(Expr.WindowContext context, Object[] parameters)
-    {
-      if (parameters.length == 0) {
-        throw new RuntimeException("partition function '$npv' needs 1 more argument (discountRate)");
-      }
-      discountRate = ((Number)parameters[0]).doubleValue();
-    }
-
-    @Override
-    protected Object invoke(Expr.WindowContext context)
-    {
-      if (values == null || values.length < context.size()) {
-        values = new double[context.size()];
-      }
-      values[context.index()] = (Double)context.get(fieldName);
-      if (context.index() == context.size() - 1) {
-        return FinanceLib.npv(discountRate, Arrays.copyOfRange(values, 0, context.size()));
-      }
-      return null;
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              FinanceLib.nper(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asDouble(),
+                  args.get(2).eval(bindings).asDouble(),
+                  args.get(3).eval(bindings).asDouble(),
+                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
+              )
+          );
+        }
+      };
     }
   }
 
   // pmt(double r, double n, double p, double f = 0D, boolean t = false)
   @Function.Named("pmt")
-  class ExcelPMT extends NamedFunction.DoubleType
+  class ExcelPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 3) {
-        throw new RuntimeException("function 'pmt' needs at least 3 arguments");
+        throw new IAE("function 'nper' needs at least 3 arguments");
       }
-      return ExprEval.of(
-          FinanceLib.pmt(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asDouble(),
-              args.get(2).eval(bindings).asDouble(),
-              args.size() > 3 ? args.get(3).eval(bindings).asDouble() : 0D,
-              args.size() > 4 ? args.get(4).eval(bindings).asBoolean() : false
-          )
-      );
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              FinanceLib.pmt(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asDouble(),
+                  args.get(2).eval(bindings).asDouble(),
+                  args.size() > 3 ? args.get(3).eval(bindings).asDouble() : 0D,
+                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
+              )
+          );
+        }
+      };
     }
   }
 
   // ipmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
   @Function.Named("ipmt")
-  class ExcelIPMT extends NamedFunction.DoubleType
+  class ExcelIPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 4) {
-        throw new RuntimeException("function 'ipmt' needs at least 4 arguments");
+        throw new IAE("function 'ipmt' needs at least 4 arguments");
       }
-      return ExprEval.of(
-          Finance.ipmt(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asInt(),
-              args.get(2).eval(bindings).asInt(),
-              args.get(3).eval(bindings).asDouble(),
-              args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
-              args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
-          )
-      );
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              Finance.ipmt(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asInt(),
+                  args.get(2).eval(bindings).asInt(),
+                  args.get(3).eval(bindings).asDouble(),
+                  args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
+                  args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
+              )
+          );
+        }
+      };
     }
   }
 
   // ppmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
   @Function.Named("ppmt")
-  class ExcelPPMT extends NamedFunction.DoubleType
+  class ExcelPPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 4) {
-        throw new RuntimeException("function 'ppmt' needs at least 4 arguments");
+        throw new IAE("function 'ppmt' needs at least 4 arguments");
       }
-      return ExprEval.of(
-          Finance.ppmt(
-              args.get(0).eval(bindings).asDouble(),
-              args.get(1).eval(bindings).asInt(),
-              args.get(2).eval(bindings).asInt(),
-              args.get(3).eval(bindings).asDouble(),
-              args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
-              args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
-          )
-      );
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(
+              Finance.ppmt(
+                  args.get(0).eval(bindings).asDouble(),
+                  args.get(1).eval(bindings).asInt(),
+                  args.get(2).eval(bindings).asInt(),
+                  args.get(3).eval(bindings).asDouble(),
+                  args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
+                  args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
+              )
+          );
+        }
+      };
+    }
+  }
+
+  // npv(double[] cfs, double discountRate)
+  @Function.Named("$npv")
+  class ExcelNPV extends BuiltinFunctions.WindowFunctionFactory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)
+    {
+      return new NPVFunction(args, context);
+    }
+
+    private class NPVFunction extends WindowFunction
+    {
+      private final double discountRate;
+      private double[] values;
+
+      public NPVFunction(List<Expr> args, Expr.WindowContext context)
+      {
+        super(args, context);
+        if (parameters.length == 0) {
+          throw new RuntimeException("partition function '$npv' needs 1 more argument (discountRate)");
+        }
+        discountRate = ((Number) parameters[0]).doubleValue();
+      }
+
+      @Override
+      public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+      {
+        if (values == null || values.length < context.size()) {
+          values = new double[context.size()];
+        }
+        values[context.index()] = (Double) context.get(inputField);
+        if (!context.hasMore()) {
+          return ExprEval.of(FinanceLib.npv(discountRate, Arrays.copyOfRange(values, 0, context.size())));
+        }
+        return ExprEval.of(null, ValueDesc.DOUBLE);
+      }
+
+      @Override
+      public ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE;
+      }
     }
   }
 
   // irr(double[] income) = irr(double[] income, 0.1D)
   @Function.Named("$irr")
-  class ExcelIRR extends BuiltinFunctions.PartitionFunction
+  class ExcelIRR extends BuiltinFunctions.WindowFunctionFactory
   {
-    private double guess = 0.1D;
-    private double[] values;
-
     @Override
-    protected void initialize(Expr.WindowContext context, Object[] parameters)
+    protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)
     {
-      if (parameters.length > 0) {
-        guess = ((Number)parameters[0]).doubleValue();
-      }
+      return new IRRFunction(args, context);
     }
 
-    @Override
-    protected Object invoke(Expr.WindowContext context)
+    private class IRRFunction extends WindowFunction
     {
-      if (values == null || values.length < context.size()) {
-        values = new double[context.size()];
+      private final double guess;
+      private double[] values;
+
+      public IRRFunction(List<Expr> args, Expr.WindowContext context)
+      {
+        super(args, context);
+        guess = parameters.length > 0 ? ((Number) parameters[0]).doubleValue() : 0.1D;
       }
-      values[context.index()] = (Double)context.get(fieldName);
-      if (context.index() == context.size() - 1) {
-        return Irr.irr(Arrays.copyOfRange(values, 0, context.size()), guess);
+
+      @Override
+      public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+      {
+        if (values == null || values.length < context.size()) {
+          values = new double[context.size()];
+        }
+        values[context.index()] = (Double) context.get(inputField);
+        if (!context.hasMore()) {
+          return ExprEval.of(Irr.irr(Arrays.copyOfRange(values, 0, context.size()), guess));
+        }
+        return ExprEval.of(null, ValueDesc.DOUBLE);
       }
-      return null;
+
+      @Override
+      public ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE;
+      }
     }
   }
 
   // mirr(double[] in, double financeRate, double reinvestRate)
   @Function.Named("$mirr")
-  class ExcelMIRR extends BuiltinFunctions.PartitionFunction
+  class ExcelMIRR extends BuiltinFunctions.WindowFunctionFactory
   {
-    private double financeRate;
-    private double reinvestRate;
-    private double[] values;
-
     @Override
-    protected void initialize(Expr.WindowContext context, Object[] parameters)
+    protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)
     {
-      if (parameters.length != 2) {
-        throw new RuntimeException("partition function '$mirr' needs 2 more arguments (financeRate and reinvestRate)");
+      if (args.size() < 3) {
+        throw new RuntimeException("partition function '$mirr' needs 3 (fieldName, financeRate, reinvestRate)");
       }
-      financeRate = ((Number)parameters[0]).doubleValue();
-      reinvestRate = ((Number)parameters[1]).doubleValue();
+      return new MIRRFunction(args, context);
     }
 
-    @Override
-    protected Object invoke(Expr.WindowContext context)
+    private class MIRRFunction extends WindowFunction
     {
-      if (values == null || values.length < context.size()) {
-        values = new double[context.size()];
-      }
-      values[context.index()] = (Double)context.get(fieldName);
-      if (context.index() == context.size() - 1) {
-        return mirr(Arrays.copyOfRange(values, 0, context.size()), financeRate, reinvestRate);
-      }
-      return null;
-    }
+      private final double financeRate;
+      private final double reinvestRate;
+      private double[] values;
 
-    // copied from org.apache.poi.ss.formula.functions.Mirr (private method)
-    private double mirr(double[] in, double financeRate, double reinvestRate)
-    {
-      double value = 0;
-      int numOfYears = in.length - 1;
-      double pv = 0;
-      double fv = 0;
+      public MIRRFunction(List<Expr> args, Expr.WindowContext context)
+      {
+        super(args, context);
+        financeRate = ((Number) parameters[0]).doubleValue();
+        reinvestRate = ((Number) parameters[1]).doubleValue();
+      }
 
-      int indexN = 0;
-      for (double anIn : in) {
-        if (anIn < 0) {
-          pv += anIn / Math.pow(1 + financeRate + reinvestRate, indexN++);
+      @Override
+      public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+      {
+        if (values == null || values.length < context.size()) {
+          values = new double[context.size()];
         }
-      }
-
-      for (double anIn : in) {
-        if (anIn > 0) {
-          fv += anIn * Math.pow(1 + financeRate, numOfYears - indexN++);
+        values[context.index()] = (Double) context.get(inputField);
+        if (!context.hasMore()) {
+          return ExprEval.of(mirr(Arrays.copyOfRange(values, 0, context.size()), financeRate, reinvestRate));
         }
+        return ExprEval.of(null, ValueDesc.DOUBLE);
       }
 
-      if (fv != 0 && pv != 0) {
-        value = Math.pow(-fv / pv, 1d / numOfYears) - 1;
+      // copied from org.apache.poi.ss.formula.functions.Mirr (private method)
+      private double mirr(double[] in, double financeRate, double reinvestRate)
+      {
+        double value = 0;
+        int numOfYears = in.length - 1;
+        double pv = 0;
+        double fv = 0;
+
+        int indexN = 0;
+        for (double anIn : in) {
+          if (anIn < 0) {
+            pv += anIn / Math.pow(1 + financeRate + reinvestRate, indexN++);
+          }
+        }
+
+        for (double anIn : in) {
+          if (anIn > 0) {
+            fv += anIn * Math.pow(1 + financeRate, numOfYears - indexN++);
+          }
+        }
+
+        if (fv != 0 && pv != 0) {
+          value = Math.pow(-fv / pv, 1d / numOfYears) - 1;
+        }
+        return value;
       }
-      return value;
+
+      @Override
+      public ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE;
+      }
     }
   }
 }

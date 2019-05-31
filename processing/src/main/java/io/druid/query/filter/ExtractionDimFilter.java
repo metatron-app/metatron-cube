@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 
 import java.nio.ByteBuffer;
@@ -116,9 +117,9 @@ public class ExtractionDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
-    return new SelectorDimFilter(dimension, value, extractionFn).toFilter();
+    return new SelectorDimFilter(dimension, value, extractionFn).toFilter(resolver);
   }
 
   @Override

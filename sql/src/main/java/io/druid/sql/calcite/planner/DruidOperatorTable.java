@@ -264,8 +264,8 @@ public class DruidOperatorTable implements SqlOperatorTable
 
     for (final Function.Factory factory : Parser.getAllFunctions()) {
       SqlReturnTypeInference retType;
-      if (factory instanceof Function.TypeFixed) {
-        ValueDesc type = factory.returns(null, null);
+      if (factory instanceof Function.FixedTyped) {
+        ValueDesc type = ((Function.FixedTyped) factory).returns();
         if (type == null || type.asClass() == Object.class) {
           continue;
         }
@@ -284,11 +284,11 @@ public class DruidOperatorTable implements SqlOperatorTable
                 operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, Object.class), type));
               } else {
                 String identifier = "p" + i;
-                operands.add(Evals.identifier(identifier));
+                operands.add(Evals.identifierExpr(identifier, type));
                 binding.put(identifier, type);
               }
             }
-            ValueDesc type = factory.returns(operands, Parser.withTypeMap(binding));
+            ValueDesc type = factory.create(operands, Parser.withTypeMap(binding)).returns();
             if (type != null && type.asClass() != null) {
               return Utils.asRelDataType(type.asClass());
             }

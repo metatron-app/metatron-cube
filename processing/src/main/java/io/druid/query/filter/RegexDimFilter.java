@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.RegexFilter;
 
@@ -35,7 +36,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class RegexDimFilter implements DimFilter
+public class RegexDimFilter extends DimFilter.NotOptimizable
 {
   private final String dimension;
   private final String pattern;
@@ -93,12 +94,6 @@ public class RegexDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
@@ -115,7 +110,7 @@ public class RegexDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new RegexFilter(dimension, compiledPattern, extractionFn);
   }

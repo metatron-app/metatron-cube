@@ -43,7 +43,7 @@ public class Validation
 {
   static final Logger LOG = new Logger(Validation.class);
 
-  public static List<RowEvaluator<Boolean>> toEvaluators(List<Validation> validations, TypeResolver resolver)
+  public static List<RowEvaluator<Boolean>> toValidators(List<Validation> validations, TypeResolver resolver)
   {
     if (GuavaUtils.isNullOrEmpty(validations)) {
       return ImmutableList.of();

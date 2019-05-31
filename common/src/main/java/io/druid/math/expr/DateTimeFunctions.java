@@ -30,7 +30,6 @@ import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.Function.NamedFactory;
-import io.druid.math.expr.Function.NamedFunction;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeZone;
@@ -54,42 +53,69 @@ import java.util.Map;
  */
 public interface DateTimeFunctions extends Function.Library
 {
-  @Function.Named("now")
-  final class Now extends NamedFunction.LongType
+  @Function.Named("datediff")
+  final class DateDiffFunc extends NamedFactory.LongType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver context)
     {
-      return ExprEval.of(System.currentTimeMillis());
+      if (args.size() < 2) {
+        throw new IAE("function 'datediff' need at least 2 arguments");
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), (DateTimeZone) null);
+          DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), (DateTimeZone) null);
+          return ExprEval.of(Days.daysBetween(t1.withTimeAtStartOfDay(), t2.withTimeAtStartOfDay()).getDays());
+        }
+      };
+    }
+  }
+
+  @Function.Named("now")
+  final class Now extends NamedFactory.LongType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver context)
+    {
+      return new LongChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(System.currentTimeMillis());
+        }
+      };
     }
   }
 
   @Function.Named("current_time")
-  final class CurrentTime extends NamedFunction.DateTimeType
+  final class CurrentTime extends NamedFactory.DateTimeType
   {
     @Override
-    public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+    public Function create(List<Expr> args, TypeResolver context)
     {
-      return ExprEval.of(DateTimes.nowUtc());
+      return new DateTimeChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(DateTimes.nowUtc());
+        }
+      };
     }
   }
 
   @Function.Named("recent")
-  final class Recent extends NamedFunction.WithTypeFixed
+  final class Recent extends NamedFactory implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.INTERVAL;
-    }
-
-    @Override
-    public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
-      }
-      return ExprEval.of(toInterval(args, bindings), ValueDesc.INTERVAL);
     }
 
     public Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
@@ -102,12 +128,34 @@ public interface DateTimeFunctions extends Function.Library
       Period afterNow = JodaUtils.toPeriod(args.get(1).eval(bindings).asString());
       return new Interval(now.minus(beforeNow), now.minus(afterNow));
     }
+
+    @Override
+    public Function create(List<Expr> args, TypeResolver context)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new IAE("function '%s' needs one or two arguments", name());
+      }
+      return new Function()
+      {
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.INTERVAL;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(toInterval(args, bindings), ValueDesc.INTERVAL);
+        }
+      };
+    }
   }
 
   public abstract static class GranularFunc extends NamedFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() != 2) {
         throw new IllegalArgumentException("function '" + name() + "' needs two arguments");
@@ -126,10 +174,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("bucketStart")
-  public static class BucketStart extends GranularFunc implements Function.TypeFixed
+  public static class BucketStart extends GranularFunc implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.LONG;
     }
@@ -137,10 +185,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval param = args.get(0).eval(bindings);
           return ExprEval.of(granularity.bucketStart(DateTimes.utc(param.asLong())).getMillis());
@@ -150,10 +198,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("bucketEnd")
-  public static class BucketEnd extends GranularFunc implements Function.TypeFixed
+  public static class BucketEnd extends GranularFunc implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.LONG;
     }
@@ -161,10 +209,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval param = args.get(0).eval(bindings);
           return ExprEval.of(granularity.bucketEnd(DateTimes.utc(param.asLong())).getMillis());
@@ -174,10 +222,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("bucketStartDateTime")
-  public static class BucketStartDT extends GranularFunc implements Function.TypeFixed
+  public static class BucketStartDT extends GranularFunc implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.DATETIME;
     }
@@ -185,10 +233,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new DateTimeChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
           return ExprEval.of(dateTime == null ? null : granularity.bucketStart(dateTime), ValueDesc.DATETIME);
@@ -198,10 +246,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("bucketEndDateTime")
-  public static class BucketEndDT extends GranularFunc implements Function.TypeFixed
+  public static class BucketEndDT extends GranularFunc implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.DATETIME;
     }
@@ -209,10 +257,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function newInstance(final Granularity granularity)
     {
-      return new Child()
+      return new DateTimeChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final DateTime dateTime = args.get(0).eval(bindings).asDateTime();
           return ExprEval.of(dateTime == null ? null : granularity.bucketEnd(dateTime), ValueDesc.DATETIME);
@@ -224,7 +272,7 @@ public interface DateTimeFunctions extends Function.Library
   abstract class UnaryTimeMath extends NamedFactory
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() != 1 && args.size() != 2 && args.size() != 3) {
         throw new IllegalArgumentException("function '" + name() + "' needs one to three arguments");
@@ -236,10 +284,10 @@ public interface DateTimeFunctions extends Function.Library
 
     protected abstract Function evaluate(DateTimeZone timeZone, Locale locale);
 
-    static abstract class LongType extends UnaryTimeMath implements Function.TypeFixed
+    public static abstract class LongType extends UnaryTimeMath implements Function.FixedTyped
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.LONG;
       }
@@ -249,7 +297,7 @@ public interface DateTimeFunctions extends Function.Library
   abstract class BinaryTimeMath extends NamedFactory.DateTimeType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() != 2 && args.size() != 3) {
         throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
@@ -258,13 +306,13 @@ public interface DateTimeFunctions extends Function.Library
                                     ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2)))
                                     : null;
       final Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
-      return new Child()
+      return new DateTimeChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return base == null ? ExprEval.of(base, ValueDesc.DATETIME) : evaluate(base, period);
+          return base == null ? ExprEval.of(base, ValueDesc.DATETIME) : BinaryTimeMath.this.evaluate(base, period);
         }
       };
     }
@@ -308,7 +356,7 @@ public interface DateTimeFunctions extends Function.Library
   final class DiffTime extends NamedFactory.LongType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() != 3 && args.size() != 4) {
         throw new IllegalArgumentException("function '" + name() + "' needs three or four arguments");
@@ -322,10 +370,10 @@ public interface DateTimeFunctions extends Function.Library
       }
       final DateTimeZone timeZone =
           args.size() == 4 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(3))) : null;
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time1 = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
           DateTime time2 = Evals.toDateTime(args.get(2).eval(bindings), timeZone);
@@ -358,14 +406,21 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("dayname")
-  final class DayName extends UnaryTimeMath.LongType
+  final class DayName extends UnaryTimeMath implements Function.FixedTyped
   {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.STRING;
+    }
+
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new StringChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time == null ? null : time.dayOfWeek().getAsText(locale));
@@ -380,12 +435,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.getDayOfMonth());
+          return ExprEval.of(time == null ? -1 : time.getDayOfMonth());
         }
       };
     }
@@ -397,12 +453,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.dayOfMonth().getMaximumValue());
+          return ExprEval.of(time == null ? -1 : time.dayOfMonth().getMaximumValue());
         }
       };
     }
@@ -414,12 +471,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.getDayOfWeek());
+          return ExprEval.of(time == null ? -1 : time.getDayOfWeek());
         }
       };
     }
@@ -431,12 +489,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.getDayOfYear());
+          return ExprEval.of(time == null ? -1 : time.getDayOfYear());
         }
       };
     }
@@ -448,10 +507,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time == null ? -1 : time.getWeekOfWeekyear());
@@ -466,13 +525,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.getWeekyear());
+          return ExprEval.of(time == null ? -1 : time.getWeekyear());
         }
       };
     }
@@ -484,9 +543,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time == null ? -1 : time.getHourOfDay());
@@ -501,12 +561,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.getMonthOfYear());
+          return ExprEval.of(time == null ? -1 : time.getMonthOfYear());
         }
       };
     }
@@ -518,9 +579,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time == null ? null : time.monthOfYear().getAsText(locale));
@@ -535,9 +597,10 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time == null ? -1 : time.getYear());
@@ -552,12 +615,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.dayOfMonth().withMinimumValue().getDayOfMonth());
+          return ExprEval.of(time == null ? -1 : time.dayOfMonth().withMinimumValue().getDayOfMonth());
         }
       };
     }
@@ -569,12 +633,13 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
     {
-      return new Child() {
+      return new LongChild()
+      {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-          return ExprEval.of(time == null ? -1 :time.dayOfMonth().withMaximumValue().getDayOfMonth());
+          return ExprEval.of(time == null ? -1 : time.dayOfMonth().withMaximumValue().getDayOfMonth());
         }
       };
     }
@@ -625,7 +690,13 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ValueDesc returns()
+        {
+          return DateTimeInput.this.returns();
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval value = args.get(0).eval(bindings);
           DateTime dateTime = Evals.toDateTime(value, formatter);
@@ -634,6 +705,8 @@ public interface DateTimeFunctions extends Function.Library
       };
     }
 
+    protected abstract ValueDesc returns();
+
     protected abstract ExprEval eval(DateTime date);
 
     protected ExprEval invalid(ExprEval value)
@@ -641,16 +714,16 @@ public interface DateTimeFunctions extends Function.Library
       throw new IllegalArgumentException("Invalid value " + value.value());
     }
 
-    static abstract class LongType extends DateTimeInput implements Function.TypeFixed
+    static abstract class LongType extends DateTimeInput
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings) { return ValueDesc.LONG;}
+      protected final ValueDesc returns() { return ValueDesc.LONG;}
     }
 
-    static abstract class BooleanType extends DateTimeInput implements Function.TypeFixed
+    static abstract class BooleanType extends DateTimeInput
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings) { return ValueDesc.BOOLEAN;}
+      protected final ValueDesc returns() { return ValueDesc.BOOLEAN;}
     }
   }
 
@@ -676,10 +749,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("datetime")
-  class DateTimeFunc extends DateTimeParser implements Function.TypeFixed
+  class DateTimeFunc extends DateTimeParser implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.DATETIME;
     }
@@ -704,10 +777,10 @@ public interface DateTimeFunctions extends Function.Library
     {
       final DateTimeFormatter formatter = (DateTimeFormatter) parameter.get("formatter");
       final DateTimeZone timeZone = (DateTimeZone) parameter.get("out.timezone");
-      return new Child()
+      return new DateTimeChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           DateTime dateTime = Evals.toDateTime(args.get(0).eval(bindings), formatter);
           if (dateTime == null) {
@@ -747,10 +820,10 @@ public interface DateTimeFunctions extends Function.Library
 
   // string/long to string
   @Function.Named("time_format")
-  class TimeFormatFunc extends DateTimeParser implements Function.TypeFixed
+  class TimeFormatFunc extends DateTimeParser implements Function.FixedTyped
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public ValueDesc returns()
     {
       return ValueDesc.STRING;
     }
@@ -773,13 +846,14 @@ public interface DateTimeFunctions extends Function.Library
     {
       final DateTimeFormatter formatter = (DateTimeFormatter) parameter.get("formatter");
       final DateTimeFormatter outputFormat = (DateTimeFormatter) parameter.get("output.formatter");
-      return new Child()
+      return new StringChild()
       {
         private StringBuilder builder = new StringBuilder();
         private long prevTime = -1;
         private String prevValue;
+
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = args.get(0).eval(bindings);
           if (!eval.isNull() && eval.isLong()) {
@@ -809,7 +883,7 @@ public interface DateTimeFunctions extends Function.Library
   class DateTimeExtractFunc extends NamedFactory.LongType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 3) {
         throw new IAE("Function[%s] must have 2 to 3 arguments", name());
@@ -825,10 +899,10 @@ public interface DateTimeFunctions extends Function.Library
       final Unit unit = Unit.valueOf(StringUtils.toUpperCase(Evals.getConstantString(args.get(0))));
       final DateTimeZone timeZone = args.size() > 2 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2))) : null;
 
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval param = args.get(1).eval(bindings);
           final DateTime dateTime = Evals.toDateTime(param, timeZone);

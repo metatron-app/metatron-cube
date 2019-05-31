@@ -30,6 +30,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.Ranges;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expressions;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
@@ -192,7 +193,9 @@ public class DimFilters
     return dimFilter;
   }
 
-  public static class NONE implements DimFilter
+  public static DimFilter NONE = new None();
+
+  public static class None extends DimFilter.NotOptimizable
   {
     @Override
     public byte[] getCacheKey()
@@ -201,12 +204,6 @@ public class DimFilters
     }
 
     @Override
-    public DimFilter optimize()
-    {
-      return this;
-    }
-
-    @Override
     public DimFilter withRedirection(Map<String, String> mapping)
     {
       return this;
@@ -218,34 +215,15 @@ public class DimFilters
     }
 
     @Override
-    public Filter toFilter()
+    public Filter toFilter(TypeResolver resolver)
     {
-      return new Filter()
-      {
-        @Override
-        public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-        {
-          return selector.getBitmapFactory().makeEmptyImmutableBitmap();
-        }
-
-        @Override
-        public ImmutableBitmap getBitmapIndex(
-            BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
-        )
-        {
-          return selector.getBitmapFactory().makeEmptyImmutableBitmap();
-        }
-
-        @Override
-        public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
-        {
-          return ValueMatcher.FALSE;
-        }
-      };
+      return Filters.NONE;
     }
   }
 
-  public static class ALL implements DimFilter
+  public static DimFilter ALL = new All();
+
+  public static class All extends DimFilter.NotOptimizable
   {
     @Override
     public byte[] getCacheKey()
@@ -254,12 +232,6 @@ public class DimFilters
     }
 
     @Override
-    public DimFilter optimize()
-    {
-      return this;
-    }
-
-    @Override
     public DimFilter withRedirection(Map<String, String> mapping)
     {
       return this;
@@ -271,7 +243,7 @@ public class DimFilters
     }
 
     @Override
-    public Filter toFilter()
+    public Filter toFilter(TypeResolver resolver)
     {
       return new Filter()
       {

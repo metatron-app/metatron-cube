@@ -34,11 +34,9 @@ import java.util.List;
  */
 public interface Function
 {
-  String name();
+  ValueDesc returns();
 
-  ValueDesc returns(List<Expr> args, TypeResolver bindings);
-
-  ExprEval evlaluate(List<Expr> args, NumericBinding bindings);
+  ExprEval evaluate(List<Expr> args, NumericBinding bindings);
 
   interface Library
   {
@@ -58,17 +56,7 @@ public interface Function
   {
     String name();
 
-    Function create(List<Expr> args);
-
-    ValueDesc returns(List<Expr> args, TypeResolver bindings);
-  }
-
-  // can be registered to SQL
-  interface TypeFixed
-  {
-    interface Factory extends Function.Factory, TypeFixed
-    {
-    }
+    Function create(List<Expr> args, TypeResolver resolver);
   }
 
   @Target({ElementType.TYPE})
@@ -76,6 +64,11 @@ public interface Function
   @interface Named
   {
     String value();
+  }
+
+  interface FixedTyped
+  {
+    ValueDesc returns();
   }
 
   abstract class NamedEntity
@@ -98,67 +91,87 @@ public interface Function
     }
   }
 
-  abstract class NamedFunction extends NamedEntity implements Function
+  abstract class NamedFactory extends NamedEntity implements Factory
   {
-    public static abstract class WithTypeFixed extends NamedFunction implements TypeFixed
-    {
-    }
-
-    public static abstract class StringType extends NamedFunction.WithTypeFixed
+    public static abstract class LongType extends NamedFactory implements FixedTyped
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
-      {
-        return ValueDesc.STRING;
-      }
-    }
-
-    public static abstract class LongType extends NamedFunction.WithTypeFixed
-    {
-      @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.LONG;
       }
     }
 
-    public static abstract class DoubleType extends NamedFunction.WithTypeFixed
+    public static abstract class FloatType extends NamedFactory implements FixedTyped
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
+      {
+        return ValueDesc.FLOAT;
+      }
+    }
+
+    public static abstract class DoubleType extends NamedFactory implements FixedTyped
+    {
+      @Override
+      public final ValueDesc returns()
       {
         return ValueDesc.DOUBLE;
       }
     }
 
-    public static abstract class DateTimeType extends NamedFunction.WithTypeFixed
+    public static abstract class StringType extends NamedFactory implements FixedTyped
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
+      {
+        return ValueDesc.STRING;
+      }
+    }
+
+    public static abstract class BooleanType extends NamedFactory implements FixedTyped
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.BOOLEAN;
+      }
+    }
+
+    public static abstract class DateTimeType extends NamedFactory implements FixedTyped
+    {
+      @Override
+      public final ValueDesc returns()
       {
         return ValueDesc.DATETIME;
       }
     }
-  }
 
-  abstract class NamedFactory extends NamedEntity implements Factory
-  {
-    public abstract class Child implements Function
+    public static abstract class DoubleArrayType extends NamedFactory implements FixedTyped
     {
       @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE_ARRAY;
+      }
+    }
+
+    public abstract class Child implements Function
+    {
       public final String name()
       {
         return name;
       }
-
-      @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
-      {
-        return NamedFactory.this.returns(args, bindings);
-      }
     }
 
-    public abstract class ExternalChild extends Child implements External {}
+    public abstract class ExternalChild extends Child implements External
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.UNKNOWN;
+      }
+    }
 
     public abstract class HoldingChild<T> implements Function
     {
@@ -168,77 +181,75 @@ public interface Function
 
       public T getHolder() { return holder; }
 
-      @Override
-      public final String name()
-      {
-        return name;
-      }
-
-      @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
-      {
-        return NamedFactory.this.returns(args, bindings);
-      }
     }
 
-    public static abstract class StringType extends NamedFactory implements TypeFixed
+    public abstract class StringChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.STRING;
       }
     }
 
-    public static abstract class BooleanType extends NamedFactory implements TypeFixed
+    public abstract class LongChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
-      {
-        return ValueDesc.BOOLEAN;
-      }
-    }
-
-    public static abstract class LongType extends NamedFactory implements TypeFixed
-    {
-      @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.LONG;
       }
     }
 
-    public static abstract class DoubleType extends NamedFactory implements TypeFixed
+    public abstract class FloatChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
+      {
+        return ValueDesc.FLOAT;
+      }
+    }
+
+    public abstract class DoubleChild extends Child
+    {
+      @Override
+      public final ValueDesc returns()
       {
         return ValueDesc.DOUBLE;
       }
     }
 
-    public static abstract class DateTimeType extends NamedFactory implements TypeFixed
+    public abstract class BooleanChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
+      {
+        return ValueDesc.BOOLEAN;
+      }
+    }
+
+    public abstract class DateTimeChild extends Child
+    {
+      @Override
+      public final ValueDesc returns()
       {
         return ValueDesc.DATETIME;
       }
     }
 
-    public static abstract class DoubleArrayType extends NamedFactory implements TypeFixed
+    public abstract class DoubleArrayChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.DOUBLE_ARRAY;
       }
     }
 
-    public static abstract class UnknownType extends NamedFactory implements TypeFixed
+    public abstract class UnknownChild extends Child
     {
       @Override
-      public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+      public final ValueDesc returns()
       {
         return ValueDesc.UNKNOWN;
       }

@@ -99,7 +99,7 @@ public class JavaScriptAggregatorTest
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       return null;
     }

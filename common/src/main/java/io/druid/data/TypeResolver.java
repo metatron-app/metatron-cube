@@ -39,7 +39,7 @@ public interface TypeResolver
   abstract class Abstract implements TypeResolver
   {
     @Override
-    public ValueDesc resolve(String column, ValueDesc defaultType)
+    public final ValueDesc resolve(String column, ValueDesc defaultType)
     {
       return Optional.fromNullable(resolve(column)).or(defaultType);
     }
@@ -76,4 +76,13 @@ public interface TypeResolver
       return delegated.resolve(column, defaultType);
     }
   }
+
+  TypeResolver UNKNOWN = new Abstract()
+  {
+    @Override
+    public ValueDesc resolve(String column)
+    {
+      return ValueDesc.UNKNOWN;
+    }
+  };
 }

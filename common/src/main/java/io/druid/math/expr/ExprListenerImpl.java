@@ -19,6 +19,9 @@
 
 package io.druid.math.expr;
 
+import com.metamx.common.IAE;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.antlr.ExprBaseListener;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -38,14 +41,14 @@ public class ExprListenerImpl extends ExprBaseListener
   private final Map<ParseTree, Object> nodes;
   private final ParseTree rootNodeKey;
   private final Map<String, Function.Factory> functions;
-  private final boolean flatten;
+  private final TypeResolver resolver;
 
-  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Function.Factory> functions, boolean flatten)
+  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Function.Factory> functions, TypeResolver resolver)
   {
     this.rootNodeKey = rootNodeKey;
     this.functions = functions;
     this.nodes = new HashMap<>();
-    this.flatten = flatten;
+    this.resolver = resolver;
   }
 
   Expr getAST()
@@ -309,39 +312,65 @@ public class ExprListenerImpl extends ExprBaseListener
   @Override
   public void exitFunctionExpr(ExprParser.FunctionExprContext ctx)
   {
-    String fnName = ctx.getChild(0).getText();
-    Function.Factory factory = functions.get(fnName.toLowerCase());
+    final String fnName = ctx.getChild(0).getText();
+    final Function.Factory factory = functions.get(fnName.toLowerCase());
     if (factory == null) {
-      throw new RuntimeException("function " + fnName + " is not defined.");
+      throw new IAE("function '%s' is not defined.", fnName);
     }
 
     @SuppressWarnings("unchecked")
-    List<Expr> args = ctx.getChildCount() > 3 ? (List<Expr>) nodes.get(ctx.getChild(2)) : Collections.<Expr>emptyList();
-    if (flatten) {
-      args = Parser.flatten(args);
-    }
+    final List<Expr> args = ctx.getChildCount() > 3
+                            ? (List<Expr>) nodes.get(ctx.getChild(2))
+                            : Collections.<Expr>emptyList();
     nodes.put(
         ctx,
-        new FunctionExpr(factory.create(args), fnName, args)
+        new FunctionExpr(new java.util.function.Function<List<Expr>, Function>()
+        {
+          @Override
+          public Function apply(List<Expr> exprs)
+          {
+            return factory.create(args, resolver);
+          }
+        }, fnName, args)
     );
   }
 
   @Override
   public void exitIdentifierExpr(ExprParser.IdentifierExprContext ctx)
   {
+    nodes.put(ctx, makeIdentifier(ctx));
+  }
+
+  private IdentifierExpr makeIdentifier(ExprParser.IdentifierExprContext ctx)
+  {
     String text = ctx.getChild(0).getText();
     if (text.charAt(0) == '"' && text.charAt(text.length() - 1) == '"') {
-      text = text.substring(1, text.length() - 1);
+      text = text.substring(1, text.length() - 1);  // strip off
     }
-    if (ctx.getChildCount() == 5 && ctx.getChild(1).getText().equals("[") && ctx.getChild(2).getText().equals("-") && ctx.getChild(4).getText().equals("]")) {
+    text = normalize(text);
+    ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN);
+    if (type.isDimension()) {
+      type = ValueDesc.STRING;    // todo
+    }
+    if (ctx.getChildCount() == 5 &&
+        ctx.getChild(1).getText().equals("[") &&
+        ctx.getChild(2).getText().equals("-") &&
+        ctx.getChild(4).getText().equals("]")) {
       int index = Integer.parseInt(ctx.getChild(3).getText());
-      nodes.put(ctx, new IdentifierExpr(text, -index));
-    } else if (ctx.getChildCount() == 4 && ctx.getChild(1).getText().equals("[") && ctx.getChild(3).getText().equals("]")) {
+      return new IdentifierExpr(text, type, -index);
+    } else if (ctx.getChildCount() == 4 &&
+               ctx.getChild(1).getText().equals("[") &&
+               ctx.getChild(3).getText().equals("]")) {
       int index = Integer.parseInt(ctx.getChild(2).getText());
-      nodes.put(ctx, new IdentifierExpr(text, index));
+      return new IdentifierExpr(text, type, index);
     } else {
-      nodes.put(ctx, new IdentifierExpr(text));
+      return new IdentifierExpr(text, type);
     }
+  }
+
+  protected String normalize(String identifier)
+  {
+    return identifier;
   }
 
   @Override

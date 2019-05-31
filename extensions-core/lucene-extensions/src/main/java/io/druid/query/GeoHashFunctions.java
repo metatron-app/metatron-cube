@@ -41,15 +41,15 @@ public class GeoHashFunctions implements Function.Library
   public static class ToGeoHash extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2 && args.size() != 3) {
         throw new IAE("Function[%s] must have 2 or 3 arguments", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final double latitude = Evals.evalDouble(args.get(0), bindings);
           final double longitude = Evals.evalDouble(args.get(1), bindings);
@@ -67,15 +67,15 @@ public class GeoHashFunctions implements Function.Library
   public static class GeomToGeoHash extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1 && args.size() != 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -95,10 +95,19 @@ public class GeoHashFunctions implements Function.Library
 
   public static final ValueDesc LATLON = ValueDesc.of("struct(latitude:double,longitude:double)");
 
-  static abstract class LatLonFactory extends NamedFactory implements Function.TypeFixed
+  static abstract class LatLonFactory extends NamedFactory implements Function.FixedTyped
   {
+    public abstract class LatLonChild extends Child implements Function.External
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return LATLON;
+      }
+    }
+
     @Override
-    public final ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public final ValueDesc returns()
     {
       return LATLON;
     }
@@ -108,15 +117,15 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToCenter extends LatLonFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new LatLonChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
           return ExprEval.of(new Object[]{point.getY(), point.getX()}, LATLON);
@@ -129,15 +138,15 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
           return ExprEval.of("POINT(" + point.getX() + " " + point.getY() + ")");
@@ -150,15 +159,15 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Rectangle boundary = GeohashUtils.decodeBoundary(
               Evals.evalString(args.get(0), bindings),
@@ -187,15 +196,15 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Rectangle boundary = GeohashUtils.decodeBoundary(
               Evals.evalString(args.get(0), bindings),

@@ -59,7 +59,8 @@ public class TimeFloorOperatorConversion implements SqlOperatorConversion
 
   public static DruidExpression applyTimestampFloor(
       final DruidExpression input,
-      final PeriodGranularity granularity
+      final PeriodGranularity granularity,
+      final RowSignature signature
   )
   {
     Preconditions.checkNotNull(input, "input");
@@ -67,7 +68,7 @@ public class TimeFloorOperatorConversion implements SqlOperatorConversion
 
     // Collapse floor chains if possible. Useful for constructs like CAST(FLOOR(__time TO QUARTER) AS DATE).
     if (granularity.getPeriod().equals(Period.days(1))) {
-      final PeriodGranularity inputGranularity = Expressions.asGranularity(input);
+      final PeriodGranularity inputGranularity = Expressions.asGranularity(input, signature);
 
       if (inputGranularity != null) {
         if (Objects.equals(inputGranularity.getTimeZone(), granularity.getTimeZone())
@@ -137,7 +138,7 @@ public class TimeFloorOperatorConversion implements SqlOperatorConversion
           ? DateTimeZone.forID(RexLiteral.stringValue(operands.get(3)))
           : plannerContext.getTimeZone();
       final PeriodGranularity granularity = new PeriodGranularity(period, origin, timeZone);
-      return applyTimestampFloor(druidExpressions.get(0), granularity);
+      return applyTimestampFloor(druidExpressions.get(0), granularity, rowSignature);
     } else {
       // Granularity is dynamic
       return DruidExpression.fromFunctionCall("timestamp_floor", druidExpressions);

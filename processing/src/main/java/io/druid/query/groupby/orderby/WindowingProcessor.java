@@ -49,47 +49,40 @@ import java.util.Map;
  */
 public class WindowingProcessor implements Function<List<Row>, List<Row>>
 {
-  private final List<PartitionDefinition> partitions = Lists.newArrayList();
+  private final Query.AggregationsSupport<?> query;
+  private final List<WindowingSpec> windowingSpecs;
+
+  private final WindowContext context;
 
   public WindowingProcessor(
       Query.AggregationsSupport<?> query,
       List<WindowingSpec> windowingSpecs
   )
   {
-    Schema schema = Schema.EMPTY.resolve(query, true);
-    WindowContext context = WindowContext.newInstance(
+    this.query = query;
+    this.windowingSpecs = windowingSpecs;
+    this.context = WindowContext.newInstance(
         DimensionSpecs.toOutputNames(query.getDimensions()),
-        GuavaUtils.asMap(schema.columnAndTypes())
+        GuavaUtils.asMap(Schema.EMPTY.resolve(query, true).columnAndTypes())
     );
-
-    for (WindowingSpec windowingSpec : windowingSpecs) {
-      List<String> partitionColumns = windowingSpec.getPartitionColumns();
-      List<OrderByColumnSpec> orderingSpecs = windowingSpec.getPartitionOrdering();
-      Ordering<Row> ordering = makeRowComparator(query, orderingSpecs, false);
-      PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
-      partitions.add(new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators));
-    }
-  }
-
-  public List<OrderByColumnSpec> resultOrdering()
-  {
-    for (int i = partitions.size() - 1; i >= 0; i--) {
-      if (partitions.get(i).ordering != null) {
-        return partitions.get(i).orderingSpecs;
-      }
-    }
-    return null;
   }
 
   @Override
   public List<Row> apply(List<Row> input)
   {
-    if (input.size() > 0) {
-      for (PartitionDefinition partition : partitions) {
-        input = partition.process(input);
-      }
+    for (WindowingSpec windowingSpec : windowingSpecs) {
+      input = createPartitionSpec(windowingSpec).process(input);
     }
     return input;
+  }
+
+  private PartitionDefinition createPartitionSpec(WindowingSpec windowingSpec)
+  {
+    List<String> partitionColumns = windowingSpec.getPartitionColumns();
+    List<OrderByColumnSpec> orderingSpecs = windowingSpec.getPartitionOrdering();
+    Ordering<Row> ordering = makeRowComparator(query, orderingSpecs, false);
+    PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
+    return new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators);
   }
 
   private static class PartitionDefinition

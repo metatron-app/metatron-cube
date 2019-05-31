@@ -91,7 +91,7 @@ public class JavaScriptDimFilterTest
         null,
         JavaScriptConfig.getDefault()
     );
-    final Filter filter = javaScriptDimFilter.toFilter();
+    final Filter filter = javaScriptDimFilter.toFilter(null);
     Assert.assertThat(filter, CoreMatchers.instanceOf(JavaScriptFilter.class));
   }
 
@@ -102,7 +102,7 @@ public class JavaScriptDimFilterTest
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("JavaScript is disabled");
-    javaScriptDimFilter.toFilter();
+    javaScriptDimFilter.toFilter(null);
     Assert.assertTrue(false);
   }
 }

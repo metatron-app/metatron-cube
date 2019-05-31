@@ -125,7 +125,7 @@ public class SelectorDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     if (extractionFn == null) {
       return new SelectorFilter(dimension, value);

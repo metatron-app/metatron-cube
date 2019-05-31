@@ -217,17 +217,24 @@ public class JodaUtils
     if (granularity == null) {
       return intervals;
     }
-    return Iterables.concat(Iterables.transform(
-          intervals, new Function<Interval, Iterable<Interval>>()
+    return explode(
+        intervals,
+        new Function<Interval, Iterable<Interval>>()
+        {
+          @Override
+          public Iterable<Interval> apply(Interval input)
           {
-            @Override
-            public Iterable<Interval> apply(Interval input)
-            {
-              return granularity.getIterable(input);
-            }
-          })
-      );
+            return granularity.getIterable(input);
+          }
+        }
+    );
   }
+
+  public static <T, V> Iterable<V> explode(Iterable<T> iterable, Function<T, Iterable<V>> function)
+  {
+    return Iterables.concat(Iterables.transform(iterable, function));
+  }
+
   public static DateTime minDateTime(DateTime... times)
   {
     if (times == null) {

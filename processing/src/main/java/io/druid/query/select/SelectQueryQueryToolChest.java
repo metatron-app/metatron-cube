@@ -223,7 +223,7 @@ public class SelectQueryQueryToolChest
             final List<ObjectColumnSelector> selectors = Lists.newArrayList();
             for (DimensionSpec dimensionSpec : select.getDimensions()) {
               DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
-              selector = dimensionSpec.decorate(selector);
+              selector = dimensionSpec.decorate(selector, cursor);
               if (concatString != null) {
                 selectors.add(ColumnSelectors.asConcatValued(selector, concatString));
               } else {

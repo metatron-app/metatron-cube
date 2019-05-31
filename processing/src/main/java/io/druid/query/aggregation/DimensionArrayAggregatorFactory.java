@@ -335,7 +335,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     }
 
     @Override
-    public ValueDesc getColumnType(String columnName)
+    public ValueDesc resolve(String columnName)
     {
       throw new UnsupportedOperationException("getColumnType");
     }

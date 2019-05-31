@@ -27,6 +27,7 @@ import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.Point;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -59,16 +60,16 @@ public class H3Functions implements Function.Library
   public static class ToH3 extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 3) {
         throw new IAE("Function[%s] must have 3 arguments", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
@@ -83,16 +84,16 @@ public class H3Functions implements Function.Library
   public static class GeomToH3 extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -110,16 +111,16 @@ public class H3Functions implements Function.Library
   public static class ToH3Address extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 3) {
         throw new IAE("Function[%s] must have 3 arguments", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
@@ -134,16 +135,16 @@ public class H3Functions implements Function.Library
   public static class H3ToCenter extends GeoHashFunctions.LatLonFactory
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new LatLonChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
           GeoCoord point;
@@ -162,16 +163,16 @@ public class H3Functions implements Function.Library
   public static class H3ToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
           GeoCoord point;
@@ -190,16 +191,16 @@ public class H3Functions implements Function.Library
   public static class H3ToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new DoubleArrayChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
           List<GeoCoord> points;
@@ -224,16 +225,16 @@ public class H3Functions implements Function.Library
   public static class H3ToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
       final H3Core instance = H3.get();
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
           List<GeoCoord> points;

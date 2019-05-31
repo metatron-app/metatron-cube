@@ -2111,9 +2111,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 //    expectedException.expect(ParseException.class);
 //    expectedException.expectMessage("Unknown type[class io.druid.query.aggregation.hyperloglog.HLLCV1]");
     Iterable<Row> results = runQuery(query);
-    for (Object x : results) {
-      System.out.println(x);
-    }
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -3965,7 +3962,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     results = runQuery(builder.build(), true);
     validate(columnNames, expectedResults, results);
 
-    // don't know what the fuck is irr
+    // don't know what the hell is irr
     builder.setLimitSpec(
         new LimitSpec(
             Arrays.asList(
@@ -4004,7 +4001,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     results = runQuery(builder.build(), true);
     validate(columnNames, expectedResults, results);
 
-    // don't know what the fuck is npv
+    // don't know what the hell is npv
     builder.setLimitSpec(
         new LimitSpec(
             Arrays.asList(
@@ -5505,30 +5502,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("Monday", 13L, 15301.728393554688, 13.0, 15301.728393554688),
-        array("Monday", 26L, 30468.776733398438, 26.0, 30468.776733398438),
-        array("Monday", 39L, 45948.10400390625, 39.0, 45948.10400390625),
-        array("Monday", 52L, 58088.36151123047, 52.0, 58088.36151123047),
-        array("Tuesday", 13L, 1664.368782043457, 65.0, 59752.730293273926),
-        array("Tuesday", 26L, 3068.6903228759766, 78.0, 61157.051834106445),
-        array("Tuesday", 39L, 4722.013374328613, 91.0, 62810.37488555908),
-        array("Tuesday", 52L, 6244.381149291992, 104.0, 64332.74266052246),
-        array("Tuesday", 65L, 7614.254570007324, 117.0, 65702.6160812378),
-        array("Tuesday", 78L, 9039.768661499023, 130.0, 67128.13017272949),
-        array("Tuesday", 91L, 10600.279991149902, 143.0, 68688.64150238037),
-        array("Tuesday", 104L, 11668.486137390137, 156.0, 69756.8476486206),
-        array("Tuesday", 117L, 13199.471267700195, 169.0, 71287.83277893066),
-        array("Tuesday", 130L, 28346.938369750977, 182.0, 86435.29988098145),
-        array("Tuesday", 143L, 40167.75135803223, 195.0, 98256.1128692627),
-        array("Wednesday", 14L, 1801.9095306396484, 209.0, 100058.02239990234),
-        array("Wednesday", 28L, 3360.9856491088867, 223.0, 101617.09851837158),
-        array("Wednesday", 42L, 5144.834144592285, 237.0, 103400.94701385498),
-        array("Wednesday", 56L, 6701.01335144043, 251.0, 104957.12622070312),
-        array("Wednesday", 70L, 8178.566139221191, 265.0, 106434.67900848389),
-        array("Wednesday", 84L, 9745.563613891602, 279.0, 108001.6764831543),
-        array("Wednesday", 98L, 11013.880271911621, 293.0, 109269.99314117432),
-        array("Wednesday", 112L, 12637.065292358398, 307.0, 110893.1781616211),
-        array("Wednesday", 126L, 28386.800888061523, 321.0, 126642.91375732422)
+        array("Monday", 13L, 15301.728393554688, 13L, 15301.728393554688),
+        array("Monday", 26L, 30468.776733398438, 26L, 30468.776733398438),
+        array("Monday", 39L, 45948.10400390625, 39L, 45948.10400390625),
+        array("Monday", 52L, 58088.36151123047, 52L, 58088.36151123047),
+        array("Tuesday", 13L, 1664.368782043457, 65L, 59752.730293273926),
+        array("Tuesday", 26L, 3068.6903228759766, 78L, 61157.051834106445),
+        array("Tuesday", 39L, 4722.013374328613, 91L, 62810.37488555908),
+        array("Tuesday", 52L, 6244.381149291992, 104L, 64332.74266052246),
+        array("Tuesday", 65L, 7614.254570007324, 117L, 65702.6160812378),
+        array("Tuesday", 78L, 9039.768661499023, 130L, 67128.13017272949),
+        array("Tuesday", 91L, 10600.279991149902, 143L, 68688.64150238037),
+        array("Tuesday", 104L, 11668.486137390137, 156L, 69756.8476486206),
+        array("Tuesday", 117L, 13199.471267700195, 169L, 71287.83277893066),
+        array("Tuesday", 130L, 28346.938369750977, 182L, 86435.29988098145),
+        array("Tuesday", 143L, 40167.75135803223, 195L, 98256.1128692627),
+        array("Wednesday", 14L, 1801.9095306396484, 209L, 100058.02239990234),
+        array("Wednesday", 28L, 3360.9856491088867, 223L, 101617.09851837158),
+        array("Wednesday", 42L, 5144.834144592285, 237L, 103400.94701385498),
+        array("Wednesday", 56L, 6701.01335144043, 251L, 104957.12622070312),
+        array("Wednesday", 70L, 8178.566139221191, 265L, 106434.67900848389),
+        array("Wednesday", 84L, 9745.563613891602, 279L, 108001.6764831543),
+        array("Wednesday", 98L, 11013.880271911621, 293L, 109269.99314117432),
+        array("Wednesday", 112L, 12637.065292358398, 307L, 110893.1781616211),
+        array("Wednesday", 126L, 28386.800888061523, 321L, 126642.91375732422)
     );
 
     results = runQuery(builder.build());
@@ -5546,7 +5543,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                     PivotSpec.tabular(PivotColumnSpec.toSpecs(), "index", "rows")
                              .withRowExpressions(
                                  "#_ = $sum(_)",
-                                 "concat(_, '.percent') = round(_ / #_ * 100, 3)"
+                                 "concat(_, '.percent') = round(100.0 * _ / #_, 3)"
                              )
                 )
             )

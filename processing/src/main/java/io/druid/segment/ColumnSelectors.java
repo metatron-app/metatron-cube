@@ -334,7 +334,7 @@ public class ColumnSelectors
   @SuppressWarnings("unchecked")
   public static ObjectColumnSelector toDimensionalSelector(ColumnSelectorFactory factory, String column)
   {
-    ValueDesc type = factory.getColumnType(column);
+    ValueDesc type = factory.resolve(column);
     if (type == null) {
       return nullObjectSelector(ValueDesc.STRING);
     }

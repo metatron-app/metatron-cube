@@ -148,7 +148,8 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         )
         .setLimitSpec(
             new LimitSpec(
-                OrderByColumnSpec.ascending("MINUTE(event_time)"), 10, Arrays.asList(new WindowingSpec(
+                OrderByColumnSpec.ascending("MINUTE(event_time)"), 10,
+                Arrays.asList(new WindowingSpec(
                     Arrays.asList("MINUTE(event_time)"), null, null,
                     new PivotSpec(
                         null,
@@ -163,7 +164,8 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
                         true,
                         true
                     )
-            ))))
+                ))
+            ))
         .setGranularity(Granularities.ALL)
         .build();
 

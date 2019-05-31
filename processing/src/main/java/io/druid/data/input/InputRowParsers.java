@@ -92,7 +92,7 @@ public class InputRowParsers
     for (Evaluation evaluation : evaluations) {
       evaluators.add(evaluation.toEvaluator(resolver));
     }
-    final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations, resolver);
+    final List<RowEvaluator<Boolean>> validators = Validation.toValidators(validations, resolver);
 
     return new InputRowParser.Delegated<T>()
     {

@@ -21,6 +21,7 @@ package org.geohex.geohex4j;
 
 import com.metamx.common.IAE;
 import com.vividsolutions.jts.geom.Geometry;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -37,15 +38,15 @@ public class GeoHexFunctions implements Function.Library
   public static class ToGeoHex extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 3) {
         throw new IAE("Function[%s] must have 3 arguments", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
@@ -60,15 +61,15 @@ public class GeoHexFunctions implements Function.Library
   public static class GeomToGeoHex extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
@@ -86,15 +87,15 @@ public class GeoHexFunctions implements Function.Library
   public static class GeoHexToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new DoubleArrayChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
           double[] result = new double[coords.length << 1];
@@ -112,15 +113,15 @@ public class GeoHexFunctions implements Function.Library
   public static class GeoHexToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
           StringBuilder builder = new StringBuilder("POLYGON((");

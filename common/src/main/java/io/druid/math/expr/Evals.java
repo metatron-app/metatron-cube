@@ -25,6 +25,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
+import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.data.Pair;
@@ -129,17 +130,22 @@ public class Evals
     return eval(arg, binding).asString();
   }
 
-  public static double evalDouble(Expr arg, Expr.NumericBinding binding)
+  public static Float evalFloat(Expr arg, Expr.NumericBinding binding)
+  {
+    return eval(arg, binding).asFloat();
+  }
+
+  public static Double evalDouble(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asDouble();
   }
 
-  public static long evalLong(Expr arg, Expr.NumericBinding binding)
+  public static Long evalLong(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asLong();
   }
 
-  public static int evalInt(Expr arg, Expr.NumericBinding binding)
+  public static Integer evalInt(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asInt();
   }
@@ -322,9 +328,14 @@ public class Evals
     return new RelayExpr(ExprEval.of(value, type));
   }
 
-  public static Expr identifier(String identifier)
+  public static Expr identifierExpr(String identifier, ValueDesc type)
   {
-    return new IdentifierExpr(identifier);
+    return new IdentifierExpr(identifier, type);
+  }
+
+  public static Expr assignExpr(Expr assignee, Expr assigned)
+  {
+    return new AssignExpr(assignee, assigned);
   }
 
   private static class RelayExpr implements Constant
@@ -343,7 +354,7 @@ public class Evals
     }
 
     @Override
-    public ValueDesc resolve(TypeResolver bindings)
+    public ValueDesc returns()
     {
       return eval.type();
     }
@@ -498,17 +509,26 @@ public class Evals
 
   public static Pair<String, Expr> splitSimpleAssign(String expression)
   {
-    Pair<Expr, Expr> assign = splitAssign(expression);
+    return splitSimpleAssign(expression, TypeResolver.UNKNOWN);
+  }
+
+  public static Pair<String, Expr> splitSimpleAssign(String expression, TypeResolver resolver)
+  {
+    Pair<Expr, Expr> assign = splitAssign(expression, resolver);
     return Pair.of(toAssigneeEval(assign.lhs).asString(), assign.rhs);
   }
 
-  public static Pair<Expr, Expr> splitAssign(String expression)
+  public static Pair<Expr, Expr> splitAssign(String expression, TypeResolver resolver)
   {
-    Expr expr = Parser.parse(expression);
+    return splitAssign(Parser.parse(expression, resolver));
+  }
+
+  public static Pair<Expr, Expr> splitAssign(Expr expr)
+  {
     if (!(expr instanceof AssignExpr)) {
       List<String> required = Parser.findRequiredBindings(expr);
       if (required.size() != 1) {
-        throw new RuntimeException("cannot resolve output column " + expression);
+        throw new ISE("cannot resolve assignee from %s", expr);
       }
       return Pair.<Expr, Expr>of(new StringExpr(required.get(0)), expr);
     }

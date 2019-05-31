@@ -34,6 +34,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
@@ -99,6 +100,12 @@ public class ExtractionDimFilterTest
     @Override
     public void close()
     {
+    }
+
+    @Override
+    public Schema getSchema(boolean prependTime)
+    {
+      return Schema.EMPTY;
     }
 
     @Override
@@ -199,7 +206,7 @@ public class ExtractionDimFilterTest
   {
     Filter extractionFilter = new SelectorDimFilter(
         "foo", "NFDJUKFNDSJFNS", DIM_EXTRACTION_FN
-    ).toFilter();
+    ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
         BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
     );
@@ -211,7 +218,7 @@ public class ExtractionDimFilterTest
   {
     Filter extractionFilter = new SelectorDimFilter(
         "FDHJSFFHDS", "extractDimVal", DIM_EXTRACTION_FN
-    ).toFilter();
+    ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
         BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
     );
@@ -223,7 +230,7 @@ public class ExtractionDimFilterTest
   {
     Filter extractionFilter = new SelectorDimFilter(
         "foo", "extractDimVal", DIM_EXTRACTION_FN
-    ).toFilter();
+    ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
         BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
     );
@@ -242,7 +249,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
 
@@ -262,7 +270,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
   }
@@ -279,7 +288,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
 
@@ -299,7 +309,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
   }
@@ -317,7 +328,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
 
@@ -331,7 +343,8 @@ public class ExtractionDimFilterTest
                     DIM_EXTRACTION_FN,
                     null
                 )
-            )
+            ),
+            null
         ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
     );
   }

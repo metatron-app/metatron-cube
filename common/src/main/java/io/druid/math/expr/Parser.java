@@ -29,9 +29,11 @@ import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.math.expr.BuiltinFunctions.WindowFunctionFactory;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -71,13 +73,7 @@ public class Parser
                                        parent != PredicateFunctions.class &&
                                        parent != DateTimeFunctions.class &&
                                        parent != ExcelFunctions.class;
-    for (Object function : getFunctions(parent)) {
-      Function.Factory factory;
-      if (function instanceof Function.Factory) {
-        factory = (Function.Factory) function;
-      } else {
-        factory = wrapStateless((Function) function);
-      }
+    for (Function.Factory factory : getFunctions(parent)) {
       String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
       Function.Factory prev = functions.get(name);
       if (prev != null) {
@@ -86,12 +82,12 @@ public class Parser
       functions.put(name, factory);
 
       if (userDefinedLibrary) {
-        log.info("> '%s' is registered with class %s", name, function.getClass().getSimpleName());
+        log.info("> '%s' is registered with class %s", name, factory.getClass().getSimpleName());
       }
     }
   }
 
-  private static Iterable getFunctions(Class parent)
+  private static Iterable<Function.Factory> getFunctions(Class parent)
   {
     try {
       if (Function.Provider.class.isAssignableFrom(parent)) {
@@ -102,14 +98,14 @@ public class Parser
       log.warn(t, "failed to load functions from %s by %s .. ignoring", parent.getName(), t);
       return ImmutableList.of();
     }
-    final List<Object> functions = Lists.newArrayList();
+    final List<Function.Factory> functions = Lists.newArrayList();
     for (Class clazz : parent.getClasses()) {
       if (Modifier.isAbstract(clazz.getModifiers())) {
         continue;
       }
       try {
-        if (Function.Factory.class.isAssignableFrom(clazz) || Function.class.isAssignableFrom(clazz)) {
-          functions.add(clazz.newInstance());
+        if (Function.Factory.class.isAssignableFrom(clazz)) {
+          functions.add((Function.Factory) clazz.newInstance());
         }
       }
       catch (Throwable t) {
@@ -124,86 +120,57 @@ public class Parser
     return Lists.newArrayList(functions.values());
   }
 
-  private static Function.Factory wrapStateless(final Function function)
-  {
-    if (function instanceof Function.TypeFixed) {
-      return new Function.TypeFixed.Factory()
-      {
-        @Override
-        public String name()
-        {
-          return function.name();
-        }
-
-        @Override
-        public Function create(List<Expr> args)
-        {
-          return function;
-        }
-
-        @Override
-        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-        {
-          return function.returns(args, bindings);
-        }
-      };
-    } else {
-      return new Function.Factory()
-      {
-        @Override
-        public String name()
-        {
-          return function.name();
-        }
-
-        @Override
-        public Function create(List<Expr> args)
-        {
-          return function;
-        }
-
-        @Override
-        public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-        {
-          return function.returns(args, bindings);
-        }
-      };
-    }
-  }
-
+  // this can be used whenever return type is not important
   public static Expr parse(String in)
   {
-    return parse(in, functions, true);
+    return parse(in, functions, null, TypeResolver.UNKNOWN, true);
+  }
+
+  public static Expr parse(String in, TypeResolver resolver)
+  {
+    return parse(in, functions, null, resolver, true);
+  }
+
+  public static Expr parse(String in, Map<String, String> mapping, TypeResolver resolver)
+  {
+    return parse(in, functions, mapping, resolver, true);
   }
 
   public static Expr parse(String in, boolean flatten)
   {
-    return parse(in, functions, flatten);
+    return parse(in, functions, null, TypeResolver.UNKNOWN, flatten);
   }
 
-  public static Expr parse(String in, Map<String, Function.Factory> func, boolean flatten)
+  private static Expr parse(
+      String in,
+      Map<String, Function.Factory> func,
+      final Map<String, String> mapping,
+      TypeResolver resolver,
+      boolean flatten
+  )
   {
     ParseTree parseTree = parseTree(in);
     ParseTreeWalker walker = new ParseTreeWalker();
-    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func, flatten);
+    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func, resolver)
+    {
+      @Override
+      protected String normalize(String identifier)
+      {
+        if (!GuavaUtils.isNullOrEmpty(mapping)) {
+          String normalized = mapping.get(identifier);
+          if (normalized != null) {
+            return normalized;
+          }
+        }
+        return identifier;
+      }
+    };
     walker.walk(listener, parseTree);
     Expr expr = listener.getAST();
     if (flatten) {
       expr = flatten(expr);
     }
     return expr;
-  }
-
-  public static Expr parseWith(String in, Function.Factory... moreFunctions)
-  {
-    Map<String, Function.Factory> custom = Maps.newHashMap(functions);
-    for (Function.Factory factory : moreFunctions) {
-      Preconditions.checkArgument(
-          custom.put(factory.name().toLowerCase(), factory) == null,
-          "cannot override existing function %s", factory.name()
-      );
-    }
-    return parse(in, custom, true);
   }
 
   public static ParseTree parseTree(String in)
@@ -241,6 +208,10 @@ public class Parser
       for (Expr child : ((FunctionExpr) expr).args) {
         findBindingsRecursive(child, found);
       }
+    } else if (expr instanceof AssignExpr) {
+      AssignExpr assign = (AssignExpr) expr;
+      findRequiredBindings(assign.assignee);
+      findRequiredBindings(assign.assigned);
     }
     return found;
   }
@@ -283,7 +254,14 @@ public class Parser
       if (Evals.isAllConstants(flatten)) {
         expr = Evals.toConstant(expr.eval(null));
       } else if (!Evals.isIdentical(functionExpr.args, flatten)) {
-        expr = new FunctionExpr(functionExpr.function, functionExpr.name, flatten);
+        expr = functionExpr.with(flatten);
+      }
+    } else if (expr instanceof AssignExpr) {
+      AssignExpr assign = (AssignExpr) expr;
+      Expr assignee = flatten(assign.assignee);
+      Expr assigned = flatten(assign.assigned);
+      if (assignee != assign.assignee || assigned != assign.assigned) {
+        expr = new AssignExpr(assignee, assigned);
       }
     }
     return expr;
@@ -304,6 +282,52 @@ public class Parser
     T visit(FunctionExpr expr, List<T> children);
 
     T visit(Expr other);
+
+  }
+
+  public static class ExprVisitor implements Visitor<Expr>
+  {
+    @Override
+    public Expr visit(Constant expr)
+    {
+      return expr;
+    }
+
+    @Override
+    public Expr visit(IdentifierExpr expr)
+    {
+      return expr;
+    }
+
+    @Override
+    public Expr visit(AssignExpr expr, Expr assignee, Expr assigned)
+    {
+      return expr.assignee == assignee && expr.assigned == assigned ? expr : Evals.assignExpr(assignee, assigned);
+    }
+
+    @Override
+    public Expr visit(UnaryOp expr, Expr child)
+    {
+      return expr.getChild() == child ? expr : expr.with(child);
+    }
+
+    @Override
+    public Expr visit(BinaryOp expr, Expr left, Expr right)
+    {
+      return expr.left == left && expr.right == right ? expr : expr.with(left, right);
+    }
+
+    @Override
+    public Expr visit(FunctionExpr expr, List<Expr> children)
+    {
+      return Evals.isIdentical(expr.args, children) ? expr : expr.with(children);
+    }
+
+    @Override
+    public Expr visit(Expr other)
+    {
+      return other;
+    }
   }
 
   public static <T> T traverse(Expr expr, Visitor<T> visitor)
@@ -332,6 +356,19 @@ public class Parser
       return visitor.visit((FunctionExpr) expr, params);
     }
     return visitor.visit(expr);
+  }
+
+  public static Expr rewrite(Expr expr, final TypeResolver resolver, final Map<String, String> mapping)
+  {
+    return traverse(expr, new ExprVisitor()
+    {
+      @Override
+      public Expr visit(IdentifierExpr expr)
+      {
+        final String mapped = mapping.get(expr.identifier());
+        return mapped == null ? expr : Evals.identifierExpr(mapped, resolver.resolve(mapped));
+      }
+    });
   }
 
   public static Expr.NumericBinding withMap(final Map<String, ?> bindings)
@@ -501,23 +538,23 @@ public class Parser
     };
   }
 
-  public static void reset(Expr expr)
+  public static void init(Expr expr)
   {
     if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
-      reset(binary.left);
-      reset(binary.right);
+      init(binary.left);
+      init(binary.right);
     } else if (expr instanceof UnaryMinusExpr) {
-      reset(((UnaryMinusExpr) expr).expr);
+      init(((UnaryMinusExpr) expr).expr);
     } else if (expr instanceof UnaryNotExpr) {
-      reset(((UnaryNotExpr) expr).expr);
+      init(((UnaryNotExpr) expr).expr);
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
-      if (functionExpr.function instanceof BuiltinFunctions.PartitionFunction) {
-        ((BuiltinFunctions.PartitionFunction) functionExpr.function).reset();
+      if (functionExpr.function instanceof WindowFunctionFactory.WindowFunction) {
+        ((WindowFunctionFactory.WindowFunction) functionExpr.function).init();
       } else {
         for (Expr child : functionExpr.args) {
-          reset(child);
+          init(child);
         }
       }
     }

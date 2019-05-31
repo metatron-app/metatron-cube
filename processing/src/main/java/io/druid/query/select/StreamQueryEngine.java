@@ -26,8 +26,8 @@ import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryRunnerHelper;
-import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.ColumnSelectors;
@@ -100,10 +100,9 @@ public class StreamQueryEngine
       public Sequence<Object[]> apply(final Cursor cursor)
       {
         int index = 0;
-        final RowResolver resolver = cursor.resolver();
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
         for (String column : columns) {
-          if (resolver.isDimension(column)) {
+          if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
             DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
             if (concatString != null) {
               selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);

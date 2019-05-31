@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.OrExpression;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
@@ -90,9 +91,9 @@ public class OrDimFilter implements DimFilter, OrExpression
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
-    return new OrFilter(Filters.toFilters(fields));
+    return new OrFilter(Filters.toFilters(fields, resolver));
   }
 
   @Override

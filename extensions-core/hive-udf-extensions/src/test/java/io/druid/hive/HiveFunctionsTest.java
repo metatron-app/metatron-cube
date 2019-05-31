@@ -19,6 +19,7 @@
 
 package io.druid.hive;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
@@ -41,8 +42,9 @@ public class HiveFunctionsTest
   {
     Map<String, DSuppliers.TypedSupplier> mapping = Maps.newHashMap();
     mapping.put("x", new DSuppliers.TypedSupplier.Simple<String>("   xxx  ", ValueDesc.STRING));
-    Expr expr = Parser.parse("hive_trim(x)", true);
-    ExprEval eval = expr.eval(Parser.withTypedSuppliers(mapping));
+    Expr.TypedBinding bindings = Parser.withTypedSuppliers(mapping);
+    Expr expr = Parser.parse("hive_trim(x)", bindings);
+    ExprEval eval = expr.eval(bindings);
     Assert.assertEquals("xxx", eval.value());
   }
 }

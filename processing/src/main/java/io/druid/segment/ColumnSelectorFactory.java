@@ -19,8 +19,10 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
-import io.druid.common.guava.DSuppliers;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -34,7 +36,7 @@ import java.util.Map;
 /**
  * Factory class for MetricSelectors
  */
-public interface ColumnSelectorFactory
+public interface ColumnSelectorFactory extends TypeResolver
 {
   public Iterable<String> getColumnNames();
   public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
@@ -45,14 +47,19 @@ public interface ColumnSelectorFactory
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
   public ValueMatcher makePredicateMatcher(DimFilter filter);
-  public ValueDesc getColumnType(String columnName);
 
   abstract class Predicate implements ColumnSelectorFactory
   {
     @Override
     public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
-      return filter.toFilter().makeMatcher(this);
+      return filter.toFilter(this).makeMatcher(this);
+    }
+
+    @Override
+    public ValueDesc resolve(String column, ValueDesc defaultType)
+    {
+      return Optional.fromNullable(resolve(column)).or(defaultType);
     }
   }
 
@@ -61,25 +68,25 @@ public interface ColumnSelectorFactory
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(final String expression)
     {
-      return makeMathExpressionSelector(Parser.parse(expression));
+      return makeMathExpressionSelector(Parser.parse(expression, this));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public ExprEvalColumnSelector makeMathExpressionSelector(final Expr parsed)
     {
-      final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
+      final Map<String, Supplier> values = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
       }
-      final Expr.TypedBinding binding = Parser.withTypedSuppliers(values);
+      final Expr.NumericBinding binding = Parser.withSuppliers(values);
       return new ExprEvalColumnSelector()
       {
         @Override
         public ValueDesc typeOfObject()
         {
-          return parsed.resolve(binding);
+          return parsed.returns();
         }
 
         @Override

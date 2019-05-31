@@ -303,7 +303,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                 resolver,
                 granularity,
                 offset,
-                Filters.toFilter(valuesFilter),
+                Filters.toFilter(valuesFilter, resolver),
                 minDataTimestamp,
                 maxDataTimestamp,
                 descending,
@@ -474,12 +474,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     }
 
                     @Override
-                    public RowResolver resolver()
-                    {
-                      return resolver;
-                    }
-
-                    @Override
                     public Iterable<String> getColumnNames()
                     {
                       return index.getColumnNames();
@@ -488,7 +482,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     @Override
                     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
                     {
-                      return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
+                      return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec), this);
                     }
 
                     private DimensionSelector makeDimensionSelectorUndecorated(DimensionSpec dimensionSpec)
@@ -1035,7 +1029,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     }
 
                     @Override
-                    public ValueDesc getColumnType(String columnName)
+                    public ValueDesc resolve(String columnName)
                     {
                       return resolver.resolve(columnName);
                     }

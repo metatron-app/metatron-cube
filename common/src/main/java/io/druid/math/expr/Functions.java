@@ -47,34 +47,22 @@ public class Functions
       }
 
       @Override
-      public Function create(List<Expr> args)
+      public Function create(List<Expr> args, TypeResolver resolver)
       {
         return new Function()
         {
           @Override
-          public String name()
-          {
-            return name;
-          }
-
-          @Override
-          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
           {
             return expr;
           }
 
           @Override
-          public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+          public ValueDesc returns()
           {
             return expr.type();
           }
         };
-      }
-
-      @Override
-      public ValueDesc returns(List<Expr> args, TypeResolver bindings)
-      {
-        return expr.type();
       }
     };
   }

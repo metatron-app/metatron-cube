@@ -25,7 +25,9 @@ import com.google.common.collect.Sets;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
+import com.metamx.common.IAE;
 import com.metamx.common.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Function.NamedFactory;
 
@@ -38,67 +40,64 @@ import java.util.regex.Pattern;
  */
 public interface PredicateFunctions extends Function.Library
 {
-  @Function.Named("isNull")
-  final class IsNullFunc extends BuiltinFunctions.SingleParam
+  abstract class SingleParamBooleanFactory extends Function.NamedFactory.BooleanType
   {
     @Override
-    public ValueDesc returns(ValueDesc param)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return ValueDesc.BOOLEAN;
+      if (args.size() != 1) {
+        throw new IAE("function '%s' needs 1 argument", name());
+      }
+      return new BooleanChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(SingleParamBooleanFactory.this.evaluate(Evals.eval(args.get(0), bindings)));
+        }
+      };
     }
 
+    protected abstract boolean evaluate(ExprEval param);
+  }
+
+  @Function.Named("isNull")
+  final class IsNullFunc extends SingleParamBooleanFactory
+  {
     @Override
-    public ExprEval evaluate(ExprEval param)
+    public boolean evaluate(ExprEval param)
     {
-      return ExprEval.of(param.isNull());
+      return param.isNull();
     }
   }
 
   @Function.Named("isNotNull")
-  final class IsNotNullFunc extends BuiltinFunctions.SingleParam
+  final class IsNotNullFunc extends SingleParamBooleanFactory
   {
     @Override
-    public ValueDesc returns(ValueDesc param)
+    public boolean evaluate(ExprEval param)
     {
-      return ValueDesc.BOOLEAN;
-    }
-
-    @Override
-    public ExprEval evaluate(ExprEval param)
-    {
-      return ExprEval.of(!param.isNull());
+      return !param.isNull();
     }
   }
 
   @Function.Named("IsTrue")
-  final class IsTrue extends BuiltinFunctions.SingleParam
+  final class IsTrue extends SingleParamBooleanFactory
   {
     @Override
-    public ValueDesc returns(ValueDesc param)
+    public boolean evaluate(ExprEval param)
     {
-      return ValueDesc.BOOLEAN;
-    }
-
-    @Override
-    public ExprEval evaluate(ExprEval param)
-    {
-      return ExprEval.of(param.asBoolean());
+      return param.asBoolean();
     }
   }
 
   @Function.Named("isFalse")
-  final class isFalse extends BuiltinFunctions.SingleParam
+  final class isFalse extends SingleParamBooleanFactory
   {
     @Override
-    public ValueDesc returns(ValueDesc param)
+    public boolean evaluate(ExprEval param)
     {
-      return ValueDesc.BOOLEAN;
-    }
-
-    @Override
-    public ExprEval evaluate(ExprEval param)
-    {
-      return ExprEval.of(!param.asBoolean());
+      return !param.asBoolean();
     }
   }
 
@@ -106,16 +105,16 @@ public interface PredicateFunctions extends Function.Library
   final class Like extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function '" + name() + "' needs 2 arguments");
+        throw new IAE("function '%s' needs 2 arguments", name());
       }
       final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = args.get(0).eval(bindings);
           return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
@@ -128,19 +127,19 @@ public interface PredicateFunctions extends Function.Library
   final class InFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
-        throw new RuntimeException("function 'in' needs at least 2 arguments");
+        throw new IAE("function 'in' needs at least 2 arguments");
       }
       final Set<Object> set = Sets.newHashSet();
       for (int i = 1; i < args.size(); i++) {
         set.add(Evals.getConstant(args.get(i)));
       }
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
         }
@@ -152,19 +151,19 @@ public interface PredicateFunctions extends Function.Library
   final class BetweenFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 3) {
-        throw new RuntimeException("function 'between' needs 3 arguments");
+        throw new IAE("function 'between' needs 3 arguments");
       }
       ExprEval eval1 = Evals.getConstantEval(args.get(1));
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
       final ValueDesc type = eval1.type();
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
           return ExprEval.of(range.contains((Comparable) eval.value()));
@@ -177,16 +176,16 @@ public interface PredicateFunctions extends Function.Library
   final class StartsWithFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'startsWith' needs 2 arguments");
+        throw new IAE("function 'startsWith' needs 2 arguments");
       }
       final String prefix = Evals.getConstantString(args.get(1));
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
@@ -199,16 +198,16 @@ public interface PredicateFunctions extends Function.Library
   final class EndsWithFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'endsWith' needs 2 arguments");
+        throw new IAE("function 'endsWith' needs 2 arguments");
       }
       final String suffix = Evals.getConstantString(args.get(1));
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.endsWith(suffix));
@@ -221,17 +220,17 @@ public interface PredicateFunctions extends Function.Library
   final class StartsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'startsWithIgnoreCase' needs 2 arguments");
+        throw new IAE("function 'startsWithIgnoreCase' needs 2 arguments");
       }
       String value = Evals.getConstantString(args.get(1));
       final String prefix = value == null ? null : value.toLowerCase();
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
@@ -244,17 +243,17 @@ public interface PredicateFunctions extends Function.Library
   final class EndsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'endsWithIgnoreCase' needs 2 arguments");
+        throw new IAE("function 'endsWithIgnoreCase' needs 2 arguments");
       }
       String value = Evals.getConstantString(args.get(1));
       final String suffix = value == null ? null : value.toLowerCase();
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.toLowerCase().endsWith(suffix));
@@ -267,16 +266,16 @@ public interface PredicateFunctions extends Function.Library
   final class ContainsFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'contains' needs 2 arguments");
+        throw new IAE("function 'contains' needs 2 arguments");
       }
       final String contained = Evals.getConstantString(args.get(1));
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
@@ -289,16 +288,16 @@ public interface PredicateFunctions extends Function.Library
   final class MatchFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new RuntimeException("function 'match' needs 2 arguments");
+        throw new IAE("function 'match' needs 2 arguments");
       }
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
           return ExprEval.of(eval != null && matcher.reset(eval).find());
@@ -311,10 +310,10 @@ public interface PredicateFunctions extends Function.Library
   final class IPv4In extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
-        throw new RuntimeException("function 'ipv4_in' needs at least 2 arguments");
+        throw new IAE("function 'ipv4_in' needs at least 2 arguments");
       }
       final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
       final byte[] end;
@@ -330,10 +329,10 @@ public interface PredicateFunctions extends Function.Library
           throw new IllegalArgumentException("start[n] <= end[n]");
         }
       }
-      return new Child()
+      return new BooleanChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           String ipString = Evals.evalString(args.get(0), bindings);
           try {

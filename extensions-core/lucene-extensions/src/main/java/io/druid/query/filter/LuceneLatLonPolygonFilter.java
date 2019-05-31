@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.ShapeFormat;
@@ -43,7 +44,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("lucene.latlon.polygon")
-public class LuceneLatLonPolygonFilter implements DimFilter.LuceneFilter
+public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
 {
   private final String field;
   private final ShapeFormat shapeFormat;
@@ -95,12 +96,6 @@ public class LuceneLatLonPolygonFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(field);
@@ -117,7 +112,7 @@ public class LuceneLatLonPolygonFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     final Polygon[] polygons;
     try {

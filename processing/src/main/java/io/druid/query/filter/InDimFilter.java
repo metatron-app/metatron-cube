@@ -196,7 +196,7 @@ public class InDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new InFilter(dimension, values, extractionFn);
   }

@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.DSuppliers.HandOver;
 import io.druid.data.TypeResolver;
@@ -87,14 +89,26 @@ public class LateralViewVirtualColumn implements VirtualColumn
   @Override
   public ValueDesc resolveType(String column, TypeResolver types)
   {
-    return column.equals(outputName) ? ValueDesc.STRING : ValueDesc.UNKNOWN;
+    if (column.equals(outputName)) {
+      return ValueDesc.STRING;
+    } else if (!column.equals(metricName)) {
+      return ValueDesc.toCommonType(Iterables.transform(values, ValueDesc.resolving(types)), ValueDesc.UNKNOWN);
+    } else {
+      return types.resolve(column, ValueDesc.UNKNOWN);
+    }
   }
 
   @Override
   public ObjectColumnSelector asMetric(String dimension, final ColumnSelectorFactory factory)
   {
     if (!dimension.equals(metricName)) {
-      throw new IllegalStateException("This virtual columns provides only metric " + metricName);
+      throw new ISE("This virtual columns provides only metric %s", metricName);
+    }
+    final ValueDesc commonType = ValueDesc.toCommonType(
+        Iterables.transform(values, ValueDesc.resolving(factory)), ValueDesc.UNKNOWN
+    );
+    if (commonType == null || commonType.isUnknown()) {
+      throw new ISE("Cannot resolve common type os values %s", values);
     }
     return new ObjectColumnSelector<Object>()
     {
@@ -103,7 +117,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
       @Override
       public ValueDesc type()
       {
-        return ValueDesc.UNKNOWN;
+        return commonType;
       }
 
       @Override

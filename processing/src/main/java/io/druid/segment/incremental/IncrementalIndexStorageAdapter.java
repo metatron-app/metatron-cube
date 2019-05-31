@@ -302,7 +302,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                 }
                 cursorMap = index.getRangeOf(timeStart, timeEnd, descending);
                 time = granularity.toDateTime(interval.getStartMillis());
-                filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter().makeMatcher(this);
+                filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(this);
                 reset();
               }
 
@@ -389,23 +389,15 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               }
 
               @Override
-              public RowResolver resolver()
-              {
-                return resolver;
-              }
-
-              @Override
               public Iterable<String> getColumnNames()
               {
                 return Iterables.concat(index.getDimensionNames(), index.getMetricNames());
               }
 
               @Override
-              public DimensionSelector makeDimensionSelector(
-                  DimensionSpec dimensionSpec
-              )
+              public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
               {
-                return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
+                return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec), this);
               }
 
               private DimensionSelector makeDimensionSelectorUndecorated(
@@ -739,7 +731,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               }
 
               @Override
-              public ValueDesc getColumnType(String columnName)
+              public ValueDesc resolve(String columnName)
               {
                 return resolver.resolve(columnName);
               }

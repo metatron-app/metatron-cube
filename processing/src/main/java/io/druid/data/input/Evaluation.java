@@ -20,7 +20,6 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -53,8 +52,6 @@ public class Evaluation
 
   private final String outputName;
   private final List<String> expressions;
-  @JsonIgnore
-  private final List<Expr> parsedExpressions;
 
   @JsonCreator
   public Evaluation(
@@ -69,15 +66,6 @@ public class Evaluation
         "Must have either expression or expressions"
     );
     this.expressions = expression == null ? expressions : Arrays.asList(expression);
-    this.parsedExpressions = Lists.newArrayList(
-        Lists.transform(
-            this.expressions, new Function<String, Expr>()
-            {
-              @Override
-              public Expr apply(String input) { return Parser.parse(input); }
-            }
-        )
-    );
   }
 
   public Evaluation(String outputName, String expression)
@@ -97,9 +85,16 @@ public class Evaluation
     return expressions;
   }
 
-  public RowEvaluator<InputRow> toEvaluator(TypeResolver resolver)
+  public RowEvaluator<InputRow> toEvaluator(final TypeResolver resolver)
   {
     final InputRowBinding<Object> bindings = new InputRowBinding<>(outputName, resolver);
+    final List<Expr> parsedExpressions = Lists.newArrayList(Lists.transform(
+        expressions, new Function<String, Expr>()
+        {
+          @Override
+          public Expr apply(String input) { return Parser.parse(input, resolver); }
+        }
+    ));
 
     return new RowEvaluator<InputRow>()
     {

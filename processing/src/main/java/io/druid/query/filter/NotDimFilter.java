@@ -22,6 +22,7 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.NotExpression;
 import io.druid.segment.filter.NotFilter;
 
@@ -80,9 +81,9 @@ public class NotDimFilter implements DimFilter, NotExpression
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
-    return new NotFilter(field.toFilter());
+    return new NotFilter(field.toFilter(resolver));
   }
 
   @Override

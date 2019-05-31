@@ -179,9 +179,9 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       return newSortLimitRowFn(query, ordering, limit);
     }
     WindowingProcessor processor = new WindowingProcessor(query, windowingSpecs);
-    boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
+//    boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
     Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, SEQUENCE_TO_LIST);
-    if (skipSortForLimit) {
+    if (columns.isEmpty()) {
       Function<List<Row>, List<Row>> limiter = new Function<List<Row>, List<Row>>()
       {
         @Override
@@ -194,7 +194,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
 
     // Materialize the Comparator first for fast-fail error checking.
-    Ordering<Row> ordering = WindowingProcessor.makeRowComparator(query, columns, sortOnTimeForLimit);
+    Ordering<Row> ordering = WindowingProcessor.makeRowComparator(query, columns, false);
     return Functions.compose(new ListSortingFn(ordering, limit), processed);
   }
 

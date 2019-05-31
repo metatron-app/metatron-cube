@@ -148,7 +148,8 @@ public class FilteredAggregatorTest
                       throw new IllegalArgumentException();
                   }
                 }
-              }
+              },
+              this
           );
         } else {
           throw new UnsupportedOperationException();
@@ -203,7 +204,7 @@ public class FilteredAggregatorTest
       }
 
       @Override
-      public ValueDesc getColumnType(String columnName)
+      public ValueDesc resolve(String columnName)
       {
         if (columnName.equals("value")) {
           return ValueDesc.FLOAT;

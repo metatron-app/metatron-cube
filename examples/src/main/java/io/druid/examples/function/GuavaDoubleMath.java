@@ -20,10 +20,9 @@
 package io.druid.examples.function;
 
 import com.google.common.math.DoubleMath;
-import com.google.common.primitives.Ints;
+import com.metamx.common.IAE;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
-import io.druid.math.expr.BuiltinFunctions;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
@@ -35,34 +34,45 @@ import java.util.List;
 public class GuavaDoubleMath implements Function.Library
 {
   @Function.Named("factorial")
-  public static class Factorial extends BuiltinFunctions.SingleParam
+  public static class Factorial extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ValueDesc returns(ValueDesc param)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return ValueDesc.DOUBLE;
-    }
-
-    @Override
-    protected ExprEval evaluate(ExprEval param)
-    {
-      return ExprEval.of(DoubleMath.factorial(Ints.checkedCast(param.longValue())));
+      if (args.size() != 1) {
+        throw new IAE("Function 'factorial' needs 1 argument");
+      }
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(DoubleMath.factorial(Evals.evalInt(args.get(0), bindings)));
+        }
+      };
     }
   }
 
   @Function.Named("fuzzyCompare")
-  public static class FuzzyCompare extends BuiltinFunctions.TripleParam
+  public static class FuzzyCompare extends Function.NamedFactory.DoubleType
   {
     @Override
-    public ValueDesc returns(List<Expr> args, TypeResolver bindings)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return ValueDesc.DOUBLE;
-    }
-
-    @Override
-    protected ExprEval eval(ExprEval x, ExprEval y, ExprEval z)
-    {
-      return ExprEval.of(DoubleMath.fuzzyCompare(x.asDouble(), y.asDouble(), z.asDouble()));
+      if (args.size() != 3) {
+        throw new IAE("Function 'fuzzyCompare' needs 3 arguments");
+      }
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          double x = Evals.evalDouble(args.get(0), bindings);
+          double y = Evals.evalDouble(args.get(1), bindings);
+          double z = Evals.evalDouble(args.get(2), bindings);
+          return ExprEval.of(DoubleMath.fuzzyCompare(x, y, z));
+        }
+      };
     }
   }
 }

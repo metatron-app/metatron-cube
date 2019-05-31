@@ -73,7 +73,7 @@ public class LookupOperatorConversion implements SqlOperatorConversion
         StringUtils.toLowerCase(calciteOperator().getName()),
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
-          final Expr lookupNameExpr = inputExpressions.get(1).parse();
+          final Expr lookupNameExpr = inputExpressions.get(1).parse(rowSignature);
 
           if (arg.isSimpleExtraction() && Evals.isConstantString(lookupNameExpr)) {
             return arg.getSimpleExtraction().cascade(

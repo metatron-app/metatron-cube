@@ -263,16 +263,17 @@ public class DruidBaseQuery implements DruidQuery
       return null;
     }
 
-    final List<DimensionExpression> dimensions = computeDimensions(partialQuery, plannerContext, sourceRowSignature);
+    RowSignature inputRowSignature = sourceRowSignature;
+    final List<DimensionExpression> dimensions = computeDimensions(partialQuery, plannerContext, inputRowSignature);
     final List<Aggregation> aggregations = computeAggregations(
         partialQuery,
         plannerContext,
-        sourceRowSignature,
+        inputRowSignature,
         rexBuilder,
         finalizeAggregations
     );
 
-    final RowSignature aggregateRowSignature = RowSignature.from(
+    inputRowSignature = RowSignature.from(
         ImmutableList.copyOf(
             Iterators.concat(
                 dimensions.stream().map(DimensionExpression::getOutputName).iterator(),
@@ -280,17 +281,17 @@ public class DruidBaseQuery implements DruidQuery
             )
         ),
         aggregate.getRowType(),
-        asTypeResolver(sourceRowSignature, aggregations)
+        asTypeResolver(inputRowSignature, aggregations)
     );
 
-    final HavingSpec havingFilter = computeHavingFilter(partialQuery, aggregateRowSignature, plannerContext);
+    final HavingSpec havingFilter = computeHavingFilter(partialQuery, inputRowSignature, plannerContext);
 
     if (aggregateProject == null) {
-      return Grouping.create(dimensions, aggregations, havingFilter, aggregateRowSignature);
+      return Grouping.create(dimensions, aggregations, havingFilter, inputRowSignature);
     } else {
       final ProjectRowOrderAndPostAggregations projectRowOrderAndPostAggregations = computePostAggregations(
           plannerContext,
-          aggregateRowSignature,
+          inputRowSignature,
           aggregateProject,
           "p"
       );
@@ -304,21 +305,22 @@ public class DruidBaseQuery implements DruidQuery
       final ImmutableBitSet aggregateProjectBits = RelOptUtil.InputFinder.bits(aggregateProject.getChildExps(), null);
       for (int i = dimensions.size() - 1; i >= 0; i--) {
         final DimensionExpression dimension = dimensions.get(i);
-        if (Evals.isConstant(Parser.parse(dimension.getDruidExpression().getExpression())) &&
+        if (Evals.isConstant(Parser.parse(dimension.getDruidExpression().getExpression(), inputRowSignature)) &&
             !aggregateProjectBits.get(i)) {
           dimensions.remove(i);
         }
       }
 
+      RowSignature outputRowSignature = RowSignature.from(
+          projectRowOrderAndPostAggregations.rowOrder,
+          aggregateProject.getRowType(),
+          asTypeResolver(inputRowSignature, aggregations)
+      );
       return Grouping.create(
           dimensions,
           aggregations,
           havingFilter,
-          RowSignature.from(
-              projectRowOrderAndPostAggregations.rowOrder,
-              aggregateProject.getRowType(),
-              asTypeResolver(aggregateRowSignature, aggregations)
-          )
+          outputRowSignature
       );
     }
   }
@@ -714,7 +716,7 @@ public class DruidBaseQuery implements DruidQuery
     Granularity queryGranularity = Granularities.ALL;
     DimensionExpression dimension = Iterables.getOnlyElement(grouping.getDimensions(), null);
     if (dimension != null) {
-      queryGranularity = Expressions.asGranularity(dimension.getDruidExpression());
+      queryGranularity = Expressions.asGranularity(dimension.getDruidExpression(), sourceRowSignature);
       if (queryGranularity == null) {
         // Timeseries only applies if the single dimension is granular __time.
         return null;
@@ -867,7 +869,7 @@ public class DruidBaseQuery implements DruidQuery
 
     DimensionExpression dimension = Iterables.getFirst(grouping.getDimensions(), null);
     if (dimension != null) {
-       granularity = Expressions.asGranularity(dimension.getDruidExpression());
+       granularity = Expressions.asGranularity(dimension.getDruidExpression(), sourceRowSignature);
        if (granularity != null) {
          dimensionSpecs = dimensionSpecs.subList(1, dimensionSpecs.size());
          DruidExpression expression = dimension.getDruidExpression();

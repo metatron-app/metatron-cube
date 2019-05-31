@@ -216,7 +216,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
       Row e = expected.get(i);
       Row r = result.get(i);
       if (ArrayUtils.indexOf(columnNames, "__time") >= 0) {
-        Assert.assertEquals(e.getTimestamp(), r.getTimestamp());
+        Assert.assertEquals(i + " th __time", e.getTimestamp(), r.getTimestamp());
       }
       for (String columnName : columnNames) {
         final Object ev = e.getRaw(columnName);
@@ -224,7 +224,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         if ((ev instanceof Float && rv instanceof Double) || (ev instanceof Double && rv instanceof Float)) {
           Assert.assertEquals(((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
         } else {
-          Assert.assertEquals(i + " th", ev, rv);
+          Assert.assertEquals(i + " th " + columnName, ev, rv);
         }
       }
     }

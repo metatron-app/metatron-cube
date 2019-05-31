@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 
@@ -89,7 +90,7 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
-  public DimensionSelector decorate(DimensionSelector selector)
+  public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
   {
     return selector;
   }

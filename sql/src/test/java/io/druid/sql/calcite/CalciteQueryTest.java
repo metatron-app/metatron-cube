@@ -2613,7 +2613,7 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{10.0f, 1L},
             new Object[]{2.0f, 1L},
-            new Object[]{0.0f, 4L}
+            new Object[]{0.0f, 1L}
         )
     );
   }
@@ -5026,7 +5026,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{0.0f, 3L},
+            new Object[]{null, 3L},
             new Object[]{1.0f, 1L},
             new Object[]{2.0f, 1L},
             new Object[]{10.0f, 1L}
@@ -5054,7 +5054,7 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{10.0f, 1L},
             new Object[]{2.0f, 1L},
             new Object[]{1.0f, 1L},
-            new Object[]{0.0f, 3L}
+            new Object[]{null, 3L}
         )
     );
   }

@@ -24,6 +24,7 @@ import com.metamx.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -52,7 +53,7 @@ public interface SQLFunctions extends Function.Library
   class TimestampCeilExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
@@ -61,10 +62,10 @@ public interface SQLFunctions extends Function.Library
         throw new IAE("granularity should be constant value", name());
       }
       final Granularity granularity = ExprUtils.toPeriodGranularity(args, 1);
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(granularity.bucketEnd(DateTimes.utc(args.get(0).eval(bindings).asLong())).getMillis());
         }
@@ -76,9 +77,9 @@ public interface SQLFunctions extends Function.Library
   class TimestampExtractFunc extends DateTimeFunctions.DateTimeExtractFunc
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
-      final Function function = super.create(args);
+      final Function function = super.create(args, context);
       final Function parameter = Evals.getFunction(args.get(1));
       if (parameter instanceof HoldingChild) {
         final Object holder = ((HoldingChild) parameter).getHolder();
@@ -90,9 +91,15 @@ public interface SQLFunctions extends Function.Library
             return new HoldingChild<Object>(holder)
             {
               @Override
-              public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+              public ValueDesc returns()
               {
-                return function.evlaluate(args, bindings);
+                return function.returns();
+              }
+
+              @Override
+              public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+              {
+                return function.evaluate(args, bindings);
               }
             };
           }
@@ -106,7 +113,7 @@ public interface SQLFunctions extends Function.Library
   class TimestampFloorExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
@@ -120,18 +127,24 @@ public interface SQLFunctions extends Function.Library
         return new HoldingChild<PeriodGranularity>(granularity)
         {
           @Override
-          public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public ValueDesc returns()
           {
-            return evaluate(args.get(0).eval(bindings), granularity);
+            return ValueDesc.LONG;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return TimestampFloorExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
           }
         };
       }
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return evaluate(args.get(0).eval(bindings), granularity);
+          return TimestampFloorExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
         }
       };
     }
@@ -146,7 +159,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampFormatExprMacro extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 3) {
         throw new IAE("Function[%s] must have 1 to 3 arguments", name());
@@ -173,10 +186,10 @@ public interface SQLFunctions extends Function.Library
                                           ? ISODateTimeFormat.dateTime()
                                           : DateTimeFormat.forPattern(formatString).withZone(timeZone);
 
-      return new Child()
+      return new StringChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(formatter.print(arg.eval(bindings).asLong()));
         }
@@ -188,7 +201,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampParseExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 3) {
         throw new IAE("Function[%s] must have 1 to 3 arguments", name());
@@ -210,10 +223,10 @@ public interface SQLFunctions extends Function.Library
               JodaUtils.STANDARD_PARSER : DateTimeFormat.forPattern(formatString).withZone(timeZone)
           );
 
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final String value = arg.eval(bindings).asString();
           if (value == null) {
@@ -237,7 +250,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampShiftExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args)
+    public Function create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 3 || args.size() > 4) {
         throw new IAE("Function[%s] must have 3 to 4 arguments", name());
@@ -252,10 +265,10 @@ public interface SQLFunctions extends Function.Library
       final Chronology chronology = ISOChronology.getInstance(granularity.getTimeZone());
       final int step = Evals.getConstantInt(args.get(2));
 
-      return new Child()
+      return new LongChild()
       {
         @Override
-        public ExprEval evlaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           return ExprEval.of(chronology.add(period, args.get(0).eval(bindings).asLong(), step));
         }

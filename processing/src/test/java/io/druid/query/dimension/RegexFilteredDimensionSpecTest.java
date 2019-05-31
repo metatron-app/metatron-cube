@@ -20,6 +20,7 @@
 package io.druid.query.dimension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.data.TypeResolver;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.TestHelper;
 import io.druid.segment.data.IndexedInts;
@@ -84,7 +85,7 @@ public class RegexFilteredDimensionSpecTest
         "[c,g]"
     );
 
-    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance);
+    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance, TypeResolver.UNKNOWN);
 
     Assert.assertEquals(2, selector.getValueCardinality());
 

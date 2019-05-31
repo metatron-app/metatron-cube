@@ -92,7 +92,7 @@ public class PivotContext
     // '_' is just '_'
     for (String expression : rowExpressions) {
       List<Integer> groupIds = Lists.newArrayList();
-      Pair<Expr, Expr> assign = Evals.splitAssign(expression);
+      Pair<Expr, Expr> assign = Evals.splitAssign(expression, context);
       for (String required : Iterables.concat(
           Parser.findRequiredBindings(assign.lhs),
           Parser.findRequiredBindings(assign.rhs)

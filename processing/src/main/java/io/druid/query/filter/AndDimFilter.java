@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.AndExpression;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
@@ -90,9 +91,9 @@ public class AndDimFilter implements DimFilter, AndExpression
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
-    return new AndFilter(Filters.toFilters(fields));
+    return new AndFilter(Filters.toFilters(fields, resolver));
   }
 
   @Override

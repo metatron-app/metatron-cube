@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
@@ -54,7 +55,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("lucene.spatial")
-public class LuceneSpatialFilter implements DimFilter.LuceneFilter
+public class LuceneSpatialFilter extends DimFilter.LuceneFilter
 {
   public static LuceneSpatialFilter convert(LucenePointFilter filter, String field)
   {
@@ -154,12 +155,6 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(field);
@@ -176,7 +171,7 @@ public class LuceneSpatialFilter implements DimFilter.LuceneFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {

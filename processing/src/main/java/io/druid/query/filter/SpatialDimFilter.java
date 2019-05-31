@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.collections.spatial.search.Bound;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.segment.filter.SpatialFilter;
 
 import java.nio.ByteBuffer;
@@ -31,7 +32,7 @@ import java.util.Set;
 
 /**
  */
-public class SpatialDimFilter implements DimFilter
+public class SpatialDimFilter extends DimFilter.NotOptimizable
 {
   private final String dimension;
   private final Bound bound;
@@ -64,12 +65,6 @@ public class SpatialDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
-  {
-    return this;
-  }
-
-  @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     String replaced = mapping.get(dimension);
@@ -98,7 +93,7 @@ public class SpatialDimFilter implements DimFilter
   }
 
   @Override
-  public Filter toFilter()
+  public Filter toFilter(TypeResolver resolver)
   {
     return new SpatialFilter(dimension, bound);
   }

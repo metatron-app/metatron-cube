@@ -22,6 +22,7 @@ package io.druid.query.dimension;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.DimensionSelector;
 
@@ -68,7 +69,7 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
   }
 
   @Override
-  public DimensionSelector decorate(final DimensionSelector selector)
+  public DimensionSelector decorate(final DimensionSelector selector, TypeResolver resolver)
   {
     if (selector == null) {
       return selector;

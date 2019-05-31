@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
+import io.druid.data.TypeResolver;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.TestHelper;
 import io.druid.segment.data.IndexedInts;
@@ -122,7 +123,7 @@ public class ListFilteredDimensionSpecTest
         true
     );
 
-    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance);
+    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance, TypeResolver.UNKNOWN);
 
     Assert.assertEquals(2, selector.getValueCardinality());
 
@@ -147,7 +148,7 @@ public class ListFilteredDimensionSpecTest
         false
     );
 
-    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance);
+    DimensionSelector selector = spec.decorate(TestDimensionSelector.instance, TypeResolver.UNKNOWN);
 
     Assert.assertEquals(24, selector.getValueCardinality());
 

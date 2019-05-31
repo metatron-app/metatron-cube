@@ -48,7 +48,7 @@ public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
   //ExtractionFn can be implemented with decorate(..) fn
   ExtractionFn getExtractionFn();
 
-  DimensionSelector decorate(DimensionSelector selector);
+  DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver);
 
   DimensionSpec withOutputName(String outputName);
 

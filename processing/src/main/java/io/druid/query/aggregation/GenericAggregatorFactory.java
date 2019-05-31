@@ -102,7 +102,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
       ValueDesc sourceType = resolver.get().resolve(fieldName);
       return withName(name, fieldName, sourceType);
     } else {
-      ValueDesc sourceType = Parser.parse(fieldExpression).resolve(resolver.get());
+      ValueDesc sourceType = Parser.parse(fieldExpression, resolver.get()).returns();
       return withExpression(name, fieldExpression, sourceType);
     }
   }

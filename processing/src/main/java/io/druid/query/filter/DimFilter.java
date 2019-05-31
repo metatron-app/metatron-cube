@@ -46,8 +46,8 @@ import java.util.Set;
     @JsonSubTypes.Type(name="in", value=InDimFilter.class),
     @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class),
     @JsonSubTypes.Type(name="math", value=MathExprFilter.class),
-    @JsonSubTypes.Type(name="true", value=DimFilters.ALL.class),
-    @JsonSubTypes.Type(name="false", value=DimFilters.NONE.class),
+    @JsonSubTypes.Type(name="true", value=DimFilters.All.class),
+    @JsonSubTypes.Type(name="false", value=DimFilters.None.class),
     @JsonSubTypes.Type(name="lucene.query", value=LuceneQueryFilter.class),
     @JsonSubTypes.Type(name="lucene.point", value=LucenePointFilter.class),
     @JsonSubTypes.Type(name="lucene.nearest", value=LuceneNearestFilter.class),
@@ -79,8 +79,18 @@ public interface DimFilter extends Expression, Cacheable
    * so it does make sense to optimize first and then call toFilter on the resulting DimFilter.
    *
    * @return a Filter that implements this DimFilter, or null if this DimFilter is a no-op.
+   * @param resolver
    */
-  public Filter toFilter();
+  public Filter toFilter(TypeResolver resolver);
+
+  abstract class NotOptimizable implements DimFilter
+  {
+    @Override
+    public final DimFilter optimize()
+    {
+      return this;
+    }
+  }
 
   class Factory implements Expression.Factory<DimFilter>
   {
@@ -104,7 +114,7 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  interface LuceneFilter extends DimFilter {
+  abstract class LuceneFilter extends NotOptimizable {
   }
 
   interface RangeFilter extends DimFilter
