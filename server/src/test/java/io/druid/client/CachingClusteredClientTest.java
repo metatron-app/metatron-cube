@@ -374,7 +374,7 @@ public class CachingClusteredClientTest
         }
         return task instanceof Callable ?
                delegate.submit((Callable) task) :
-               delegate.submit((Runnable) task);
+               (ListenableFuture<T>) delegate.submit((Runnable) task);
       }
 
       @Override

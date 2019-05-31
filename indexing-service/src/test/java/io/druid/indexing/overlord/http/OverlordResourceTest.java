@@ -665,9 +665,9 @@ public class OverlordResourceTest
     );
 
     EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
-    String interval = "2010-01-01_P1D";
+    String period = "P1D";
     List<TaskStatusPlus> responseObjects = (List<TaskStatusPlus>) overlordResource
-        .getTasks("complete", null, interval, null, null, req, null)
+        .getTasks("complete", null, period, null, null, req, null)
         .getEntity();
     Assert.assertEquals(2, responseObjects.size());
     Assert.assertEquals("id_2", responseObjects.get(0).getId());
