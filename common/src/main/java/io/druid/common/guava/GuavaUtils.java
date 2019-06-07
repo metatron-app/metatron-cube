@@ -240,6 +240,16 @@ public class GuavaUtils
     return map;
   }
 
+  public static <A, B> Map<A, B> zipAsMap(List<A> as, List<B> bs)
+  {
+    Preconditions.checkArgument(as.size() == bs.size(), "size differs.. %d vs %s", as.size(), bs.size());
+    Map<A, B> map = Maps.newLinkedHashMap();
+    for (int i = 0; i < as.size(); i++) {
+      map.put(as.get(i), bs.get(i));
+    }
+    return map;
+  }
+
   @SuppressWarnings("unchecked")
   public static <A, B> Map<A, B> asMap(Object... keyValues)
   {
@@ -275,6 +285,23 @@ public class GuavaUtils
       public T apply(final F input)
       {
         return t.apply(m.apply(f.apply(input)));
+      }
+    };
+  }
+
+  public static <F, X, Y, Z, T> Function<F, T> sequence(
+      final Function<F, X> f,
+      final Function<X, Y> m1,
+      final Function<Y, Z> m2,
+      final Function<Z, T> t
+  )
+  {
+    return new Function<F, T>()
+    {
+      @Override
+      public T apply(final F input)
+      {
+        return t.apply(m2.apply(m1.apply(f.apply(input))));
       }
     };
   }
@@ -544,6 +571,18 @@ public class GuavaUtils
     for (Closeable resource : resources) {
       IOUtils.closeQuietly(resource);
     }
+  }
+
+  public static <F, T> Function<List<F>, List<T>> transform(Function<F, T> function)
+  {
+    return new Function<List<F>, List<T>>()
+    {
+      @Override
+      public List<T> apply(List<F> input)
+      {
+        return Lists.transform(input, function);
+      }
+    };
   }
 
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {

@@ -24,7 +24,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -42,10 +45,12 @@ import io.druid.query.DataSource;
 import io.druid.query.JoinElement;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.groupby.orderby.WindowingProcessor;
+import io.druid.query.groupby.orderby.OrderingProcessor;
+import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -68,8 +73,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   private final List<String> columns;
   private final List<VirtualColumn> virtualColumns;
   private final String concatString;
-  private final int limit;
-  private final List<OrderByColumnSpec> orderBySpecs;
+  private final LimitSpec limitSpec;
 
   public StreamQuery(
       @JsonProperty("dataSource") DataSource dataSource,
@@ -79,8 +83,9 @@ public class StreamQuery extends BaseQuery<Object[]>
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
-      @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
-      @JsonProperty("limit") int limit,
+      @Deprecated @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
+      @Deprecated @JsonProperty("limit") int limit,
+      @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -89,8 +94,41 @@ public class StreamQuery extends BaseQuery<Object[]>
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
-    this.orderBySpecs = orderBySpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderBySpecs;
-    this.limit = limit > 0 ? limit : -1;
+    this.limitSpec = limitSpec == null ? LimitSpec.of(limit, orderBySpecs) : limitSpec;
+    if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      for (WindowingSpec windowing : limitSpec.getWindowingSpecs()) {
+        Preconditions.checkArgument(
+            windowing.getFlattenSpec() == null, "Not supports flatten spec in stream query (todo)"
+        );
+      }
+    }
+  }
+
+  public StreamQuery(
+      DataSource dataSource,
+      QuerySegmentSpec querySegmentSpec,
+      boolean descending,
+      DimFilter dimFilter,
+      List<String> columns,
+      List<VirtualColumn> virtualColumns,
+      String concatString,
+      LimitSpec limitSpec,
+      Map<String, Object> context
+  )
+  {
+    this(
+        dataSource,
+        querySegmentSpec,
+        descending,
+        dimFilter,
+        columns,
+        virtualColumns,
+        concatString,
+        null,
+        0,
+        limitSpec,
+        context
+    );
   }
 
   @Override
@@ -135,9 +173,9 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public int getLimit()
+  public LimitSpec getLimitSpec()
   {
-    return limit;
+    return limitSpec;
   }
 
   @Override
@@ -155,17 +193,31 @@ public class StreamQuery extends BaseQuery<Object[]>
     return columns;
   }
 
-  @JsonProperty
-  @JsonInclude(Include.NON_EMPTY)
-  public List<OrderByColumnSpec> getOrderBySpecs()
+  @JsonIgnore
+  public int getLimit()
   {
-    return orderBySpecs;
+    return limitSpec.getLimit();
   }
 
   @JsonIgnore
-  public List<String> getSortOn()
+  public List<OrderByColumnSpec> getOrderBySpecs()
   {
-    return OrderByColumnSpec.getColumns(orderBySpecs);
+    return limitSpec.getColumns();
+  }
+
+  @Override
+  public StreamQuery resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  {
+    StreamQuery resolved = (StreamQuery) super.resolveQuery(resolver, mapper);
+    if (!GuavaUtils.isNullOrEmpty(resolved.getLimitSpec().getWindowingSpecs())) {
+      resolved = resolved.withLimitSpec(limitSpec.withResolver(resolver));
+    }
+    return resolved;
+  }
+
+  public boolean isSortedOn(List<String> columns)
+  {
+    return OrderByColumnSpec.ascending(columns).equals(limitSpec.getColumns());
   }
 
   @JsonIgnore
@@ -174,19 +226,14 @@ public class StreamQuery extends BaseQuery<Object[]>
     return GuavaUtils.isNullOrEmpty(virtualColumns) && dimFilter == null && getQuerySegmentSpec() == null;
   }
 
-  Sequence<Object[]> applySortLimit(Sequence<Object[]> sequence)
+  Sequence<Object[]> applyLimit(Sequence<Object[]> sequence)
   {
-    if (!GuavaUtils.isNullOrEmpty(orderBySpecs)) {
-      sequence = LimitSpec.sortLimit(sequence, getResultOrdering(), limit);
-    } else if (limit > 0 && limit < Integer.MAX_VALUE) {
-      sequence = Sequences.limit(sequence, limit);
-    }
-    return sequence;
+    return limitSpec.build(this, false).apply(sequence);
   }
 
   Sequence<Object[]> applySimpleProjection(Sequence<Object[]> sequence, List<String> outputColumns)
   {
-    sequence = applySortLimit(sequence);
+    sequence = applyLimit(sequence);
     if (!GuavaUtils.isNullOrEmpty(columns) && !outputColumns.equals(columns)) {
       final int[] mapping = new int[columns.size()];
       for (int i = 0; i < mapping.length; i++) {
@@ -215,43 +262,47 @@ public class StreamQuery extends BaseQuery<Object[]>
   public Ordering<Object[]> getResultOrdering()
   {
     final List<String> columnNames = getColumns();
-    final List<OrderByColumnSpec> orderBySpecs = getOrderBySpecs();
+    final List<OrderByColumnSpec> orderBySpecs = limitSpec.getColumns();
 
+    // I'm not sure on this.. might be needed for consistent result?
     final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
     if (orderBySpecs.isEmpty() && timeIndex >= 0) {
-      final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(timeIndex);
-      Ordering<Object[]> ordering = Ordering.from(new Comparator<Object[]>()
-      {
-        @Override
-        @SuppressWarnings("unchecked")
-        public int compare(final Object[] o1, final Object[] o2)
-        {
-          return -Long.compare((Long) accessor.get(o1), (Long) accessor.get(o2));
-        }
-      });
+      Accessor<Object[]> accessor = OrderingProcessor.arrayAccessor(timeIndex);
+      Ordering<Object[]> ordering = Ordering.from(new Accessor.TimeComparator(accessor));
       if (isDescending()) {
         ordering = ordering.reverse();
       }
       return ordering;
     }
+    if (orderBySpecs.isEmpty()) {
+      return null;
+    }
+
     final List<Comparator<Object[]>> comparators = Lists.newArrayList();
-    for (OrderByColumnSpec sort : orderBySpecs) {
-      int index = columnNames.indexOf(sort.getDimension());
+    for (OrderByColumnSpec ordering : orderBySpecs) {
+      int index = columnNames.indexOf(ordering.getDimension());
       if (index >= 0) {
-        final Accessor<Object[]> accessor = WindowingProcessor.arrayAccessor(index);
-        final Comparator comparator = sort.getComparator();
-        comparators.add(new Comparator<Object[]>()
-        {
-          @Override
-          @SuppressWarnings("unchecked")
-          public int compare(final Object[] o1, final Object[] o2)
-          {
-            return comparator.compare(accessor.get(o1), accessor.get(o2));
-          }
-        });
+        Accessor<Object[]> accessor = OrderingProcessor.arrayAccessor(index);
+        comparators.add(new Accessor.ComparatorOn<>(ordering.getComparator(), accessor));
       }
     }
     return comparators.isEmpty() ? null : Comparators.compound(comparators);
+  }
+
+  @Override
+  public StreamQuery removePostActions()
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        getLimitSpec().withNoProcessing(),
+        computeOverriddenContext(contextRemover(POST_PROCESSING))
+    );
   }
 
   @Override
@@ -265,8 +316,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         getContext()
     );
   }
@@ -282,8 +332,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         getContext()
     );
   }
@@ -299,8 +348,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         computeOverriddenContext(contextOverride)
     );
   }
@@ -316,8 +364,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         getContext()
     );
   }
@@ -333,8 +380,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         virtualColumns,
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         getContext()
     );
   }
@@ -350,8 +396,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         columns,
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        getLimit(),
+        getLimitSpec(),
         getContext()
     );
   }
@@ -359,7 +404,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public List<OrderByColumnSpec> getOrderingSpecs()
   {
-    return orderBySpecs;
+    return limitSpec.getColumns();
   }
 
   @Override
@@ -373,8 +418,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        orderingSpecs,
-        getLimit(),
+        limitSpec.withOrderingSpec(orderingSpecs),
         getContext()
     );
   }
@@ -389,8 +433,22 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getOrderBySpecs(),
-        limit,
+        limitSpec.withLimit(limit),
+        getContext()
+    );
+  }
+
+  public StreamQuery withLimitSpec(LimitSpec limitSpec)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        limitSpec,
         getContext()
     );
   }
@@ -479,12 +537,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (concatString != null) {
       builder.append(", concatString=").append(concatString);
     }
-    if (!orderBySpecs.isEmpty()) {
-      builder.append(", orderBySpecs=").append(orderBySpecs);
-    }
-    if (limit > 0 && limit < Integer.MAX_VALUE) {
-      builder.append(", limit=").append(limit);
-    }
+    builder.append(", limitSpec=").append(limitSpec);
 
     builder.append(
         toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.HASHING)
@@ -520,10 +573,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (!Objects.equals(concatString, that.concatString)) {
       return false;
     }
-    if (!Objects.equals(orderBySpecs, that.orderBySpecs)) {
-      return false;
-    }
-    if (limit != that.limit) {
+    if (!Objects.equals(limitSpec, that.limitSpec)) {
       return false;
     }
 
@@ -538,8 +588,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     result = 31 * result + (columns != null ? columns.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
-    result = 31 * result + orderBySpecs.hashCode();
-    result = 31 * result + limit;
+    result = 31 * result + limitSpec.hashCode();
     return result;
   }
 }

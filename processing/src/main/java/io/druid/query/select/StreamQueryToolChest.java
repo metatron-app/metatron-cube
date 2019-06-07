@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
@@ -56,16 +55,23 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
           Query<Object[]> query, Map<String, Object> responseContext
       )
       {
-        boolean finalWork = query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true);
-        if (finalWork) {
+        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           query = query.removePostActions();
         }
-        StreamQuery stream = (StreamQuery) query;
-        Sequence<Object[]> sequence = queryRunner.run(stream.removePostActions(), responseContext);
-        if (stream.getLimit() > 0 && finalWork) {
-          sequence = Sequences.limit(sequence, stream.getLimit());
-        }
-        return sequence;
+        return queryRunner.run(query, responseContext);
+      }
+    };
+  }
+
+  @Override
+  public QueryRunner<Object[]> finalQueryDecoration(final QueryRunner<Object[]> runner)
+  {
+    return new QueryRunner<Object[]>()
+    {
+      @Override
+      public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
+      {
+        return ((StreamQuery) query).applyLimit(runner.run(query, responseContext));
       }
     };
   }
@@ -118,13 +124,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       @Override
       protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
-        return StreamQueryEngine.converter((StreamQuery) query, new MutableInt());
-      }
-
-      @Override
-      protected Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
-      {
-        return ((StreamQuery) query).applySortLimit(Sequences.concat(sequences));
+        return StreamQueryEngine.processor((StreamQuery) query, new MutableInt());
       }
     };
   }

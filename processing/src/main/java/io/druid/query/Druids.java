@@ -36,6 +36,8 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -797,22 +799,16 @@ public class Druids
     private List<String> columns;
     private List<VirtualColumn> virtualColumns;
     private PagingSpec pagingSpec;
+    private LimitSpec limitSpec = NoopLimitSpec.INSTANCE;
     private String concatString;
     private LateralViewSpec lateralViewSpec;
     private List<String> outputColumns;
-    private List<OrderByColumnSpec> orderBy;
 
     public SelectQueryBuilder()
     {
-      dataSource = null;
-      querySegmentSpec = null;
-      context = null;
-      dimFilter = null;
       granularity = Granularities.ALL;
       dimensions = Lists.newArrayList();
       metrics = Lists.newArrayList();
-      pagingSpec = null;
-      concatString = null;
     }
 
     public StreamQuery streaming()
@@ -824,6 +820,10 @@ public class Druids
     {
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
+      Preconditions.checkArgument(pagingSpec == null || GuavaUtils.isNullOrEmpty(pagingSpec.getPagingIdentifiers()));
+      if (!GuavaUtils.isNullOrEmpty(sortOn)) {
+        limitSpec = limitSpec.withOrderingSpec(OrderByColumnSpec.ascending(sortOn));
+      }
       return new StreamQuery(
           dataSource,
           querySegmentSpec,
@@ -832,15 +832,15 @@ public class Druids
           columns,
           virtualColumns,
           concatString,
-          sortOn == null ? orderBy : OrderByColumnSpec.ascending(sortOn),
-          pagingSpec == null ? -1 : pagingSpec.getThreshold(),
+          limitSpec,
           context
       );
     }
 
     public SelectQuery build()
     {
-      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(orderBy));
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()));
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(limitSpec.getColumns()));
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(columns));
       return new SelectQuery(
           dataSource,
@@ -1078,18 +1078,25 @@ public class Druids
     public SelectQueryBuilder limit(int limit)
     {
       pagingSpec = PagingSpec.newSpec(limit);
+      limitSpec = limitSpec.withLimit(limit);
+      return this;
+    }
+
+    public SelectQueryBuilder limitSpec(LimitSpec l)
+    {
+      limitSpec = l;
       return this;
     }
 
     public SelectQueryBuilder orderBy(OrderByColumnSpec... orderBy)
     {
-      this.orderBy = Arrays.asList(orderBy);
+      limitSpec = limitSpec.withOrderingSpec(Arrays.asList(orderBy));
       return this;
     }
 
     public SelectQueryBuilder orderBy(List<OrderByColumnSpec> orderBy)
     {
-      this.orderBy = orderBy;
+      limitSpec = limitSpec.withOrderingSpec(orderBy);
       return this;
     }
   }

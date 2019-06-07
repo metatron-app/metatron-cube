@@ -31,9 +31,11 @@ import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
+import io.druid.math.expr.ExprEval;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Frame;
@@ -350,7 +352,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
           @Override
           public List<Row> finalize(List<Row> partition)
           {
-            return retainColumns(partition, context.getOutputColumns(valueColumns));
+            return retainColumns(partition, context.getOutputColumns());
           }
         };
       }
@@ -360,15 +362,18 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         @Override
         public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
         {
-          Iterable<Frame> expressions = toEvaluators(PartitionExpression.from(rowExpressions), context, valueColumns);
-          return super.evaluate(partitionKey, context.with(partition).evaluate(expressions));
+          return context.with(partitionKey, partition).evaluate(
+              toEvaluators(PartitionExpression.from(rowExpressions), context, valueColumns)
+          );
         }
 
         @Override
         public List<Row> finalize(List<Row> partition)
         {
-          Iterable<Frame> expressions = toEvaluators(partitionExpressions, context, valueColumns);
-          return retainColumns(context.with(partition).evaluate(expressions), context.getOutputColumns(valueColumns));
+          List<Row> evaluated = context.on(null, null).with(null, partition).evaluate(
+              toEvaluators(partitionExpressions, context, valueColumns)
+          );
+          return retainColumns(evaluated, context.getOutputColumns());
         }
       };
     }
@@ -377,6 +382,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
     final String[] values = valueColumns.toArray(new String[0]);
+    final ValueDesc[] valueTypes = Lists.transform(valueColumns, context).toArray(new ValueDesc[0]);
+    final ValueDesc structType = ValueDesc.ofStruct(values, valueTypes);
 
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
@@ -388,7 +395,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @SuppressWarnings("unchecked")
       public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
       {
-        final Map<StringArray, Object> mapping = Maps.newHashMap();
+        final Map<StringArray, ExprEval> mapping = Maps.newHashMap();
         final DateTime dateTime = partition.get(0).getTimestamp();
 
 next:
@@ -407,25 +414,25 @@ next:
               }
               array[extractors.size()] = values[i];
               StringArray key = new StringArray(array);
-              Object value = row.getRaw(values[i]);
+              ExprEval value = ExprEval.of(row.getRaw(values[i]), valueTypes[i]);
               Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
             }
           } else {
             StringArray key = new StringArray(array);
-            Object value;
+            ExprEval value;
             if (values.length == 1) {
-              value = row.getRaw(values[0]);
+              value = ExprEval.of(row.getRaw(values[0]), valueTypes[0]);
             } else {
               Object[] holder = new Object[values.length];
               for (int x = 0; x < holder.length; x++) {
                 holder[x] = row.getRaw(values[x]);
               }
-              value = Arrays.asList(holder);
+              value = ExprEval.of(Arrays.asList(holder), structType);
             }
             Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
           }
         }
-        PivotContext pivot = new PivotContext(PivotSpec.this, context, partitionKey);
+        PivotContext pivot = new PivotContext(PivotSpec.this, context.with(partitionKey, partition));
         Map<String, Object> event = pivot.evaluate(mapping);
         if (tabularFormat) {
           allPivotColumns.addAll(mapping.keySet());
@@ -438,10 +445,10 @@ next:
       public List<Row> finalize(List<Row> partition)
       {
         // handle single partition
-        WindowContext current = context.on(null, null).with(partition);
+        WindowContext current = context.on(null, null).with(null, partition);
         if (tabularFormat) {
           StringArray[] pivotColumns = allPivotColumns.toArray(new StringArray[0]);
-          Arrays.parallelSort(pivotColumns, makeColumnOrdering());
+          Arrays.sort(pivotColumns, makeColumnOrdering());
           final String[] sortedKeys = new String[pivotColumns.length];
           for (int i = 0; i < sortedKeys.length; i++) {
             sortedKeys[i] = StringUtils.concat(separator, pivotColumns[i].array());
@@ -449,7 +456,7 @@ next:
           allColumns.removeAll(partitionColumns);
           allColumns.removeAll(Arrays.asList(sortedKeys));
           String[] remainingColumns = allColumns.toArray(new String[0]);
-          Arrays.parallelSort(remainingColumns);
+          Arrays.sort(remainingColumns);
           // rewrite with whole pivot columns
           for (int i = 0; i < partition.size(); i++) {
             Row row = partition.get(i);

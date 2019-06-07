@@ -169,21 +169,7 @@ public class Aggregation
     for (AggregatorFactory factory : aggregatorFactories) {
       overrides.put(factory.getName(), factory.getOutputType());
     }
-    final TypeResolver overriden = new TypeResolver.Delegate(resolver)
-    {
-      @Override
-      public ValueDesc resolve(String column)
-      {
-        return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column);
-      }
-
-      @Override
-      public ValueDesc resolve(String column, ValueDesc defaultType)
-      {
-        return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column, defaultType);
-      }
-    };
-    return postAggregator.resolve(overriden);
+    return postAggregator.resolve(new TypeResolver.Overriding(resolver, overrides));
   }
 
   public Aggregation filter(final RowSignature sourceRowSignature, final DimFilter filter)

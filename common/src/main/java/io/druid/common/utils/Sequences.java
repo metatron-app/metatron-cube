@@ -32,6 +32,7 @@ import com.metamx.common.guava.Accumulators;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.DelegatingYieldingAccumulator;
 import com.metamx.common.guava.LazySequence;
+import com.metamx.common.guava.MappedSequence;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
@@ -155,7 +156,12 @@ public class Sequences extends com.metamx.common.guava.Sequences
     return concat(map(sequence, fn));
   }
 
-  public static <F, T> Function<Sequence<F>, Sequence<T>> toSequenceFunc(final Function<F, T> f)
+  public static <From, M, To> Sequence<To> map(Sequence<From> sequence, Function<From, M> fn1, Function<M, To> fn2)
+  {
+    return Sequences.map(Sequences.map(sequence, fn1), fn2);
+  }
+
+  public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(final Function<F, T> f)
   {
     return new Function<Sequence<F>, Sequence<T>>()
     {

@@ -28,7 +28,9 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
+import io.druid.segment.serde.ComplexMetrics;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -112,16 +114,17 @@ public class OrderingSpec implements Cacheable
 
   public Comparator getComparator()
   {
-    if (isNaturalOrdering()) {
-      Ordering ordering = GuavaUtils.nullFirstNatural();
-      if (direction == Direction.DESCENDING) {
-        ordering = ordering.reverse();  // null last
+    Comparator comparator;
+    if (dimensionOrder == null) {
+      comparator = GuavaUtils.nullFirstNatural();
+    } else {
+      comparator = ComplexMetrics.getComparator(ValueDesc.of(dimensionOrder));
+      if (comparator == null) {
+        comparator = StringComparators.makeComparator(dimensionOrder);
       }
-      return ordering;
     }
-    StringComparator comparator = StringComparators.makeComparator(dimensionOrder);
     if (direction == Direction.DESCENDING) {
-      comparator = StringComparators.revert(comparator);
+      comparator = Ordering.from(comparator).reverse();
     }
     return comparator;
   }

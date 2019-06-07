@@ -176,7 +176,7 @@ public class WindowingSpec implements Cacheable
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
-        return context.with(partition)
+        return context.with(partitionKey, partition)
                       .evaluate(Iterables.transform(expressions, new Function<String, WindowContext.Frame>()
                       {
                         @Override

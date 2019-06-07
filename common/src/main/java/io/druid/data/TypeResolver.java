@@ -77,6 +77,29 @@ public interface TypeResolver
     }
   }
 
+  class Overriding extends Delegate
+  {
+    private final Map<String, ValueDesc> overrides;
+
+    public Overriding(TypeResolver delegated, Map<String, ValueDesc> overrides)
+    {
+      super(delegated);
+      this.overrides = overrides;
+    }
+
+    @Override
+    public ValueDesc resolve(String column)
+    {
+      return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column);
+    }
+
+    @Override
+    public ValueDesc resolve(String column, ValueDesc defaultType)
+    {
+      return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column, defaultType);
+    }
+  }
+
   TypeResolver UNKNOWN = new Abstract()
   {
     @Override

@@ -26,10 +26,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
+import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
@@ -37,7 +39,10 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.RowResolver;
 import io.druid.query.groupby.GroupByQueryEngine;
+import io.druid.query.select.Schema;
+import io.druid.query.select.StreamQuery;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -53,37 +58,58 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
 {
   public static LimitSpec of(OrderByColumnSpec... orderings)
   {
-    return of(Integer.MAX_VALUE, orderings);
+    return of(-1, orderings);
   }
 
   public static LimitSpec of(int limit, OrderByColumnSpec... orderings)
   {
-    return new LimitSpec(Arrays.asList(orderings), limit);
+    return of(limit, Arrays.asList(orderings));
+  }
+
+  public static LimitSpec of(int limit, List<OrderByColumnSpec> orderings)
+  {
+    if (limit <= 0 && GuavaUtils.isNullOrEmpty(orderings)) {
+      return NoopLimitSpec.INSTANCE;
+    }
+    return new LimitSpec(orderings, limit == 0 ? -1 : limit);
+  }
+
+  public static LimitSpec of(WindowingSpec... windowingSpecs)
+  {
+    return new LimitSpec(Arrays.asList(windowingSpecs));
   }
 
   private static final byte CACHE_KEY = 0x1;
 
-  static final Function<Sequence<Row>, List<Row>> SEQUENCE_TO_LIST = new Function<Sequence<Row>, List<Row>>()
+  static <T> Function<Sequence<T>, List<T>> toList()
   {
-    @Override
-    public List<Row> apply(Sequence<Row> input)
+    return new Function<Sequence<T>, List<T>>()
     {
-      return Sequences.toList(input, Lists.<Row>newArrayList());
-    }
-  };
+      @Override
+      public List<T> apply(Sequence<T> input)
+      {
+        return Sequences.toList(input);
+      }
+    };
+  }
 
-  static final Function<List<Row>, Sequence<Row>> LIST_TO_SEQUENCE = new Function<List<Row>, Sequence<Row>>()
+  static <T> Function<List<T>, Sequence<T>> toSequence()
   {
-    @Override
-    public Sequence<Row> apply(List<Row> input)
+    return new Function<List<T>, Sequence<T>>()
     {
-      return Sequences.simple(input);
-    }
-  };
+      @Override
+      public Sequence<T> apply(List<T> input)
+      {
+        return Sequences.simple(input);
+      }
+    };
+  }
 
   private final OrderedLimitSpec segmentLimit;
   private final OrderedLimitSpec nodeLimit;
   private final List<WindowingSpec> windowingSpecs;
+
+  private final Supplier<RowResolver> resolver;
 
   @JsonCreator
   public LimitSpec(
@@ -94,10 +120,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs
   )
   {
-    super(columns, limit);
-    this.segmentLimit = segmentLimit;
-    this.nodeLimit = nodeLimit;
-    this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
+    this(columns, limit, segmentLimit, nodeLimit, windowingSpecs, null);
   }
 
   public LimitSpec(List<OrderByColumnSpec> columns, Integer limit, List<WindowingSpec> windowingSpecs)
@@ -113,6 +136,22 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   public LimitSpec(List<WindowingSpec> windowingSpecs)
   {
     this(null, null, null, null, windowingSpecs);
+  }
+
+  private LimitSpec(
+      List<OrderByColumnSpec> columns,
+      Integer limit,
+      OrderedLimitSpec segmentLimit,
+      OrderedLimitSpec nodeLimit,
+      List<WindowingSpec> windowingSpecs,
+      Supplier<RowResolver> resolver
+  )
+  {
+    super(columns, limit);
+    this.segmentLimit = segmentLimit;
+    this.nodeLimit = nodeLimit;
+    this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
+    this.resolver = resolver;
   }
 
   @JsonProperty
@@ -136,15 +175,25 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return windowingSpecs;
   }
 
+  public LimitSpec withLimit(int limit)
+  {
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+  }
+
+  public LimitSpec withWindowing(WindowingSpec... windowingSpecs)
+  {
+    return withWindowing(Arrays.asList(windowingSpecs));
+  }
+
   public LimitSpec withWindowing(List<WindowingSpec> windowingSpecs)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
   }
 
   @Override
   public LimitSpec withOrderingSpec(List<OrderByColumnSpec> columns)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
   }
 
   public LimitSpec withNoProcessing()
@@ -157,81 +206,132 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
         null,
         segmentLimit == null ? null : segmentLimit.withOrderingSpec(columns),
         nodeLimit == null ? null : nodeLimit.withOrderingSpec(columns),
+        null,
         null
     );
   }
 
   public LimitSpec withNoLimiting()
   {
-    return new LimitSpec(columns, null, null, null, windowingSpecs);
+    return new LimitSpec(columns, null, null, null, windowingSpecs, resolver);
   }
 
-  public Function<Sequence<Row>, Sequence<Row>> build(
-      Query.AggregationsSupport<?> query,
-      boolean sortOnTimeForLimit
-  )
+  public LimitSpec withResolver(Supplier<RowResolver> resolver)
+  {
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+  }
+
+  public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
   {
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
-      return new LimitingFn(limit);
+      return sequenceLimiter(limit);
+    }
+    final OrderingProcessor source = OrderingProcessor.from(query);
+    if (windowingSpecs.isEmpty()) {
+      return source.toRowLimitFn(columns, sortOnTimeForLimit, limit);
+    }
+    final Schema resolver = Schema.EMPTY.resolve(query, true);
+    final WindowingProcessor processor = new WindowingProcessor(source, resolver, windowingSpecs);
+    final Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, LimitSpec.<Row>toList());
+    if (columns.isEmpty()) {
+      return GuavaUtils.sequence(processed, LimitSpec.<Row>listLimiter(limit));
+    }
+    return GuavaUtils.sequence(processed, new Function<List<Row>, Sequence<Row>>()
+    {
+      @Override
+      public Sequence<Row> apply(List<Row> input)
+      {
+        final Ordering<Row> ordering = processor.toRowOrdering(columns);
+        if (limit > 0 && limit <= input.size()) {
+          return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
+        }
+        Collections.sort(input, ordering);
+        return Sequences.simple(input);
+      }
+    });
+  }
+
+  public Function<Sequence<Object[]>, Sequence<Object[]>> build(StreamQuery query, boolean sortOnTimeForLimit)
+  {
+    if (columns.isEmpty() && windowingSpecs.isEmpty()) {
+      return sequenceLimiter(limit);
     }
     if (windowingSpecs.isEmpty()) {
-      Ordering<Object[]> ordering = WindowingProcessor.makeArrayComparator(query, columns, sortOnTimeForLimit);
-      return newSortLimitRowFn(query, ordering, limit);
+      return new SortingArrayFn(query.getResultOrdering(), limit);
     }
-    WindowingProcessor processor = new WindowingProcessor(query, windowingSpecs);
-//    boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
-    Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, SEQUENCE_TO_LIST);
+    if (resolver == null) {
+      throw new ISE("Resolver is missing ?");
+    }
+
+    final List<String> inputColumns = query.getColumns();
+    final Function<Object[], Row> toRow = GroupByQueryEngine.arrayToRow(inputColumns);
+    final WindowingProcessor processor = new WindowingProcessor(query, resolver.get(), windowingSpecs);
+
+    final Function<Sequence<Object[]>, List<Object[]>> processed = GuavaUtils.sequence(
+        Sequences.mapper(toRow), LimitSpec.<Row>toList(), processor, new Function<List<Row>, List<Object[]>>()
+        {
+          @Override
+          public List<Object[]> apply(List<Row> input)
+          {
+            return Lists.transform(input, GroupByQueryEngine.rowToArray(processor.getFinalColumns()));
+          }
+        }
+    );
     if (columns.isEmpty()) {
-      Function<List<Row>, List<Row>> limiter = new Function<List<Row>, List<Row>>()
+      return GuavaUtils.sequence(processed, LimitSpec.<Object[]>listLimiter(limit));
+    }
+    return GuavaUtils.sequence(processed, new Function<List<Object[]>, Sequence<Object[]>>()
+    {
+      @Override
+      public Sequence<Object[]> apply(List<Object[]> input)
+      {
+        final Ordering<Object[]> ordering = processor.toArrayOrdering(columns);
+        if (limit > 0 && limit <= input.size()) {
+          return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
+        }
+        Collections.sort(input, ordering);
+        return Sequences.simple(input);
+      }
+    });
+  }
+
+  private static <T> Function<Sequence<T>, Sequence<T>> sequenceLimiter(final int limit)
+  {
+    if (limit < 0) {
+      return Functions.identity();
+    } else {
+      return new Function<Sequence<T>, Sequence<T>>()
       {
         @Override
-        public List<Row> apply(List<Row> input)
+        public Sequence<T> apply(Sequence<T> input)
         {
-          return input.size() < limit ? input : input.subList(0, limit);
+          return Sequences.limit(input, limit);
         }
       };
-      return Functions.compose(LIST_TO_SEQUENCE, Functions.compose(limiter, processed));
-    }
-
-    // Materialize the Comparator first for fast-fail error checking.
-    Ordering<Row> ordering = WindowingProcessor.makeRowComparator(query, columns, false);
-    return Functions.compose(new ListSortingFn(ordering, limit), processed);
-  }
-
-  private static class LimitingFn implements Function<Sequence<Row>, Sequence<Row>>
-  {
-    private int limit;
-
-    public LimitingFn(int limit)
-    {
-      this.limit = limit;
-    }
-
-    @Override
-    public Sequence<Row> apply(Sequence<Row> input)
-    {
-      return limit > 0 && limit < Integer.MAX_VALUE ? Sequences.limit(input, limit) : input;
     }
   }
 
-  private Function<Sequence<Row>, Sequence<Row>> newSortLimitRowFn(
-      final Query.AggregationsSupport<?> query,
-      final Ordering<Object[]> ordering,
-      final int limit
-  )
+  private static <T> Function<List<T>, Sequence<T>> listLimiter(final int limit)
   {
-    return GuavaUtils.sequence(
-        Sequences.toSequenceFunc(GroupByQueryEngine.rowToArray(query)),
-        new SortingArrayFn(ordering, limit),
-        Sequences.toSequenceFunc(GroupByQueryEngine.arrayToRow(query, false))
-    );
+    if (limit < 0) {
+      return LimitSpec.<T>toSequence();
+    } else {
+      return new Function<List<T>, Sequence<T>>()
+      {
+        @Override
+        public Sequence<T> apply(List<T> input)
+        {
+          return Sequences.simple(input.size() < limit ? input : input.subList(0, limit));
+        }
+      };
+    }
   }
 
   public static Sequence<Object[]> sortLimit(Sequence<Object[]> sequence, Ordering<Object[]> ordering, int limit)
   {
     if (ordering != null) {
       sequence = new SortingArrayFn(ordering, limit).apply(sequence);
-    } else if (limit > 0 && limit < Integer.MAX_VALUE) {
+    } else if (limit > 0) {
       sequence = Sequences.limit(sequence, limit);
     }
     return sequence;
@@ -252,7 +352,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     public Sequence<Object[]> apply(Sequence<Object[]> sequence)
     {
       final Iterable<Object[]> sorted;
-      if (limit > 0 && limit < Integer.MAX_VALUE) {
+      if (limit > 0) {
         sorted = TopNSorter.topN(ordering, sequence, limit);
       } else {
         final Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
@@ -260,28 +360,6 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
         sorted = Arrays.asList(array);
       }
       return Sequences.simple(sorted);
-    }
-  }
-
-  private static class ListSortingFn implements Function<List<Row>, Sequence<Row>>
-  {
-    private final Ordering<Row> ordering;
-    private final int limit;
-
-    public ListSortingFn(Ordering<Row> ordering, int limit)
-    {
-      this.ordering = ordering;
-      this.limit = limit;
-    }
-
-    @Override
-    public Sequence<Row> apply(List<Row> input)
-    {
-      if (limit > 0 && limit <= input.size()) {
-        return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
-      }
-      Collections.sort(input, ordering);
-      return Sequences.simple(input);
     }
   }
 

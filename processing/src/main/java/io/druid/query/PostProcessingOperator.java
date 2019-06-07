@@ -35,6 +35,7 @@ import io.druid.query.select.Schema;
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
     @JsonSubTypes.Type(name = "rowToArray", value = RowToArray.class),
     @JsonSubTypes.Type(name = "arrayToMap", value = ArrayToMap.class),
+    @JsonSubTypes.Type(name = "arrayToRow", value = ArrayToRow.class),
     @JsonSubTypes.Type(name = "selectToRow", value = SelectToRow.class),
     @JsonSubTypes.Type(name = "topNToRow", value = TopNToRow.class),
     @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),

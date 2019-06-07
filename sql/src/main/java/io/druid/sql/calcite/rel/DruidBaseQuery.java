@@ -781,8 +781,9 @@ public class DruidBaseQuery implements DruidQuery
     final boolean topNOk = grouping != null
                            && grouping.getDimensions().size() == 1
                            && limitSpec != null
-                           && (limitSpec.getColumns().size() <= 1
-                               && limitSpec.getLimit() <= plannerContext.getPlannerConfig().getMaxTopNLimit())
+                           && limitSpec.getColumns().size() <= 1
+                           && limitSpec.hasLimit()
+                           && limitSpec.getLimit() <= plannerContext.getPlannerConfig().getMaxTopNLimit()
                            && grouping.getHavingFilter() == null;
 
     if (!topNOk) {
@@ -929,13 +930,9 @@ public class DruidBaseQuery implements DruidQuery
     final List<String> columns = Lists.newArrayList(rowOrder);
     Collections.sort(columns);
 
-    // DefaultLimitSpec (which we use to "remember" limits) is int typed, and Integer.MAX_VALUE means "no limit".
-    final int scanLimit = limitSpec == null || !limitSpec.hasLimit() ? 0 : limitSpec.getLimit();
-
-    final List<OrderByColumnSpec> ordering = limitSpec == null ? null : limitSpec.getColumns();
     boolean descending = false;
-    if (!GuavaUtils.isNullOrEmpty(ordering) && ordering.get(0).equals(OrderByColumnSpec.desc(Row.TIME_COLUMN_NAME))) {
-      descending = true;
+    if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getColumns())) {
+      descending = OrderByColumnSpec.desc(Row.TIME_COLUMN_NAME).equals(limitSpec.getColumns().get(0));
     }
     return new StreamQuery(
         dataSource,
@@ -945,8 +942,7 @@ public class DruidBaseQuery implements DruidQuery
         columns,
         selectProjection != null ? selectProjection.getVirtualColumns() : null,
         null,
-        ordering,
-        scanLimit,
+        limitSpec,
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );
   }

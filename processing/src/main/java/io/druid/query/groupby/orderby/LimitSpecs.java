@@ -58,7 +58,7 @@ public class LimitSpecs
   {
     return GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) &&
            GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
-           limitSpec.getLimit() == Integer.MAX_VALUE;
+           !limitSpec.hasLimit();
   }
 
   public static List<String> getColumns(List<? extends OrderByColumnSpec> orderByColumnSpecs)

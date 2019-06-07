@@ -589,7 +589,17 @@ public class GroupByQueryEngine
     return arrayToRow(query.getGranularity(), toOutputColumns(query).toArray(new String[0]));
   }
 
-  public static Function<Object[], Row> arrayToRow(final Granularity granularity, final String[] columnNames)
+  public static Function<Object[], Row> arrayToRow(final List<String> columnNames)
+  {
+    return arrayToRow(columnNames.toArray(new String[0]));
+  }
+
+  public static Function<Object[], Row> arrayToRow(final String[] columnNames)
+  {
+    return arrayToRow(Granularities.ALL, columnNames);
+  }
+
+  private static Function<Object[], Row> arrayToRow(final Granularity granularity, final String[] columnNames)
   {
     return new Function<Object[], Row>()
     {
@@ -607,10 +617,18 @@ public class GroupByQueryEngine
 
   public static Function<Row, Object[]> rowToArray(final Query.AggregationsSupport<?> query)
   {
+    return rowToArray(toOutputColumns(query));
+  }
+
+  public static Function<Row, Object[]> rowToArray(final List<String> columnNames)
+  {
+    return rowToArray(columnNames.toArray(new String[0]));
+  }
+
+  public static Function<Row, Object[]> rowToArray(final String[] columnNames)
+  {
     return new Function<Row, Object[]>()
     {
-      private final String[] columnNames = toOutputColumns(query).toArray(new String[0]);
-
       @Override
       public Object[] apply(final Row input)
       {

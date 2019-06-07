@@ -22,23 +22,29 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.DateTimes;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
+import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class ArrayToMap extends PostProcessingOperator.Abstract<Object[]>
+public class ArrayToRow extends PostProcessingOperator.Abstract<Object[]>
 {
   private final List<String> columnNames;
 
   @JsonCreator
-  public ArrayToMap(@JsonProperty("columnNames") List<String> columnNames)
+  public ArrayToRow(@JsonProperty("columnNames") List<String> columnNames)
   {
     this.columnNames = columnNames;
+    Preconditions.checkArgument(columnNames.contains(Row.TIME_COLUMN_NAME));
   }
 
   @JsonProperty
@@ -56,17 +62,23 @@ public class ArrayToMap extends PostProcessingOperator.Abstract<Object[]>
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        return Sequences.map(baseRunner.run(query, responseContext), new Function<Object[], Map>()
+        final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
+        return Sequences.map(baseRunner.run(query, responseContext), new Function<Object[], Row>()
         {
           @Override
-          public Map apply(Object[] input)
+          public Row apply(Object[] input)
           {
+            DateTime datetime = null;
             final int limit = Math.min(input.length, columnNames.size());
             final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
             for (int i = 0; i < limit; i++) {
-              map.put(columnNames.get(i), input[i]);
+              if (i == timeIndex) {
+                datetime = DateTimes.utc(((Number) input[i]).longValue());
+              } else {
+                map.put(columnNames.get(i), input[i]);
+              }
             }
-            return map;
+            return new MapBasedRow(datetime, map);
           }
         });
       }
@@ -74,15 +86,9 @@ public class ArrayToMap extends PostProcessingOperator.Abstract<Object[]>
   }
 
   @Override
-  public boolean hasTabularOutput()
-  {
-    return true;
-  }
-
-  @Override
   public String toString()
   {
-    return "ArrayToMap{" +
+    return "ArrayToRow{" +
            "columnNames=" + columnNames +
            '}';
   }

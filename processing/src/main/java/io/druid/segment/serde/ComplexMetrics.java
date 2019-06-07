@@ -26,6 +26,7 @@ import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
 
+import java.util.Comparator;
 import java.util.Map;
 
 /**
@@ -36,6 +37,16 @@ public class ComplexMetrics
   private static final Map<String, ComplexMetricSerde.Factory> complexSerializerFactories = Maps.newHashMap();
   private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
   private static final Map<Class, String> classToTypeName = Maps.newHashMap();
+
+  public static Comparator getComparator(ValueDesc type)
+  {
+    if (type.isPrimitive()) {
+      return type.comparator();
+    } else {
+      ComplexMetricSerde serde = getSerdeForType(type.typeName());
+      return serde == null ? null : serde.getObjectStrategy();
+    }
+  }
 
   public static ComplexMetricSerde getSerdeForType(ValueDesc type)
   {

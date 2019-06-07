@@ -80,15 +80,12 @@ public class StreamQueryEngine
             adapter,
             query,
             cache,
-            converter(query, counter)
+            processor(query, counter)
         )
     );
   }
 
-  public static Function<Cursor, Sequence<Object[]>> converter(
-      final StreamQuery query,
-      final MutableInt counter
-  )
+  public static Function<Cursor, Sequence<Object[]>> processor(final StreamQuery query, final MutableInt counter)
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {

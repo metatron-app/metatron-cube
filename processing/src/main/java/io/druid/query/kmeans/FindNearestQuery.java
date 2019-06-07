@@ -193,7 +193,6 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
         getVirtualColumns(),
         null,
         null,
-        -1,
         computeOverriddenContext(ImmutableMap.<String, Object>of(ALL_DIMENSIONS_FOR_EMPTY, false))
     );
   }

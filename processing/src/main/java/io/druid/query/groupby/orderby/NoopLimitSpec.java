@@ -26,6 +26,7 @@ import com.google.common.base.Functions;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
+import io.druid.query.select.StreamQuery;
 
 import java.util.List;
 
@@ -38,10 +39,16 @@ public class NoopLimitSpec extends LimitSpec
   private static final byte CACHE_KEY = 0x0;
 
   @JsonCreator
-  public NoopLimitSpec() {super(null, Integer.MAX_VALUE); }
+  public NoopLimitSpec() {super(null, -1); }
 
   @Override
   public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
+  {
+    return Functions.identity();
+  }
+
+  @Override
+  public Function<Sequence<Object[]>, Sequence<Object[]>> build(StreamQuery query, boolean sortOnTimeForLimit)
   {
     return Functions.identity();
   }

@@ -125,6 +125,21 @@ public class ValueDesc implements Serializable, Cacheable
     return of(STRUCT_TYPE + "(" + elements + ")");
   }
 
+  public static ValueDesc ofStruct(String[] values, ValueDesc[] valueTypes)
+  {
+    Preconditions.checkArgument(values.length == valueTypes.length);
+    StringBuilder builder = new StringBuilder();
+    builder.append(STRUCT_TYPE).append('(');
+    for (int i = 0; i < values.length; i++) {
+      if (i > 0) {
+        builder.append(',');
+      }
+      builder.append(values[i]).append(':').append(valueTypes[i] == null ? UNKNOWN_TYPE : valueTypes[i]);
+    }
+    builder.append(')');
+    return of(builder.toString());
+  }
+
   public static ValueDesc ofDimension(ValueType valueType)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");

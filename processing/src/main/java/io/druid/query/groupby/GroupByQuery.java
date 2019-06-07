@@ -602,6 +602,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, int estimationFactor)
   {
+    if (!limitSpec.hasLimit()) {
+      return this;
+    }
     if (getGroupingSets() != null || getGranularity() != Granularities.ALL) {
       return this;
     }

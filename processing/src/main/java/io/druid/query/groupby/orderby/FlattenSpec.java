@@ -241,7 +241,7 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
   {
     List<String> excluded = Lists.newArrayList(columns);
     excluded.removeAll(partitionColumns);
-    return excluded.toArray(new String[excluded.size()]);
+    return excluded.toArray(new String[0]);
   }
 
   public static enum Flattener

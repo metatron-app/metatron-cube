@@ -84,7 +84,7 @@ public class StringComparators
       @Override
       public int compare(String o1, String o2)
       {
-        return -comparator.compare(o1, o2);
+        return comparator.compare(o2, o1);
       }
     };
   }

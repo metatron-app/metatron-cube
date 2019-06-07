@@ -1607,7 +1607,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Ignore
   public void testMergeResultsWithNegativeLimit()
   {
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
@@ -4545,13 +4545,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     // changed identifier spec to accept index. use '_' for minus instead of '-'
     builder.setLimitSpec(
         new LimitSpec(
-            Arrays.asList(
-                new OrderByColumnSpec(
-                    "sum_week_last",
-                    Direction.DESCENDING,
-                    StringComparators.FLOATING_POINT_NAME
-                )
-            ),
+            OrderByColumnSpec.descending("sum_week_last"),
             null,
             Arrays.asList(
                 new WindowingSpec(

@@ -80,7 +80,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   )
   {
     this.config = config;
-    this.elements = elements.toArray(new JoinElement[elements.size()]);
+    this.elements = elements.toArray(new JoinElement[0]);
     this.prefixAlias = prefixAlias;
     this.warehouse = warehouse;
     this.exec = exec;
@@ -131,7 +131,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
                 sequencesList[index.intValue()].add(sequence);
                 hashing[index.intValue()] = element.getContextBoolean("hash", false);
                 if (query instanceof StreamQuery &&
-                    toJoinColumns(index.intValue()).equals(((StreamQuery)query).getSortOn())) {
+                    ((StreamQuery) query).isSortedOn(toJoinColumns(index.intValue()))) {
                   // uses ascending for join query (see JoinElement.toQuery)
                   sorted[index.intValue()] = true;
                 }
@@ -442,7 +442,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
     long start = System.currentTimeMillis();
     final String prefix = alias + ".";
-    final String[] array = columns.toArray(new String[columns.size()]);
+    final String[] array = columns.toArray(new String[0]);
     final JoiningRow[] sorted = new JoiningRow[rows.size()];
     for (int i = 0; i < sorted.length; i++) {
       Map<String, Object> row = rows.get(i);

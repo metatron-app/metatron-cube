@@ -21,7 +21,6 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
@@ -48,8 +47,7 @@ public class OrderedLimitSpec implements Cacheable
       @JsonProperty("limit") Integer limit)
   {
     this.columns = columns == null ? ImmutableList.<OrderByColumnSpec>of() : columns;
-    this.limit = limit == null ? Integer.MAX_VALUE : limit;
-    Preconditions.checkArgument(this.limit > 0, "limit[%s] must be >0", limit);
+    this.limit = limit == null ? -1 : limit;
   }
 
   @JsonProperty
@@ -71,13 +69,13 @@ public class OrderedLimitSpec implements Cacheable
 
   public boolean hasLimit()
   {
-    return limit > 0 && limit < Integer.MAX_VALUE;
+    return limit > 0;
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    if (columns.isEmpty() && limit == Integer.MAX_VALUE) {
+    if (columns.isEmpty() && limit < 0) {
       return new byte[0];
     }
     byte[] columnBytes = QueryCacheHelper.computeCacheKeys(columns);

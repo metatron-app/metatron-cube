@@ -25,13 +25,14 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.metamx.common.IAE;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
-import io.druid.query.RowResolver;
 import io.druid.segment.StringArray;
 import io.druid.segment.incremental.IncrementalIndex;
 
@@ -49,47 +50,41 @@ public class PivotContext
 {
   private final PivotSpec pivotSpec;
   private final WindowContext context;
-  private final Object[] partitionKey;
 
-  public PivotContext(PivotSpec pivotSpec, WindowContext context, Object[] partitionKey)
+  public PivotContext(PivotSpec pivotSpec, WindowContext context)
   {
     this.pivotSpec = pivotSpec;
     this.context = context;
-    this.partitionKey = partitionKey;
   }
 
-  public Map<String, Object> evaluate(final Map<StringArray, Object> mapping)
+  public Map<String, Object> evaluate(final Map<StringArray, ExprEval> mapping)
   {
-    final List<String> partitionColumns = context.partitionColumns();
-    final int numPivotColumn = pivotSpec.getPivotColumns().size();
-    final boolean appendingValue = pivotSpec.isAppendValueColumn();
-    final List<String> valueColumns = pivotSpec.getValueColumns();
     final String separator = pivotSpec.getSeparator();
-    final String nullValue = pivotSpec.getNullValue();
-
     // snapshot
-    final Map<String, Object> event = Maps.newLinkedHashMap();
-    for (int i = 0; i < partitionKey.length; i++) {
-      event.put(partitionColumns.get(i), partitionKey[i]);
-    }
+    final Map<String, Object> event = GuavaUtils.zipAsMap(context.partitionColumns(), context.partitionValues());
+
     final Comparator<StringArray> comparator = pivotSpec.makeColumnOrdering();
-    final List<Map.Entry<StringArray, Object>> entries = IncrementalIndex.sortOn(mapping, false, comparator);
-    for (Map.Entry<StringArray, Object> entry : entries) {
+    final List<Map.Entry<StringArray, ExprEval>> entries = IncrementalIndex.sortOn(mapping, false, comparator);
+    for (Map.Entry<StringArray, ExprEval> entry : entries) {
       String newKey = StringUtils.concat(separator, entry.getKey().array());
-      Object newValue = entry.getValue();
-      event.put(newKey, newValue);
-      if (newValue != null) {
-        context.addType(newKey, RowResolver.toValueType(newValue));
-      }
+      ExprEval newValue = entry.getValue();
+      event.put(newKey, newValue.value());
+      context.assigned(newKey, newValue.type());
     }
+
     final List<String> rowExpressions = pivotSpec.getRowExpressions();
     if (rowExpressions.isEmpty()) {
       return event;
     }
 
     final Expr.NumericBinding binding = WindowingSpec.withMap(event);
+    final int numPivotColumn = pivotSpec.getPivotColumns().size();
+    final boolean appendingValue = pivotSpec.isAppendValueColumn();
+    final List<String> valueColumns = pivotSpec.getValueColumns();
+    final String nullValue = pivotSpec.getNullValue();
 
     // '_' is just '_'
+    // row expression is not for window function.. no need to use window context
     for (String expression : rowExpressions) {
       List<Integer> groupIds = Lists.newArrayList();
       Pair<Expr, Expr> assign = Evals.splitAssign(expression, context);
@@ -107,7 +102,7 @@ public class PivotContext
         String key = Evals.toAssigneeEval(assign.lhs).asString();
         ExprEval value = assign.rhs.eval(binding);
         event.put(key, value.value());
-        context.addType(key, value.type());
+        context.assigned(key, value.type());
         continue;
       }
       // contains pivot grouping expression
@@ -127,12 +122,12 @@ public class PivotContext
       }
 
 next:
-      for (Map.Entry<StringArray, Object> entry : entries) {
+      for (Map.Entry<StringArray, ExprEval> entry : entries) {
         final StringArray key = entry.getKey();
         if (!isTarget(key, union, numPivotColumn)) {
           continue;
         }
-        Map<String, Object> assigneeOverrides = Maps.newHashMap();
+        final Map<String, Object> assigneeOverrides = Maps.newHashMap();
         final Map<String, Object> assignedOverrides = Maps.newHashMap();
         for (int i = 0; i < valueColumns.size(); i++) {
           for (int j = 0; j < bitSets.size(); j++) {
@@ -145,12 +140,13 @@ next:
             if (appendingValue) {
               keys[numPivotColumn] = valueColumns.get(i);
             }
-            Object value = mapping.get(StringArray.of(keys));
-            if (value == null) {
+            ExprEval eval = mapping.get(StringArray.of(keys));
+            if (eval == null) {
               continue next;
             }
+            Object value = eval.value();
             if (valueColumns.size() > 1 && !appendingValue) {
-              value = ((List)value).get(i);
+              value = ((List) value).get(i);
             }
             String groupKey = "$" + groupId;
             assigneeOverrides.put(groupKey, StringUtils.concat(separator, keys));
@@ -195,7 +191,7 @@ next:
             );
           } else {
             event.put(newAssignee, assigned.value());
-            context.addType(newAssignee, assigned.type());
+            context.assigned(newAssignee, assigned.type());
           }
         }
       }
@@ -224,7 +220,7 @@ next:
     }
     final int max = (int) Math.pow(2, length);
     if (groupId >= max) {
-      throw new IllegalArgumentException("invalid group Id " + groupId);
+      throw new IAE("invalid group Id %d", groupId);
     }
     return groupId == 0 ? max - 1 : Ints.checkedCast(groupId);
   }

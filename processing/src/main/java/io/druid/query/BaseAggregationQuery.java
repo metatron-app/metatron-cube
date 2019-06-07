@@ -365,7 +365,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
     protected LimitSpec limitSpec = null;
     protected List<OrderByColumnSpec> orderByColumnSpecs = Lists.newArrayList();
-    protected int limit = Integer.MAX_VALUE;
+    protected int limit = -1;
 
     public Builder()
     {
@@ -413,11 +413,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     {
       final LimitSpec theLimitSpec;
       if (limitSpec == null) {
-        if (orderByColumnSpecs.isEmpty() && limit == Integer.MAX_VALUE) {
-          theLimitSpec = NoopLimitSpec.INSTANCE;
-        } else {
-          theLimitSpec = new LimitSpec(orderByColumnSpecs, limit);
-        }
+        theLimitSpec = LimitSpec.of(limit, orderByColumnSpecs);
       } else {
         theLimitSpec = limitSpec;
       }
@@ -542,7 +538,6 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
     public Builder<T> setLimitSpec(LimitSpec limitSpec)
     {
-      ensureFluentLimitsNotSet();
       this.limitSpec = limitSpec;
       return this;
     }
@@ -567,13 +562,6 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     {
       if (limitSpec != null) {
         throw new ISE("Ambiguous build, limitSpec[%s] already set", limitSpec);
-      }
-    }
-
-    private void ensureFluentLimitsNotSet()
-    {
-      if (!(limit == Integer.MAX_VALUE && orderByColumnSpecs.isEmpty())) {
-        throw new ISE("Ambiguous build, limit[%s] or columnSpecs[%s] already set.", limit, orderByColumnSpecs);
       }
     }
 
