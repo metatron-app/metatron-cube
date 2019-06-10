@@ -37,6 +37,8 @@ import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.RowResolver;
@@ -251,13 +253,23 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     });
   }
 
+  // apply output columns for stream query here (hard to keep column names with windowing)
   public Function<Sequence<Object[]>, Sequence<Object[]>> build(StreamQuery query, boolean sortOnTimeForLimit)
   {
+    final List<String> outputColumns = query.getOutputColumns();
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
-      return sequenceLimiter(limit);
+      Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(limit);
+      if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+        function = GuavaUtils.sequence(function, Sequences.mapper(remap(query.getColumns(), outputColumns)));
+      }
+      return function;
     }
     if (windowingSpecs.isEmpty()) {
-      return new SortingArrayFn(query.getResultOrdering(), limit);
+      Function<Sequence<Object[]>, Sequence<Object[]>> function = new SortingArrayFn(query.getResultOrdering(), limit);
+      if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+        function = GuavaUtils.sequence(function, Sequences.mapper(remap(query.getColumns(), outputColumns)));
+      }
+      return function;
     }
     if (resolver == null) {
       throw new ISE("Resolver is missing ?");
@@ -267,30 +279,37 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     final Function<Object[], Row> toRow = GroupByQueryEngine.arrayToRow(inputColumns);
     final WindowingProcessor processor = new WindowingProcessor(query, resolver.get(), windowingSpecs);
 
-    final Function<Sequence<Object[]>, List<Object[]>> processed = GuavaUtils.sequence(
-        Sequences.mapper(toRow), LimitSpec.<Row>toList(), processor, new Function<List<Row>, List<Object[]>>()
-        {
-          @Override
-          public List<Object[]> apply(List<Row> input)
-          {
-            return Lists.transform(input, GroupByQueryEngine.rowToArray(processor.getFinalColumns()));
-          }
-        }
+    final Function<Sequence<Object[]>, List<Row>> processed = GuavaUtils.sequence(
+        Sequences.mapper(toRow), LimitSpec.<Row>toList(), processor
     );
+
     if (columns.isEmpty()) {
-      return GuavaUtils.sequence(processed, LimitSpec.<Object[]>listLimiter(limit));
+      return GuavaUtils.sequence(processed, new Function<List<Row>, List<Object[]>>()
+      {
+        @Override
+        public List<Object[]> apply(List<Row> input)
+        {
+          return Lists.transform(input, GroupByQueryEngine.rowToArray(
+              GuavaUtils.isNullOrEmpty(outputColumns) ? processor.getFinalColumns() : outputColumns)
+          );
+        }
+      }, LimitSpec.<Object[]>listLimiter(limit));
     }
-    return GuavaUtils.sequence(processed, new Function<List<Object[]>, Sequence<Object[]>>()
+    return GuavaUtils.sequence(processed, new Function<List<Row>, Sequence<Object[]>>()
     {
       @Override
-      public Sequence<Object[]> apply(List<Object[]> input)
+      public Sequence<Object[]> apply(List<Row> input)
       {
-        final Ordering<Object[]> ordering = processor.toArrayOrdering(columns);
+        final List<String> sourceColumns =
+            GuavaUtils.isNullOrEmpty(outputColumns) ? processor.getFinalColumns() : outputColumns;
+        final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(sourceColumns));
+        final Ordering<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
         if (limit > 0 && limit <= input.size()) {
-          return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
+          Iterable<Object[]> topn = new TopNSorter<>(ordering).toTopN(processed, limit);
         }
-        Collections.sort(input, ordering);
-        return Sequences.simple(input);
+        final List<Object[]> materialize = Lists.newArrayList(processed);
+        Collections.sort(materialize, ordering);
+        return Sequences.simple(materialize);
       }
     });
   }
@@ -335,6 +354,57 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       sequence = Sequences.limit(sequence, limit);
     }
     return sequence;
+  }
+
+  public List<String> estimateOutputColumns(List<String> columns)
+  {
+    if (GuavaUtils.isNullOrEmpty(windowingSpecs)) {
+      return columns;
+    }
+    List<String> estimated = Lists.newArrayList(columns);
+    for (WindowingSpec windowingSpec : windowingSpecs) {
+      if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
+        return null;  // cannot estimate
+      }
+      for (String expression : windowingSpec.getExpressions()) {
+        Expr assignee = Evals.splitAssign(expression, WindowContext.UNKNOWN).lhs;
+        String key = Evals.toAssigneeEval(assignee).asString();
+        if (!estimated.contains(key)) {
+          estimated.add(key);
+        }
+      }
+    }
+    return estimated;
+  }
+
+  private static Function<Object[], Object[]> remap(List<String> source, List<String> target)
+  {
+    if (GuavaUtils.isNullOrEmpty(target) || source.equals(target)) {
+      return Functions.identity();
+    }
+    final int[] mapping = new int[target.size()];
+    for (int i = 0; i < mapping.length; i++) {
+      mapping[i] = source.indexOf(target.get(i));
+    }
+    return new Function<Object[], Object[]>()
+    {
+      @Override
+      public Object[] apply(Object[] input)
+      {
+        Object[] output = new Object[mapping.length];
+        for (int i = 0; i < mapping.length; i++) {
+          if (mapping[i] >= 0) {
+            output[i] = input[mapping[i]];
+          }
+        }
+        return output;
+      }
+    };
+  }
+
+  public boolean isNoop()
+  {
+    return super.isNoop() && segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);
   }
 
   public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>

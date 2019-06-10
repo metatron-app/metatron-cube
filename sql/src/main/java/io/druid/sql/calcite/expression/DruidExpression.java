@@ -64,7 +64,7 @@ public class DruidExpression
 
   public static DruidExpression fromColumn(final String column)
   {
-    return new DruidExpression(SimpleExtraction.of(column, null), StringUtils.format("\"%s\"", escape(column)));
+    return new DruidExpression(SimpleExtraction.of(column, null), identifier(column));
   }
 
   public static DruidExpression fromExpression(final String expression)
@@ -116,6 +116,11 @@ public class DruidExpression
   public static String functionCall(final String functionName, final DruidExpression... args)
   {
     return functionCall(functionName, Arrays.asList(args));
+  }
+
+  public static String identifier(final String s)
+  {
+    return StringUtils.format("\"%s\"", escape(s));
   }
 
   private static String escape(final String s)

@@ -49,6 +49,18 @@ import java.util.regex.Pattern;
  */
 public class WindowContext extends TypeResolver.Abstract implements Expr.WindowContext, Function<String, ValueDesc>
 {
+  public static final WindowContext UNKNOWN = new WindowContext(
+      Arrays.<String>asList(),
+      ImmutableMap.<String, ValueDesc>of()
+  )
+  {
+    @Override
+    public ValueDesc resolve(String name)
+    {
+      return ValueDesc.UNKNOWN;
+    }
+  };
+
   public static WindowContext newInstance(List<String> columns, Map<String, ValueDesc> expectedTypes)
   {
     return new WindowContext(columns, expectedTypes);

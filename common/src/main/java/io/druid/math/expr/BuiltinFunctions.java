@@ -3056,11 +3056,17 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$row_num")
-  final class RowNum extends StatelessWindowFunctionFactory
+  final class RowNum extends StatelessWindowFunctionFactory implements Function.FixedTyped
   {
     public RowNum()
     {
       super(ValueDesc.LONG);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
     }
 
     @Override
@@ -3071,12 +3077,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$rank")
-  final class Rank extends WindowFunctionFactory
+  final class Rank extends WindowFunctionFactory implements Function.FixedTyped
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
       return new RankFunction(args, context);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
     }
 
     private class RankFunction extends WindowFunction
@@ -3116,12 +3128,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$dense_rank")
-  final class DenseRank extends WindowFunctionFactory implements Factory
+  final class DenseRank extends WindowFunctionFactory implements Factory, Function.FixedTyped
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
       return new DenseRankFunction(args, context);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
     }
 
     private class DenseRankFunction extends WindowFunction
@@ -3161,12 +3179,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$mean")
-  class RunningMean extends RunningSum
+  class RunningMean extends RunningSum implements Function.FixedTyped
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
       return new RunningMeanFunction(args, context);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
     }
 
     class RunningMeanFunction extends RunningSumFunction
@@ -3213,12 +3237,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$variance")
-  class RunningVariance extends WindowSupport
+  class RunningVariance extends WindowSupport implements Function.FixedTyped
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
       return new VarianceFunction(args, context);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
     }
 
     class VarianceFunction extends WindowSupportFunction
@@ -3425,12 +3455,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$histogram")
-  final class Histogram extends WindowFunctionFactory
+  final class Histogram extends WindowFunctionFactory implements Function.FixedTyped
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
       return new HistogramFunction(args, context);
+    }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.MAP;
     }
 
     private class HistogramFunction extends WindowFunction
@@ -3603,12 +3639,19 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$size")
-  final class PartitionSize extends StatelessWindowFunctionFactory
+  final class PartitionSize extends StatelessWindowFunctionFactory implements Function.FixedTyped
   {
     public PartitionSize()
     {
       super(ValueDesc.LONG);
     }
+
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG;
+    }
+
     @Override
     protected Object invoke(WindowContext context, String fieldName)
     {

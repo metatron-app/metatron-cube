@@ -41,13 +41,13 @@ import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.column.Column;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.filtration.BoundRefKey;
 import io.druid.sql.calcite.filtration.Bounds;
 import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -90,7 +90,7 @@ public class Expressions
   {
     if (project == null) {
       // I don't think the factory impl matters here.
-      return RexInputRef.of(fieldNumber, rowSignature.getRelDataType(new JavaTypeFactoryImpl()));
+      return RexInputRef.of(fieldNumber, rowSignature.getRelDataType(Utils.TYPE_FACTORY));
     } else {
       return project.getChildExps().get(fieldNumber);
     }
@@ -147,7 +147,11 @@ public class Expressions
     if (kind == SqlKind.INPUT_REF) {
       // Translate field references.
       final RexInputRef ref = (RexInputRef) rexNode;
-      final String columnName = rowSignature.getRowOrder().get(ref.getIndex());
+      final List<String> rowOrder = rowSignature.getRowOrder();
+      if (ref.getIndex() >= rowOrder.size()) {
+        System.out.println();
+      }
+      final String columnName = rowOrder.get(ref.getIndex());
       if (columnName == null) {
         throw new ISE("Expression referred to nonexistent index[%d]", ref.getIndex());
       }

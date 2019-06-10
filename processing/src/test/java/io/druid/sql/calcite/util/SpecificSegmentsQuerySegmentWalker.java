@@ -237,6 +237,17 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     );
   }
 
+  public SpecificSegmentsQuerySegmentWalker duplicate()
+  {
+    return new SpecificSegmentsQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines
+    );
+  }
+
   public QueryRunnerFactoryConglomerate getQueryRunnerFactoryConglomerate()
   {
     return conglomerate;

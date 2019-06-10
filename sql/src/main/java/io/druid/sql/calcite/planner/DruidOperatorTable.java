@@ -24,16 +24,20 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.Utils;
@@ -98,7 +102,6 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +112,8 @@ import java.util.stream.Collectors;
 public class DruidOperatorTable implements SqlOperatorTable
 {
   private static final Logger LOG = new Logger(DruidOperatorTable.class);
+
+  private static final SqlOperatorTable STD = SqlStdOperatorTable.instance();
 
   private static final List<SqlAggregator> STANDARD_AGGREGATORS =
       ImmutableList.<SqlAggregator>builder()
@@ -235,9 +240,7 @@ public class DruidOperatorTable implements SqlOperatorTable
         continue;
       }
       final Class clazz = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN).asClass();
-      final SqlReturnTypeInference retType = ReturnTypes.cascade(
-          ReturnTypes.explicit(Utils.asRelDataType(clazz)), SqlTypeTransforms.TO_NULLABLE
-      );
+      final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(clazz));
       final SqlAggFunction function = new DummyAggregatorFunction(named.getKey(), retType);
       final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
@@ -288,7 +291,13 @@ public class DruidOperatorTable implements SqlOperatorTable
                 binding.put(identifier, type);
               }
             }
-            ValueDesc type = factory.create(operands, Parser.withTypeMap(binding)).returns();
+            TypeResolver resolver;
+            if (factory instanceof BuiltinFunctions.WindowFunctionFactory) {
+              resolver = WindowContext.newInstance(Lists.newArrayList(binding.keySet()), binding);
+            } else {
+              resolver = Parser.withTypeMap(binding);
+            }
+            ValueDesc type = factory.create(operands, resolver).returns();
             if (type != null && type.asClass() != null) {
               return Utils.asRelDataType(type.asClass());
             }
@@ -298,14 +307,12 @@ public class DruidOperatorTable implements SqlOperatorTable
       }
 
       String name = factory.name().toUpperCase();
-      SqlOperator operator = new SqlFunction(
-          name,
-          SqlKind.OTHER_FUNCTION,
-          ReturnTypes.cascade(retType, SqlTypeTransforms.TO_NULLABLE),
-          null,
-          OperandTypes.VARIADIC,
-          SqlFunctionCategory.SYSTEM
-      );
+      SqlOperator operator;
+      if (factory instanceof BuiltinFunctions.WindowFunctionFactory) {
+        operator = new DummyAggregatorFunction(name, retType);
+      } else {
+        operator = new DummySqlFunction(name, retType);
+      }
 
       OperatorKey operatorKey = OperatorKey.of(operator);
       if (!aggregators.containsKey(operatorKey)) {
@@ -382,20 +389,24 @@ public class DruidOperatorTable implements SqlOperatorTable
     if (convertletOperator != null) {
       operatorList.add(convertletOperator);
     }
+
+    if (operatorList.isEmpty()) {
+      STD.lookupOperatorOverloads(opName, category, syntax, operatorList);
+    }
   }
 
   @Override
   public List<SqlOperator> getOperatorList()
   {
-    final List<SqlOperator> retVal = new ArrayList<>();
+    Set<SqlOperator> operators = Sets.newHashSet(STD.getOperatorList());
     for (SqlAggregator aggregator : aggregators.values()) {
-      retVal.add(aggregator.calciteFunction());
+      operators.add(aggregator.calciteFunction());
     }
     for (SqlOperatorConversion operatorConversion : operatorConversions.values()) {
-      retVal.add(operatorConversion.calciteOperator());
+      operators.add(operatorConversion.calciteOperator());
     }
-    retVal.addAll(DruidConvertletTable.knownOperators());
-    return retVal;
+    operators.addAll(DruidConvertletTable.knownOperators());
+    return Lists.newArrayList(operators);
   }
 
   private static SqlSyntax normalizeSyntax(final SqlSyntax syntax)
@@ -534,6 +545,21 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
   }
 
+  private static class DummySqlFunction extends SqlFunction
+  {
+    public DummySqlFunction(String name, SqlReturnTypeInference retType)
+    {
+      super(
+          name,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.cascade(retType, SqlTypeTransforms.TO_NULLABLE),
+          null,
+          OperandTypes.VARIADIC,
+          SqlFunctionCategory.SYSTEM
+      );
+    }
+  }
+
   private static class DummyAggregatorFunction extends SqlAggFunction
   {
     public DummyAggregatorFunction(String name, SqlReturnTypeInference retType)
@@ -542,7 +568,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           name,
           null,
           SqlKind.OTHER_FUNCTION,
-          retType,
+          ReturnTypes.cascade(retType, SqlTypeTransforms.TO_NULLABLE),
           null,
           OperandTypes.VARIADIC,
           SqlFunctionCategory.SYSTEM,

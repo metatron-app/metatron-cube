@@ -76,6 +76,7 @@ import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -260,6 +261,12 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"foo"},
             new Object[]{"foo2"},
             new Object[]{"forbiddenDatasource"},
+            new Object[]{"mmapped"},
+            new Object[]{"mmapped-split"},
+            new Object[]{"mmapped_merged"},
+            new Object[]{"mmapped_norollup"},
+            new Object[]{"realtime"},
+            new Object[]{"realtime_norollup"},
             new Object[]{"aview"},
             new Object[]{"bview"}
         )
@@ -444,6 +451,12 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"druid", "foo", "TABLE"},
             new Object[]{"druid", "foo2", "TABLE"},
             new Object[]{"druid", "forbiddenDatasource", "TABLE"},
+            new Object[]{"druid", "mmapped", "TABLE"},
+            new Object[]{"druid", "mmapped-split", "TABLE"},
+            new Object[]{"druid", "mmapped_merged", "TABLE"},
+            new Object[]{"druid", "mmapped_norollup", "TABLE"},
+            new Object[]{"druid", "realtime", "TABLE"},
+            new Object[]{"druid", "realtime_norollup", "TABLE"},
             new Object[]{"druid", "aview", "VIEW"},
             new Object[]{"druid", "bview", "VIEW"},
             new Object[]{"INFORMATION_SCHEMA", "COLUMNS", "SYSTEM_TABLE"},
@@ -466,6 +479,12 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"druid", CalciteTests.DATASOURCE1, "TABLE"},
             new Object[]{"druid", CalciteTests.DATASOURCE2, "TABLE"},
             new Object[]{"druid", CalciteTests.FORBIDDEN_DATASOURCE, "TABLE"},
+            new Object[]{"druid", "mmapped", "TABLE"},
+            new Object[]{"druid", "mmapped-split", "TABLE"},
+            new Object[]{"druid", "mmapped_merged", "TABLE"},
+            new Object[]{"druid", "mmapped_norollup", "TABLE"},
+            new Object[]{"druid", "realtime", "TABLE"},
+            new Object[]{"druid", "realtime_norollup", "TABLE"},
             new Object[]{"druid", "aview", "VIEW"},
             new Object[]{"druid", "bview", "VIEW"},
             new Object[]{"INFORMATION_SCHEMA", "COLUMNS", "SYSTEM_TABLE"},
@@ -6742,6 +6761,78 @@ public class CalciteQueryTest extends CalciteTestBase
         , ImmutableList.of(
             new Object[]{"2000-01-01 00:00:00"},
             new Object[]{"2001-01-01 00:00:00"}
+        )
+    );
+  }
+
+  @Test
+  public void testWindowFunction() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_DEFAULT,
+        "SELECT market, quality, index, $sum(index) over (partition by market order by quality desc) FROM mmapped WHERE __time < '2011-01-15'",
+        ImmutableList.of(
+            Druids.newSelectQueryBuilder()
+            .dataSource(
+                Druids.newSelectQueryBuilder()
+                      .dataSource("mmapped")
+                      .intervals(MultipleIntervalSegmentSpec.of(
+                          Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.of("2011-01-15").getMillis())
+                      ))
+                      .columns(
+                          "__time", "index", "indexDecimal", "indexMaxPlusTen", "indexMin", "market",
+                          "partial_null_column", "placement", "placementish", "quality", "quality_uniques"
+                      )
+                      .limitSpec(
+                          LimitSpec.of(new WindowingSpec(
+                              Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(\"index\")"
+                          ))
+                      )
+                      .streaming()
+            )
+            .columns("index", "market", "quality", "w0$o0")
+            .streaming()
+        )
+        , ImmutableList.of(
+            new Object[]{"spot", "travel", 100.0, 100.0},
+            new Object[]{"spot", "travel", 106.23693084716797, 206.23693084716797},
+            new Object[]{"spot", "travel", 112.25995635986328, 318.49688720703125},
+            new Object[]{"spot", "technology", 100.0, 418.49688720703125},
+            new Object[]{"spot", "technology", 111.35667419433594, 529.8535614013672},
+            new Object[]{"spot", "technology", 114.97421264648438, 644.8277740478516},
+            new Object[]{"spot", "premium", 100.0, 744.8277740478516},
+            new Object[]{"spot", "premium", 108.8630142211914, 853.690788269043},
+            new Object[]{"spot", "premium", 104.61178588867188, 958.3025741577148},
+            new Object[]{"spot", "news", 100.0, 1058.3025741577148},
+            new Object[]{"spot", "news", 102.8516845703125, 1161.1542587280273},
+            new Object[]{"spot", "news", 101.3807601928711, 1262.5350189208984},
+            new Object[]{"spot", "mezzanine", 100.0, 1362.5350189208984},
+            new Object[]{"spot", "mezzanine", 104.46576690673828, 1467.0007858276367},
+            new Object[]{"spot", "mezzanine", 97.90306854248047, 1564.9038543701172},
+            new Object[]{"spot", "health", 100.0, 1664.9038543701172},
+            new Object[]{"spot", "health", 114.94740295410156, 1779.8512573242188},
+            new Object[]{"spot", "health", 94.00043487548828, 1873.851692199707},
+            new Object[]{"spot", "entertainment", 100.0, 1973.851692199707},
+            new Object[]{"spot", "entertainment", 110.08729553222656, 2083.9389877319336},
+            new Object[]{"spot", "entertainment", 109.57347106933594, 2193.5124588012695},
+            new Object[]{"spot", "business", 100.0, 2293.5124588012695},
+            new Object[]{"spot", "business", 103.62940216064453, 2397.141860961914},
+            new Object[]{"spot", "business", 102.67041015625, 2499.812271118164},
+            new Object[]{"spot", "automotive", 100.0, 2599.812271118164},
+            new Object[]{"spot", "automotive", 94.87471008300781, 2694.686981201172},
+            new Object[]{"spot", "automotive", 86.45037078857422, 2781.137351989746},
+            new Object[]{"total_market", "premium", 1000.0, 1000.0},
+            new Object[]{"total_market", "premium", 1689.0128173828125, 2689.0128173828125},
+            new Object[]{"total_market", "premium", 1073.4765625, 3762.4893798828125},
+            new Object[]{"total_market", "mezzanine", 1000.0, 4762.4893798828125},
+            new Object[]{"total_market", "mezzanine", 1040.945556640625, 5803.4349365234375},
+            new Object[]{"total_market", "mezzanine", 1049.1419677734375, 6852.576904296875},
+            new Object[]{"upfront", "premium", 800.0, 800.0},
+            new Object[]{"upfront", "premium", 1564.61767578125, 2364.61767578125},
+            new Object[]{"upfront", "premium", 869.6437377929688, 3234.2614135742188},
+            new Object[]{"upfront", "mezzanine", 800.0, 4034.2614135742188},
+            new Object[]{"upfront", "mezzanine", 826.0601806640625, 4860.321594238281},
+            new Object[]{"upfront", "mezzanine", 1006.402099609375, 5866.723693847656}
         )
     );
   }

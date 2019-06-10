@@ -97,6 +97,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
       return true;
     }
     catch (Exception e) {
+      e.printStackTrace();
       return false;
     }
   }

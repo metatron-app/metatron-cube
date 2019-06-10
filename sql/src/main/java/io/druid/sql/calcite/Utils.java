@@ -70,6 +70,21 @@ public class Utils
     return op instanceof RexCall && op.getKind() == SqlKind.AND;
   }
 
+  public static boolean isInputRef(RexNode op)
+  {
+    return op.isA(SqlKind.INPUT_REF);
+  }
+
+  public static boolean isAllInputRef(List<RexNode> nodes)
+  {
+    for (RexNode node : nodes) {
+      if (!isInputRef(node)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public static RexNode and(RexBuilder builder, List<RexNode> operands)
   {
     Preconditions.checkArgument(!operands.isEmpty());

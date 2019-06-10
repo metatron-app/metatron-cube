@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.QueryCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -70,6 +71,11 @@ public class OrderedLimitSpec implements Cacheable
   public boolean hasLimit()
   {
     return limit > 0;
+  }
+
+  public boolean isNoop()
+  {
+    return GuavaUtils.isNullOrEmpty(columns) && !hasLimit();
   }
 
   @Override

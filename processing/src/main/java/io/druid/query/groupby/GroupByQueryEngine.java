@@ -68,6 +68,7 @@ import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
+import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import org.joda.time.DateTime;
 
@@ -601,16 +602,21 @@ public class GroupByQueryEngine
 
   private static Function<Object[], Row> arrayToRow(final Granularity granularity, final String[] columnNames)
   {
+    final int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
+
     return new Function<Object[], Row>()
     {
       @Override
       public Row apply(final Object[] input)
       {
         final Map<String, Object> theEvent = Maps.<String, Object>newHashMapWithExpectedSize(columnNames.length);
-        for (int i = 1; i < columnNames.length; i++) {
-          theEvent.put(columnNames[i], input[i]);
+        for (int i = 0; i < columnNames.length; i++) {
+          if (i != timeIndex) {
+            theEvent.put(columnNames[i], input[i]);
+          }
         }
-        return new MapBasedRow(granularity.toDateTime(((Number) input[0]).longValue()), theEvent);
+        DateTime time = timeIndex < 0 ? null : granularity.toDateTime(((Number) input[timeIndex]).longValue());
+        return new MapBasedRow(time, theEvent);
       }
     };
   }
@@ -627,6 +633,8 @@ public class GroupByQueryEngine
 
   public static Function<Row, Object[]> rowToArray(final String[] columnNames)
   {
+    final int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
+
     return new Function<Row, Object[]>()
     {
       @Override
@@ -636,10 +644,13 @@ public class GroupByQueryEngine
           return ((CompactRow) input).getValues();
         }
         final Object[] array = new Object[columnNames.length];
-        for (int i = 1; i < columnNames.length; i++) {
-          array[i] = input.getRaw(columnNames[i]);
+        for (int i = 0; i < columnNames.length; i++) {
+          if (i == timeIndex) {
+            array[i] = input.getTimestampFromEpoch();
+          } else {
+            array[i] = input.getRaw(columnNames[i]);
+          }
         }
-        array[0] = input.getTimestampFromEpoch();
         return array;
       }
     };

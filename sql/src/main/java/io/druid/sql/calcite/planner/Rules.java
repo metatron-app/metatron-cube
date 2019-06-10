@@ -272,6 +272,8 @@ public class Rules
     rules.add(CaseFilteredAggregatorRule.instance());
     rules.add(ProjectAggregatePruneUnusedCallRule.instance());
 
+    rules.add(ProjectWindowTransposeRule.INSTANCE);
+
     // Druid-specific rules.
     rules.add(new DruidTableScanRule(queryMaker));
     rules.addAll(DruidRules.rules());

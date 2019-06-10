@@ -33,7 +33,6 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.metamx.http.client.HttpClient;
 import io.druid.client.DruidLeaderClient;
-import io.druid.client.DruidServer;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.curator.discovery.ServerDiscoverySelector;
@@ -59,6 +58,7 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.DruidNode;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
@@ -230,7 +230,7 @@ public class CalciteTests
                                                       .rows(FORBIDDEN_ROWS)
                                                       .buildMMappedIndex();
 
-    return newSegmentWalker().add(
+    return TestIndex.segmentWalker.duplicate().add(
         DataSegment.builder()
                    .dataSource(DATASOURCE1)
                    .interval(index1.getDataInterval())

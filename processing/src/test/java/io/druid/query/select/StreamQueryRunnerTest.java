@@ -297,6 +297,40 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     for (int i = 0; i < expected.length; i++) {
       Assert.assertEquals(i + 1 + " th", expected[i], Arrays.toString(results.get(i)));
     }
+
+    builder.outputColumns("__time", "market", "row_num", "rank", "dense_rank");
+    expected = new String[]{
+        "[1294876800000, total_market, 1, 1, 1]",
+        "[1294876800000, upfront, 2, 2, 2]",
+        "[1294876800000, total_market, 3, 3, 3]",
+        "[1294790400000, total_market, 4, 4, 4]",
+        "[1294790400000, total_market, 5, 4, 4]",
+        "[1294876800000, upfront, 6, 6, 5]",
+        "[1294790400000, upfront, 7, 7, 6]",
+        "[1294790400000, upfront, 8, 7, 6]",
+        "[1294876800000, spot, 9, 9, 7]",
+        "[1294876800000, spot, 10, 10, 8]",
+        "[1294876800000, spot, 11, 11, 9]",
+        "[1294876800000, spot, 12, 12, 10]",
+        "[1294876800000, spot, 13, 13, 11]",
+        "[1294876800000, spot, 14, 14, 12]",
+        "[1294876800000, spot, 15, 15, 13]",
+        "[1294876800000, spot, 16, 16, 14]",
+        "[1294790400000, spot, 17, 17, 15]",
+        "[1294790400000, spot, 18, 17, 15]",
+        "[1294790400000, spot, 19, 17, 15]",
+        "[1294790400000, spot, 20, 17, 15]",
+        "[1294790400000, spot, 21, 17, 15]",
+        "[1294790400000, spot, 22, 17, 15]",
+        "[1294790400000, spot, 23, 17, 15]",
+        "[1294790400000, spot, 24, 17, 15]",
+        "[1294790400000, spot, 25, 17, 15]",
+        "[1294876800000, spot, 26, 26, 16]"
+    };
+    results = runQuery(builder.streaming());
+    for (int i = 0; i < expected.length; i++) {
+      Assert.assertEquals(i + 1 + " th", expected[i], Arrays.toString(results.get(i)));
+    }
   }
 
   private Druids.SelectQueryBuilder testEq(Druids.SelectQueryBuilder builder)

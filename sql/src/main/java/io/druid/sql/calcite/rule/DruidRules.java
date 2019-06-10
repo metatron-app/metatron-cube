@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rule;
 
 import com.google.common.collect.ImmutableList;
+import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
 import io.druid.sql.calcite.rel.DruidQueryRel;
@@ -33,6 +34,7 @@ import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.Window;
 
 import java.util.List;
 import java.util.function.BiFunction;
@@ -46,9 +48,12 @@ import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SELECT_SORT;
 import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT;
 import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT_PROJECT;
 import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WHERE_FILTER;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WINDOW;
 
 public class DruidRules
 {
+  private static final Logger LOG = new Logger(DruidRules.class);
+
   static RelOptRuleOperand anyDruid()
   {
     return ofDruidRel(druidRel -> true);
@@ -88,6 +93,7 @@ public class DruidRules
         DruidQueryRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
         DruidQueryRule.of(Project.class, AGGREGATE_PROJECT, PartialDruidQuery::withAggregateProject),
         DruidQueryRule.of(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
+        DruidQueryRule.of(Window.class, WINDOW, PartialDruidQuery::withWindow),
         DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
         DruidQueryRule.of(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
         DruidOuterQueryRule.of(Filter.class, PartialDruidQuery::withWhereFilter),
@@ -117,9 +123,13 @@ public class DruidRules
           final DruidRel druidRel = call.rel(1);
 
           final PartialDruidQuery newPartialDruidQuery = f.apply(druidRel.getPartialDruidQuery(), otherRel);
+          if (newPartialDruidQuery == null) {
+            return;   // quick check
+          }
           final DruidRel newDruidRel = druidRel.withPartialQuery(newPartialDruidQuery);
 
           if (newDruidRel.isValidDruidQuery()) {
+//            LOG.info(" %s ---> %s", druidRel.getPartialDruidQuery().stage(), stage);
             call.transformTo(newDruidRel);
           }
         }
@@ -145,6 +155,9 @@ public class DruidRules
 
           final RelNode leafRel = druidRel.getLeafRel();
           final PartialDruidQuery newPartialDruidQuery = f.apply(PartialDruidQuery.create(leafRel), otherRel);
+          if (newPartialDruidQuery == null) {
+            return;
+          }
           final DruidRel newDruidRel = DruidOuterQueryRel.create(druidRel, newPartialDruidQuery);
 
           if (newDruidRel.isValidDruidQuery()) {

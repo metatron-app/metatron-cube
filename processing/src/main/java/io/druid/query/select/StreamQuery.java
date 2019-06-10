@@ -74,6 +74,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   private final List<VirtualColumn> virtualColumns;
   private final String concatString;
   private final LimitSpec limitSpec;
+  private final List<String> outputColumns;
 
   public StreamQuery(
       @JsonProperty("dataSource") DataSource dataSource,
@@ -86,6 +87,7 @@ public class StreamQuery extends BaseQuery<Object[]>
       @Deprecated @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
       @Deprecated @JsonProperty("limit") int limit,
       @JsonProperty("limitSpec") LimitSpec limitSpec,
+      @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -95,6 +97,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
     this.limitSpec = limitSpec == null ? LimitSpec.of(limit, orderBySpecs) : limitSpec;
+    this.outputColumns = outputColumns;
     if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       for (WindowingSpec windowing : limitSpec.getWindowingSpecs()) {
         Preconditions.checkArgument(
@@ -113,6 +116,7 @@ public class StreamQuery extends BaseQuery<Object[]>
       List<VirtualColumn> virtualColumns,
       String concatString,
       LimitSpec limitSpec,
+      List<String> outputColumns,
       Map<String, Object> context
   )
   {
@@ -127,6 +131,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         null,
         0,
         limitSpec,
+        outputColumns,
         context
     );
   }
@@ -178,6 +183,13 @@ public class StreamQuery extends BaseQuery<Object[]>
     return limitSpec;
   }
 
+  @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
+  public List<String> getOutputColumns()
+  {
+    return outputColumns;
+  }
+
   @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
@@ -190,7 +202,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public List<String> estimatedOutputColumns()
   {
-    return columns;
+    return !GuavaUtils.isNullOrEmpty(outputColumns) ? outputColumns : limitSpec.estimateOutputColumns(columns);
   }
 
   @JsonIgnore
@@ -301,6 +313,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec().withNoProcessing(),
+        getOutputColumns(),
         computeOverriddenContext(contextRemover(POST_PROCESSING))
     );
   }
@@ -317,6 +330,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -333,6 +347,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -349,6 +364,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         computeOverriddenContext(contextOverride)
     );
   }
@@ -365,6 +381,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -381,6 +398,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         virtualColumns,
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -397,6 +415,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         getLimitSpec(),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -419,6 +438,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         limitSpec.withOrderingSpec(orderingSpecs),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -434,6 +454,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         limitSpec.withLimit(limit),
+        getOutputColumns(),
         getContext()
     );
   }
@@ -449,6 +470,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getConcatString(),
         limitSpec,
+        getOutputColumns(),
         getContext()
     );
   }
@@ -466,7 +488,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         null,
         null,
         null,
-        null,
+        getOutputColumns(),
         null,
         Queries.extractContext(this, BaseQuery.QUERYID)
     );
@@ -528,16 +550,21 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
     }
-    if (columns != null && !columns.isEmpty()) {
+    if (!GuavaUtils.isNullOrEmpty(columns)) {
       builder.append(", columns=").append(columns);
     }
-    if (virtualColumns != null && !virtualColumns.isEmpty()) {
+    if (!GuavaUtils.isNullOrEmpty(virtualColumns)) {
       builder.append(", virtualColumns=").append(virtualColumns);
     }
     if (concatString != null) {
       builder.append(", concatString=").append(concatString);
     }
-    builder.append(", limitSpec=").append(limitSpec);
+    if (!limitSpec.isNoop()) {
+      builder.append(", limitSpec=").append(limitSpec);
+    }
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+      builder.append(", outputColumns=").append(outputColumns);
+    }
 
     builder.append(
         toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.HASHING)
@@ -576,6 +603,9 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (!Objects.equals(limitSpec, that.limitSpec)) {
       return false;
     }
+    if (!Objects.equals(outputColumns, that.outputColumns)) {
+      return false;
+    }
 
     return true;
   }
@@ -589,6 +619,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
     result = 31 * result + limitSpec.hashCode();
+    result = 31 * result + Objects.hash(outputColumns);
     return result;
   }
 }

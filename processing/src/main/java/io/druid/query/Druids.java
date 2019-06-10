@@ -833,6 +833,7 @@ public class Druids
           virtualColumns,
           concatString,
           limitSpec,
+          outputColumns,
           context
       );
     }
@@ -896,6 +897,12 @@ public class Druids
     public SelectQueryBuilder dataSource(String ds)
     {
       dataSource = new TableDataSource(ds);
+      return this;
+    }
+
+    public SelectQueryBuilder dataSource(Query query)
+    {
+      dataSource = QueryDataSource.of(query);
       return this;
     }
 
@@ -1067,6 +1074,11 @@ public class Druids
     {
       lateralViewSpec = e;
       return this;
+    }
+
+    public SelectQueryBuilder outputColumns(String... o)
+    {
+      return outputColumns(Arrays.asList(o));
     }
 
     public SelectQueryBuilder outputColumns(List<String> o)

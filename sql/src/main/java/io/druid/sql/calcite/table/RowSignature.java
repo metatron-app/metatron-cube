@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -76,6 +76,26 @@ public class RowSignature implements TypeResolver
     this.columnNames = columnNamesBuilder.build();
   }
 
+  public static RowSignature from(final List<String> rowOrder, final List<ValueDesc> rowType)
+  {
+    return new RowSignature(GuavaUtils.zip(rowOrder, rowType));
+  }
+
+  public static RowSignature from(final RelDataType rowType)
+  {
+    final RowSignature.Builder rowSignatureBuilder = builder();
+    for (RelDataTypeField field : rowType.getFieldList()) {
+      final String columnName = field.getName();
+      final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
+      final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      if (valueType == null) {
+        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, columnName);
+      }
+      rowSignatureBuilder.add(columnName, valueType);
+    }
+    return rowSignatureBuilder.build();
+  }
+
   public static RowSignature from(final List<String> rowOrder, final RelDataType rowType)
   {
     return from(rowOrder, rowType, null);
@@ -100,9 +120,7 @@ public class RowSignature implements TypeResolver
           continue;
         }
       }
-      final ValueDesc valueType;
-
-      valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
       if (valueType == null) {
         throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, rowOrder.get(i));
       }

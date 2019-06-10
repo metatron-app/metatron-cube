@@ -21,20 +21,26 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.metamx.common.ISE;
+import com.metamx.common.logger.Logger;
 import io.druid.query.DataSource;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -46,15 +52,20 @@ import java.util.Objects;
  */
 public class PartialDruidQuery
 {
+  private static final Logger LOG = new Logger(PartialDruidQuery.class);
+
   private final RelNode scan;
   private final Filter whereFilter;
   private final Project selectProject;
   private final Sort selectSort;
+
   private final Aggregate aggregate;
+  private final Project aggregateProject;   // mapped to PostAggregator
   private final Filter havingFilter;
-  private final Project aggregateProject;
+
+  private final Window window;
   private final Sort sort;
-  private final Project sortProject;
+  private final Project sortProject;        // mapped to PostAggregator with Sort, 'OutputColumns' with other
 
   public enum Stage
   {
@@ -77,6 +88,7 @@ public class PartialDruidQuery
     AGGREGATE,
     HAVING_FILTER,
     AGGREGATE_PROJECT,
+    WINDOW,
     SORT,
     SORT_PROJECT;
 
@@ -94,6 +106,7 @@ public class PartialDruidQuery
       final Aggregate aggregate,
       final Project aggregateProject,
       final Filter havingFilter,
+      final Window window,
       final Sort sort,
       final Project sortProject
   )
@@ -105,13 +118,14 @@ public class PartialDruidQuery
     this.aggregate = aggregate;
     this.aggregateProject = aggregateProject;
     this.havingFilter = havingFilter;
+    this.window = window;
     this.sort = sort;
     this.sortProject = sortProject;
   }
 
   public static PartialDruidQuery create(final RelNode scanRel)
   {
-    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null);
+    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null, null);
   }
 
   public RelNode getScan()
@@ -149,6 +163,11 @@ public class PartialDruidQuery
     return aggregateProject;
   }
 
+  public Window getWindow()
+  {
+    return window;
+  }
+
   public Sort getSort()
   {
     return sort;
@@ -174,8 +193,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withWhereFilter(final Filter newWhereFilter)
   {
-    validateStage(Stage.WHERE_FILTER);
-
+    if (!canAccept(Stage.WHERE_FILTER)) {
+      return null;
+    }
     Filter merged;
     if (selectProject == null && whereFilter == null) {
       merged = newWhereFilter;
@@ -202,6 +222,7 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         havingFilter,
+        window,
         sort,
         sortProject
     );
@@ -209,7 +230,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withSelectProject(final Project newSelectProject)
   {
-    validateStage(Stage.SELECT_PROJECT);
+    if (!canAccept(Stage.SELECT_PROJECT) || !checkUnsupported(newSelectProject)) {
+      return null;
+    }
     // Possibly merge together two projections.
     final Project theProject;
     if (selectProject == null) {
@@ -242,6 +265,7 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         havingFilter,
+        window,
         sort,
         sortProject
     );
@@ -249,7 +273,12 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withSelectSort(final Sort newSelectSort)
   {
-    validateStage(Stage.SELECT_SORT);
+    if (newSelectSort == null) {
+      return this;
+    }
+    if (!canAccept(Stage.SELECT_SORT) || !checkUnsupported(newSelectSort)) {
+      return null;
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -258,6 +287,7 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         havingFilter,
+        window,
         sort,
         sortProject
     );
@@ -265,7 +295,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withAggregate(final Aggregate newAggregate)
   {
-    validateStage(Stage.AGGREGATE);
+    if (!canAccept(Stage.AGGREGATE)) {
+      return null;
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -274,6 +306,7 @@ public class PartialDruidQuery
         newAggregate,
         aggregateProject,
         havingFilter,
+        window,
         sort,
         sortProject
     );
@@ -281,7 +314,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withHavingFilter(final Filter newHavingFilter)
   {
-    validateStage(Stage.HAVING_FILTER);
+    if (!canAccept(Stage.HAVING_FILTER)) {
+      return null;
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -290,6 +325,7 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         newHavingFilter,
+        window,
         sort,
         sortProject
     );
@@ -297,7 +333,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withAggregateProject(final Project newAggregateProject)
   {
-    validateStage(Stage.AGGREGATE_PROJECT);
+    if (!canAccept(Stage.AGGREGATE_PROJECT) || !checkUnsupported(newAggregateProject)) {
+      return null;
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -306,6 +344,26 @@ public class PartialDruidQuery
         aggregate,
         newAggregateProject,
         havingFilter,
+        window,
+        sort,
+        sortProject
+    );
+  }
+
+  public PartialDruidQuery withWindow(final Window newWindow)
+  {
+    if (!canAccept(Stage.WINDOW)) {
+      return null;
+    }
+    return new PartialDruidQuery(
+        scan,
+        whereFilter,
+        selectProject,
+        selectSort,
+        aggregate,
+        aggregateProject,
+        havingFilter,
+        newWindow,
         sort,
         sortProject
     );
@@ -313,7 +371,9 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withSort(final Sort newSort)
   {
-    validateStage(Stage.SORT);
+    if (!canAccept(Stage.SORT) || !checkUnsupported(newSort)) {
+      return null;
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -322,6 +382,7 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         havingFilter,
+        window,
         newSort,
         sortProject
     );
@@ -329,7 +390,12 @@ public class PartialDruidQuery
 
   public PartialDruidQuery withSortProject(final Project newSortProject)
   {
-    validateStage(Stage.SORT_PROJECT);
+    if (!canAccept(Stage.SORT_PROJECT) || !checkUnsupported(newSortProject)) {
+      return null;
+    }
+    if (aggregate == null && !Utils.isAllInputRef(newSortProject.getChildExps())) {
+      return null;    // stream query does not have post aggregation stage
+    }
     return new PartialDruidQuery(
         scan,
         whereFilter,
@@ -338,9 +404,31 @@ public class PartialDruidQuery
         aggregate,
         aggregateProject,
         havingFilter,
+        window,
         sort,
         newSortProject
     );
+  }
+
+  private boolean checkUnsupported(Project project)
+  {
+    for (RexNode rexNode : project.getProjects()) {
+      if (rexNode instanceof RexOver || rexNode instanceof RexSubQuery) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean checkUnsupported(Sort sort)
+  {
+    for (RelFieldCollation collation : sort.getCollation().getFieldCollations()) {
+      if (collation.getDirection() != RelFieldCollation.Direction.ASCENDING &&
+          collation.getDirection() != RelFieldCollation.Direction.DESCENDING) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public RelDataType getRowType()
@@ -366,20 +454,28 @@ public class PartialDruidQuery
 
   public boolean canAccept(final Stage stage)
   {
-    final Stage current = stage();
-    if (current.accepts(stage)) {
+//    final Stage current = stage();
+//    final boolean accept = canAccept(current, stage);
+//    LOG.info("-------- %s -> %s : %s", current, stage, accept ? "o" : "x");
+//    return accept;
+    return canAccept(stage(), stage);
+  }
+
+  private boolean canAccept(Stage current, Stage target)
+  {
+    if (current.accepts(target)) {
       return true;
-    } else if (stage.compareTo(current) <= 0) {
+    } else if (target.compareTo(current) <= 0) {
       // Cannot go backwards.
       return false;
-    } else if (stage.compareTo(Stage.AGGREGATE) > 0 && aggregate == null) {
-      // Cannot do post-aggregation stages without an aggregation.
+    } else if (target.compareTo(Stage.SORT) > 0 && sort == null) {
+      // Cannot add sort project without a sort
       return false;
-    } else if (stage.compareTo(Stage.AGGREGATE) >= 0 && selectSort != null) {
+    } else if (target.compareTo(Stage.AGGREGATE) >= 0 && selectSort != null) {
       // Cannot do any aggregations after a select + sort.
       return false;
-    } else if (stage.compareTo(Stage.SORT) > 0 && sort == null) {
-      // Cannot add sort project without a sort
+    } else if (target != Stage.WINDOW && target.compareTo(Stage.AGGREGATE) > 0 && aggregate == null) {
+      // Cannot do post-aggregation stages without an aggregation.
       return false;
     } else {
       // Looks good.
@@ -400,6 +496,8 @@ public class PartialDruidQuery
       return Stage.SORT_PROJECT;
     } else if (sort != null) {
       return Stage.SORT;
+    } else if (window != null) {
+      return Stage.WINDOW;
     } else if (aggregateProject != null) {
       return Stage.AGGREGATE_PROJECT;
     } else if (havingFilter != null) {
@@ -431,6 +529,8 @@ public class PartialDruidQuery
         return sortProject;
       case SORT:
         return sort;
+      case WINDOW:
+        return window;
       case AGGREGATE_PROJECT:
         return aggregateProject;
       case HAVING_FILTER:
@@ -447,13 +547,6 @@ public class PartialDruidQuery
         return scan;
       default:
         throw new ISE("Unknown stage: %s", currentStage);
-    }
-  }
-
-  private void validateStage(final Stage stage)
-  {
-    if (!canAccept(stage)) {
-      throw new ISE("Cannot move from stage[%s] to stage[%s]", stage(), stage);
     }
   }
 
@@ -474,6 +567,7 @@ public class PartialDruidQuery
            Objects.equals(aggregate, that.aggregate) &&
            Objects.equals(havingFilter, that.havingFilter) &&
            Objects.equals(aggregateProject, that.aggregateProject) &&
+           Objects.equals(window, that.window) &&
            Objects.equals(sort, that.sort) &&
            Objects.equals(sortProject, that.sortProject);
   }
@@ -489,6 +583,7 @@ public class PartialDruidQuery
         aggregate,
         havingFilter,
         aggregateProject,
+        window,
         sort,
         sortProject
     );
@@ -505,6 +600,7 @@ public class PartialDruidQuery
            ", aggregate=" + aggregate +
            ", havingFilter=" + havingFilter +
            ", aggregateProject=" + aggregateProject +
+           ", window=" + window +
            ", sort=" + sort +
            ", sortProject=" + sortProject +
            '}';

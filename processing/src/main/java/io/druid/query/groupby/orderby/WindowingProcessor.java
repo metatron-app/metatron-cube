@@ -73,6 +73,15 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     this.context = WindowContext.newInstance(query.getColumns(), typeMap);
   }
 
+  public OrderingProcessor ordering()
+  {
+    Map<String, Comparator> comparatorMap = Maps.newHashMap();
+    for (String assigned : context.getOutputColumns()) {
+      comparatorMap.put(assigned, ComplexMetrics.getComparator(context.resolve(assigned)));
+    }
+    return new OrderingProcessor(context.getOutputColumns(), comparatorMap);
+  }
+
   @Override
   public List<Row> apply(List<Row> input)
   {

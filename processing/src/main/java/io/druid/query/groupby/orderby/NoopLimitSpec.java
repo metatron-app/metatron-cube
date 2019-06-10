@@ -101,6 +101,12 @@ public class NoopLimitSpec extends LimitSpec
   }
 
   @Override
+  public boolean isNoop()
+  {
+    return true;
+  }
+
+  @Override
   public String toString()
   {
     return "NoopLimitSpec{}";
