@@ -25,6 +25,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
@@ -126,7 +127,7 @@ public class PartialDruidQuery
     return scanFilter;
   }
 
-  public Project getSelectProject()
+  public Project getScanProject()
   {
     return scanProject;
   }
@@ -136,7 +137,7 @@ public class PartialDruidQuery
     return aggregate;
   }
 
-  public Filter getHavingFilter()
+  public Filter getAggregateFilter()
   {
     return aggregateFilter;
   }
@@ -484,6 +485,61 @@ public class PartialDruidQuery
       default:
         throw new ISE("never.. %s", this);
     }
+  }
+
+  // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
+  // and limits through stacks of nested queries when possible.
+  private static final double COST_BASE = 1;
+  private static final double COST_PER_COLUMN = 0.001;
+  private static final double COST_FILTER_MULTIPLIER = 0.1;
+  private static final double COST_GROUPING_MULTIPLIER = 0.5;
+  private static final double COST_WINDOW_MULTIPLIER = 2.5;
+  private static final double COST_SORT_MULTIPLIER = 2.0;
+  private static final double COST_LIMIT_MULTIPLIER = 0.5;
+  private static final double COST_HAVING_MULTIPLIER = 0.5;
+
+  public double cost(DruidTable table)
+  {
+    double base = COST_BASE;
+
+    List<String> columns = table.getRowSignature().getRowOrder();
+    if (scanProject != null) {
+      base *= scanProject.getChildExps().size() / (double) columns.size();
+    }
+
+    if (scanFilter != null) {
+      base *= COST_FILTER_MULTIPLIER;
+    }
+
+    if (aggregate != null) {
+      base *= COST_GROUPING_MULTIPLIER;
+      base += COST_PER_COLUMN * aggregate.getGroupSet().cardinality();
+      base += COST_PER_COLUMN * aggregate.getAggCallList().size();
+    }
+
+    if (aggregateProject != null) {
+      base += COST_PER_COLUMN * aggregateProject.getChildExps().size();
+    }
+
+    if (aggregateFilter != null) {
+      base *= COST_HAVING_MULTIPLIER;
+    }
+
+    if (window != null) {
+      base *= COST_WINDOW_MULTIPLIER * window.groups.size();
+    }
+    if (sort != null) {
+      base *= COST_SORT_MULTIPLIER;
+      if (sort.fetch != null) {
+        base *= COST_LIMIT_MULTIPLIER;
+      }
+    }
+
+    if (sortProject != null) {
+      base += COST_PER_COLUMN * sortProject.getChildExps().size();
+    }
+
+    return base;
   }
 
   @Override

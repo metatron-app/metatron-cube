@@ -21,6 +21,7 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.logger.Logger;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.interpreter.BindableRel;
@@ -29,14 +30,21 @@ import org.apache.calcite.interpreter.Row;
 import org.apache.calcite.interpreter.Sink;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {
+  static final Logger LOG = new Logger(DruidRel.class);
+
+  static final double COST_BASE = 1.0;
+
   public static interface LeafRel {
   }
 
@@ -100,6 +108,8 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
       return false;
     }
   }
+
+  public abstract RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq);
 
   /**
    * Convert this DruidRel to a DruidQuery. This may be an expensive operation. For example, DruidSemiJoin needs to

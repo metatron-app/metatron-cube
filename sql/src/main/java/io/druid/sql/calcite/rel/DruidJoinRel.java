@@ -22,7 +22,6 @@ package io.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.metamx.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinType;
@@ -53,8 +52,6 @@ import java.util.List;
 
 public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.LeafRel
 {
-  private static final Logger LOG = new Logger(DruidJoinRel.class);
-
   public static DruidJoinRel create(Join join, JoinInfo joinInfo, DruidRel left, DruidRel right)
   {
     return new DruidJoinRel(
@@ -277,9 +274,11 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
   {
     final RelOptCostFactory costFactory = planner.getCostFactory();
+    final double lc = mq.getRowCount(left);
+    final double rc = mq.getRowCount(right);
     if (leftExpressions.isEmpty()) {
-      return costFactory.makeCost((1 + mq.getRowCount(left)) * (1 + mq.getRowCount(right)) * 20, 0, 0);
+      return costFactory.makeCost(COST_BASE + lc + rc, 0, 0).multiplyBy(10);
     }
-    return costFactory.makeCost(mq.getRowCount(left) + mq.getRowCount(right), 0, 0);
+    return costFactory.makeCost(COST_BASE + lc + rc, 0, 0).multiplyBy(2);
   }
 }

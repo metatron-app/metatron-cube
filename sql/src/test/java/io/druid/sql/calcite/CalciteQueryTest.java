@@ -173,6 +173,12 @@ public class CalciteQueryTest extends CalciteTestBase
     {
       return true;
     }
+
+    @Override
+    public int getMaxSemiJoinRowsInMemory()
+    {
+      return -1;
+    }
   };
   private static final PlannerConfig PLANNER_CONFIG_REQUIRE_TIME_CONDITION = new PlannerConfig()
   {
@@ -754,9 +760,9 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             newScanQueryBuilder()
                 .dataSource(CalciteTests.DATASOURCE1)
-                .columns(Arrays.asList("dim2", "dim2"))
+                .columns("dim2")
                 .limit(2)
-                .context(QUERY_CONTEXT_DEFAULT)
+                .outputColumns("dim2", "dim2")
                 .streaming()
         ),
         ImmutableList.of(
@@ -1408,7 +1414,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .dimension(DefaultDimensionSpec.of("dim1", "d0"))
                 .postAggregators(
                     ImmutableList.of(
-                        EXPR_POST_AGG("p0", "substring(\"d0\", 1, -1)")
+                        EXPR_POST_AGG("s0", "substring(\"d0\", 1, -1)")
                     )
                 )
                 .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
@@ -3639,28 +3645,28 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .setDataSource(CalciteTests.DATASOURCE1)
                                         .setGranularity(Granularities.ALL)
                                         .setDimensions(
-                                            DefaultDimensionSpec.of("dim1", "d0"),
-                                            DefaultDimensionSpec.of("dim2", "d1")
+                                            DefaultDimensionSpec.of("dim2", "d0"),
+                                            DefaultDimensionSpec.of("dim1", "d1")
                                         )
                                         .setAggregatorSpecs(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
                                         .setContext(QUERY_CONTEXT_DEFAULT)
                                         .build()
                         ))
                         .setGranularity(Granularities.ALL)
-                        .setDimensions(DefaultDimensionSpec.of("d1", "_d0"))
+                        .setDimensions(DefaultDimensionSpec.of("d0", "_d0"))
                         .setAggregatorSpecs(
                             GenericSumAggregatorFactory.ofLong("_a0", "a0"),
                             new FilteredAggregatorFactory(
                                 CountAggregatorFactory.of("_a1"),
-                                NOT(SELECTOR("d0", "", null))
+                                NOT(SELECTOR("d1", "", null))
                             )
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{"a", 2L, 1L},
             new Object[]{"", 3L, 3L},
+            new Object[]{"a", 2L, 1L},
             new Object[]{"abc", 1L, 1L}
         )
     );
@@ -6364,16 +6370,16 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .setGranularity(Granularities.ALL)
                                         .setDimensions(
                                             DefaultDimensionSpec.of("__time", "d0"),
-                                            DefaultDimensionSpec.of("dim1", "d1"),
-                                            DefaultDimensionSpec.of("m2", "d2")
-                                        )
+                                            DefaultDimensionSpec.of("m2", "d1"),
+                                            DefaultDimensionSpec.of("dim1", "d2")
+                                            )
                                         .setContext(QUERY_CONTEXT_DEFAULT)
                                         .build()
                         )
                         .setGranularity(Granularities.ALL)
                         .setDimensions(
                             DefaultDimensionSpec.of("d0", "_d0"),
-                            DefaultDimensionSpec.of("d1", "_d1")
+                            DefaultDimensionSpec.of("d2", "_d1")
                         )
                         .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                         .setLimitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
@@ -6415,7 +6421,7 @@ public class CalciteQueryTest extends CalciteTestBase
                       GenericSumAggregatorFactory.ofDouble("a1", "m2")
                   )
                   .postAggregators(
-                      EXPR_POST_AGG("p0", "(\"a0\" + \"a1\")"),
+                      EXPR_POST_AGG("s0", "(\"a0\" + \"a1\")"),
                       EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1Y','','UTC')")
                   )
                   .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
@@ -6777,10 +6783,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .intervals(MultipleIntervalSegmentSpec.of(
                       Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.of("2011-01-15").getMillis())
                   ))
-                  .columns(
-                      "__time", "index", "indexDecimal", "indexMaxPlusTen", "indexMin", "market",
-                      "partial_null_column", "placement", "placementish", "quality", "quality_uniques"
-                  )
+                  .columns("index", "market", "quality")
                   .limitSpec(
                       LimitSpec.of(new WindowingSpec(
                           Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(\"index\")"

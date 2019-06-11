@@ -211,7 +211,7 @@ public class DruidBaseQuery implements DruidQuery
       final RowSignature sourceRowSignature
   )
   {
-    final Project project = partialQuery.getSelectProject();
+    final Project project = partialQuery.getScanProject();
 
     if (project == null || partialQuery.getAggregate() != null) {
       return null;
@@ -529,7 +529,7 @@ public class DruidBaseQuery implements DruidQuery
     for (int i : aggregate.getGroupSet()) {
       // Dimension might need to create virtual columns. Avoid giving it a name that would lead to colliding columns.
       final String dimOutputName = outputNamePrefix + outputNameCounter++;
-      final RexNode rexNode = Expressions.fromFieldAccess(sourceRowSignature, partialQuery.getSelectProject(), i);
+      final RexNode rexNode = Expressions.fromFieldAccess(sourceRowSignature, partialQuery.getScanProject(), i);
       final DruidExpression druidExpression = Expressions.toDruidExpression(
           plannerContext,
           sourceRowSignature,
@@ -586,7 +586,7 @@ public class DruidBaseQuery implements DruidQuery
           plannerContext,
           sourceRowSignature,
           rexBuilder,
-          partialQuery.getSelectProject(),
+          partialQuery.getScanProject(),
           aggCall,
           aggregations,
           aggName,
@@ -610,7 +610,7 @@ public class DruidBaseQuery implements DruidQuery
       final PlannerContext plannerContext
   )
   {
-    final Filter havingFilter = partialQuery.getHavingFilter();
+    final Filter havingFilter = partialQuery.getAggregateFilter();
 
     if (havingFilter == null) {
       return null;

@@ -97,9 +97,9 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
       throw new ISE("LHS must not be an Aggregate");
     }
 
-    if (leftPartialQuery.getSelectProject() != null) {
+    if (leftPartialQuery.getScanProject() != null) {
       for (int key : leftKeys) {
-        listBuilder.add(leftPartialQuery.getSelectProject().getChildExps().get(key));
+        listBuilder.add(leftPartialQuery.getScanProject().getChildExps().get(key));
       }
     } else {
       for (int key : leftKeys) {
@@ -341,14 +341,14 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
 
       PartialDruidQuery newPartialQuery = PartialDruidQuery.create(leftPartialQuery.getScan())
                                                            .withFilter(newWhereFilter)
-                                                           .withProject(leftPartialQuery.getSelectProject());
+                                                           .withProject(leftPartialQuery.getScanProject());
 
       if (leftPartialQuery.getAggregate() != null) {
         newPartialQuery = newPartialQuery.withAggregate(leftPartialQuery.getAggregate());
       }
 
-      if (leftPartialQuery.getHavingFilter() != null) {
-        newPartialQuery = newPartialQuery.withFilter(leftPartialQuery.getHavingFilter());
+      if (leftPartialQuery.getAggregateFilter() != null) {
+        newPartialQuery = newPartialQuery.withFilter(leftPartialQuery.getAggregateFilter());
       }
 
       if (leftPartialQuery.getAggregateProject() != null) {

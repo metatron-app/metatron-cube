@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.logger.Logger;
 import io.druid.client.BrokerServerView;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -78,6 +79,8 @@ import java.util.Map;
 
 public class DruidPlanner implements Closeable, ForwardConstants
 {
+  private static final Logger LOG = new Logger(DruidPlanner.class);
+
   private final Planner planner;
   private final PlannerContext plannerContext;
 
