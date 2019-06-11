@@ -59,7 +59,6 @@ import io.druid.query.topn.NumericTopNMetricSpec;
 import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.DimensionExpression;
@@ -118,10 +117,13 @@ public class DruidBaseQuery implements DruidQuery
   private final Grouping grouping;
 
   @Nullable
-  private final SortProject sortProject;
+  private final Limiting limiting;
 
   @Nullable
-  private final Limiting limiting;
+  private final AggregateSortProject aggregateSortProject;
+
+  @Nullable
+  private final SortProject sortProject;
 
   @Nullable
   private final RowSignature outputRowSignature;
@@ -163,6 +165,10 @@ public class DruidBaseQuery implements DruidQuery
       inputRowSignature = limiting.getOutputRowSignature();
     }
 
+    this.aggregateSortProject = computeAggregateSortProject(partialQuery, plannerContext, inputRowSignature);
+    if (aggregateSortProject != null) {
+      inputRowSignature = aggregateSortProject.getOutputRowSignature();
+    }
     this.sortProject = computeSortProject(partialQuery, plannerContext, inputRowSignature);
     if (sortProject != null) {
       inputRowSignature = sortProject.getOutputRowSignature();
@@ -179,7 +185,7 @@ public class DruidBaseQuery implements DruidQuery
       final PlannerContext plannerContext, final RowSignature sourceRowSignature
   )
   {
-    final Filter whereFilter = partialQuery.getWhereFilter();
+    final Filter whereFilter = partialQuery.getScanFilter();
 
     if (whereFilter == null) {
       return Filtration.create(null);
@@ -388,28 +394,55 @@ public class DruidBaseQuery implements DruidQuery
   }
 
   @Nullable
-  private SortProject computeSortProject(
+  private AggregateSortProject computeAggregateSortProject(
       PartialDruidQuery partialQuery,
       PlannerContext plannerContext,
-      RowSignature sortingInputRowSignature
+      RowSignature inputRowSignature
   )
   {
+    if (partialQuery.getAggregate() == null) {
+      return null;
+    }
     final Project sortProject = partialQuery.getSortProject();
     if (sortProject == null) {
       return null;
     } else {
       final ProjectRowOrderAndPostAggregations projectRowOrderAndPostAggregations = computePostAggregations(
           plannerContext,
-          sortingInputRowSignature,
+          inputRowSignature,
           sortProject,
           "s"
       );
 
-      return new SortProject(
-          sortingInputRowSignature,
+      return new AggregateSortProject(
+          inputRowSignature,
           projectRowOrderAndPostAggregations.postAggregations,
           RowSignature.from(projectRowOrderAndPostAggregations.rowOrder, sortProject.getRowType())
       );
+    }
+  }
+
+  @Nullable
+  private SortProject computeSortProject(
+      PartialDruidQuery partialQuery,
+      PlannerContext plannerContext,
+      RowSignature inputRowSignature
+  )
+  {
+    if (partialQuery.getAggregate() != null) {
+      return null;
+    }
+    final Project sortProject = partialQuery.getSortProject();
+    if (sortProject == null) {
+      return null;
+    } else {
+      List<String> sourceRows = inputRowSignature.getRowOrder();
+      List<String> targetRows = Lists.newArrayList();
+      for (RexNode rexNode : sortProject.getChildExps()) {
+        int index = ((RexInputRef) rexNode).getIndex();
+        targetRows.add(sourceRows.get(index));
+      }
+      return new SortProject(targetRows, RowSignature.from(targetRows, sortProject.getRowType()));
     }
   }
 
@@ -604,7 +637,7 @@ public class DruidBaseQuery implements DruidQuery
   )
   {
     final Window window = partialQuery.getWindow();
-    final Sort sort = partialQuery.getAggregate() == null ? partialQuery.getSelectSort() : partialQuery.getSort();
+    final Sort sort = partialQuery.getSort();
     if (window == null && sort == null) {
       return null;
     }
@@ -803,8 +836,8 @@ public class DruidBaseQuery implements DruidQuery
     }
 
     final List<PostAggregator> postAggregators = new ArrayList<>(grouping.getPostAggregators());
-    if (sortProject != null) {
-      postAggregators.addAll(sortProject.getPostAggregators());
+    if (aggregateSortProject != null) {
+      postAggregators.addAll(aggregateSortProject.getPostAggregators());
     }
     if (dimension != null) {
       DruidExpression expression = dimension.getDruidExpression();
@@ -896,8 +929,8 @@ public class DruidBaseQuery implements DruidQuery
     }
 
     final List<PostAggregator> postAggregators = new ArrayList<>(grouping.getPostAggregators());
-    if (sortProject != null) {
-      postAggregators.addAll(sortProject.getPostAggregators());
+    if (aggregateSortProject != null) {
+      postAggregators.addAll(aggregateSortProject.getPostAggregators());
     }
 
     return new TopNQuery(
@@ -930,24 +963,24 @@ public class DruidBaseQuery implements DruidQuery
     Granularity granularity = null;
     List<DimensionSpec> dimensionSpecs = grouping.getDimensionSpecs();
     List<PostAggregator> postAggregators = new ArrayList<>(grouping.getPostAggregators());
-    if (sortProject != null) {
-      postAggregators.addAll(sortProject.getPostAggregators());
+    if (aggregateSortProject != null) {
+      postAggregators.addAll(aggregateSortProject.getPostAggregators());
     }
 
     DimensionExpression dimension = Iterables.getFirst(grouping.getDimensions(), null);
     if (dimension != null) {
-       granularity = Expressions.asGranularity(dimension.getDruidExpression(), sourceRowSignature);
-       if (granularity != null) {
-         dimensionSpecs = dimensionSpecs.subList(1, dimensionSpecs.size());
-         DruidExpression expression = dimension.getDruidExpression();
-         PostAggregator postAggregator;
-         if (expression.isSimpleExtraction()) {
-           postAggregator = new FieldAccessPostAggregator(dimension.getOutputName(), expression.getDirectColumn());
-         } else {
-           postAggregator = new MathPostAggregator(dimension.getOutputName(), expression.getExpression());
-         }
-         postAggregators.add(postAggregator);
-       }
+      granularity = Expressions.asGranularity(dimension.getDruidExpression(), sourceRowSignature);
+      if (granularity != null) {
+        dimensionSpecs = dimensionSpecs.subList(1, dimensionSpecs.size());
+        DruidExpression expression = dimension.getDruidExpression();
+        PostAggregator postAggregator;
+        if (expression.isSimpleExtraction()) {
+          postAggregator = new FieldAccessPostAggregator(dimension.getOutputName(), expression.getDirectColumn());
+        } else {
+          postAggregator = new MathPostAggregator(dimension.getOutputName(), expression.getExpression());
+        }
+        postAggregators.add(postAggregator);
+      }
     }
     if (granularity == null) {
       granularity = Granularities.ALL;
@@ -1002,20 +1035,16 @@ public class DruidBaseQuery implements DruidQuery
     final List<String> columns = Lists.newArrayList(rowOrder);
     Collections.sort(columns);
 
-    if (sortProject != null) {
-      sortProject.getPostAggregators();
-    }
-
     return new StreamQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
         descending,
         filtration.getDimFilter(),
         columns,
-        selectProjection != null ? selectProjection.getVirtualColumns() : null,
+        selectProjection == null ? null : selectProjection.getVirtualColumns(),
         null,
         limiting == null ? null : limiting.getLimitSpec(),
-        null,
+        sortProject == null ? null : sortProject.getColumns(),
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );
   }

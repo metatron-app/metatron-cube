@@ -197,7 +197,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
       cost += COST_PER_COLUMN * partialQuery.getSelectProject().getChildExps().size();
     }
 
-    if (partialQuery.getWhereFilter() != null) {
+    if (partialQuery.getScanFilter() != null) {
       cost *= COST_FILTER_MULTIPLIER;
     }
 

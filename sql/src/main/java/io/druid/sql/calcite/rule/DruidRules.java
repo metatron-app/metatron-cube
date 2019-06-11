@@ -40,15 +40,11 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.AGGREGATE;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.AGGREGATE_PROJECT;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.HAVING_FILTER;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SELECT_PROJECT;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SELECT_SORT;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.SORT_PROJECT;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WHERE_FILTER;
-import static io.druid.sql.calcite.rel.PartialDruidQuery.Stage.WINDOW;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.AGGREGATE;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.FILTER;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.PROJECT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.SORT;
+import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.WINDOW;
 
 public class DruidRules
 {
@@ -59,9 +55,9 @@ public class DruidRules
     return ofDruidRel(druidRel -> true);
   }
 
-  static RelOptRuleOperand canBuildOn(PartialDruidQuery.Stage stage)
+  static RelOptRuleOperand canBuildOn(PartialDruidQuery.Operator operator)
   {
-    return ofDruidRel(druidRel -> druidRel.canAccept(stage));
+    return ofDruidRel(druidRel -> druidRel.canAccept(operator));
   }
 
   static RelOptRuleOperand ofDruidRel(Predicate<DruidRel> predicate)
@@ -87,19 +83,16 @@ public class DruidRules
   public static List<RelOptRule> rules()
   {
     return ImmutableList.of(
-        DruidQueryRule.of(Filter.class, WHERE_FILTER, PartialDruidQuery::withWhereFilter),
-        DruidQueryRule.of(Project.class, SELECT_PROJECT, PartialDruidQuery::withSelectProject),
-        DruidQueryRule.of(Sort.class, SELECT_SORT, PartialDruidQuery::withSelectSort),
+        DruidQueryRule.of(Filter.class, FILTER, PartialDruidQuery::withFilter),
+        DruidQueryRule.of(Project.class, PROJECT, PartialDruidQuery::withProject),
         DruidQueryRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
-        DruidQueryRule.of(Project.class, AGGREGATE_PROJECT, PartialDruidQuery::withAggregateProject),
-        DruidQueryRule.of(Filter.class, HAVING_FILTER, PartialDruidQuery::withHavingFilter),
         DruidQueryRule.of(Window.class, WINDOW, PartialDruidQuery::withWindow),
         DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
-        DruidQueryRule.of(Project.class, SORT_PROJECT, PartialDruidQuery::withSortProject),
-        DruidOuterQueryRule.of(Filter.class, PartialDruidQuery::withWhereFilter),
-        DruidOuterQueryRule.of(Project.class, PartialDruidQuery::withSelectProject),
-        DruidOuterQueryRule.of(Sort.class, PartialDruidQuery::withSelectSort),
+        DruidOuterQueryRule.of(Filter.class, PartialDruidQuery::withFilter),
+        DruidOuterQueryRule.of(Project.class, PartialDruidQuery::withProject),
         DruidOuterQueryRule.of(Aggregate.class, PartialDruidQuery::withAggregate),
+        DruidOuterQueryRule.of(Window.class, PartialDruidQuery::withWindow),
+        DruidOuterQueryRule.of(Sort.class, PartialDruidQuery::withSort),
         DruidUnionRule.instance(),
         DruidSortUnionRule.instance()
     );
@@ -109,12 +102,12 @@ public class DruidRules
   {
     static <RelType extends RelNode> RelOptRule of(
         final Class<RelType> relClass,
-        final PartialDruidQuery.Stage stage,
+        final PartialDruidQuery.Operator operator,
         final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
     )
     {
-      final String description = StringUtils.format("DruidQueryRule(%s)", stage);
-      return new RelOptRule(RelOptRule.operand(relClass, canBuildOn(stage)), description)
+      final String description = StringUtils.format("DruidQueryRule(%s)", operator);
+      return new RelOptRule(RelOptRule.operand(relClass, canBuildOn(operator)), description)
       {
         @Override
         public void onMatch(final RelOptRuleCall call)
@@ -122,14 +115,16 @@ public class DruidRules
           final RelType otherRel = call.rel(0);
           final DruidRel druidRel = call.rel(1);
 
-          final PartialDruidQuery newPartialDruidQuery = f.apply(druidRel.getPartialDruidQuery(), otherRel);
-          if (newPartialDruidQuery == null) {
+          final PartialDruidQuery druidQuery = druidRel.getPartialDruidQuery();
+          final PartialDruidQuery newDruidQuery = f.apply(druidQuery, otherRel);
+          if (newDruidQuery == null) {
+//            LOG.info(" %s + %s ---> x", druidQuery.stage(), operator);
             return;   // quick check
           }
-          final DruidRel newDruidRel = druidRel.withPartialQuery(newPartialDruidQuery);
+          final DruidRel newDruidRel = druidRel.withPartialQuery(newDruidQuery);
 
           if (newDruidRel.isValidDruidQuery()) {
-//            LOG.info(" %s ---> %s", druidRel.getPartialDruidQuery().stage(), stage);
+//            LOG.info(" %s + %s ---> %s", druidQuery.stage(), operator, newDruidQuery.stage());
             call.transformTo(newDruidRel);
           }
         }

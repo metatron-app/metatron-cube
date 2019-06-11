@@ -67,10 +67,10 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
     return partialQuery == null ? null : partialQuery.leafRel();
   }
 
-  public boolean canAccept(PartialDruidQuery.Stage stage)
+  public boolean canAccept(PartialDruidQuery.Operator operator)
   {
     PartialDruidQuery partialQuery = getPartialDruidQuery();
-    return partialQuery != null && partialQuery.canAccept(stage);
+    return partialQuery != null && partialQuery.canAccept(operator);
   }
 
   /**
@@ -97,7 +97,6 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
       return true;
     }
     catch (Exception e) {
-      e.printStackTrace();
       return false;
     }
   }

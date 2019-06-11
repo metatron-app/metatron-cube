@@ -19,55 +19,28 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.ISE;
-import io.druid.query.aggregation.PostAggregator;
 import io.druid.sql.calcite.table.RowSignature;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class SortProject
 {
-  private final RowSignature inputRowSignature;
-  private final List<PostAggregator> postAggregators;
+  private final List<String> columns;
   private final RowSignature outputRowSignature;
 
   SortProject(
-      RowSignature inputRowSignature,
-      List<PostAggregator> postAggregators,
+      List<String> columns,
       RowSignature outputRowSignature
   )
   {
-    this.inputRowSignature = Preconditions.checkNotNull(inputRowSignature, "inputRowSignature");
-    this.postAggregators = Preconditions.checkNotNull(postAggregators, "postAggregators");
+    this.columns = Preconditions.checkNotNull(columns, "columns");
     this.outputRowSignature = Preconditions.checkNotNull(outputRowSignature, "outputRowSignature");
-
-    final Set<String> inputColumnNames = new HashSet<>(inputRowSignature.getRowOrder());
-    final Set<String> postAggregatorNames = postAggregators.stream()
-                                                           .map(PostAggregator::getName)
-                                                           .collect(Collectors.toSet());
-
-    // Verify no collisions between inputs and outputs.
-    for (String postAggregatorName : postAggregatorNames) {
-      if (inputColumnNames.contains(postAggregatorName)) {
-        throw new ISE("Duplicate field name: %s", postAggregatorName);
-      }
-    }
-
-    // Verify that items in the output signature exist.
-    outputRowSignature.getRowOrder().forEach(field -> {
-      if (!inputColumnNames.contains(field) && !postAggregatorNames.contains(field)) {
-        throw new ISE("Missing field in rowOrder: %s", field);
-      }
-    });
   }
 
-  public List<PostAggregator> getPostAggregators()
+  public List<String> getColumns()
   {
-    return postAggregators;
+    return columns;
   }
 
   public RowSignature getOutputRowSignature()
@@ -84,24 +57,22 @@ public class SortProject
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SortProject sortProject = (SortProject) o;
-    return Objects.equals(inputRowSignature, sortProject.inputRowSignature) &&
-           Objects.equals(postAggregators, sortProject.postAggregators) &&
-           Objects.equals(outputRowSignature, sortProject.outputRowSignature);
+    SortProject aggregateSortProject = (SortProject) o;
+    return Objects.equals(columns, aggregateSortProject.columns) &&
+           Objects.equals(outputRowSignature, aggregateSortProject.outputRowSignature);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(inputRowSignature, postAggregators, outputRowSignature);
+    return Objects.hash(columns, outputRowSignature);
   }
 
   @Override
   public String toString()
   {
     return "SortProject{" +
-           "inputRowSignature=" + inputRowSignature +
-           ", postAggregators=" + postAggregators +
+           "columns=" + columns +
            ", outputRowSignature=" + outputRowSignature +
            '}';
   }

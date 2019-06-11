@@ -6773,25 +6773,21 @@ public class CalciteQueryTest extends CalciteTestBase
         "SELECT market, quality, index, $sum(index) over (partition by market order by quality desc) FROM mmapped WHERE __time < '2011-01-15'",
         ImmutableList.of(
             Druids.newSelectQueryBuilder()
-            .dataSource(
-                Druids.newSelectQueryBuilder()
-                      .dataSource("mmapped")
-                      .intervals(MultipleIntervalSegmentSpec.of(
-                          Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.of("2011-01-15").getMillis())
+                  .dataSource("mmapped")
+                  .intervals(MultipleIntervalSegmentSpec.of(
+                      Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.of("2011-01-15").getMillis())
+                  ))
+                  .columns(
+                      "__time", "index", "indexDecimal", "indexMaxPlusTen", "indexMin", "market",
+                      "partial_null_column", "placement", "placementish", "quality", "quality_uniques"
+                  )
+                  .limitSpec(
+                      LimitSpec.of(new WindowingSpec(
+                          Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(\"index\")"
                       ))
-                      .columns(
-                          "__time", "index", "indexDecimal", "indexMaxPlusTen", "indexMin", "market",
-                          "partial_null_column", "placement", "placementish", "quality", "quality_uniques"
-                      )
-                      .limitSpec(
-                          LimitSpec.of(new WindowingSpec(
-                              Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(\"index\")"
-                          ))
-                      )
-                      .streaming()
-            )
-            .columns("index", "market", "quality", "w0$o0")
-            .streaming()
+                  )
+                  .outputColumns("market", "quality", "index", "w0$o0")
+                  .streaming()
         )
         , ImmutableList.of(
             new Object[]{"spot", "travel", 100.0, 100.0},

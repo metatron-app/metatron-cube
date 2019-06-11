@@ -320,7 +320,7 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
     if (!conditions.isEmpty()) {
       // Add a filter to the left side.
       final PartialDruidQuery leftPartialQuery = left.getPartialDruidQuery();
-      final Filter whereFilter = leftPartialQuery.getWhereFilter();
+      final Filter whereFilter = leftPartialQuery.getScanFilter();
       final Filter newWhereFilter;
 
       if (whereFilter != null) {
@@ -340,20 +340,19 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
       }
 
       PartialDruidQuery newPartialQuery = PartialDruidQuery.create(leftPartialQuery.getScan())
-                                                           .withWhereFilter(newWhereFilter)
-                                                           .withSelectProject(leftPartialQuery.getSelectProject())
-                                                           .withSelectSort(leftPartialQuery.getSelectSort());
+                                                           .withFilter(newWhereFilter)
+                                                           .withProject(leftPartialQuery.getSelectProject());
 
       if (leftPartialQuery.getAggregate() != null) {
         newPartialQuery = newPartialQuery.withAggregate(leftPartialQuery.getAggregate());
       }
 
       if (leftPartialQuery.getHavingFilter() != null) {
-        newPartialQuery = newPartialQuery.withHavingFilter(leftPartialQuery.getHavingFilter());
+        newPartialQuery = newPartialQuery.withFilter(leftPartialQuery.getHavingFilter());
       }
 
       if (leftPartialQuery.getAggregateProject() != null) {
-        newPartialQuery = newPartialQuery.withAggregateProject(leftPartialQuery.getAggregateProject());
+        newPartialQuery = newPartialQuery.withProject(leftPartialQuery.getAggregateProject());
       }
 
       if (leftPartialQuery.getSort() != null) {
@@ -361,7 +360,7 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
       }
 
       if (leftPartialQuery.getSortProject() != null) {
-        newPartialQuery = newPartialQuery.withSortProject(leftPartialQuery.getSortProject());
+        newPartialQuery = newPartialQuery.withProject(leftPartialQuery.getSortProject());
       }
 
       return left.withPartialQuery(newPartialQuery);
