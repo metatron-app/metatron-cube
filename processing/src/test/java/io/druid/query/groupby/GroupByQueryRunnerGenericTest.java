@@ -5525,7 +5525,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results);
+    validate(columnNames, expectedResults, results, true);
 
     // someone can understand this, maybe
     builder.setLimitSpec(
@@ -5577,7 +5577,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results);
+    validate(columnNames, expectedResults, results, true);
   }
 
   @Test
@@ -5663,7 +5663,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     List<Row> results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results);
+    validate(columnNames, expectedResults, results, true);
   }
 
   @Test

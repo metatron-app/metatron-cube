@@ -346,13 +346,14 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   {
     if (pivotColumns.isEmpty()) {
       // just for metatron.. I hate this
+      final List<String> removeColumns = GuavaUtils.exclude(context.getExcludedColumns(), valueColumns);
       if (rowExpressions.isEmpty() && partitionExpressions.isEmpty()) {
         return new PartitionEvaluator()
         {
           @Override
           public List<Row> finalize(List<Row> partition)
           {
-            return retainColumns(partition, context.getOutputColumns());
+            return retainColumns(partition, GuavaUtils.exclude(context.getOutputColumns(), removeColumns));
           }
         };
       }
@@ -370,10 +371,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         @Override
         public List<Row> finalize(List<Row> partition)
         {
-          List<Row> evaluated = context.on(null, null).with(null, partition).evaluate(
+          List<Row> evaluated = context.with(null, partition).evaluate(
               toEvaluators(partitionExpressions, context, valueColumns)
           );
-          return retainColumns(evaluated, context.getOutputColumns());
+          return retainColumns(evaluated, GuavaUtils.exclude(context.getOutputColumns(), removeColumns));
         }
       };
     }
@@ -445,7 +446,7 @@ next:
       public List<Row> finalize(List<Row> partition)
       {
         // handle single partition
-        WindowContext current = context.on(null, null).with(null, partition);
+        WindowContext current = context.with(null, partition);
         if (tabularFormat) {
           StringArray[] pivotColumns = allPivotColumns.toArray(new StringArray[0]);
           Arrays.sort(pivotColumns, makeColumnOrdering());

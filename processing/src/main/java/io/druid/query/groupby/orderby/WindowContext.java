@@ -28,6 +28,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -83,6 +84,7 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
   }
 
   private final List<String> columns; // to keep order
+  private final List<String> initialColumns;
   private final Map<String, ValueDesc> assignedColumns;
   private final Map<String, ExprEval> temporaryColumns;
 
@@ -99,6 +101,7 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
   private WindowContext(List<String> columns, Map<String, ValueDesc> expectedTypes)
   {
     this.columns = Lists.newArrayList(columns);
+    this.initialColumns = ImmutableList.copyOf(columns);
     this.assignedColumns = Maps.newHashMap(expectedTypes);
     this.temporaryColumns = Maps.newHashMap();
   }
@@ -133,9 +136,19 @@ public class WindowContext extends TypeResolver.Abstract implements Expr.WindowC
     }
   }
 
+  public List<String> getInputColumns()
+  {
+    return initialColumns;
+  }
+
   public List<String> getOutputColumns()
   {
     return columns;
+  }
+
+  public List<String> getExcludedColumns()
+  {
+    return GuavaUtils.exclude(initialColumns, partitionColumns);
   }
 
   public List<OrderByColumnSpec> orderingSpecs()

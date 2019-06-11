@@ -210,6 +210,16 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
   public static void validate(String[] columnNames, List<Row> expected, Iterable<Row> resultIterable)
   {
+    validate(columnNames, expected, resultIterable, false);
+  }
+
+  public static void validate(
+      String[] columnNames,
+      List<Row> expected,
+      Iterable<Row> resultIterable,
+      boolean ensureColumnNames
+  )
+  {
     List<Row> result = Lists.newArrayList(resultIterable);
     int max = Math.min(expected.size(), result.size());
     for (int i = 0; i < max; i++) {
@@ -226,6 +236,10 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         } else {
           Assert.assertEquals(i + " th " + columnName, ev, rv);
         }
+      }
+      if (ensureColumnNames) {
+        Assert.assertEquals(e.getColumns().size(), r.getColumns().size());
+        Assert.assertTrue(e.getColumns().containsAll(r.getColumns()));
       }
     }
     if (expected.size() > result.size()) {
