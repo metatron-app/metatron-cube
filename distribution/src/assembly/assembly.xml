@@ -41,6 +41,14 @@
         </fileSet>
 
         <fileSet>
+            <directory>../examples/metric/</directory>
+            <includes>
+                <include>*</include>
+            </includes>
+            <outputDirectory>metric</outputDirectory>
+        </fileSet>
+
+        <fileSet>
             <directory>../examples/quickstart/</directory>
             <includes>
                 <include>*</include>

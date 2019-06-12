@@ -1,0 +1,66 @@
+{
+  "type": "kafka",
+  "dataSchema": {
+    "dataSource": "druid-metric",
+    "parser": {
+      "type": "string",
+      "parseSpec": {
+        "format": "json",
+        "timestampSpec": {
+          "column": "timestamp",
+          "format": "auto"
+        },
+        "dimensionsSpec": {
+          "dimensions": [],
+          "dimensionExclusions": []
+        },
+        "flattenSpec": {
+          "useFieldDiscovery": true,
+          "fields": [
+            {
+              "type": "path",
+              "name": "context.queryId",
+              "expr": "$.context.queryId"
+            },
+            {
+              "type": "path",
+              "name": "context.userId",
+              "expr": "$.context.userId"
+            }
+          ]
+        }
+      }
+    },
+    "metricsSpec": [
+      {
+        "name": "count",
+        "type": "count"
+      },
+      {
+        "fieldName": "value",
+        "type": "longSum",
+        "inputType": "double",
+        "name": "value"
+      }
+    ],
+    "granularitySpec": {
+      "type": "uniform",
+      "segmentGranularity": "DAY",
+      "queryGranularity": "NONE",
+      "rollup": false
+    }
+  },
+  "tuningConfig": {
+    "type": "kafka",
+    "maxRowsPerSegment": 5000000
+  },
+  "ioConfig": {
+    "topic": "druid-metric",
+    "taskCount": 1,
+    "replicas": 1,
+    "taskDuration": "P1D",
+    "consumerProperties": {
+      "bootstrap.servers": "localhost:9092"
+    }
+  }
+}
