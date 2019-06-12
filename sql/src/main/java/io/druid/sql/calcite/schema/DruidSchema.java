@@ -321,13 +321,9 @@ public class DruidSchema extends AbstractSchema
         // segmentReplicatable is used to determine if segments are served by realtime servers or not
         final long isRealtime = server.isAssignable() ? 0 : 1;
         final long isPublished = server.isHistorical() ? 1 : 0;
-        final SegmentMetadataHolder holder = new SegmentMetadataHolder.Builder(
-            segment.getIdentifier(),
-            isPublished,
-            1,
-            isRealtime,
-            1
-        ).build();
+        final SegmentMetadataHolder holder = new SegmentMetadataHolder(
+            segment.getIdentifier(), null, 0, isPublished, 1, isRealtime, 1
+        );
         // Unknown segment.
         setSegmentSignature(segment, holder);
         segmentsNeedingRefresh.add(segment);
@@ -340,13 +336,7 @@ public class DruidSchema extends AbstractSchema
       } else {
         if (knownSegments.containsKey(segment)) {
           final SegmentMetadataHolder holder = knownSegments.get(segment);
-          final SegmentMetadataHolder holderWithNumReplicas = new SegmentMetadataHolder.Builder(
-              holder.getSegmentId(),
-              holder.isPublished(),
-              holder.isAvailable(),
-              holder.isRealtime(),
-              holder.getNumReplicas()
-          ).withNumReplicas(holder.getNumReplicas() + 1).build();
+          final SegmentMetadataHolder holderWithNumReplicas = holder.withNumReplicas(holder.getNumReplicas() + 1);
           knownSegments.put(segment, holderWithNumReplicas);
         }
         if (server.isAssignable()) {
@@ -446,18 +436,13 @@ public class DruidSchema extends AbstractSchema
         if (segment == null) {
           log.debug("Got analysis for segment[%s] we didn't ask for, ignoring.", analysis.getId());
         } else {
+          final RowSignature rowSignature = analysisToRowSignature(analysis);
+          log.debug("Segment[%s] has signature[%s].", segment.getIdentifier(), rowSignature);
           synchronized (lock) {
-            final RowSignature rowSignature = analysisToRowSignature(analysis);
-            log.debug("Segment[%s] has signature[%s].", segment.getIdentifier(), rowSignature);
-            final Map<DataSegment, SegmentMetadataHolder> dataSourceSegments = segmentMetadataInfo.get(segment.getDataSource());
+            Map<DataSegment, SegmentMetadataHolder> dataSourceSegments = segmentMetadataInfo.get(segment.getDataSource());
             SegmentMetadataHolder holder = dataSourceSegments.get(segment);
-            SegmentMetadataHolder updatedHolder = new SegmentMetadataHolder.Builder(
-                holder.getSegmentId(),
-                holder.isPublished(),
-                holder.isAvailable(),
-                holder.isRealtime(),
-                holder.getNumReplicas()
-            ).withRowSignature(rowSignature).withNumRows(analysis.getNumRows()).build();
+            SegmentMetadataHolder updatedHolder = holder.withRowSignature(rowSignature)
+                                                        .withNumRows(analysis.getNumRows());
             dataSourceSegments.put(segment, updatedHolder);
             setSegmentSignature(segment, updatedHolder);
             retVal.add(segment);
@@ -496,6 +481,7 @@ public class DruidSchema extends AbstractSchema
       final TreeMap<DataSegment, SegmentMetadataHolder> segmentMap = segmentMetadataInfo.get(dataSource);
       final Map<String, ValueDesc> columnTypes = new TreeMap<>();
 
+      int totalNumRows = 0;
       if (segmentMap != null) {
         for (SegmentMetadataHolder segmentMetadataHolder : segmentMap.values()) {
           final RowSignature rowSignature = segmentMetadataHolder.getRowSignature();
@@ -505,12 +491,13 @@ public class DruidSchema extends AbstractSchema
               columnTypes.putIfAbsent(column, rowSignature.getColumnType(column));
             }
           }
+          totalNumRows += segmentMetadataHolder.getNumRows();
         }
       }
 
       final RowSignature.Builder builder = RowSignature.builder();
       columnTypes.forEach(builder::add);
-      return new DruidTable(new TableDataSource(dataSource), builder.build());
+      return new DruidTable(TableDataSource.of(dataSource), builder.build(), totalNumRows);
     }
   }
 

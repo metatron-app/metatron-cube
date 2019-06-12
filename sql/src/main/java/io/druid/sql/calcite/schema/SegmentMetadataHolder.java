@@ -40,15 +40,23 @@ public class SegmentMetadataHolder
   @Nullable
   private final RowSignature rowSignature;
 
-  private SegmentMetadataHolder(Builder builder)
+  public SegmentMetadataHolder(
+      String segmentId,
+      RowSignature rowSignature,
+      long numRows,
+      long isPublished,
+      long isAvailable,
+      long isRealtime,
+      long numReplicas
+  )
   {
-    this.rowSignature = builder.rowSignature;
-    this.isPublished = builder.isPublished;
-    this.isAvailable = builder.isAvailable;
-    this.isRealtime = builder.isRealtime;
-    this.numReplicas = builder.numReplicas;
-    this.numRows = builder.numRows;
-    this.segmentId = builder.segmentId;
+    this.segmentId = segmentId;
+    this.rowSignature = rowSignature;
+    this.isPublished = isPublished;
+    this.isAvailable = isAvailable;
+    this.isRealtime = isRealtime;
+    this.numReplicas = numReplicas;
+    this.numRows = numRows;
   }
 
   public long isPublished()
@@ -87,55 +95,42 @@ public class SegmentMetadataHolder
     return rowSignature;
   }
 
-  public static class Builder
+  public SegmentMetadataHolder withRowSignature(RowSignature rowSignature)
   {
-    private final String segmentId;
-    private final long isPublished;
-    private final long isAvailable;
-    private final long isRealtime;
-
-    private long numReplicas;
-    @Nullable
-    private RowSignature rowSignature;
-    private long numRows;
-
-    public Builder(
-        String segmentId,
-        long isPublished,
-        long isAvailable,
-        long isRealtime,
-        long numReplicas
-    )
-    {
-      this.segmentId = segmentId;
-      this.isPublished = isPublished;
-      this.isAvailable = isAvailable;
-      this.isRealtime = isRealtime;
-      this.numReplicas = numReplicas;
-    }
-
-    public Builder withRowSignature(RowSignature rowSignature)
-    {
-      this.rowSignature = rowSignature;
-      return this;
-    }
-
-    public Builder withNumRows(long numRows)
-    {
-      this.numRows = numRows;
-      return this;
-    }
-
-    public Builder withNumReplicas(long numReplicas)
-    {
-      this.numReplicas = numReplicas;
-      return this;
-    }
-
-    public SegmentMetadataHolder build()
-    {
-      return new SegmentMetadataHolder(this);
-    }
+    return new SegmentMetadataHolder(
+        segmentId,
+        rowSignature,
+        numRows,
+        isPublished,
+        isAvailable,
+        isRealtime,
+        numReplicas
+    );
   }
 
+  public SegmentMetadataHolder withNumRows(long numRows)
+  {
+    return new SegmentMetadataHolder(
+        segmentId,
+        rowSignature,
+        numRows,
+        isPublished,
+        isAvailable,
+        isRealtime,
+        numReplicas
+    );
+  }
+
+  public SegmentMetadataHolder withNumReplicas(long numReplicas)
+  {
+    return new SegmentMetadataHolder(
+        segmentId,
+        rowSignature,
+        numRows,
+        isPublished,
+        isAvailable,
+        isRealtime,
+        numReplicas
+    );
+  }
 }

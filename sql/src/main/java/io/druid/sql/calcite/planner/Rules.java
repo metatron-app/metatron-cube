@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.metamx.common.logger.Logger;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
@@ -37,6 +38,7 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
@@ -84,6 +86,8 @@ import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -205,15 +209,44 @@ public class Rules
           Arrays.asList(FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE),
           true, RelMetadataQuery.THREAD_PROVIDERS.get()
       );
-      return ImmutableList.of(
-          Programs.sequence(transitive, decorrelate, druidConvention),
-          Programs.sequence(transitive, decorrelate, bindableConvention)
-      );
+      Program program1 = Programs.sequence(transitive, decorrelate, druidConvention);
+      Program program2 = Programs.sequence(transitive, decorrelate, bindableConvention);
+      return ImmutableList.of(config.isDumpPlan() ? Dump.wrap(program1) : program1, program2);
     }
-    return ImmutableList.of(
-        Programs.sequence(decorrelate, druidConvention),
-        Programs.sequence(decorrelate, bindableConvention)
-    );
+    Program program1 = Programs.sequence(decorrelate, druidConvention);
+    Program program2 = Programs.sequence(decorrelate, bindableConvention);
+    return ImmutableList.of(config.isDumpPlan() ? Dump.wrap(program1) : program1, program2);
+  }
+
+  private static class Dump implements Program
+  {
+    private static final Logger LOG = new Logger(DruidPlanner.class);
+
+    static Program wrap(Program program) { return new Dump(program);}
+
+    private final Program delegated;
+
+    private Dump(Program delegated) {this.delegated = delegated;}
+
+    @Override
+    public RelNode run(
+        RelOptPlanner planner,
+        RelNode rel,
+        RelTraitSet requiredOutputTraits,
+        List<RelOptMaterialization> materializations,
+        List<RelOptLattice> lattices
+    )
+    {
+      RelNode result = delegated.run(planner, rel, requiredOutputTraits, materializations, lattices);
+      if (planner instanceof VolcanoPlanner && LOG.isInfoEnabled()) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        ((VolcanoPlanner) planner).dump(pw);
+        pw.flush();
+        LOG.info(sw.toString());
+      }
+      return result;
+    }
   }
 
   private static List<RelOptRule> druidConventionRuleSet(

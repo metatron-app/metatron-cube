@@ -35,6 +35,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_JOIN = "useJoin";
   public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
   public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
+  public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
 
   @JsonProperty
   private Period metadataRefreshPeriod = new Period("PT1M");
@@ -74,6 +75,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean projectJoinTransposeEnabled = false;  // should fix a bug (try tpch-7)
+
+  @JsonProperty
+  private boolean dumpPlan = false;
 
   public Period getMetadataRefreshPeriod()
   {
@@ -135,6 +139,11 @@ public class PlannerConfig
     return requireTimeCondition;
   }
 
+  public boolean isDumpPlan()
+  {
+    return dumpPlan;
+  }
+
   public DateTimeZone getSqlTimeZone()
   {
     return sqlTimeZone;
@@ -182,6 +191,7 @@ public class PlannerConfig
         CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE,
         isProjectJoinTransposeEnabled()
     );
+    newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
     return newConfig;
@@ -226,6 +236,7 @@ public class PlannerConfig
            transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
            projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
+           dumpPlan == that.dumpPlan &&
            Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
   }
@@ -247,6 +258,7 @@ public class PlannerConfig
         transitiveFilterOnjoinEnabled,
         projectJoinTransposeEnabled,
         requireTimeCondition,
+        dumpPlan,
         sqlTimeZone
     );
   }
@@ -267,6 +279,7 @@ public class PlannerConfig
            ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
            ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
+           ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +
            '}';
   }

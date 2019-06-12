@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -38,14 +39,17 @@ public class DruidTable implements TranslatableTable
 {
   private final DataSource dataSource;
   private final RowSignature rowSignature;
+  private final long numRows;
 
   public DruidTable(
       final DataSource dataSource,
-      final RowSignature rowSignature
+      final RowSignature rowSignature,
+      final long numRows
   )
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.rowSignature = Preconditions.checkNotNull(rowSignature, "rowSignature");
+    this.numRows = numRows;
   }
 
   public DataSource getDataSource()
@@ -67,7 +71,7 @@ public class DruidTable implements TranslatableTable
   @Override
   public Statistic getStatistic()
   {
-    return Statistics.UNKNOWN;
+    return Statistics.of(numRows, ImmutableList.of());
   }
 
   @Override
