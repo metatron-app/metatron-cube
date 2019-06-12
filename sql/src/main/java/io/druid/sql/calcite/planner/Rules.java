@@ -20,7 +20,9 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
@@ -36,13 +38,19 @@ import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.plan.hep.HepProgram;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
+import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
@@ -61,6 +69,8 @@ import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
+import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
+import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
@@ -93,6 +103,8 @@ import java.util.List;
 
 public class Rules
 {
+  static final Logger LOG = new Logger(DruidPlanner.class);
+
   public static final int DRUID_CONVENTION_RULES = 0;
   public static final int BINDABLE_CONVENTION_RULES = 1;
 
@@ -191,42 +203,90 @@ public class Rules
     // No instantiation.
   }
 
+  private static final boolean NO_DAG = true;
+  private static final int MIN_JOIN_REORDER = 4;
+
   public static List<Program> programs(final PlannerContext plannerContext, final QueryMaker queryMaker)
   {
+    // see HiveDefaultRelMetadataProvider
     RelMetadataQuery.THREAD_PROVIDERS.set(JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
-        ImmutableList.of(HiveRelMdPredicates.SOURCE)
+        ImmutableList.of(HiveRelMdPredicates.SOURCE, DefaultRelMetadataProvider.INSTANCE)
     )));
-    Program decorrelate = Programs.sequence(
-        Programs.subQuery(RelMetadataQuery.THREAD_PROVIDERS.get()),
-        new DecorrelateAndTrimFieldsProgram()
-    );
-    Program druidConvention = Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker));
-    Program bindableConvention = Programs.ofRules(bindableConventionRuleSet(plannerContext, queryMaker));
 
+    RelMetadataProvider provider = RelMetadataQuery.THREAD_PROVIDERS.get();
     PlannerConfig config = plannerContext.getPlannerConfig();
-    if (config.isTransitiveFilterOnjoinEnabled()) {
-      Program transitive = Programs.hep(
-          Arrays.asList(FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE),
-          true, RelMetadataQuery.THREAD_PROVIDERS.get()
-      );
-      Program program1 = Programs.sequence(transitive, decorrelate, druidConvention);
-      Program program2 = Programs.sequence(transitive, decorrelate, bindableConvention);
-      return ImmutableList.of(config.isDumpPlan() ? Dump.wrap(program1) : program1, program2);
+
+    List<RelOptRule> baseRules = baseRuleSet(plannerContext, queryMaker);
+    List<Program> programs = Lists.newArrayList();
+    if (config.isJoinReorderingEnabled()) {
+      programs.add(new Program()
+      {
+        @Override
+        public RelNode run(
+            RelOptPlanner planner,
+            RelNode rel,
+            RelTraitSet requiredOutputTraits,
+            List<RelOptMaterialization> materializations,
+            List<RelOptLattice> lattices
+        )
+        {
+          // copied from Programs.heuristicJoinOrder()
+          if (RelOptUtil.countJoins(rel) < MIN_JOIN_REORDER) {
+            return rel;
+          }
+          final HepProgram hep = new HepProgramBuilder()
+              .addRuleInstance(FilterJoinRule.FILTER_ON_JOIN)
+              .addMatchOrder(HepMatchOrder.BOTTOM_UP)
+              .addRuleInstance(JoinToMultiJoinRule.INSTANCE)
+              .addRuleInstance(LoptOptimizeJoinRule.INSTANCE)   // or MultiJoinOptimizeBushyRule
+              .build();
+          final Program program = Programs.of(hep, false, DefaultRelMetadataProvider.INSTANCE);
+          return program.run(planner, rel, requiredOutputTraits, materializations, lattices);
+        }
+      });
     }
-    Program program1 = Programs.sequence(decorrelate, druidConvention);
-    Program program2 = Programs.sequence(decorrelate, bindableConvention);
+    if (config.isTransitiveFilterOnjoinEnabled()) {
+      programs.add(Programs.hep(
+          Arrays.asList(FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE),
+          NO_DAG, provider
+      ));
+    }
+    programs.add(Programs.subQuery(provider));
+    programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
+
+    Program druidConvention = Programs.ofRules(GuavaUtils.concat(baseRules, DruidRelToDruidRule.instance()));
+    Program bindableConvention = Programs.ofRules(GuavaUtils.concat(baseRules, Bindables.RULES));
+
+    Program program1 = Programs.sequence(GuavaUtils.concatArray(programs, druidConvention));
+    Program program2 = Programs.sequence(GuavaUtils.concatArray(programs, bindableConvention));
+
     return ImmutableList.of(config.isDumpPlan() ? Dump.wrap(program1) : program1, program2);
   }
 
-  private static class Dump implements Program
+  private static class Delegated implements Program
   {
-    private static final Logger LOG = new Logger(DruidPlanner.class);
+    final Program delegated;
 
+    private Delegated(Program delegated) {this.delegated = delegated;}
+
+    @Override
+    public RelNode run(
+        RelOptPlanner planner,
+        RelNode rel,
+        RelTraitSet requiredOutputTraits,
+        List<RelOptMaterialization> materializations,
+        List<RelOptLattice> lattices
+    )
+    {
+      return delegated.run(planner, rel, requiredOutputTraits, materializations, lattices);
+    }
+  }
+
+  private static class Dump extends Delegated
+  {
     static Program wrap(Program program) { return new Dump(program);}
 
-    private final Program delegated;
-
-    private Dump(Program delegated) {this.delegated = delegated;}
+    private Dump(Program delegated) {super(delegated);}
 
     @Override
     public RelNode run(
@@ -277,7 +337,7 @@ public class Rules
   )
   {
     final PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
-    final ImmutableList.Builder<RelOptRule> rules = ImmutableList.builder();
+    final List<RelOptRule> rules = Lists.newArrayList();
 
     // Calcite rules.
     rules.addAll(DEFAULT_RULES);
@@ -318,13 +378,15 @@ public class Rules
       rules.add(DruidJoinRule.instance());
     }
 
-    return rules.build();
+    return rules;
   }
 
   // Based on Calcite's Programs.DecorrelateProgram and Programs.TrimFieldsProgram, which are private and only
   // accessible through Programs.standard (which we don't want, since it also adds Enumerable rules).
   private static class DecorrelateAndTrimFieldsProgram implements Program
   {
+    static final DecorrelateAndTrimFieldsProgram INSTANCE = new DecorrelateAndTrimFieldsProgram();
+
     @Override
     public RelNode run(
         RelOptPlanner planner,
