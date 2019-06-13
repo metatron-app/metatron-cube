@@ -1218,10 +1218,12 @@ public class Druids
 
     public JoinQuery build()
     {
+      final Map<String, DataSource> normalize = JoinQuery.normalize(dataSources);
+      final List<JoinElement> validated = JoinQuery.validateElements(normalize, elements);
       return new JoinQuery(
-          dataSources,
+          normalize,
           querySegmentSpec,
-          elements,
+          validated,
           prefixAlias,
           asArray,
           timeColumnName,

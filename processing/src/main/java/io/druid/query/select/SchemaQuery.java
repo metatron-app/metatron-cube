@@ -37,7 +37,7 @@ public class SchemaQuery extends BaseQuery<Schema>
 {
   public static SchemaQuery of(String dataSource)
   {
-    return of(dataSource, null);
+    return new SchemaQuery(TableDataSource.of(dataSource), null, null);
   }
 
   public static SchemaQuery of(String dataSource, QuerySegmentSpec segmentSpec)
@@ -47,6 +47,14 @@ public class SchemaQuery extends BaseQuery<Schema>
         segmentSpec,
         ImmutableMap.<String, Object>of("allDimensionsForEmpty", false, "allMetricsForEmpty", false)
     );
+  }
+
+  public static SchemaQuery of(String dataSource, Query source)
+  {
+    Map<String, Object> context = BaseQuery.copyContextForMeta(source);
+    context.put("allDimensionsForEmpty", false);
+    context.put("allMetricsForEmpty", false);
+    return new SchemaQuery(TableDataSource.of(dataSource), source.getQuerySegmentSpec(), context);
   }
 
   @JsonCreator

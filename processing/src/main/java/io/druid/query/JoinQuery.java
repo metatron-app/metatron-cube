@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -64,7 +63,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final int maxRowsInGroup;
 
   @JsonCreator
-  public JoinQuery(
+  JoinQuery(
       @JsonProperty("dataSources") Map<String, DataSource> dataSources,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("elements") List<JoinElement> elements,
@@ -76,30 +75,17 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
-    this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
+    super(UnionDataSource.of(JoinElement.getAliases(elements)), querySegmentSpec, false, context);
+    this.dataSources = dataSources;
     this.prefixAlias = prefixAlias;
     this.asArray = asArray;
     this.timeColumnName = timeColumnName;
-    this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
+    this.elements = elements;
     this.limit = limit;
     this.maxRowsInGroup = maxRowsInGroup;
   }
 
-  // dummy datasource for authorization
-  private static DataSource toDummyDataSource(Map<String, DataSource> dataSources)
-  {
-    Set<String> names = Sets.newLinkedHashSet();
-    for (DataSource dataSource : dataSources.values()) {
-      names.addAll(Preconditions.checkNotNull(dataSource).getNames());
-    }
-    return names.size() == 1 ? TableDataSource.of(Iterables.getOnlyElement(names)) : UnionDataSource.of(names);
-  }
-
-  private static Map<String, DataSource> validateDataSources(
-      Map<String, DataSource> dataSources,
-      QuerySegmentSpec segmentSpec
-  )
+  static Map<String, DataSource> normalize(Map<String, DataSource> dataSources)
   {
     Map<String, DataSource> validated = Maps.newHashMap();
     for (Map.Entry<String, DataSource> entry : dataSources.entrySet()) {
@@ -112,7 +98,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return validated;
   }
 
-  private static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
+  static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
   {
     Preconditions.checkArgument(!elements.isEmpty());
     List<JoinElement> rewrite = Lists.newArrayList();
@@ -254,7 +240,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             "prefixAlias", prefixAlias,
             "maxRowsInGroup", maxRowsInGroup
         ),
-        new TypeReference<XJoinPostProcessor>() {}
+        new TypeReference<XJoinPostProcessor>()
+        {
+        }
     );
     int threshold = queryConfig.getJoin().getHashJoinThreshold();
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);

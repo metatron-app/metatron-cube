@@ -322,8 +322,8 @@ public class WindowingSpec implements Cacheable
   {
     return "WindowingSpec{" +
            "partitionColumns=" + partitionColumns +
-           ", sortingColumns=" + sortingColumns +
-           ", expressions=" + expressions +
+           (GuavaUtils.isNullOrEmpty(sortingColumns) ? "" : ", sortingColumns=" + sortingColumns) +
+           (GuavaUtils.isNullOrEmpty(expressions) ? "" : ", expressions=" + expressions) +
            (flattenSpec == null ? "" : ", flattenSpec=" + flattenSpec) +
            (pivotSpec == null ? "" : ", pivotSpec=" + pivotSpec) +
            '}';

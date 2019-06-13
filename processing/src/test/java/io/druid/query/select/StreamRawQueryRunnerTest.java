@@ -58,7 +58,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
   @Parameterized.Parameters(name = "{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
+    return cartesian(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
   }
 
   private final String dataSource;

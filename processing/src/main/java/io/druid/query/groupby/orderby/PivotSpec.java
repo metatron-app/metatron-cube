@@ -317,9 +317,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            "pivotColumns=" + pivotColumns +
            ", valueColumns=" + valueColumns +
            ", separator=" + separator +
-           ", nullValue=" + nullValue +
-           ", rowExpressions=" + rowExpressions +
-           ", partitionExpressions=" + partitionExpressions +
+           (StringUtils.isNullOrEmpty(nullValue) ? "" : ", nullValue=" + nullValue) +
+           (GuavaUtils.isNullOrEmpty(rowExpressions) ? "" : ", rowExpressions='" + rowExpressions + '\'') +
+           (GuavaUtils.isNullOrEmpty(partitionExpressions) ? "" : ", partitionExpressions='" + partitionExpressions + '\'') +
            ", tabularFormat=" + tabularFormat +
            ", appendValueColumn=" + appendValueColumn +
            '}';

@@ -232,7 +232,7 @@ public class PivotColumnSpec extends OrderingSpec
   {
     return "PivotColumnSpec{" +
            "direction=" + direction + '\'' +
-           (dimension == null ? "" : "dimension='" + dimension + '\'') +
+           (dimension == null ? "" : ", dimension='" + dimension + '\'') +
            (expression == null ? "" : ", expression='" + expression + '\'') +
            (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
            (values == null ? "" : ", values=" + values) +

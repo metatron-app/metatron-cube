@@ -58,6 +58,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
+import org.python.google.common.collect.ImmutableMap;
 
 import java.util.EnumSet;
 import java.util.Iterator;
@@ -114,10 +115,9 @@ public class QueryUtils
   {
     // this is for queries no need of resolving something like summary or covariance query
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
-    Map<String, Object> context = BaseQuery.copyContextForMeta(query);
-    context.put(Query.BY_SEGMENT, true);
 
-    SchemaQuery metaQuery = SchemaQuery.of(dataSource).withOverriddenContext(context);
+    SchemaQuery metaQuery = SchemaQuery.of(dataSource, query)
+                                       .withOverriddenContext(ImmutableMap.<String, Object>of(Query.BY_SEGMENT, true));
 
     Sequence sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
     final Map<String, Map<ValueDesc, MutableInt>> results = Maps.newHashMap();
@@ -388,7 +388,7 @@ public class QueryUtils
       dataSource = TableDataSource.of(((ViewDataSource) dataSource).getName());
     }
     SchemaQuery schemaQuery = SchemaQuery.of(
-        Iterables.getOnlyElement(dataSource.getNames()), query.getQuerySegmentSpec()
+        Iterables.getOnlyElement(dataSource.getNames()), query
     );
     return Sequences.only(
         schemaQuery.withOverriddenContext(BaseQuery.copyContextForMeta(query))

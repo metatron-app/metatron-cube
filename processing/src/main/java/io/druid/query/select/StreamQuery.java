@@ -235,7 +235,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public boolean isSimpleProjection()
   {
-    return GuavaUtils.isNullOrEmpty(virtualColumns) && dimFilter == null && getQuerySegmentSpec() == null;
+    return GuavaUtils.isNullOrEmpty(virtualColumns) &&
+           limitSpec.isNoop() &&
+           dimFilter == null &&
+           getQuerySegmentSpec() == null;
   }
 
   Sequence<Object[]> applyLimit(Sequence<Object[]> sequence)
@@ -243,30 +246,13 @@ public class StreamQuery extends BaseQuery<Object[]>
     return limitSpec.build(this, false).apply(sequence);
   }
 
-  Sequence<Object[]> applySimpleProjection(Sequence<Object[]> sequence, List<String> outputColumns)
+  Sequence<Object[]> applySimpleProjection(Sequence<Object[]> sequence, List<String> inputColumns)
   {
-    sequence = applyLimit(sequence);
-    if (!GuavaUtils.isNullOrEmpty(columns) && !outputColumns.equals(columns)) {
-      final int[] mapping = new int[columns.size()];
-      for (int i = 0; i < mapping.length; i++) {
-        mapping[i] = outputColumns.indexOf(columns.get(i));
-      }
-      sequence = Sequences.map(sequence, new Function<Object[], Object[]>()
-      {
-        @Override
-        public Object[] apply(Object[] input)
-        {
-          final Object[] output = new Object[mapping.length];
-          for (int i = 0; i < mapping.length; i++) {
-            if (mapping[i] >= 0) {
-              output[i] = input[mapping[i]];
-            }
-          }
-          return output;
-        }
-      });
+    StreamQuery query = this;
+    if (GuavaUtils.isNullOrEmpty(query.getOutputColumns())) {
+      query = query.withOutputColumns(query.getColumns());
     }
-    return sequence;
+    return query.withColumns(inputColumns).applyLimit(sequence);
   }
 
   @Override
@@ -304,6 +290,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery removePostActions()
   {
+    LimitSpec modified = limitSpec;
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      modified = modified.withNoProcessing();
+    }
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
@@ -312,9 +302,9 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getConcatString(),
-        getLimitSpec().withNoProcessing(),
-        getOutputColumns(),
-        computeOverriddenContext(contextRemover(POST_PROCESSING))
+        modified,
+        null,
+        computeOverriddenContext(defaultPostActionContext())
     );
   }
 
@@ -416,6 +406,22 @@ public class StreamQuery extends BaseQuery<Object[]>
         getConcatString(),
         getLimitSpec(),
         getOutputColumns(),
+        getContext()
+    );
+  }
+
+  public StreamQuery withOutputColumns(List<String> outputColumns)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getColumns(),
+        getVirtualColumns(),
+        getConcatString(),
+        getLimitSpec(),
+        outputColumns,
         getContext()
     );
   }

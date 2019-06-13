@@ -58,7 +58,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
   @Parameterized.Parameters(name = "{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
+    return cartesian(Arrays.asList(TestIndex.DS_NAMES), Arrays.asList(false, true));
   }
 
   private final String dataSource;
@@ -142,7 +142,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
         .columns(Arrays.asList("__time", "market", "quality", "index", "indexMin"))
         .intervals(I_0112_0114)
         .limitSpec(
-            LimitSpec.of(10).withWindowing(
+            LimitSpec.of(
                 new WindowingSpec(
                     Arrays.asList("market"),
                     OrderByColumnSpec.descending("market", "__time", "quality"),
@@ -150,8 +150,10 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
                 )
             )
         );
+    String[] expected;
+    List<Object[]> results;
 
-    String[] expected = new String[]{
+    expected = new String[]{
         "[1294876800000, upfront, premium, 1564.61767578125, 1564.6177, 0.0, 1564.61767578125]",
         "[1294876800000, upfront, mezzanine, 826.0601806640625, 826.0602, -738.5574951171875, 2390.6778564453125]",
         "[1294790400000, upfront, premium, 800.0, 800.0, -26.0601806640625, 3190.6778564453125]",
@@ -163,7 +165,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
         "[1294876800000, spot, travel, 106.23693084716797, 106.23693, 0.0, 106.23693084716797]",
         "[1294876800000, spot, technology, 111.35667419433594, 111.356674, 5.119743347167969, 217.5936050415039]"
     };
-    List<Object[]> results = runQuery(builder.streaming());
+    results = runQuery(builder.streaming());
     for (int i = 0; i < expected.length; i++) {
       Assert.assertEquals(i + 1 + " th", expected[i], Arrays.toString(results.get(i)));
     }
@@ -254,14 +256,12 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     }
 
     builder.limitSpec(
-        new LimitSpec(
-            Arrays.asList(
-                new WindowingSpec(
-                    null, OrderByColumnSpec.descending("index", "market", "quality"),
-                    "row_num = $row_num(index)",
-                    "rank = $rank(index)",
-                    "dense_rank = $dense_rank(index)"
-                )
+        LimitSpec.of(
+            new WindowingSpec(
+                null, OrderByColumnSpec.descending("index", "market", "quality"),
+                "row_num = $row_num(index)",
+                "rank = $rank(index)",
+                "dense_rank = $dense_rank(index)"
             )
         )
     );

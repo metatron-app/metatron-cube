@@ -29,8 +29,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.NotDimFilter;
-import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.SelectMetaQuery;
@@ -247,12 +245,6 @@ public class JoinElement
         if (!(query.getDataSource() instanceof QueryDataSource)) {
           query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
         }
-        if (sortColumns.size() == 1 && query instanceof Query.DimFilterSupport) {
-          // for now, apply only for one column cause it can be slower
-          query = ((Query.DimFilterSupport) query).withDimFilter(
-              NotDimFilter.of(SelectorDimFilter.of(sortColumns.get(0), null))
-          );
-        }
       }
       return query;
     }
@@ -260,6 +252,7 @@ public class JoinElement
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
+        .context(BaseQuery.copyContextForMeta(context))
         .streaming(sortColumns);
   }
 

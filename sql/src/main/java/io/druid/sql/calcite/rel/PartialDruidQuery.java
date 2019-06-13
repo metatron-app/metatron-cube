@@ -382,6 +382,9 @@ public class PartialDruidQuery
 
   private boolean supports(Sort sort)
   {
+    if (sort.offset != null || !Utils.isAllInputRef(sort.getChildExps())) {
+      return false;
+    }
     for (RelFieldCollation collation : sort.getCollation().getFieldCollations()) {
       if (collation.getDirection() != RelFieldCollation.Direction.ASCENDING &&
           collation.getDirection() != RelFieldCollation.Direction.DESCENDING) {

@@ -8,9 +8,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
@@ -21,6 +23,7 @@ import com.metamx.http.client.response.ClientResponse;
 import com.metamx.http.client.response.InputStreamResponseHandler;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
@@ -453,6 +456,7 @@ public class DruidShell implements CommonShell
         return;
       }
       if (line.equals("sql")) {
+        Map<String, String> properties = Maps.newHashMap();
         inSQL.set(true);
         while (true) {
           String sqlPart = readLine(reader, SQL_PROMPT);
@@ -464,7 +468,36 @@ public class DruidShell implements CommonShell
             if (SQL.length() == 1) {
               break;
             }
-            runSQL(brokerURLs, writer, SQL.substring(0, SQL.length() - 1));
+            String sqlString = SQL.substring(0, SQL.length() - 1).trim();
+            if (sqlString.startsWith("?")) {
+              // regard it's command
+              if (sqlString.startsWith("?set")) {
+                if (sqlString.length() == 4) {
+                  for (Map.Entry<String, String> entry : properties.entrySet()) {
+                    writer.print("     ");
+                    writer.println(entry);
+                  }
+                } else {
+                  final String[] property = sqlString.substring(4).trim().split("=");
+                  final String key = property[0].trim();
+                  if (property.length == 1) {
+                    writer.println(String.format("     %s = %s", key, properties.get(key)));
+                  } else if (property.length == 2) {
+                    final String value = property[1].trim();
+                    if (value.isEmpty()) {
+                      properties.remove(key);
+                    } else {
+                      properties.put(key, value);
+                      writer.println(String.format("     %s = %s", key, value));
+                    }
+                  } else {
+                    writer.println("     ??");
+                  }
+                }
+              }
+            } else {
+              runSQL(brokerURLs, writer, sqlString, properties);
+            }
             builder.setLength(0);
           }
         }
@@ -1010,7 +1043,7 @@ public class DruidShell implements CommonShell
           writer.println("needs sql string");
           return;
         }
-        runSQL(brokerURLs, writer, cursor.next());
+        runSQL(brokerURLs, writer, cursor.next(), null);
         break;
       }
       default:
@@ -1018,17 +1051,23 @@ public class DruidShell implements CommonShell
     }
   }
 
-  private void runSQL(List<URL> brokerURLs, PrintWriter writer, String sql)
+  private void runSQL(List<URL> brokerURLs, PrintWriter writer, String sql, Map<String, String> context)
   {
     int numRow = 0;
     long start = System.currentTimeMillis();
     try {
+      String mediaType = MediaType.TEXT_PLAIN;
+      if (!GuavaUtils.isNullOrEmpty(context)) {
+        // SqlQuery
+        sql = jsonMapper.writeValueAsString(ImmutableMap.of("query", sql, "context", context));
+        mediaType = MediaType.APPLICATION_JSON;
+      }
       boolean header = false;
       for (Map<String, Object> row : execute(
           HttpMethod.POST,
           brokerURLs.get(0),
           "/druid/v2/sql",
-          MediaType.TEXT_PLAIN,
+          mediaType,
           sql.getBytes(),
           new TypeReference<List<Map<String, Object>>>() {}
       )) {

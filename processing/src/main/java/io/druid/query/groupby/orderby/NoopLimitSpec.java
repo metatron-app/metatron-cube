@@ -50,7 +50,8 @@ public class NoopLimitSpec extends LimitSpec
   @Override
   public Function<Sequence<Object[]>, Sequence<Object[]>> build(StreamQuery query, boolean sortOnTimeForLimit)
   {
-    return Functions.identity();
+    // cause remmapping is handled for stream query, we still need to check input/output columns
+    return super.build(query, sortOnTimeForLimit);
   }
 
   @Override

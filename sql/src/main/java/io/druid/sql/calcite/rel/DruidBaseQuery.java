@@ -160,7 +160,7 @@ public class DruidBaseQuery implements DruidQuery
       inputRowSignature = grouping.getOutputRowSignature();
     }
 
-    this.limiting = computeLimitSpec(partialQuery, plannerContext, inputRowSignature);
+    this.limiting = computeLimiting(partialQuery, plannerContext, inputRowSignature);
     if (limiting != null) {
       inputRowSignature = limiting.getOutputRowSignature();
     }
@@ -182,7 +182,8 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   private static Filtration computeWhereFilter(
       final PartialDruidQuery partialQuery,
-      final PlannerContext plannerContext, final RowSignature sourceRowSignature
+      final PlannerContext plannerContext,
+      final RowSignature sourceRowSignature
   )
   {
     final Filter whereFilter = partialQuery.getScanFilter();
@@ -341,12 +342,12 @@ public class DruidBaseQuery implements DruidQuery
 
   @Nullable
   private static List<Windowing> computeWindowing(
-      Window window,
-      PlannerContext plannerContext,
-      RowSignature rowSignature
+      final Window window,
+      final PlannerContext plannerContext,
+      final RowSignature sourceRowSignature
   )
   {
-    final List<String> rowOrdering = rowSignature.getRowOrder();
+    final List<String> rowOrdering = sourceRowSignature.getRowOrder();
     final List<Windowing> windowings = Lists.newArrayList();
 
     int counter = 0;
@@ -373,7 +374,7 @@ public class DruidBaseQuery implements DruidQuery
       }
       for (AggregateCall aggCall : group.getAggregateCalls(window)) {
         final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
-            plannerContext, rowSignature, aggCall, null
+            plannerContext, sourceRowSignature, aggCall, null
         );
         final String expression = DruidExpression.functionCall(aggCall.getAggregation().getName(), arguments);
         expressions.add(StringUtils.format("\"%s\" = %s", aggCall.getName(), expression));
@@ -630,7 +631,7 @@ public class DruidBaseQuery implements DruidQuery
   }
 
   @Nullable
-  private static Limiting computeLimitSpec(
+  private static Limiting computeLimiting(
       final PartialDruidQuery partialQuery,
       final PlannerContext plannerContext,
       final RowSignature inputRowSignature

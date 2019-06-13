@@ -131,12 +131,10 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public DruidQuery toDruidQueryForExplaining()
   {
+    // cannot use toDruidQuery() cause sourceRel is in Druid convension..
     return partialQuery.build(
         DUMMY_DATA_SOURCE,
-        RowSignature.from(
-            sourceRel.getRowType().getFieldNames(),
-            sourceRel.getRowType()
-        ),
+        RowSignature.from(sourceRel.getRowType()),
         getPlannerContext(),
         getCluster().getRexBuilder(),
         false

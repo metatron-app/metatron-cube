@@ -51,27 +51,12 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
     return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence<Object[]> run(
-          Query<Object[]> query, Map<String, Object> responseContext
-      )
-      {
-        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          query = query.removePostActions();
-        }
-        return queryRunner.run(query, responseContext);
-      }
-    };
-  }
-
-  @Override
-  public QueryRunner<Object[]> finalQueryDecoration(final QueryRunner<Object[]> runner)
-  {
-    return new QueryRunner<Object[]>()
-    {
-      @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        return ((StreamQuery) query).applyLimit(runner.run(query, responseContext));
+        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+          return ((StreamQuery) query).applyLimit(queryRunner.run(query.removePostActions(), responseContext));
+        }
+        return queryRunner.run(query, responseContext);
       }
     };
   }

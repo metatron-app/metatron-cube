@@ -83,8 +83,13 @@ public class RowSignature implements TypeResolver
 
   public static RowSignature from(final RelDataType rowType)
   {
-    final RowSignature.Builder rowSignatureBuilder = builder();
-    for (RelDataTypeField field : rowType.getFieldList()) {
+    return from(rowType.getFieldList());
+  }
+
+  public static RowSignature from(final Iterable<RelDataTypeField> fieldList)
+  {
+    final Builder rowSignatureBuilder = builder();
+    for (RelDataTypeField field : fieldList) {
       final String columnName = field.getName();
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
       final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);

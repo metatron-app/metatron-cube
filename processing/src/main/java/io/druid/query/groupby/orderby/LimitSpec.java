@@ -26,12 +26,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
-import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
@@ -256,26 +256,19 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   // apply output columns for stream query here (hard to keep column names with windowing)
   public Function<Sequence<Object[]>, Sequence<Object[]>> build(StreamQuery query, boolean sortOnTimeForLimit)
   {
+    final List<String> inputColumns = query.getColumns();
     final List<String> outputColumns = query.getOutputColumns();
-    if (columns.isEmpty() && windowingSpecs.isEmpty()) {
+    if (windowingSpecs.isEmpty()) {
+      // ordering is ignored cause it's regarded as already done.. looks like need some flag or something
       Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(limit);
       if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-        function = GuavaUtils.sequence(function, Sequences.mapper(remap(query.getColumns(), outputColumns)));
+        function = GuavaUtils.sequence(function, Sequences.mapper(remap(inputColumns, outputColumns)));
       }
       return function;
-    }
-    if (windowingSpecs.isEmpty()) {
-      Function<Sequence<Object[]>, Sequence<Object[]>> function = new SortingArrayFn(query.getResultOrdering(), limit);
-      if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-        function = GuavaUtils.sequence(function, Sequences.mapper(remap(query.getColumns(), outputColumns)));
-      }
-      return function;
-    }
-    if (resolver == null) {
-      throw new ISE("Resolver is missing ?");
     }
 
-    final List<String> inputColumns = query.getColumns();
+    Preconditions.checkNotNull(resolver, "Resolver is missing ?");
+
     final Function<Object[], Row> toRow = GroupByQueryEngine.arrayToRow(inputColumns);
     final WindowingProcessor processor = new WindowingProcessor(query, resolver.get(), windowingSpecs);
 
@@ -389,9 +382,9 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return new Function<Object[], Object[]>()
     {
       @Override
-      public Object[] apply(Object[] input)
+      public Object[] apply(final Object[] input)
       {
-        Object[] output = new Object[mapping.length];
+        final Object[] output = new Object[mapping.length];
         for (int i = 0; i < mapping.length; i++) {
           if (mapping[i] >= 0) {
             output[i] = input[mapping[i]];

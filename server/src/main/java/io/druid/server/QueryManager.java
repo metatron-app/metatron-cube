@@ -264,7 +264,8 @@ public class QueryManager implements QueryWatcher, Runnable
       }
       List<Timer> filtered = Lists.newArrayList(
           Iterables.filter(
-              timers.values(), new Predicate<Timer>()
+              Lists.<Timer>newArrayList(timers.values()),
+              new Predicate<Timer>()
               {
                 @Override
                 public boolean apply(Timer input)
