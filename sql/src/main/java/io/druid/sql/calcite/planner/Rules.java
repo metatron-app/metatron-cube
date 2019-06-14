@@ -71,6 +71,7 @@ import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
+import org.apache.calcite.rel.rules.MultiJoinOptimizeBushyRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
@@ -216,9 +217,10 @@ public class Rules
     RelMetadataProvider provider = RelMetadataQuery.THREAD_PROVIDERS.get();
     PlannerConfig config = plannerContext.getPlannerConfig();
 
-    List<RelOptRule> baseRules = baseRuleSet(plannerContext, queryMaker);
     List<Program> programs = Lists.newArrayList();
     if (config.isJoinReorderingEnabled()) {
+      RelOptRule reordering =
+          config.isJoinReorderingBush() ? MultiJoinOptimizeBushyRule.INSTANCE : LoptOptimizeJoinRule.INSTANCE;
       programs.add(new Program()
       {
         @Override
@@ -238,7 +240,7 @@ public class Rules
               .addRuleInstance(FilterJoinRule.FILTER_ON_JOIN)
               .addMatchOrder(HepMatchOrder.BOTTOM_UP)
               .addRuleInstance(JoinToMultiJoinRule.INSTANCE)
-              .addRuleInstance(LoptOptimizeJoinRule.INSTANCE)   // or MultiJoinOptimizeBushyRule
+              .addRuleInstance(reordering)
               .build();
           final Program program = Programs.of(hep, false, DefaultRelMetadataProvider.INSTANCE);
           return program.run(planner, rel, requiredOutputTraits, materializations, lattices);
@@ -254,6 +256,7 @@ public class Rules
     programs.add(Programs.subQuery(provider));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
+    List<RelOptRule> baseRules = baseRuleSet(plannerContext, queryMaker);
     Program druidConvention = Programs.ofRules(GuavaUtils.concat(baseRules, DruidRelToDruidRule.instance()));
     Program bindableConvention = Programs.ofRules(GuavaUtils.concat(baseRules, Bindables.RULES));
 

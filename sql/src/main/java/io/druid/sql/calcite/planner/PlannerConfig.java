@@ -36,6 +36,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
   public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
+  public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
 
   @JsonProperty
@@ -79,6 +80,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean joinReorderingEnabled = false;
+
+  @JsonProperty
+  private boolean joinReorderingBush = false;
 
   @JsonProperty
   private boolean dumpPlan = false;
@@ -143,6 +147,11 @@ public class PlannerConfig
     return joinReorderingEnabled;
   }
 
+  public boolean isJoinReorderingBush()
+  {
+    return joinReorderingBush;
+  }
+
   public boolean isRequireTimeCondition()
   {
     return requireTimeCondition;
@@ -205,6 +214,11 @@ public class PlannerConfig
         CTX_KEY_USE_JOIN_REORDERING,
         isJoinReorderingEnabled()
     );
+    newConfig.joinReorderingBush = getContextBoolean(
+        context,
+        CTX_KEY_USE_JOIN_REORDERING_BUSH,
+        isJoinReorderingBush()
+    );
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
@@ -250,6 +264,7 @@ public class PlannerConfig
            transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
            projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
            joinReorderingEnabled == that.joinReorderingEnabled &&
+           joinReorderingBush == that.joinReorderingBush &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
@@ -273,6 +288,7 @@ public class PlannerConfig
         transitiveFilterOnjoinEnabled,
         projectJoinTransposeEnabled,
         joinReorderingEnabled,
+        joinReorderingBush,
         requireTimeCondition,
         dumpPlan,
         sqlTimeZone
@@ -295,6 +311,7 @@ public class PlannerConfig
            ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
            ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +
            ", joinReorderingEnabled=" + joinReorderingEnabled +
+           ", joinReorderingBush=" + joinReorderingBush +
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +
