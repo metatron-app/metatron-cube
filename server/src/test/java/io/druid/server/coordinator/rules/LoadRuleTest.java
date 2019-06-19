@@ -287,7 +287,7 @@ public class LoadRuleTest
         "hot",
         0
     );
-    server1.addDataSegment(segment.getIdentifier(), segment);
+    server1.addDataSegment(segment);
     DruidServer server2 = new DruidServer(
         "serverNorm",
         "hostNorm",
@@ -296,7 +296,7 @@ public class LoadRuleTest
         DruidServer.DEFAULT_TIER,
         0
     );
-    server2.addDataSegment(segment.getIdentifier(), segment);
+    server2.addDataSegment(segment);
     DruidCluster druidCluster = new DruidCluster(
         ImmutableMap.of(
             "hot",
@@ -503,8 +503,8 @@ public class LoadRuleTest
         "hot",
         0
     );
-    server1.addDataSegment(segment.getIdentifier(), segment);
-    server2.addDataSegment(segment.getIdentifier(), segment);
+    server1.addDataSegment(segment);
+    server2.addDataSegment(segment);
 
     DruidCluster druidCluster = new DruidCluster(
         ImmutableMap.of(

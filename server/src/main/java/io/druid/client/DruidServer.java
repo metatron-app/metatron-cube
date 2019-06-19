@@ -29,7 +29,6 @@ import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,9 +67,6 @@ public class DruidServer implements Comparable
   private final DruidServerMetadata metadata;
 
   private volatile long currSize;
-
-  @GuardedBy("lock")
-  private ImmutableDruidServer immutableView;
 
   public DruidServer(
       DruidNode node,
@@ -165,8 +161,10 @@ public class DruidServer implements Comparable
     return segments.get(segmentName);
   }
 
-  public DruidServer addDataSegment(String segmentId, DataSegment segment)
+  public DruidServer addDataSegment(DataSegment segment)
   {
+    final String segmentId = segment.getIdentifier();
+
     synchronized (lock) {
       DataSegment shouldNotExist = segments.get(segmentId);
 
@@ -175,7 +173,6 @@ public class DruidServer implements Comparable
         return this;
       }
 
-      immutableView = null;
       String dataSourceName = segment.getDataSource();
       DruidDataSource dataSource = dataSources.get(dataSourceName);
 
@@ -187,7 +184,7 @@ public class DruidServer implements Comparable
         dataSources.put(dataSourceName, dataSource);
       }
 
-      dataSource.addSegment(segmentId, segment);
+      dataSource.addSegment(segment);
 
       segments.put(segmentId, segment);
       currSize += segment.getSize();
@@ -198,9 +195,8 @@ public class DruidServer implements Comparable
   public DruidServer addDataSegments(DruidServer server)
   {
     synchronized (lock) {
-      immutableView = null;
       for (Map.Entry<String, DataSegment> entry : server.segments.entrySet()) {
-        addDataSegment(entry.getKey(), entry.getValue());
+        addDataSegment(entry.getValue());
       }
     }
     return this;
@@ -227,7 +223,6 @@ public class DruidServer implements Comparable
         );
         return this;
       }
-      immutableView = null;
 
       dataSource.removeSegment(segmentId);
 
@@ -298,28 +293,23 @@ public class DruidServer implements Comparable
 
   public ImmutableDruidServer toImmutableDruidServer()
   {
-    synchronized (lock) {
-      if (immutableView == null) {
-        immutableView = new ImmutableDruidServer(
-            metadata,
-            currSize,
-            ImmutableMap.copyOf(
-                Maps.transformValues(
-                    dataSources,
-                    new Function<DruidDataSource, ImmutableDruidDataSource>()
-                    {
-                      @Override
-                      public ImmutableDruidDataSource apply(DruidDataSource input)
-                      {
-                        return input.toImmutableDruidDataSource();
-                      }
-                    }
-                )
-            ),
-            ImmutableMap.copyOf(segments)
-        );
-      }
-      return immutableView;
-    }
+    return new ImmutableDruidServer(
+        metadata,
+        currSize,
+        ImmutableMap.copyOf(
+            Maps.transformValues(
+                dataSources,
+                new Function<DruidDataSource, ImmutableDruidDataSource>()
+                {
+                  @Override
+                  public ImmutableDruidDataSource apply(DruidDataSource input)
+                  {
+                    return input.toImmutableDruidDataSource();
+                  }
+                }
+            )
+        ),
+        ImmutableMap.copyOf(segments)
+    );
   }
 }

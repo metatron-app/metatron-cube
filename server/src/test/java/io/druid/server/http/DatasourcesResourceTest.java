@@ -116,13 +116,13 @@ public class DatasourcesResourceTest
     );
     listDataSources = new ArrayList<>();
     listDataSources.add(
-        new DruidDataSource("datasource1", new HashMap()).addSegment("part1", dataSegmentList.get(0))
+        new DruidDataSource("datasource1", new HashMap()).addSegment(dataSegmentList.get(0))
     );
     listDataSources.add(
-        new DruidDataSource("datasource2", new HashMap()).addSegment("part1", dataSegmentList.get(1))
+        new DruidDataSource("datasource2", new HashMap()).addSegment(dataSegmentList.get(1))
     );
     listDataSources.add(
-        new DruidDataSource("datasource3", new HashMap()).addSegment("part1", dataSegmentList.get(2))
+        new DruidDataSource("datasource3", new HashMap()).addSegment(dataSegmentList.get(2))
     );
   }
 
@@ -287,7 +287,6 @@ public class DatasourcesResourceTest
   {
     DruidDataSource dataSource1 = new DruidDataSource("datasource1", new HashMap());
     dataSource1.addSegment(
-        "partition",
         new DataSegment("datasegment1", new Interval("2010-01-01/P1D"), null, null, null, null, null, 0x9, 10)
     );
     EasyMock.expect(server.getDataSource("datasource1")).andReturn(
@@ -358,9 +357,9 @@ public class DatasourcesResourceTest
   public void testGetSegmentDataSourceIntervals()
   {
     server = new DruidServer("who", "host", 1234, "historical", "tier1", 0);
-    server.addDataSegment(dataSegmentList.get(0).getIdentifier(), dataSegmentList.get(0));
-    server.addDataSegment(dataSegmentList.get(1).getIdentifier(), dataSegmentList.get(1));
-    server.addDataSegment(dataSegmentList.get(2).getIdentifier(), dataSegmentList.get(2));
+    server.addDataSegment(dataSegmentList.get(0));
+    server.addDataSegment(dataSegmentList.get(1));
+    server.addDataSegment(dataSegmentList.get(2));
     EasyMock.expect(inventoryView.getInventory()).andReturn(
         ImmutableList.of(server)
     ).atLeastOnce();
@@ -408,9 +407,9 @@ public class DatasourcesResourceTest
   public void testGetSegmentDataSourceSpecificInterval()
   {
     server = new DruidServer("who", "host", 1234, "historical", "tier1", 0);
-    server.addDataSegment(dataSegmentList.get(0).getIdentifier(), dataSegmentList.get(0));
-    server.addDataSegment(dataSegmentList.get(1).getIdentifier(), dataSegmentList.get(1));
-    server.addDataSegment(dataSegmentList.get(2).getIdentifier(), dataSegmentList.get(2));
+    server.addDataSegment(dataSegmentList.get(0));
+    server.addDataSegment(dataSegmentList.get(1));
+    server.addDataSegment(dataSegmentList.get(2));
     EasyMock.expect(inventoryView.getInventory()).andReturn(
         ImmutableList.of(server)
     ).atLeastOnce();

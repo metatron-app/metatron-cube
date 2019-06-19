@@ -23,8 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -73,7 +71,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  */
@@ -88,7 +85,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private final ObjectMapper jsonMapper;
   private final Supplier<MetadataSegmentManagerConfig> config;
   private final Supplier<MetadataStorageTablesConfig> dbTables;
-  private final AtomicReference<ConcurrentHashMap<String, DruidDataSource>> dataSources;
+  private final ConcurrentHashMap<String, DruidDataSource> dataSources;
   private final IndexerSQLMetadataStorageCoordinator metaDataCoordinator;
   private final SQLMetadataConnector connector;
 
@@ -109,9 +106,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     this.jsonMapper = jsonMapper;
     this.config = config;
     this.dbTables = dbTables;
-    this.dataSources = new AtomicReference<>(
-        new ConcurrentHashMap<String, DruidDataSource>()
-    );
+    this.dataSources = new ConcurrentHashMap<String, DruidDataSource>();
     this.metaDataCoordinator = metaDataCoordinator;
     this.connector = connector;
   }
@@ -159,7 +154,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       }
 
       started = false;
-      dataSources.set(new ConcurrentHashMap<String, DruidDataSource>());
+      dataSources.clear();
       future.cancel(false);
       future = null;
       exec.shutdownNow();
@@ -329,7 +324,6 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public boolean disableDatasource(final String ds)
   {
-    final Map<String, DruidDataSource> dataSourceMap = dataSources.get();
     final String sql = String.format("UPDATE %s SET used=false WHERE dataSource = :dataSource", getSegmentsTable());
 
     try {
@@ -345,7 +339,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
             }
           }
       );
-      dataSourceMap.remove(ds);
+      dataSources.remove(ds);
       return update > 0;
     }
     catch (Exception e) {
@@ -417,19 +411,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
       );
 
-      ConcurrentHashMap<String, DruidDataSource> dataSourceMap = dataSources.get();
-
-      DruidDataSource dataSource = dataSourceMap.get(ds);
+      DruidDataSource dataSource = dataSources.get(ds);
       if (dataSource == null) {
         log.warn("Cannot find datasource %s", ds);
         return false;
       }
 
       dataSource.removeSegment(segmentId);
-
-      if (dataSource.isEmpty()) {
-        dataSourceMap.remove(ds);
-      }
     }
     catch (Exception e) {
       log.error(e, e.toString());
@@ -487,15 +475,10 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
       );
 
-      ConcurrentHashMap<String, DruidDataSource> dataSourceMap = dataSources.get();
-
-      DruidDataSource dataSource = dataSourceMap.get(ds);
+      DruidDataSource dataSource = dataSources.get(ds);
       if (dataSource != null) {
         for (String segmentId : disabled) {
           dataSource.removeSegment(segmentId);
-        }
-        if (dataSource.isEmpty()) {
-          dataSourceMap.remove(ds);
         }
       }
       return disabled.size();
@@ -522,13 +505,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public DruidDataSource getInventoryValue(String key)
   {
-    return dataSources.get().get(key);
+    return dataSources.get(key);
   }
 
   @Override
   public Collection<DruidDataSource> getInventory()
   {
-    return dataSources.get().values();
+    return dataSources.values();
   }
 
   @Override
@@ -578,8 +561,6 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
         return;
       }
 
-      ConcurrentHashMap<String, DruidDataSource> newDataSources = new ConcurrentHashMap<String, DruidDataSource>();
-
       log.debug("Starting polling of segment table");
 
       // some databases such as PostgreSQL require auto-commit turned off
@@ -594,7 +575,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
             public List<DataSegment> inTransaction(Handle handle, TransactionStatus status) throws Exception
             {
               return handle
-                  .createQuery(String.format("SELECT payload FROM %s WHERE used=true", getSegmentsTable()))
+                  .createQuery(String.format("SELECT id, payload FROM %s WHERE used=true", getSegmentsTable()))
                   .setFetchSize(connector.getStreamingFetchSize())
                   .map(
                       new ResultSetMapper<DataSegment>()
@@ -603,6 +584,16 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                         public DataSegment map(int index, ResultSet r, StatementContext ctx)
                             throws SQLException
                         {
+                          if (!dataSources.isEmpty()) {
+                            final String id = r.getString("id");
+                            final String dataSource = DataSegment.parseDateSource(id);
+                            if (dataSource != null) {
+                              final DruidDataSource source = dataSources.get(dataSource);
+                              if (source != null && source.contains(id)) {
+                                return null;
+                              }
+                            }
+                          }
                           try {
                             return jsonMapper.readValue(r.getBytes("payload"), DataSegment.class);
                           }
@@ -618,49 +609,23 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
       );
 
-      if (segments == null || segments.isEmpty()) {
-        log.warn("No segments found in the database!");
-        return;
-      }
-
-      final Collection<DataSegment> segmentsFinal = Collections2.filter(
-          segments, Predicates.notNull()
-      );
-
-      log.info("Polled and found %,d segments in the database", segments.size());
-
-      for (final DataSegment segment : segmentsFinal) {
-        String datasourceName = segment.getDataSource();
-
-        DruidDataSource dataSource = newDataSources.get(datasourceName);
-        if (dataSource == null) {
-          dataSource = new DruidDataSource(
-              datasourceName,
-              ImmutableMap.of("created", new DateTime().toString())
-          );
-
-          Object shouldBeNull = newDataSources.put(
-              datasourceName,
-              dataSource
-          );
-          if (shouldBeNull != null) {
-            log.warn(
-                "Just put key[%s] into dataSources and what was there wasn't null!?  It was[%s]",
-                datasourceName,
-                shouldBeNull
-            );
-          }
-        }
-
-        if (!dataSource.contains(segment)) {
-          dataSource.addSegment(segment.getIdentifier(), segment);
+      int counter = 0;
+      for (final DataSegment segment : Iterables.filter(segments, Predicates.notNull())) {
+        if (dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment)) {
+          counter++;
         }
       }
-
-      synchronized (lock) {
-        if (started) {
-          dataSources.set(newDataSources);
+      if (counter > 0) {
+        log.info("Polled and found new %,d segments in the database", counter);
+      }
+      final List<String> emptyDS = Lists.newArrayList();
+      for (Map.Entry<String, DruidDataSource> entry : dataSources.entrySet()) {
+        if (entry.getValue().isEmpty()) {
+          emptyDS.add(entry.getKey());
         }
+      }
+      for (String empty : emptyDS) {
+        dataSources.remove(empty);
       }
     }
     catch (Exception e) {

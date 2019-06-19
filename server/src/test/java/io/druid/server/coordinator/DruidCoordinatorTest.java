@@ -267,7 +267,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         new DruidDataSource(dataSource, Collections.<String, String>emptyMap())
     };
     final DataSegment dataSegment = new DataSegment(dataSource, new Interval("2010-01-01/P1D"), "v1", null, null, null, null, 0x9, 0);
-    druidDataSources[0].addSegment("0", dataSegment);
+    druidDataSources[0].addSegment(dataSegment);
 
     EasyMock.expect(databaseSegmentManager.isStarted()).andReturn(true).anyTimes();
     EasyMock.expect(databaseSegmentManager.getInventory()).andReturn(
@@ -314,7 +314,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
           if(pathChildrenCacheEvent.getType().equals(PathChildrenCacheEvent.Type.CHILD_ADDED)){
             //Coordinator should try to assign segment to druidServer historical
             //Simulate historical loading segment
-            druidServer.addDataSegment(dataSegment.getIdentifier(), dataSegment);
+            druidServer.addDataSegment(dataSegment);
             assignSegmentLatch.countDown();
           }
         }
@@ -380,7 +380,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         getSegment("test", new Interval("2016-01-09T10:00:00Z/2016-01-09T12:00:00Z"))
     };
     for (DataSegment segment : segments) {
-      dataSource.addSegment(segment.getIdentifier(), segment);
+      dataSource.addSegment(segment);
     }
 
     EasyMock.expect(databaseSegmentManager.getInventory()).andReturn(

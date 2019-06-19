@@ -24,16 +24,27 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.python.google.common.collect.ImmutableList;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  */
 public class DruidDataSource
 {
+  public static final Function<String, DruidDataSource> FACTORY = new Function<String, DruidDataSource>()
+  {
+    @Override
+    public DruidDataSource apply(String datasourceName)
+    {
+      return new DruidDataSource(datasourceName, ImmutableMap.of("created", new DateTime().toString()));
+    }
+  };
+
   private final String name;
   private final Map<String, String> properties;
   private final Map<String, DataSegment> segmentsMap;
@@ -70,10 +81,15 @@ public class DruidDataSource
     return segments;
   }
 
-  public synchronized DruidDataSource addSegment(String partitionName, DataSegment dataSegment)
+  public synchronized DruidDataSource addSegment(DataSegment dataSegment)
   {
-    segmentsMap.put(partitionName, dataSegment);
+    segmentsMap.put(dataSegment.getIdentifier(), dataSegment);
     return this;
+  }
+
+  public synchronized boolean addSegmentIfAbsent(DataSegment dataSegment)
+  {
+    return segmentsMap.putIfAbsent(dataSegment.getIdentifier(), dataSegment) == null;
   }
 
   public synchronized DruidDataSource addSegments(Map<String, DataSegment> partitionMap)
@@ -88,9 +104,9 @@ public class DruidDataSource
     return this;
   }
 
-  public synchronized boolean contains(DataSegment segment)
+  public synchronized boolean contains(String id)
   {
-    return segmentsMap.containsKey(segment.getIdentifier());
+    return segmentsMap.containsKey(id);
   }
 
   public synchronized boolean isEmpty()

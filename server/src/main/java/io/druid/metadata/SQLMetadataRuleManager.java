@@ -291,7 +291,9 @@ public class SQLMetadataRuleManager implements MetadataRuleManager
           )
       );
 
-      log.info("Polled and found rules for %,d datasource(s)", newRules.size());
+      if (!rules.get().equals(newRules)) {
+        log.info("Polled and found rules for %,d datasource(s)", newRules.size());
+      }
 
       rules.set(newRules);
       retryStartTime = 0;

@@ -376,7 +376,7 @@ public class ClientInfoResourceTest
                                      .metrics(metrics)
                                      .size(1)
                                      .build();
-    server.addDataSegment(segment.getIdentifier(), segment);
+    server.addDataSegment(segment);
     ServerSelector ss = new ServerSelector(segment);
     timeline.add(new Interval(interval), version, new SingleElementPartitionChunk<ServerSelector>(ss));
   }
@@ -400,7 +400,7 @@ public class ClientInfoResourceTest
                                      .shardSpec(shardSpec)
                                      .size(1)
                                      .build();
-    server.addDataSegment(segment.getIdentifier(), segment);
+    server.addDataSegment(segment);
     ServerSelector ss = new ServerSelector(segment);
     timeline.add(new Interval(interval), version, shardSpec.createChunk(ss));
   }

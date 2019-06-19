@@ -292,7 +292,7 @@ public abstract class ServerInventoryView<InventoryType> implements ServerView, 
       return;
     }
 
-    container.addDataSegment(inventory.getIdentifier(), inventory);
+    container.addDataSegment(inventory);
 
     runSegmentCallbacks(
         new Function<SegmentCallback, CallbackAction>()

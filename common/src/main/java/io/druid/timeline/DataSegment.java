@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import com.google.common.collect.Iterables;
+import io.druid.common.Intervals;
 import io.druid.jackson.CommaListJoinDeserializer;
 import io.druid.jackson.CommaListJoinSerializer;
 import io.druid.query.SegmentDescriptor;
@@ -43,6 +44,8 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -65,6 +68,41 @@ public class DataSegment implements Comparable<DataSegment>
       return input.getIdentifier();
     }
   };
+
+  private static final String ISO_TIME_REGEX = "\\d{1,4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[^_]*";
+
+  private static final Pattern INTERVAL_FRACTION =
+      Pattern.compile("_(" + ISO_TIME_REGEX + ")_(" + ISO_TIME_REGEX + ")_");
+
+  public static String parseDateSource(String identifier)
+  {
+    final Matcher matcher = INTERVAL_FRACTION.matcher(identifier);
+    return !matcher.find() ? null : identifier.substring(0, matcher.start());
+  }
+
+  public static SegmentDescriptor parse(String identifier)
+  {
+    final Matcher matcher = INTERVAL_FRACTION.matcher(identifier);
+    if (!matcher.find()) {
+      return null;
+    }
+    int index1 = matcher.start();
+    String dataSource = identifier.substring(0, index1);
+    DateTime start = DateTime.parse(matcher.group(1));
+    DateTime end = DateTime.parse(matcher.group(2));
+
+    int versionStart = matcher.end();
+    int versionEnd = identifier.indexOf('_', versionStart);
+    String version;
+    int partitionNum = 0;
+    if (versionEnd < 0) {
+      version = identifier.substring(versionStart);
+    } else {
+      version = identifier.substring(versionStart, versionEnd);
+      partitionNum = Integer.valueOf(identifier.substring(versionEnd + 1));
+    }
+    return new SegmentDescriptor(Intervals.of(start, end), version, partitionNum);
+  }
 
   public static String delimiter = "_";
   private final Integer binaryVersion;

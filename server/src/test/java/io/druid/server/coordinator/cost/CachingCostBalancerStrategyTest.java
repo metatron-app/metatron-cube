@@ -135,7 +135,7 @@ public class CachingCostBalancerStrategyTest
   {
     DruidServer druidServer = new DruidServer(name, host, maxSize, "historical", "normal", 0);
     for (DataSegment segment : createDataSegments(numberOfSegments, random, referenceTime)) {
-      druidServer.addDataSegment(segment.getIdentifier(), segment);
+      druidServer.addDataSegment(segment);
     }
     return new ServerHolder(druidServer.toImmutableDruidServer(), new LoadQueuePeonTester());
   }
