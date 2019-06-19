@@ -118,6 +118,11 @@ public class FireDepartmentMetrics
     return unparseableCount.get();
   }
 
+  public long totalRows()
+  {
+    return unparseableCount.get() + processedCount.get() + thrownAwayCount.get();
+  }
+
   public long rowOutput()
   {
     return rowOutputCount.get();

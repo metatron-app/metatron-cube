@@ -37,6 +37,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
+import io.druid.collections.Stats;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;
@@ -49,8 +50,8 @@ import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
-import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentAppendingAction;
 import io.druid.indexing.common.actions.TaskActionClient;
@@ -240,10 +241,11 @@ public class IndexTask extends AbstractFixedIntervalTask
     String version = myLock.getVersion();
     log.info("Setting version to: %s", version);
 
+    final Stats stats = new Stats();
     for (final Interval bucket : validIntervals) {
       final int numShards;
       if (tuningConfig.getTargetPartitionSize() != null) {
-        numShards = determineNumShards(ingestionSpec, bucket, tuningConfig.getTargetPartitionSize());
+        numShards = determineNumShards(ingestionSpec, bucket, tuningConfig.getTargetPartitionSize(), stats);
       } else {
         numShards = tuningConfig.getNumShards();
       }
@@ -252,12 +254,14 @@ public class IndexTask extends AbstractFixedIntervalTask
           toolbox,
           bucket,
           myLock.getVersion(),
-          numShards
+          numShards,
+          stats
       );
       segments.addAll(generated);
     }
     toolbox.publishSegments(segments);
-    return TaskStatus.success(getId());
+
+    return TaskStatus.success(getId(), stats.stats());
   }
 
   @Override
@@ -315,7 +319,8 @@ public class IndexTask extends AbstractFixedIntervalTask
   private int determineNumShards(
       final IndexIngestionSpec ingestionSpec,
       final Interval interval,
-      final int targetPartitionSize
+      final int targetPartitionSize,
+      final Stats stats
   ) throws IOException
   {
     log.info("Determining partitions for interval[%s] with targetPartitionSize[%d]", interval, targetPartitionSize);
@@ -328,6 +333,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     // Load data
+    int totalRows = 0;
     try (Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser())) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
@@ -343,8 +349,10 @@ public class IndexTask extends AbstractFixedIntervalTask
               hashFunction.hashBytes(jsonMapper.writeValueAsBytes(groupKey)).asBytes()
           );
         }
+        totalRows++;
       }
     }
+    stats.ofLong("totalRows").set(totalRows);
 
     final double numRows = collector.estimateCardinality();
     log.info("Estimated approximately [%,f] rows of data.", numRows);
@@ -362,14 +370,15 @@ public class IndexTask extends AbstractFixedIntervalTask
       final TaskToolbox toolbox,
       final Interval interval,
       final String version,
-      final int numShards
+      final int numShards,
+      final Stats stats
   ) throws IOException
   {
     List<DataSegment> segments = Lists.newArrayList();
     for (int i = 0; i < numShards; i++) {
       ShardSpec shardSpec = numShards == 1 ?
                             NoneShardSpec.instance() : new HashBasedNumberedShardSpec(i, numShards, null, jsonMapper);
-      segments.add(generateSegment(ingestionSpec, toolbox, interval, version, shardSpec));
+      segments.add(generateSegment(ingestionSpec, toolbox, interval, version, shardSpec, stats));
     }
     return segments;
   }
@@ -379,7 +388,8 @@ public class IndexTask extends AbstractFixedIntervalTask
       final TaskToolbox toolbox,
       final Interval interval,
       final String version,
-      final ShardSpec shardSpec
+      final ShardSpec shardSpec,
+      final Stats stats
   ) throws IOException
   {
     // Set up temporary directory.
@@ -478,13 +488,14 @@ public class IndexTask extends AbstractFixedIntervalTask
         }
         catch (Throwable e) {
           if (tuningConfig.isIgnoreInvalidRows()) {
+            metrics.incrementUnparseable();
             handelInvalidRow(e);
             continue;
           }
           throw Throwables.propagate(e);
         }
         if (inputRow == null) {
-          metrics.incrementThrownAway();
+          metrics.incrementUnparseable();
           continue;
         }
 
@@ -520,13 +531,18 @@ public class IndexTask extends AbstractFixedIntervalTask
           getId(),
           interval,
           shardSpec.getPartitionNum(),
-          metrics.processed() + metrics.unparseable() + metrics.thrownAway(),
+          metrics.totalRows(),
           metrics.processed(),
           metrics.unparseable(),
           metrics.thrownAway(),
           metrics.rowOutput()
       );
     }
+    if (!stats.hasStats("totalRows")) {
+      stats.ofLong("totalRows").set(metrics.totalRows());
+    }
+    stats.ofLong("indexRows").increase(metrics.processed());
+    stats.ofLong("numSegments").increase(1);
 
     // We expect a single segment to have been created.
     return Iterables.getOnlyElement(pushedSegments);

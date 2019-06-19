@@ -28,10 +28,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import io.druid.common.utils.ExceptionUtils;
 
+import java.util.Map;
+
 /**
  * Represents the status of a task from the perspective of the coordinator. The task may be ongoing
  * ({@link #isComplete()} false) or it may be complete ({@link #isComplete()} true).
- *
+ * <p>
  * TaskStatus objects are immutable.
  */
 public class TaskStatus
@@ -50,46 +52,54 @@ public class TaskStatus
 
   public static TaskStatus running(String taskId)
   {
-    return new TaskStatus(taskId, TaskState.RUNNING, -1, null);
+    return new TaskStatus(taskId, TaskState.RUNNING, -1, null, null);
   }
 
   public static TaskStatus success(String taskId)
   {
-    return new TaskStatus(taskId, TaskState.SUCCESS, -1, null);
+    return new TaskStatus(taskId, TaskState.SUCCESS, -1, null, null);
+  }
+
+  public static TaskStatus success(String taskId, Map<String, Object> stats)
+  {
+    return new TaskStatus(taskId, TaskState.SUCCESS, -1, null, stats);
   }
 
   public static TaskStatus failure(String taskId, String reason)
   {
-    return new TaskStatus(taskId, TaskState.FAILED, -1, reason);
+    return new TaskStatus(taskId, TaskState.FAILED, -1, reason, null);
   }
 
   public static TaskStatus failure(String taskId, Throwable t)
   {
-    return new TaskStatus(taskId, TaskState.FAILED, -1, "Exception: " + ExceptionUtils.stackTrace(t));
+    return new TaskStatus(taskId, TaskState.FAILED, -1, "Exception: " + ExceptionUtils.stackTrace(t), null);
   }
 
   public static TaskStatus fromCode(String taskId, TaskState code, String reason)
   {
-    return new TaskStatus(taskId, code, -1, reason);
+    return new TaskStatus(taskId, code, -1, reason, null);
   }
 
   private final String id;
   private final TaskState status;
   private final long duration;
   private final String reason;
+  private final Map<String, Object> stats;
 
   @JsonCreator
   private TaskStatus(
       @JsonProperty("id") String id,
       @JsonProperty("status") TaskState status,
       @JsonProperty("duration") long duration,
-      @JsonProperty("reason") String reason
+      @JsonProperty("reason") String reason,
+      @JsonProperty("stats") Map<String, Object> stats
   )
   {
     this.id = id;
     this.status = status;
     this.duration = duration;
     this.reason = reason;
+    this.stats = stats;
 
     // Check class invariants.
     Preconditions.checkNotNull(id, "id");
@@ -119,6 +129,13 @@ public class TaskStatus
   public String getReason()
   {
     return reason;
+  }
+
+  @JsonProperty("stats")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, Object> getStats()
+  {
+    return stats;
   }
 
   /**
@@ -170,7 +187,7 @@ public class TaskStatus
 
   public TaskStatus withDuration(long _duration)
   {
-    return new TaskStatus(id, status, _duration, reason);
+    return new TaskStatus(id, status, _duration, reason, stats);
   }
 
   @Override
@@ -180,6 +197,7 @@ public class TaskStatus
                   .add("id", id)
                   .add("status", status)
                   .add("duration", duration)
+                  .add("stats", stats)
                   .toString();
   }
 }
