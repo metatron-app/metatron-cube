@@ -61,7 +61,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   private final List<VirtualColumn> virtualColumns;
   private final TopNMetricSpec topNMetricSpec;
   private final int threshold;
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final Granularity granularity;
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
@@ -75,7 +75,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
       @JsonProperty("metric") TopNMetricSpec topNMetricSpec,
       @JsonProperty("threshold") int threshold,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
@@ -89,7 +89,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     this.topNMetricSpec = topNMetricSpec;
     this.threshold = threshold;
 
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.granularity = granularity;
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
@@ -144,17 +144,12 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return threshold;
   }
 
-  @JsonProperty("filter")
-  @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
-  }
-
   @Override
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -245,7 +240,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         querySegmentSpec,
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -264,7 +259,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -283,7 +278,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -301,7 +296,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -320,7 +315,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -339,7 +334,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -358,7 +353,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -376,7 +371,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -395,7 +390,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -405,7 +400,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
-  public TopNQuery withDimFilter(DimFilter dimFilter)
+  public TopNQuery withFilter(DimFilter filter)
   {
     return new TopNQuery(
         getDataSource(),
@@ -414,7 +409,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -432,7 +427,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         getTopNMetricSpec(),
         getThreshold(),
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -442,7 +437,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
-  public TopNQuery removePostActions()
+  public TopNQuery toLocalQuery()
   {
     return new TopNQuery(
         getDataSource(),
@@ -451,7 +446,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         getTopNMetricSpec(),
         getThreshold(),
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -470,7 +465,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
            ", topNMetricSpec=" + topNMetricSpec +
            ", threshold=" + threshold +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", dimFilter=" + dimFilter +
+           ", filter=" + filter +
            ", granularity='" + granularity + '\'' +
            ", aggregatorSpecs=" + aggregatorSpecs +
            ", postAggregatorSpecs=" + postAggregatorSpecs +
@@ -491,7 +486,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     if (threshold != topNQuery.threshold) return false;
     if (aggregatorSpecs != null ? !aggregatorSpecs.equals(topNQuery.aggregatorSpecs) : topNQuery.aggregatorSpecs != null)
       return false;
-    if (dimFilter != null ? !dimFilter.equals(topNQuery.dimFilter) : topNQuery.dimFilter != null) return false;
+    if (filter != null ? !filter.equals(topNQuery.filter) : topNQuery.filter != null) return false;
     if (dimensionSpec != null ? !dimensionSpec.equals(topNQuery.dimensionSpec) : topNQuery.dimensionSpec != null)
       return false;
     if (granularity != null ? !granularity.equals(topNQuery.granularity) : topNQuery.granularity != null) return false;
@@ -514,7 +509,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     result = 31 * result + (dimensionSpec != null ? dimensionSpec.hashCode() : 0);
     result = 31 * result + (topNMetricSpec != null ? topNMetricSpec.hashCode() : 0);
     result = 31 * result + threshold;
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
+    result = 31 * result + (filter != null ? filter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);

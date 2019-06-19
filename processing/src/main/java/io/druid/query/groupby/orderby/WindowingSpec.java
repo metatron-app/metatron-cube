@@ -83,7 +83,7 @@ public class WindowingSpec implements Cacheable
       FlattenSpec flattenSpec
   )
   {
-    this(partitionColumns, sortingColumns, expressions, flattenSpec, null);
+    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, flattenSpec, null);
   }
 
   public WindowingSpec(
@@ -93,21 +93,52 @@ public class WindowingSpec implements Cacheable
       PivotSpec pivotSpec
   )
   {
-    this(partitionColumns, sortingColumns, expressions, null, pivotSpec);
+    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, null, pivotSpec);
   }
 
-  public WindowingSpec(
-      List<String> partitionColumns,
-      List<OrderByColumnSpec> sortingColumns,
-      String... expressions
-  )
+  public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, String... expressions)
   {
-    this(partitionColumns, sortingColumns, Arrays.asList(expressions), null, null);
+    this(partitionColumns, sortingColumns, Arrays.asList(expressions));
   }
 
-  public WindowingSpec withoutOrdering()
+  public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, List<String> expressions)
+  {
+    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, null, null);
+  }
+
+  public WindowingSpec withoutSorting()
   {
     return new WindowingSpec(partitionColumns, null, expressions, flattenSpec, pivotSpec);
+  }
+
+  private static List<OrderByColumnSpec> toPartitionOrdering(
+      List<String> partitionColumns,
+      List<OrderByColumnSpec> sortingColumns
+  )
+  {
+    if (GuavaUtils.isNullOrEmpty(partitionColumns)) {
+      return sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
+    }
+    if (GuavaUtils.isNullOrEmpty(sortingColumns)) {
+      return OrderByColumnSpec.ascending(partitionColumns);
+    }
+    List<OrderByColumnSpec> merged = Lists.newArrayList();
+    List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
+    for (String partitionColumn : partitionColumns) {
+      final int index = sortingColumnNames.indexOf(partitionColumn);
+      if (index < 0) {
+        merged.add(OrderByColumnSpec.asc(partitionColumn));
+      } else {
+        sortingColumnNames.set(index, null);
+        merged.add(sortingColumns.get(index));
+      }
+    }
+    for (int i = 0; i < sortingColumnNames.size(); i++) {
+      if (sortingColumnNames.get(i) != null) {
+        merged.add(sortingColumns.get(i));
+      }
+    }
+    return merged;
   }
 
   @JsonProperty
@@ -143,30 +174,6 @@ public class WindowingSpec implements Cacheable
   public PivotSpec getPivotSpec()
   {
     return pivotSpec;
-  }
-
-  public List<OrderByColumnSpec> getPartitionOrdering()
-  {
-    if (partitionColumns.isEmpty()) {
-      return sortingColumns;
-    }
-    List<OrderByColumnSpec> merged = Lists.newArrayList();
-    List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
-    for (String partitionColumn : partitionColumns) {
-      final int index = sortingColumnNames.indexOf(partitionColumn);
-      if (index < 0) {
-        merged.add(OrderByColumnSpec.asc(partitionColumn));
-      } else {
-        sortingColumnNames.set(index, null);
-        merged.add(sortingColumns.get(index));
-      }
-    }
-    for (int i = 0; i < sortingColumnNames.size(); i++) {
-      if (sortingColumnNames.get(i) != null) {
-        merged.add(sortingColumns.get(i));
-      }
-    }
-    return merged;
   }
 
   public PartitionEvaluator toEvaluator(final WindowContext context)

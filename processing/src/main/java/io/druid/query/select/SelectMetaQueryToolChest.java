@@ -115,7 +115,7 @@ public class SelectMetaQueryToolChest
       @Override
       public byte[] computeCacheKey(SelectMetaQuery query)
       {
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getFilter());
         final byte[] granBytes = query.getGranularity().getCacheKey();
         final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final List<DimensionSpec> dimensions = query.getDimensions();

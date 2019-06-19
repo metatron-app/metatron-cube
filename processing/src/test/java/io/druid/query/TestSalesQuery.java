@@ -422,11 +422,12 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
   {
     JoinQuery joinQuery = Druids
         .newJoinQueryBuilder()
-        .dataSource("sales", TableDataSource.of("sales"))
-        .dataSource("category_alias", TableDataSource.of("category_alias"))
+        .dataSource("sales", "sales")
+        .dataSource("category_alias", "category_alias")
         .interval(Intervals.of("2011-01-01/2015-01-01"))
         .element(JoinElement.inner("sales.Category = category_alias.Category"))
         .prefixAlias(true)
+        .context(Query.HASHJOIN_THRESHOLD, 1)  // for ordering
         .build();
 
     Druids.SelectQueryBuilder builder = Druids
@@ -443,30 +444,30 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
                 "sales.OrderDate"
             )
         )
-        .dimensions("category_alias.current_datetime", "sales.OrderDate")
+        .dimensions("category_alias.current_datetime", "sales.OrderDate", "sales.Category")
         .metrics("sales.SalesperCustomer", "category_alias.Alias")
         .limit(15)
         .addContext(Query.POST_PROCESSING, new SelectToRow());
 
     String[] columnNames = {
-        "__time", "sales.SalesperCustomer", "sales.OrderDate", "category_alias.current_datetime", "category_alias.Alias"
+        "__time", "sales.SalesperCustomer", "sales.OrderDate", "sales.Category", "category_alias.current_datetime", "category_alias.Alias"
     };
     Object[][] objects = new Object[][]{
-        array("2011-01-01", 16.45, "2011-01-04 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 11.78, "2011-01-05 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 3.54, "2011-01-05 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 272.74, "2011-01-05 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 19.54, "2011-01-06 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 2573.82, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 12.78, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 31.12, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 609.98, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 5.48, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 6.54, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 19.44, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "O"),
-        array("2011-01-01", 391.98, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "T"),
-        array("2011-01-01", 755.96, "2011-01-07 00:00:00", "2011-01-01 00:00:00", "T"),
-        array("2011-01-01", 76.73, "2011-01-08 00:00:00", "2011-01-01 00:00:00", "F")
+        array("2011-01-01", 173.94, "2013-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 2573.82, "2011-01-07 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 1592.85, "2013-01-03 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 310.74, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 23.08, "2013-01-07 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 76.73, "2011-01-08 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 1565.88, "2013-01-08 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 141.42, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 15.17, "2013-01-09 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 51.94, "2011-01-11 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 24.85, "2013-01-10 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 48.9, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 79.92, "2013-01-10 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 9.94, "2011-01-12 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
+        array("2011-01-01", 54.99, "2013-01-11 00:00:00", "Furniture", "2011-01-01 00:00:00", "F")
     };
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     Iterable<Row> results = runQuery(builder.build());

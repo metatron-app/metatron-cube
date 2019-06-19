@@ -19,254 +19,229 @@
 
 package io.druid.query;
 
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import io.druid.collections.StupidPool;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.query.groupby.GroupByQueryQueryToolChest;
-import io.druid.query.search.SearchQueryQueryToolChest;
-import io.druid.query.search.search.SearchQuery;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
+import io.druid.common.utils.Sequences;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-/**
- */
 public class JoinPostProcessorTest
 {
-  static final QueryToolChestWarehouse warehouse;
-
-  static {
-    final QueryConfig queryConfig = new QueryConfig();
-    final StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
-    Map<Class<? extends Query>, QueryToolChest> mappings =
-        ImmutableMap.<Class<? extends Query>, QueryToolChest>of(
-            SearchQuery.class, new SearchQueryQueryToolChest(queryConfig.getSearch(), null),
-            GroupByQuery.class, new GroupByQueryQueryToolChest(
-                queryConfig, new GroupByQueryEngine(pool), pool, null
-            )
-        );
-    warehouse = new MapQueryToolChestWarehouse(queryConfig, mappings);
-  }
+  final JoinPostProcessor inner = proc(JoinType.INNER);
+  final JoinPostProcessor lo = proc(JoinType.LO);
+  final JoinPostProcessor ro = proc(JoinType.RO);
+  final JoinPostProcessor full = proc(JoinType.FULL);
 
   @Test
   public void testJoin() throws Exception
   {
-    JoinPostProcessor inner = test1(JoinType.INNER);
-    JoinPostProcessor lo = test1(JoinType.LO);
-    JoinPostProcessor ro = test1(JoinType.RO);
-
     // no match
-    List<Map<String, Object>> l = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100)
-    );
-    List<Map<String, Object>> r = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "business", "y", 200)
-    );
-    assertJoin(new int[][]{}, inner.join(l, r), inner.hashJoin(l, r));
-    assertJoin(new int[][]{{100, -1}}, lo.join(l, r), lo.hashJoin(l, r));
-    assertJoin(new int[][]{{-1, 200}}, ro.join(l, r));
+    List<Object[]> l = Arrays.<Object[]>asList(array("spot", "automotive", 100));
+    List<Object[]> r = Arrays.<Object[]>asList(array("spot", "business", 200));
+
+    test1(inner, new int[][]{}, l, r);
+    test1(lo, new int[][]{{100, -1}}, l, r);
+    test1(ro, new int[][]{{-1, 200}}, l, r);
+    test1(full, new int[][]{{100, -1}, {-1, 200}}, l, r);
 
     // inner product
-    l = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 200)
-    );
-    r = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 300),
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400)
-    );
-    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, inner.join(l, r), inner.hashJoin(l, r));
-    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, lo.join(l, r), lo.hashJoin(l, r));
-    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, ro.join(l, r));
+    l = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "automotive", 200), array("upfront", "automotive", 201));
+    r = Arrays.<Object[]>asList(array("spot", "automotive", 300), array("spot", "automotive", 400), array("upfront", "business", 401));
+
+    test1(inner, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, l, r);
+    test1(lo, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {201, -1}}, l, r);
+    test1(ro, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {-1, 401}}, l, r);
+    test1(full, new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}, {201, -1}, {-1, 401}}, l, r);
 
     // more1
-    l = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
-        ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 200),
-        ImmutableMap.<String, Object>of("a", "total", "b", "mezzanine", "x", 300)
-    );
-    r = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400),
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 500),
-        ImmutableMap.<String, Object>of("c", "total", "d", "mezzanine", "y", 600)
-    );
-    assertJoin(new int[][]{{100, 400}, {100, 500}, {300, 600}}, inner.join(l, r), inner.hashJoin(l, r));
-    assertJoin(new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, lo.join(l, r), lo.hashJoin(l, r));
-    assertJoin(new int[][]{{100, 400}, {100, 500}, {300, 600}}, ro.join(l, r));
+    l = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "business", 200), array("total", "mezzanine", 300));
+    r = Arrays.<Object[]>asList(array("spot", "automotive", 400), array("spot", "automotive", 500), array("total", "mezzanine", 600));
+
+    test1(inner, new int[][]{{100, 400}, {100, 500}, {300, 600}}, l, r);
+    test1(lo, new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, l, r);
+    test1(ro, new int[][]{{100, 400}, {100, 500}, {300, 600}}, l, r);
+    test1(full, new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, l, r);
 
     // more2
-    l = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 100),
-        ImmutableMap.<String, Object>of("a", "spot", "b", "health", "x", 200),
-        ImmutableMap.<String, Object>of("a", "total", "b", "automotive", "x", 300)
-    );
-    r = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400),
-        ImmutableMap.<String, Object>of("c", "spot", "d", "health", "y", 500),
-        ImmutableMap.<String, Object>of("c", "total", "d", "business", "y", 600)
-    );
-    assertJoin(new int[][]{{200, 500}}, inner.join(l, r), inner.hashJoin(l, r));
-    assertJoin(new int[][]{{100, -1}, {200, 500}, {300, -1}}, lo.join(l, r), lo.hashJoin(l, r));
-    assertJoin(new int[][]{{-1, 400}, {200, 500}, {-1, 600}}, ro.join(l, r));
+    l = Arrays.<Object[]>asList(array("spot", "business", 100), array("spot", "health", 200), array("total", "automotive", 300));
+    r = Arrays.<Object[]>asList(array("spot", "automotive", 400), array("spot", "health", 500), array("total", "business", 600));
+
+    test1(inner, new int[][]{{200, 500}}, l, r);
+    test1(lo, new int[][]{{100, -1}, {200, 500}, {300, -1}}, l, r);
+    test1(ro, new int[][]{{-1, 400}, {200, 500}, {-1, 600}}, l, r);
+    test1(full, new int[][]{{-1, 400}, {100, -1}, {200, 500}, {300, -1}, {-1, 600}}, l, r);
   }
 
-  private JoinPostProcessor test1(JoinType type)
+  private static Object[] array(Object... elements)
   {
-    Set<String> dataSources = ImmutableSet.of("ds1", "ds2");
-    JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
-    JoinElement element2 = JoinElement.of(type, "ds1.a = ds2.c && ds1.b = ds2.d").rewrite(dataSources);
-    Assert.assertEquals(element1, element2);
-    return new JoinPostProcessor(
-        new JoinQueryConfig(),
-        Arrays.asList(element1),
-        false,
-        warehouse,
-        Executors.newSingleThreadExecutor()
+    return elements;
+  }
+
+  private void test1(JoinPostProcessor processor, int[][] expected, List<Object[]> left, List<Object[]> right)
+  {
+    JoinPostProcessor.JoinAlias l = new JoinPostProcessor.JoinAlias(
+        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
+        left.iterator(), true
     );
+    JoinPostProcessor.JoinAlias r = new JoinPostProcessor.JoinAlias(
+        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
+        right.iterator(), true
+    );
+    validate(expected, Lists.newArrayList(processor.join(l, r, 0)));
+
+    if (processor == inner || processor == lo) {
+      JoinPostProcessor.JoinAlias lhs = new JoinPostProcessor.JoinAlias(
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
+          left.iterator(), true
+      );
+      JoinPostProcessor.JoinAlias rhs = new JoinPostProcessor.JoinAlias(
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
+          JoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+      );
+      validate(expected, Lists.newArrayList(processor.join(lhs, rhs, 0)));
+
+      JoinPostProcessor.JoinAlias lh = new JoinPostProcessor.JoinAlias(
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
+          left.iterator(), false
+      );
+      JoinPostProcessor.JoinAlias rh = new JoinPostProcessor.JoinAlias(
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
+          JoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+      );
+      validate(expected, Lists.newArrayList(processor.join(lh, rh, 0)));
+    }
+  }
+
+  private void validate(int[][] expected, List<Object[]> joined)
+  {
+    System.out.println("------------->");
+    int[] index = new int[] {2, 5};
+    for (Object[] x : joined) {
+      System.out.println(Arrays.toString(x));
+    }
+    Assert.assertEquals(expected.length, joined.size());
+    for (int i = 0; i < expected.length; i++) {
+      int[] actual = new int[index.length];
+      for (int x = 0; x < index.length; x++) {
+        final Integer value = (Integer) joined.get(i)[index[x]];
+        actual[x] = value == null ? -1 : value;
+      }
+      Assert.assertArrayEquals(expected[i], actual);
+    }
   }
 
   @Test
   public void testMultiJoin() throws Exception
   {
-    JoinPostProcessor inner = test2(JoinType.INNER);
-    JoinPostProcessor lo = test2(JoinType.LO);
-    JoinPostProcessor ro = test2(JoinType.RO);
+    JoinPostProcessor inner = proc(JoinType.INNER);
+    JoinPostProcessor lo = proc(JoinType.LO);
+    JoinPostProcessor ro = proc(JoinType.RO);
 
     // no match
-    List<Map<String, Object>> a1 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100)
-    );
-    List<Map<String, Object>> a2 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "business", "y", 200)
-    );
-    List<Map<String, Object>> a3 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("e", "spot", "f", "entertainment", "z", 300)
-    );
-    assertJoin(new int[][]{}, inner.join(a1, a2, a3));
-    assertJoin(new int[][]{}, inner.hashJoin(a1, a2, a3));
+    List<Object[]> a1 = Arrays.<Object[]>asList(array("spot", "automotive", 100));
+    List<Object[]> a2 = Arrays.<Object[]>asList(array("spot", "business", 200));
+    List<Object[]> a3 = Arrays.<Object[]>asList(array("spot", "entertainment", 300));
 
-    assertJoin(new int[][]{{100, -1, -1}}, lo.join(a1, a2, a3));
-    assertJoin(new int[][]{{100, -1, -1}}, lo.hashJoin(a1, a2, a3));
-
-    assertJoin(new int[][]{{-1, -1, 300}}, ro.join(a1, a2, a3));
+    test2(inner, new int[][]{}, a1, a2, a3);
+    test2(lo, new int[][]{{100, -1, -1}}, a1, a2, a3);
+    test2(ro, new int[][]{{-1, -1, 300}}, a1, a2, a3);
 
     // inner product
-    a1 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 200)
+    a1 = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "automotive", 200));
+    a2 = Arrays.<Object[]>asList(array("spot", "automotive", 300), array("spot", "automotive", 400));
+    a3 = Arrays.<Object[]>asList(array("spot", "automotive", 500), array("spot", "automotive", 600));
+
+    test2(
+        inner,
+        new int[][]{
+            {100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
+            {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}
+        },
+        a1, a2, a3
     );
-    a2 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 300),
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400)
+    test2(
+        lo,
+        new int[][]{
+            {100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
+            {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}
+        },
+        a1, a2, a3
     );
-    a3 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("e", "spot", "f", "automotive", "z", 500),
-        ImmutableMap.<String, Object>of("e", "spot", "f", "automotive", "z", 600)
-    );
-    assertJoin(
+    test2(
+        ro,
         new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
-        inner.join(a1, a2, a3), inner.hashJoin(a1, a2, a3)
-    );
-    assertJoin(
-        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
-        lo.join(a1, a2, a3), lo.hashJoin(a1, a2, a3)
-    );
-    assertJoin(
-        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
-        ro.join(a1, a2, a3)
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}
+        },
+        a1, a2, a3
     );
 
     // more1
-    a1 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
-        ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 200),
-        ImmutableMap.<String, Object>of("a", "total", "b", "mezzanine", "x", 300)
-    );
-    a2 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400),
-        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 500),
-        ImmutableMap.<String, Object>of("c", "total", "d", "mezzanine", "y", 600)
-    );
-    a3 = Arrays.<Map<String, Object>>asList(
-        ImmutableMap.<String, Object>of("e", "spot", "f", "-", "z", 700),
-        ImmutableMap.<String, Object>of("e", "spot", "f", "business", "z", 800),
-        ImmutableMap.<String, Object>of("e", "total", "f", "mezzanine", "z", 900)
-    );
-    assertJoin(new int[][]{{300, 600, 900}}, inner.join(a1, a2, a3), inner.hashJoin(a1, a2, a3));
-    assertJoin(
-        new int[][]{{100, 400, -1}, {100, 500, -1}, {200, -1, 800}, {300, 600, 900}},
-        lo.join(a1, a2, a3), lo.hashJoin(a1, a2, a3)
-    );
-    assertJoin(
-        new int[][]{{-1, -1, 700}, {-1, -1, 800}, {300, 600, 900}}, ro.join(a1, a2, a3)
-    );
+    a1 = Arrays.<Object[]>asList(array("spot", "automotive", 100), array("spot", "business", 200), array("total", "mezzanine", 300));
+    a2 = Arrays.<Object[]>asList(array("spot", "automotive", 400), array("spot", "automotive", 500), array("total", "mezzanine", 600));
+    a3 = Arrays.<Object[]>asList(array("spot", "-", 700), array("spot", "business", 800), array("total", "mezzanine", 900));
+
+    test2(inner, new int[][]{{300, 600, 900}}, a1, a2, a3);
+    test2(lo, new int[][]{{100, 400, -1}, {100, 500, -1}, {200, -1, 800}, {300, 600, 900}}, a1, a2, a3);
+    test2(ro, new int[][]{{-1, -1, 700}, {-1, -1, 800}, {300, 600, 900}}, a1, a2, a3);
   }
 
-  private JoinPostProcessor test2(JoinType type)
+  private void test2(
+      JoinPostProcessor processor,
+      int[][] expected,
+      List<Object[]> r1,
+      List<Object[]> r2,
+      List<Object[]> r3
+  ) throws Exception
   {
+    JoinPostProcessor.JoinAlias a1 = new JoinPostProcessor.JoinAlias(
+        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
+        r1.iterator(), true
+    );
+    JoinPostProcessor.JoinAlias a2 = new JoinPostProcessor.JoinAlias(
+        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
+        r2.iterator(), true
+    );
+    JoinPostProcessor.JoinAlias a3 = new JoinPostProcessor.JoinAlias(
+        Arrays.asList("ds3"), Arrays.asList("e", "f", "z"), Arrays.asList("e", "f"), new int[] {0, 1},
+        r3.iterator(), true
+    );
+    Future[] futures = new Future[] {
+        Futures.immediateFuture(a1), Futures.immediateFuture(a2), Futures.immediateFuture(a3)
+    };
+    int[] index = new int[] {2, 5, 8};
+
+    List<Object[]> joined = Lists.newArrayList(processor.join(futures));
+    System.out.println("-------------");
+    for (Object[] x : joined) {
+      System.out.println(Arrays.toString(x));
+    }
+    Assert.assertEquals(expected.length, joined.size());
+    for (int i = 0; i < expected.length; i++) {
+      int[] actual = new int[index.length];
+      for (int x = 0; x < index.length; x++) {
+        final Integer value = (Integer) joined.get(i)[index[x]];
+        actual[x] = value == null ? -1 : value;
+      }
+      Assert.assertArrayEquals(expected[i], actual);
+    }
+  }
+
+  private JoinPostProcessor proc(JoinType type)
+  {
+    JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
+    JoinElement element2 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"));
     return new JoinPostProcessor(
         new JoinQueryConfig(),
-        Arrays.asList(
-            new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d")),
-            new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"))
-        ),
+        Arrays.asList(element1, element2),
         false,
-        warehouse,
+        false,
+        0,
         Executors.newSingleThreadExecutor()
     );
-  }
-
-  private final String[] k = new String[]{"x", "y", "z"};
-
-  @SafeVarargs
-  private final void assertJoin(int[][] expected, Iterable<Map<String, Object>>... joins)
-  {
-    for (Iterable<Map<String, Object>> join : joins) {
-      System.out.println("-------------");
-      for (Object x : join) {
-        System.out.println(x);
-      }
-      int x = 0;
-      for (Map<String, Object> joined : join) {
-        for (int i = 0; i < expected[x].length; i++) {
-          validate(joined, expected[x][i], joined.get(k[i]));
-        }
-        x++;
-      }
-      if (x != expected.length) {
-        Assert.fail("needs more result");
-      }
-    }
-  }
-
-  private void validate(Map<String, Object> joined, int i, Object x)
-  {
-    if (i < 0) {
-      Assert.assertNull(joined.toString(), x);
-    } else {
-      Assert.assertNotNull(joined.toString(), x);
-      Assert.assertEquals(joined.toString(), i, ((Integer) x).intValue());
-    }
   }
 }

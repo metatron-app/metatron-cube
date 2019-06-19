@@ -136,7 +136,7 @@ public class SelectQueryQueryToolChest
           Map<String, Object> context
       )
       {
-        return super.doRun(baseRunner, query.removePostActions(), context);
+        return super.doRun(baseRunner, query.toLocalQuery(), context);
       }
 
       @Override
@@ -311,8 +311,8 @@ public class SelectQueryQueryToolChest
       @Override
       public byte[] computeCacheKey(SelectQuery query)
       {
-        final DimFilter dimFilter = query.getDimensionsFilter();
-        final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
+        final DimFilter filter = query.getFilter();
+        final byte[] filterBytes = filter == null ? new byte[]{} : filter.getCacheKey();
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
 
         List<DimensionSpec> dimensionSpecs = query.getDimensions();

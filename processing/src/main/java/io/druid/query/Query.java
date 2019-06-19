@@ -128,8 +128,8 @@ public interface Query<T> extends QueryContextKeys
 
   boolean isDescending();
 
-  // used for result sorting.. return null if no need to (concat all: see stream query)
-  Ordering<T> getResultOrdering();
+  // used for merging partial results.. return null if no need to (concat all: see stream query)
+  Ordering<T> getMergeOrdering();
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 
@@ -137,7 +137,7 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
 
-  Query<T> removePostActions();
+  Query<T> toLocalQuery();
 
   Query<T> withId(String id);
 
@@ -152,21 +152,21 @@ public interface Query<T> extends QueryContextKeys
     VCSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
   }
 
-  interface DimFilterSupport<T> extends VCSupport<T>
+  interface FilterSupport<T> extends VCSupport<T>
   {
-    DimFilter getDimFilter();
+    DimFilter getFilter();
 
-    DimFilterSupport<T> withDimFilter(DimFilter filter);
+    FilterSupport<T> withFilter(DimFilter filter);
   }
 
-  interface ColumnsSupport<T> extends DimFilterSupport<T>
+  interface ColumnsSupport<T> extends FilterSupport<T>
   {
     List<String> getColumns();
 
     ColumnsSupport<T> withColumns(List<String> columns);
   }
 
-  interface DimensionSupport<T> extends DimFilterSupport<T>
+  interface DimensionSupport<T> extends FilterSupport<T>
   {
     List<DimensionSpec> getDimensions();
 
@@ -206,9 +206,9 @@ public interface Query<T> extends QueryContextKeys
 
   interface OrderingSupport<T> extends Query<T>
   {
-    List<OrderByColumnSpec> getOrderingSpecs();
+    List<OrderByColumnSpec> getResultOrdering();
 
-    OrderingSupport<T> withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs);
+    OrderingSupport<T> withResultOrdering(List<OrderByColumnSpec> orderingSpecs);
   }
 
   interface RewritingQuery<T> extends Query<T>

@@ -150,7 +150,7 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
   }
 
   @Override
-  public SketchQuery withDimFilter(DimFilter filter)
+  public SketchQuery withFilter(DimFilter filter)
   {
     return new SketchQuery(
         getDataSource(),
@@ -214,7 +214,9 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
   }
 
   @Override
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
     return filter;
   }
@@ -241,13 +243,6 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
-  }
-
-  @JsonProperty
-  @JsonInclude(Include.NON_NULL)
-  public DimFilter getFilter()
-  {
-    return filter;
   }
 
   @JsonProperty

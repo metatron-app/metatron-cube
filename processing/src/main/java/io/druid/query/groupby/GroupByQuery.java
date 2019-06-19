@@ -111,7 +111,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   public GroupByQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("groupingSets") GroupingSetSpec groupingSets,
@@ -129,7 +129,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         dataSource,
         querySegmentSpec,
         false,
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -180,7 +180,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         groupingSets,
@@ -201,7 +201,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         spec,
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         groupingSets,
@@ -217,12 +217,12 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public GroupByQuery withDimFilter(final DimFilter dimFilter)
+  public GroupByQuery withFilter(final DimFilter filter)
   {
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -243,7 +243,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         dataSource,
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         groupingSets,
@@ -264,7 +264,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         dimensionSpecs,
         getGroupingSets(),
@@ -285,7 +285,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -306,7 +306,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         granularity,
         getDimensions(),
         getGroupingSets(),
@@ -326,7 +326,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         groupingSet,
@@ -347,7 +347,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -368,7 +368,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -389,7 +389,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -410,7 +410,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -431,7 +431,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -452,7 +452,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -468,7 +468,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public GroupByQuery removePostActions()
+  public GroupByQuery toLocalQuery()
   {
     Map<String, Object> override = defaultPostActionContext();
     override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
@@ -477,7 +477,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return new GroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getGroupingSets(),
@@ -485,7 +485,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getAggregatorSpecs(),
         null,
         null,
-        getLimitSpec().withNoProcessing(),
+        getLimitSpec().withNoLocalProcessing(),
         null,
         null,
         computeOverriddenContext(override)
@@ -527,9 +527,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
       WindowingSpec first = windowingSpecs.get(0);
-      List<DimensionSpec> rewritten = applyExplicitOrdering(first.getPartitionOrdering(), dimensionSpecs);
+      List<DimensionSpec> rewritten = applyExplicitOrdering(first.getSortingColumns(), dimensionSpecs);
       if (rewritten != null) {
-        windowingSpecs.set(0, first.withoutOrdering());
+        windowingSpecs.set(0, first.withoutSorting());
         query = query.withLimitSpec(limitSpec.withWindowing(windowingSpecs))
                      .withDimensionSpecs(rewritten);
       }
@@ -642,7 +642,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         metricSpec,
         limitSpec.getLimit() * estimationFactor,
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         condensed.lhs,
         condensed.rhs,
@@ -668,7 +668,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         dimensionSpec.getExtractionFn()
     );
     // seemed not need to split now
-    return withDimFilter(DimFilters.and(filter, getDimFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
+    return withFilter(DimFilters.and(filter, getFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
   }
 
   public int[][] getGroupings()
@@ -743,7 +743,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
-           (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
+           (filter == null ? "" : ", filter=" + filter) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
            (aggregatorSpecs.isEmpty() ? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
@@ -757,7 +757,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public Ordering<Row> getResultOrdering()
+  public Ordering<Row> getMergeOrdering()
   {
     return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
   }
@@ -791,7 +791,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -813,7 +813,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         metricSpec,
         limitSpec.getLimit(),
         getQuerySegmentSpec(),
-        dimFilter,
+        filter,
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -892,10 +892,10 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     AggregatorFactory cardinality = new CardinalityAggregatorFactory(
         "$cardinality", null, fields, groupingSet, null, true, true
     );
-    if (query.getDimFilter() != null) {
+    if (query.getFilter() != null) {
       Map<String, String> mapping = QueryUtils.aliasMapping(this);
       if (!mapping.isEmpty()) {
-        query = query.withDimFilter(query.getDimFilter().withRedirection(mapping));
+        query = query.withFilter(query.getFilter().withRedirection(mapping));
       }
     }
 

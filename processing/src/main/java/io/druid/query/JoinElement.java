@@ -243,7 +243,7 @@ public class JoinElement
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
         if (!(query.getDataSource() instanceof QueryDataSource)) {
-          query = ((Query.OrderingSupport) query).withOrderingSpecs(OrderByColumnSpec.ascending(sortColumns));
+          query = ((Query.OrderingSupport) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
         }
       }
       return query;
@@ -284,7 +284,7 @@ public class JoinElement
         return runSelectMetaQuery(
             query.getDataSource(),
             query.getQuerySegmentSpec(),
-            ((StreamQuery) query).getDimFilter(),
+            ((StreamQuery) query).getFilter(),
             BaseQuery.copyContextForMeta(query),
             segmentWalker
         );

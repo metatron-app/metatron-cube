@@ -222,8 +222,8 @@ public class SearchQueryQueryToolChest
       @Override
       public byte[] computeCacheKey(SearchQuery query)
       {
-        final DimFilter dimFilter = query.getDimensionsFilter();
-        final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
+        final DimFilter filter = query.getFilter();
+        final byte[] filterBytes = filter == null ? new byte[]{} : filter.getCacheKey();
         final byte[] querySpecBytes = query.getQuery().getCacheKey();
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
 

@@ -254,7 +254,7 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
 
       int endIndex = Math.min(ignoreFirstN + keepOnlyN, cardinality);
 
-      if (ignoreAfterThreshold && query.getDimensionsFilter() == null) {
+      if (ignoreAfterThreshold && query.getFilter() == null) {
         endIndex = Math.min(endIndex, startIndex + query.getThreshold());
       }
 

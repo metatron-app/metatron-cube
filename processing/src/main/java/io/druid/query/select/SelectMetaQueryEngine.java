@@ -64,7 +64,7 @@ public class SelectMetaQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final Interval interval = Iterables.getOnlyElement(intervals);
-    final DimFilter filter = query.getDimensionsFilter();
+    final DimFilter filter = query.getFilter();
     final Granularity granularity = query.getGranularity();
 
     final String segmentId = segment.getIdentifier();

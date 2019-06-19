@@ -55,7 +55,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
@@ -71,7 +71,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         dataSource,
         querySegmentSpec,
         descending,
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -103,7 +103,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         querySegmentSpec,
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -123,7 +123,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         dataSource,
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -149,7 +149,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -163,13 +163,13 @@ public class TimeseriesQuery extends BaseAggregationQuery
   }
 
   @Override
-  public TimeseriesQuery withDimFilter(DimFilter dimFilter)
+  public TimeseriesQuery withFilter(DimFilter filter)
   {
     return new TimeseriesQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -189,7 +189,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -209,7 +209,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -229,7 +229,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -249,7 +249,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -276,7 +276,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -296,7 +296,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -316,7 +316,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -336,7 +336,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
@@ -350,19 +350,19 @@ public class TimeseriesQuery extends BaseAggregationQuery
   }
 
   @Override
-  public TimeseriesQuery removePostActions()
+  public TimeseriesQuery toLocalQuery()
   {
     return new TimeseriesQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         virtualColumns,
         aggregatorSpecs,
         null,
         null,
-        limitSpec.withNoProcessing(),
+        limitSpec.withNoLocalProcessing(),
         null,
         null,
         computeOverriddenContext(defaultPostActionContext())
@@ -370,9 +370,9 @@ public class TimeseriesQuery extends BaseAggregationQuery
   }
 
   @Override
-  public Ordering<Row> getResultOrdering()
+  public Ordering<Row> getMergeOrdering()
   {
-    return Granularities.ALL.equals(granularity) ? null : super.getResultOrdering();
+    return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering();
   }
 
   @Override
@@ -384,7 +384,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
            ", descending=" + isDescending() +
            ", granularity=" + granularity +
            (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
-           (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
+           (filter == null ? "" : ", filter=" + filter) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
            (aggregatorSpecs.isEmpty()? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
            (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +

@@ -114,7 +114,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     );
     validate(expected, results);
 
-    query = query.withDimFilter(new MathExprFilter("index > 200"));
+    query = query.withFilter(new MathExprFilter("index > 200"));
     if (descending) {
       expected = createExpected(
           new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},

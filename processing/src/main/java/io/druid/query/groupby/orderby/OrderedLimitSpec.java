@@ -68,6 +68,11 @@ public class OrderedLimitSpec implements Cacheable
     return new OrderedLimitSpec(columns, limit);
   }
 
+  public OrderedLimitSpec withOrderingIfNotExists(List<OrderByColumnSpec> ordering)
+  {
+    return !GuavaUtils.isNullOrEmpty(ordering) && GuavaUtils.isNullOrEmpty(columns) ? withOrderingSpec(ordering) : this;
+  }
+
   public boolean hasLimit()
   {
     return limit > 0;

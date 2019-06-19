@@ -177,7 +177,7 @@ public class TopNQueryBuilder
         .metric(query.getTopNMetricSpec())
         .threshold(query.getThreshold())
         .intervals(query.getIntervals())
-        .filters(query.getDimensionsFilter())
+        .filters(query.getFilter())
         .granularity(query.getGranularity())
         .aggregators(query.getAggregatorSpecs())
         .postAggregators(query.getPostAggregatorSpecs())

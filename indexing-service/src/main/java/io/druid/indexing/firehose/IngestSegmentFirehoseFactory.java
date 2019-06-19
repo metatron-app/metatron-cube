@@ -63,7 +63,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
   private static final EmittingLogger log = new EmittingLogger(IngestSegmentFirehoseFactory.class);
   private final String dataSource;
   private final Interval interval;
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final List<String> dimensions;
   private final List<String> metrics;
   private final Injector injector;
@@ -73,7 +73,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
   public IngestSegmentFirehoseFactory(
       @JsonProperty("dataSource") final String dataSource,
       @JsonProperty("interval") Interval interval,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JacksonInject Injector injector,
@@ -84,7 +84,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
     Preconditions.checkNotNull(interval, "interval");
     this.dataSource = dataSource;
     this.interval = interval;
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.dimensions = dimensions;
     this.metrics = metrics;
     this.injector = injector;
@@ -103,10 +103,10 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
     return interval;
   }
 
-  @JsonProperty("filter")
-  public DimFilter getDimensionsFilter()
+  @JsonProperty
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @JsonProperty
@@ -274,7 +274,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
           )
       );
 
-      return new IngestSegmentFirehose(adapters, dims, metricsList, dimFilter, QueryGranularities.NONE);
+      return new IngestSegmentFirehose(adapters, dims, metricsList, filter, QueryGranularities.NONE);
     }
     catch (IOException e) {
       throw Throwables.propagate(e);

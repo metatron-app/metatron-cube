@@ -57,7 +57,7 @@ public class KMeansQuery
     extends BaseQuery<Centroid>
     implements Query.RewritingQuery<Centroid>,
     Query.IteratingQuery<CentroidDesc, Centroid>,
-    Query.DimFilterSupport<Centroid>,
+    Query.FilterSupport<Centroid>,
     Query.ClassifierFactory<Centroid>
 {
   private static final Logger LOG = new Logger(KMeansQuery.class);
@@ -66,7 +66,7 @@ public class KMeansQuery
   static final double DEFAULT_DELTA_THRESHOLD = 0.01;
 
   private final List<VirtualColumn> virtualColumns;
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final List<String> metrics;
   private final int numK;
   private final int maxIteration;
@@ -79,7 +79,7 @@ public class KMeansQuery
   public KMeansQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("numK") int numK,
@@ -92,7 +92,7 @@ public class KMeansQuery
     this(
         dataSource,
         querySegmentSpec,
-        dimFilter,
+        filter,
         virtualColumns,
         metrics,
         numK,
@@ -108,7 +108,7 @@ public class KMeansQuery
   public KMeansQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
-      DimFilter dimFilter,
+      DimFilter filter,
       List<VirtualColumn> virtualColumns,
       List<String> metrics,
       int numK,
@@ -121,7 +121,7 @@ public class KMeansQuery
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.metrics = Preconditions.checkNotNull(metrics, "metric cannot be null");
     this.numK = numK;
     Preconditions.checkArgument(maxIteration == null || maxIteration > 0);
@@ -150,9 +150,9 @@ public class KMeansQuery
   @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
-  public DimFilter getDimFilter()
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -215,7 +215,7 @@ public class KMeansQuery
     return new KMeansQuery(
         dataSource,
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -234,7 +234,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         spec,
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -253,7 +253,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -272,7 +272,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         virtualColumns,
         getMetrics(),
         getNumK(),
@@ -285,7 +285,7 @@ public class KMeansQuery
     );
   }
   @Override
-  public DimFilterSupport<Centroid> withDimFilter(DimFilter filter)
+  public FilterSupport<Centroid> withFilter(DimFilter filter)
   {
     return new KMeansQuery(
         getDataSource(),
@@ -352,7 +352,7 @@ public class KMeansQuery
     return new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getNumK(),
@@ -390,7 +390,7 @@ public class KMeansQuery
           new FindNearestQuery(
               getDataSource(),
               getQuerySegmentSpec(),
-              getDimFilter(),
+              getFilter(),
               getVirtualColumns(),
               getMetrics(),
               getCentroids(),
@@ -418,7 +418,7 @@ public class KMeansQuery
         new FindNearestQuery(
             getDataSource(),
             getQuerySegmentSpec(),
-            getDimFilter(),
+            getFilter(),
             getVirtualColumns(),
             getMetrics(),
             newCentroids,

@@ -833,7 +833,7 @@ public class QueryRunnerTestHelper
           );
           sequences.add(factory.createRunner(segment, null).run(running, responseContext));
         }
-        return new MergeSequence<>(query.getResultOrdering(), Sequences.simple(sequences));
+        return new MergeSequence<>(query.getMergeOrdering(), Sequences.simple(sequences));
       }
     };
     return FluentQueryRunnerBuilder.create(toolChest, baseRunner)

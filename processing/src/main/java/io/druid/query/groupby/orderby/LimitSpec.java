@@ -198,7 +198,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
   }
 
-  public LimitSpec withNoProcessing()
+  public LimitSpec withNoLocalProcessing()
   {
     if (segmentLimit == null && nodeLimit == null) {
       return NoopLimitSpec.INSTANCE;
@@ -206,8 +206,8 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return new LimitSpec(
         null,
         null,
-        segmentLimit == null ? null : segmentLimit.withOrderingSpec(columns),
-        nodeLimit == null ? null : nodeLimit.withOrderingSpec(columns),
+        segmentLimit == null ? null : segmentLimit.withOrderingIfNotExists(columns),
+        nodeLimit == null ? null : nodeLimit.withOrderingIfNotExists(columns),
         null,
         null
     );
@@ -259,8 +259,8 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     final List<String> inputColumns = query.getColumns();
     final List<String> outputColumns = query.getOutputColumns();
     if (windowingSpecs.isEmpty()) {
-      // ordering is ignored cause it's regarded as already done.. looks like need some flag or something
-      Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(limit);
+      Ordering<Object[]> ordering = new OrderingProcessor(query.getColumns(), null).toArrayOrdering(columns, false);
+      Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(ordering, limit);
       if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
         function = GuavaUtils.sequence(function, Sequences.mapper(remap(inputColumns, outputColumns)));
       }
@@ -339,14 +339,14 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
   }
 
+  private static Function<Sequence<Object[]>, Sequence<Object[]>> sequenceLimiter(Ordering<Object[]> ordering, int limit)
+  {
+    return ordering != null ? new SortingArrayFn(ordering, limit) : LimitSpec.<Object[]>sequenceLimiter(limit);
+  }
+
   public static Sequence<Object[]> sortLimit(Sequence<Object[]> sequence, Ordering<Object[]> ordering, int limit)
   {
-    if (ordering != null) {
-      sequence = new SortingArrayFn(ordering, limit).apply(sequence);
-    } else if (limit > 0) {
-      sequence = Sequences.limit(sequence, limit);
-    }
-    return sequence;
+    return LimitSpec.sequenceLimiter(ordering, limit).apply(sequence);
   }
 
   public List<String> estimateOutputColumns(List<String> columns)

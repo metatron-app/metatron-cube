@@ -190,7 +190,7 @@ public class Druids
       return (TimeseriesQueryBuilder) new TimeseriesQueryBuilder()
           .dataSource(query.getDataSource())
           .intervals(query.getIntervals())
-          .filters(query.getDimFilter())
+          .filters(query.getFilter())
           .descending(query.isDescending())
           .granularity(query.getGranularity())
           .virtualColumns(query.getVirtualColumns())
@@ -334,7 +334,7 @@ public class Druids
       return new SearchQueryBuilder()
           .dataSource(query.getDataSource())
           .intervals(query.getQuerySegmentSpec())
-          .filters(query.getDimensionsFilter())
+          .filters(query.getFilter())
           .granularity(query.getGranularity())
           .limit(query.getLimit())
           .dimensions(query.getDimensions())
@@ -798,6 +798,7 @@ public class Druids
     private List<String> metrics;
     private List<String> columns;
     private List<VirtualColumn> virtualColumns;
+    private List<OrderByColumnSpec> orderingSpecs;
     private PagingSpec pagingSpec;
     private LimitSpec limitSpec = NoopLimitSpec.INSTANCE;
     private String concatString;
@@ -822,7 +823,11 @@ public class Druids
       Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
       Preconditions.checkArgument(pagingSpec == null || GuavaUtils.isNullOrEmpty(pagingSpec.getPagingIdentifiers()));
       if (!GuavaUtils.isNullOrEmpty(sortOn)) {
-        limitSpec = limitSpec.withOrderingSpec(OrderByColumnSpec.ascending(sortOn));
+        if (limitSpec.isNoop()) {
+          orderingSpecs = OrderByColumnSpec.ascending(sortOn);
+        } else {
+          limitSpec = limitSpec.withOrderingSpec(OrderByColumnSpec.ascending(sortOn));
+        }
       }
       return new StreamQuery(
           dataSource,
@@ -831,6 +836,7 @@ public class Druids
           dimFilter,
           columns,
           virtualColumns,
+          orderingSpecs,
           concatString,
           limitSpec,
           outputColumns,
@@ -883,7 +889,7 @@ public class Druids
           .dataSource(query.getDataSource())
           .intervals(query.getIntervals())
           .descending(query.isDescending())
-          .filters(query.getDimFilter())
+          .filters(query.getFilter())
           .granularity(query.getGranularity())
           .dimensionSpecs(query.getDimensions())
           .metrics(query.getMetrics())
@@ -1245,10 +1251,14 @@ public class Druids
       return this;
     }
 
+    public JoinQueryBuilder dataSource(String alias, String table)
+    {
+      return dataSource(alias, TableDataSource.of(table));
+    }
+
     public JoinQueryBuilder dataSource(String alias, Query query)
     {
-      dataSources.put(alias, QueryDataSource.of(query));
-      return this;
+      return dataSource(alias, QueryDataSource.of(query));
     }
 
     public JoinQueryBuilder interval(Interval interval)

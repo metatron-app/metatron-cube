@@ -84,7 +84,7 @@ public class QueryUtils
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
   {
-    Ordering<T> ordering = query.getResultOrdering();
+    Ordering<T> ordering = query.getMergeOrdering();
     return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
   }
 
@@ -289,9 +289,9 @@ public class QueryUtils
           VirtualColumns.override(view.getVirtualColumns(), vcSupport.getVirtualColumns())
       );
     }
-    if (query instanceof Query.DimFilterSupport && view.getFilter() != null) {
-      Query.DimFilterSupport<T> filterSupport = (Query.DimFilterSupport) query;
-      query = filterSupport.withDimFilter(DimFilters.and(view.getFilter(), filterSupport.getDimFilter()));
+    if (query instanceof Query.FilterSupport && view.getFilter() != null) {
+      Query.FilterSupport<T> filterSupport = (Query.FilterSupport) query;
+      query = filterSupport.withFilter(DimFilters.and(view.getFilter(), filterSupport.getFilter()));
     }
 
     Supplier<RowResolver> schema = QueryUtils.resolverSupplier(query, segmentWalker);

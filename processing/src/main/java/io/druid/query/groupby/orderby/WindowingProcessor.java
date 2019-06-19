@@ -94,7 +94,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private PartitionDefinition createPartitionSpec(WindowingSpec windowingSpec)
   {
     List<String> partitionColumns = windowingSpec.getPartitionColumns();
-    List<OrderByColumnSpec> orderingSpecs = windowingSpec.getPartitionOrdering();
+    List<OrderByColumnSpec> orderingSpecs = windowingSpec.getSortingColumns();
     PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
 
     Ordering<Row> ordering = processor.toRowOrdering(orderingSpecs, false);

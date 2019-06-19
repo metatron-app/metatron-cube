@@ -175,7 +175,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
   protected Iterable<T> mergeResults(Query<T> query, List<Iterable<T>> results)
   {
-    final Ordering<T> ordering = query.getResultOrdering();
+    final Ordering<T> ordering = query.getMergeOrdering();
     return ordering == null ? Iterables.concat(results) : new MergeIterable<>(ordering.nullsFirst(), results);
   }
 }

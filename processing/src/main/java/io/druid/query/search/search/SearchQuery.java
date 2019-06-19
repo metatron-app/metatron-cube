@@ -50,7 +50,7 @@ import java.util.Map;
 public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     implements Query.DimensionSupport<Result<SearchResultValue>>, Query.ArrayOutputSupport<Result<SearchResultValue>>
 {
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final SearchSortSpec sortSpec;
   private final Granularity granularity;
   private final List<VirtualColumn> virtualColumns;
@@ -62,7 +62,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   @JsonCreator
   public SearchQuery(
       @JsonProperty("dataSource") DataSource dataSource,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("limit") int limit,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
@@ -75,7 +75,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.sortSpec = sortSpec == null ? new LexicographicSearchSortSpec() : sortSpec;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
@@ -94,9 +94,11 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @Override
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -104,7 +106,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         limit,
         spec,
@@ -122,7 +124,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         dataSource,
-        dimFilter,
+        filter,
         granularity,
         limit,
         getQuerySegmentSpec(),
@@ -140,7 +142,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         limit,
         getQuerySegmentSpec(),
@@ -154,11 +156,11 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @Override
-  public SearchQuery withDimFilter(DimFilter dimFilter)
+  public SearchQuery withFilter(DimFilter filter)
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         limit,
         getQuerySegmentSpec(),
@@ -169,13 +171,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         valueOnly,
         getContext()
     );
-  }
-
-  @JsonProperty("filter")
-  @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
   }
 
   @Override
@@ -204,7 +199,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         limit,
         getQuerySegmentSpec(),
@@ -222,7 +217,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         limit,
         getQuerySegmentSpec(),
@@ -265,7 +260,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     return new SearchQuery(
         getDataSource(),
-        dimFilter,
+        filter,
         granularity,
         newLimit,
         getQuerySegmentSpec(),
@@ -282,16 +277,16 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   public String toString()
   {
     return "SearchQuery{" +
-        "dataSource='" + getDataSource() + '\'' +
-        ", dimFilter=" + dimFilter +
-        ", granularity='" + granularity + '\'' +
-        ", virtualColumns=" + virtualColumns +
-        ", dimensions=" + dimensions +
-        ", querySpec=" + querySpec +
-        ", querySegmentSpec=" + getQuerySegmentSpec() +
-        ", limit=" + limit +
-        ", valueOnly=" + valueOnly +
-        '}';
+           "dataSource='" + getDataSource() + '\'' +
+           ", filter=" + filter +
+           ", granularity='" + granularity + '\'' +
+           ", virtualColumns=" + virtualColumns +
+           ", dimensions=" + dimensions +
+           ", querySpec=" + querySpec +
+           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", limit=" + limit +
+           ", valueOnly=" + valueOnly +
+           '}';
   }
 
   @Override
@@ -305,7 +300,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
 
     if (limit != that.limit) return false;
     if (valueOnly != that.valueOnly) return false;
-    if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
+    if (filter != null ? !filter.equals(that.filter) : that.filter != null) return false;
     if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) return false;
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) return false;
     if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) return false;
@@ -319,7 +314,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
+    result = 31 * result + (filter != null ? filter.hashCode() : 0);
     result = 31 * result + (sortSpec != null ? sortSpec.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);

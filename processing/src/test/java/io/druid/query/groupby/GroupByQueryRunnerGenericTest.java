@@ -1265,7 +1265,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     query = query
         .withVirtualColumns(Arrays.<VirtualColumn>asList(new ExprVirtualColumn("market + 'AA'", "marketAA")))
-        .withDimFilter(
+        .withFilter(
             new OrDimFilter(
                 Arrays.<DimFilter>asList(
                     BoundDimFilter.lt("marketAA", "spotAA"),
@@ -2810,7 +2810,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         createExpectedRow("2011-04-02", "alias", "a", "rows", 6L, "idx", 778L)
     );
 
-    query = query.withDimFilter(
+    query = query.withFilter(
         DimFilters.or(
             new InDimFilter("alias", Arrays.asList("a", "b"), null),
             new MathExprFilter("idx > 100 && idx < 200"),
@@ -6461,7 +6461,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
 
-    query = query.withDimFilter(new RegexDimFilter("quality", "^[a-m].*$", null));
+    query = query.withFilter(new RegexDimFilter("quality", "^[a-m].*$", null));
 
     expectedResults = createExpectedRows(
         new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
@@ -6803,7 +6803,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    results = runQuery(query.withDimFilter(SelectorDimFilter.of("VC", "automotive")), true);
+    results = runQuery(query.withFilter(SelectorDimFilter.of("VC", "automotive")), true);
     expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

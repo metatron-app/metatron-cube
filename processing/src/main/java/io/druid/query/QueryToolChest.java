@@ -302,7 +302,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   public <I> Query<I> prepareSubQuery(Query<ResultType> outerQuery, Query<I> innerQuery)
   {
     innerQuery = innerQuery.withOverriddenContext(BaseQuery.copyContextForMeta(outerQuery.getContext()));
-    if (innerQuery instanceof Query.DimFilterSupport) {
+    if (innerQuery instanceof Query.FilterSupport) {
       // todo pushdown predicate if possible (need input schema)
     }
     // don't finalize result of sub-query

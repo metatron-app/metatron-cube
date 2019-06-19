@@ -120,7 +120,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
       {
         TopNQuery topN = (TopNQuery) query;
         if (topN.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          Sequence<Result<TopNResultValue>> sequence = runner.run(topN.removePostActions(), responseContext);
+          Sequence<Result<TopNResultValue>> sequence = runner.run(topN.toLocalQuery(), responseContext);
           if (BaseQuery.isBySegment(topN)) {
             return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(toPostAggregator(topN)));
           }
@@ -313,8 +313,8 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
         final byte[] dimensionSpecBytes = query.getDimensionSpec().getCacheKey();
         final byte[] metricSpecBytes = query.getTopNMetricSpec().getCacheKey();
 
-        final DimFilter dimFilter = query.getDimensionsFilter();
-        final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
+        final DimFilter filter = query.getFilter();
+        final byte[] filterBytes = filter == null ? new byte[]{} : filter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());

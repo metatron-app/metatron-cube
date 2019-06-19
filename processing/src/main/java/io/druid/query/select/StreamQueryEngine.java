@@ -20,6 +20,7 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
+import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -53,8 +54,9 @@ public class StreamQueryEngine
   )
   {
     Sequence<Object[]> result = processRaw(query, segment, optimizer, cache);
-    if (!GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
-      result = LimitSpec.sortLimit(result, query.getResultOrdering(), -1);
+    Ordering<Object[]> mergeOrdering = query.getMergeOrdering();
+    if (mergeOrdering != null) {
+      result = LimitSpec.sortLimit(result, mergeOrdering, -1);
     }
     return result;
   }
@@ -91,7 +93,7 @@ public class StreamQueryEngine
     {
       private final String[] columns = query.getColumns().toArray(new String[0]);
       private final String concatString = query.getConcatString();
-      private final int limit = query.getLimit();
+      private final int limit = query.getSimpleLimit();
 
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)

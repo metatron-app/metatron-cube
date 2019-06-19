@@ -227,12 +227,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     throw new IllegalStateException();
   }
 
+  static final long ROWNUM_NOT_EVALUATED = -2;
+  static final long ROWNUM_UNKNOWN = -1;
+
   @Override
   @SuppressWarnings("unchecked")
   public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
-    XJoinPostProcessor joinProcessor = jsonMapper.convertValue(
+    JoinPostProcessor joinProcessor = jsonMapper.convertValue(
         ImmutableMap.of(
             "type", "join",
             "elements", elements,
@@ -240,11 +243,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             "prefixAlias", prefixAlias,
             "maxRowsInGroup", maxRowsInGroup
         ),
-        new TypeReference<XJoinPostProcessor>()
+        new TypeReference<JoinPostProcessor>()
         {
         }
     );
-    int threshold = queryConfig.getJoin().getHashJoinThreshold();
+    int threshold = queryConfig.getHashJoinThreshold(this);
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
@@ -254,13 +257,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       JoinType joinType = element.getJoinType();
       DataSource left = dataSources.get(element.getLeftAlias());
       DataSource right = dataSources.get(element.getRightAlias());
-      long rightEstimated = -1;
+      long rightEstimated = ROWNUM_NOT_EVALUATED;
       boolean rightHashing = false;
       if (threshold > 0 && joinType.isLeftDrivable()) {
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
         rightHashing = rightEstimated > 0 && rightEstimated < threshold;
       }
-      long leftEstimated = -1;
+      long leftEstimated = ROWNUM_NOT_EVALUATED;
       boolean leftHashing = false;
       if (threshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
         leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
@@ -426,13 +429,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return this;
     }
 
-    private XJoinPostProcessor getJoinProcessor()
+    private JoinPostProcessor getJoinProcessor()
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
       if (processor instanceof ListPostProcessingOperator) {
         processor = ((ListPostProcessingOperator) processor).getLast();
       }
-      return (XJoinPostProcessor) processor;
+      return (JoinPostProcessor) processor;
     }
 
     private boolean isArrayOutput()
@@ -446,10 +449,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (processor instanceof ListPostProcessingOperator) {
         List<PostProcessingOperator> processors = ((ListPostProcessingOperator<?>) processor).getProcessors();
         int index = processors.size() - 1;
-        processors.set(index, ((XJoinPostProcessor) processors.get(index)).withAsArray(true));
+        processors.set(index, ((JoinPostProcessor) processors.get(index)).withAsArray(true));
         processor = new ListPostProcessingOperator(processors);
       } else {
-        processor = ((XJoinPostProcessor) processor).withAsArray(true);
+        processor = ((JoinPostProcessor) processor).withAsArray(true);
       }
       return (JoinDelegate) withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
     }

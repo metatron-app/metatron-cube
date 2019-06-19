@@ -84,6 +84,13 @@ public class QueryConfig
     return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
   }
 
+  public int getHashJoinThreshold(Query<?> query)
+  {
+    final int systemMax = getJoin().getHashJoinThreshold();
+    final int userMax = query.getContextInt(Query.HASHJOIN_THRESHOLD, -1);
+    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+  }
+
   public boolean useParallelSort(Query<?> query)
   {
     return query.getContextBoolean(Query.GBY_USE_PARALLEL_SORT, getGroupBy().isUseParallelSort());

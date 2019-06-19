@@ -178,8 +178,8 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public boolean hasFilters()
   {
-    if (this instanceof DimFilterSupport) {
-      if (((DimFilterSupport)this).getDimFilter() != null) {
+    if (this instanceof Query.FilterSupport) {
+      if (((FilterSupport)this).getFilter() != null) {
         return true;
       }
     }
@@ -217,7 +217,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static DimFilter getDimFilter(Query query)
   {
-    return query instanceof DimFilterSupport ? ((DimFilterSupport) query).getDimFilter() : null;
+    return query instanceof Query.FilterSupport ? ((FilterSupport) query).getFilter() : null;
   }
 
   @SuppressWarnings("unchecked")
@@ -263,15 +263,15 @@ public abstract class BaseQuery<T> implements Query<T>
         query = aggregationsSupport.withAggregatorSpecs(resolved);
       }
     }
-    if (query instanceof DimFilterSupport && ((DimFilterSupport) query).getDimFilter() != null) {
-      DimFilterSupport<T> dimFilterSupport = (DimFilterSupport) query;
-      DimFilter optimized = dimFilterSupport.getDimFilter().optimize();
+    if (query instanceof Query.FilterSupport && ((FilterSupport) query).getFilter() != null) {
+      FilterSupport<T> filterSupport = (FilterSupport) query;
+      DimFilter optimized = filterSupport.getFilter().optimize();
       Map<String, String> aliasMapping  = QueryUtils.aliasMapping(this);
       if (!aliasMapping.isEmpty()) {
         optimized = optimized.withRedirection(aliasMapping);
       }
-      if (optimized != dimFilterSupport.getDimFilter()) {
-        query = dimFilterSupport.withDimFilter(optimized);
+      if (optimized != filterSupport.getFilter()) {
+        query = filterSupport.withFilter(optimized);
       }
     }
     return query;
@@ -354,7 +354,7 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  public Query<T> removePostActions()
+  public Query<T> toLocalQuery()
   {
     return withOverriddenContext(defaultPostActionContext());
   }
@@ -454,7 +454,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Ordering<T> getResultOrdering()
+  public Ordering<T> getMergeOrdering()
   {
     Ordering<T> retVal = GuavaUtils.<T>noNullableNatural();
     return descending ? retVal.reverse() : retVal;

@@ -188,9 +188,9 @@ public class DimFilters
     } else if (equalValues.size() == 1) {
       dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
     }
-    DimFilter dimFilter = DimFilters.or(dimFilters).optimize();
-    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, dimFilter);
-    return dimFilter;
+    DimFilter filter = DimFilters.or(dimFilters).optimize();
+    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
+    return filter;
   }
 
   public static DimFilter NONE = new None();

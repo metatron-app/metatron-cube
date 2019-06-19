@@ -54,7 +54,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     implements Query.RewritingQuery<Result<Map<String, Object>>>,
     Query.MetricSupport<Result<Map<String, Object>>>
 {
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
@@ -77,7 +77,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimFilter = filter;
+    this.filter = filter;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
@@ -130,11 +130,11 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     sketchContext.put(Query.ALL_METRICS_FOR_EMPTY, allMetricsForEmpty(this, false));
 
     SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.QUANTILE,
+        getDataSource(), getQuerySegmentSpec(), filter, virtualColumns, dimensions, metrics, null, SketchOp.QUANTILE,
         Maps.newHashMap(sketchContext)
     );
     SketchQuery theta = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
+        getDataSource(), getQuerySegmentSpec(), filter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
         Maps.newHashMap(sketchContext)
     );
 
@@ -164,9 +164,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimFilter()
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -214,7 +214,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -231,7 +231,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -248,7 +248,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -265,7 +265,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -282,7 +282,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -299,7 +299,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -308,7 +308,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public SummaryQuery withDimFilter(DimFilter dimFilter)
+  public SummaryQuery withFilter(DimFilter filter)
   {
     return new SummaryQuery(
         getDataSource(),
@@ -316,7 +316,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         dimensions,
         metrics,
-        dimFilter,
+        filter,
         round,
         includeTimeStats,
         includeCovariance,
@@ -332,8 +332,8 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec());
 
-    if (dimFilter != null) {
-      builder.append(", dimFilter=").append(dimFilter);
+    if (filter != null) {
+      builder.append(", filter=").append(filter);
     }
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);

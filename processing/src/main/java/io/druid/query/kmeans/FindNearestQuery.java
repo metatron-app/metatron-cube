@@ -37,10 +37,10 @@ import java.util.Map;
 
 /**
  */
-public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.DimFilterSupport<CentroidDesc>
+public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.FilterSupport<CentroidDesc>
 {
   private final List<VirtualColumn> virtualColumns;
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final List<String> metrics;
   private final List<Centroid> centroids;
   private final String measure;
@@ -49,7 +49,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
   public FindNearestQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("dimFilter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("centroids") List<Centroid> centroids,
@@ -59,7 +59,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
   {
     super(dataSource, querySegmentSpec, false, context);
     this.virtualColumns = virtualColumns;
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.metrics = metrics;
     this.measure = measure;
     this.centroids = centroids;
@@ -72,10 +72,11 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
   }
 
   @Override
-  @JsonInclude(Include.NON_EMPTY)
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -113,7 +114,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return new FindNearestQuery(
         dataSource,
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
@@ -128,7 +129,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return new FindNearestQuery(
         getDataSource(),
         spec,
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
@@ -143,7 +144,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return new FindNearestQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
@@ -158,7 +159,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
     return new FindNearestQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         virtualColumns,
         getMetrics(),
         getCentroids(),
@@ -168,7 +169,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
   }
 
   @Override
-  public DimFilterSupport<CentroidDesc> withDimFilter(DimFilter filter)
+  public FilterSupport<CentroidDesc> withFilter(DimFilter filter)
   {
     return new FindNearestQuery(
         getDataSource(),
@@ -188,9 +189,10 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.D
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        getDimFilter(),
+        getFilter(),
         getMetrics(),
         getVirtualColumns(),
+        null,
         null,
         null,
         null,

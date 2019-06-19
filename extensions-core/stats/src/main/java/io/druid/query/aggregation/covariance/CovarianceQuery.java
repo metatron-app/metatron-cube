@@ -54,9 +54,9 @@ import java.util.Map;
 @JsonTypeName("covariance")
 public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
     implements Query.RewritingQuery<Result<Map<String, Object>>>,
-    Query.DimFilterSupport<Result<Map<String, Object>>>
+    Query.FilterSupport<Result<Map<String, Object>>>
 {
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final String column;
   private final List<String> excludes;
   private final List<VirtualColumn> virtualColumns;
@@ -73,7 +73,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimFilter = filter;
+    this.filter = filter;
     this.column = Preconditions.checkNotNull(column, "column cannot be null");
     this.excludes = excludes == null ? ImmutableList.<String>of() : excludes;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
@@ -125,9 +125,9 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
   @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimFilter()
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -152,7 +152,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         getQuerySegmentSpec(),
         virtualColumns,
         column,
-        dimFilter,
+        filter,
         excludes,
         getContext()
     );
@@ -166,7 +166,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         spec,
         virtualColumns,
         column,
-        dimFilter,
+        filter,
         excludes,
         getContext()
     );
@@ -180,7 +180,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         getQuerySegmentSpec(),
         virtualColumns,
         column,
-        dimFilter,
+        filter,
         excludes,
         getContext()
     );
@@ -194,21 +194,21 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         getQuerySegmentSpec(),
         virtualColumns,
         column,
-        dimFilter,
+        filter,
         excludes,
         computeOverriddenContext(contextOverride)
     );
   }
 
   @Override
-  public CovarianceQuery withDimFilter(DimFilter dimFilter)
+  public CovarianceQuery withFilter(DimFilter filter)
   {
     return new CovarianceQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         virtualColumns,
         column,
-        dimFilter,
+        filter,
         excludes,
         getContext()
     );
@@ -222,8 +222,8 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec());
 
-    if (dimFilter != null) {
-      builder.append(", dimFilter=").append(dimFilter);
+    if (filter != null) {
+      builder.append(", filter=").append(filter);
     }
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);

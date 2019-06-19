@@ -112,7 +112,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(26, value.getTotalCount());
     Assert.assertEquals(incremental ? 702 : 1248, value.getEstimatedSize());
 
-    query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
+    query = query.withFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
@@ -178,7 +178,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(23, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 621 : 483, r.getValue().getEstimatedSize());
 
-    query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
+    query = query.withFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()

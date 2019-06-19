@@ -99,7 +99,7 @@ public class SketchGroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    query = query.withDimFilter(new MathExprFilter("index > 100"));
+    query = query.withFilter(new MathExprFilter("index > 100"));
 
     expectedResults = builder
         .add("1970-01-01", "automotive", new Double[]{113.22145080566406, 134.4625244140625, 174.89051818847656})
@@ -175,7 +175,7 @@ public class SketchGroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    query = query.withDimFilter(new MathExprFilter("index > 150"));
+    query = query.withFilter(new MathExprFilter("index > 150"));
 
     expectedResults = builder
         .add("1970-01-01", "spot", new String[]{"automotive", "entertainment", "health"})
@@ -218,7 +218,7 @@ public class SketchGroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    query = query.withDimFilter(new MathExprFilter("index > 100"));
+    query = query.withFilter(new MathExprFilter("index > 100"));
 
     expectedResults = builder
         .add("1970-01-01", "automotive", 78.0)
@@ -262,7 +262,7 @@ public class SketchGroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    query = query.withDimFilter(new MathExprFilter("index > 150"));
+    query = query.withFilter(new MathExprFilter("index > 150"));
 
     expectedResults = builder
         .add("1970-01-01", "spot", 6.0)

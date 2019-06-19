@@ -308,7 +308,7 @@ public class GroupByQueryRunnerFactory
       }
       logger.debug("--> filter : %s", filter);
       splits.add(
-          query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
+          query.withFilter(DimFilters.and(query.getFilter(), filter))
       );
     }
     if (query.isDescending()) {

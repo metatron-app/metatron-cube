@@ -91,8 +91,8 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (source instanceof VCSupport) {
       builder.setVirtualColumns(((VCSupport) source).getVirtualColumns());
     }
-    if (source instanceof DimFilterSupport) {
-      builder.setDimFilter(((DimFilterSupport) source).getDimFilter());
+    if (source instanceof Query.FilterSupport) {
+      builder.setDimFilter(((FilterSupport) source).getFilter());
     }
     if (source instanceof DimensionSupport) {
       builder.setDimensions(((DimensionSupport) source).getDimensions());
@@ -123,7 +123,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     );
   }
 
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
@@ -134,7 +134,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   public SelectMetaQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
@@ -147,7 +147,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.pagingSpec = pagingSpec;
   }
@@ -176,17 +176,12 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return virtualColumns;
   }
 
-  @JsonProperty("filter")
-  @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
-  }
-
   @Override
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -214,7 +209,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -239,7 +234,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -255,7 +250,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         spec,
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -271,7 +266,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         dataSource,
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -282,7 +277,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @Override
-  public SelectMetaQuery withDimFilter(DimFilter filter)
+  public SelectMetaQuery withFilter(DimFilter filter)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -303,7 +298,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         dimensions,
         getMetrics(),
@@ -319,7 +314,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -335,7 +330,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         metrics,
@@ -350,7 +345,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         granularity,
         getDimensions(),
         getMetrics(),
@@ -365,7 +360,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimensionsFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -381,7 +376,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     return "SelectMetaQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", dimFilter=" + dimFilter +
+           ", filter=" + filter +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
            ", metrics=" + metrics +
@@ -405,7 +400,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
     SelectMetaQuery that = (SelectMetaQuery) o;
 
-    if (!Objects.equals(dimFilter, that.dimFilter)) {
+    if (!Objects.equals(filter, that.filter)) {
       return false;
     }
     if (!Objects.equals(granularity, that.granularity)) {
@@ -430,7 +425,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
+    result = 31 * result + (filter != null ? filter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
     result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
@@ -460,7 +455,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     {
       dataSource = query.getDataSource();
       querySegmentSpec = query.getQuerySegmentSpec();
-      dimFilter = query.getDimFilter();
+      dimFilter = query.getFilter();
       granularity = query.getGranularity();
       dimensions = query.getDimensions();
       metrics = query.getMetrics();

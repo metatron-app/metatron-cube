@@ -75,7 +75,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -260,7 +259,7 @@ public class TimeseriesQueryRunnerTest
               .dimension(QueryRunnerTestHelper.marketDimension)
               .value("upfront")
               .build(),
-        query.getDimFilter()
+        query.getFilter()
     );
 
     final DateTime expectedLast = descending ?

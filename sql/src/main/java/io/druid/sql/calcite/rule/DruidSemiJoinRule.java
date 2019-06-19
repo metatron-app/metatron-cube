@@ -171,7 +171,7 @@ public class DruidSemiJoinRule extends RelOptRule
       final int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
       final QueryMaker queryMaker = right.getQueryMaker();
       if (query instanceof GroupByQuery) {
-        GroupByQuery groupBy = (GroupByQuery) query.removePostActions();
+        GroupByQuery groupBy = (GroupByQuery) query.toLocalQuery();
         Query prepared = queryMaker.prepareQuery(groupBy);
         if (prepared instanceof GroupByQuery) {
           long cardinality = Queries.estimateCardinality(

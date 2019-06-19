@@ -58,7 +58,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     Query.ArrayOutputSupport<Result<SelectResultValue>>,
     Query.RewritingQuery<Result<SelectResultValue>>
 {
-  private final DimFilter dimFilter;
+  private final DimFilter filter;
   private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
@@ -73,7 +73,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
@@ -86,7 +86,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   )
   {
     super(dataSource, querySegmentSpec, descending, context);
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
@@ -117,7 +117,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return new SelectMetaQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getDimFilter(),
+        getFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -145,17 +145,12 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return Query.SELECT;
   }
 
-  @JsonProperty("filter")
-  @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
-  }
-
   @Override
-  public DimFilter getDimFilter()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -228,7 +223,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         querySegmentSpec,
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -248,7 +243,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         dataSource,
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -268,7 +263,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -287,7 +282,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -301,13 +296,13 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
-  public SelectQuery withDimFilter(DimFilter dimFilter)
+  public SelectQuery withFilter(DimFilter filter)
   {
     return new SelectQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -327,7 +322,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -347,7 +342,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -367,7 +362,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -386,7 +381,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -400,13 +395,13 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
-  public SelectQuery removePostActions()
+  public SelectQuery toLocalQuery()
   {
     return new SelectQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        dimFilter,
+        filter,
         granularity,
         dimensions,
         metrics,
@@ -429,8 +424,8 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         .append(", descending=").append(isDescending())
         .append(", granularity=").append(granularity);
 
-    if (dimFilter != null) {
-      builder.append(", dimFilter=").append(dimFilter);
+    if (filter != null) {
+      builder.append(", filter=").append(filter);
     }
     if (dimensions != null && !dimensions.isEmpty()) {
       builder.append(", dimensions=").append(dimensions);
@@ -466,7 +461,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
 
     SelectQuery that = (SelectQuery) o;
 
-    if (!Objects.equals(dimFilter, that.dimFilter)) return false;
+    if (!Objects.equals(filter, that.filter)) return false;
     if (!Objects.equals(granularity, that.granularity)) return false;
     if (!Objects.equals(dimensions, that.dimensions)) return false;
     if (!Objects.equals(metrics, that.metrics)) return false;
@@ -483,7 +478,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
+    result = 31 * result + (filter != null ? filter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
     result = 31 * result + (metrics != null ? metrics.hashCode() : 0);

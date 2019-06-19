@@ -54,7 +54,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          return ((StreamQuery) query).applyLimit(queryRunner.run(query.removePostActions(), responseContext));
+          return ((StreamQuery) query).applyLimit(queryRunner.run(query.toLocalQuery(), responseContext));
         }
         return queryRunner.run(query, responseContext);
       }

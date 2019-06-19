@@ -103,7 +103,7 @@ public class SearchQueryEngine
     final String segmentId = segment.getIdentifier();
     final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
-    final DimFilter filter = query.getDimensionsFilter();
+    final DimFilter filter = query.getFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();
     final SearchQuerySpec searchQuerySpec = query.getQuery();
     final int limit = query.getLimit();

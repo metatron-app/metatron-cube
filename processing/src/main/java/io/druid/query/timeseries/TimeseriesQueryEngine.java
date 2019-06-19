@@ -70,7 +70,7 @@ public class TimeseriesQueryEngine
     }
     return Sequences.explode(
         adapter.makeCursors(
-            query.getDimFilter(),
+            query.getFilter(),
             Iterables.getOnlyElement(query.getIntervals()),
             RowResolver.of(adapter, BaseQuery.getVirtualColumns(query)),
             Granularities.ALL,

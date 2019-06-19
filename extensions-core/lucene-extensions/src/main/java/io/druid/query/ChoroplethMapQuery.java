@@ -167,14 +167,14 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
     }
     Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
     LuceneLatLonPolygonFilter polygonFilter = new LuceneLatLonPolygonFilter(pointColumn, ShapeFormat.WKT, "");
-    DimFilter filter = query.getDimFilter();
+    DimFilter filter = query.getFilter();
     List<Query> queries = Lists.newArrayList();
     for (final Object[] row : Sequences.toList(boundary.run(segmentWalker, context))) {
       String boundary = String.valueOf(Preconditions.checkNotNull(row[geomIndex]));
       if (boundary.isEmpty()) {
         continue;
       }
-      GroupByQuery filtered = query.withDimFilter(DimFilters.and(filter, polygonFilter.withWKT(boundary)));
+      GroupByQuery filtered = query.withFilter(DimFilters.and(filter, polygonFilter.withWKT(boundary)));
       if (!joinMapping.isEmpty()) {
         Map<String, Object> copy = Maps.newHashMap(context);
         copy.put(QueryContextKeys.POST_PROCESSING, new ElementMapProcessor(

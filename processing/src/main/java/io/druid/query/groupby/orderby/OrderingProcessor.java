@@ -174,7 +174,7 @@ public class OrderingProcessor
       comparators.add(nextOrdering);
     }
 
-    return Comparators.compound(comparators);
+    return orderingSpecs.isEmpty() ? null : Comparators.compound(comparators);
   }
 }
 

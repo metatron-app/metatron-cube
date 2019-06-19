@@ -1044,6 +1044,7 @@ public class DruidBaseQuery implements DruidQuery
         columns,
         selectProjection == null ? null : selectProjection.getVirtualColumns(),
         null,
+        null,
         limiting == null ? null : limiting.getLimitSpec(),
         sortProject == null ? null : sortProject.getColumns(),
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())

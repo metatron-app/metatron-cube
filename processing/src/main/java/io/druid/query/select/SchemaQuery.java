@@ -74,7 +74,7 @@ public class SchemaQuery extends BaseQuery<Schema>
   }
 
   @Override
-  public Ordering<Schema> getResultOrdering()
+  public Ordering<Schema> getMergeOrdering()
   {
     return null;
   }

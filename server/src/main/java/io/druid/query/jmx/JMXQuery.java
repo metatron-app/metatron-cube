@@ -116,7 +116,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   }
 
   @Override
-  public Ordering<Map<String, Object>> getResultOrdering()
+  public Ordering<Map<String, Object>> getMergeOrdering()
   {
     return GuavaUtils.nullFirstNatural().onResultOf(
         new Function<Map<String, Object>, Comparable>()

@@ -303,7 +303,7 @@ public class TimeseriesBenchmark
     );
 
     DimFilter filter = new SelectorDimFilter("dimSequential", "399", null);
-    Query filteredQuery = query.withDimFilter(filter);
+    Query filteredQuery = query.withFilter(filter);
 
     List<Row> results = TimeseriesBenchmark.runQuery(factory, runner, filteredQuery);
     for (Row result : results) {

@@ -57,6 +57,9 @@ public interface QueryContextKeys
   public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
   public static final String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
 
+  // join
+  public static final String HASHJOIN_THRESHOLD = "hashjoinThreshold";
+
   // CacheConfig
   public static final String USE_CACHE = "useCache";
   public static final String POPULATE_CACHE = "populateCache";

@@ -90,7 +90,7 @@ public class NoopLimitSpec extends LimitSpec
   }
 
   @Override
-  public LimitSpec withNoProcessing()
+  public LimitSpec withNoLocalProcessing()
   {
     return this;
   }

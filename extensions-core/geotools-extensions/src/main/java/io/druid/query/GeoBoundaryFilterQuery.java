@@ -85,7 +85,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     this.boundaryColumn = boundaryColumn;
     this.boundaryUnion = boundaryUnion == null || boundaryUnion;
     this.boundaryJoin = boundaryJoin;
-    Preconditions.checkArgument(query instanceof DimFilterSupport, "'query' should support filters");
+    Preconditions.checkArgument(query instanceof Query.FilterSupport, "'query' should support filters");
     Preconditions.checkArgument(
         pointColumn == null ^ shapeColumn == null,
         "Must have a valid, non-null 'pointColumn' xor 'shapeColumn'"
@@ -302,8 +302,8 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   {
     String geometryWKT = geometry.toText();
     DimFilter filter = Preconditions.checkNotNull(mapper.convertValue(makeFilter(geometryWKT), DimFilter.class));
-    DimFilterSupport filterSupport = (DimFilterSupport) query;
-    Query filtered = filterSupport.withDimFilter(DimFilters.and(filterSupport.getDimFilter(), filter));
+    FilterSupport filterSupport = (FilterSupport) query;
+    Query filtered = filterSupport.withFilter(DimFilters.and(filterSupport.getFilter(), filter));
     return filtered.withOverriddenContext(
         Query.POST_PROCESSING, new SequenceMapProcessor(proc(query, geometryWKT, joinMapping, joinRow))
     );

@@ -86,7 +86,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       {
         T aggregation = (T) query;
         if (aggregation.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          Sequence<Row> sequence = runner.run(aggregation.removePostActions(), responseContext);
+          Sequence<Row> sequence = runner.run(aggregation.toLocalQuery(), responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
             return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(
                 Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation)))
@@ -278,7 +278,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       public byte[] computeCacheKey(T query)
       {
         final byte[] granularityBytes = QueryCacheHelper.computeCacheBytes(query.getGranularity());
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getFilter());
         final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
         final byte[] dimensionsBytes = QueryCacheHelper.computeCacheKey(query.getDimensions());
         final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());

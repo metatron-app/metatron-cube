@@ -114,7 +114,7 @@ public class StreamQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    if (GuavaUtils.isNullOrEmpty(query.getOrderBySpecs())) {
+    if (GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
       return null;
     }
     int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1);
@@ -123,7 +123,7 @@ public class StreamQueryRunnerFactory
       if (splitRows > SPLIT_MIN_ROWS) {
         int numRows = 0;
         DataSource ds = query.getDataSource();
-        DimFilter filter = query.getDimFilter();
+        DimFilter filter = query.getFilter();
         Map<String, Object> context = BaseQuery.copyContextForMeta(query);
         for (Segment segment : segments) {
           SelectMetaQuery meta = SelectMetaQuery.of(
@@ -146,7 +146,7 @@ public class StreamQueryRunnerFactory
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
 
     Object[] thresholds = null;
-    String sortColumn = query.getOrderBySpecs().get(0).getDimension();
+    String sortColumn = query.getOrderingSpecs().get(0).getDimension();
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, sortColumn);
     try {
       if (dictionaries.size() << 2 > segments.size()) {
@@ -183,7 +183,7 @@ public class StreamQueryRunnerFactory
       }
       logger.debug("--> filter : %s ", filter);
       splits.add(
-          query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
+          query.withFilter(DimFilters.and(query.getFilter(), filter))
       );
     }
     if (query.isDescending()) {
@@ -200,11 +200,7 @@ public class StreamQueryRunnerFactory
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        StreamQuery stream = (StreamQuery) query;
-        if (!GuavaUtils.isNullOrEmpty(stream.getOrderBySpecs())) {
-          stream = stream.withLimit(-1);   // should be done after merge
-        }
-        return engine.process(stream, segment, optimizer, cache);
+        return engine.process((StreamQuery) query, segment, optimizer, cache);
       }
     };
   }
@@ -237,7 +233,7 @@ public class StreamQueryRunnerFactory
       {
         StreamQuery stream = (StreamQuery) query;
         Iterable<Sequence<Object[]>> iterable;
-        if (GuavaUtils.isNullOrEmpty(stream.getOrderBySpecs())) {
+        if (GuavaUtils.isNullOrEmpty(stream.getOrderingSpecs())) {
           iterable = Iterables.transform(
               QueryRunnerHelper.asCallable(runners, query, responseContext),
               Sequences.<Object[]>callableToLazy()

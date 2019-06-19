@@ -72,7 +72,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   protected final LimitSpec limitSpec;
   protected final HavingSpec havingSpec;
   protected final LateralViewSpec lateralView;
-  protected final DimFilter dimFilter;
+  protected final DimFilter filter;
   protected final Granularity granularity;
   protected final List<VirtualColumn> virtualColumns;
   protected final List<AggregatorFactory> aggregatorSpecs;
@@ -84,7 +84,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
-      @JsonProperty("filter") DimFilter dimFilter,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
@@ -97,7 +97,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   )
   {
     super(dataSource, querySegmentSpec, descending, context);
-    this.dimFilter = dimFilter;
+    this.filter = filter;
     this.granularity = Preconditions.checkNotNull(granularity, "Must specify a granularity");
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
@@ -109,11 +109,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
-  @JsonProperty("filter")
+  @JsonProperty
   @JsonInclude(Include.NON_NULL)
-  public DimFilter getDimFilter()
+  public DimFilter getFilter()
   {
-    return dimFilter;
+    return filter;
   }
 
   @Override
@@ -185,13 +185,13 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public abstract BaseAggregationQuery withLateralView(LateralViewSpec lateralView);
 
   @Override
-  public List<OrderByColumnSpec> getOrderingSpecs()
+  public List<OrderByColumnSpec> getResultOrdering()
   {
     return limitSpec.getColumns();
   }
 
   @Override
-  public BaseAggregationQuery withOrderingSpecs(List<OrderByColumnSpec> orderingSpecs)
+  public BaseAggregationQuery withResultOrdering(List<OrderByColumnSpec> orderingSpecs)
   {
     return withLimitSpec(limitSpec.withOrderingSpec(orderingSpecs));
   }
@@ -298,7 +298,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     if (!Objects.equals(aggregatorSpecs, that.aggregatorSpecs)) {
       return false;
     }
-    if (!Objects.equals(dimFilter, that.dimFilter)) {
+    if (!Objects.equals(filter, that.filter)) {
       return false;
     }
     if (!Objects.equals(getDimensions(), that.getDimensions())) {
@@ -335,7 +335,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     result = 31 * result + (limitSpec != null ? limitSpec.hashCode() : 0);
     result = 31 * result + (havingSpec != null ? havingSpec.hashCode() : 0);
     result = 31 * result + (lateralView != null ? lateralView.hashCode() : 0);
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
+    result = 31 * result + (filter != null ? filter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + Objects.hashCode(getDimensions());
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
@@ -376,7 +376,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       dataSource = query.getDataSource();
       querySegmentSpec = query.getQuerySegmentSpec();
       descending = query.isDescending();
-      dimFilter = query.getDimFilter();
+      dimFilter = query.getFilter();
       granularity = query.getGranularity();
       dimensions = query.getDimensions();
       virtualColumns = query.getVirtualColumns();

@@ -50,7 +50,7 @@ public class Windowing
 
   public WindowingSpec asSpec()
   {
-    return new WindowingSpec(partitionColumns, sortCoumns, expression, null, null);
+    return new WindowingSpec(partitionColumns, sortCoumns, expression);
   }
 
   public RowSignature getOutputRowSignature()
