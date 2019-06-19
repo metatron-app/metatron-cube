@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
+import io.druid.collections.CountingMap;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
-import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.http.security.StateResourceFilter;
@@ -193,12 +193,18 @@ public class CoordinatorResource
       @QueryParam("assertLoaded") boolean assertLoaded,
       @QueryParam("assertTimeout") long assertTimeout,
       Set<DataSegment> segments)
-      throws InterruptedException, ExecutionException, TimeoutException
   {
     // seemed not very useful
     assertTimeout = assertTimeout <= 0 ? DEFAULT_ASSERT_TIMEOUT : assertTimeout;
-    CoordinatorStats stats = coordinator.scheduleNow(segments, assertLoaded, assertTimeout);
-    return Response.ok(stats.getGlobalStats()).build();
+    CountingMap<String> stats;
+    try {
+      stats = coordinator.scheduleNow(segments, assertLoaded, assertTimeout).getGlobalStats();
+    }
+    catch (Exception e) {
+      // ignore
+      stats = new CountingMap<>();
+    }
+    return Response.ok(stats).build();
   }
 
   @POST
