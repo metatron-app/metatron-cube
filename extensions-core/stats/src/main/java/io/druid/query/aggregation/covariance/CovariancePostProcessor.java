@@ -70,7 +70,7 @@ public class CovariancePostProcessor extends PostProcessingOperator.Abstract
         List<Pair<Double, String>> covariances = Lists.newArrayList();
         for (String column : row.getColumns()) {
           final Double value = row.getDouble(column);
-          if (value != null) {
+          if (value != null && !value.isNaN()) {
             covariances.add(Pair.of(value, column));
           }
         }
