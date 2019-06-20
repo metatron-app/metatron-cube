@@ -19,9 +19,11 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
-import io.druid.common.utils.Sequences;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -85,35 +87,35 @@ public class JoinPostProcessorTest
   private void test1(JoinPostProcessor processor, int[][] expected, List<Object[]> left, List<Object[]> right)
   {
     JoinPostProcessor.JoinAlias l = new JoinPostProcessor.JoinAlias(
-        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
-        left.iterator(), true
+        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), collation("a", "b"),
+        new int[] {0, 1}, left.iterator()
     );
     JoinPostProcessor.JoinAlias r = new JoinPostProcessor.JoinAlias(
-        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
-        right.iterator(), true
+        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), collation("c", "d"),
+        new int[] {0, 1}, right.iterator()
     );
-    validate(expected, Lists.newArrayList(processor.join(l, r, 0)));
+    validate(expected, Lists.newArrayList(processor.join(l, r, 0).iterator));
 
     if (processor == inner || processor == lo) {
       JoinPostProcessor.JoinAlias lhs = new JoinPostProcessor.JoinAlias(
-          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
-          left.iterator(), true
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), collation("a", "b"),
+          new int[]{0, 1}, left.iterator()
       );
       JoinPostProcessor.JoinAlias rhs = new JoinPostProcessor.JoinAlias(
           Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
-          JoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+          JoinPostProcessor.toHashed(right.iterator(), new int[]{0, 1})
       );
-      validate(expected, Lists.newArrayList(processor.join(lhs, rhs, 0)));
+      validate(expected, Lists.newArrayList(processor.join(lhs, rhs, 0).iterator));
 
       JoinPostProcessor.JoinAlias lh = new JoinPostProcessor.JoinAlias(
-          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1},
-          left.iterator(), false
+          Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), null, new int[]{0, 1},
+          left.iterator()
       );
       JoinPostProcessor.JoinAlias rh = new JoinPostProcessor.JoinAlias(
           Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
-          JoinPostProcessor.toHashed(Sequences.simple(right), new int[]{0, 1}, true)
+          JoinPostProcessor.toHashed(right.iterator(), new int[]{0, 1})
       );
-      validate(expected, Lists.newArrayList(processor.join(lh, rh, 0)));
+      validate(expected, Lists.newArrayList(processor.join(lh, rh, 0).iterator));
     }
   }
 
@@ -199,24 +201,26 @@ public class JoinPostProcessorTest
   ) throws Exception
   {
     JoinPostProcessor.JoinAlias a1 = new JoinPostProcessor.JoinAlias(
-        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[] {0, 1},
-        r1.iterator(), true
+        Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), collation("a", "b"),
+        new int[] {0, 1}, r1.iterator()
     );
     JoinPostProcessor.JoinAlias a2 = new JoinPostProcessor.JoinAlias(
-        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[] {0, 1},
-        r2.iterator(), true
+        Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), collation("c", "d"),
+        new int[] {0, 1}, r2.iterator()
     );
     JoinPostProcessor.JoinAlias a3 = new JoinPostProcessor.JoinAlias(
-        Arrays.asList("ds3"), Arrays.asList("e", "f", "z"), Arrays.asList("e", "f"), new int[] {0, 1},
-        r3.iterator(), true
+        Arrays.asList("ds3"), Arrays.asList("e", "f", "z"), Arrays.asList("e", "f"), collation("e", "f")
+        , new int[] {0, 1}, r3.iterator()
     );
     Future[] futures = new Future[] {
         Futures.immediateFuture(a1), Futures.immediateFuture(a2), Futures.immediateFuture(a3)
     };
     int[] index = new int[] {2, 5, 8};
 
-    List<Object[]> joined = Lists.newArrayList(processor.join(futures));
+    JoinPostProcessor.JoinResult result = processor.join(futures);
+    List<Object[]> joined = Lists.newArrayList(result.iterator);
     System.out.println("-------------");
+    System.out.println("collation " + result.collation);
     for (Object[] x : joined) {
       System.out.println(Arrays.toString(x));
     }
@@ -229,6 +233,11 @@ public class JoinPostProcessorTest
       }
       Assert.assertArrayEquals(expected[i], actual);
     }
+  }
+
+  private static Supplier<List<OrderByColumnSpec>> collation(String... columns)
+  {
+    return Suppliers.ofInstance(OrderByColumnSpec.ascending(columns));
   }
 
   private JoinPostProcessor proc(JoinType type)

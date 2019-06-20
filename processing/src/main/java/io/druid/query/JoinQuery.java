@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -37,6 +36,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -234,24 +234,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   @SuppressWarnings("unchecked")
   public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
-    JoinPostProcessor joinProcessor = jsonMapper.convertValue(
-        ImmutableMap.of(
-            "type", "join",
-            "elements", elements,
-            "asArray", asArray,
-            "prefixAlias", prefixAlias,
-            "maxRowsInGroup", maxRowsInGroup
-        ),
-        new TypeReference<JoinPostProcessor>()
-        {
-        }
-    );
-    int threshold = queryConfig.getHashJoinThreshold(this);
-    Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
+    final int threshold = queryConfig.getHashJoinThreshold(this);
+    final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
 
-    QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
-    List<Query<Map<String, Object>>> queries = Lists.newArrayList();
+    final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
     for (int i = 0; i < elements.size(); i++) {
       JoinElement element = elements.get(i);
       JoinType joinType = element.getJoinType();
@@ -287,8 +273,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       queries.add(query);
     }
 
-    JoinElement lastElement = elements.get(elements.size() - 1);
-
     List<String> prefixAliases;
     String timeColumn;
     if (prefixAlias) {
@@ -298,6 +282,19 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       prefixAliases = null;
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
+
+    // to get join config & executor service
+    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
+    Map<String, Object> joinProc = ImmutableMap.of(
+        "type", "join",
+        "elements", elements,
+        "asArray", asArray,
+        "prefixAlias", prefixAlias,
+        "maxRowsInGroup", maxRowsInGroup
+    );
+    Map<String, Object> joinContext = ImmutableMap.<String, Object>of(
+        QueryContextKeys.POST_PROCESSING, jsonMapper.convertValue(joinProc, JoinPostProcessor.class)
+    );
 
     // removed parallelism.. executed parallel in join post processor
     return new JoinDelegate(
@@ -340,7 +337,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     private final List<String> prefixAliases;  // for schema resolving
     private final String timeColumnName;
 
-    private List<String> sortedColumns;        // set when smb join is applied
+    private List<OrderByColumnSpec> collation;        // set when smb join is applied
 
     public JoinDelegate(
         List<Query<Map<String, Object>>> list,
@@ -365,15 +362,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return timeColumnName;
     }
 
-    public List<String> getSortedColumns()
+    public List<OrderByColumnSpec> getCollation()
     {
-      return sortedColumns;
+      return collation;
     }
 
-    public void setSortedColumns(List<String> sortedColumns)
+    public void setCollation(List<OrderByColumnSpec> collation)
     {
-      // todo set this
-      this.sortedColumns = sortedColumns;
+      this.collation = collation;
     }
 
     @Override

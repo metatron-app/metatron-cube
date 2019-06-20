@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -121,13 +123,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         log.info("Running %d-way join processing %s", joinAliases, toAliases());
         final List<String> aliases = Lists.newArrayList();
         final List<List<String>> aliasColumnsNames = Lists.newArrayList();
+        final List<Supplier<List<OrderByColumnSpec>>> collations = Lists.newArrayList();
         final List<Sequence<Object[]>>[] sequencesList = new List[joinAliases];
         for (int i = 0; i < joinAliases; i++) {
           aliases.add(toAlias(i));
           sequencesList[i] = Lists.<Sequence<Object[]>>newArrayList();
         }
         final boolean[] nested = new boolean[joinAliases];
-        final boolean[] sorted = new boolean[joinAliases];
         final boolean[] hashing = new boolean[joinAliases];
         final MutableInt indexer = new MutableInt();
         Sequence<Pair<Query, Sequence>> sequences = baseQueryRunner.run(query, responseContext);
@@ -138,7 +140,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
               public Object accumulate(Object accumulated, Pair<Query, Sequence> in)
               {
                 final int index = indexer.intValue();
-                sorted[index] = isSortedOnJoinKey(index, in.lhs);
+                collations.add(getCollation(in.lhs));
                 nested[index] = in.lhs instanceof JoinQuery.JoinDelegate;
                 hashing[index] = in.lhs.getContextBoolean(JoinElement.HASHING, false);
                 Query.ArrayOutputSupport query = (Query.ArrayOutputSupport) in.lhs;
@@ -155,22 +157,19 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
           // to avoid thread exhaustion, use same threded executor for nested join
           ExecutorService executor = nested[i] ? new Execs.SubmitSingleThreaded() : exec;
           joining[i] = executor.submit(
-              toJoinAlias(
-                  i,
-                  sorted[i],
-                  hashing[i],
-                  toAlias(i),
-                  sequencesList[i],
-                  aliasColumnsNames.get(i)
-              )
+              toJoinAlias(i, hashing[i], toAlias(i), sequencesList[i], aliasColumnsNames.get(i), collations.get(i))
           );
         }
         try {
-          Iterator join = join(joining);
-          if (!asArray) {
-            join = GuavaUtils.map(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
+          JoinResult join = join(joining);
+          if (!GuavaUtils.isNullOrEmpty(join.collation)) {
+            ((JoinQuery.JoinDelegate) query).setCollation(join.collation);
           }
-          return Sequences.once(join);
+          Iterator outputRows = join.iterator;
+          if (!asArray) {
+            outputRows = GuavaUtils.map(outputRows, toMap(aliasColumnsNames, prefixAlias ? aliases : null));
+          }
+          return Sequences.once(outputRows);
         }
         catch (ExecutionException e) {
           throw Throwables.propagate(e.getCause() == null ? e : e.getCause());
@@ -182,30 +181,30 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     };
   }
 
-  private boolean isSortedOnJoinKey(int index, Query<?> query)
+  private Supplier<List<OrderByColumnSpec>> getCollation(final Query<?> query)
   {
-    List<String> ordering = null;
     if (query instanceof Query.OrderingSupport) {
-      ordering = OrderByColumnSpec.getColumns(((Query.OrderingSupport<?>) query).getResultOrdering());
+      return Suppliers.ofInstance(((Query.OrderingSupport<?>) query).getResultOrdering());
     } else if (query instanceof JoinQuery.JoinDelegate) {
-      ordering = ((JoinQuery.JoinDelegate) query).getSortedColumns();
+      return new Supplier<List<OrderByColumnSpec>>()
+      {
+        @Override
+        public List<OrderByColumnSpec> get()
+        {
+          return ((JoinQuery.JoinDelegate) query).getCollation();
+        }
+      };
     }
-    if (ordering != null) {
-      final List<String> joinKey = toJoinColumns(index);
-      if (ordering.size() >= joinKey.size()) {
-        return ordering.subList(0, joinKey.size()).equals(joinKey);
-      }
-    }
-    return false;
+    return null;
   }
 
   private PrioritizedCallable<JoinAlias> toJoinAlias(
       final int index,
-      final boolean sorted,
       final boolean hashing,
       final String alias,
       final List<Sequence<Object[]>> sequences,
-      final List<String> columnNames
+      final List<String> columnNames,
+      final Supplier<List<OrderByColumnSpec>> collation
   )
   {
     final JoinType type = toJoinType(index);
@@ -221,7 +220,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         @Override
         public JoinAlias call()
         {
-          final Map<JoinKey, Object> hashed = toHashed(Sequences.concat(sequences), indices, sorted);
+          final Map<JoinKey, Object> hashed = toHashed(Sequences.toIterator(Sequences.concat(sequences)), indices);
           return new JoinAlias(aliases, columnNames, joinColumns, indices, hashed);
         }
       };
@@ -232,7 +231,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       public JoinAlias call()
       {
         final Iterator<Object[]> rows = Sequences.toIterator(Sequences.concat(sequences));
-        return new JoinAlias(aliases, columnNames, joinColumns, indices, rows, sorted);
+        return new JoinAlias(aliases, columnNames, joinColumns, collation, indices, rows);
       }
     };
   }
@@ -262,74 +261,66 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     return aliases;
   }
 
-  static Map<JoinKey, Object> toHashed(final Sequence<Object[]> sequence, final int[] indices, final boolean sorted)
+  static Map<JoinKey, Object> toHashed(final Iterator<Object[]> sequence, final int[] indices)
   {
     final Map<JoinKey, Object> hashed = Maps.newHashMap();
 
-    sequence.accumulate(null, new Accumulator<Object, Object[]>()
-    {
-      @Override
-      public Object accumulate(Object accumulated, final Object[] row)
-      {
-        final Comparable[] joinKey = new Comparable[indices.length];
-        for (int i = 0; i < joinKey.length; i++) {
-          joinKey[i] = (Comparable) row[indices[i]];
-        }
-        hashed.compute(new JoinKey(joinKey), new BiFunction<JoinKey, Object, Object>()
-        {
-          @Override
-          @SuppressWarnings("unchecked")
-          public Object apply(JoinKey key, Object prev)
-          {
-            if (prev == null) {
-              return row;
-            }
-            if (prev instanceof List) {
-              ((List) prev).add(row);
-              return prev;
-            }
-            return Lists.newArrayList(prev, row);
-          }
-        });
-        return null;
+    while (sequence.hasNext()) {
+      final Object[] row = sequence.next();
+      final Comparable[] joinKey = new Comparable[indices.length];
+      for (int i = 0; i < joinKey.length; i++) {
+        joinKey[i] = (Comparable) row[indices[i]];
       }
-    });
+      hashed.compute(new JoinKey(joinKey), new BiFunction<JoinKey, Object, Object>()
+      {
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object apply(JoinKey key, Object prev)
+        {
+          if (prev == null) {
+            return row;
+          }
+          if (prev instanceof List) {
+            ((List) prev).add(row);
+            return prev;
+          }
+          return Lists.newArrayList(prev, row);
+        }
+      });
+    }
     return hashed;
   }
 
   @VisibleForTesting
-  final Iterator<Object[]> join(final Future<JoinAlias>[] futures) throws Exception
+  final JoinResult join(final Future<JoinAlias>[] futures) throws Exception
   {
     JoinAlias left = futures[0].get();
     JoinAlias right = futures[1].get();
-    Iterator<Object[]> iterator = join(left, right, 0);
+    JoinResult result = join(left, right, 0);
     List<String> alias = GuavaUtils.concat(left.alias, right.alias);
     List<String> columns = GuavaUtils.concat(left.columns, right.columns);
     List<String> joinColumns = elements[0].getLeftJoinColumns();
     for (int i = 2; i < futures.length; i++) {
+      left = new JoinAlias(
+          alias, columns, joinColumns, Suppliers.ofInstance(result.collation),
+          GuavaUtils.indexOf(columns, joinColumns), result.iterator
+      );
       right = futures[i].get();
-      final int[] indices = GuavaUtils.indexOf(columns, joinColumns);
-      boolean sorted = false;
-      Iterator<Object[]> leftRows = iterator;
-      if (right.isHashed() || joinColumns.equals(left.joinColumns) || joinColumns.equals(right.joinColumns)) {
-        sorted = !right.isHashed();
-      }
-      left = new JoinAlias(alias, columns, joinColumns, indices, leftRows, sorted);
-      iterator = join(left, right, i - 1);
+      result = join(left, right, i - 1);
       alias = GuavaUtils.concat(alias, right.alias);
       columns = GuavaUtils.concat(columns, right.columns);
       joinColumns = elements[i - 1].getLeftJoinColumns();
     }
-    return iterator;
+    return result;
   }
 
   @VisibleForTesting
-  final Iterator<Object[]> join(JoinAlias left, JoinAlias right, final int index)
+  final JoinResult join(JoinAlias left, JoinAlias right, final int index)
   {
     Preconditions.checkArgument(left.joinColumns.size() == right.joinColumns.size());
     if (left.joinColumns.size() == 0) {
       log.info("... start cross join %s to %s", left, right);
-      return product(left.materialize(), right.materialize(), false);
+      return JoinResult.of(product(left.materialize(), right.materialize(), false));
     }
     final JoinType type = elements[index].getJoinType();
     if (left.isHashed() && right.isHashed()) {
@@ -364,17 +355,19 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       Preconditions.checkArgument(right.isSorted());
     }
     log.info("... start %s join %s to %s (%s)", type, left, right, "SortedMerge");
-    return new JoinIterator(type, left, right)
+
+    final List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
+    return JoinResult.of(collation, new JoinIterator(type, left, right)
     {
       @Override
       protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
       {
         return mergeJoin(type, leftAlias, rightAlias);
       }
-    };
+    });
   }
 
-  private Iterator<Object[]> joinHashed(
+  private JoinResult joinHashed(
       final JoinAlias left,
       final JoinAlias right,
       final JoinType type,
@@ -384,64 +377,64 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     log.info("... start %s join %s %s %s", type, left, leftDriving ? "-->" : "<--", right);
     if (leftDriving) {
       if (left.isHashed()) {
-        left.prepareHashIterator();
-        return new JoinIterator(type, left, right)
+        return JoinResult.of(new JoinIterator(type, left.prepareHashIterator(), right)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
             return hashedHashJoin(type, leftAlias, rightAlias, false);
           }
-        };
+        });
       }
       if (left.isSorted()) {
-        return new JoinIterator(type, left, right)
+        List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
+        return JoinResult.of(collation, new JoinIterator(type, left, right)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
             return hashJoinPartitioned(type, leftAlias, rightAlias, false);
           }
-        };
+        });
       }
-      return new JoinIterator(type, left, right)
+      return JoinResult.of(new JoinIterator(type, left, right)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
         {
           return hashJoin(type, leftAlias, rightAlias, false);
         }
-      };
+      });
     } else {
       if (right.isHashed()) {
-        right.prepareHashIterator();
-        return new JoinIterator(type, left, right)
+        return JoinResult.of(new JoinIterator(type, left, right.prepareHashIterator())
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
             return hashedHashJoin(type.revert(), rightAlias, leftAlias, true);
           }
-        };
+        });
       }
       if (right.isSorted()) {
-        return new JoinIterator(type, left, right)
+        List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(right.joinColumns);
+        return JoinResult.of(collation, new JoinIterator(type, left, right)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
             return hashJoinPartitioned(type.revert(), rightAlias, leftAlias, true);
           }
-        };
+        });
       }
-      return new JoinIterator(type, left, right)
+      return JoinResult.of(new JoinIterator(type, left, right)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
         {
           return hashJoin(type.revert(), rightAlias, leftAlias, true);
         }
-      };
+      });
     }
   }
 
@@ -591,7 +584,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       }
       if (type == JoinType.LO) {
         return revert ? ro(driving.columns.size() + target.columns.size(), leftRows.iterator())
-               : lo(leftRows.iterator(), driving.columns.size() + target.columns.size());
+                      : lo(leftRows.iterator(), driving.columns.size() + target.columns.size());
       }
     }
     return null;
@@ -658,7 +651,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     {
       int compare = 0;
       for (int i = 0; compare == 0 && i < joinKey.length; i++) {
-        compare = Comparators.compareNF(joinKey[0], o.joinKey[i]);
+        compare = Comparators.compareNF(joinKey[i], o.joinKey[i]);
       }
       return compare;
     }
@@ -669,31 +662,31 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     final List<String> alias;
     final List<String> columns;
     final List<String> joinColumns;
+    final Supplier<List<OrderByColumnSpec>> collation;  // set after inner query is executed
     final int[] indices;
     final PeekingIterator<Object[]> rows;
     final Map<JoinKey, Object> hashed;
-    final boolean sorted;
 
-    Iterator<Map.Entry<JoinKey, Object>> iterator;
+    Iterator<Map.Entry<JoinKey, Object>> iterator;  // hash iterator
     Partition partition;
 
     JoinAlias(
         List<String> alias,
         List<String> columns,
         List<String> joinColumns,
+        Supplier<List<OrderByColumnSpec>> collation,
         int[] indices,
-        Iterator<Object[]> rows,
-        boolean sorted
+        Iterator<Object[]> rows
     )
     {
-      log.info("---> %s = stream (sorted=%s)", alias, sorted);
+      log.info("---> %s = stream", alias);
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
+      this.collation = collation;
       this.indices = indices;
       this.rows = GuavaUtils.peekingIterator(rows);
       this.hashed = null;
-      this.sorted = sorted;
     }
 
     JoinAlias(
@@ -708,10 +701,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
+      this.collation = null;
       this.indices = indices;
       this.rows = Iterators.peekingIterator(Iterators.<Object[]>emptyIterator());
       this.hashed = hashed;
-      this.sorted = false;
     }
 
     private boolean isHashed()
@@ -721,12 +714,14 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
     private boolean isSorted()
     {
-      return sorted;
+      // join for sorted alias does not care on ordering, just on equality
+      return collation != null && joinColumns.equals(OrderByColumnSpec.getColumns(collation.get()));
     }
 
-    private void prepareHashIterator()
+    private JoinAlias prepareHashIterator()
     {
       iterator = hashed.entrySet().iterator();
+      return this;
     }
 
     private List<Object[]> materialize()
@@ -757,11 +752,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
     private JoinAlias transform(int hashThreshold)
     {
-      final List<Object[]> rows = Sequences.toList(Sequences.once(this.rows));
-      if (hashThreshold > 0 && rows.size() < hashThreshold) {
-        return new JoinAlias(alias, columns, joinColumns, indices, toHashed(Sequences.simple(rows), indices, sorted));
+      final List<Object[]> materialized = Sequences.toList(Sequences.once(rows));
+      if (hashThreshold > 0 && materialized.size() < hashThreshold) {
+        return new JoinAlias(alias, columns, joinColumns, indices, toHashed(materialized.iterator(), indices));
       }
-      return new JoinAlias(alias, columns, joinColumns, indices, sort(alias, rows, indices).iterator(), true);
+      final List<Object[]> sort = sort(alias, materialized, indices);
+      final List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(joinColumns);
+      return new JoinAlias(alias, columns, joinColumns, Suppliers.ofInstance(collation), indices, sort.iterator());
     }
 
     private Partition next()
@@ -828,6 +825,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       }
     }
 
+    @Override
     public String toString()
     {
       return alias + "." + joinColumns + (isHashed() ? "(hashed)" : isSorted() ? "(sorted-stream)" : "");
@@ -933,7 +931,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     return Arrays.asList(array);
   }
 
-  private Function<Object[], Map<String, Object>> converter(List<List<String>> columnsList, List<String> aliases)
+  private Function<Object[], Map<String, Object>> toMap(List<List<String>> columnsList, List<String> aliases)
   {
     final List<String> outputColumns = Lists.newArrayList();
     for (int i = 0; i < columnsList.size(); i++) {
@@ -959,6 +957,28 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         return event;
       }
     };
+  }
+
+  static class JoinResult
+  {
+    static JoinResult of(Iterator<Object[]> iterator)
+    {
+      return new JoinResult(iterator, null);
+    }
+
+    static JoinResult of(List<OrderByColumnSpec> collation, Iterator<Object[]> iterator)
+    {
+      return new JoinResult(iterator, collation);
+    }
+
+    final Iterator<Object[]> iterator;
+    final List<OrderByColumnSpec> collation;
+
+    private JoinResult(Iterator<Object[]> iterator, List<OrderByColumnSpec> collation)
+    {
+      this.iterator = iterator;
+      this.collation = collation;
+    }
   }
 
   @Override

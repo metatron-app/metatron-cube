@@ -1072,6 +1072,11 @@ public class DruidShell implements CommonShell
 
   private void runSQL(List<URL> brokerURLs, PrintWriter writer, String sql, Map<String, String> context)
   {
+    brokerURLs = ensureBroker(brokerURLs);
+    if (brokerURLs.isEmpty()) {
+      writer.println("!! cannot find broker");
+      return;
+    }
     int numRow = 0;
     long start = System.currentTimeMillis();
     try {
@@ -1110,6 +1115,19 @@ public class DruidShell implements CommonShell
     catch (Exception e) {
       writer.println(String.format("> Failed by exception : %s", e));
     }
+  }
+
+  private List<URL> ensureBroker(List<URL> brokerURLs)
+  {
+    if (brokerURLs.isEmpty()) {
+      try {
+        return discover("broker");
+      }
+      catch (Exception e) {
+        // ignore
+      }
+    }
+    return brokerURLs;
   }
 
   private DescExtractor getDescExtractor(Cursor cursor)
