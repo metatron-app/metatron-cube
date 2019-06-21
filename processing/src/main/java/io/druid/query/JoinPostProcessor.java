@@ -220,7 +220,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         @Override
         public JoinAlias call()
         {
-          final Map<JoinKey, Object> hashed = toHashed(Sequences.toIterator(Sequences.concat(sequences)), indices);
+          final Map<Object, Object> hashed = toHashed(Sequences.toIterator(Sequences.concat(sequences)), indices);
           return new JoinAlias(aliases, columnNames, joinColumns, indices, hashed);
         }
       };
@@ -261,21 +261,16 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     return aliases;
   }
 
-  static Map<JoinKey, Object> toHashed(final Iterator<Object[]> sequence, final int[] indices)
+  static Map<Object, Object> toHashed(final Iterator<Object[]> sequence, final int[] indices)
   {
-    final Map<JoinKey, Object> hashed = Maps.newHashMap();
-
+    final Map<Object, Object> hashed = Maps.newHashMap();
     while (sequence.hasNext()) {
       final Object[] row = sequence.next();
-      final Comparable[] joinKey = new Comparable[indices.length];
-      for (int i = 0; i < joinKey.length; i++) {
-        joinKey[i] = (Comparable) row[indices[i]];
-      }
-      hashed.compute(new JoinKey(joinKey), new BiFunction<JoinKey, Object, Object>()
+      hashed.compute(JoinKey.hashKey(row, indices), new BiFunction<Object, Object, Object>()
       {
         @Override
         @SuppressWarnings("unchecked")
-        public Object apply(JoinKey key, Object prev)
+        public Object apply(Object key, Object prev)
         {
           if (prev == null) {
             return row;
@@ -487,9 +482,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       right.partition = right.next();
     }
     while (left.partition != null && right.partition != null) {
-      final int compare = Comparators.compareNF(left.partition.joinKey, right.partition.joinKey);
+      final int compare = compareNF(left.partition.get(0), left.indices, right.partition.get(0), right.indices);
       if (compare == 0) {
-        Iterator<Object[]> product = product(left.partition.rows, right.partition.rows, false);
+        Iterator<Object[]> product = product(left.partition, right.partition, false);
         left.partition = left.next();
         right.partition = right.next();
         return product;
@@ -497,9 +492,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       switch (type) {
         case INNER:
           if (compare < 0) {
-            left.partition = left.skip(right.partition.joinKey);
+            left.partition = left.skip(right.partition.get(0), right.indices);
           } else {
-            right.partition = right.skip(left.partition.joinKey);
+            right.partition = right.skip(left.partition.get(0), left.indices);
           }
           continue;
         case LO:
@@ -508,12 +503,12 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
             left.partition = left.next();
             return lo;
           } else {
-            right.partition = right.skip(left.partition.joinKey);
+            right.partition = right.skip(left.partition.get(0), left.indices);
           }
           continue;
         case RO:
           if (compare < 0) {
-            left.partition = left.skip(right.partition.joinKey);
+            left.partition = left.skip(right.partition.get(0), right.indices);
           } else {
             Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
             right.partition = right.next();
@@ -548,6 +543,24 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     return null;
   }
 
+  private static int compareNF(final Object[] row1, final Object[] row2, final int[] indices)
+  {
+    int compare = 0;
+    for (int i = 0; i < indices.length && compare == 0; i++) {
+      compare = Comparators.compareNF((Comparable) row1[indices[i]], (Comparable) row2[indices[i]]);
+    }
+    return compare;
+  }
+
+  private static int compareNF(final Object[] row1, final int[] indices1, final Object[] row2, final int[] indices2)
+  {
+    int compare = 0;
+    for (int i = 0; i < indices1.length && compare == 0; i++) {
+      compare = Comparators.compareNF((Comparable) row1[indices1[i]], (Comparable) row2[indices2[i]]);
+    }
+    return compare;
+  }
+
   private Iterator<Object[]> hashJoinPartitioned(
       final JoinType type,
       final JoinAlias left,
@@ -556,9 +569,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   )
   {
     for (left.partition = left.next(); left.partition != null; left.partition = left.next()) {
-      final List<Object[]> rightRows = right.getHashed(left.partition.joinKey);
+      final List<Object[]> rightRows = right.getHashed(JoinKey.hashKey(left.partition.get(0), left.indices));
       if (rightRows != null) {
-        return product(left.partition.rows, rightRows, revert);
+        return product(left.partition, rightRows, revert);
       }
       if (type == JoinType.LO) {
         return revert ? ro(right.columns.size(), left.partition.iterator())
@@ -576,9 +589,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   )
   {
     while (driving.iterator.hasNext()) {
-      final Map.Entry<JoinKey, Object> entry = driving.iterator.next();
+      final Map.Entry<Object, Object> entry = driving.iterator.next();
       final List<Object[]> leftRows = asValues(entry.getValue());
-      final List<Object[]> rightRows = target.getHashed(entry.getKey().joinKey);
+      final List<Object[]> rightRows = target.getHashed(entry.getKey());
       if (rightRows != null) {
         return product(leftRows, rightRows, revert);
       }
@@ -598,41 +611,35 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   )
   {
     while (driving.rows.hasNext()) {
-      final Object[] leftRow = driving.rows.next();
-      final List<Object[]> rightRows = target.getHashed(driving.asJoinKey(leftRow));
-      if (rightRows != null) {
-        return product(Arrays.<Object[]>asList(leftRow), rightRows, revert);
+      final Object[] drivingRow = driving.rows.next();
+      final List<Object[]> otherRows = target.getHashed(JoinKey.hashKey(drivingRow, driving.indices));
+      if (otherRows != null) {
+        return product(Arrays.<Object[]>asList(drivingRow), otherRows, revert);
       }
       if (type == JoinType.LO) {
-        return Iterators.singletonIterator(Arrays.copyOf(leftRow, leftRow.length + target.columns.size()));
+        return Iterators.singletonIterator(Arrays.copyOf(drivingRow, drivingRow.length + target.columns.size()));
       }
     }
     return null;
   }
 
-  private static class Partition implements Iterable<Object[]>
-  {
-    final Comparable[] joinKey;
-    final List<Object[]> rows;
-
-    private Partition(Comparable[] joinKey, List<Object[]> rows)
-    {
-      this.joinKey = joinKey;
-      this.rows = rows;
-    }
-
-    @Override
-    public Iterator<Object[]> iterator()
-    {
-      return rows.iterator();
-    }
-  }
-
   private static class JoinKey implements Comparable<JoinKey>
   {
-    private final Comparable[] joinKey;
+    static Object hashKey(Object[] row, int[] indices)
+    {
+      if (indices.length == 1) {
+        return row[indices[0]];
+      }
+      final Object[] joinKey = new Object[indices.length];
+      for (int i = 0; i < indices.length; i++) {
+        joinKey[i] = row[indices[i]];
+      }
+      return new JoinKey(joinKey);
+    }
 
-    private JoinKey(Comparable[] joinKey) {this.joinKey = joinKey;}
+    private final Object[] joinKey;
+
+    private JoinKey(Object[] joinKey) {this.joinKey = joinKey;}
 
     @Override
     public int hashCode()
@@ -651,7 +658,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     {
       int compare = 0;
       for (int i = 0; compare == 0 && i < joinKey.length; i++) {
-        compare = Comparators.compareNF(joinKey[i], o.joinKey[i]);
+        compare = Comparators.compareNF((Comparable) joinKey[i], (Comparable) o.joinKey[i]);
       }
       return compare;
     }
@@ -665,10 +672,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     final Supplier<List<OrderByColumnSpec>> collation;  // set after inner query is executed
     final int[] indices;
     final PeekingIterator<Object[]> rows;
-    final Map<JoinKey, Object> hashed;
+    final Map<Object, Object> hashed;
 
-    Iterator<Map.Entry<JoinKey, Object>> iterator;  // hash iterator
-    Partition partition;
+    Iterator<Map.Entry<Object, Object>> iterator;  // hash iterator
+    List<Object[]> partition;
 
     JoinAlias(
         List<String> alias,
@@ -694,7 +701,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         List<String> columns,
         List<String> joinColumns,
         int[] indices,
-        Map<JoinKey, Object> hashed
+        Map<Object, Object> hashed
     )
     {
       log.info("---> %s = hashed (group=%d)", alias, hashed.size());
@@ -714,7 +721,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
     private boolean isSorted()
     {
-      // join for sorted alias does not care on ordering, just on equality
+      // todo: regarded as ascending
       return collation != null && joinColumns.equals(OrderByColumnSpec.getColumns(collation.get()));
     }
 
@@ -761,57 +768,39 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       return new JoinAlias(alias, columns, joinColumns, Suppliers.ofInstance(collation), indices, sort.iterator());
     }
 
-    private Partition next()
+    // not empty
+    private List<Object[]> next()
     {
       if (!rows.hasNext()) {
         return null;
       }
       final Object[] current = rows.next();
-      final Comparable[] joinKey = asJoinKey(current);
-      if (!rows.hasNext() || compareNF(rows.peek(), joinKey) != 0) {
-        return new Partition(joinKey, Arrays.<Object[]>asList(current));
+      if (!rows.hasNext() || compareNF(current, rows.peek(), indices) != 0) {
+        return Arrays.<Object[]>asList(current);
       }
       final List<Object[]> partition = Lists.<Object[]>newArrayList(current, rows.next());
       while (rows.hasNext()) {
-        if (compareNF(rows.peek(), joinKey) != 0) {
+        if (compareNF(current, rows.peek(), indices) != 0) {
           break;
         }
         partition.add(rows.next());
       }
-      return new Partition(joinKey, partition);
+      return partition;
     }
 
-    private Comparable[] asJoinKey(final Object[] current)
-    {
-      final Comparable[] joinKey = new Comparable[indices.length];
-      for (int i = 0; i < joinKey.length; i++) {
-        joinKey[i] = (Comparable) current[indices[i]];
-      }
-      return joinKey;
-    }
-
-    private Partition skip(final Comparable[] joinKey)
+    private List<Object[]> skip(final Object[] row2, final int[] indices2)
     {
       for (; rows.hasNext(); rows.next()) {
-        if (compareNF(rows.peek(), joinKey) >= 0) {
+        if (compareNF(rows.peek(), indices, row2, indices2) >= 0) {
           break;
         }
       }
       return next();
     }
 
-    private int compareNF(final Object[] row, final Comparable[] joinKeys)
+    private List<Object[]> getHashed(Object joinKey)
     {
-      int compare = 0;
-      for (int i = 0; i < indices.length && compare == 0; i++) {
-        compare = Comparators.compareNF((Comparable) row[indices[i]], joinKeys[i]);
-      }
-      return compare;
-    }
-
-    private List<Object[]> getHashed(Comparable[] joinKey)
-    {
-      return asValues(hashed.get(new JoinKey(joinKey)));
+      return asValues(hashed.get(joinKey));
     }
 
     @Override
