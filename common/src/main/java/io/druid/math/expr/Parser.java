@@ -109,6 +109,10 @@ public class Parser
         }
       }
       catch (Throwable t) {
+        if (BuiltinFunctions.AbstractRFunc.class.isAssignableFrom(clazz) ||
+            BuiltinFunctions.AbstractPythonFunc.class.isAssignableFrom(clazz)) {
+          continue;   // skip warning
+        }
         log.warn(t, "failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
       }
     }

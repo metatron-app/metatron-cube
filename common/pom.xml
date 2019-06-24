@@ -167,16 +167,20 @@
             <artifactId>antlr4-runtime</artifactId>
         </dependency>
 
+        <!--LGPL v2-->
         <dependency>
             <groupId>com.github.lucarosellini.rJava</groupId>
             <artifactId>JRIEngine</artifactId>
             <version>0.9-7</version>
+            <scope>provided</scope>
         </dependency>
 
+        <!--Jython Software License-->
         <dependency>
             <groupId>org.python</groupId>
             <artifactId>jython</artifactId>
             <version>2.7.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -205,7 +209,6 @@
             <scope>test</scope>
             <optional>true</optional>
         </dependency>
-        <!-- Tests -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

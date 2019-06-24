@@ -560,56 +560,56 @@ public interface BuiltinFunctions extends Function.Library
       String pythonHome = System.getProperty("python.home", System.getProperty("user.home") + "/jython2.7.0");
       if (new File(pythonHome).isDirectory()) {
         prop.setProperty("python.home", pythonHome);
-        PythonInterpreter.initialize(System.getProperties(), prop, new String[]{});
-
-        Py.getAdapter().addPostClass(
-            new PyObjectAdapter()
-            {
-              @Override
-              public PyObject adapt(Object o)
-              {
-                Map<?, ?> map = (Map<?, ?>) o;
-                Map<PyObject, PyObject> converted = Maps.newHashMap();
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                  converted.put(Py.java2py(entry.getKey()), Py.java2py(entry.getValue()));
-                }
-                return new PyDictionary(converted);
-              }
-
-              @Override
-              public boolean canAdapt(Object o)
-              {
-                return Map.class.isInstance(o);
-              }
-            }
-        );
-        Py.getAdapter().addPostClass(
-            new PyObjectAdapter()
-            {
-              @Override
-              public PyObject adapt(Object o)
-              {
-                List<?> list = (List<?>) o;
-                List<PyObject> converted = Lists.newArrayList();
-                for (Object element : list) {
-                  converted.add(Py.java2py(element));
-                }
-                return PyList.fromList(converted);
-              }
-
-              @Override
-              public boolean canAdapt(Object o)
-              {
-                return List.class.isInstance(o);
-              }
-            }
-        );
         boolean success = false;
         try {
+          PythonInterpreter.initialize(System.getProperties(), prop, new String[]{});
+
+          Py.getAdapter().addPostClass(
+              new PyObjectAdapter()
+              {
+                @Override
+                public PyObject adapt(Object o)
+                {
+                  Map<?, ?> map = (Map<?, ?>) o;
+                  Map<PyObject, PyObject> converted = Maps.newHashMap();
+                  for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    converted.put(Py.java2py(entry.getKey()), Py.java2py(entry.getValue()));
+                  }
+                  return new PyDictionary(converted);
+                }
+
+                @Override
+                public boolean canAdapt(Object o)
+                {
+                  return Map.class.isInstance(o);
+                }
+              }
+          );
+          Py.getAdapter().addPostClass(
+              new PyObjectAdapter()
+              {
+                @Override
+                public PyObject adapt(Object o)
+                {
+                  List<?> list = (List<?>) o;
+                  List<PyObject> converted = Lists.newArrayList();
+                  for (Object element : list) {
+                    converted.add(Py.java2py(element));
+                  }
+                  return PyList.fromList(converted);
+                }
+
+                @Override
+                public boolean canAdapt(Object o)
+                {
+                  return List.class.isInstance(o);
+                }
+              }
+          );
           new PythonInterpreter();
           success = true;
         }
-        catch (Exception e) {
+        catch (Throwable e) {
           log.info("failed initialize python interpreter.. disabling python functions");
           // ignore
         }
