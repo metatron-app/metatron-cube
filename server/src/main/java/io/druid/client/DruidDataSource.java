@@ -20,12 +20,12 @@
 package io.druid.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
-import org.python.google.common.collect.ImmutableList;
 
 import java.util.Collections;
 import java.util.List;

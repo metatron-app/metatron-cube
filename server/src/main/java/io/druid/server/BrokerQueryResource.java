@@ -226,8 +226,9 @@ public class BrokerQueryResource extends QueryResource
   @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query baseQuery) throws Exception
   {
-    Query query = super.prepareQuery(baseQuery);
-    query = rewriteDataSource(query);
+    Query prepared = super.prepareQuery(baseQuery);
+
+    Query query = rewriteDataSource(prepared);
     query = QueryUtils.rewriteRecursively(query, segmentWalker, warehouse.getQueryConfig());
     query = QueryUtils.resolveRecursively(query, segmentWalker);
 
@@ -237,6 +238,11 @@ public class BrokerQueryResource extends QueryResource
         query = toolChest.optimizeQuery(query, segmentWalker);
       }
     }
+
+    if (query != prepared) {
+      log.info("Base query is rewritten to %s", query);
+    }
+
     if (BaseQuery.isParallelForwarding(query)) {
       // todo support partitioned group-by or join queries
       if (!(query instanceof SelectQuery || query instanceof StreamQuery)) {
@@ -266,9 +272,6 @@ public class BrokerQueryResource extends QueryResource
       context.remove(Query.FORWARD_URL);
       context.remove(Query.FORWARD_CONTEXT);
       query = new SelectForwardQuery(query, context);
-    }
-    if (query != baseQuery) {
-      log.debug("Base query is rewritten to %s", query);
     }
     return query;
   }

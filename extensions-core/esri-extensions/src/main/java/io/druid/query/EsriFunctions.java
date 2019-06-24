@@ -48,7 +48,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
-import org.json.JSONException;
 
 import java.util.List;
 
@@ -169,7 +168,7 @@ public interface EsriFunctions extends Function.Library
             }
             return ExprEval.of(geometry, OGC_GEOMETRY_TYPE);
           }
-          catch (JSONException e) {
+          catch (Exception e) {
             throw Throwables.propagate(e);
           }
         }

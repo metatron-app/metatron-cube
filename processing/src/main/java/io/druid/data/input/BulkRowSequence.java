@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
@@ -30,7 +31,6 @@ import io.druid.data.ValueDesc;
 import io.druid.query.groupby.UTF8Bytes;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
-import org.python.google.common.primitives.Ints;
 
 import java.io.IOException;
 import java.util.Arrays;

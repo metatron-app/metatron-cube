@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -58,7 +59,6 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
-import org.python.google.common.collect.ImmutableMap;
 
 import java.util.EnumSet;
 import java.util.Iterator;
