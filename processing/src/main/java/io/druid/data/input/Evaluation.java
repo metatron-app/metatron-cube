@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 
 import java.util.Arrays;
@@ -38,7 +39,7 @@ import java.util.Objects;
  */
 public class Evaluation
 {
-  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, TypeResolver resolver)
+  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, TypeResolver.Updatable resolver)
   {
     if (GuavaUtils.isNullOrEmpty(evaluations)) {
       return ImmutableList.of();
@@ -85,9 +86,9 @@ public class Evaluation
     return expressions;
   }
 
-  public RowEvaluator<InputRow> toEvaluator(final TypeResolver resolver)
+  public RowEvaluator<InputRow> toEvaluator(final TypeResolver.Updatable resolver)
   {
-    final InputRowBinding<Object> bindings = new InputRowBinding<>(outputName, resolver);
+    final RowExprBinding bindings = new RowExprBinding(outputName, resolver);
     final List<Expr> parsedExpressions = Lists.newArrayList(Lists.transform(
         expressions, new Function<String, Expr>()
         {
@@ -103,10 +104,12 @@ public class Evaluation
       {
         bindings.reset(inputRow);
         for (Expr expression : parsedExpressions) {
-          bindings.set(expression.eval(bindings).value());
+          bindings.set(expression.eval(bindings));
         }
+        ExprEval eval = bindings.get();
         Row.Updatable updatable = Rows.toUpdatable(inputRow);
-        updatable.set(outputName, bindings.get());
+        resolver.putIfAbsent(outputName, eval.type());    // for next evaluation
+        updatable.set(outputName, eval.value());
         return (InputRow) updatable;
       }
     };

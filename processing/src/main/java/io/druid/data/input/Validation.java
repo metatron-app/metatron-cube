@@ -32,6 +32,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowBinding;
 
 import java.util.Arrays;
 import java.util.List;
@@ -56,24 +57,23 @@ public class Validation
         continue;
       }
       if (!parsedExpressions.isEmpty()) {
-        validators.add(toEvaluator(resolver, null, parsedExpressions));
+        validators.add(toValidator(resolver, parsedExpressions));
         parsedExpressions = Lists.newArrayList();
       }
-      validators.add(validation.toEvaluator(resolver));
+      validators.add(validation.toValidator(resolver));
     }
     if (!parsedExpressions.isEmpty()) {
-      validators.add(toEvaluator(resolver, null, parsedExpressions));
+      validators.add(toValidator(resolver, parsedExpressions));
     }
     return validators;
   }
 
-  private static RowEvaluator<Boolean> toEvaluator(
+  private static RowEvaluator<Boolean> toValidator(
       final TypeResolver resolver,
-      final String columnName,
       final List<Expr> expressions
   )
   {
-    final InputRowBinding<Boolean> bindings = new InputRowBinding<>(columnName, resolver);
+    final RowBinding bindings = new RowBinding(resolver);
     return new RowEvaluator<Boolean>()
     {
       @Override
@@ -132,9 +132,9 @@ public class Validation
     return exclusions;
   }
 
-  public RowEvaluator<Boolean> toEvaluator(TypeResolver resolver)
+  public RowEvaluator<Boolean> toValidator(TypeResolver resolver)
   {
-    return toEvaluator(resolver, columnName, parsedExpressions);
+    return toValidator(resolver, parsedExpressions);
   }
 
   @Override

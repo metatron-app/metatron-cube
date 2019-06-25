@@ -85,10 +85,7 @@ public class InputRowParsers
     for (DimensionSchema dimension : parser.getDimensionsSpec().getDimensions()) {
       mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType()));
     }
-    for (Evaluation evaluation : evaluations) {
-      mapping.remove(evaluation.getOutputName());
-    }
-    final TypeResolver resolver = new TypeResolver.WithMap(mapping);
+    final TypeResolver.Updatable resolver = new TypeResolver.Updatable(mapping);
     for (Evaluation evaluation : evaluations) {
       evaluators.add(evaluation.toEvaluator(resolver));
     }

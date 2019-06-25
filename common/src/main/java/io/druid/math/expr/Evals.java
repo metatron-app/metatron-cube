@@ -20,7 +20,6 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -261,10 +260,13 @@ public class Evals
 
   public static boolean isConstant(Expr arg)
   {
-    if (arg instanceof Constant) {
+    if (arg instanceof StringExpr) {
       return true;
-    } else if (arg instanceof UnaryMinusExpr) {
-      return ((UnaryMinusExpr)arg).expr instanceof Constant;
+    } else if (arg instanceof Constant) {
+      // do not allow null constant except string type
+      return ((Constant) arg).get() != null;
+    } else if (arg instanceof UnaryOp) {
+      return isConstant(((UnaryOp) arg).getChild());
     }
     return false;
   }
@@ -286,7 +288,9 @@ public class Evals
 
   public static boolean isIdentical(List<Expr> exprs1, List<Expr> exprs2)
   {
-    Preconditions.checkArgument(exprs1.size() == exprs2.size());
+    if (exprs1.size() != exprs2.size()) {
+      return false;
+    }
     for (int i = 0; i < exprs1.size(); i++) {
       if (exprs1.get(i) != exprs2.get(i)) {
         return false;
@@ -315,14 +319,6 @@ public class Evals
     }
   }
 
-  public static long assertLong(ExprEval eval)
-  {
-    if (eval.isLong()) {
-      return eval.asLong();
-    }
-    throw new IllegalArgumentException("invalid type " + eval.type());
-  }
-
   public static Expr constant(Object value, ValueDesc type)
   {
     return new RelayExpr(ExprEval.of(value, type));
@@ -348,9 +344,9 @@ public class Evals
     }
 
     @Override
-    public Comparable get()
+    public Object get()
     {
-      return (Comparable) eval.value();
+      return eval.value();
     }
 
     @Override

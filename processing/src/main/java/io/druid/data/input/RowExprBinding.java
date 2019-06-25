@@ -20,23 +20,24 @@
 package io.druid.data.input;
 
 import io.druid.data.TypeResolver;
+import io.druid.math.expr.ExprEval;
 import io.druid.query.RowBinding;
 
 /**
  */
-public class InputRowBinding<T> extends RowBinding
+public class RowExprBinding extends RowBinding
 {
   private final String defaultColumn;
   private volatile boolean evaluated;
-  private volatile T tempResult;
+  private volatile ExprEval tempResult;
 
-  public InputRowBinding(String defaultColumn, TypeResolver types)
+  public RowExprBinding(String defaultColumn, TypeResolver types)
   {
     super(types);
     this.defaultColumn = defaultColumn;
   }
 
-  public void set(T eval)
+  public void set(ExprEval eval)
   {
     this.evaluated = true;
     this.tempResult = eval;
@@ -45,8 +46,8 @@ public class InputRowBinding<T> extends RowBinding
   @Override
   public Object get(String name)
   {
-    if (name.equals("_")) {
-      return evaluated ? tempResult : super.get(defaultColumn);
+    if ("_".equals(name)) {
+      return evaluated ? tempResult.value() : super.get(defaultColumn);
     }
     return super.get(name);
   }
@@ -59,7 +60,7 @@ public class InputRowBinding<T> extends RowBinding
     this.tempResult = null;
   }
 
-  public T get()
+  public ExprEval get()
   {
     return tempResult;
   }

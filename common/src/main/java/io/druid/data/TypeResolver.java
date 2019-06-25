@@ -47,7 +47,7 @@ public interface TypeResolver
 
   class WithMap extends Abstract
   {
-    private final Map<String, ValueDesc> mapping;
+    final Map<String, ValueDesc> mapping;
 
     public WithMap(Map<String, ValueDesc> mapping) {this.mapping = mapping;}
 
@@ -97,6 +97,19 @@ public interface TypeResolver
     public ValueDesc resolve(String column, ValueDesc defaultType)
     {
       return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column, defaultType);
+    }
+  }
+
+  class Updatable extends WithMap
+  {
+    public Updatable(Map<String, ValueDesc> mapping)
+    {
+      super(mapping);
+    }
+
+    public void putIfAbsent(String column, ValueDesc type)
+    {
+      mapping.putIfAbsent(column, type);
     }
   }
 

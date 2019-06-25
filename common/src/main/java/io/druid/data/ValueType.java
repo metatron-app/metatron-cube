@@ -25,7 +25,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
-import io.druid.data.input.Row;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
@@ -45,15 +44,15 @@ public enum ValueType
     }
 
     @Override
-    public Object get(Row row, String column)
+    public Comparable cast(Object value)
     {
-      return row.getFloat(column);
+      return Rows.parseBoolean(value);
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Comparable castIfPossible(Object value)
     {
-      return Rows.parseFloat(value);
+      return Rows.parseBooleanIfPossible(value);
     }
 
     @Override
@@ -76,15 +75,15 @@ public enum ValueType
     }
 
     @Override
-    public Object get(Row row, String column)
-    {
-      return row.getFloat(column);
-    }
-
-    @Override
     public Comparable cast(Object value)
     {
       return Rows.parseFloat(value);
+    }
+
+    @Override
+    public Comparable castIfPossible(Object value)
+    {
+      return Rows.parseFloatIfPossible(value);
     }
 
     @Override
@@ -101,15 +100,15 @@ public enum ValueType
     }
 
     @Override
-    public Object get(Row row, String column)
-    {
-      return row.getLong(column);
-    }
-
-    @Override
     public Comparable cast(Object value)
     {
       return Rows.parseLong(value);
+    }
+
+    @Override
+    public Comparable castIfPossible(Object value)
+    {
+      return Rows.parseLongIfPossible(value);
     }
 
     @Override
@@ -126,15 +125,15 @@ public enum ValueType
     }
 
     @Override
-    public Object get(Row row, String column)
-    {
-      return row.getDouble(column);
-    }
-
-    @Override
     public Comparable cast(Object value)
     {
       return Rows.parseDouble(value);
+    }
+
+    @Override
+    public Comparable castIfPossible(Object value)
+    {
+      return Rows.parseDoubleIfPossible(value);
     }
 
     @Override
@@ -157,12 +156,6 @@ public enum ValueType
     }
 
     @Override
-    public Object get(Row row, String column)
-    {
-      return Objects.toString(row.getRaw(column), null);
-    }
-
-    @Override
     public Comparable cast(Object value)
     {
       return Objects.toString(value, null);
@@ -179,18 +172,6 @@ public enum ValueType
     public boolean isNumeric()
     {
       return false;
-    }
-
-    @Override
-    public Object get(Row row, String column)
-    {
-      Object value = row.getRaw(column);
-      if (value instanceof DateTime) {
-        return value;
-      } else if (value instanceof Number) {
-        return new DateTime(((Number)value).longValue(), ISOChronology.getInstanceUTC());
-      }
-      return value;
     }
 
     @Override
@@ -242,9 +223,14 @@ public enum ValueType
     return (Comparable) classOfObject().cast(value);
   }
 
-  public Object get(Row row, String column)
+  public Comparable castIfPossible(Object value)
   {
-    return row.getRaw(column);
+    try {
+      return cast(value);
+    }
+    catch (Exception e) {
+      return value instanceof Comparable ? (Comparable) value : null;
+    }
   }
 
   public boolean isNumeric()

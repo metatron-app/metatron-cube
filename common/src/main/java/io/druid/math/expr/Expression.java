@@ -54,7 +54,7 @@ public interface Expression
   // optional
   interface ConstExpression extends Expression
   {
-    Comparable get();
+    Object get();
   }
 
   interface Factory<T extends Expression>

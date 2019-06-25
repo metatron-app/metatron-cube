@@ -90,8 +90,8 @@ public class EvaluationTest
       }
     };
     List<Evaluation> evaluations = Arrays.asList(
-        new Evaluation("met1", "if (met1=='NULL', -100, met1)"),
-        new Evaluation("met1", "if (met1=='NULL', -100, met1)")
+        new Evaluation("met1", "nvl (met1, -100)"),
+        new Evaluation("met1", "nvl (met1, -100)")
     );
     InputRowParser<Object[]> wrapped = InputRowParsers.wrap(
         parser,
@@ -100,7 +100,7 @@ public class EvaluationTest
         Arrays.<Validation>asList(),
         false, false
     );
-    InputRow row = wrapped.parse(new Object[]{new DateTime("2018-08-07"), "x", "y", "NULL"});
+    InputRow row = wrapped.parse(new Object[]{new DateTime("2018-08-07"), "x", "y", null});
     Assert.assertEquals(-100L, row.getRaw("met1"));
   }
 }

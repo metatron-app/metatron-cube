@@ -19,8 +19,10 @@
 
 package io.druid.query;
 
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.segment.column.Column;
@@ -50,10 +52,18 @@ public class RowBinding implements Expr.NumericBinding
   {
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
-    } else {
-      ValueDesc type = resolver.resolve(name, ValueDesc.UNKNOWN);
-      return ValueDesc.isPrimitive(type) ? type.type().get(row, name) : row.getRaw(name);
     }
+    final Object value = row.getRaw(name);
+    if (StringUtils.isNullOrEmpty(value)) {
+      return null;
+    }
+    if (value instanceof String) {
+      final ValueType type = resolver.resolve(name, ValueDesc.UNKNOWN).type();
+      if (type.isNumeric()) {
+        return type.castIfPossible(value);
+      }
+    }
+    return value;
   }
 
   public void reset(Row row)

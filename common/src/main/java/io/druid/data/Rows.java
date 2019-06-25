@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.parsers.ParseException;
+import io.druid.common.utils.StringUtils;
 import org.joda.time.DateTime;
 
 /**
@@ -31,7 +32,18 @@ public class Rows
 {
   public static Boolean parseBoolean(Object value)
   {
-    if (value == null || value instanceof Boolean) {
+    final Comparable parsed = parseBooleanIfPossible(value);
+    if (parsed == null || parsed instanceof Boolean) {
+      return (Boolean) parsed;
+    }
+    throw new ParseException("Unable to parse boolean from value[%s]", value);
+  }
+
+  public static Comparable parseBooleanIfPossible(Object value)
+  {
+    if (StringUtils.isNullOrEmpty(value)) {
+      return null;
+    } else if (value instanceof Boolean) {
       return (Boolean) value;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue() != 0;
@@ -40,13 +52,22 @@ public class Rows
     } else if (value instanceof String) {
       return Boolean.valueOf((String) value);
     } else {
-      throw new ParseException("Unknown type[%s]", value.getClass());
+      return value instanceof Comparable ? (Comparable) value : null;
     }
   }
 
   public static Float parseFloat(Object value)
   {
-    if (value == null) {
+    final Comparable parsed = parseFloatIfPossible(value);
+    if (parsed == null || parsed instanceof Float) {
+      return (Float) parsed;
+    }
+    throw new ParseException("Unable to parse float from value[%s]", value);
+  }
+
+  public static Comparable parseFloatIfPossible(Object value)
+  {
+    if (StringUtils.isNullOrEmpty(value)) {
       return null;
     } else if (value instanceof Number) {
       return ((Number) value).floatValue();
@@ -57,16 +78,24 @@ public class Rows
         return tryParseFloat((String) value);
       }
       catch (Exception e) {
-        throw new ParseException(e, "Unable to parse float from value[%s]", value);
+        // ignore
       }
-    } else {
-      throw new ParseException("Unknown type[%s]", value.getClass());
     }
+    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   public static Double parseDouble(Object value)
   {
-    if (value == null) {
+    final Comparable parsed = parseDoubleIfPossible(value);
+    if (parsed == null || parsed instanceof Double) {
+      return (Double) parsed;
+    }
+    throw new ParseException("Unable to parse double from value[%s]", value);
+  }
+
+  public static Comparable parseDoubleIfPossible(Object value)
+  {
+    if (StringUtils.isNullOrEmpty(value)) {
       return null;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue();
@@ -77,11 +106,10 @@ public class Rows
         return tryParseDouble((String) value);
       }
       catch (Exception e) {
-        throw new ParseException(e, "Unable to parse double from value[%s]", value);
+        // ignore
       }
-    } else {
-      throw new ParseException("Unknown type[%s]", value.getClass());
     }
+    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   public static Double round(Double value, int round)
@@ -100,7 +128,16 @@ public class Rows
 
   public static Long parseLong(Object value)
   {
-    if (value == null) {
+    final Comparable parsed = parseLongIfPossible(value);
+    if (parsed == null || parsed instanceof Long) {
+      return (Long) parsed;
+    }
+    throw new ParseException("Unable to parse long from value[%s]", value);
+  }
+
+  public static Comparable parseLongIfPossible(Object value)
+  {
+    if (StringUtils.isNullOrEmpty(value)) {
       return null;
     } else if (value instanceof Number) {
       return ((Number) value).longValue();
@@ -110,12 +147,11 @@ public class Rows
       try {
         return tryParseLong((String) value);
       }
-      catch (Exception e) {
-        throw new ParseException(e, "Unable to parse long from value[%s]", value);
+      catch (Exception ex) {
+        // ignore
       }
-    } else {
-      throw new ParseException("Unknown type[%s]", value.getClass());
     }
+    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   // long -> double -> long can make different value

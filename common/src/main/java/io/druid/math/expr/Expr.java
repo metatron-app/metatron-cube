@@ -105,7 +105,7 @@ final class BooleanExpr implements Constant
   }
 
   @Override
-  public Boolean get()
+  public Object get()
   {
     return value;
   }
@@ -145,7 +145,7 @@ final class LongExpr implements Constant
   }
 
   @Override
-  public Long get()
+  public Object get()
   {
     return value;
   }
@@ -185,7 +185,7 @@ final class StringExpr implements Constant
   }
 
   @Override
-  public String get()
+  public Object get()
   {
     return value;
   }
@@ -225,7 +225,7 @@ final class FloatExpr implements Constant
   }
 
   @Override
-  public Float get()
+  public Object get()
   {
     return value;
   }
@@ -265,7 +265,7 @@ final class DoubleExpr implements Constant
   }
 
   @Override
-  public Double get()
+  public Object get()
   {
     return value;
   }

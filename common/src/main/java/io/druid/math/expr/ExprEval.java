@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -240,7 +241,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
     } else if (rhs.isStringOrDimension()) {
       return Boolean.valueOf(stringValue());
     } else {
-      return !isNull();
+      return true;
     }
   }
 
@@ -250,12 +251,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return null;
     } else if (rhs.isNumeric()) {
       return floatValue();
-    }
-    switch (rhs.type()) {
-      case STRING:
-        return isNull() ? 0F : Rows.tryParseFloat(asString());
-      case DATETIME:
-        return isNull() ? 0F : dateTimeValue().getMillis();
+    } else if (rhs.isStringOrDimension()) {
+      return Rows.tryParseFloat(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      return (float) dateTimeValue().getMillis();
     }
     return 0F;
   }
@@ -266,12 +265,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return null;
     } else if (rhs.isNumeric()) {
       return doubleValue();
-    }
-    switch (rhs.type()) {
-      case STRING:
-        return isNull() ? 0D : Rows.tryParseDouble(asString());
-      case DATETIME:
-        return isNull() ? 0D : dateTimeValue().getMillis();
+    } else if (rhs.isStringOrDimension()) {
+      return Rows.tryParseDouble(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      return (double) dateTimeValue().getMillis();
     }
     return 0D;
   }
@@ -282,12 +279,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return null;
     } else if (rhs.isNumeric()) {
       return longValue();
-    }
-    switch (rhs.type()) {
-      case STRING:
-        return isNull() ? 0L : Rows.tryParseLong(asString());
-      case DATETIME:
-        return isNull() ? 0L : dateTimeValue().getMillis();
+    } else if (rhs.isStringOrDimension()) {
+      return Rows.tryParseLong(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      return dateTimeValue().getMillis();
     }
     return 0L;
   }
@@ -298,12 +293,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return null;
     } else if (rhs.isNumeric()) {
       return intValue();
-    }
-    switch (rhs.type()) {
-      case STRING:
-        return isNull() ? 0 : Rows.tryParseInt(asString());
-      case DATETIME:
-        return isNull() ? 0 : Ints.checkedCast(dateTimeValue().getMillis());
+    } else if (rhs.isStringOrDimension()) {
+      return Rows.tryParseInt(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      return Ints.checkedCast(dateTimeValue().getMillis());
     }
     return 0;
   }
