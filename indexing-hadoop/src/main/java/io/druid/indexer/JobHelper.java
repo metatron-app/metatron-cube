@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
 import com.metamx.common.FileUtils;
 import com.metamx.common.IAE;
@@ -57,6 +58,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -379,6 +381,7 @@ public class JobHelper
     switch (outputFS.getScheme()) {
       case "hdfs":
       case "viewfs":
+      case "wasb":
       case "gs":
         loadSpec = ImmutableMap.<String, Object>of(
             "type", "hdfs",
@@ -524,13 +527,15 @@ public class JobHelper
     return numRead;
   }
 
+  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of("hdfs", "viewfs", "wasb");
+
   public static Path makeSegmentOutputPath(
       Path basePath,
       FileSystem fileSystem,
       DataSegment segment
   )
   {
-    String segmentDir = "hdfs".equals(fileSystem.getScheme()) || "viewfs".equals(fileSystem.getScheme())
+    String segmentDir = HDFS_DIR_SCHEMES.contains(fileSystem.getScheme())
                         ? DataSegmentPusherUtil.getHdfsStorageDir(segment)
                         : DataSegmentPusherUtil.getStorageDir(segment);
     return new Path(prependFSIfNullScheme(fileSystem, basePath), String.format("./%s", segmentDir));
