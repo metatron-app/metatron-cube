@@ -21,7 +21,9 @@ package io.druid.utils;
 
 import com.metamx.common.logger.Logger;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,18 +34,14 @@ public class CompressionUtils
 {
   private static final Logger log = new Logger(CompressionUtils.class);
 
-
-  @Deprecated // Use com.metamx.common.CompressionUtils.zip
   public static long zip(File directory, File outputZipFile) throws IOException
   {
-    return com.metamx.common.CompressionUtils.zip(directory, outputZipFile);
-  }
-
-
-  @Deprecated // Use com.metamx.common.CompressionUtils.zip
-  public static long zip(File directory, OutputStream out) throws IOException
-  {
-    return com.metamx.common.CompressionUtils.zip(directory, out);
+    if (!com.metamx.common.CompressionUtils.isZip(outputZipFile.getName())) {
+      log.warn("No .zip suffix[%s], putting files from [%s] into it anyway.", outputZipFile, directory);
+    }
+    try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(outputZipFile), 0x10000)) {
+      return com.metamx.common.CompressionUtils.zip(directory, out);
+    }
   }
 
   @Deprecated // Use com.metamx.common.CompressionUtils.unzip

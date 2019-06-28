@@ -23,13 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.metamx.common.CompressionUtils;
 import com.metamx.common.logger.Logger;
 import com.microsoft.azure.storage.StorageException;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
+import io.druid.utils.CompressionUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;

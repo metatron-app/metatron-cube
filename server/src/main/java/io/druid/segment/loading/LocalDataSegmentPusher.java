@@ -24,10 +24,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
-import com.metamx.common.CompressionUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.segment.SegmentUtils;
 import io.druid.timeline.DataSegment;
+import io.druid.utils.CompressionUtils;
 
 import java.io.File;
 import java.io.IOException;
