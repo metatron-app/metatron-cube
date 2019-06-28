@@ -5667,6 +5667,79 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void test2281()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setVirtualColumns(new ExprVirtualColumn(
+            "time_format(__time, out.format='yyyy-MM-dd HH:mm',out.timezone='Asia/Seoul', out.locale='en')",
+            "MINUTE(request_time).inner")
+        )
+        .setDimensions(
+            DefaultDimensionSpec.of("MINUTE(request_time).inner", "MINUTE(request_time)")
+        )
+        .setAggregatorSpecs(
+            new GenericSumAggregatorFactory("aggregationfunc_000", null, "index + 1", null, ValueDesc.DOUBLE)
+        )
+        .setPostAggregatorSpecs(
+            new MathPostAggregator("SUM(MEASURE_1)", "aggregationfunc_000")
+        );
+
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 24,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("MINUTE(request_time)"), null, null,
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs(), "SUM(MEASURE_1)")
+                             .withPartitionExpressions(
+                                 PartitionExpression.of("#_ = $sum(_)"),
+                                 PartitionExpression.of("concat(_, '.percent') = _ / #_ * 100"))
+                             .withAppendValueColumn(true)
+                )
+            )
+        )
+    );
+
+    String[] columnNames = new String[]{"MINUTE(request_time)", "SUM(MEASURE_1)", "SUM(MEASURE_1).percent"};
+
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-01-12 09:00", 4513.0, 0.8944754665688779),
+        array("2011-01-13 09:00", 6090.949111938477, 1.2072245842562512),
+        array("2011-01-14 09:00", 4935.488838195801, 0.9782126481920403),
+        array("2011-01-15 09:00", 5739.140853881836, 1.1374962758653808),
+        array("2011-01-16 09:00", 4711.468170166016, 0.9338118080508896),
+        array("2011-01-17 09:00", 4664.030891418457, 0.9244097513169032),
+        array("2011-01-18 09:00", 4411.145851135254, 0.8742879998443556),
+        array("2011-01-19 09:00", 4609.068244934082, 0.9135161685874612),
+        array("2011-01-20 10:00", 4447.630561828613, 0.8815192603407155),
+        array("2011-01-22 09:00", 6175.801361083984, 1.2240422787264142),
+        array("2011-01-23 09:00", 5603.292701721191, 1.110571206225139),
+        array("2011-01-24 09:00", 5007.298484802246, 0.9924453021145856),
+        array("2011-01-25 09:00", 5192.679672241211, 1.0291878069068658),
+        array("2011-01-26 09:00", 6301.556800842285, 1.248966975303277),
+        array("2011-01-27 09:00", 6038.663551330566, 1.1968615992751797),
+        array("2011-01-28 09:00", 5785.855537414551, 1.1467551144092636),
+        array("2011-01-29 09:00", 5359.517524719238, 1.0622550273670106),
+        array("2011-01-30 09:00", 5510.331253051758, 1.092146270445943),
+        array("2011-01-31 09:00", 5922.684387207031, 1.1738745580738352),
+        array("2011-02-01 09:00", 5875.711364746094, 1.16456451681926),
+        array("2011-02-02 09:00", 5971.373008728027, 1.1835246306312446),
+        array("2011-02-03 09:00", 5237.882194519043, 1.038146935469807),
+        array("2011-02-04 09:00", 5469.789611816406, 1.0841109273350502),
+        array("2011-02-05 09:00", 5469.095397949219, 1.0839733343209241)
+    );
+
+    List<Row> results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+  }
+
+  @Test
   public void testPivotWithGroupingSet()
   {
     OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");

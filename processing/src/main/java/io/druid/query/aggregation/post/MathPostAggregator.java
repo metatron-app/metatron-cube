@@ -103,7 +103,15 @@ public class MathPostAggregator implements DecoratingPostAggregator
   @Override
   public ValueDesc resolve(TypeResolver resolver)
   {
-    return parsed.returns();
+    ValueDesc type = parsed.returns();
+    if (type.isUnknown()) {
+      Expr expr = Parser.parse(expression, resolver);
+      if (Evals.isAssign(expr)) {
+        expr = Evals.splitAssign(expr).rhs;
+      }
+      type = expr.returns();
+    }
+    return type;
   }
 
   @Override
@@ -153,7 +161,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
       @Override
       public ValueDesc resolve(final TypeResolver resolver)
       {
-        return parsed.returns();
+        return MathPostAggregator.this.resolve(resolver);
       }
 
       @Override
