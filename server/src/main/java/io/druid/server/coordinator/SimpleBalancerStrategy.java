@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.collections.IntList;
 import io.druid.common.DateTimes;
 import io.druid.data.Pair;
 import io.druid.granularity.Granularities;
@@ -35,13 +36,22 @@ import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
+ * don't bother tier, capacity, etc. just simple balancing of segments.
  */
 public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
 {
   private static final Logger LOG = new Logger(SimpleBalancerStrategy.class);
+
+  private static final float BASELINE_RATIO = 0.85f;
+
+  private static final int DS_GROUP_NUM = 8;
+  private static final float DS_GROUP_TOLERANCE_RATIO = 0.15f;
+
+  private final Random random = new Random();
 
   @Override
   public List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
@@ -52,88 +62,111 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
     if (serverHolders.isEmpty()) {
       return Arrays.asList();
     }
+    int numberOfQueuedSegments = 0;
     for (ServerHolder holder : serverHolders) {
-      if (holder.getPeon().isDoingSomething()) {
-        return Arrays.asList();   // busy.. balance later
-      }
+      numberOfQueuedSegments += holder.getPeon().getNumberOfQueuedSegments();
+    }
+    final int maxSegmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
+    if (maxSegmentsToMove <= 0 ||
+        numberOfQueuedSegments >= params.getCoordinatorDynamicConfig().getReplicationThrottleLimit()) {
+      return Arrays.asList();
     }
     final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
     final int serverCount = serverHolders.size();
-    final Set<String> dataSourceNames = Sets.newTreeSet();  // just to estimate progress
+
+    final Set<String> dataSourceNames = Sets.newTreeSet();  // sorted to estimate progress
     final ImmutableDruidServer[] servers = new ImmutableDruidServer[serverCount];
+    final int[] totalSegmentsPerServer = new int[serverCount];
+    int totalSegments = 0;
     for (int i = 0; i < serverCount; i++) {
       servers[i] = serverHolders.get(i).getServer();
+      totalSegmentsPerServer[i] = servers[i].getSegments().size();
+      totalSegments += totalSegmentsPerServer[i];
       Iterables.addAll(dataSourceNames, servers[i].getDataSourceNames());
     }
-    final int maxSegmentsToMove = params.getMaxSegmentsToMove();
+    final int baseLine = (int) (totalSegments / serverCount * BASELINE_RATIO);
     final List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
 
+    // per DS, incremental
+    final int[] totalSegmentsPerServerInDs = new int[serverCount];
+
+    // per group
+    final IntList deficit = new IntList();
+    final IntList excessive = new IntList();
+
+    @SuppressWarnings("unchecked")
+    final List<DataSegment>[] segmentsPerServer = (List<DataSegment>[]) Array.newInstance(List.class, serverCount);
+    for (int x = 0; x < serverCount; x++) {
+      segmentsPerServer[x] = Lists.newArrayList();
+    }
+
     for (String dataSourceName : dataSourceNames) {
-      List<Pair<Integer, DataSegment>> allSegments = Lists.newArrayList();
+      List<Pair<Integer, DataSegment>> allSegmentsInDS = Lists.newArrayList();
       for (int i = 0; i < serverCount; i++) {
         ImmutableDruidDataSource dataSource = servers[i].getDataSource(dataSourceName);
         if (dataSource != null) {
           for (DataSegment segment : dataSource.getSegments()) {
             if (segment.getInterval().getEndMillis() <= start) {
-              allSegments.add(Pair.of(i, segment));
+              allSegmentsInDS.add(Pair.of(i, segment));
             }
           }
         }
       }
       Collections.sort(
-          allSegments,
+          allSegmentsInDS,
           Ordering.from(DruidCoordinator.SEGMENT_COMPARATOR).onResultOf(Pair.<DataSegment>rhs())
       );
-      @SuppressWarnings("unchecked")
-      final List<DataSegment>[] segmentsPerServer = (List<DataSegment>[]) Array.newInstance(List.class, serverCount);
-      for (int x = 0; x < serverCount; x++) {
-        segmentsPerServer[x] = Lists.newArrayList();
-      }
+      Arrays.fill(totalSegmentsPerServerInDs, 0);
 
-      final int numSegments = allSegments.size();
-      final int groupPerServer = Math.max(1, numSegments / serverCount / 12);
-      final int tolerance = Math.max(1, groupPerServer / 6);
+      final int numSegmentsInDS = allSegmentsInDS.size();
+      final int groupPerServer = Math.max(1, numSegmentsInDS / serverCount / DS_GROUP_NUM);
+      final int tolerance = (int) (groupPerServer * DS_GROUP_TOLERANCE_RATIO);
 
-      final List<Integer> deficit = Lists.newArrayList();
-      final List<Integer> excessive = Lists.newArrayList();
-
-      final int[] countsPerServer = new int[serverCount];
       int i = 0;
-      for (int group = 1; found.size() < maxSegmentsToMove && i < numSegments; group++) {
-        final int expected = group * groupPerServer;
-        if (group > 1) {
-          for (int x = 0; x < serverCount; x++) {
-            segmentsPerServer[x].clear();
+      for (int group = 1; found.size() < maxSegmentsToMove && i < numSegmentsInDS; group++) {
+        for (int x = 0; x < serverCount; x++) {
+          segmentsPerServer[x].clear();
+        }
+        excessive.clear();
+        deficit.clear();
+
+        int limit = Math.min(numSegmentsInDS, i + groupPerServer * serverCount);
+        for (; i < limit; i++) {
+          Pair<Integer, DataSegment> pair = allSegmentsInDS.get(i);
+          segmentsPerServer[pair.lhs].add(pair.rhs);
+          totalSegmentsPerServerInDs[pair.lhs]++;
+        }
+        final int totalExpectedPerServer = i / serverCount;   // casting induces `excessive` rather than `deficits`
+        for (int x = 0; x < serverCount; x++) {
+          int count = totalSegmentsPerServerInDs[x];
+          if (count < totalExpectedPerServer && !servers[x].isDecommissioned()) {
+            for (; count < totalExpectedPerServer; count++) {
+              deficit.add(x);
+            }
+          } else {
+            for (; count > totalExpectedPerServer + tolerance; count--) {
+              excessive.add(x);
+            }
           }
-          excessive.clear();
-          deficit.clear();
+        }
+        if (!excessive.isEmpty() && deficit.isEmpty()) {
+          final int idx = findServerBelowBaseLine(totalSegmentsPerServer, baseLine);
+          if (idx >= 0) {
+            deficit.add(idx);
+          }
         }
 
-        int limit = Math.min(numSegments, i + groupPerServer * serverCount);
-        for (; i < limit; i++) {
-          Pair<Integer, DataSegment> pair = allSegments.get(i);
-          segmentsPerServer[pair.lhs].add(pair.rhs);
-          countsPerServer[pair.lhs]++;
-        }
-        for (int x = 0; x < serverCount; x++) {
-          int count = countsPerServer[x];
-          for (; count < expected; count++) {
-            deficit.add(x);
-          }
-          for (; count > expected + tolerance; count--) {
-            excessive.add(x);
-          }
-        }
-        if (excessive.isEmpty()) {
+        if (excessive.isEmpty() || deficit.isEmpty()) {
           continue;
         }
 
-        Collections.shuffle(deficit);
-        Collections.shuffle(excessive);
+        excessive.shuffle(random);
+        deficit.shuffle(random);
 
-        for (int from : excessive) {
-          for (int to : deficit) {
-            if (servers[to].isDecommissioned() || segmentsPerServer[to].size() >= groupPerServer) {
+        for (final int from : excessive) {
+          for (int x = 0; x < deficit.size(); x++) {
+            final int to = deficit.get(x);
+            if (to < 0 || from == to) {
               continue;
             }
             DataSegment segment = findTarget(servers[to], segmentsPerServer[from], segmentsPerServer[to]);
@@ -149,8 +182,11 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
             );
             found.add(Pair.of(new BalancerSegmentHolder(servers[from], segment), servers[to]));
 
-            countsPerServer[from]--;
-            countsPerServer[to]++;
+            totalSegmentsPerServerInDs[from]--;
+            totalSegmentsPerServerInDs[to]++;
+            totalSegmentsPerServer[from]--;
+            totalSegmentsPerServer[to]++;
+            deficit.set(x, -1);
             break;
           }
         }
@@ -172,10 +208,22 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
     return null;
   }
 
+  private int findServerBelowBaseLine(final int[] totalSegmentsPerServer, final int minBaseLine)
+  {
+    int x = -1;
+    for (int i = 0; i < totalSegmentsPerServer.length; i++) {
+      if (totalSegmentsPerServer[i] > minBaseLine) {
+        continue;
+      }
+      if (x < 0 || totalSegmentsPerServer[i] < totalSegmentsPerServer[x]) {
+        x = i;
+      }
+    }
+    return x;
+  }
+
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(
-      DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment proposalSegment, List<ServerHolder> serverHolders)
   {
     // can be used for bulk loading when server is down.. need to handle that properly
     int minExpectedSegments = -1;

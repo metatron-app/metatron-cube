@@ -36,7 +36,7 @@ public class DruidCluster
 
   public DruidCluster()
   {
-    this.cluster = Maps.newHashMap();
+    this.cluster = Maps.newLinkedHashMap();
   }
 
   public DruidCluster(Map<String, MinMaxPriorityQueue<ServerHolder>> cluster)

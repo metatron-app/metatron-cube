@@ -20,6 +20,7 @@
 package io.druid.server.coordinator.helper;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.metamx.common.logger.Logger;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
@@ -40,21 +41,23 @@ public class DruidCoordinatorSegmentInfoLoader implements DruidCoordinatorHelper
   }
 
   @Override
-  public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
+  public DruidCoordinatorRuntimeParams run(final DruidCoordinatorRuntimeParams params)
   {
-    log.info("Starting coordination (%s). Getting available segments.", params.isMajorTick() ? "major" : "minor");
-
     // Display info about all available segments
-    Supplier<Set<DataSegment>> supplier = new Supplier<Set<DataSegment>>()
+    Supplier<Set<DataSegment>> supplier = Suppliers.memoize(new Supplier<Set<DataSegment>>()
     {
       @Override
       public Set<DataSegment> get()
       {
         final Set<DataSegment> availableSegments = coordinator.getOrderedAvailableDataSegments();
-        log.info("Found [%,d] available segments.", availableSegments.size());
+        log.info(
+            "Starting coordination (%s), running on [%,d] segments.",
+            params.isMajorTick() ? "major" : "minor",
+            availableSegments.size()
+        );
         return Collections.unmodifiableSet(availableSegments);
       }
-    };
+    });
 
     return params.buildFromExisting()
                  .withAvailableSegments(supplier)

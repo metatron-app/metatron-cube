@@ -44,6 +44,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DruidCoordinatorLogger implements DruidCoordinatorHelper
 {
   private static final Logger log = new Logger(DruidCoordinatorLogger.class);
+  private static final int DUMP_INTERVAL = 20;
+
+  private int counter;
 
   private <T extends Number> void emitTieredStats(
       final ServiceEmitter emitter,
@@ -177,6 +180,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
       }
     }
     boolean printedHeader = false;
+    boolean dumpAll = ++counter % DUMP_INTERVAL == 0;
     for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
       for (ServerHolder serverHolder : serverHolders) {
         ImmutableDruidServer server = serverHolder.getServer();
@@ -185,10 +189,10 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
         int toLoad = queuePeon.getSegmentsToLoad().size();
         int toDrop = queuePeon.getSegmentsToDrop().size();
         long queued = queuePeon.getLoadQueueSize();
-        if (toLoad > 0 || toDrop > 0 || queued > 0) {
+        if (dumpAll || toLoad > 0 || toDrop > 0 || queued > 0) {
           if (!printedHeader) {
             printedHeader = true;
-            log.info("Load Queues:");
+            log.info("%sLoad Queues:", dumpAll ? "*" : "");
           }
           log.info(
               "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %s queued, %s served (%,d segments, %.2f%% full).",

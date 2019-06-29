@@ -133,9 +133,9 @@ public class LoadQueuePeon
     return segmentsToDrop.containsKey(segment);
   }
 
-  public boolean isDoingSomething()
+  public int getNumberOfQueuedSegments()
   {
-    return !segmentsToLoad.isEmpty() || !segmentsToDrop.isEmpty();
+    return segmentsToDrop.size() + segmentsToLoad.size();
   }
 
   public long getLoadQueueSize()

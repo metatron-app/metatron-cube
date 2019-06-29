@@ -24,6 +24,7 @@ import com.google.common.primitives.Ints;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Random;
 
 /**
  */
@@ -105,6 +106,25 @@ public class IntList implements Iterable<Integer>
   public int[] compact()
   {
     return Arrays.copyOfRange(baseArray, 0, size);
+  }
+
+  public void shuffle()
+  {
+    shuffle(new Random());
+  }
+
+  public void shuffle(Random r)
+  {
+    if (size <= 1) {
+      return;
+    }
+    for (int i = size; i > 1; i--) {
+      final int from = i - 1;
+      final int to = r.nextInt(i);
+      final int x = baseArray[from];
+      baseArray[from] = baseArray[to];
+      baseArray[to] = x;
+    }
   }
 
   @Override
