@@ -81,7 +81,7 @@ public class ComplexMetrics
   public static void registerSerdeFactory(String type, ComplexMetricSerde.Factory factory)
   {
     if (complexSerializerFactories.containsKey(type)) {
-      throw new ISE("Serializer for type[%s] already exists.", type);
+      throw new ISE("Serde for type [%s] already exists.", type);
     }
     complexSerializerFactories.put(type, factory);
   }
@@ -89,7 +89,7 @@ public class ComplexMetrics
   public static void registerSerde(String type, ComplexMetricSerde serde)
   {
     if (complexSerializers.containsKey(type)) {
-      throw new ISE("Serializer for type[%s] already exists.", type);
+      throw new ISE("Serde for type [%s] already exists.", type);
     }
     addToMap(type, serde);
     if (!ValueDesc.isArray(type)) {
@@ -97,8 +97,8 @@ public class ComplexMetrics
       if (!complexSerializers.containsKey(arrayType.typeName())) {
         registerSerde(arrayType.typeName(), new ArrayMetricSerde(serde));
       }
+      log.info("Serde for type [%s] is registered with class [%s]", type, serde.getClass());
     }
-    log.info("serde for type " + type + " is registered with class " + serde.getClass());
   }
 
   private static synchronized void addToMap(String type, ComplexMetricSerde serde)

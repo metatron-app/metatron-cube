@@ -67,12 +67,13 @@ public class Parser
     if (registered.putIfAbsent(parent.getName(), new Object()) != null) {
       return;
     }
-    log.info("registering functions in library [%s]", parent.getName());
+    final boolean builtInLibrary = parent == BuiltinFunctions.class ||
+                                   parent == PredicateFunctions.class ||
+                                   parent == DateTimeFunctions.class ||
+                                   parent == ExcelFunctions.class;
 
-    final boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
-                                       parent != PredicateFunctions.class &&
-                                       parent != DateTimeFunctions.class &&
-                                       parent != ExcelFunctions.class;
+    log.info("registering functions in %s library [%s]", builtInLibrary ? "built-in" : "user", parent.getName());
+
     for (Function.Factory factory : getFunctions(parent)) {
       String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
       Function.Factory prev = functions.get(name);
@@ -81,7 +82,7 @@ public class Parser
       }
       functions.put(name, factory);
 
-      if (userDefinedLibrary) {
+      if (!builtInLibrary) {
         log.info("> '%s' is registered with class %s", name, factory.getClass().getSimpleName());
       }
     }

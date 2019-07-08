@@ -164,7 +164,7 @@ public class Initialization
     }
 
     for (File extension : getExtensionFilesToLoad(config)) {
-      log.info("Loading extension [%s] for class [%s]", extension.getName(), clazz.getName());
+      log.debug("Loading extension [%s] for service type [%s]", extension.getName(), clazz.getName());
       try {
         final URLClassLoader loader = getClassLoaderForExtension(config, extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
@@ -192,7 +192,7 @@ public class Initialization
                 module.getClass().getName()
             );
           } else if (!loadedExtensionNames.contains(moduleName)) {
-            log.info("Adding local file system extension module [%s] for class [%s]", moduleName, clazz.getName());
+            log.info("Found extension module [%s] for class [%s]", extension.getName(), moduleName);
             loadedExtensionNames.add(moduleName);
             retVal.add(module);
           }
