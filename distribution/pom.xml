@@ -65,7 +65,6 @@
                                     -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
                                 </argument>
                                 <argument>-Dhadoop.aether.version=${hadoop.compile.version}</argument>
-                                <argument>-Dthrift.aether.version=${thrift.compile.version}</argument>
                                 <argument>io.druid.cli.Main</argument>
                                 <argument>tools</argument>
                                 <argument>pull-deps</argument>
