@@ -55,6 +55,7 @@ import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.overlord.HeapMemoryTaskStorage;
 import io.druid.indexing.overlord.TaskLockbox;
+import io.druid.indexing.overlord.supervisor.SupervisorManager;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -201,7 +202,7 @@ public class IngestSegmentFirehoseFactoryTest
     };
     final LocalTaskActionClientFactory tac = new LocalTaskActionClientFactory(
         ts,
-        new TaskActionToolbox(tl, null, mdc, newMockEmitter())
+        new TaskActionToolbox(tl, null, mdc, newMockEmitter(), EasyMock.createMock(SupervisorManager.class))
     );
     SegmentHandoffNotifierFactory notifierFactory = EasyMock.createNiceMock(SegmentHandoffNotifierFactory.class);
     EasyMock.replay(notifierFactory);

@@ -75,6 +75,7 @@ import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.indexing.overlord.MetadataTaskStorage;
 import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.TaskStorage;
+import io.druid.indexing.overlord.supervisor.SupervisorManager;
 import io.druid.indexing.test.TestDataSegmentAnnouncer;
 import io.druid.indexing.test.TestDataSegmentKiller;
 import io.druid.jackson.DefaultObjectMapper;
@@ -325,7 +326,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -368,7 +368,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -425,7 +424,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             new DateTime("2010"),
-            null,
             false
         ),
         null,
@@ -488,7 +486,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -530,7 +527,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -585,7 +581,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -638,7 +633,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -673,7 +667,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -688,7 +681,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -745,7 +737,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -760,7 +751,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -818,7 +808,6 @@ public class KafkaIndexTaskTest
             false,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -833,7 +822,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             false,
             false,
-            null,
             null,
             false
         ),
@@ -896,7 +884,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -956,7 +943,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -971,7 +957,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -1030,7 +1015,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -1066,7 +1050,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -1120,7 +1103,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -1206,7 +1188,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             true,
-            null,
             null,
             false
         ),
@@ -1296,7 +1277,6 @@ public class KafkaIndexTaskTest
             true,
             false,
             null,
-            null,
             false
         ),
         null,
@@ -1335,7 +1315,6 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null,
             null,
             false
         ),
@@ -1510,7 +1489,8 @@ public class KafkaIndexTaskTest
         taskLockbox,
         null,
         metadataStorageCoordinator,
-        emitter
+        emitter,
+        new SupervisorManager(null)
     );
     final TaskActionClientFactory taskActionClientFactory = new LocalTaskActionClientFactory(
         taskStorage,

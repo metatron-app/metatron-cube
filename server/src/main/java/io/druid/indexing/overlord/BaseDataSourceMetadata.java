@@ -61,6 +61,12 @@ public class BaseDataSourceMetadata implements DataSourceMetadata
     return new BaseDataSourceMetadata(updateProperty(other.getTableDesc()));
   }
 
+  @Override
+  public DataSourceMetadata minus(DataSourceMetadata other)
+  {
+    return new BaseDataSourceMetadata(updateProperty(this.getTableDesc()));
+  }
+
   protected final TableDesc updateProperty(TableDesc other)
   {
     if (tableDesc == null) {

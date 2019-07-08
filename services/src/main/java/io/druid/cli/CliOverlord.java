@@ -75,6 +75,7 @@ import io.druid.indexing.overlord.helpers.TaskLogAutoCleanerConfig;
 import io.druid.indexing.overlord.http.OverlordRedirectInfo;
 import io.druid.indexing.overlord.http.OverlordResource;
 import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
+import io.druid.indexing.overlord.supervisor.SupervisorManager;
 import io.druid.indexing.overlord.supervisor.SupervisorResource;
 import io.druid.indexing.worker.config.WorkerConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
@@ -152,6 +153,7 @@ public class CliOverlord extends ServerRunnable
             binder.bind(CoordinatorClient.class).in(LazySingleton.class);
             binder.bind(TaskStorageQueryAdapter.class).in(LazySingleton.class);
             binder.bind(IndexerMetadataStorageAdapter.class).in(LazySingleton.class);
+            binder.bind(SupervisorManager.class).in(LazySingleton.class);
 
             binder.bind(ChatHandlerProvider.class).toProvider(Providers.<ChatHandlerProvider>of(null));
 

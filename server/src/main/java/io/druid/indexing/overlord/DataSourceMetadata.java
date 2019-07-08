@@ -75,4 +75,14 @@ public interface DataSourceMetadata
   DataSourceMetadata plus(DataSourceMetadata other);
 
   TableDesc getTableDesc();
+
+  /**
+   * Returns a copy of this instance with "other" subtracted.
+   *
+   * Behavior is undefined if you pass in an instance of a different class from this one.
+   *
+   * @param other another instance
+   * @return subtracted copy
+   */
+  DataSourceMetadata minus(DataSourceMetadata other);
 }

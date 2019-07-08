@@ -49,7 +49,14 @@ import io.druid.indexing.kafka.KafkaIndexTaskClientFactory;
 import io.druid.indexing.kafka.KafkaPartitions;
 import io.druid.indexing.kafka.KafkaTuningConfig;
 import io.druid.indexing.kafka.test.TestBroker;
-import io.druid.indexing.overlord.*;
+import io.druid.indexing.overlord.DataSourceMetadata;
+import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
+import io.druid.indexing.overlord.TaskMaster;
+import io.druid.indexing.overlord.TaskQueue;
+import io.druid.indexing.overlord.TaskRunner;
+import io.druid.indexing.overlord.TaskRunnerListener;
+import io.druid.indexing.overlord.TaskRunnerWorkItem;
+import io.druid.indexing.overlord.TaskStorage;
 import io.druid.indexing.overlord.supervisor.SupervisorReport;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -1492,6 +1499,35 @@ public class KafkaSupervisorTest extends EasyMockSupport
     Assert.assertEquals(captureDataSourceMetadata.getValue(), expectedMetadata);
   }
 
+  @Test
+  public void testResetNoDataSourceMetadata() throws Exception
+  {
+    supervisor = getSupervisor(1, 1, true, "PT1H", null, false);
+    expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
+    expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
+    expect(taskRunner.getRunningTasks()).andReturn(Collections.EMPTY_LIST).anyTimes();
+    expect(taskStorage.getActiveTasks()).andReturn(ImmutableList.<Task>of()).anyTimes();
+    taskRunner.registerListener(anyObject(TaskRunnerListener.class), anyObject(Executor.class));
+    replayAll();
+
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    KafkaDataSourceMetadata resetMetadata = new KafkaDataSourceMetadata(new KafkaPartitions(
+        topic,
+        ImmutableMap.of(1, 1000L, 2, 1000L)
+    ));
+
+    reset(indexerMetadataStorageCoordinator);
+    // no DataSourceMetadata in metadata store
+    expect(indexerMetadataStorageCoordinator.getDataSourceMetadata(DATASOURCE)).andReturn(null);
+    replay(indexerMetadataStorageCoordinator);
+
+    supervisor.resetInternal(resetMetadata);
+    verifyAll();
+  }
+
   public void testStopGracefully() throws Exception
   {
     final TaskLocation location1 = new TaskLocation("testHost", 1234);
@@ -1707,8 +1743,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
             true,
             false,
             minimumMessageTime,
-            null,
-            false
+            null
         ),
         ImmutableMap.<String, Object>of(),
         null

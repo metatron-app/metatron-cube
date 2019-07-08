@@ -102,6 +102,7 @@ public class KafkaDataSourceMetadata extends BaseDataSourceMetadata
   }
 
 
+  @Override
   public DataSourceMetadata minus(DataSourceMetadata other)
   {
     if (!(other instanceof KafkaDataSourceMetadata)) {

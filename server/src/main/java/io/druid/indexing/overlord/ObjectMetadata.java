@@ -69,6 +69,12 @@ public final class ObjectMetadata extends BaseDataSourceMetadata
   }
 
   @Override
+  public DataSourceMetadata minus(DataSourceMetadata other)
+  {
+    return this;
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (o instanceof ObjectMetadata) {

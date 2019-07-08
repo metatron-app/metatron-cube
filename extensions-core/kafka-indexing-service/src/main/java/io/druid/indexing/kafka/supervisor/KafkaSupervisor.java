@@ -547,6 +547,7 @@ public class KafkaSupervisor implements Supervisor
     @Override
     public void handle()
     {
+      log.makeAlert("Resetting dataSource [%s]", dataSource).emit();
       resetInternal(dataSourceMetadata);
     }
   }
@@ -1306,7 +1307,6 @@ public class KafkaSupervisor implements Supervisor
         true,
         false,
         minimumMessageTime,
-        ioConfig.isUseEarliestOffset(),
         ioConfig.isSkipOffsetGaps()
     );
 
