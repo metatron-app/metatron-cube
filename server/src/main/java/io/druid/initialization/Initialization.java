@@ -198,7 +198,8 @@ public class Initialization
           }
         }
       }
-      catch (Exception e) {
+      catch (Throwable e) {
+        log.warn(e, "Failed to load extension [%s]", extension.getName());
         throw Throwables.propagate(e);
       }
     }
@@ -344,23 +345,23 @@ public class Initialization
       if (HADOOP_DEPENDENT.contains(extensionName)) {
         parentLoader = appendHadoopLoader(config, parentLoader);
       }
-      loader = new URLClassLoader(toURLs(extension), parentLoader);
+      loader = new URLClassLoader(toURLs(extension, true), parentLoader);
       loadersMap.put(extensionName, loader);
     }
     return loader;
   }
 
-  private static URL[] toURLs(File extension) throws MalformedURLException
+  private static URL[] toURLs(File extension, boolean withFileLoader) throws MalformedURLException
   {
-    final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
-    final URL[] urls = new URL[jars.size()];
-    int i = 0;
-    for (File jar : jars) {
-      final URL url = jar.toURI().toURL();
-      log.info("added URL[%s]", url);
-      urls[i++] = url;
+    final List<URL> urls = Lists.newArrayList();
+    for (File jar : FileUtils.listFiles(extension, new String[]{"jar"}, false)) {
+      urls.add(jar.toURI().toURL());
     }
-    return urls;
+    if (withFileLoader) {
+      // include extension directory itself to load resource files (like hive.function.properties)
+      urls.add(extension.toURI().toURL());
+    }
+    return urls.toArray(new URL[0]);
   }
 
   public static URLClassLoader getClassLoaderForExtension(String extensionName)
@@ -372,7 +373,7 @@ public class Initialization
       throws MalformedURLException
   {
     if (!hasHadoopLoader(loader)) {
-      loader = new HadoopClassLoader(toURLs(getHadoopDependencyFilesToLoad(config)), loader);
+      loader = new HadoopClassLoader(toURLs(getHadoopDependencyFilesToLoad(config), false), loader);
     }
     return loader;
   }
