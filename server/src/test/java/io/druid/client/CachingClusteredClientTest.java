@@ -1702,10 +1702,11 @@ public class CachingClusteredClientTest
           serverExpectations.put(lastServer, new ServerExpectations(lastServer, makeMock(mocks, QueryRunner.class)));
         }
 
+        DataSegment mockSegment = makeMock(mocks, DataSegment.class);
         ServerExpectation expectation = new ServerExpectation(
             String.format("%s_%s", k, j), // interval/chunk
             queryIntervals.get(numQueryIntervals),
-            makeMock(mocks, DataSegment.class),
+            mockSegment,
             expectedResults.get(k).get(j)
         );
         serverExpectations.get(lastServer).addExpectation(expectation);
