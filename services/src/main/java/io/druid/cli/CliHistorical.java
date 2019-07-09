@@ -45,7 +45,7 @@ import io.druid.query.lookup.LookupModule;
 import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.QueryResource;
 import io.druid.server.ServiceTypes;
-import io.druid.server.ShutdownModule;
+import io.druid.server.AdminModule;
 import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.ZkCoordinator;
 import io.druid.server.http.HistoricalResource;
@@ -107,7 +107,7 @@ public class CliHistorical extends ServerRunnable
         new LookupModule(),
         new FunctionModule(),
         new ManagementQueryModule(),
-        new ShutdownModule(this)
+        new AdminModule(this)
     );
   }
 }

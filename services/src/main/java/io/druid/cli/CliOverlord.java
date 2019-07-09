@@ -78,6 +78,7 @@ import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
 import io.druid.indexing.overlord.supervisor.SupervisorResource;
 import io.druid.indexing.worker.config.WorkerConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
+import io.druid.server.AdminModule;
 import io.druid.server.GuiceServletConfig;
 import io.druid.server.ServiceTypes;
 import io.druid.server.audit.AuditManagerProvider;
@@ -253,7 +254,8 @@ public class CliOverlord extends ServerRunnable
           }
         },
         new IndexingServiceFirehoseModule(),
-        new IndexingServiceTaskLogsModule()
+        new IndexingServiceTaskLogsModule(),
+        new AdminModule(this)
     );
   }
 

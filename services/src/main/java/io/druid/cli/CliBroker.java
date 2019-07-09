@@ -56,7 +56,7 @@ import io.druid.server.ClientInfoResource;
 import io.druid.server.ClientQuerySegmentWalker;
 import io.druid.server.ForwardHandler;
 import io.druid.server.ServiceTypes;
-import io.druid.server.ShutdownModule;
+import io.druid.server.AdminModule;
 import io.druid.server.coordination.broker.DruidBroker;
 import io.druid.server.http.BrokerResource;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
@@ -131,7 +131,7 @@ public class CliBroker extends ServerRunnable
         new FunctionModule(),
         new ManagementQueryModule(),
         new SqlModule(),
-        new ShutdownModule(this)
+        new AdminModule(this)
     );
   }
 }

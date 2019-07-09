@@ -23,15 +23,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import io.druid.guice.JerseyModule;
-import io.druid.server.http.ShutdownResource;
+import io.druid.server.http.AdminResource;
 
 import java.util.List;
 
-public class ShutdownModule implements JerseyModule
+public class AdminModule implements JerseyModule
 {
   private final Shutdown.Proc closeable;
 
-  public ShutdownModule(Shutdown.Proc closeable) {this.closeable = closeable;}
+  public AdminModule(Shutdown.Proc closeable) {this.closeable = closeable;}
 
   @Override
   public void configure(Binder binder)
@@ -42,6 +42,6 @@ public class ShutdownModule implements JerseyModule
   @Override
   public List<Class> getResources()
   {
-    return ImmutableList.<Class>of(ShutdownResource.class);
+    return ImmutableList.<Class>of(AdminResource.class);
   }
 }

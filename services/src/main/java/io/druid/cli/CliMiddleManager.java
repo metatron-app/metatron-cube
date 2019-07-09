@@ -47,7 +47,7 @@ import io.druid.indexing.worker.http.WorkerResource;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
-import io.druid.server.ShutdownModule;
+import io.druid.server.AdminModule;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import org.eclipse.jetty.server.Server;
 
@@ -114,7 +114,7 @@ public class CliMiddleManager extends ServerRunnable
         },
         new IndexingServiceFirehoseModule(),
         new IndexingServiceTaskLogsModule(),
-        new ShutdownModule(this)
+        new AdminModule(this)
     );
   }
 }
