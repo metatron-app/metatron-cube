@@ -597,8 +597,11 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     if (booleanOp) {
       return ValueDesc.BOOLEAN;
     }
-    ValueDesc lt = left.returns();
-    ValueDesc rt = right.returns();
+    final ValueDesc lt = left.returns();
+    final ValueDesc rt = right.returns();
+    if (lt.isUnknown() || rt.isUnknown()) {
+      return ValueDesc.UNKNOWN;
+    }
     if (lt.isDateTime() || rt.isDateTime()) {
       return ValueDesc.DATETIME;
     }

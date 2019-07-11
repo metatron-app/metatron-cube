@@ -5740,6 +5740,57 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void test2351()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setAggregatorSpecs(
+            new DoubleSumAggregatorFactory("aggregationfunc_000", null, "index + 1", null),
+            new DoubleSumAggregatorFactory("aggregationfunc_001", null, "index + 2", null),
+            new DoubleSumAggregatorFactory("aggregationfunc_002", null, "index + 3", null),
+            new DoubleSumAggregatorFactory("aggregationfunc_003", null, "index + 4", null)
+        )
+        .setPostAggregatorSpecs(
+            new MathPostAggregator("SUM(MEASURE_1)", "aggregationfunc_000 - aggregationfunc_001"),
+            new MathPostAggregator("SUM(MEASURE_2)", "aggregationfunc_001 - aggregationfunc_002"),
+            new MathPostAggregator("SUM(MEASURE_3)", "aggregationfunc_002 - aggregationfunc_003")
+        );
+
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 24,
+            Arrays.asList(
+                new WindowingSpec(
+                    null, null, null,
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs(), "SUM(MEASURE_1)", "SUM(MEASURE_2)", "SUM(MEASURE_3)")
+                             .withPartitionExpressions(
+                                 PartitionExpression.of("#_ = $sum(_)"),
+                                 PartitionExpression.of("concat(_, '.percent') = _ / #_ * 100"))
+                             .withAppendValueColumn(true)
+                )
+            )
+        )
+    );
+
+    String[] columnNames = new String[]{
+        "SUM(MEASURE_1)", "SUM(MEASURE_1).percent",
+        "SUM(MEASURE_2)", "SUM(MEASURE_2).percent",
+        "SUM(MEASURE_3)", "SUM(MEASURE_3).percent"};
+
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array(-1208.9999160766602, 100.0, -1208.999984741211, 100.0, -1208.9999923706055, 100.0)
+    );
+
+    List<Row> results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+  }
+
+  @Test
   public void testPivotWithGroupingSet()
   {
     OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
