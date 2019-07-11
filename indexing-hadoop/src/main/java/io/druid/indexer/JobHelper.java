@@ -376,13 +376,17 @@ public class JobHelper
 
     final Path finalIndexZipFilePath = new Path(segmentBasePath, "index.zip");
     final URI indexOutURI = finalIndexZipFilePath.toUri();
-    final ImmutableMap<String, Object> loadSpec;
+
     // TODO: Make this a part of Pushers or Pullers
-    switch (outputFS.getScheme()) {
+    final ImmutableMap<String, Object> loadSpec;
+    final String scheme = outputFS.getScheme();
+    switch (scheme) {
       case "hdfs":
       case "viewfs":
       case "wasb":
+      case "wasbs":
       case "gs":
+        // use hdfs puller, whatever the scheme is
         loadSpec = ImmutableMap.<String, Object>of(
             "type", "hdfs",
             "path", indexOutURI.toString()
@@ -403,7 +407,7 @@ public class JobHelper
         );
         break;
       default:
-        throw new IAE("Unknown file system scheme [%s]", outputFS.getScheme());
+        throw new IAE("Unknown file system scheme [%s]", scheme);
     }
     final DataSegment finalSegment = segmentTemplate
         .withLoadSpec(loadSpec)
@@ -527,7 +531,7 @@ public class JobHelper
     return numRead;
   }
 
-  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of("hdfs", "viewfs", "wasb");
+  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of("hdfs", "viewfs", "wasb", "wasbs");
 
   public static Path makeSegmentOutputPath(
       Path basePath,
