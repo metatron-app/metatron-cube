@@ -46,6 +46,7 @@ public class DruidMetrics
   public final static String TASK_STATUS = "taskStatus";
 
   public final static String SERVER = "server";
+  public final static String TIER = "tier";
 
   public static int findNumComplexAggs(List<AggregatorFactory> aggs)
   {

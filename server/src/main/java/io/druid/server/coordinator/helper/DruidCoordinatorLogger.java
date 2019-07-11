@@ -31,6 +31,7 @@ import io.druid.collections.CountingMap;
 import io.druid.query.DruidMetrics;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
+import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.ServerHolder;
@@ -51,6 +52,11 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
   private static final int DUMP_INTERVAL = 10;
 
   private int counter;
+  private final DruidCoordinator coordinator;
+
+  public DruidCoordinatorLogger(DruidCoordinator coordinator) {
+    this.coordinator = coordinator;
+  }
 
   private <T extends Number> void emitTieredStats(
       final ServiceEmitter emitter,
@@ -64,7 +70,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
         Number value = entry.getValue();
         emitter.emit(
             new ServiceMetricEvent.Builder()
-                .setDimension("tier", tier)
+                .setDimension(DruidMetrics.TIER, tier)
                 .build(
                     metricName, value.doubleValue()
                 )
@@ -262,6 +268,31 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
           )
       );
     }
+    for (Map.Entry<String, AtomicLong> entry : coordinator.getSegmentAvailability().entrySet()) {
+      String datasource = entry.getKey();
+      Long count = entry.getValue().get();
+      emitter.emit(
+              new ServiceMetricEvent.Builder()
+                      .setDimension(DruidMetrics.DATASOURCE, datasource).build(
+                      "segment/unavailable/count", count
+              )
+      );
+    }
+    for (Map.Entry<String, CountingMap<String>> entry : coordinator.getReplicationStatus().entrySet()) {
+      String tier = entry.getKey();
+      CountingMap<String> datasourceAvailabilities = entry.getValue();
+      for (Map.Entry<String, AtomicLong> datasourceAvailability : datasourceAvailabilities.entrySet()) {
+        String datasource = datasourceAvailability.getKey();
+        Long count = datasourceAvailability.getValue().get();
+        emitter.emit(
+                new ServiceMetricEvent.Builder()
+                        .setDimension(DruidMetrics.TIER, tier)
+                        .setDimension(DruidMetrics.DATASOURCE, datasource).build(
+                        "segment/underReplicated/count", count
+                )
+        );
+      }
+    }
 
     // Emit segment metrics
     CountingMap<String> segmentSizes = new CountingMap<String>();
@@ -292,6 +323,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
           )
       );
     }
+
 
     return params;
   }
