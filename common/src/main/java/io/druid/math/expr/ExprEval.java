@@ -249,6 +249,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
   {
     if (isNull()) {
       return null;
+    } else if (rhs.isBoolean()) {
+      return (Boolean) value() ? 1F : 0F;
     } else if (rhs.isNumeric()) {
       return floatValue();
     } else if (rhs.isStringOrDimension()) {
@@ -263,6 +265,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
   {
     if (isNull()) {
       return null;
+    } else if (rhs.isBoolean()) {
+      return (Boolean) value() ? 1D : 0D;
     } else if (rhs.isNumeric()) {
       return doubleValue();
     } else if (rhs.isStringOrDimension()) {
@@ -277,6 +281,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
   {
     if (isNull()) {
       return null;
+    } else if (rhs.isBoolean()) {
+      return (Boolean) value() ? 1L : 0L;
     } else if (rhs.isNumeric()) {
       return longValue();
     } else if (rhs.isStringOrDimension()) {

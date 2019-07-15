@@ -5791,6 +5791,35 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void test2357()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setAggregatorSpecs(
+            new DoubleSumAggregatorFactory("aggregationfunc_000", null, "isNull(partial_null_column)", null),
+            new DoubleSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null)
+        );
+
+    String[] columnNames = new String[]{"aggregationfunc_000", "aggregationfunc_001"};
+
+    List<Row> expectedResults = createExpectedRows(columnNames, array(1023D, 186D));
+    List<Row> results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+
+    builder.aggregators(
+        new LongSumAggregatorFactory("aggregationfunc_000", null, "isNull(partial_null_column)", null),
+        new LongSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null)
+    );
+    expectedResults = createExpectedRows(columnNames, array(1023L, 186L));
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+  }
+
+  @Test
   public void testPivotWithGroupingSet()
   {
     OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");

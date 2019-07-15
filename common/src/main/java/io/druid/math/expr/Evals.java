@@ -19,7 +19,6 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -30,7 +29,6 @@ import io.druid.common.DateTimes;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -377,6 +375,8 @@ public class Evals
       return eval;
     }
     switch (castTo.type()) {
+      case BOOLEAN:
+        return ExprEval.of(eval.asBoolean());
       case FLOAT:
         return ExprEval.of(eval.asFloat());
       case DOUBLE:
@@ -394,6 +394,8 @@ public class Evals
   public static Object castToValue(ExprEval eval, ValueDesc castTo)
   {
     switch (castTo.type()) {
+      case BOOLEAN:
+        return eval.asBoolean();
       case FLOAT:
         return eval.asFloat();
       case DOUBLE:
@@ -406,52 +408,6 @@ public class Evals
         return eval.asDateTime();
     }
     throw new IllegalArgumentException("not supported type " + castTo);
-  }
-
-  public static com.google.common.base.Function<Comparable, Number> asNumberFunc(ValueType type)
-  {
-    switch (type) {
-      case FLOAT:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            return input == null ? 0F : (Float) input;
-          }
-        };
-      case DOUBLE:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            return input == null ? 0D : (Double) input;
-          }
-        };
-      case LONG:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            return input == null ? 0L : (Long) input;
-          }
-        };
-      case STRING:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            String string = (String) input;
-            return Strings.isNullOrEmpty(string)
-                   ? 0L
-                   : StringUtils.isNumeric(string) ? Long.valueOf(string) : Double.valueOf(string);
-          }
-        };
-    }
-    throw new UnsupportedOperationException("Unsupported type " + type);
   }
 
   static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)
