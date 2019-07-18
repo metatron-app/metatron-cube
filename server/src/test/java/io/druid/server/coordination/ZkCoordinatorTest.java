@@ -59,6 +59,7 @@ import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.curator.framework.CuratorFramework;
+import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.After;
 import org.junit.Assert;
@@ -150,6 +151,7 @@ public class ZkCoordinatorTest extends CuratorTestBase
 
     segmentsAnnouncedByMe = new ConcurrentSkipListSet<>();
     announceCount = new AtomicInteger(0);
+
     announcer = new DataSegmentAnnouncer()
     {
       private final DataSegmentAnnouncer delegate = new BatchDataSegmentAnnouncer(
@@ -195,12 +197,6 @@ public class ZkCoordinatorTest extends CuratorTestBase
         announceCount.addAndGet(-Iterables.size(segments));
         delegate.unannounceSegments(segments);
       }
-
-      @Override
-      public boolean isAnnounced(DataSegment segment)
-      {
-        return segmentsAnnouncedByMe.contains(segment);
-      }
     };
 
     zkCoordinator = new ZkCoordinator(
@@ -234,6 +230,7 @@ public class ZkCoordinatorTest extends CuratorTestBase
         zkPaths,
         me,
         announcer,
+        EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         curator,
         serverManager,
         new ScheduledExecutorFactory()
@@ -539,6 +536,7 @@ public class ZkCoordinatorTest extends CuratorTestBase
             binder.bind(DruidServerMetadata.class)
                   .toInstance(new DruidServerMetadata("dummyServer", "dummyHost", 0, "dummyType", "normal", 0));
             binder.bind(DataSegmentAnnouncer.class).toInstance(announcer);
+            binder.bind(DataSegmentServerAnnouncer.class).toInstance(EasyMock.createNiceMock(DataSegmentServerAnnouncer.class));
             binder.bind(CuratorFramework.class).toInstance(curator);
             binder.bind(ServerManager.class).toInstance(serverManager);
             binder.bind(ScheduledExecutorFactory.class).toInstance(ScheduledExecutors.createFactory(new Lifecycle()));

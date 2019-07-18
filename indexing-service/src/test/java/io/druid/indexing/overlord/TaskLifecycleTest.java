@@ -102,6 +102,7 @@ import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.server.DruidNode;
 import io.druid.server.coordination.DataSegmentAnnouncer;
+import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import org.easymock.EasyMock;
@@ -565,13 +566,8 @@ public class TaskLifecycleTest
           {
 
           }
-
-          @Override
-          public boolean isAnnounced(DataSegment segment)
-          {
-            return false;
-          }
         }, // segment announcer
+        EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         handoffNotifierFactory,
         queryRunnerFactoryConglomerate, // query runner factory conglomerate corporation unionized collective
         null, // query executor service

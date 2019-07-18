@@ -225,12 +225,6 @@ public class AppenderatorTester implements AutoCloseable
           {
 
           }
-
-          @Override
-          public boolean isAnnounced(DataSegment segment)
-          {
-            return false;
-          }
         },
         emitter,
         queryExecutor,

@@ -39,6 +39,8 @@ import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.announcement.Announcer;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.coordination.BatchDataSegmentAnnouncer;
+import io.druid.server.coordination.CuratorDataSegmentServerAnnouncer;
+import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
@@ -85,6 +87,7 @@ public class BatchServerInventoryViewTest
   private ObjectMapper jsonMapper;
   private Announcer announcer;
   private BatchDataSegmentAnnouncer segmentAnnouncer;
+  private DataSegmentServerAnnouncer serverAnnouncer;
   private Set<DataSegment> testSegments;
   private BatchServerInventoryView batchServerInventoryView;
   private BatchServerInventoryView filteredBatchServerInventoryView;
@@ -116,15 +119,34 @@ public class BatchServerInventoryViewTest
     );
     announcer.start();
 
+    DruidServerMetadata serverMetadata = new DruidServerMetadata(
+        "id",
+        "host",
+        Long.MAX_VALUE,
+        "type",
+        "tier",
+        0
+    );
+
+    ZkPathsConfig zkPathsConfig = new ZkPathsConfig()
+    {
+      @Override
+      public String getBase()
+      {
+        return testBasePath;
+      }
+    };
+
+    serverAnnouncer = new CuratorDataSegmentServerAnnouncer(
+        serverMetadata,
+        zkPathsConfig,
+        announcer,
+        jsonMapper
+    );
+    serverAnnouncer.announce();
+
     segmentAnnouncer = new BatchDataSegmentAnnouncer(
-        new DruidServerMetadata(
-            "id",
-            "host",
-            Long.MAX_VALUE,
-            "type",
-            "tier",
-            0
-        ),
+        serverMetadata,
         new BatchDataSegmentAnnouncerConfig()
         {
           @Override
@@ -133,18 +155,10 @@ public class BatchServerInventoryViewTest
             return 50;
           }
         },
-        new ZkPathsConfig()
-        {
-          @Override
-          public String getBase()
-          {
-            return testBasePath;
-          }
-        },
+        zkPathsConfig,
         announcer,
         jsonMapper
     );
-    segmentAnnouncer.start();
 
     testSegments = Sets.newConcurrentHashSet();
     for (int i = 0; i < INITIAL_SEGMENTS; i++) {
@@ -205,7 +219,7 @@ public class BatchServerInventoryViewTest
   {
     batchServerInventoryView.stop();
     filteredBatchServerInventoryView.stop();
-    segmentAnnouncer.stop();
+    serverAnnouncer.unannounce();
     announcer.stop();
     cf.close();
     testingCluster.stop();
@@ -457,7 +471,6 @@ public class BatchServerInventoryViewTest
                       announcer,
                       jsonMapper
                   );
-                  segmentAnnouncer.start();
                   List<DataSegment> segments = new ArrayList<DataSegment>();
                   try {
                     for (int j = 0; j < INITIAL_SEGMENTS / numThreads; ++j) {

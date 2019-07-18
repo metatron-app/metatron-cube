@@ -44,6 +44,7 @@ import io.druid.segment.realtime.plumber.CoordinatorBasedSegmentHandoffNotifierC
 import io.druid.segment.realtime.plumber.CoordinatorBasedSegmentHandoffNotifierFactory;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.server.QueryResource;
+import io.druid.server.http.SegmentListerResource;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import org.eclipse.jetty.server.Server;
 
@@ -110,6 +111,7 @@ public class RealtimeModule implements Module
     binder.bind(NodeTypeConfig.class).toInstance(new NodeTypeConfig("realtime"));
     binder.bind(JettyServerInitializer.class).to(QueryJettyServerInitializer.class).in(LazySingleton.class);
     Jerseys.addResource(binder, QueryResource.class);
+    Jerseys.addResource(binder, SegmentListerResource.class);
     LifecycleModule.register(binder, QueryResource.class);
     LifecycleModule.register(binder, Server.class);
   }

@@ -54,6 +54,7 @@ import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.segment.realtime.plumber.Plumbers;
 import io.druid.server.ForwardHandler;
 import io.druid.query.ForwardingSegmentWalker;
+import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -72,6 +73,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ForwardHandler forwardHandler;
   private final ObjectMapper objectMapper;
+  private final DataSegmentServerAnnouncer serverAnnouncer;
 
   /**
    * key=data source name,value=mappings of partition number to FireChief
@@ -83,20 +85,17 @@ public class RealtimeManager implements ForwardingSegmentWalker
       List<FireDepartment> fireDepartments,
       QueryRunnerFactoryConglomerate conglomerate,
       ForwardHandler forwardHandler,
-      ObjectMapper objectMapper
+      ObjectMapper objectMapper,
+      DataSegmentServerAnnouncer serverAnnouncer
   )
   {
-    this.fireDepartments = fireDepartments;
-    this.conglomerate = conglomerate;
-    this.forwardHandler = forwardHandler;
-    this.objectMapper = objectMapper;
-
-    this.chiefs = Maps.newHashMap();
+    this(fireDepartments, conglomerate, serverAnnouncer, forwardHandler, objectMapper, Maps.newHashMap());
   }
 
   RealtimeManager(
       List<FireDepartment> fireDepartments,
       QueryRunnerFactoryConglomerate conglomerate,
+      DataSegmentServerAnnouncer serverAnnouncer,
       ForwardHandler forwardHandler,
       ObjectMapper objectMapper,
       Map<String, Map<Integer, FireChief>> chiefs
@@ -104,6 +103,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
   {
     this.fireDepartments = fireDepartments;
     this.conglomerate = conglomerate;
+    this.serverAnnouncer = serverAnnouncer;
     this.forwardHandler = forwardHandler;
     this.objectMapper = objectMapper;
     this.chiefs = chiefs;
@@ -112,6 +112,8 @@ public class RealtimeManager implements ForwardingSegmentWalker
   @LifecycleStart
   public void start() throws IOException
   {
+    serverAnnouncer.announce();
+
     for (final FireDepartment fireDepartment : fireDepartments) {
       final DataSchema schema = fireDepartment.getDataSchema();
 
@@ -143,6 +145,8 @@ public class RealtimeManager implements ForwardingSegmentWalker
         CloseQuietly.close(chief);
       }
     }
+
+    serverAnnouncer.unannounce();
   }
 
   public FireDepartmentMetrics getMetrics(String datasource)

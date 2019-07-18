@@ -33,15 +33,4 @@ public interface DataSegmentAnnouncer
 
   public void unannounceSegments(Iterable<DataSegment> segments) throws IOException;
 
-  /**
-   * @return true if the segment was already announced, otherwise false
-   */
-  public boolean isAnnounced(DataSegment segment);
-
-  interface Decommissionable extends DataSegmentAnnouncer
-  {
-    boolean isDecommissioned();
-
-    void decommission();
-  }
 }

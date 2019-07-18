@@ -19,17 +19,21 @@
 
 package io.druid.server.coordination.broker;
 
+import com.google.common.base.Predicates;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import com.metamx.common.Pair;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
-import io.druid.client.ServerInventoryView;
+import io.druid.client.FilteredServerInventoryView;
 import io.druid.client.ServerView;
 import io.druid.curator.discovery.ServiceAnnouncer;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.Self;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
+import io.druid.server.coordination.DruidServerMetadata;
+import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -45,7 +49,7 @@ public class DruidBroker
   @Inject
   public DruidBroker(
       final QueryManager queryManager,
-      final ServerInventoryView serverInventoryView,
+      final FilteredServerInventoryView serverInventoryView,
       final @Self DruidNode self,
       final ServiceAnnouncer serviceAnnouncer
   )
@@ -63,7 +67,9 @@ public class DruidBroker
             serviceAnnouncer.announce(self);
             return ServerView.CallbackAction.UNREGISTER;
           }
-        }
+        },
+        // We are not interested in any segment callbacks except view initialization
+        Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysFalse()
     );
     final ThreadFactory factory = Executors.defaultThreadFactory();
     Executors.newSingleThreadScheduledExecutor(

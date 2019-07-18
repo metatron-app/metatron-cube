@@ -236,6 +236,8 @@ public class DruidCoordinatorTest extends CuratorTestBase
     loadManagementPeons.put("from", loadQueuePeon);
     loadManagementPeons.put("to", loadQueuePeon);
 
+    EasyMock.replay(serverInventoryView);
+
     coordinator.moveSegment(
         druidServer.toImmutableDruidServer(),
         druidServer2.toImmutableDruidServer(),

@@ -124,6 +124,18 @@ public class CliRealtimeExample extends ServerRunnable
     {
       return ImmutableList.of();
     }
+
+    @Override
+    public boolean isStarted()
+    {
+      return true;
+    }
+
+    @Override
+    public boolean isSegmentLoadedByServer(String serverKey, DataSegment segment)
+    {
+      return false;
+    }
   }
 
   private static class NoopDataSegmentPusher implements DataSegmentPusher
@@ -173,12 +185,6 @@ public class CliRealtimeExample extends ServerRunnable
     public void unannounceSegments(Iterable<DataSegment> segments) throws IOException
     {
       // do nothing
-    }
-
-    @Override
-    public boolean isAnnounced(DataSegment segment)
-    {
-      return false;
     }
   }
 }

@@ -296,6 +296,8 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         final FiniteAppenderatorDriver driver = newDriver(appenderator0, toolbox, fireDepartmentMetrics);
         final KafkaConsumer<byte[], byte[]> consumer = newConsumer()
     ) {
+      toolbox.getDataSegmentServerAnnouncer().announce();
+
       appenderator = appenderator0;
 
       final String topic = ioConfig.getStartPartitions().getTopic();
@@ -577,6 +579,8 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       }
     }
 
+    toolbox.getDataSegmentServerAnnouncer().unannounce();
+    
     return success();
   }
 

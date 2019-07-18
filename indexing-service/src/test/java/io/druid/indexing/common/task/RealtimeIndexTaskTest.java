@@ -106,6 +106,7 @@ import io.druid.segment.realtime.firehose.FirehoseV2CloseBeforeStartException;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.segment.realtime.plumber.ServerTimeRejectionPolicyFactory;
+import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import io.druid.timeline.DataSegment;
 import org.easymock.EasyMock;
 import org.hamcrest.CoreMatchers;
@@ -1196,6 +1197,7 @@ public class RealtimeIndexTaskTest
         null, // DataSegmentMover
         null, // DataSegmentArchiver
         new TestDataSegmentAnnouncer(),
+        EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         handoffNotifierFactory,
         conglomerate,
         MoreExecutors.sameThreadExecutor(), // queryExecutorService
