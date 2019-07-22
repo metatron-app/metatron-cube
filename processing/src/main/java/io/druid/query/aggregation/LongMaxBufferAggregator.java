@@ -26,8 +26,14 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class LongMaxBufferAggregator extends BufferAggregator.Abstract
+public abstract class LongMaxBufferAggregator extends BufferAggregator.NullSupport
 {
+  @Override
+  public Object get(ByteBuffer buf, int position)
+  {
+    return isNull(buf, position) ? null : buf.getLong(Byte.BYTES + position);
+  }
+
   public static LongMaxBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
     if (predicate == null || predicate == ValueMatcher.TRUE) {
@@ -36,12 +42,9 @@ public abstract class LongMaxBufferAggregator extends BufferAggregator.Abstract
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Long v2 = selector.get();
-          if (v2 != null) {
-            final long v1 = buf.getLong(position);
-            if (Long.compare(v1, v2) < 0) {
-              buf.putLong(position, v2);
-            }
+          final Long current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -52,12 +55,9 @@ public abstract class LongMaxBufferAggregator extends BufferAggregator.Abstract
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Long v2 = selector.get();
-            if (v2 != null) {
-              final long v1 = buf.getLong(position);
-              if (Long.compare(v1, v2) < 0) {
-                buf.putLong(position, v2);
-              }
+            final Long current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
@@ -65,15 +65,16 @@ public abstract class LongMaxBufferAggregator extends BufferAggregator.Abstract
     }
   }
 
-  @Override
-  public void init(ByteBuffer buf, int position)
+  private static void _aggregate(final ByteBuffer buf, final int position, final long current)
   {
-    buf.putLong(position, Long.MIN_VALUE);
-  }
-
-  @Override
-  public Object get(ByteBuffer buf, int position)
-  {
-    return buf.getLong(position);
+    if (isNull(buf, position)) {
+      buf.put(position, NOT_NULL);
+      buf.putLong(Byte.BYTES + position, current);
+    } else {
+      final long prev = buf.getLong(Byte.BYTES + position);
+      if (Long.compare(current, prev) > 0) {
+        buf.putLong(Byte.BYTES + position, current);
+      }
+    }
   }
 }

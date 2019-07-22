@@ -35,9 +35,9 @@ public class DoubleMinAggregationTest
 {
   private DoubleMinAggregatorFactory doubleMinAggFactory;
   private ColumnSelectorFactory colSelectorFactory;
-  private TestFloatColumnSelector selector;
+  private TestDoubleColumnSelector selector;
 
-  private float[] values = {3.5f, 2.7f, 1.1f, 1.3f};
+  private double[] values = {3.5f, 2.7f, 1.1f, 1.3f};
 
   public DoubleMinAggregationTest() throws Exception
   {
@@ -48,9 +48,9 @@ public class DoubleMinAggregationTest
   @Before
   public void setup()
   {
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     colSelectorFactory = EasyMock.createMock(ColumnSelectorFactory.class);
-    EasyMock.expect(colSelectorFactory.makeFloatColumnSelector("nilly")).andReturn(selector);
+    EasyMock.expect(colSelectorFactory.makeDoubleColumnSelector("nilly")).andReturn(selector);
     EasyMock.replay(colSelectorFactory);
   }
 
@@ -77,7 +77,7 @@ public class DoubleMinAggregationTest
   {
     DoubleMinBufferAggregator agg = (DoubleMinBufferAggregator) doubleMinAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Doubles.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Doubles.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);
@@ -107,13 +107,13 @@ public class DoubleMinAggregationTest
     Assert.assertFalse(one.equals(two));
   }
 
-  private void aggregate(TestFloatColumnSelector selector, DoubleMinAggregator agg)
+  private void aggregate(TestDoubleColumnSelector selector, DoubleMinAggregator agg)
   {
     agg.aggregate();
     selector.increment();
   }
 
-  private void aggregate(TestFloatColumnSelector selector, DoubleMinBufferAggregator agg, ByteBuffer buff, int position)
+  private void aggregate(TestDoubleColumnSelector selector, DoubleMinBufferAggregator agg, ByteBuffer buff, int position)
   {
     agg.aggregate(buff, position);
     selector.increment();

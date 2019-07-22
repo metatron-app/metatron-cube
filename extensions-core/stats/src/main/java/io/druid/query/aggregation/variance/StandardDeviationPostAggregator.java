@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
@@ -67,7 +67,7 @@ public class StandardDeviationPostAggregator implements PostAggregator
   @Override
   public Comparator<Double> getComparator()
   {
-    return ArithmeticPostAggregator.DEFAULT_COMPARATOR;
+    return Ordering.natural();
   }
 
   @Override
@@ -79,7 +79,12 @@ public class StandardDeviationPostAggregator implements PostAggregator
   @Override
   public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    return Math.sqrt(((VarianceAggregatorCollector) combinedAggregators.get(fieldName)).getVariance(isVariancePop));
+    final VarianceAggregatorCollector collector = (VarianceAggregatorCollector) combinedAggregators.get(fieldName);
+    if (collector == null) {
+      return null;
+    }
+    final Double variance = collector.getVariance(isVariancePop);
+    return variance == null ? null : Math.sqrt(variance);
   }
 
   @Override

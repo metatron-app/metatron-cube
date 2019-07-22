@@ -77,7 +77,7 @@ public class LongMinAggregationTest
   {
     LongMinBufferAggregator agg = (LongMinBufferAggregator)longMinAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Longs.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Longs.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);

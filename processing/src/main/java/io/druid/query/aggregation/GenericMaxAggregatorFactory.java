@@ -22,6 +22,9 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
+import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -131,6 +134,24 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
             ),
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
+    }
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public int getMaxIntermediateSize()
+  {
+    switch (outputType.type()) {
+      case FLOAT:
+        return Byte.BYTES + Floats.BYTES;
+      case DOUBLE:
+        return Byte.BYTES + Doubles.BYTES;
+      case LONG:
+        return Byte.BYTES + Longs.BYTES;
+      case COMPLEX:
+        if (outputType.isDecimal()) {
+          return 128;
+        }
     }
     throw new IllegalStateException();
   }

@@ -161,7 +161,7 @@ public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
       {
         if (predicate.matches()) {
           Object input = selector.get();
-          if (input == null || !(input instanceof VarianceAggregatorCollector)) {
+          if (!(input instanceof VarianceAggregatorCollector)) {
             return;
           }
           VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) input;

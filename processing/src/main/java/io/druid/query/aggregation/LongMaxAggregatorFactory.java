@@ -171,7 +171,7 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return Byte.BYTES + Longs.BYTES;
   }
 
   @Override

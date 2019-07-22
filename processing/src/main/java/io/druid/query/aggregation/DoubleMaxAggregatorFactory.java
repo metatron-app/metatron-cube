@@ -176,7 +176,7 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES;
+    return Byte.BYTES + Doubles.BYTES;
   }
 
   @Override

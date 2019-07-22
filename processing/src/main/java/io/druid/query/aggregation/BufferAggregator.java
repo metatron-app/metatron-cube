@@ -95,6 +95,23 @@ public interface BufferAggregator
     }
   }
 
+  abstract class NullSupport extends Abstract
+  {
+    protected static final byte NULL = 0x00;
+    protected static final byte NOT_NULL = 0x01;
+
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+      buf.put(position, NULL);
+    }
+
+    protected static boolean isNull(ByteBuffer buf, int position)
+    {
+      return buf.get(position) == NULL;
+    }
+  }
+
   public BufferAggregator NULL = new Abstract()
   {
     @Override

@@ -27,18 +27,12 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstract
+public abstract class DoubleMinBufferAggregator extends BufferAggregator.NullSupport
 {
-  @Override
-  public void init(ByteBuffer buf, int position)
-  {
-    buf.putDouble(position, Double.POSITIVE_INFINITY);
-  }
-
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return buf.getDouble(position);
+    return isNull(buf, position) ? null : buf.getDouble(Byte.BYTES + position);
   }
 
   public static DoubleMinBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -49,10 +43,9 @@ public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstrac
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final double v1 = buf.getDouble(position);
-          final Double v2 = (double) selector.get();
-          if (Double.compare(v1, v2) >= 0) {
-            buf.putDouble(position, v2);
+          final Float current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -63,10 +56,9 @@ public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstrac
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final double v1 = buf.getDouble(position);
-            final double v2 = (double) selector.get();
-            if (Double.compare(v1, v2) >= 0) {
-              buf.putDouble(position, v2);
+            final Float current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
@@ -82,12 +74,9 @@ public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstrac
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Double v2 = selector.get();
-          if (v2 != null) {
-            final double v1 = buf.getDouble(position);
-            if (Double.compare(v1, v2) >= 0) {
-              buf.putDouble(position, v2);
-            }
+          final Double current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -98,16 +87,26 @@ public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstrac
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Double v2 = selector.get();
-            if (v2 != null) {
-              final double v1 = buf.getDouble(position);
-              if (Double.compare(v1, v2) >= 0) {
-                buf.putDouble(position, v2);
-              }
+            final Double current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
       };
+    }
+  }
+
+  private static void _aggregate(final ByteBuffer buf, final int position, final double current)
+  {
+    if (isNull(buf, position)) {
+      buf.put(position, NOT_NULL);
+      buf.putDouble(Byte.BYTES + position, current);
+    } else {
+      final double prev = buf.getDouble(Byte.BYTES + position);
+      if (Double.compare(current, prev) < 0) {
+        buf.putDouble(Byte.BYTES + position, current);
+      }
     }
   }
 }

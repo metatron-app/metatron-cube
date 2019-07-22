@@ -170,11 +170,10 @@ public class VarianceAggregatorCollector
     return this;
   }
 
-  public double getVariance(boolean variancePop)
+  public Double getVariance(boolean variancePop)
   {
     if (count == 0) {
-      // in SQL standard, we should return null for zero elements. But druid there should not be such a case
-      return Double.NaN;
+      return null;
     } else if (count == 1) {
       return 0d;
     } else {

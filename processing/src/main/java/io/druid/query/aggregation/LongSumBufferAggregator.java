@@ -26,8 +26,20 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class LongSumBufferAggregator extends BufferAggregator.Abstract
+public abstract class LongSumBufferAggregator extends BufferAggregator.NullSupport
 {
+  @Override
+  public void init(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, 0);
+  }
+
+  @Override
+  public Object get(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
   public static LongSumBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
     if (predicate == null || predicate == ValueMatcher.TRUE) {
@@ -36,9 +48,9 @@ public abstract class LongSumBufferAggregator extends BufferAggregator.Abstract
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Long v = selector.get();
-          if (v != null) {
-            buf.putLong(position, buf.getLong(position) + v);
+          final Long current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -49,9 +61,9 @@ public abstract class LongSumBufferAggregator extends BufferAggregator.Abstract
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Long v = selector.get();
-            if (v != null) {
-              buf.putLong(position, buf.getLong(position) + v);
+            final Long current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
@@ -59,15 +71,8 @@ public abstract class LongSumBufferAggregator extends BufferAggregator.Abstract
     }
   }
 
-  @Override
-  public void init(ByteBuffer buf, int position)
+  private static void _aggregate(final ByteBuffer buf, final int position, final long current)
   {
-    buf.putLong(position, 0L);
-  }
-
-  @Override
-  public Object get(ByteBuffer buf, int position)
-  {
-    return buf.getLong(position);
+    buf.putLong(position, current + buf.getLong(position));
   }
 }

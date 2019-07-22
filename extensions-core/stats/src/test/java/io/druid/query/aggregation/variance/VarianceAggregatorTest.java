@@ -97,14 +97,7 @@ public class VarianceAggregatorTest
     Assert.assertEquals(nvariance, holder.nvariance, 0.0001);
     if (count == 0) {
       // changed semantic
-      Assert.assertSame("NaN", String.valueOf(holder.getVariance(false)));
-//      try {
-//        holder.getVariance(false);
-//        Assert.fail("Should throw ISE");
-//      }
-//      catch (IllegalStateException e) {
-//        Assert.assertTrue(e.getMessage().contains("should not be empty holder"));
-//      }
+      Assert.assertNull(holder.getVariance(false));
     } else {
       Assert.assertEquals(holder.getVariance(true), variances_pop[(int) count - 1], 0.0001);
       Assert.assertEquals(holder.getVariance(false), variances_samp[(int) count - 1], 0.0001);

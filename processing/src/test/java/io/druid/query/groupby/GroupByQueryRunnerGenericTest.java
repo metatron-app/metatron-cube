@@ -6622,7 +6622,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 118L},
         new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L},
+        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L, 0L},
 
         new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 147L},
         new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 112L},

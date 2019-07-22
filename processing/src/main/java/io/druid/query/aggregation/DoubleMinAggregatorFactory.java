@@ -28,7 +28,7 @@ import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.DoubleColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -72,18 +72,18 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return DoubleMinAggregator.create(getFloatColumnSelector(metricFactory), null);
+    return DoubleMinAggregator.create(getDoubleColumnSelector(metricFactory), null);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return DoubleMinBufferAggregator.create(getFloatColumnSelector(metricFactory), null);
+    return DoubleMinBufferAggregator.create(getDoubleColumnSelector(metricFactory), null);
   }
 
-  private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
+  private DoubleColumnSelector getDoubleColumnSelector(ColumnSelectorFactory metricFactory)
   {
-    return ColumnSelectors.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    return ColumnSelectors.getDoubleColumnSelector(metricFactory, fieldName, fieldExpression);
   }
 
   @Override
@@ -176,7 +176,7 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES;
+    return Byte.BYTES + Doubles.BYTES;
   }
 
   @Override

@@ -26,18 +26,12 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class FloatMinBufferAggregator extends BufferAggregator.Abstract
+public abstract class FloatMinBufferAggregator extends BufferAggregator.NullSupport
 {
-  @Override
-  public void init(ByteBuffer buf, int position)
-  {
-    buf.putFloat(position, Float.POSITIVE_INFINITY);
-  }
-
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return buf.getFloat(position);
+    return isNull(buf, position) ? null : buf.getFloat(Byte.BYTES + position);
   }
 
   public static FloatMinBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -48,12 +42,9 @@ public abstract class FloatMinBufferAggregator extends BufferAggregator.Abstract
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Float v2 = selector.get();
-          if (v2 != null) {
-            final float v1 = buf.getFloat(position);
-            if (Float.compare(v1, v2) >= 0) {
-              buf.putFloat(position, v2);
-            }
+          final Float current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -64,16 +55,26 @@ public abstract class FloatMinBufferAggregator extends BufferAggregator.Abstract
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Float v2 = selector.get();
-            if (v2 != null) {
-              final float v1 = buf.getFloat(position);
-              if (Float.compare(v1, v2) >= 0) {
-                buf.putFloat(position, v2);
-              }
+            final Float current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
       };
+    }
+  }
+
+  private static void _aggregate(final ByteBuffer buf, final int position, final float current)
+  {
+    if (isNull(buf, position)) {
+      buf.put(position, NOT_NULL);
+      buf.putFloat(Byte.BYTES + position, current);
+    } else {
+      final float prev = buf.getFloat(Byte.BYTES + position);
+      if (Float.compare(current, prev) < 0) {
+        buf.putFloat(Byte.BYTES + position, current);
+      }
     }
   }
 }

@@ -27,24 +27,18 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DoubleSumBufferAggregator implements BufferAggregator
+public abstract class DoubleSumBufferAggregator extends BufferAggregator.Abstract
 {
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    buf.putDouble(position, 0.0d);
+    buf.putDouble(position, 0);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
     return buf.getDouble(position);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 
   public static DoubleSumBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -55,9 +49,9 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Float v = selector.get();
-          if (v != null) {
-            buf.putDouble(position, buf.getDouble(position) + v);
+          final Float current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -68,9 +62,9 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              buf.putDouble(position, buf.getDouble(position) + v);
+            final Float current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
@@ -86,9 +80,9 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          final Double v = selector.get();
-          if (v != null) {
-            buf.putDouble(position, buf.getDouble(position) + v);
+          final Double current = selector.get();
+          if (current != null) {
+            _aggregate(buf, position, current);
           }
         }
       };
@@ -99,13 +93,18 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            final Double v = selector.get();
-            if (v != null) {
-              buf.putDouble(position, buf.getDouble(position) + v);
+            final Double current = selector.get();
+            if (current != null) {
+              _aggregate(buf, position, current);
             }
           }
         }
       };
     }
+  }
+
+  private static void _aggregate(final ByteBuffer buf, final int position, final double current)
+  {
+    buf.putDouble(position, current + buf.getDouble(position));
   }
 }

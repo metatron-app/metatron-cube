@@ -77,7 +77,7 @@ public class LongMaxAggregationTest
   {
     LongMaxBufferAggregator agg = (LongMaxBufferAggregator)longMaxAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Longs.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Longs.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);
