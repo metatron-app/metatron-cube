@@ -153,25 +153,6 @@ public class Aggregators
       }
 
       @Override
-      public Float getFloat(ByteBuffer buf, int position)
-      {
-        return null;
-      }
-
-      @Override
-      public Double getDouble(ByteBuffer buf, int position)
-      {
-        return null;
-      }
-
-
-      @Override
-      public Long getLong(ByteBuffer buf, int position)
-      {
-        return null;
-      }
-
-      @Override
       public void close()
       {
       }
@@ -203,24 +184,6 @@ public class Aggregators
     public Object get(ByteBuffer buf, int position)
     {
       return delegate.get(buf, position);
-    }
-
-    @Override
-    public Float getFloat(ByteBuffer buf, int position)
-    {
-      return delegate.getFloat(buf, position);
-    }
-
-    @Override
-    public Double getDouble(ByteBuffer buf, int position)
-    {
-      return delegate.getDouble(buf, position);
-    }
-
-    @Override
-    public Long getLong(ByteBuffer buf, int position)
-    {
-      return delegate.getLong(buf, position);
     }
 
     @Override
@@ -466,11 +429,13 @@ public class Aggregators
   public static BufferAggregator relayBufferAggregator(
       final ColumnSelectorFactory factory,
       final String column,
-      final String type)
+      final String type
+  )
   {
     return new RelayBufferAggregator()
     {
       private final RELAY_TYPE relayType = RELAY_TYPE.fromString(type);
+
       @Override
       protected Aggregator newAggregator()
       {
@@ -479,7 +444,7 @@ public class Aggregators
     };
   }
 
-  public static abstract class RelayBufferAggregator extends BufferAggregator.Abstract
+  public static abstract class RelayBufferAggregator implements BufferAggregator
   {
     private final Map<IntArray, Aggregator> mapping = Maps.newHashMap();
 
@@ -506,24 +471,6 @@ public class Aggregators
     public Object get(ByteBuffer buf, int position)
     {
       return mapping.get(toKey(buf, position)).get();
-    }
-
-    @Override
-    public Float getFloat(ByteBuffer buf, int position)
-    {
-      return mapping.get(toKey(buf, position)).getFloat();
-    }
-
-    @Override
-    public Double getDouble(ByteBuffer buf, int position)
-    {
-      return mapping.get(toKey(buf, position)).getDouble();
-    }
-
-    @Override
-    public Long getLong(ByteBuffer buf, int position)
-    {
-      return mapping.get(toKey(buf, position)).getLong();
     }
 
     @Override

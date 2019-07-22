@@ -86,8 +86,6 @@ public class LongMinAggregationTest
     aggregate(selector, agg, buffer, 0);
 
     Assert.assertEquals(values[2], ((Long) agg.get(buffer, 0)).longValue());
-    Assert.assertEquals(values[2], agg.getLong(buffer, 0).longValue());
-    Assert.assertEquals((float)values[2], agg.getFloat(buffer, 0), 0.0001);
   }
 
   @Test

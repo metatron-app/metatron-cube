@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DoubleMinBufferAggregator implements BufferAggregator
+public abstract class DoubleMinBufferAggregator extends BufferAggregator.Abstract
 {
   @Override
   public void init(ByteBuffer buf, int position)
@@ -39,30 +39,6 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return buf.getDouble(position);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float) buf.getDouble(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return buf.getDouble(position);
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return (long) buf.getDouble(position);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 
   public static DoubleMinBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)

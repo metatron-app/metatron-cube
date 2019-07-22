@@ -182,24 +182,6 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public Float getFloat(ByteBuffer buf, int position)
-      {
-        throw new UnsupportedOperationException("getFloat");
-      }
-
-      @Override
-      public Double getDouble(ByteBuffer buf, int position)
-      {
-        throw new UnsupportedOperationException("getDouble");
-      }
-
-      @Override
-      public Long getLong(ByteBuffer buf, int position)
-      {
-        throw new UnsupportedOperationException("getLong");
-      }
-
-      @Override
       public void close()
       {
         for (BufferAggregator aggregator : aggregators) {

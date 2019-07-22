@@ -25,7 +25,7 @@ import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class ApproximateHistogramBufferAggregator implements BufferAggregator
+public class ApproximateHistogramBufferAggregator extends BufferAggregator.Abstract
 {
   private final FloatColumnSelector selector;
   private final int resolution;
@@ -93,30 +93,5 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
     return new ApproximateHistogram().fromBytes(mutationBuffer);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getDouble()");
-  }
-
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getLong()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

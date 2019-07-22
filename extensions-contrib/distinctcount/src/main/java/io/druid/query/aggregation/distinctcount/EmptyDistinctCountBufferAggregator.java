@@ -23,7 +23,7 @@ import io.druid.query.aggregation.BufferAggregator;
 
 import java.nio.ByteBuffer;
 
-public class EmptyDistinctCountBufferAggregator implements BufferAggregator
+public class EmptyDistinctCountBufferAggregator extends BufferAggregator.Abstract
 {
 
   public EmptyDistinctCountBufferAggregator()
@@ -44,28 +44,5 @@ public class EmptyDistinctCountBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return 0L;
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float) 0;
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double) 0;
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return (long) 0;
-  }
-
-  @Override
-  public void close()
-  {
   }
 }

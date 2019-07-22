@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class HyperUniquesBufferAggregator implements BufferAggregator
+public class HyperUniquesBufferAggregator extends BufferAggregator.Abstract
 {
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
   private final ValueMatcher predicate;
@@ -87,29 +87,5 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
     dataCopyBuffer.put(mutationBuffer);
     dataCopyBuffer.rewind();
     return HyperLogLogCollector.makeCollector(dataCopyBuffer);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HyperUniquesBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HyperUniquesBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HyperUniquesBufferAggregator does not support getLong()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

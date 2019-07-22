@@ -22,22 +22,12 @@ package io.druid.query.groupby;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
-import io.druid.collections.StupidPool;
 import io.druid.concurrent.Execs;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
-import io.druid.granularity.Granularities;
 import io.druid.query.QueryConfig;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.OffheapIncrementalIndex;
-import io.druid.segment.incremental.OnheapIncrementalIndex;
 
-import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -56,36 +46,6 @@ public class GroupByQueryHelper
       return new MergeIndexParallel(query.withPostAggregatorSpecs(null), maxResults, parallelism);
     }
     return new MergeIndexSorting(query.withPostAggregatorSpecs(null), maxResults, parallelism);
-  }
-
-  public static IncrementalIndex createIncrementalIndex(
-      final GroupByQuery query,
-      final StupidPool<ByteBuffer> bufferPool,
-      final boolean sortFacts,
-      final int maxRowCount,
-      final List<ValueType> groupByTypes
-  )
-  {
-    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-    final List<AggregatorFactory> aggs = AggregatorFactory.toCombinerFactory(query.getAggregatorSpecs());
-
-    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
-    IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(Granularities.ALL)
-        .withMetrics(aggs.toArray(new AggregatorFactory[0]))
-        .withFixedSchema(true)
-        .withRollup(true)
-        .build();
-
-    final IncrementalIndex index;
-    if (query.getContextValue("useOffheap", false)) {
-      index = new OffheapIncrementalIndex(schema, false, true, sortFacts, false, maxRowCount, bufferPool);
-    } else {
-      index = new OnheapIncrementalIndex(schema, false, true, sortFacts, false, maxRowCount);
-    }
-    index.initialize(dimensions, groupByTypes);
-    return index;
   }
 
   public static <T> Accumulator<IncrementalIndex, T> newIndexAccumulator()

@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class VarianceBufferAggregator implements BufferAggregator
+public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
 {
   private static final int COUNT_OFFSET = 0;
   private static final int SUM_OFFSET = Longs.BYTES;
@@ -62,29 +62,6 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     holder.sum = buf.getDouble(position + SUM_OFFSET);
     holder.nvariance = buf.getDouble(position + NVARIANCE_OFFSET);
     return holder;
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("VarianceBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("VarianceBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("VarianceBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public void close()
-  {
   }
 
   static BufferAggregator create(String name, final FloatColumnSelector selector, final ValueMatcher predicate)

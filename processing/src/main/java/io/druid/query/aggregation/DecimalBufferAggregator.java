@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DecimalBufferAggregator implements BufferAggregator
+public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
 {
   final int precision;
   final int scale;
@@ -68,29 +68,5 @@ public abstract class DecimalBufferAggregator implements BufferAggregator
   public BigDecimal get(ByteBuffer buf, int position)
   {
     return read(buf, position);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return read(buf, position).floatValue();
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return read(buf, position).doubleValue();
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return read(buf, position).longValue();
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

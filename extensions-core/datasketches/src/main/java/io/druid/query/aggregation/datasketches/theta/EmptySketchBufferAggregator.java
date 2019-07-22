@@ -24,12 +24,8 @@ import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 
-public class EmptySketchBufferAggregator implements BufferAggregator
+public class EmptySketchBufferAggregator extends BufferAggregator.Abstract
 {
-  public EmptySketchBufferAggregator()
-  {
-  }
-
   @Override
   public void init(ByteBuffer buf, int position)
   {
@@ -44,28 +40,5 @@ public class EmptySketchBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return ThetaOperations.EMPTY_SKETCH;
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public void close()
-  {
   }
 }

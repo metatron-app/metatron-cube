@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class PearsonBufferAggregator implements BufferAggregator
+public abstract class PearsonBufferAggregator extends BufferAggregator.Abstract
 {
   private static final int COUNT_OFFSET = 0;
   private static final int XAVG_OFFSET = Longs.BYTES;
@@ -68,29 +68,6 @@ public abstract class PearsonBufferAggregator implements BufferAggregator
     holder.yvar = buf.getDouble(position + YVAR_OFFSET);
     holder.covar = buf.getDouble(position + COVAR_OFFSET);
     return holder;
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("PearsonBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("PearsonBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("PearsonBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public void close()
-  {
   }
 
   static BufferAggregator create(

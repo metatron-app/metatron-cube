@@ -79,24 +79,6 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float) buf.getLong(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double) buf.getLong(position);
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return buf.getLong(position);
-  }
-
-  @Override
   public void close()
   {
     mutableBitmapCollection.clear();

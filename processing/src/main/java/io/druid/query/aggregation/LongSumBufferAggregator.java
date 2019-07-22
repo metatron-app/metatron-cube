@@ -26,7 +26,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class LongSumBufferAggregator implements BufferAggregator
+public abstract class LongSumBufferAggregator extends BufferAggregator.Abstract
 {
   public static LongSumBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
@@ -69,29 +69,5 @@ public abstract class LongSumBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return buf.getLong(position);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float) buf.getLong(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double) buf.getLong(position);
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return buf.getLong(position);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

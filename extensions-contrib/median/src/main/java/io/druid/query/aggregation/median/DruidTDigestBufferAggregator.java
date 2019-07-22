@@ -24,8 +24,8 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class DruidTDigestBufferAggregator implements BufferAggregator {
-
+public class DruidTDigestBufferAggregator extends BufferAggregator.Abstract
+{
   private final ObjectColumnSelector selector;
   private final double compression;
 
@@ -65,26 +65,5 @@ public class DruidTDigestBufferAggregator implements BufferAggregator {
     mutationBuffer.position(position);
 
     return DruidTDigest.fromBytes(mutationBuffer);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position) {
-    throw new UnsupportedOperationException("DruidTDigestBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("DruidTDigestBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position) {
-    throw new UnsupportedOperationException("DruidTDigestBufferAggregator does not support getLong()");
-  }
-
-  @Override
-  public void close() {
-    // no resources to cleanup
   }
 }

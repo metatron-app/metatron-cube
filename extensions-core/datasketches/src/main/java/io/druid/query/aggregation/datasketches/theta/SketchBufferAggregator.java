@@ -83,24 +83,6 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
   public void close()
   {
     unions.clear();

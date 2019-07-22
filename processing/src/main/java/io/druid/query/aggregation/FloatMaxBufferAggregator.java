@@ -26,7 +26,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class FloatMaxBufferAggregator implements BufferAggregator
+public abstract class FloatMaxBufferAggregator extends BufferAggregator.Abstract
 {
   @Override
   public void init(ByteBuffer buf, int position)
@@ -38,30 +38,6 @@ public abstract class FloatMaxBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return buf.getFloat(position);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return buf.getFloat(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double) buf.getFloat(position);
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return (long) buf.getFloat(position);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 
   public static FloatMaxBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)

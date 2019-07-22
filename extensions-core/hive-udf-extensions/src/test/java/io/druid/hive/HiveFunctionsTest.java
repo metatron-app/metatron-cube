@@ -19,7 +19,6 @@
 
 package io.druid.hive;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;

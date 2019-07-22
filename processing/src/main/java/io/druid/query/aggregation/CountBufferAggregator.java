@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class CountBufferAggregator implements BufferAggregator
+public class CountBufferAggregator extends BufferAggregator.Abstract
 {
   private final ValueMatcher predicate;
 
@@ -52,29 +52,5 @@ public class CountBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     return buf.getLong(position);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float) buf.getLong(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double) buf.getLong(position);
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    return buf.getLong(position);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class MetricAreaBufferAggregator implements BufferAggregator
+public class MetricAreaBufferAggregator extends BufferAggregator.Abstract
 {
   private final ObjectColumnSelector selector;
 
@@ -64,37 +64,5 @@ public class MetricAreaBufferAggregator implements BufferAggregator
     mutationBuffer.position(position);
 
     return MetricArea.fromBytes(mutationBuffer);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-
-    return (float)MetricArea.fromBytes(mutationBuffer).getArea();
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-
-    return MetricArea.fromBytes(mutationBuffer).getArea();
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-
-    return (long)MetricArea.fromBytes(mutationBuffer).getArea();
-  }
-
-  @Override
-  public void close()
-  {
   }
 }

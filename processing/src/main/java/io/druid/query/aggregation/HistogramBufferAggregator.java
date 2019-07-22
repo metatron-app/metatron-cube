@@ -26,7 +26,7 @@ import io.druid.segment.FloatColumnSelector;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class HistogramBufferAggregator implements BufferAggregator
+public class HistogramBufferAggregator extends BufferAggregator.Abstract
 {
   private final FloatColumnSelector selector;
   private final float[] breaks;
@@ -86,29 +86,5 @@ public class HistogramBufferAggregator implements BufferAggregator
     float min = mutationBuffer.getFloat(position + minOffset);
     float max = mutationBuffer.getFloat(position + maxOffset);
     return new Histogram(breaks, bins, min, max);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HistogramBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HistogramBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("HistogramBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

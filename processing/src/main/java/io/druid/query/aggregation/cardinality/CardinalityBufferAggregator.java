@@ -27,7 +27,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class CardinalityBufferAggregator implements BufferAggregator
+public class CardinalityBufferAggregator extends BufferAggregator.Abstract
 {
   private final List<DimensionSelector> selectorList;
   private final ValueMatcher predicate;
@@ -93,30 +93,5 @@ public class CardinalityBufferAggregator implements BufferAggregator
     mutationBuffer.position(position);
     mutationBuffer.get(dataCopyBuffer.array());
     return HyperLogLogCollector.makeCollector(dataCopyBuffer);
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("CardinalityBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("CardinalityBufferAggregator does not support getDouble()");
-  }
-
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("CardinalityBufferAggregator does not support getLong()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

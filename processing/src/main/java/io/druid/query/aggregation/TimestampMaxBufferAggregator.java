@@ -26,7 +26,7 @@ import org.joda.time.DateTime;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 
-public class TimestampMaxBufferAggregator implements BufferAggregator
+public class TimestampMaxBufferAggregator extends BufferAggregator.Abstract
 {
   private final ObjectColumnSelector selector;
   private final DefaultTimestampSpec timestampSpec;
@@ -58,27 +58,9 @@ public class TimestampMaxBufferAggregator implements BufferAggregator
     return buf.getLong(position);
   }
 
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    return (float)buf.getLong(position);
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    return (double)buf.getLong(position);
-  }
-
-  @Override
   public Long getLong(ByteBuffer buf, int position)
   {
     return buf.getLong(position);
-  }
-
-  @Override
-  public void close() {
-
   }
 
   private Long convertLong()

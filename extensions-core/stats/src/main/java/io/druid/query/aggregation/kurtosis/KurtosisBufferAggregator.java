@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class KurtosisBufferAggregator implements BufferAggregator
+public abstract class KurtosisBufferAggregator extends BufferAggregator.Abstract
 {
   private static final int COUNT_OFFSET = 0;
   private static final int MEAN_OFFSET = Longs.BYTES;
@@ -65,29 +65,6 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
     holder.M3 = buf.getDouble(position + M3_OFFSET);
     holder.M4 = buf.getDouble(position + M4_OFFSET);
     return holder;
-  }
-
-  @Override
-  public Float getFloat(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong(ByteBuffer buf, int position)
-  {
-    throw new UnsupportedOperationException("KurtosisBufferAggregator does not support getFloat()");
-  }
-
-  @Override
-  public void close()
-  {
   }
 
   static BufferAggregator create(
