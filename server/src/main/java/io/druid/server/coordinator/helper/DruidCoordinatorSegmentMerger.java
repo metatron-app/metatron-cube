@@ -47,6 +47,7 @@ import io.druid.timeline.partition.PartitionChunk;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,7 +61,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
   private final IndexingServiceClient indexingServiceClient;
   private final AtomicReference<DatasourceWhitelist> whiteListRef;
 
-  private final Map<String, String> pendingTasks = Maps.newLinkedHashMap();
+  private final Map<String, URL> pendingTasks = Maps.newLinkedHashMap();
 
   @Inject
   public DruidCoordinatorSegmentMerger(
@@ -80,7 +81,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     }
     final int mergeTaskLimit = params.getCoordinatorDynamicConfig().getMergeTaskLimit();
     final List<String> finishedTasks = Lists.newArrayList();
-    for (Map.Entry<String, String> entry : pendingTasks.entrySet()) {
+    for (Map.Entry<String, URL> entry : pendingTasks.entrySet()) {
       if (indexingServiceClient.isFinished(entry.getKey(), entry.getValue())) {
         finishedTasks.add(entry.getKey());
       }
@@ -192,7 +193,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     log.info("[%s] Found %d segments to merge %s", dataSource, segments.size(), segmentNames);
 
     try {
-      Pair<String, String> taskInfo = indexingServiceClient.mergeSegments(segments);
+      Pair<String, URL> taskInfo = indexingServiceClient.mergeSegments(segments);
       if (taskInfo != null) {
         pendingTasks.put(taskInfo.lhs, taskInfo.rhs);
         stats.addToGlobalStat("mergedCount", segments.size());

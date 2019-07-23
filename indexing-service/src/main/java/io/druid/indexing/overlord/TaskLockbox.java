@@ -82,6 +82,11 @@ public class TaskLockbox
     this.taskStorage = taskStorage;
   }
 
+  public Map<String, NavigableMap<Interval, TaskLockPosse>> getLocks()
+  {
+    return running;
+  }
+
   /**
    * Wipe out our current in-memory state and resync it from our bundled {@link io.druid.indexing.overlord.TaskStorage}.
    */
@@ -589,7 +594,7 @@ public class TaskLockbox
     }
   }
 
-  private static class TaskLockPosse
+  public static class TaskLockPosse
   {
     final private TaskLock taskLock;
     final private Set<String> taskIds;

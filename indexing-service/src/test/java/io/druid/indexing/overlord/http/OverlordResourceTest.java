@@ -82,7 +82,7 @@ public class OverlordResourceTest
     overlordResource = new OverlordResource(
         taskMaster,
         taskStorageQueryAdapter,
-        indexerMetadataStorageAdapter,
+        null,
         null,
         null,
         null,

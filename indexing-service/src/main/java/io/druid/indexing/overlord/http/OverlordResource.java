@@ -48,26 +48,27 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
 import io.druid.common.DateTimes;
+import io.druid.common.Intervals;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Self;
-import io.druid.indexer.TaskLocation;
-import io.druid.indexer.TaskState;
-import io.druid.indexing.common.TaskLock;
-import io.druid.indexer.TaskStatus;
 import io.druid.indexer.RunnerTaskState;
 import io.druid.indexer.TaskInfo;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskState;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexer.TaskStatusPlus;
+import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.actions.TaskActionHolder;
 import io.druid.indexing.common.task.HadoopIndexTask;
 import io.druid.indexing.common.task.IndexTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
-import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
+import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskQueue;
 import io.druid.indexing.overlord.TaskRunner;
@@ -117,13 +118,16 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -135,7 +139,8 @@ public class OverlordResource
 
   private final TaskMaster taskMaster;
   private final TaskStorageQueryAdapter taskStorageQueryAdapter;
-  private final IndexerMetadataStorageAdapter indexerMetadataStorageAdapter;
+  private final TaskLockbox lockbox;
+
   private final TaskLogStreamer taskLogStreamer;
   private final JacksonConfigManager configManager;
   private final AuditManager auditManager;
@@ -152,7 +157,7 @@ public class OverlordResource
   public OverlordResource(
       TaskMaster taskMaster,
       TaskStorageQueryAdapter taskStorageQueryAdapter,
-      IndexerMetadataStorageAdapter indexerMetadataStorageAdapter,
+      TaskLockbox lockbox,
       TaskLogStreamer taskLogStreamer,
       JacksonConfigManager configManager,
       AuditManager auditManager,
@@ -164,7 +169,7 @@ public class OverlordResource
   {
     this.taskMaster = taskMaster;
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
-    this.indexerMetadataStorageAdapter = indexerMetadataStorageAdapter;
+    this.lockbox = lockbox;
     this.taskLogStreamer = taskLogStreamer;
     this.configManager = configManager;
     this.auditManager = auditManager;
@@ -516,6 +521,50 @@ public class OverlordResource
   )
   {
     return getTasks("complete", null, null, maxTaskStatuses, null, req, null);
+  }
+
+  @GET
+  @Path("/locks/{dataSource}/{interval}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getLocksInInterval(
+      @PathParam("dataSource") final String dataSource,
+      @PathParam("interval") final String interval
+  )
+  {
+    final Interval theInterval = interval.equals("_") ? Intervals.ETERNITY : new Interval(interval.replace("_", "/"));
+    final Map<Interval, Map<String, Object>> result = new TreeMap<Interval, Map<String, Object>>(
+        JodaUtils.intervalsByStartThenEnd()
+    );
+
+    Map<String, NavigableMap<Interval, TaskLockbox.TaskLockPosse>> locks = lockbox.getLocks();
+    Iterable<Map<Interval, TaskLockbox.TaskLockPosse>> targets;
+    if (dataSource.equals("_")) {
+      targets = Iterables.concat(locks.values());
+    } else {
+      Map<Interval, TaskLockbox.TaskLockPosse> map = locks.get(dataSource);
+      if (GuavaUtils.isNullOrEmpty(map)) {
+        return Response.ok(Arrays.asList()).build();
+      }
+      targets = Arrays.asList(map);
+    }
+
+    for (Map<Interval, TaskLockbox.TaskLockPosse> values : targets) {
+      for (Map.Entry<Interval, TaskLockbox.TaskLockPosse> entry : values.entrySet()) {
+        if (theInterval.overlaps(entry.getKey())) {
+          TaskLock lock = entry.getValue().getTaskLock();
+          result.put(
+              entry.getKey(),
+              ImmutableMap.of(
+                  "datasource", lock.getDataSource(),
+                  "interval", entry.getKey(),
+                  "version", lock.getVersion(),
+                  "tasks", entry.getValue().getTaskIds()
+              )
+          );
+        }
+      }
+    }
+    return Response.ok(result.values()).build();
   }
 
   @GET

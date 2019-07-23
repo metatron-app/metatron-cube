@@ -19,6 +19,7 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -34,6 +35,7 @@ import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -459,10 +461,15 @@ public class DruidCoordinatorSegmentMergerTest
     final IndexingServiceClient indexingServiceClient = new IndexingServiceClient(null, null, null)
     {
       @Override
-      public Pair<String, String> mergeSegments(List<DataSegment> segmentsToMerge)
+      public Pair<String, URL> mergeSegments(List<DataSegment> segmentsToMerge)
       {
         retVal.add(segmentsToMerge);
-        return new Pair<>(segmentsToMerge.get(0).toString(), "xxx");
+        try {
+          return new Pair<>(segmentsToMerge.get(0).toString(), new URL("file:///xxx"));
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
       }
     };
 

@@ -31,7 +31,6 @@ import com.metamx.http.client.io.AppendableByteArrayInputStream;
 import com.metamx.http.client.response.FullResponseHolder;
 import io.druid.client.BrokerIOConfig;
 import io.druid.client.DirectDruidClient;
-import io.druid.client.DruidLeaderClient;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.TimelineServerView;
@@ -40,7 +39,6 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.Intervals;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunnerTestHelper;
@@ -94,10 +92,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-
-import static io.druid.data.ValueDesc.DOUBLE;
-import static io.druid.data.ValueDesc.FLOAT;
-import static io.druid.data.ValueDesc.STRING;
 
 public class SystemSchemaTest extends CalciteTestBase
 {
@@ -310,10 +304,10 @@ public class SystemSchemaTest extends CalciteTestBase
   @Test
   public void testGetTableMap()
   {
-    Assert.assertEquals(ImmutableSet.of("segments", "servers", "server_segments", "tasks"), schema.getTableNames());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks"), schema.getTableNames());
 
     final Map<String, Table> tableMap = schema.getTableMap();
-    Assert.assertEquals(ImmutableSet.of("segments", "servers", "server_segments", "tasks"), tableMap.keySet());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks"), tableMap.keySet());
     final SystemSchema.SegmentsTable segmentsTable = (SystemSchema.SegmentsTable) schema.getTableMap().get("segments");
     final RelDataType rowType = segmentsTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> fields = rowType.getFieldList();

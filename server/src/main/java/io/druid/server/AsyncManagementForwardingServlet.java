@@ -121,7 +121,7 @@ public class AsyncManagementForwardingServlet extends AsyncProxyServlet
       return;
     }
 
-    log.debug("currentLeaderRequest=%s", currentLeaderRequest.getUrl().toString());
+    log.debug("currentLeaderRequest=%s", currentLeaderRequest.getUrl());
     request.setAttribute(BASE_URI_ATTRIBUTE, currentLeaderRequest.getUrl().toString());
     super.service(request, response);
   }

@@ -20,6 +20,7 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -442,10 +443,15 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
       final TestCoordinatorClient coordinatorLeaderSelector = new TestCoordinatorClient()
       {
         @Override
-        public Request makeRequest(HttpMethod httpMethod, String urlPath) throws IOException
+        public Request makeRequest(HttpMethod httpMethod, String resourcePath)
         {
-          return new Request(HttpMethod.GET,
-                             new URL(StringUtils.format("http://localhost:%d", coordinatorPort)));
+          try {
+            return new Request(HttpMethod.GET,
+                               new URL(StringUtils.format("http://localhost:%d", coordinatorPort)));
+          }
+          catch (Exception e) {
+            throw Throwables.propagate(e);
+          }
           //return StringUtils.format("http://localhost:%d", coordinatorPort);
         }
       };
@@ -453,9 +459,14 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
       final TestIndexingServiceClient overlordLeaderSelector = new TestIndexingServiceClient()
       {
         @Override
-        public Request makeRequest(HttpMethod httpMethod, String urlPath) throws IOException
+        public Request makeRequest(HttpMethod httpMethod, String resourcePath)
         {
-          return new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d", overlordPort)));
+          try {
+            return new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d", overlordPort)));
+          }
+          catch (Exception e) {
+            throw Throwables.propagate(e);
+          }
           //return StringUtils.format("http://localhost:%d", overlordPort);
         }
       };
@@ -503,7 +514,7 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
       super(null, null, null, null);
     }
 
-    public Request makeRequest(HttpMethod httpMethod, String urlPath) throws IOException
+    public Request makeRequest(HttpMethod httpMethod, String resourcePath)
     {
       return null;
     }
@@ -526,7 +537,7 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
       super(null, null, null);
     }
 
-    public Request makeRequest(HttpMethod httpMethod, String urlPath) throws IOException
+    public Request makeRequest(HttpMethod httpMethod, String resourcePath)
     {
       return null;
     }

@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
@@ -76,6 +77,7 @@ public class SystemSchema extends AbstractSchema
   private static final String SERVERS_TABLE = "servers";
   private static final String SERVER_SEGMENTS_TABLE = "server_segments";
   private static final String TASKS_TABLE = "tasks";
+  private static final String LOCKS_TABLE = "locks";
 
   static final RowSignature SEGMENTS_SIGNATURE = RowSignature
       .builder()
@@ -129,6 +131,14 @@ public class SystemSchema extends AbstractSchema
       .add("error_msg", ValueDesc.STRING)
       .build();
 
+  static final RowSignature LOCKS_SIGNATURE = RowSignature
+      .builder()
+      .add("datasource", ValueDesc.STRING)
+      .add("version", ValueDesc.STRING)
+      .add("interval", ValueDesc.STRING)
+      .add("tasks", ValueDesc.ofList(ValueDesc.STRING))
+      .build();
+
   private final Map<String, Table> tableMap;
 
   @Inject
@@ -159,8 +169,11 @@ public class SystemSchema extends AbstractSchema
           TASKS_TABLE,
           new TasksTable(overlordDruidLeaderClient, jsonMapper, responseHandler)
       )
+      .put(
+          LOCKS_TABLE,
+          new LocksTable(overlordDruidLeaderClient, jsonMapper)
+      )
       .build();
-
   }
 
   @Override
@@ -320,17 +333,7 @@ public class SystemSchema extends AbstractSchema
       BytesAccumulatingResponseHandler responseHandler
   )
   {
-
-    Request request;
-    try {
-      request = coordinatorClient.makeRequest(
-          HttpMethod.GET,
-          StringUtils.format("/metadata/segments")
-      );
-    }
-    catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    Request request = coordinatorClient.makeRequest(HttpMethod.GET, "/metadata/segments");
     ListenableFuture<InputStream> future = coordinatorClient.goAsync(
         request,
         responseHandler
@@ -541,32 +544,24 @@ public class SystemSchema extends AbstractSchema
       return new TasksEnumerable(getTasks(druidLeaderClient, jsonMapper, responseHandler));
     }
 
-    private CloseableIterator<TaskStatusPlus> getAuthorizedTasks(JsonParserIterator<TaskStatusPlus> it, DataContext root)
+    private CloseableIterator<TaskStatusPlus> getAuthorizedTasks(
+        JsonParserIterator<TaskStatusPlus> it,
+        DataContext root
+    )
     {
       return wrap(it, it);
     }
-
   }
 
   //Note that overlord must be up to get tasks
   private static JsonParserIterator<TaskStatusPlus> getTasks(
-      IndexingServiceClient indexingServiceClient,
+      IndexingServiceClient serviceClient,
       ObjectMapper jsonMapper,
       BytesAccumulatingResponseHandler responseHandler
   )
   {
-
-    Request request;
-    try {
-      request = indexingServiceClient.makeRequest(
-          HttpMethod.GET,
-          StringUtils.format("/tasks")
-      );
-    }
-    catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    ListenableFuture<InputStream> future = indexingServiceClient.goAsync(
+    Request request = serviceClient.makeRequest(HttpMethod.GET, StringUtils.format("/tasks"));
+    ListenableFuture<InputStream> future = serviceClient.goAsync(
         request,
         responseHandler
     );
@@ -614,6 +609,50 @@ public class SystemSchema extends AbstractSchema
         it.close();
       }
     };
+  }
+
+  private static final TypeReference<List<Map<String, Object>>> ROWS = new TypeReference<List<Map<String, Object>>>()
+  {
+  };
+
+
+  static class LocksTable extends AbstractTable implements ScannableTable
+  {
+    private final IndexingServiceClient druidLeaderClient;
+    private final ObjectMapper jsonMapper;
+
+    public LocksTable(IndexingServiceClient druidLeaderClient, ObjectMapper jsonMapper)
+    {
+      this.druidLeaderClient = druidLeaderClient;
+      this.jsonMapper = jsonMapper;
+    }
+
+    @Override
+    public RelDataType getRowType(RelDataTypeFactory typeFactory)
+    {
+      return LOCKS_SIGNATURE.getRelDataType(typeFactory);
+    }
+
+    @Override
+    public TableType getJdbcTableType()
+    {
+      return TableType.SYSTEM_TABLE;
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root)
+    {
+      List<String> columns = LOCKS_SIGNATURE.getRowOrder();
+      List<Object[]> rows = Lists.newArrayList();
+      for (Map<String, Object> row : druidLeaderClient.execute(HttpMethod.GET, "locks/_/_", ROWS)) {
+        Object[] array = new Object[columns.size()];
+        for (int i = 0; i < array.length; i++) {
+          array[i] = row.get(columns.get(i));
+        }
+        rows.add(array);
+      }
+      return Linq4j.asEnumerable(rows);
+    }
   }
 
   @Nullable
