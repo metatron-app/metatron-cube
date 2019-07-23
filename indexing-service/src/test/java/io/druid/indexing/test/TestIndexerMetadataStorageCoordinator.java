@@ -37,7 +37,7 @@ import java.util.Set;
 public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataStorageCoordinator
 {
   final private Set<DataSegment> published = Sets.newConcurrentHashSet();
-  final private Set<DataSegment> nuked = Sets.newConcurrentHashSet();
+  final private Set<String> nuked = Sets.newConcurrentHashSet();
   final private List<DataSegment> unusedSegments;
 
   public TestIndexerMetadataStorageCoordinator()
@@ -125,13 +125,13 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
-  public void deleteSegments(Set<DataSegment> segments)
+  public void deleteSegments(Set<String> segments)
   {
     nuked.addAll(segments);
   }
 
   @Override
-  public void updateSegmentMetadata(Set<DataSegment> segments) throws IOException
+  public void updateSegments(Set<DataSegment> segments) throws IOException
   {
     throw new UnsupportedOperationException();
   }
@@ -141,7 +141,7 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
     return ImmutableSet.copyOf(published);
   }
 
-  public Set<DataSegment> getNuked()
+  public Set<String> getNuked()
   {
     return ImmutableSet.copyOf(nuked);
   }

@@ -702,7 +702,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           @Override
           public List<Interval> inTransaction(Handle handle, TransactionStatus status) throws Exception
           {
-            return Lists.newArrayList(
+            return Lists.<Interval>newArrayList(
                 handle
                     .createQuery(
                         String.format(

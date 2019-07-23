@@ -21,26 +21,29 @@ package io.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
-import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentListUnusedAction;
 import io.druid.indexing.common.actions.SegmentNukeAction;
+import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
 public class KillTask extends AbstractFixedIntervalTask
 {
   private static final Logger log = new Logger(KillTask.class);
+  private static final int NUKE_BATCH = 16;
 
   @JsonCreator
   public KillTask(
@@ -79,8 +82,8 @@ public class KillTask extends AbstractFixedIntervalTask
     }
 
     // List unused segments
-    final List<DataSegment> unusedSegments = toolbox
-        .getTaskActionClient()
+    final TaskActionClient actionClient = toolbox.getTaskActionClient();
+    final List<DataSegment> unusedSegments = actionClient
         .submit(new SegmentListUnusedAction(myLock.getDataSource(), myLock.getInterval()));
 
     // Verify none of these segments have versions > lock version
@@ -98,9 +101,18 @@ public class KillTask extends AbstractFixedIntervalTask
     }
 
     // Kill segments
+    Set<DataSegment> segments = Sets.newHashSet();
     for (DataSegment segment : unusedSegments) {
       toolbox.getDataSegmentKiller().kill(segment);
-      toolbox.getTaskActionClient().submit(new SegmentNukeAction(ImmutableSet.of(segment)));
+      segments.add(segment);
+      if (segments.size() >= NUKE_BATCH) {
+        actionClient.submit(new SegmentNukeAction(segments));
+        segments.clear();
+      }
+    }
+    if (!segments.isEmpty()) {
+      actionClient.submit(new SegmentNukeAction(segments));
+      segments.clear();
     }
 
     return TaskStatus.success(getId());

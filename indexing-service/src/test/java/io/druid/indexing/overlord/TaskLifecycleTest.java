@@ -49,9 +49,9 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.TaskState;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.SegmentLoaderFactory;
 import io.druid.indexing.common.TaskLock;
-import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.TaskToolboxFactory;
 import io.druid.indexing.common.TestUtils;
@@ -771,6 +771,7 @@ public class TaskLifecycleTest
           }
         }
     );
+    List<String> segmentIds = Lists.newArrayList(Iterables.transform(expectedUnusedSegments, DataSegment::getIdentifier));
 
     mdc.setUnusedSegments(expectedUnusedSegments);
 
@@ -790,8 +791,8 @@ public class TaskLifecycleTest
     Assert.assertEquals("num segments nuked", 3, mdc.getNuked().size());
     Assert.assertTrue(
         "expected unused segments get killed",
-        expectedUnusedSegments.containsAll(mdc.getNuked()) && mdc.getNuked().containsAll(
-            expectedUnusedSegments
+        segmentIds.containsAll(mdc.getNuked()) && mdc.getNuked().containsAll(
+            segmentIds
         )
     );
 

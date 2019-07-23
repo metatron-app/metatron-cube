@@ -41,7 +41,6 @@ import io.druid.timeline.DataSegment;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -130,7 +129,7 @@ public class InsertSegment extends GuiceRunnable
       for (DataSegment dataSegment : segmentsAlreadyExist) {
         log.info("Segment [%s] already exists in metadata storage, updating the payload", dataSegment.getIdentifier());
       }
-      indexerMetadataStorageCoordinator.updateSegmentMetadata(segmentsAlreadyExist);
+      indexerMetadataStorageCoordinator.updateSegments(segmentsAlreadyExist);
     }
   }
 

@@ -130,9 +130,9 @@ public interface IndexerMetadataStorageCoordinator
 
   DataSourceMetadata getDataSourceMetadata(String dataSource);
 
-  void updateSegmentMetadata(Set<DataSegment> segments) throws IOException;
+  void updateSegments(Set<DataSegment> segments) throws IOException;
 
-  void deleteSegments(Set<DataSegment> segments) throws IOException;
+  void deleteSegments(Set<String> ids) throws IOException;
 
   /**
    * Get all segments which include ONLY data within the given interval and are not flagged as used.

@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.indexing.common.task.Task;
 import io.druid.query.DruidMetrics;
@@ -51,6 +53,7 @@ public class SegmentNukeAction implements TaskAction<Void>
     return segments;
   }
 
+  @Override
   public TypeReference<Void> getReturnTypeReference()
   {
     return new TypeReference<Void>()
@@ -62,7 +65,9 @@ public class SegmentNukeAction implements TaskAction<Void>
   public Void perform(Task task, TaskActionToolbox toolbox) throws IOException
   {
     toolbox.verifyTaskLocks(task, segments);
-    toolbox.getIndexerMetadataStorageCoordinator().deleteSegments(segments);
+    toolbox.getIndexerMetadataStorageCoordinator().deleteSegments(
+        Sets.newHashSet(Iterables.transform(segments, DataSegment.GET_ID))
+    );
 
     // Emit metrics
     final ServiceMetricEvent.Builder metricBuilder = new ServiceMetricEvent.Builder()

@@ -682,6 +682,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
   /**
    * Read dataSource metadata. Returns null if there is no metadata.
    */
+  @Override
   public DataSourceMetadata getDataSourceMetadata(final String dataSource)
   {
     final byte[] bytes = connector.lookup(
@@ -823,7 +824,8 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     return retVal;
   }
 
-  public void updateSegmentMetadata(final Set<DataSegment> segments) throws IOException
+  @Override
+  public void updateSegments(final Set<DataSegment> segments) throws IOException
   {
     connector.getDBI().inTransaction(
         new TransactionCallback<Void>()
@@ -841,7 +843,8 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     );
   }
 
-  public void deleteSegments(final Set<DataSegment> segments) throws IOException
+  @Override
+  public void deleteSegments(final Set<String> ids) throws IOException
   {
     connector.getDBI().inTransaction(
         new TransactionCallback<Void>()
@@ -849,22 +852,19 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
           @Override
           public Void inTransaction(Handle handle, TransactionStatus transactionStatus) throws IOException
           {
-            for (final DataSegment segment : segments) {
-              deleteSegment(handle, segment);
+            for (String id : ids) {
+              deleteSegment(handle, id);
             }
-
             return null;
           }
         }
     );
   }
 
-  private void deleteSegment(final Handle handle, final DataSegment segment)
+  private void deleteSegment(final Handle handle, final String id)
   {
-    handle.createStatement(
-        String.format("DELETE from %s WHERE id = :id", dbTables.getSegmentsTable())
-    )
-          .bind("id", segment.getIdentifier())
+    handle.createStatement(String.format("DELETE from %s WHERE id = :id", dbTables.getSegmentsTable()))
+          .bind("id", id)
           .execute();
   }
 
@@ -884,6 +884,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     }
   }
 
+  @Override
   public List<DataSegment> getUnusedSegmentsForInterval(final String dataSource, final Interval interval)
   {
     List<DataSegment> matchingSegments = connector.getDBI().withHandle(

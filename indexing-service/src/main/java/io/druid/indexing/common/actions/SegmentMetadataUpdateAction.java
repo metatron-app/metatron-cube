@@ -62,7 +62,7 @@ public class SegmentMetadataUpdateAction implements TaskAction<Void>
   ) throws IOException
   {
     toolbox.verifyTaskLocks(task, segments);
-    toolbox.getIndexerMetadataStorageCoordinator().updateSegmentMetadata(segments);
+    toolbox.getIndexerMetadataStorageCoordinator().updateSegments(segments);
 
     // Emit metrics
     final ServiceMetricEvent.Builder metricBuilder = new ServiceMetricEvent.Builder()
