@@ -26,7 +26,6 @@ import io.druid.client.ImmutableDruidServer;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
-import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
@@ -66,15 +65,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
                 LoadQueuePeon queuePeon = params.getLoadManagementPeons().get(server.getName());
 
                 if (!queuePeon.getSegmentsToDrop().contains(segment)) {
-                  queuePeon.dropSegment(
-                      segment, "cleanup", new LoadPeonCallback()
-                      {
-                        @Override
-                        public void execute()
-                        {
-                        }
-                      }
-                  );
+                  queuePeon.dropSegment(segment, "cleanup", null);
                   stats.addToTieredStat("unneededCount", server.getTier(), 1);
                 }
               }

@@ -882,10 +882,13 @@ public class DruidCoordinator
           }
         }
 
+        // prevent cleanup before polling is ended
+        final boolean ready = metadataSegmentManager.lastUpdatedTime() != null;
+
         // Do coordinator stuff.
         DruidCoordinatorRuntimeParams params =
             DruidCoordinatorRuntimeParams.newBuilder()
-                                         .withMajorTick(counter.getAndIncrement() % lazyTick == 0)
+                                         .withMajorTick(ready && counter.getAndIncrement() % lazyTick == 0)
                                          .withStartTime(startTime)
                                          .withDatasources(metadataSegmentManager.getInventory())
                                          .withDynamicConfigs(getDynamicConfigs())

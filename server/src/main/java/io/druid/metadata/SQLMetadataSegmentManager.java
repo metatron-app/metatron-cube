@@ -36,6 +36,7 @@ import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.client.DruidDataSource;
+import io.druid.common.DateTimes;
 import io.druid.concurrent.Execs;
 import io.druid.guice.ManageLifecycle;
 import io.druid.indexing.overlord.DataSourceMetadata;
@@ -61,6 +62,8 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.ByteArrayMapper;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -93,6 +96,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private volatile ListenableFuture<?> future = null;
 
   private volatile boolean started = false;
+  private volatile DateTime lastUpdatedTime;
 
   @Inject
   public SQLMetadataSegmentManager(
@@ -159,6 +163,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       future = null;
       exec.shutdownNow();
       exec = null;
+      lastUpdatedTime = null;
     }
   }
 
@@ -389,6 +394,12 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
         }
     );
+  }
+
+  @Override
+  public DateTime lastUpdatedTime()
+  {
+    return lastUpdatedTime;
   }
 
   @Override
@@ -627,10 +638,17 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       for (String empty : emptyDS) {
         dataSources.remove(empty);
       }
+      done();
     }
     catch (Exception e) {
       log.makeAlert(e, "Problem polling DB.").emit();
     }
+  }
+
+  private void done()
+  {
+    lastUpdatedTime = DateTimes.nowUtc();
+    log.info("Heap memory usage from mbean %s", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
   }
 
   private String getSegmentsTable()

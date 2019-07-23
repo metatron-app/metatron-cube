@@ -36,7 +36,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.data.Stat;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -184,7 +183,7 @@ public class LoadQueuePeon
 
     log.info("Asking server [%s] to load segment[%s] for [%s]", server, segment.getIdentifier(), loadReason);
     queuedSize.addAndGet(segment.getSize());
-    segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, Arrays.asList(callback)));
+    segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, callback));
     doNext();
   }
 
@@ -223,7 +222,7 @@ public class LoadQueuePeon
     }
 
     log.info("Asking server [%s] to drop segment[%s] for [%s]", server, segment.getIdentifier(), dropReason);
-    segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, Arrays.asList(callback)));
+    segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, callback));
     doNext();
   }
 
@@ -435,18 +434,16 @@ public class LoadQueuePeon
     private final int type;
     private final List<LoadPeonCallback> callbacks = Lists.newArrayList();
 
-    private SegmentHolder(
-        DataSegment segment,
-        int type,
-        Collection<LoadPeonCallback> callbacks
-    )
+    private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback)
     {
       this.segment = segment;
       this.type = type;
       this.changeRequest = (type == LOAD)
                            ? new SegmentChangeRequestLoad(segment)
                            : new SegmentChangeRequestDrop(segment);
-      this.callbacks.addAll(callbacks);
+      if (callback != null) {
+        this.callbacks.add(callback);
+      }
     }
 
     public DataSegment getSegment()

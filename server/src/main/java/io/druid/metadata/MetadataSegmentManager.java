@@ -22,6 +22,7 @@ package io.druid.metadata;
 import com.metamx.common.Pair;
 import io.druid.client.DruidDataSource;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Collection;
@@ -57,6 +58,8 @@ public interface MetadataSegmentManager
   Collection<String> getAllDatasourceNames();
 
   Pair<String, DataSegment> getLastUpdatedSegment(String ds);
+
+  DateTime lastUpdatedTime();
 
   /**
    * Returns top N unused segment intervals in given interval when ordered by segment start time, end time.
