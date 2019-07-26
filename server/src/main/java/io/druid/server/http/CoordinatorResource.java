@@ -21,11 +21,13 @@ package io.druid.server.http;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.collections.CountingMap;
+import io.druid.guice.PropertiesModule;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
@@ -41,7 +43,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -172,6 +176,33 @@ public class CoordinatorResource
             }
         )
     ).build();
+  }
+
+  @GET
+  @Path("/configs/{configName}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getConfigs(@PathParam("configName") String configName)
+  {
+    List<String> configNames = ImmutableList.of("common", "broker", "coordinator", "historical", "middleManager",
+                                                "overlord");
+    if (!configNames.contains(configName)) {
+      return Response.status(Response.Status.BAD_REQUEST)
+                     .entity(ImmutableMap.of("error", "unknown nodeType")).build();
+    }
+    Properties properties = new Properties();
+    String propertyLocation;
+    try {
+      if ("common".equals(configName)) {
+        propertyLocation = PropertiesModule.DEFAULT_PROPERTIES_LOC;
+      } else {
+        propertyLocation = configName + "/runtime.properties";
+      }
+      PropertiesModule.load(properties, ImmutableList.of(propertyLocation));
+    } catch (Exception e) {
+      Response.serverError().build();
+    }
+
+    return Response.ok(Maps.fromProperties(properties)).build();
   }
 
   @GET

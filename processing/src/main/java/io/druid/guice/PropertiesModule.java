@@ -42,7 +42,7 @@ import java.util.Properties;
  */
 public class PropertiesModule implements Module
 {
-  private static final String DEFAULT_PROPERTIES_LOC = "_common/common.runtime.properties";
+  public static final String DEFAULT_PROPERTIES_LOC = "_common/common.runtime.properties";
   private static final Logger log = new Logger(PropertiesModule.class);
 
   private final List<String> propertiesFiles;
