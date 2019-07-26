@@ -72,12 +72,10 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
         case FLOAT:
           category[i] = 0;
           page[i] = new float[max];
-          nulls[i] = new BitSet();
           break;
         case LONG:
           category[i] = 1;
           page[i] = new long[max];
-          nulls[i] = new BitSet();
           break;
         case DOUBLE:
           category[i] = 2;
@@ -91,6 +89,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           category[i] = 4;
           page[i] = new Object[max];
       }
+      nulls[i] = new BitSet();
     }
   }
 
