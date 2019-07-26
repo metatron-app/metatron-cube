@@ -24,12 +24,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -74,6 +76,12 @@ public class DruidDataSource
     return ImmutableList.copyOf(segmentsMap.values());
   }
 
+  // mutable set
+  public synchronized Set<String> getSegmentIds()
+  {
+    return Sets.newHashSet(segmentsMap.keySet());
+  }
+
   public List<DataSegment> getSegmentsSorted()
   {
     List<DataSegment> segments = Lists.newArrayList(getSegments());
@@ -98,10 +106,9 @@ public class DruidDataSource
     return this;
   }
 
-  public synchronized DruidDataSource removeSegment(String segmentId)
+  public synchronized boolean removeSegment(String segmentId)
   {
-    segmentsMap.remove(segmentId);
-    return this;
+    return segmentsMap.remove(segmentId) != null;
   }
 
   public synchronized boolean contains(String id)
@@ -112,6 +119,11 @@ public class DruidDataSource
   public synchronized boolean isEmpty()
   {
     return segmentsMap.isEmpty();
+  }
+
+  public synchronized int size()
+  {
+    return segmentsMap.size();
   }
 
   @Override

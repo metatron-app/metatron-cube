@@ -220,7 +220,7 @@ public class CoordinatorResource
   @Path("/scheduleNow")
   @Produces({MediaType.APPLICATION_JSON})
   @Consumes({MediaType.APPLICATION_JSON})
-  public Response loadToIndex(
+  public Response scheduleNow(
       @QueryParam("assertLoaded") boolean assertLoaded,
       @QueryParam("assertTimeout") long assertTimeout,
       Set<DataSegment> segments)

@@ -37,6 +37,11 @@ public interface MetadataSegmentManager
 
   void stop();
 
+  // register to temporary view.. can be removed by polling if it's not inserted to db till then
+  boolean registerToView(DataSegment segment);
+
+  boolean unregisterFromView(DataSegment segment);
+
   boolean enableDatasource(final String ds);
 
   boolean enableSegment(final String segmentId);

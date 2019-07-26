@@ -30,6 +30,7 @@ import org.joda.time.Interval;
 import org.joda.time.Period;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -89,5 +90,13 @@ public class PeriodLoadRule extends LoadRule
   {
     final Interval currInterval = new Interval(period, referenceTimestamp);
     return currInterval.overlaps(interval) && interval.getStartMillis() >= currInterval.getStartMillis();
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof PeriodLoadRule &&
+           Objects.equals(period, ((PeriodLoadRule) other).period) &&
+           Objects.equals(tieredReplicants, ((PeriodLoadRule) other).tieredReplicants);
   }
 }

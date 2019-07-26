@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -30,7 +31,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import com.metamx.common.MapUtils;
 import com.metamx.common.Pair;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
@@ -60,18 +60,20 @@ import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.tweak.HandleCallback;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.ByteArrayMapper;
+import org.skife.jdbi.v2.util.IntegerMapper;
+import org.skife.jdbi.v2.util.StringMapper;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -296,6 +298,19 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     }
 
     return true;
+  }
+
+  @Override
+  public boolean registerToView(DataSegment segment)
+  {
+    return dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment);
+  }
+
+  @Override
+  public boolean unregisterFromView(DataSegment segment)
+  {
+    final DruidDataSource dataSource = dataSources.get(segment.getDataSource());
+    return dataSource != null && dataSource.removeSegment(segment.getIdentifier());
   }
 
   @Override
@@ -528,40 +543,14 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public Collection<String> getAllDatasourceNames()
   {
-    synchronized (lock) {
-      return connector.getDBI().withHandle(
-          new HandleCallback<List<String>>()
-          {
-            @Override
-            public List<String> withHandle(Handle handle) throws Exception
-            {
-              return handle.createQuery(
-                  String.format("SELECT DISTINCT(datasource) FROM %s", getSegmentsTable())
-              )
-                           .fold(
-                               Lists.<String>newArrayList(),
-                               new Folder3<ArrayList<String>, Map<String, Object>>()
-                               {
-                                 @Override
-                                 public ArrayList<String> fold(
-                                     ArrayList<String> druidDataSources,
-                                     Map<String, Object> stringObjectMap,
-                                     FoldController foldController,
-                                     StatementContext statementContext
-                                 ) throws SQLException
-                                 {
-                                   druidDataSources.add(
-                                       MapUtils.getString(stringObjectMap, "datasource")
-                                   );
-                                   return druidDataSources;
-                                 }
-                               }
-                           );
-
-            }
-          }
-      );
+    List<String> names = Lists.newArrayList();
+    for (Map.Entry<String, DruidDataSource> entry : dataSources.entrySet()) {
+      if (!entry.getValue().isEmpty()) {
+        names.add(entry.getKey());
+      }
     }
+    Collections.sort(names);
+    return names;
   }
 
   @Override
@@ -579,56 +568,15 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       //
       // setting connection to read-only will allow some database such as MySQL
       // to automatically use read-only transaction mode, further optimizing the query
-      final List<DataSegment> segments = inReadOnlyTransaction(
-          new TransactionCallback<List<DataSegment>>()
-          {
-            @Override
-            public List<DataSegment> inTransaction(Handle handle, TransactionStatus status) throws Exception
-            {
-              return handle
-                  .createQuery(String.format("SELECT id, payload FROM %s WHERE used=true", getSegmentsTable()))
-                  .setFetchSize(connector.getStreamingFetchSize())
-                  .map(
-                      new ResultSetMapper<DataSegment>()
-                      {
-                        @Override
-                        public DataSegment map(int index, ResultSet r, StatementContext ctx)
-                            throws SQLException
-                        {
-                          if (!dataSources.isEmpty()) {
-                            final String id = r.getString("id");
-                            final String dataSource = DataSegment.parseDateSource(id);
-                            if (dataSource != null) {
-                              final DruidDataSource source = dataSources.get(dataSource);
-                              if (source != null && source.contains(id)) {
-                                return null;
-                              }
-                            }
-                          }
-                          try {
-                            return jsonMapper.readValue(r.getBytes("payload"), DataSegment.class);
-                          }
-                          catch (IOException e) {
-                            log.makeAlert(e, "Failed to read segment from db.");
-                            return null;
-                          }
-                        }
-                      }
-                  )
-                  .list();
-            }
-          }
-      );
+      int added = syncNewSegments();
+      if (added > 0) {
+        log.info("Polled and found new %,d segments in the database", added);
+      }
+      int deleted = syncDeletedSegments();
+      if (deleted > 0) {
+        log.info("Removed %,d segments not in the database", deleted);
+      }
 
-      int counter = 0;
-      for (final DataSegment segment : Iterables.filter(segments, Predicates.notNull())) {
-        if (dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment)) {
-          counter++;
-        }
-      }
-      if (counter > 0) {
-        log.info("Polled and found new %,d segments in the database", counter);
-      }
       final List<String> emptyDS = Lists.newArrayList();
       for (Map.Entry<String, DruidDataSource> entry : dataSources.entrySet()) {
         if (entry.getValue().isEmpty()) {
@@ -643,6 +591,102 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     catch (Exception e) {
       log.makeAlert(e, "Problem polling DB.").emit();
     }
+  }
+
+  // add segments in meta
+  private int syncNewSegments() throws SQLException
+  {
+    final String sql = String.format(
+        "SELECT id, dataSource, payload FROM %s WHERE used=true", getSegmentsTable()
+    );
+    final List<DataSegment> segments = inReadOnlyTransaction(
+        new TransactionCallback<List<DataSegment>>()
+        {
+          @Override
+          public List<DataSegment> inTransaction(Handle handle, TransactionStatus status) throws Exception
+          {
+            return handle
+                .createQuery(sql)
+                .setFetchSize(connector.getStreamingFetchSize())
+                .map(
+                    new ResultSetMapper<DataSegment>()
+                    {
+                      @Override
+                      public DataSegment map(int index, ResultSet r, StatementContext ctx)
+                          throws SQLException
+                      {
+                        if (!dataSources.isEmpty()) {
+                          final DruidDataSource dataSource = dataSources.get(r.getString("dataSource"));
+                          if (dataSource != null && dataSource.contains(r.getString("id"))) {
+                            return null;
+                          }
+                        }
+                        try {
+                          return jsonMapper.readValue(r.getBytes("payload"), DataSegment.class);
+                        }
+                        catch (IOException e) {
+                          log.makeAlert(e, "Failed to read segment from db.");
+                          return null;
+                        }
+                      }
+                    }
+                )
+                .list();
+          }
+        }
+    );
+    int counter = 0;
+    for (DataSegment segment : Iterables.filter(segments, Predicates.notNull())) {
+      if (dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment)) {
+        counter++;
+      }
+    }
+    return counter;
+  }
+
+  // remove segments not in meta
+  private int syncDeletedSegments() throws SQLException
+  {
+    final String counter = String.format(
+        "SELECT count(*) FROM %s WHERE dataSource = :dataSource AND used=true",
+        getSegmentsTable()
+    );
+    final String retrieve = String.format(
+        "SELECT id FROM %s WHERE dataSource = :dataSource AND used=true",
+        getSegmentsTable()
+    );
+    int count = 0;
+    for (DruidDataSource dataSource : dataSources.values()) {
+      for (String delta : inReadOnlyTransaction(
+          new TransactionCallback<Set<String>>()
+          {
+            @Override
+            public Set<String> inTransaction(Handle handle, TransactionStatus status) throws Exception
+            {
+              int count = handle.createQuery(counter)
+                                .bind("dataSource", dataSource.getName())
+                                .map(IntegerMapper.FIRST)
+                                .first();
+              if (dataSource.size() > count) {
+                Set<String> inMemory = dataSource.getSegmentIds();
+                inMemory.removeAll(
+                    handle.createQuery(retrieve)
+                          .bind("dataSource", dataSource.getName())
+                          .map(StringMapper.FIRST)
+                          .list()
+                );
+                return inMemory;
+              }
+              return ImmutableSet.of();
+            }
+          }
+      )) {
+        if (dataSource.removeSegment(delta)) {
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
   private void done()

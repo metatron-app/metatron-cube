@@ -140,7 +140,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       }
 
       if (serverHolderList.size() <= 1) {
-        log.info("[%s]: One or fewer servers found.  Cannot balance.", tier);
+        log.debug("[%s]: One or fewer servers found.  Cannot balance.", tier);
         continue;
       }
 
@@ -150,7 +150,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       }
 
       if (numSegments == 0) {
-        log.info("No segments found.  Cannot balance.");
+        log.debug("No segments found.  Cannot balance.");
         continue;
       }
 

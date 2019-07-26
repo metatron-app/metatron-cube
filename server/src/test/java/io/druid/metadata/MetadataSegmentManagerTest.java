@@ -23,9 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.metrics.NoopServiceEmitter;
@@ -38,9 +36,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Arrays;
 
 
 public class MetadataSegmentManagerTest
@@ -84,6 +80,22 @@ public class MetadataSegmentManagerTest
       1234L
   );
 
+  private final DataSegment segment3 = new DataSegment(
+      "wikipedia2",
+      new Interval("2012-01-05T00:00:00.000/2012-01-06T00:00:00.000"),
+      "2012-01-06T22:19:12.565Z",
+      ImmutableMap.<String, Object>of(
+          "type", "s3_zip",
+          "bucket", "test",
+          "key", "wikipedia/index/y=2012/m=01/d=05/2012-01-06T22:19:12.565Z/0/index.zip"
+      ),
+      ImmutableList.of("dim1", "dim2", "dim3"),
+      ImmutableList.of("count", "value"),
+      NoneShardSpec.instance(),
+      0,
+      1234L
+  );
+
   @Before
   public void setUp() throws Exception
   {
@@ -113,15 +125,19 @@ public class MetadataSegmentManagerTest
   {
     manager.start();
     manager.poll();
-    Assert.assertEquals(
-        ImmutableList.of("wikipedia"),
-        manager.getAllDatasourceNames()
-    );
-    List<DataSegment> expected = Lists.newArrayList(segment1, segment2);
-    Collections.sort(expected);
-    Assert.assertEquals(
-        expected, manager.getInventoryValue("wikipedia").getSegmentsSorted()
-    );
+    Assert.assertEquals(Arrays.asList("wikipedia"), manager.getAllDatasourceNames());
+    Assert.assertEquals(Arrays.asList(segment2, segment1), manager.getInventoryValue("wikipedia").getSegmentsSorted());
+    Assert.assertNull(manager.getInventoryValue("wikipedia2"));
+
+    manager.registerToView(segment3);
+    Assert.assertEquals(Arrays.asList("wikipedia", "wikipedia2"), manager.getAllDatasourceNames());
+    Assert.assertEquals(Arrays.asList(segment2, segment1), manager.getInventoryValue("wikipedia").getSegmentsSorted());
+    Assert.assertEquals(Arrays.asList(segment3), manager.getInventoryValue("wikipedia2").getSegmentsSorted());
+
+    manager.poll();
+    Assert.assertEquals(Arrays.asList("wikipedia"), manager.getAllDatasourceNames());
+    Assert.assertEquals(Arrays.asList(segment2, segment1), manager.getInventoryValue("wikipedia").getSegmentsSorted());
+    Assert.assertNull(manager.getInventoryValue("wikipedia2"));
     manager.stop();
   }
 

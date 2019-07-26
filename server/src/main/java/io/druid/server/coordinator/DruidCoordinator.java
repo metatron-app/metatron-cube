@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -83,7 +84,6 @@ import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -709,15 +709,19 @@ public class DruidCoordinator
 
   private Future<CoordinatorStats> scheduleNow(Set<DataSegment> segments)
   {
-    return runNow(segments, new DruidCoordinatorRuleRunner(DruidCoordinator.this));
+    return runNow(segments, new DruidCoordinatorRuleRunner(this), "scheduleNow");
   }
 
   private Future<CoordinatorStats> balanceNow()
   {
-    return runNow(Collections.<DataSegment>emptySet(), new DruidCoordinatorBalancer(DruidCoordinator.this));
+    return runNow(ImmutableSet.<DataSegment>of(), new DruidCoordinatorBalancer(this), "balanceNow");
   }
 
-  private Future<CoordinatorStats> runNow(final Set<DataSegment> segments, final DruidCoordinatorHelper helper)
+  private Future<CoordinatorStats> runNow(
+      final Set<DataSegment> segments,
+      final DruidCoordinatorHelper helper,
+      final String action
+  )
   {
     return exec.submit(
           new Callable<CoordinatorStats>()
@@ -725,6 +729,9 @@ public class DruidCoordinator
             @Override
             public CoordinatorStats call()
             {
+              for (DataSegment segment : segments) {
+                metadataSegmentManager.registerToView(segment);   // prevent from cleanup for a while
+              }
               DruidCoordinatorRuntimeParams params = buildParam(
                   DruidCoordinatorRuntimeParams.newBuilder().withAvailableSegments(segments)
               );
@@ -746,7 +753,7 @@ public class DruidCoordinator
             @Override
             public String toString()
             {
-              return "scheduleNow";
+              return action;
             }
           }
       );

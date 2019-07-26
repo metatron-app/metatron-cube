@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -64,5 +65,12 @@ public class ForeverLoadRule extends LoadRule.Always
   public int getExpectedReplicants(String tier)
   {
     return tieredReplicants.getOrDefault(tier, 0);
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof ForeverLoadRule &&
+           Objects.equals(tieredReplicants, ((ForeverLoadRule) other).tieredReplicants);
   }
 }

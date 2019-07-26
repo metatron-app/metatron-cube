@@ -19,6 +19,7 @@
 
 package io.druid.server.coordinator.helper;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.common.logger.Logger;
@@ -35,6 +36,9 @@ import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,7 +48,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DruidCoordinatorLogger implements DruidCoordinatorHelper
 {
   private static final Logger log = new Logger(DruidCoordinatorLogger.class);
-  private static final int DUMP_INTERVAL = 20;
+  private static final int DUMP_INTERVAL = 10;
 
   private int counter;
 
@@ -181,8 +185,18 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     }
     boolean printedHeader = false;
     boolean dumpAll = ++counter % DUMP_INTERVAL == 0;
-    for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
-      for (ServerHolder serverHolder : serverHolders) {
+    for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> tiers : cluster.getCluster().entrySet()) {
+      final String tier = tiers.getKey();
+      final List<ServerHolder> servers = Lists.newArrayList(tiers.getValue());
+      Collections.sort(servers, new Comparator<ServerHolder>()
+      {
+        @Override
+        public int compare(ServerHolder o1, ServerHolder o2)
+        {
+          return o1.getServer().getName().compareTo(o2.getServer().getName());
+        }
+      });
+      for (ServerHolder serverHolder : servers) {
         ImmutableDruidServer server = serverHolder.getServer();
         LoadQueuePeon queuePeon = serverHolder.getPeon();
         int segments = server.getSegments().size();
