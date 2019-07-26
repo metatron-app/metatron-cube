@@ -532,16 +532,7 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
 
     synchronized (tasks) {
       for (ForkingTaskRunnerWorkItem taskWorkItem : tasks.values()) {
-        if (taskWorkItem.processHolder != null) {
-          log.info("Closing output stream to task[%s].", taskWorkItem.getTask().getId());
-          try {
-            taskWorkItem.processHolder.process.getOutputStream().close();
-          }
-          catch (Exception e) {
-            log.warn(e, "Failed to close stdout to task[%s]. Destroying task.", taskWorkItem.getTask().getId());
-            taskWorkItem.processHolder.process.destroy();
-          }
-        }
+        shutdownTaskProcess(taskWorkItem);
       }
     }
 
@@ -596,10 +587,27 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
       taskInfo.shutdown = true;
     }
 
-    if (taskInfo.processHolder != null) {
+    shutdownTaskProcess(taskInfo);
+
+    if (taskInfo.processHolder != null && taskInfo.processHolder.process.isAlive()) {
       // Will trigger normal failure mechanisms due to process exit
       log.info("Killing process for task: %s", taskid);
       taskInfo.processHolder.process.destroy();
+    }
+  }
+
+  private void shutdownTaskProcess(ForkingTaskRunnerWorkItem taskWorkItem)
+  {
+    if (taskWorkItem.processHolder != null) {
+      log.info("Closing output stream to task[%s].", taskWorkItem.task.getId());
+      Process process = taskWorkItem.processHolder.process;
+      try {
+        process.getOutputStream().close();
+      }
+      catch (Exception e) {
+        log.warn(e, "Failed to close stdout to task[%s]. Destroying task.", taskWorkItem.getTask().getId());
+        process.destroy();
+      }
     }
   }
 
