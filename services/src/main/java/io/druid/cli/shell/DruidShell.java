@@ -75,6 +75,7 @@ import org.jline.terminal.TerminalBuilder;
 
 import javax.ws.rs.core.MediaType;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -86,12 +87,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  */
-public class DruidShell implements CommonShell
+public class DruidShell extends CommonShell.WithUtils
 {
   private static final Logger LOG = new Logger(DruidShell.class);
   private static final StatusResponseHandler RESPONSE_HANDLER = new StatusResponseHandler(Charsets.UTF_8);
@@ -147,7 +150,9 @@ public class DruidShell implements CommonShell
         LOG.info("Overlord participant : %s", participant);
       }
     }
-    List<URL> brokerURLs = discover("broker");
+    Properties properties = loadNodeProperties("broker");
+    String serviceName = Optional.ofNullable(properties.getProperty("druid.service")).orElse("broker");
+    List<URL> brokerURLs = discover(serviceName);
     for (URL broker : brokerURLs) {
       LOG.info("Broker : %s", broker);
     }

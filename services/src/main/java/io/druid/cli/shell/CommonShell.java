@@ -19,11 +19,31 @@
 
 package io.druid.cli.shell;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.List;
+import java.util.Properties;
 
 /**
  */
 public interface CommonShell
 {
   void run(List<String> arguments) throws Exception;
+
+  abstract class WithUtils implements CommonShell
+  {
+    protected Properties loadNodeProperties(String nodeType) throws IOException
+    {
+      ClassLoader loader = getClass().getClassLoader();
+      Properties properties = new Properties();
+      URL resource = loader.getResource(String.format("%s/runtime.properties", nodeType));
+      if (resource != null) {
+        try (InputStream input = resource.openStream()) {
+          properties.load(input);
+        }
+      }
+      return properties;
+    }
+  }
 }

@@ -20,6 +20,7 @@
 package io.druid.cli.shell;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -54,7 +55,6 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.loading.DataSegmentPusherUtil;
-import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.StorageLocationConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -87,23 +87,20 @@ import java.util.Set;
 
 /**
  */
-public class IndexViewer implements CommonShell
+public class IndexViewer extends CommonShell.WithUtils
 {
   private static final Logger LOG = new Logger(DruidShell.class);
 
   private final IndexIO indexIO;
-  private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public IndexViewer(
       IndexIO indexIO,
-      SegmentLoaderConfig config,
       @JacksonInject ObjectMapper jsonMapper
   )
   {
     this.indexIO = indexIO;
-    this.config = config;
     this.jsonMapper = jsonMapper;
   }
 
@@ -122,11 +119,16 @@ public class IndexViewer implements CommonShell
     // ds to indices
     Map<String, List<IndexMeta>> mapping2 = Maps.newHashMap();
 
-    if (GuavaUtils.isNullOrEmpty(config.getLocations())) {
+    String props = loadNodeProperties("historical").getProperty("druid.segmentCache.locations");
+    List<StorageLocationConfig> locationConfs = jsonMapper.readValue(
+        props, new TypeReference<List<StorageLocationConfig>>() {}
+    );
+
+    if (GuavaUtils.isNullOrEmpty(locationConfs)) {
       LOG.info("druid.segmentCache.locations is not specified.. use -p <property-file>");
     } else {
-      File baseDir = config.getInfoDir();
-      if (!baseDir.exists() && !config.getInfoDir().mkdirs()) {
+      File baseDir = new File(locationConfs.get(0).getPath(), "info_dir");
+      if (!baseDir.exists() && !baseDir.mkdirs()) {
         return;
       }
       File[] segmentsToLoad = baseDir.listFiles();
@@ -134,7 +136,7 @@ public class IndexViewer implements CommonShell
         return;
       }
       List<File> locations = Lists.newArrayList();
-      for (StorageLocationConfig conf : config.getLocations()) {
+      for (StorageLocationConfig conf : locationConfs) {
         locations.add(conf.getPath());
       }
       LOG.info("Total %d segments found in %s", segmentsToLoad.length, baseDir);
