@@ -90,11 +90,11 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);
     final Map<String, List<Rule>> rulesPerDataSource = Maps.newHashMap();
+    int segments = 0;
     int missingRules = 0;
     int notAssignedCount = 0;
-    final Set<DataSegment> targetSegments = getTargetSegments(paramsWithReplicationManager);
-    final int maxNotAssigned = Math.max(10, Math.min((int)(targetSegments.size() * 0.3), MAX_NOT_ASSIGNED));
-    for (DataSegment segment : targetSegments) {
+    for (DataSegment segment : getTargetSegments(paramsWithReplicationManager)) {
+      segments++;
       List<Rule> rules = rulesPerDataSource.computeIfAbsent(
           segment.getDataSource(), new Function<String, List<Rule>>()
           {
@@ -120,12 +120,14 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
           segmentsWithMissingRules.add(segment.getIdentifier());
         }
         missingRules++;
-      } else if (notAssigned && notAssignedCount++ >= maxNotAssigned) {
-        logCluster(cluster);
-        break;
+      } else if (notAssigned) {
+        notAssignedCount++;
       }
     }
-
+    final int maxNotAssigned = Math.max(10, Math.min((int)(segments * 0.3), MAX_NOT_ASSIGNED));
+    if (notAssignedCount >= maxNotAssigned) {
+      logCluster(cluster);
+    }
     if (!segmentsWithMissingRules.isEmpty()) {
       log.makeAlert("Unable to find matching rules!")
          .addData("segmentsWithMissingRulesCount", missingRules)
@@ -174,23 +176,22 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     return params.getReplicationManager();
   }
 
-  protected Set<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
+  protected Iterable<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
   {
+    final Set<DataSegment> segments = coordinatorParam.getNonOvershadowedSegments();
     if (!coordinatorParam.isMajorTick()) {
       final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
-      return coordinator.makeOrdered(
-          Iterables.filter(
-              coordinatorParam.getNonOvershadowedSegments(), new Predicate<DataSegment>()
-              {
-                @Override
-                public boolean apply(DataSegment input)
-                {
-                  return replicantLookup.getTotalReplicants(input.getIdentifier()) == 0;
-                }
-              }
-          )
+      return Iterables.filter(
+          segments, new Predicate<DataSegment>()
+          {
+            @Override
+            public boolean apply(DataSegment input)
+            {
+              return replicantLookup.getTotalReplicants(input.getIdentifier()) == 0;
+            }
+          }
       );
     }
-    return coordinatorParam.getNonOvershadowedSegments();
+    return segments;
   }
 }

@@ -474,12 +474,7 @@ public class DruidCoordinator
     }
   }
 
-  public Set<DataSegment> getOrderedAvailableDataSegments()
-  {
-    return makeOrdered(getAvailableDataSegments());
-  }
-
-  public Set<DataSegment> makeOrdered(Iterable<DataSegment> dataSegments)
+  public static Set<DataSegment> makeOrdered(Iterable<DataSegment> dataSegments)
   {
     Set<DataSegment> availableSegments = Sets.newTreeSet(SEGMENT_COMPARATOR);
 

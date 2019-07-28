@@ -372,7 +372,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
   @Test
   public void testOrderedAvailableDataSegments()
   {
-    DruidDataSource dataSource = new DruidDataSource("test", new HashMap());
+    DruidDataSource dataSource = new DruidDataSource("test", new HashMap<>());
     DataSegment[] segments = new DataSegment[]{
         getSegment("test", new Interval("2016-01-10T03:00:00Z/2016-01-10T04:00:00Z")),
         getSegment("test", new Interval("2016-01-11T01:00:00Z/2016-01-11T02:00:00Z")),
@@ -387,7 +387,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         ImmutableList.of(dataSource)
     ).atLeastOnce();
     EasyMock.replay(databaseSegmentManager);
-    Set<DataSegment> availableSegments = coordinator.getOrderedAvailableDataSegments();
+    Set<DataSegment> availableSegments = DruidCoordinator.makeOrdered(coordinator.getAvailableDataSegments());
     DataSegment[] expected = new DataSegment[]{
         getSegment("test", new Interval("2016-01-11T01:00:00Z/2016-01-11T02:00:00Z")),
         getSegment("test", new Interval("2016-01-10T03:00:00Z/2016-01-10T04:00:00Z")),

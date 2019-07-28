@@ -43,24 +43,8 @@ public class DruidCoordinatorSegmentInfoLoader implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(final DruidCoordinatorRuntimeParams params)
   {
-    // Display info about all available segments
-    Supplier<Set<DataSegment>> supplier = Suppliers.memoize(new Supplier<Set<DataSegment>>()
-    {
-      @Override
-      public Set<DataSegment> get()
-      {
-        final Set<DataSegment> availableSegments = coordinator.getOrderedAvailableDataSegments();
-        log.info(
-            "Starting coordination (%s), running on [%,d] segments.",
-            params.isMajorTick() ? "major" : "minor",
-            availableSegments.size()
-        );
-        return Collections.unmodifiableSet(availableSegments);
-      }
-    });
-
     return params.buildFromExisting()
-                 .withAvailableSegments(supplier)
+                 .withAvailableSegments(coordinator.getAvailableDataSegments())
                  .build();
   }
 }

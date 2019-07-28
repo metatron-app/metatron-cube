@@ -45,8 +45,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
       return params;
     }
     CoordinatorStats stats = new CoordinatorStats();
-    Set<DataSegment> availableSegments = params.getAvailableSegments();
-    DruidCluster cluster = params.getDruidCluster();
+    Set<DataSegment> availableSegments = params.getMaterializedSegments();
 
     // Drop segments that no longer exist in the available segments configuration, *if* it has been populated. (It might
     // not have been loaded yet since it's filled asynchronously. But it's also filled atomically, so if there are any
@@ -55,6 +54,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
     // This is done to prevent a race condition in which the coordinator would drop all segments if it started running
     // cleanup before it finished polling the metadata storage for available segments for the first time.
     if (!availableSegments.isEmpty()) {
+      DruidCluster cluster = params.getDruidCluster();
       for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
         for (ServerHolder serverHolder : serverHolders) {
           ImmutableDruidServer server = serverHolder.getServer();

@@ -62,7 +62,7 @@ public abstract class LoadRule implements Rule
       return false;
     }
     final CoordinatorStats stats = params.getCoordinatorStats();
-    final Set<DataSegment> availableSegments = params.getAvailableSegments();
+    final Set<DataSegment> availableSegments = params.getMaterializedSegments();
 
     final Map<String, Integer> loadStatus = Maps.newHashMap();
 

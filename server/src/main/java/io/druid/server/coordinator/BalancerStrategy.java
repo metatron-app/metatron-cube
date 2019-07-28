@@ -55,7 +55,7 @@ public interface BalancerStrategy
       for (int iter = 0; iter < maxSegmentsToMove; iter++) {
         final BalancerSegmentHolder segmentToMove = pickSegmentToMove(serverHolders);
 
-        if (segmentToMove != null && params.getAvailableSegments().contains(segmentToMove.getSegment())) {
+        if (segmentToMove != null && params.getMaterializedSegments().contains(segmentToMove.getSegment())) {
           final ServerHolder holder = findNewSegmentHomeBalancer(segmentToMove.getSegment(), serverHolders);
 
           if (holder != null) {

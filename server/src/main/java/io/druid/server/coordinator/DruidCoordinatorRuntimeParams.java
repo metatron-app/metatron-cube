@@ -19,9 +19,7 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
@@ -39,6 +37,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  */
@@ -49,7 +48,7 @@ public class DruidCoordinatorRuntimeParams
   private final MetadataRuleManager databaseRuleManager;
   private final SegmentReplicantLookup segmentReplicantLookup;
   private final Set<DruidDataSource> dataSources;
-  private final Supplier<Set<DataSegment>> availableSegments;
+  private final Iterable<DataSegment> availableSegments;
   private final Map<String, LoadQueuePeon> loadManagementPeons;
   private final ReplicationThrottler replicationManager;
   private final ServiceEmitter emitter;
@@ -69,7 +68,7 @@ public class DruidCoordinatorRuntimeParams
       MetadataRuleManager databaseRuleManager,
       SegmentReplicantLookup segmentReplicantLookup,
       Set<DruidDataSource> dataSources,
-      Supplier<Set<DataSegment>> availableSegments,
+      Iterable<DataSegment> availableSegments,
       Map<String, LoadQueuePeon> loadManagementPeons,
       ReplicationThrottler replicationManager,
       ServiceEmitter emitter,
@@ -126,10 +125,15 @@ public class DruidCoordinatorRuntimeParams
     return dataSources;
   }
 
-  public Set<DataSegment> getAvailableSegments()
+  public Iterable<DataSegment> getAvailableSegments()
+  {
+    return materializedSegments != null ? materializedSegments : availableSegments;
+  }
+
+  public Set<DataSegment> getMaterializedSegments()
   {
     if (materializedSegments == null) {
-      materializedSegments = Collections.unmodifiableSet(availableSegments.get());
+      materializedSegments = ImmutableSet.copyOf(availableSegments);
     }
     return materializedSegments;
   }
@@ -152,15 +156,19 @@ public class DruidCoordinatorRuntimeParams
     return materializedNonOvershadowedSegments;
   }
 
-  private Set<DataSegment> retainOverShadowed(Set<DataSegment> segments)
+  private Set<DataSegment> retainOverShadowed(Iterable<DataSegment> segments)
   {
     Map<String, VersionedIntervalTimeline<String, DataSegment>> timelines = new HashMap<>();
     for (DataSegment segment : segments) {
-      VersionedIntervalTimeline<String, DataSegment> timeline = timelines.get(segment.getDataSource());
-      if (timeline == null) {
-        timeline = new VersionedIntervalTimeline<>(Ordering.natural());
-        timelines.put(segment.getDataSource(), timeline);
-      }
+      VersionedIntervalTimeline<String, DataSegment> timeline = timelines.computeIfAbsent(
+          segment.getDataSource(), new Function<String, VersionedIntervalTimeline<String, DataSegment>>()
+          {
+            @Override
+            public VersionedIntervalTimeline<String, DataSegment> apply(String dataSource)
+            {
+              return new VersionedIntervalTimeline<>(Ordering.natural());
+            }
+          });
       timeline.add(
           segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
       );
@@ -177,7 +185,7 @@ public class DruidCoordinatorRuntimeParams
     return overshadowed;
   }
 
-  private Set<DataSegment> retainNonOverShadowed(Set<DataSegment> segments, Set<DataSegment> overshadowed)
+  private Set<DataSegment> retainNonOverShadowed(Iterable<DataSegment> segments, Set<DataSegment> overshadowed)
   {
     Set<DataSegment> nonOvershadowed = new HashSet<>();
     for (DataSegment dataSegment : segments) {
@@ -270,7 +278,7 @@ public class DruidCoordinatorRuntimeParams
     private MetadataRuleManager databaseRuleManager;
     private SegmentReplicantLookup segmentReplicantLookup;
     private final Set<DruidDataSource> dataSources;
-    private Supplier<Set<DataSegment>> availableSegments;
+    private Iterable<DataSegment> availableSegments;
     private final Map<String, LoadQueuePeon> loadManagementPeons;
     private ReplicationThrottler replicationManager;
     private ServiceEmitter emitter;
@@ -307,7 +315,7 @@ public class DruidCoordinatorRuntimeParams
         MetadataRuleManager databaseRuleManager,
         SegmentReplicantLookup segmentReplicantLookup,
         Set<DruidDataSource> dataSources,
-        Supplier<Set<DataSegment>> availableSegments,
+        Iterable<DataSegment> availableSegments,
         Map<String, LoadQueuePeon> loadManagementPeons,
         ReplicationThrottler replicationManager,
         ServiceEmitter emitter,
@@ -393,23 +401,9 @@ public class DruidCoordinatorRuntimeParams
       return this;
     }
 
-    @VisibleForTesting
-    public Builder withAvailableSegments(Collection<DataSegment> availableSegmentsCollection)
+    public Builder withAvailableSegments(Iterable<DataSegment> availableSegments)
     {
-      Set<DataSegment> segmentSet;
-      if (availableSegmentsCollection instanceof Set) {
-        segmentSet = (Set<DataSegment>)availableSegmentsCollection;
-      } else {
-        segmentSet = Sets.newHashSet(availableSegmentsCollection);
-      }
-      availableSegments = Suppliers.ofInstance(segmentSet);
-      materializedSegments = materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
-      return this;
-    }
-
-    public Builder withAvailableSegments(Supplier<Set<DataSegment>> availableSegmentsCollection)
-    {
-      availableSegments = availableSegmentsCollection;
+      this.availableSegments = availableSegments;
       materializedSegments = materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
       return this;
     }
