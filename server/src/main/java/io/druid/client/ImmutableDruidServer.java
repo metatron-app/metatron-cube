@@ -64,8 +64,7 @@ public class ImmutableDruidServer
 
   public String getHostAndPort()
   {
-    // #4270
-    return null;
+    return metadata.getHost();
   }
 
   public String getHostAndTlsPort()
