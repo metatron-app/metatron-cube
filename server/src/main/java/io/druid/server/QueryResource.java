@@ -364,13 +364,11 @@ public class QueryResource
     if (query.getId() == null) {
       adding.put(Query.QUERYID, UUID.randomUUID().toString());
     }
-    if (query.getContextInt(QueryContextKeys.TIMEOUT, -1) < 0) {
-      adding.put(Query.TIMEOUT, config.getMaxIdleTime().toStandardDuration().getMillis());
-    }
-    if (!adding.isEmpty()) {
-      query = query.withOverriddenContext(adding);
-    }
-    return query;
+    adding.put(
+        Query.TIMEOUT,
+        warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(QueryContextKeys.TIMEOUT, -1))
+    );
+    return query.withOverriddenContext(adding);
   }
 
   private void handleException(Query query, String remote, long start, Throwable e)

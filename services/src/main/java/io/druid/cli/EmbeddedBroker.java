@@ -54,7 +54,6 @@ import io.druid.guice.annotations.Self;
 import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RetryQueryRunnerConfig;
@@ -146,6 +145,7 @@ public class EmbeddedBroker extends ServerRunnable
   public static class EmbeddedResource implements Closeable
   {
     private final ServerConfig config;
+    private final QueryToolChestWarehouse warehouse;
     private final QuerySegmentWalker texasRanger;
     private final QueryManager queryManager;
 
@@ -154,12 +154,14 @@ public class EmbeddedBroker extends ServerRunnable
     @Inject
     public EmbeddedResource(
         ServerConfig config,
+        QueryToolChestWarehouse warehouse,
         QuerySegmentWalker texasRanger,
         QueryManager queryManager,
         Lifecycle lifecycle
     )
     {
       this.config = config;
+      this.warehouse = warehouse;
       this.texasRanger = texasRanger;
       this.queryManager = queryManager;
       this.lifecycle = lifecycle;
@@ -172,14 +174,8 @@ public class EmbeddedBroker extends ServerRunnable
         queryId = UUID.randomUUID().toString();
         query = query.withId(queryId);
       }
-      if (query.getContextValue(QueryContextKeys.TIMEOUT) == null) {
-        query = query.withOverriddenContext(
-            ImmutableMap.of(
-                QueryContextKeys.TIMEOUT,
-                config.getMaxIdleTime().toStandardDuration().getMillis()
-            )
-        );
-      }
+      long timeout = warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(Query.TIMEOUT, -1));
+      query = query.withOverriddenContext(ImmutableMap.of(Query.TIMEOUT, timeout));
 
       return query.run(texasRanger, context);
     }

@@ -31,6 +31,7 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.topn.TopNQueryConfig;
 
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 /**
@@ -45,6 +46,10 @@ public class QueryConfig
 
   @JsonProperty
   public boolean useHandedOffSegmentsOnlyForLuceneIndex;
+
+  @JsonProperty
+  @Min(1_000)
+  private long maxQueryTimeout = 60_000;
 
   @JacksonInject
   @NotNull
@@ -118,6 +123,16 @@ public class QueryConfig
     return !BaseQuery.isBySegment(query) &&
            query instanceof GroupByQuery &&
            query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow());
+  }
+
+  public long getMaxQueryTimeout()
+  {
+    return maxQueryTimeout;
+  }
+
+  public long getMaxQueryTimeout(long required)
+  {
+    return required <= 0 ? maxQueryTimeout : Math.min(required, maxQueryTimeout);
   }
 
   public GroupByQueryConfig getGroupBy()
