@@ -118,7 +118,6 @@ public class GroupByQueryRunnerFactoryTest
         true,
         true,
         true,
-        true,
         5000
     );
 

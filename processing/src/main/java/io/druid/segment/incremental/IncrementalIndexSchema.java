@@ -30,8 +30,8 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.select.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.select.Schema;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +48,7 @@ public class IncrementalIndexSchema
   private final AggregatorFactory[] metrics;
   private final boolean rollup;
   private final boolean fixedSchema;
+  private final boolean noQuery;
 
   @JsonCreator
   public IncrementalIndexSchema(
@@ -57,7 +58,8 @@ public class IncrementalIndexSchema
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
-      @JsonProperty("fixedSchema") boolean fixedSchema
+      @JsonProperty("fixedSchema") boolean fixedSchema,
+      @JsonProperty("noQuery") boolean noQuery
   )
   {
     this.minTimestamp = minTimestamp;
@@ -67,6 +69,7 @@ public class IncrementalIndexSchema
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
     this.fixedSchema = fixedSchema;
+    this.noQuery = noQuery;
   }
 
   @JsonProperty
@@ -111,6 +114,12 @@ public class IncrementalIndexSchema
     return fixedSchema;
   }
 
+  @JsonProperty
+  public boolean isNoQuery()
+  {
+    return noQuery;
+  }
+
   public List<String> getDimensionNames()
   {
     return dimensionsSpec.getDimensionNames();
@@ -150,22 +159,58 @@ public class IncrementalIndexSchema
 
   public IncrementalIndexSchema withRollup(boolean rollup)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
+    return new IncrementalIndexSchema(
+        minTimestamp,
+        gran,
+        segmentGran,
+        dimensionsSpec,
+        metrics,
+        rollup,
+        fixedSchema,
+        noQuery
+    );
   }
 
   public IncrementalIndexSchema withDimensionsSpec(DimensionsSpec dimensionsSpec)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
+    return new IncrementalIndexSchema(
+        minTimestamp,
+        gran,
+        segmentGran,
+        dimensionsSpec,
+        metrics,
+        rollup,
+        fixedSchema,
+        noQuery
+    );
   }
 
   public IncrementalIndexSchema withMetrics(AggregatorFactory... metrics)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
+    return new IncrementalIndexSchema(
+        minTimestamp,
+        gran,
+        segmentGran,
+        dimensionsSpec,
+        metrics,
+        rollup,
+        fixedSchema,
+        noQuery
+    );
   }
 
   public IncrementalIndexSchema withMinTimestamp(long minTimestamp)
   {
-    return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
+    return new IncrementalIndexSchema(
+        minTimestamp,
+        gran,
+        segmentGran,
+        dimensionsSpec,
+        metrics,
+        rollup,
+        fixedSchema,
+        noQuery
+    );
   }
 
   @Override
@@ -191,6 +236,7 @@ public class IncrementalIndexSchema
     private AggregatorFactory[] metrics;
     private boolean fixedSchema;
     private boolean rollup;
+    private boolean noQuery;
 
     public Builder()
     {
@@ -282,9 +328,24 @@ public class IncrementalIndexSchema
       return this;
     }
 
+    public Builder withNoQuery(boolean noQuery)
+    {
+      this.noQuery = noQuery;
+      return this;
+    }
+
     public IncrementalIndexSchema build()
     {
-      return new IncrementalIndexSchema(minTimestamp, gran, segmentGran, dimensionsSpec, metrics, rollup, fixedSchema);
+      return new IncrementalIndexSchema(
+          minTimestamp,
+          gran,
+          segmentGran,
+          dimensionsSpec,
+          metrics,
+          rollup,
+          fixedSchema,
+          noQuery
+      );
     }
   }
 }

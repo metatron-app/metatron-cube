@@ -238,7 +238,6 @@ public class SelectBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

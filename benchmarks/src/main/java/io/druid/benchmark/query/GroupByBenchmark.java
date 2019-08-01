@@ -255,7 +255,6 @@ public class GroupByBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

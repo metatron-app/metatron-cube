@@ -154,7 +154,6 @@ public class IndexPersistBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

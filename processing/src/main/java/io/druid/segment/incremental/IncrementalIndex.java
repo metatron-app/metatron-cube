@@ -22,16 +22,13 @@ package io.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
@@ -53,6 +50,7 @@ import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.Granularity;
+import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -76,16 +74,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-public abstract class IncrementalIndex<AggregatorType> implements Closeable
+public abstract class IncrementalIndex implements Closeable
 {
-  static final Logger log = new Logger(IncrementalIndex.class);
-
-  private final AtomicLong maxIngestedEventTime = new AtomicLong(-1);
+  protected static final Logger LOG = new Logger(IncrementalIndex.class);
 
   private static final Function<Object, String> STRING_TRANSFORMER = new Function<Object, String>()
   {
@@ -185,88 +180,88 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   }
 
   protected final Granularity gran;
+  protected final AggregatorFactory[] metrics;
+  protected final ColumnSelectorFactory[] selectors;
+  protected final boolean reportParseExceptions;
+  protected final int maxRowCount;
 
   private final long minTimestampLimit;
   private final List<Function<InputRow, InputRow>> rowTransformers;
-  private final AggregatorFactory[] metrics;
-  private final AggregatorType[] aggs;
   private final long maxLengthForAggregators;
-  private final boolean deserializeComplexMetrics;
-  private final boolean reportParseExceptions;
-  private final boolean sortFacts;    // this need to be true for query or indexing (false only for gby merging)
   private final boolean estimate;
   private final boolean rollup;
   private final boolean fixedSchema;
   private final Metadata metadata;
 
   private final Map<String, MetricDesc> metricDescs;
-
   private final Map<String, DimensionDesc> dimensionDescs;
   private final Map<String, ColumnCapabilities> columnCapabilities;
   private final List<DimDim> dimValues;
 
-  // looks need a configuration
-  private final Ordering<Comparable> ordering = Ordering.natural().nullsFirst();
-
-  private final AtomicInteger numEntries = new AtomicInteger();
-
   // This is modified on add() in a critical section.
   private final ThreadLocal<Row> in = new ThreadLocal<>();
-  private final Supplier<Row> rowSupplier = new Supplier<Row>()
-  {
-    @Override
-    public Row get()
-    {
-      return in.get();
-    }
-  };
 
   private int ingestedNumRows;
+  private long maxIngestedEventTime = -1;
   private long minTimeMillis = Long.MAX_VALUE;
   private long maxTimeMillis = Long.MIN_VALUE;
 
-  protected final int maxRowCount;
-  private String outOfRowsReason = null;
+  private String outOfRowsReason;
 
-  private AtomicLong indexer = new AtomicLong();
+  // dummy value for no rollup
+  private final AtomicLong indexer = new AtomicLong();
 
   /**
    * Setting deserializeComplexMetrics to false is necessary for intermediate aggregation such as groupBy that
    * should not deserialize input columns using ComplexMetricSerde for aggregators that return complex metrics.
    *
-   * @param incrementalIndexSchema    the schema to use for incremental index
+   * @param indexSchema    the schema to use for incremental index
    * @param deserializeComplexMetrics flag whether or not to call ComplexMetricExtractor.extractValue() on the input
    *                                  value for aggregators that return metrics other than float.
    * @param reportParseExceptions     flag whether or not to report ParseExceptions that occur while extracting values
    *                                  from input rows
    */
   public IncrementalIndex(
-      final IncrementalIndexSchema incrementalIndexSchema,
+      final IncrementalIndexSchema indexSchema,
       final boolean deserializeComplexMetrics,
       final boolean reportParseExceptions,
-      final boolean sortFacts,
       final boolean estimate,
       final int maxRowCount
   )
   {
-    this.minTimestampLimit = incrementalIndexSchema.getMinTimestamp();
-    this.gran = incrementalIndexSchema.getGran();
-    this.metrics = incrementalIndexSchema.getMetrics();
+    this.minTimestampLimit = indexSchema.getMinTimestamp();
+    this.gran = indexSchema.getGran();
+    this.metrics = indexSchema.getMetrics();
     this.rowTransformers = new CopyOnWriteArrayList<>();
-    this.deserializeComplexMetrics = deserializeComplexMetrics;
     this.reportParseExceptions = reportParseExceptions;
-    this.sortFacts = sortFacts;
     this.estimate = estimate;
-    this.rollup = incrementalIndexSchema.isRollup();
-    this.fixedSchema = incrementalIndexSchema.isFixedSchema();
+    this.rollup = indexSchema.isRollup();
+    this.fixedSchema = indexSchema.isFixedSchema();
     this.maxRowCount = maxRowCount;
+
+    this.selectors = new ColumnSelectorFactory[metrics.length];
+    final Supplier<Row> rowSupplier = new Supplier<Row>()
+    {
+      @Override
+      public Row get()
+      {
+        return in.get();
+      }
+    };
+    for (int i = 0; i < metrics.length; i++) {
+      ColumnSelectorFactory delegate = new ColumnSelectorFactories.FromInputRow(
+          rowSupplier,
+          metrics[i],
+          deserializeComplexMetrics
+      );
+      selectors[i] = new ColumnSelectorFactories.Caching(delegate);
+    }
 
     this.metadata = new Metadata()
         .setAggregators(AggregatorFactory.toCombinerFactory(metrics))
         .setQueryGranularity(gran)
-        .setSegmentGranularity(incrementalIndexSchema.getSegmentGran());
+        .setSegmentGranularity(indexSchema.getSegmentGran());
 
-    this.aggs = initAggs(metrics, rowSupplier, deserializeComplexMetrics);
     this.columnCapabilities = Maps.newHashMap();
 
     this.metricDescs = Maps.newLinkedHashMap();
@@ -276,7 +271,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       columnCapabilities.put(metricDesc.getName(), metricDesc.getCapabilities());
     }
 
-    DimensionsSpec dimensionsSpec = incrementalIndexSchema.getDimensionsSpec();
+    DimensionsSpec dimensionsSpec = indexSchema.getDimensionsSpec();
 
     this.dimensionDescs = Maps.newLinkedHashMap();
     this.dimValues = Collections.synchronizedList(Lists.<DimDim>newArrayList());
@@ -288,7 +283,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
         capabilities.setHasSpatialIndexes(true);
       } else {
-        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling(), -1);
+        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling());
       }
       columnCapabilities.put(dimSchema.getName(), capabilities);
     }
@@ -310,7 +305,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  final DimDim newDimDim(ValueType type, int compareCacheEntry)
+  final DimDim newDimDim(ValueType type)
   {
     DimDim newDimDim;
     switch (type) {
@@ -325,8 +320,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
         break;
       case STRING:
         newDimDim = new NullValueConverterDimDim(
-            new OnHeapDimDim(estimate ? SizeEstimator.STRING : SizeEstimator.NO, type.classOfObject()),
-            sortFacts ? compareCacheEntry : -1
+            new OnHeapDimDim(estimate ? SizeEstimator.STRING : SizeEstimator.NO, type.classOfObject())
         );
         break;
       default:
@@ -349,35 +343,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     return outOfRowsReason;
   }
 
-  protected abstract AggregatorType[] initAggs(
-      AggregatorFactory[] metrics,
-      Supplier<Row> rowSupplier,
-      boolean deserializeComplexMetrics
-  );
-
   // Note: This method needs to be thread safe.
-  protected abstract Integer addToFacts(
-      AggregatorFactory[] metrics,
-      boolean deserializeComplexMetrics,
-      boolean reportParseExceptions,
-      Row row,
-      AtomicInteger numEntries,
-      TimeAndDims key,
-      ThreadLocal<Row> rowContainer,
-      Supplier<Row> rowSupplier
-  ) throws IndexSizeExceededException;
-
-  protected abstract AggregatorType[] getAggsForRow(int rowOffset);
-
-  protected abstract Object getAggVal(AggregatorType agg, int rowOffset, int aggPosition);
-
-  protected abstract Float getFloat(int rowOffset, int aggOffset);
-
-  protected abstract Double getDouble(int rowOffset, int aggOffset);
-
-  protected abstract Long getLong(int rowOffset, int aggOffset);
-
-  protected abstract Object getMetricObjectValue(int rowOffset, int aggOffset);
+  protected abstract void addToFacts(TimeAndDims key, Row row, ThreadLocal<Row> rowContainer)
+      throws IndexSizeExceededException;
 
   @Override
   public void close()
@@ -442,19 +410,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   private int addTimeAndDims(Row row, TimeAndDims key) throws IndexSizeExceededException
   {
-    final int rv = addToFacts(
-        metrics,
-        deserializeComplexMetrics,
-        reportParseExceptions,
-        row,
-        numEntries,
-        key,
-        in,
-        rowSupplier
-    );
-    ingestedNumRows++;
+    addToFacts(key, row, in);
     updateMaxIngestedTime(row.getTimestampFromEpoch());
-    return rv;
+    ingestedNumRows++;
+    return size();
   }
 
   @VisibleForTesting
@@ -500,7 +459,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
         }
 
         if (desc == null) {
-          desc = addNewDimension(dimension, capabilities, null, -1);
+          desc = addNewDimension(dimension, capabilities, null);
 
           if (overflow == null) {
             overflow = Lists.newArrayList();
@@ -573,21 +532,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   private void updateMaxIngestedTime(long time)
   {
-    for (long current = maxIngestedEventTime.get(); time > current; current = maxIngestedEventTime.get()) {
-      if (maxIngestedEventTime.compareAndSet(current, time)) {
-        break;
-      }
-    }
-  }
-
-  // fast track for group-by query
-  public void initialize(List<String> dimensions, List<ValueType> types)
-  {
-    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
-    Preconditions.checkArgument(types == null || dimensions.size() == types.size());
-    for (int i = 0; i < dimensions.size(); i++) {
-      ValueType type = types == null ? ValueType.STRING : types.get(i);
-      addNewDimension(dimensions.get(i), ColumnCapabilities.of(type), MultiValueHandling.ARRAY, -1);
+    if (maxIngestedEventTime < 0 || time > maxIngestedEventTime) {
+      maxIngestedEventTime = time;
     }
   }
 
@@ -621,13 +567,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   public boolean isEmpty()
   {
-    return numEntries.get() == 0;
+    return size() == 0;
   }
 
-  public int size()
-  {
-    return numEntries.get();
-  }
+  public abstract int size();
 
   public long estimatedOccupation()
   {
@@ -677,7 +620,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
     final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
     if (multiValueHandling != MultiValueHandling.ARRAY) {
-      Arrays.sort(dimArray, ordering);
+      Arrays.sort(dimArray, GuavaUtils.NULL_FIRST_NATURAL);
     }
 
     final int[] retVal = new int[dimArray.length];
@@ -696,11 +639,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     }
 
     return pos == retVal.length ? retVal : Arrays.copyOf(retVal, pos);
-  }
-
-  public AggregatorType[] getAggs()
-  {
-    return aggs;
   }
 
   public AggregatorFactory[] getMetricAggs()
@@ -787,22 +725,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
           ColumnCapabilities capabilities = new ColumnCapabilities();
           capabilities.setType(ValueType.STRING);
           columnCapabilities.put(dim, capabilities);
-          addNewDimension(dim, capabilities, null, -1);
+          addNewDimension(dim, capabilities, null);
         }
       }
     }
   }
 
   @GuardedBy("dimensionDescs")
-  private DimensionDesc addNewDimension(
-      String dim,
-      ColumnCapabilities capabilities,
-      MultiValueHandling multiValueHandling,
-      int compareCacheEntry
-      )
+  private DimensionDesc addNewDimension(String dim, ColumnCapabilities capabilities, MultiValueHandling handling)
   {
-    DimDim values = newDimDim(capabilities.getType(), compareCacheEntry);
-    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), dim, values, capabilities, multiValueHandling);
+    DimDim values = newDimDim(capabilities.getType());
+    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), dim, values, capabilities, handling);
     if (dimValues.size() != desc.getIndex()) {
       throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", dim);
     }
@@ -815,11 +748,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   public List<String> getMetricNames()
   {
     return ImmutableList.copyOf(metricDescs.keySet());
-  }
-
-  public List<MetricDesc> getMetrics()
-  {
-    return ImmutableList.copyOf(metricDescs.values());
   }
 
   public Integer getMetricIndex(String metricName)
@@ -838,41 +766,24 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     return columnCapabilities.get(column);
   }
 
-  public Iterable<Map.Entry<TimeAndDims, Integer>> getAll(Boolean timeDescending)
+  public Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getAll(Boolean timeDescending)
   {
     return getRangeOf(Long.MIN_VALUE, Long.MAX_VALUE, timeDescending);
   }
 
-  public abstract Iterable<Map.Entry<TimeAndDims, Integer>> getRangeOf(long from, long to, Boolean timeDescending);
-
-  protected Iterable<Map.Entry<TimeAndDims, Integer>> getFacts(
-      final Object facts,
-      final long from,
-      final long to,
-      final Boolean timeDescending
-  )
-  {
-    if (facts instanceof NavigableMap) {
-      return getFacts((NavigableMap) facts, from, to, timeDescending);
-    } else if (facts instanceof Map) {
-      return getFacts(((Map) facts).entrySet(), from, to, timeDescending);
-    } else if (facts instanceof List) {
-      return getFacts((List) facts, from, to, timeDescending);
-    }
-    throw new UnsupportedOperationException();
-  }
+  public abstract Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getRangeOf(long from, long to, Boolean timeDescending);
 
   @SuppressWarnings("unchecked")
-  private Iterable<Map.Entry<TimeAndDims, Integer>> getFacts(
+  protected Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getFacts(
       final NavigableMap facts,
       final long from,
       final long to,
       final Boolean timeDescending
   )
   {
-    NavigableMap<TimeAndDims, Integer> sortedMap = (NavigableMap<TimeAndDims, Integer>) facts;
+    NavigableMap<TimeAndDims, Aggregator[]> sortedMap = (NavigableMap<TimeAndDims, Aggregator[]>) facts;
     if (from > getMinTimeMillis() || to <= getMaxTimeMillis()) {
-      sortedMap = (NavigableMap<TimeAndDims, Integer>) sortedMap.subMap(
+      sortedMap = (NavigableMap<TimeAndDims, Aggregator[]>) sortedMap.subMap(
           createRangeTimeAndDims(from),
           createRangeTimeAndDims(to)
       );
@@ -883,34 +794,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     return sortedMap.entrySet();
   }
 
-  @SuppressWarnings("unchecked")
-  private Iterable<Map.Entry<TimeAndDims, Integer>> getFacts(
-      final Iterable facts,
-      final long from,
-      final long to,
-      final Boolean timeDescending
-  )
-  {
-    Iterable<Map.Entry<TimeAndDims, Integer>> entries = facts;
-    if (from > getMinTimeMillis() || to <= getMaxTimeMillis()) {
-      entries = Iterables.filter(
-          entries, new Predicate<Map.Entry<TimeAndDims, Integer>>()
-          {
-            @Override
-            public boolean apply(Map.Entry<TimeAndDims, Integer> input)
-            {
-              final long timestamp = input.getKey().getTimestamp();
-              return from <= timestamp && timestamp < to;
-            }
-          }
-      );
-    }
-    if (timeDescending != null) {
-      return sortOn(facts, timeComparator(timeDescending), -1, true);
-    }
-    return entries;
-  }
-
   public Metadata getMetadata()
   {
     return metadata.setIngestedNumRow(ingestedNumRows).setRollup(rollup);
@@ -919,22 +802,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   @VisibleForTesting
   public Iterator<Row> iterator()
   {
-    final Iterable<Map.Entry<TimeAndDims, Integer>> facts = getAll(null);
+    final Iterable<Map.Entry<TimeAndDims, Aggregator[]>> facts = getAll(null);
     return Iterators.transform(facts.iterator(), rowFunction(ImmutableList.<PostAggregator>of()));
-  }
-
-  public Iterable<Row> toMergeStream()
-  {
-    return Iterables.transform(
-        sortOn(getAll(null), dimsComparator(), size(), true),
-        rowFunction(ImmutableList.<PostAggregator>of())
-    );
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <K extends Comparable, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, boolean timeLog)
-  {
-    return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(), facts.size(), timeLog);
   }
 
   @SuppressWarnings("unchecked")
@@ -979,7 +848,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       Collections.sort(sorted, comparator);
     }
     if (timeLog) {
-      log.info("Sorted %,d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
+      LOG.info("Sorted %,d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
     }
     return sorted;
   }
@@ -999,20 +868,20 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     };
   }
 
-  protected final Function<Map.Entry<TimeAndDims, Integer>, Row> rowFunction(
+  protected final Function<Map.Entry<TimeAndDims, Aggregator[]>, Row> rowFunction(
       final List<PostAggregator> postAggregators
   )
   {
     final List<DimensionDesc> dimensions = getDimensions();
-    return new Function<Map.Entry<TimeAndDims, Integer>, Row>()
+    return new Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
     {
       @Override
-      public Row apply(final Map.Entry<TimeAndDims, Integer> input)
+      public Row apply(final Map.Entry<TimeAndDims, Aggregator[]> input)
       {
         final TimeAndDims timeAndDims = input.getKey();
-        final int rowOffset = input.getValue();
+        final Aggregator[] values = input.getValue();
 
-        int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
+        final int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
 
         Map<String, Object> theVals = Maps.newLinkedHashMap();
         for (int i = 0; i < theDims.length; ++i) {
@@ -1037,9 +906,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
           }
         }
 
-        AggregatorType[] aggs = getAggsForRow(rowOffset);
-        for (int i = 0; i < aggs.length; ++i) {
-          theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
+        for (int i = 0; i < metrics.length; ++i) {
+          theVals.put(metrics[i].getName(), values[i].get());
         }
 
         if (!postAggregators.isEmpty()) {
@@ -1056,7 +924,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
 
   public DateTime getMaxIngestedEventTime()
   {
-    return maxIngestedEventTime.get() < 0 ? null : new DateTime(maxIngestedEventTime.get());
+    return maxIngestedEventTime < 0 ? null : DateTimes.utc(maxIngestedEventTime);
   }
 
   public int ingestedRows()
@@ -1067,11 +935,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   public boolean isRollup()
   {
     return rollup;
-  }
-
-  public boolean isSorted()
-  {
-    return sortFacts;
   }
 
   public Schema asSchema(boolean prependTime)
@@ -1281,14 +1144,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   {
     private final DimDim delegate;
 
-    private final int compareCacheEntry;
-    private final byte[] cache;
-
-    NullValueConverterDimDim(DimDim delegate, int compareCacheEntry)
+    NullValueConverterDimDim(DimDim delegate)
     {
       this.delegate = delegate;
-      this.compareCacheEntry = compareCacheEntry = Math.min(compareCacheEntry, 8192);  // occupies max 8M
-      this.cache = compareCacheEntry > 0 ? new byte[(compareCacheEntry * (compareCacheEntry - 1) + 8) / 8] : null;
     }
 
     @Override
@@ -1348,63 +1206,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     @Override
     public int compare(int lhsIdx, int rhsIdx)
     {
-      if (cache != null && lhsIdx < compareCacheEntry && rhsIdx < compareCacheEntry) {
-        final boolean leftToRight = lhsIdx > rhsIdx;
-        final int[] cacheIndex = toIndex(lhsIdx, rhsIdx, leftToRight);
-        final byte encoded = getCache(cacheIndex);
-        if (encoded == ENCODED_NOT_EVAL) {
-          final int compare = delegate.compare(lhsIdx, rhsIdx);
-          setCache(cacheIndex, encode(compare, leftToRight));
-          return compare;
-        }
-        return decode(encoded, leftToRight);
-      }
       return delegate.compare(lhsIdx, rhsIdx);
-    }
-
-    // need four flags(not_yet, equal, positive, negative), allocating 2 bits for each entry
-    private static final int[] MASKS = new int[]{
-        0b00000011, 0b00001100, 0b00110000, 0b11000000
-    };
-
-    // compare results to be returned
-    private static final int EQUALS = 0;
-    private static final int POSITIVE = 1;
-    private static final int NEGATIVE = -1;
-
-    // stored format
-    private static final byte ENCODED_NOT_EVAL = 0x00;
-    private static final byte ENCODED_POSITIVE = 0x01;
-    private static final byte ENCODED_NEGATIVE = 0x02;
-    private static final byte ENCODED_EQUALS = 0x03;
-
-    private int[] toIndex(int lhsIdx, int rhsIdx, boolean leftToRight)
-    {
-      final int index = leftToRight ?
-                        (lhsIdx - rhsIdx - 1) + rhsIdx * (compareCacheEntry - 1) - (rhsIdx * (rhsIdx - 1) / 2) :
-                        (rhsIdx - lhsIdx - 1) + lhsIdx * (compareCacheEntry - 1) - (lhsIdx * (lhsIdx - 1) / 2);
-
-      return new int[]{index / 4, index % 4};
-    }
-
-    private byte getCache(int[] cacheIndex)
-    {
-      return (byte) ((cache[cacheIndex[0]] & MASKS[cacheIndex[1]]) >>> (cacheIndex[1] << 1));
-    }
-
-    private void setCache(int[] cacheIndex, byte value)
-    {
-      cache[cacheIndex[0]] |= (byte)(value << (cacheIndex[1] << 1));
-    }
-
-    private byte encode(int compare, boolean leftToRight)
-    {
-      return compare == EQUALS ? ENCODED_EQUALS : leftToRight ^ compare > 0 ? ENCODED_NEGATIVE : ENCODED_POSITIVE;
-    }
-
-    private int decode(byte encoded, boolean leftToRight)
-    {
-      return encoded == ENCODED_EQUALS ? EQUALS : leftToRight ^ encoded == ENCODED_POSITIVE ? NEGATIVE : POSITIVE;
     }
   }
 

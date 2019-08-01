@@ -242,7 +242,6 @@ public class SearchBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

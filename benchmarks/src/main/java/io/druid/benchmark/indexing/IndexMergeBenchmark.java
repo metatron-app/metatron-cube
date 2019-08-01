@@ -153,7 +153,6 @@ public class IndexMergeBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

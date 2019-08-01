@@ -114,7 +114,6 @@ public class IndexIngestionBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment * 2
     );

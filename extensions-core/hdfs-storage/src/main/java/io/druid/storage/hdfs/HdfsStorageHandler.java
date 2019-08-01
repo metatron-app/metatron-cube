@@ -388,7 +388,7 @@ public class HdfsStorageHandler implements StorageHandler
 
         private IncrementalIndex newIndex()
         {
-          return new OnheapIncrementalIndex(schema, true, true, true, false, maxRowCount)
+          return new OnheapIncrementalIndex(schema, true, true, false, maxRowCount)
           {
             @Override
             public Interval getInterval()

@@ -20,13 +20,13 @@
 package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.IndexableAdapter;
 import io.druid.segment.Metadata;
 import io.druid.segment.Rowboat;
@@ -50,7 +50,7 @@ import java.util.Set;
 public class IncrementalIndexAdapter implements IndexableAdapter
 {
   private final Interval dataInterval;
-  private final IncrementalIndex<?> index;
+  private final IncrementalIndex index;
   private final Set<String> hasNullValueDimensions;
 
   private final Map<String, DimensionIndexer> indexers;
@@ -87,10 +87,9 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   }
 
   public IncrementalIndexAdapter(
-      Interval dataInterval, IncrementalIndex<?> index, BitmapFactory bitmapFactory
+      Interval dataInterval, IncrementalIndex index, BitmapFactory bitmapFactory
   )
   {
-    Preconditions.checkArgument(index.isSorted(), "incremental index should be sorted on time and dimensions");
     this.dataInterval = dataInterval;
     this.index = index;
 
@@ -113,7 +112,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
     }
 
     int rowNum = 0;
-    for (Map.Entry<IncrementalIndex.TimeAndDims, Integer> fact : index.getAll(false)) {
+    for (Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> fact : index.getAll(false)) {
       final int[][] dims = fact.getKey().getDims();
 
       for (IncrementalIndex.DimensionDesc dimension : dimensions) {
@@ -235,16 +234,16 @@ public class IncrementalIndexAdapter implements IndexableAdapter
          */
         return Iterators.transform(
             index.getAll(false).iterator(),
-            new Function<Map.Entry<IncrementalIndex.TimeAndDims, Integer>, Rowboat>()
+            new Function<Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]>, Rowboat>()
             {
               int count = 0;
 
               @Override
-              public Rowboat apply(Map.Entry<IncrementalIndex.TimeAndDims, Integer> input)
+              public Rowboat apply(Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> input)
               {
                 final IncrementalIndex.TimeAndDims timeAndDims = input.getKey();
                 final int[][] dimValues = timeAndDims.getDims();
-                final int rowOffset = input.getValue();
+                final Aggregator[] aggregators = input.getValue();
 
                 int[][] dims = new int[dimValues.length][];
                 for (IncrementalIndex.DimensionDesc dimension : dimensions) {
@@ -269,7 +268,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
 
                 Object[] metrics = new Object[index.getMetricAggs().length];
                 for (int i = 0; i < metrics.length; i++) {
-                  metrics[i] = index.getMetricObjectValue(rowOffset, i);
+                  metrics[i] = aggregators[i].get();
                 }
 
                 return new Rowboat(

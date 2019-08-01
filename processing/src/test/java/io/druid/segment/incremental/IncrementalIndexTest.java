@@ -91,6 +91,7 @@ public class IncrementalIndexTest
         dimensions,
         metrics,
         true,
+        false,
         false
     );
 
@@ -103,7 +104,7 @@ public class IncrementalIndexTest
                 @Override
                 public IncrementalIndex createIndex()
                 {
-                  return new OnheapIncrementalIndex(schema, false, true, sortFacts, false, 1000);
+                  return new OnheapIncrementalIndex(schema, false, true, false, 1000);
                 }
               }
           }
@@ -176,7 +177,7 @@ public class IncrementalIndexTest
   @Test
   public void testNullDimensionTransform() throws IndexSizeExceededException
   {
-    IncrementalIndex<?> index = closer.closeLater(indexCreator.createIndex());
+    IncrementalIndex index = closer.closeLater(indexCreator.createIndex());
     index.add(
         new MapBasedInputRow(
             new DateTime().minus(1).getMillis(),

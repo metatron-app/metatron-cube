@@ -2093,6 +2093,7 @@ public class IndexMergerTest
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(dims), null, null),
         new AggregatorFactory[]{new CountAggregatorFactory("count")},
         true,
+        false,
         false
     );
 

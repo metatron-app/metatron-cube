@@ -248,7 +248,6 @@ public class TopNBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

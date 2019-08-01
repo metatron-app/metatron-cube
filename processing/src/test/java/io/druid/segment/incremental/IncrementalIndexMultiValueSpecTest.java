@@ -63,6 +63,7 @@ public class IncrementalIndexMultiValueSpecTest
         dimensionsSpec,
         new AggregatorFactory[0],
         true,
+        false,
         false
     );
     Map<String, Object> map = new HashMap<String, Object>()
@@ -82,7 +83,7 @@ public class IncrementalIndexMultiValueSpecTest
         return null;
       }
     };
-    IncrementalIndex<?> index = new OnheapIncrementalIndex(schema, true, 10000);
+    IncrementalIndex index = new OnheapIncrementalIndex(schema, true, 10000);
     index.add(
         new MapBasedInputRow(
             0, Arrays.asList(

@@ -121,7 +121,6 @@ public class IncrementalIndexReadBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

@@ -33,13 +33,13 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -395,7 +395,7 @@ public class BrokerQueryResource extends QueryResource
         );
         return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {
-        List result = Sequences.toList(runner.run(query, Maps.newHashMap()), Lists.newArrayList());
+        List result = Sequences.toList(runner.run(query, Maps.newHashMap()));
         return context.ok(result.size() == 1 ? result.get(0) : result);
       }
     }

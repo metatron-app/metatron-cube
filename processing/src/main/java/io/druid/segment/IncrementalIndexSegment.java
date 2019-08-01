@@ -28,13 +28,10 @@ import org.joda.time.Interval;
  */
 public class IncrementalIndexSegment extends AbstractSegment
 {
-  private final IncrementalIndex<?> index;
+  private final IncrementalIndex index;
   private final String segmentIdentifier;
 
-  public IncrementalIndexSegment(
-      IncrementalIndex index,
-      String segmentIdentifier
-  )
+  public IncrementalIndexSegment(IncrementalIndex index, String segmentIdentifier)
   {
     this.index = index;
     this.segmentIdentifier = segmentIdentifier;

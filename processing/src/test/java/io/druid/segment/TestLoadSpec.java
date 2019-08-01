@@ -69,7 +69,7 @@ public class TestLoadSpec extends IncrementalIndexSchema
       @JsonProperty("indexSpec") IndexSpec indexSpec
   )
   {
-    super(minTimestamp, queryGran, segmentGran, dimensionsSpec, metricsSpec, rollup, fixedSchema);
+    super(minTimestamp, queryGran, segmentGran, dimensionsSpec, metricsSpec, rollup, fixedSchema, false);
     this.parser = parser == null ? Maps.<String, Object>newHashMap() : parser;
     this.columns = columns;
     this.timestampSpec = timestampSpec;

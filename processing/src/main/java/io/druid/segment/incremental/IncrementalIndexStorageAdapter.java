@@ -36,6 +36,7 @@ import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.aggregation.Aggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
@@ -79,17 +80,15 @@ import java.util.Map;
 public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
 {
   private final String segmentIdentifier;
-  private final IncrementalIndex<?> index;
+  private final IncrementalIndex index;
 
-  public IncrementalIndexStorageAdapter(String segmentIdentifier, IncrementalIndex<?> index)
+  public IncrementalIndexStorageAdapter(String segmentIdentifier, IncrementalIndex index)
   {
     this.segmentIdentifier = segmentIdentifier;
     this.index = index;
   }
 
-  public IncrementalIndexStorageAdapter(
-      IncrementalIndex<?> index
-  )
+  public IncrementalIndexStorageAdapter(IncrementalIndex index)
   {
     this(null, index);
   }
@@ -285,8 +284,8 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
           {
             return new Cursor.ExprSupport()
             {
-              private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
-              private Iterable<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> cursorMap;
+              private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]>> baseIter;
+              private Iterable<Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]>> cursorMap;
               private final DateTime time;
               private int numAdvanced = -1;
               private boolean done;
@@ -554,7 +553,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   @Override
                   public Float get()
                   {
-                    return index.getFloat(currEntry.getValue(), metricIndex);
+                    return currEntry.getValue()[metricIndex].getFloat();
                   }
                 };
               }
@@ -585,7 +584,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   @Override
                   public Double get()
                   {
-                    return index.getDouble(currEntry.getValue(), metricIndex);
+                    return currEntry.getValue()[metricIndex].getDouble();
                   }
                 };
               }
@@ -627,7 +626,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   @Override
                   public Long get()
                   {
-                    return index.getLong(currEntry.getValue(), metricIndex);
+                    return currEntry.getValue()[metricIndex].getLong();
                   }
                 };
               }
@@ -667,10 +666,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                     @Override
                     public Object get()
                     {
-                      return index.getMetricObjectValue(
-                          currEntry.getValue(),
-                          metricIndex
-                      );
+                      return currEntry.getValue()[metricIndex].get();
                     }
                   };
                 }
@@ -743,14 +739,14 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
 
   private static class EntryHolder
   {
-    Map.Entry<IncrementalIndex.TimeAndDims, Integer> currEntry = null;
+    Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> currEntry = null;
 
-    public Map.Entry<IncrementalIndex.TimeAndDims, Integer> get()
+    public Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> get()
     {
       return currEntry;
     }
 
-    public void set(Map.Entry<IncrementalIndex.TimeAndDims, Integer> currEntry)
+    public void set(Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> currEntry)
     {
       this.currEntry = currEntry;
     }
@@ -760,7 +756,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
       return currEntry.getKey();
     }
 
-    public Integer getValue()
+    public Aggregator[] getValue()
     {
       return currEntry.getValue();
     }
@@ -770,7 +766,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   {
     private final String dataSource;
 
-    public Temporary(String dataSource, IncrementalIndex<?> index)
+    public Temporary(String dataSource, IncrementalIndex index)
     {
       super(index);
       this.dataSource = Preconditions.checkNotNull(dataSource);

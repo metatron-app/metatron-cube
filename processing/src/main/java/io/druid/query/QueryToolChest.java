@@ -362,7 +362,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
           schema.dimensionAndTypesString(), schema.metricAndTypesString()
       );
       int maxResult = config.getMaxResults(query);
-      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, true, false, maxResult);
+      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, false, maxResult);
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
           "Accumulated sub-query into index in %,d msec.. total %,d rows",

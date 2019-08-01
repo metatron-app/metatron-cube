@@ -128,7 +128,6 @@ public class IncrementalIndexRowTypeBenchmark
         false,
         false,
         true,
-        true,
         maxRows
     );
   }

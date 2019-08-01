@@ -239,7 +239,6 @@ public class TimeseriesBenchmark
             .build(),
         true,
         false,
-        true,
         false,
         rowsPerSegment
     );

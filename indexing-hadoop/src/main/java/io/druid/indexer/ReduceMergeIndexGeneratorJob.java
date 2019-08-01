@@ -316,13 +316,13 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
           .withRollup(granularitySpec.isRollup())
+          .withNoQuery(true)
           .build();
 
       return new OnheapIncrementalIndex(
           indexSchema,
           true,
           !tuningConfig.isIgnoreInvalidRows(),
-          true,
           true,
           maxRowCount
       );

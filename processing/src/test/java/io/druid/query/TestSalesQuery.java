@@ -81,6 +81,9 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     List<Row> expectedResults;
 
     results = runQuery(query);
+    for (Object x : results) {
+      System.out.println(x);
+    }
     expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 

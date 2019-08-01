@@ -253,6 +253,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withMetrics(aggs)
         .withRollup(granularitySpec.isRollup())
+        .withNoQuery(true)
         .build();
 
     final int boundary = hardLimit < 0 ? tuningConfig.getMaxRowsInMemory() : hardLimit;
@@ -260,7 +261,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         indexSchema,
         true,
         !tuningConfig.isIgnoreInvalidRows(),
-        true,
         true,
         boundary
     );
@@ -400,7 +400,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       }
     }
 
-    private void flushIndexToContextAndClose(BytesWritable key, IncrementalIndex<?> index, Context context)
+    private void flushIndexToContextAndClose(BytesWritable key, IncrementalIndex index, Context context)
         throws IOException, InterruptedException
     {
       final List<String> dimensions = index.getDimensionNames();

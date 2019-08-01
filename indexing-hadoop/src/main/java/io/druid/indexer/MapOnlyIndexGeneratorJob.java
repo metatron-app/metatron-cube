@@ -213,7 +213,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
     }
 
     private Interval interval;
-    private IncrementalIndex<?> index;
+    private IncrementalIndex index;
 
     @Override
     protected void innerMap(
@@ -425,13 +425,13 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
           .withRollup(granularitySpec.isRollup())
+          .withNoQuery(true)
           .build();
 
       OnheapIncrementalIndex newIndex = new OnheapIncrementalIndex(
           indexSchema,
           true,
           !tuningConfig.isIgnoreInvalidRows(),
-          true,
           true,
           tuningConfig.getMaxRowsInMemory()
       );
