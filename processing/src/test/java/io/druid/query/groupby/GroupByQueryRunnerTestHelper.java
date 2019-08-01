@@ -268,6 +268,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
           b.append("null");
         } else if (o instanceof String) {
           b.append('"').append(o).append('"');
+        } else if (o instanceof DateTime) {
+          b.append("new DateTime(").append('"').append(o).append('"').append(')');
         } else if (o instanceof Long) {
           b.append(o).append('L');
         } else if (o instanceof List) {

@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -316,10 +317,10 @@ public class Aggregators
           @SuppressWarnings("unchecked")
           public void aggregate()
           {
-            final Object update = selector.get();
-            if (update != null) {
-              final long current = timeSelector.get();
-              if (!selected || Longs.compare(maxTime, current) < 0) {
+            final long current = timeSelector.get();
+            if (!selected || Longs.compare(maxTime, current) < 0) {
+              final Object update = selector.get();
+              if (update != null) {
                 selected = true;
                 value = selector.get();
                 maxTime = current;
@@ -481,25 +482,20 @@ public class Aggregators
   }
 
   @SuppressWarnings("unchecked")
-  public static AggregatorFactory.Combiner relayCombiner(String type)
+  public static Combiner relayCombiner(String type)
   {
     switch (RELAY_TYPE.fromString(type)) {
       case ONLY_ONE:
-        return new AggregatorFactory.Combiner()
+        return new Combiner.Abstract()
         {
           @Override
-          public Object combine(Object param1, Object param2)
+          public Object _combine(Object param1, Object param2)
           {
-            if (param1 == null) {
-              return param2;
-            } else if (param2 == null) {
-              return param1;
-            }
             throw new UnsupportedOperationException("cannot combine");
           }
         };
       case FIRST:
-        return new AggregatorFactory.Combiner()
+        return new Combiner()
         {
           @Override
           public Object combine(Object param1, Object param2)
@@ -508,7 +504,7 @@ public class Aggregators
           }
         };
       case LAST:
-        return new AggregatorFactory.Combiner()
+        return new Combiner()
         {
           @Override
           public Object combine(Object param1, Object param2)
@@ -517,7 +513,7 @@ public class Aggregators
           }
         };
       case MIN:
-        return new AggregatorFactory.Combiner()
+        return new Combiner()
         {
           @Override
           public Object combine(Object param1, Object param2)
@@ -526,7 +522,7 @@ public class Aggregators
           }
         };
       case MAX:
-        return new AggregatorFactory.Combiner()
+        return new Combiner()
         {
           @Override
           public Object combine(Object param1, Object param2)
@@ -535,32 +531,22 @@ public class Aggregators
           }
         };
       case TIME_MIN:
-        return new AggregatorFactory.Combiner()
+        return new Combiner.Abstract()
         {
           @Override
-          public Object combine(Object param1, Object param2)
+          public Object _combine(Object param1, Object param2)
           {
-            if (param1 == null) {
-              return param2;
-            } else if (param2 == null) {
-              return param1;
-            }
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
             return Longs.compare(time1.longValue(), time2.longValue()) < 0 ? param1 : param2;
           }
         };
       case TIME_MAX:
-        return new AggregatorFactory.Combiner()
+        return new Combiner.Abstract()
         {
           @Override
-          public Object combine(Object param1, Object param2)
+          public Object _combine(Object param1, Object param2)
           {
-            if (param1 == null) {
-              return param2;
-            } else if (param2 == null) {
-              return param1;
-            }
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
             return Longs.compare(time1.longValue(), time2.longValue()) > 0 ? param1 : param2;

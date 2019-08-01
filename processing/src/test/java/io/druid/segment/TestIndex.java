@@ -23,7 +23,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -33,15 +35,18 @@ import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
+import io.druid.common.DateTimes;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryRunnerTestHelper;
@@ -49,6 +54,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -237,7 +243,66 @@ public class TestIndex
       final ObjectMapper mapper
   )
   {
-    final TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {}, mapper);
+    TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {}, mapper);
+    Supplier<CharSource> source = new Supplier<CharSource>()
+    {
+      @Override
+      public CharSource get()
+      {
+        return asCharSource(sourceFile);
+      }
+    };
+    load(ds, schema, source, mapper);
+  }
+
+  public static synchronized void addIndex(
+      final String ds,
+      final List<String> columns,
+      final List<String> types,
+      final Granularity segmentGran,
+      final String source
+  )
+  {
+    int timeIx = columns.indexOf("time");
+    String timeFormat = types.get(timeIx);
+    TimestampSpec spec = new DefaultTimestampSpec("time", timeFormat, DateTimes.nowUtc());
+
+    int dimIx = types.lastIndexOf("dimension");
+    List<String> dimensions = Lists.newArrayList();
+    for (int i = 0; i < dimIx + 1; i++) {
+      if (i != timeIx) {
+        dimensions.add(columns.get(i));
+      }
+    }
+    DimensionsSpec dimensionsSpec = DimensionsSpec.ofStringDimensions(dimensions);
+
+    List<AggregatorFactory> metrics = Lists.newArrayList();
+    for (int i = dimIx + 1; i < columns.size(); i++) {
+      if (i != timeIx) {
+        metrics.add(new RelayAggregatorFactory(columns.get(i), ValueDesc.of(types.get(i))));
+      }
+    }
+    TestLoadSpec schema = new TestLoadSpec(
+        0,
+        Granularities.DAY,
+        segmentGran,
+        ImmutableMap.<String, Object>of("format", "csv"),
+        columns,
+        spec,
+        dimensionsSpec,
+        metrics.toArray(new AggregatorFactory[0]),
+        null, null, false, false, true, null
+    );
+    load(ds, schema, Suppliers.ofInstance(CharSource.wrap(source)), TestHelper.JSON_MAPPER);
+  }
+
+  public static void load(
+      final String ds,
+      final TestLoadSpec schema,
+      final Supplier<CharSource> source,
+      final ObjectMapper mapper
+  )
+  {
     segmentWalker.addPopulator(
         ds,
         new Supplier<List<Pair<DataSegment, Segment>>>()
@@ -249,7 +314,7 @@ public class TestIndex
             final InputRowParser parser = schema.getParser(mapper, false);
 
             final List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
-            final CharSource charSource = asCharSource(sourceFile);
+            final CharSource charSource = source.get();
             try (Reader reader = charSource.openStream()) {
               final Iterator<InputRow> rows = readRows(reader, parser);
               final Map<Long, IncrementalIndex> indices = Maps.newHashMap();

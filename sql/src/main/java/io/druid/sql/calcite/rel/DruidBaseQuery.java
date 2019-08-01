@@ -494,8 +494,7 @@ public class DruidBaseQuery implements DruidQuery
         final String postAggregatorName = outputNamePrefix + outputNameCounter++;
         final PostAggregator postAggregator = new MathPostAggregator(
             postAggregatorName,
-            postAggregatorExpression.getExpression(),
-            null
+            postAggregatorExpression.getExpression()
         );
         aggregations.add(postAggregator);
         rowOrder.add(postAggregator.getName());

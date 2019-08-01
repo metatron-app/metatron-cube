@@ -50,26 +50,28 @@ public class MathPostAggregator implements DecoratingPostAggregator
 {
   private final String name;
   private final String expression;
-  private final Comparator comparator;
   private final String ordering;
+  private final boolean finalize;
 
+  private final Comparator comparator;
   private final Expr parsed;
   private final List<String> dependentFields;
 
   public MathPostAggregator(String expression)
   {
-    this(null, expression, null);
+    this(null, expression, true, null);
   }
 
   public MathPostAggregator(String name, String expression)
   {
-    this(name, expression, null);
+    this(name, expression, true, null);
   }
 
   @JsonCreator
   public MathPostAggregator(
       @JsonProperty("name") String name,
       @JsonProperty("expression") String expression,
+      @JsonProperty("finalize") boolean finalize,
       @JsonProperty("ordering") String ordering
   )
   {
@@ -83,6 +85,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
       this.name = Preconditions.checkNotNull(name, "'name' cannot not be null");
       this.parsed = expr;
     }
+    this.finalize = finalize;
     this.dependentFields = Parser.findRequiredBindings(parsed);
     this.ordering = ordering;
     this.comparator = ordering == null ? Ordering.natural() : NumericOrdering.valueOf(ordering);
@@ -140,23 +143,19 @@ public class MathPostAggregator implements DecoratingPostAggregator
     return ordering;
   }
 
-  @Override
-  public String toString()
+  @JsonProperty
+  public boolean isFinalize()
   {
-    return "MathPostAggregator{" +
-           "name='" + name + '\'' +
-           ", expression='" + expression + '\'' +
-           ", ordering=" + ordering +
-           '}';
+    return finalize;
   }
 
   @Override
   public PostAggregator decorate(final Map<String, AggregatorFactory> aggregators)
   {
-    if (aggregators == null || aggregators.isEmpty() || dependentFields.isEmpty()) {
+    if (!finalize || aggregators == null || aggregators.isEmpty() || dependentFields.isEmpty()) {
       return this;
     }
-    return new MathPostAggregator(name, expression, ordering)
+    return new MathPostAggregator(name, expression, false, ordering)
     {
       @Override
       public ValueDesc resolve(final TypeResolver resolver)
@@ -234,13 +233,13 @@ public class MathPostAggregator implements DecoratingPostAggregator
 
     MathPostAggregator that = (MathPostAggregator) o;
 
-    if (!comparator.equals(that.comparator)) {
-      return false;
-    }
     if (!Objects.equals(name, that.name)) {
       return false;
     }
     if (!Objects.equals(expression, that.expression)) {
+      return false;
+    }
+    if (finalize != that.finalize) {
       return false;
     }
     if (!Objects.equals(ordering, that.ordering)) {
@@ -253,10 +252,17 @@ public class MathPostAggregator implements DecoratingPostAggregator
   @Override
   public int hashCode()
   {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + expression.hashCode();
-    result = 31 * result + comparator.hashCode();
-    result = 31 * result + (ordering != null ? ordering.hashCode() : 0);
-    return result;
+    return Objects.hash(name, expression, finalize, ordering);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "MathPostAggregator{" +
+           "name='" + name + '\'' +
+           ", expression='" + expression + '\'' +
+           ", finalize=" + finalize +
+           (ordering == null ? "" : ", ordering=" + ordering) +
+           '}';
   }
 }

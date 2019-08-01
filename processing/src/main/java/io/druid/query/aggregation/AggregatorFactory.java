@@ -398,6 +398,23 @@ public abstract class AggregatorFactory implements Cacheable
   public static interface Combiner<T>
   {
     T combine(T param1, T param2);
+
+    abstract class Abstract<T> implements Combiner<T>
+    {
+      @Override
+      public T combine(T param1, T param2)
+      {
+        if (param1 == null) {
+          return param2;
+        } else if (param2 == null) {
+          return param1;
+        } else {
+          return _combine(param1, param2);
+        }
+      }
+
+      protected abstract T _combine(T param1, T param2);
+    }
   }
 
   public static class WithName extends Tagged.Entity<AggregatorFactory>
