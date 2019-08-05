@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactories.FixedArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
@@ -53,6 +54,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
@@ -73,63 +75,53 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       }
     };
 
-    return new Aggregators.EstimableAggregator()
+    return new Aggregators.EstimableAggregator<List<Object>>()
     {
-      private int estimated = 128;
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
       @Override
-      public int estimateOccupation()
+      public int estimateOccupation(List<Object> current)
       {
+        int estimated = 32;
+        for (int i = 0; i < aggregators.size(); i++) {
+          Aggregator aggregator = aggregators.get(i);
+          if (aggregator instanceof Aggregators.EstimableAggregator) {
+            estimated += ((Aggregators.EstimableAggregator) aggregator).estimateOccupation(current.get(i));
+          } else {
+            estimated += delegate.getMaxIntermediateSize();
+          }
+        }
         return estimated;
       }
 
       @Override
-      public void aggregate()
+      public List<Object> aggregate(List<Object> current)
       {
         final List value = selector.get();
-        if (value != null && !value.isEmpty()) {
+        if (!GuavaUtils.isNullOrEmpty(value)) {
           holder.set(value);
-          for (Aggregator aggregator : getAggregators(value.size())) {
-            aggregator.aggregate();
+          if (current == null) {
+            current = Lists.newArrayList();
+          }
+          for (int i = current.size(); i < value.size(); i++) {
+            current.add(null);
+          }
+          final List<Aggregator> aggregators = getAggregators(value.size());
+          for (int i = 0; i < aggregators.size(); i++) {
+            current.set(i, aggregators.get(i).aggregate(current.get(i)));
           }
         }
+        return current;
       }
 
       @Override
-      public void reset()
-      {
-        for (Aggregator aggregator : aggregators) {
-          aggregator.reset();
-        }
-      }
-
-      @Override
-      public Object get()
+      public Object get(List<Object> current)
       {
         List<Object> result = Lists.newArrayListWithCapacity(aggregators.size());
-        for (Aggregator aggregator : aggregators) {
-          result.add(aggregator.get());
+        for (int i = 0; i < aggregators.size(); i++) {
+          result.add(aggregators.get(i).get(current.get(i)));
         }
         return result;
-      }
-
-      @Override
-      public Long getLong()
-      {
-        throw new UnsupportedOperationException("getLong");
-      }
-
-      @Override
-      public Float getFloat()
-      {
-        throw new UnsupportedOperationException("getFloat");
-      }
-
-      @Override
-      public Double getDouble()
-      {
-        throw new UnsupportedOperationException("getDouble");
       }
 
       @Override
@@ -144,14 +136,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          Aggregator factorize = delegate.factorize(new FixedArrayIndexed(i, memoized, elementType));
-          if (factorize instanceof Aggregators.EstimableAggregator) {
-            estimated += ((Aggregators.EstimableAggregator)factorize).estimateOccupation();
-          } else {
-            estimated += delegate.getMaxIntermediateSize();
-          }
-          estimated += 32;
-          aggregators.add(factorize);
+          aggregators.add(delegate.factorize(new FixedArrayIndexed(i, memoized, elementType)));
         }
         return aggregators;
       }

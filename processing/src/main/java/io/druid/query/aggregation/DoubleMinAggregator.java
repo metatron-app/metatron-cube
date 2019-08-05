@@ -21,13 +21,13 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleMinAggregator implements Aggregator
+public abstract class DoubleMinAggregator extends Aggregator.Abstract<MutableDouble>
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -36,77 +36,10 @@ public abstract class DoubleMinAggregator implements Aggregator
     return Math.min(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
-  double min = Double.POSITIVE_INFINITY;
-
   @Override
-  public void reset()
+  public Double get(MutableDouble current)
   {
-    min = Double.POSITIVE_INFINITY;
-  }
-
-  @Override
-  public Object get()
-  {
-    return min;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) min;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) min;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return min;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
-  }
-
-  public static DoubleMinAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
-  {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleMinAggregator()
-      {
-        @Override
-        public final void aggregate()
-        {
-          final Float v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              min = Math.min(min, v);
-            }
-          }
-        }
-      };
-    } else {
-      return new DoubleMinAggregator()
-      {
-        @Override
-        public final void aggregate()
-        {
-          if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                min = Math.min(min, v);
-              }
-            }
-          }
-        }
-      };
-    }
+    return current == null ? null : current.doubleValue();
   }
 
   public static DoubleMinAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
@@ -115,30 +48,36 @@ public abstract class DoubleMinAggregator implements Aggregator
       return new DoubleMinAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
-          final Double v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              min = Math.min(min, v);
-            }
+          final Double value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableDouble(value);
+          }
+          current.setValue(Math.min(current.doubleValue(), value));
+          return current;
         }
       };
     } else {
       return new DoubleMinAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
-            final Double v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                min = Math.min(min, v);
-              }
+            final Double value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableDouble(value);
+            }
+            current.setValue(Math.min(current.doubleValue(), value));
           }
+          return current;
         }
       };
     }

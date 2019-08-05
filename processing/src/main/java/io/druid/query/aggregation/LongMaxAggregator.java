@@ -21,12 +21,13 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class LongMaxAggregator implements Aggregator
+public abstract class LongMaxAggregator extends Aggregator.Abstract<MutableLong>
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -35,7 +36,11 @@ public abstract class LongMaxAggregator implements Aggregator
     return Math.max(((Number) lhs).longValue(), ((Number) rhs).longValue());
   }
 
-  long max = Long.MIN_VALUE;
+  @Override
+  public Long get(MutableLong current)
+  {
+    return current == null ? null : current.longValue();
+  }
 
   public static LongMaxAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
@@ -43,68 +48,38 @@ public abstract class LongMaxAggregator implements Aggregator
       return new LongMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableLong aggregate(final MutableLong current)
         {
-          final Long v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              max = Math.max(max, v);
-            }
+          final Long value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableLong(value);
+          }
+          current.setValue(Math.max(current.longValue(), value));
+          return current;
         }
       };
     } else {
       return new LongMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableLong aggregate(MutableLong current)
         {
           if (predicate.matches()) {
-            final Long v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                max = Math.max(max, v);
-              }
+            final Long value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableLong(value);
+            }
+            current.setValue(Math.max(current.longValue(), value));
           }
+          return current;
         }
       };
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    max = Long.MIN_VALUE;
-  }
-
-  @Override
-  public Object get()
-  {
-    return max;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) max;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return max;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) max;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

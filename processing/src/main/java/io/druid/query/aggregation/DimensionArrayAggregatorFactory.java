@@ -59,64 +59,56 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(column));
-    return new Aggregators.EstimableAggregator()
+    return new Aggregators.EstimableAggregator<List<Object>>()
     {
-      private int estimated = 128;
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
       @Override
-      public int estimateOccupation()
+      public int estimateOccupation(List<Object> current)
       {
+        int estimated = 32;
+        for (int i = 0; i < aggregators.size(); i++) {
+          Aggregator aggregator = aggregators.get(i);
+          if (aggregator instanceof Aggregators.EstimableAggregator) {
+            estimated += ((Aggregators.EstimableAggregator) aggregator).estimateOccupation(current.get(i));
+          } else {
+            estimated += delegate.getMaxIntermediateSize();
+          }
+        }
         return estimated;
       }
 
       @Override
-      public void aggregate()
+      public List<Object> aggregate(List<Object> current)
       {
         IndexedInts dims = selector.getRow();
-        List<Aggregator> ready = getAggregators(dims.size());
-        for (Aggregator aggregator : ready) {
-          aggregator.aggregate();
+        if (dims.size() > 0) {
+          if (current == null) {
+            current = Lists.newArrayList();
+          }
+          for (int i = current.size(); i < dims.size(); i++) {
+            current.add(null);
+          }
+          final List<Aggregator> aggregators = getAggregators(dims.size());
+          for (int i = 0; i < aggregators.size(); i++) {
+            current.set(i, aggregators.get(i).aggregate(current.get(i)));
+          }
         }
+        return current;
       }
 
       @Override
-      public void reset()
+      public Object get(List<Object> current)
       {
-        for (Aggregator aggregator : aggregators) {
-          aggregator.reset();
-        }
-      }
-
-      @Override
-      public Object get()
-      {
-        List<Object> result = Lists.newArrayListWithExpectedSize(aggregators.size());
-        for (Aggregator aggregator : aggregators) {
-          result.add(aggregator.get());
+        List<Object> result = Lists.newArrayListWithCapacity(aggregators.size());
+        for (int i = 0; i < aggregators.size(); i++) {
+          result.add(aggregators.get(i).get(current.get(i)));
         }
         return result;
-      }
-
-      @Override
-      public Long getLong()
-      {
-        throw new UnsupportedOperationException("getLong");
-      }
-
-      @Override
-      public Float getFloat()
-      {
-        throw new UnsupportedOperationException("getFloat");
-      }
-
-      @Override
-      public Double getDouble()
-      {
-        throw new UnsupportedOperationException("getDouble");
       }
 
       @Override
@@ -132,12 +124,6 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           Aggregator factorize = delegate.factorize(new DimensionArrayColumnSelectorFactory(i, selector));
-          if (factorize instanceof Aggregators.EstimableAggregator) {
-            estimated += ((Aggregators.EstimableAggregator)factorize).estimateOccupation();
-          } else {
-            estimated += delegate.getMaxIntermediateSize();
-          }
-          estimated += 32;
           aggregators.add(factorize);
         }
         return aggregators;

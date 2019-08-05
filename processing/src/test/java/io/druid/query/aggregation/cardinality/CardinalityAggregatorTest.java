@@ -32,6 +32,7 @@ import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
@@ -227,13 +228,14 @@ public class CardinalityAggregatorTest
     );
   }
 
-  private static void aggregate(List<DimensionSelector> selectorList, Aggregator agg)
+  private static HyperLogLogCollector aggregate(List<DimensionSelector> selectorList, CardinalityAggregator agg, HyperLogLogCollector aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
 
     for (DimensionSelector selector : selectorList) {
       ((TestDimensionSelector) selector).increment();
     }
+    return aggregate;
   }
 
   private static void bufferAggregate(
@@ -314,11 +316,11 @@ public class CardinalityAggregatorTest
         true
     );
 
-
+    HyperLogLogCollector aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorList, agg);
+      aggregate = aggregate(selectorList, agg, aggregate);
     }
-    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get()), 0.05);
+    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get(aggregate)), 0.05);
   }
 
   @Test
@@ -329,10 +331,11 @@ public class CardinalityAggregatorTest
         false
     );
 
+    HyperLogLogCollector aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorList, agg);
+      aggregate = aggregate(selectorList, agg, aggregate);
     }
-    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get()), 0.05);
+    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get(aggregate)), 0.05);
   }
 
   @Test
@@ -386,22 +389,24 @@ public class CardinalityAggregatorTest
     CardinalityAggregator agg1 = new CardinalityAggregator(selector1, true);
     CardinalityAggregator agg2 = new CardinalityAggregator(selector2, true);
 
+    HyperLogLogCollector aggregate1 = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selector1, agg1);
+      aggregate1 = aggregate(selector1, agg1, aggregate1);
     }
+    HyperLogLogCollector aggregate2 = null;
     for (int i = 0; i < values2.size(); ++i) {
-      aggregate(selector2, agg2);
+      aggregate2 = aggregate(selector2, agg2, aggregate2);
     }
 
-    Assert.assertEquals(4.0, (Double) rowAggregatorFactory.finalizeComputation(agg1.get()), 0.05);
-    Assert.assertEquals(8.0, (Double) rowAggregatorFactory.finalizeComputation(agg2.get()), 0.05);
+    Assert.assertEquals(4.0, (Double) rowAggregatorFactory.finalizeComputation(agg1.get(aggregate1)), 0.05);
+    Assert.assertEquals(8.0, (Double) rowAggregatorFactory.finalizeComputation(agg2.get(aggregate2)), 0.05);
 
     Assert.assertEquals(
         9.0,
         (Double) rowAggregatorFactory.finalizeComputation(
             rowAggregatorFactory.combiner().combine(
-                agg1.get(),
-                agg2.get()
+                agg1.get(aggregate1),
+                agg2.get(aggregate2)
             )
         ),
         0.05
@@ -417,22 +422,24 @@ public class CardinalityAggregatorTest
     CardinalityAggregator agg1 = new CardinalityAggregator(selector1, false);
     CardinalityAggregator agg2 = new CardinalityAggregator(selector2, false);
 
+    HyperLogLogCollector aggregate1 = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selector1, agg1);
+      aggregate1 = aggregate(selector1, agg1, aggregate1);
     }
+    HyperLogLogCollector aggregate2 = null;
     for (int i = 0; i < values2.size(); ++i) {
-      aggregate(selector2, agg2);
+      aggregate2 = aggregate(selector2, agg2, aggregate2);
     }
 
-    Assert.assertEquals(4.0, (Double) valueAggregatorFactory.finalizeComputation(agg1.get()), 0.05);
-    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg2.get()), 0.05);
+    Assert.assertEquals(4.0, (Double) valueAggregatorFactory.finalizeComputation(agg1.get(aggregate1)), 0.05);
+    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg2.get(aggregate2)), 0.05);
 
     Assert.assertEquals(
         7.0,
         (Double) rowAggregatorFactory.finalizeComputation(
             rowAggregatorFactory.combiner().combine(
-                agg1.get(),
-                agg2.get()
+                agg1.get(aggregate1),
+                agg2.get(aggregate2)
             )
         ),
         0.05
@@ -446,19 +453,21 @@ public class CardinalityAggregatorTest
         selectorListWithExtraction,
         true
     );
+    HyperLogLogCollector aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorListWithExtraction, agg);
+      aggregate = aggregate(selectorListWithExtraction, agg, aggregate);
     }
-    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get()), 0.05);
+    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get(aggregate)), 0.05);
 
     CardinalityAggregator agg2 = new CardinalityAggregator(
         selectorListConstantVal,
         true
     );
+    aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorListConstantVal, agg2);
+      aggregate = aggregate(selectorListConstantVal, agg2, aggregate);
     }
-    Assert.assertEquals(3.0, (Double) rowAggregatorFactory.finalizeComputation(agg2.get()), 0.05);
+    Assert.assertEquals(3.0, (Double) rowAggregatorFactory.finalizeComputation(agg2.get(aggregate)), 0.05);
   }
 
   @Test
@@ -468,19 +477,21 @@ public class CardinalityAggregatorTest
         selectorListWithExtraction,
         false
     );
+    HyperLogLogCollector aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorListWithExtraction, agg);
+      aggregate = aggregate(selectorListWithExtraction, agg, aggregate);
     }
-    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get()), 0.05);
+    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get(aggregate)), 0.05);
 
     CardinalityAggregator agg2 = new CardinalityAggregator(
         selectorListConstantVal,
         false
     );
+    aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
-      aggregate(selectorListConstantVal, agg2);
+      aggregate = aggregate(selectorListConstantVal, agg2, aggregate);
     }
-    Assert.assertEquals(1.0, (Double) valueAggregatorFactory.finalizeComputation(agg2.get()), 0.05);
+    Assert.assertEquals(1.0, (Double) valueAggregatorFactory.finalizeComputation(agg2.get(aggregate)), 0.05);
   }
 
   @Test

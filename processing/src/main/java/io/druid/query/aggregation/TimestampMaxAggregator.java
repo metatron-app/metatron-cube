@@ -21,87 +21,60 @@ package io.druid.query.aggregation;
 
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.sql.Timestamp;
 import java.util.Comparator;
 
-public class TimestampMaxAggregator implements Aggregator
+public class TimestampMaxAggregator extends Aggregator.Abstract<MutableLong>
 {
   static final Comparator COMPARATOR = LongMaxAggregator.COMPARATOR;
 
   static long combineValues(Object lhs, Object rhs)
   {
-    return Math.max(((Number)lhs).longValue(), ((Number)rhs).longValue());
+    return Math.max(((Number) lhs).longValue(), ((Number) rhs).longValue());
   }
 
   private final ObjectColumnSelector selector;
   private final DefaultTimestampSpec timestampSpec;
 
-  private long max;
-
   public TimestampMaxAggregator(ObjectColumnSelector selector, DefaultTimestampSpec timestampSpec)
   {
     this.selector = selector;
     this.timestampSpec = timestampSpec;
-
-    reset();
   }
 
   @Override
-  public void aggregate() {
-    Object o = selector.get();
-    synchronized (this) {
-      if (o instanceof Number) {
-        max = Math.max(max, ((Number) o).longValue());
-      } else if (o instanceof DateTime) {
-        max = Math.max(max, ((DateTime) o).getMillis());
-      } else if (o instanceof Timestamp) {
-        max = Math.max(max, ((Timestamp) o).getTime());
-      } else if (o instanceof String) {
-        max = Math.max(max, timestampSpec.parseDateTime(o).getMillis());
-      }
+  public Long get(MutableLong current)
+  {
+    return current == null ? null : current.longValue();
+  }
+
+  @Override
+  public MutableLong aggregate(MutableLong current)
+  {
+    final Object o = selector.get();
+    if (o == null) {
+      return current;
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    max = Long.MIN_VALUE;
-  }
-
-  @Override
-  public Object get()
-  {
-    return max;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float)max;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resource to cleanup
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return max;
-  }
-
-  @Override
-  public Double getDouble() {
-    return (double)max;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new TimestampMaxAggregator(selector, timestampSpec);
+    final long value;
+    if (o instanceof Number) {
+      value = ((Number) o).longValue();
+    } else if (o instanceof DateTime) {
+      value = ((DateTime) o).getMillis();
+    } else if (o instanceof Timestamp) {
+      value = ((Timestamp) o).getTime();
+    } else if (o instanceof String) {
+      value = timestampSpec.parseDateTime(o).getMillis();
+    } else {
+      return current;
+    }
+    if (current == null) {
+      current = new MutableLong(value);
+    } else {
+      current.setValue(Math.max(current.longValue(), value));
+    }
+    return current;
   }
 }

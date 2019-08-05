@@ -181,7 +181,7 @@ public abstract class IncrementalIndex implements Closeable
 
   protected final Granularity gran;
   protected final AggregatorFactory[] metrics;
-  protected final ColumnSelectorFactory[] selectors;
+  protected final Aggregator[] aggregators;
   protected final boolean reportParseExceptions;
   protected final int maxRowCount;
 
@@ -205,8 +205,6 @@ public abstract class IncrementalIndex implements Closeable
   private long maxIngestedEventTime = -1;
   private long minTimeMillis = Long.MAX_VALUE;
   private long maxTimeMillis = Long.MIN_VALUE;
-
-  private String outOfRowsReason;
 
   // dummy value for no rollup
   private final AtomicLong indexer = new AtomicLong();
@@ -239,7 +237,7 @@ public abstract class IncrementalIndex implements Closeable
     this.fixedSchema = indexSchema.isFixedSchema();
     this.maxRowCount = maxRowCount;
 
-    this.selectors = new ColumnSelectorFactory[metrics.length];
+    this.aggregators = new Aggregator[metrics.length];
     final Supplier<Row> rowSupplier = new Supplier<Row>()
     {
       @Override
@@ -249,12 +247,11 @@ public abstract class IncrementalIndex implements Closeable
       }
     };
     for (int i = 0; i < metrics.length; i++) {
-      ColumnSelectorFactory delegate = new ColumnSelectorFactories.FromInputRow(
+      aggregators[i] = metrics[i].factorize(new ColumnSelectorFactories.FromInputRow(
           rowSupplier,
           metrics[i],
           deserializeComplexMetrics
-      );
-      selectors[i] = new ColumnSelectorFactories.Caching(delegate);
+      ));
     }
 
     this.metadata = new Metadata()
@@ -331,21 +328,10 @@ public abstract class IncrementalIndex implements Closeable
 
   public boolean canAppendRow()
   {
-    final boolean canAdd = size() < maxRowCount;
-    if (!canAdd) {
-      outOfRowsReason = String.format("Maximum number of rows [%d] reached", maxRowCount);
-    }
-    return canAdd;
+    return size() < maxRowCount;
   }
 
-  public String getOutOfRowsReason()
-  {
-    return outOfRowsReason;
-  }
-
-  // Note: This method needs to be thread safe.
-  protected abstract void addToFacts(TimeAndDims key, Row row, ThreadLocal<Row> rowContainer)
-      throws IndexSizeExceededException;
+  protected abstract void addToFacts(TimeAndDims key) throws IndexSizeExceededException;
 
   @Override
   public void close()
@@ -405,12 +391,13 @@ public abstract class IncrementalIndex implements Closeable
   public int add(InputRow row) throws IndexSizeExceededException
   {
     Preconditions.checkArgument(!fixedSchema, "this is only for variable-schema");
-    return addTimeAndDims(row, toTimeAndDims(row));
+    return addTimeAndDims(toTimeAndDims(row), row);
   }
 
-  private int addTimeAndDims(Row row, TimeAndDims key) throws IndexSizeExceededException
+  private int addTimeAndDims(TimeAndDims key, Row row) throws IndexSizeExceededException
   {
-    addToFacts(key, row, in);
+    in.set(row);
+    addToFacts(key);
     updateMaxIngestedTime(row.getTimestampFromEpoch());
     ingestedNumRows++;
     return size();
@@ -541,7 +528,7 @@ public abstract class IncrementalIndex implements Closeable
   {
     Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     try {
-      addTimeAndDims(row, toTimeAndDims(row));
+      addTimeAndDims(toTimeAndDims(row), row);
     }
     catch (IndexSizeExceededException e) {
       throw new ISE(e, e.getMessage());
@@ -644,6 +631,11 @@ public abstract class IncrementalIndex implements Closeable
   public AggregatorFactory[] getMetricAggs()
   {
     return metrics;
+  }
+
+  public Aggregator[] getAggregators()
+  {
+    return aggregators;
   }
 
   public List<String> getDimensionNames()
@@ -766,24 +758,24 @@ public abstract class IncrementalIndex implements Closeable
     return columnCapabilities.get(column);
   }
 
-  public Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getAll(Boolean timeDescending)
+  public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll(Boolean timeDescending)
   {
     return getRangeOf(Long.MIN_VALUE, Long.MAX_VALUE, timeDescending);
   }
 
-  public abstract Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getRangeOf(long from, long to, Boolean timeDescending);
+  public abstract Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending);
 
   @SuppressWarnings("unchecked")
-  protected Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getFacts(
+  protected Iterable<Map.Entry<TimeAndDims, Object[]>> getFacts(
       final NavigableMap facts,
       final long from,
       final long to,
       final Boolean timeDescending
   )
   {
-    NavigableMap<TimeAndDims, Aggregator[]> sortedMap = (NavigableMap<TimeAndDims, Aggregator[]>) facts;
+    NavigableMap<TimeAndDims, Object[]> sortedMap = (NavigableMap<TimeAndDims, Object[]>) facts;
     if (from > getMinTimeMillis() || to <= getMaxTimeMillis()) {
-      sortedMap = (NavigableMap<TimeAndDims, Aggregator[]>) sortedMap.subMap(
+      sortedMap = (NavigableMap<TimeAndDims, Object[]>) sortedMap.subMap(
           createRangeTimeAndDims(from),
           createRangeTimeAndDims(to)
       );
@@ -802,7 +794,7 @@ public abstract class IncrementalIndex implements Closeable
   @VisibleForTesting
   public Iterator<Row> iterator()
   {
-    final Iterable<Map.Entry<TimeAndDims, Aggregator[]>> facts = getAll(null);
+    final Iterable<Map.Entry<TimeAndDims, Object[]>> facts = getAll(null);
     return Iterators.transform(facts.iterator(), rowFunction(ImmutableList.<PostAggregator>of()));
   }
 
@@ -868,18 +860,18 @@ public abstract class IncrementalIndex implements Closeable
     };
   }
 
-  protected final Function<Map.Entry<TimeAndDims, Aggregator[]>, Row> rowFunction(
+  protected final Function<Map.Entry<TimeAndDims, Object[]>, Row> rowFunction(
       final List<PostAggregator> postAggregators
   )
   {
     final List<DimensionDesc> dimensions = getDimensions();
-    return new Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+    return new Function<Map.Entry<TimeAndDims, Object[]>, Row>()
     {
       @Override
-      public Row apply(final Map.Entry<TimeAndDims, Aggregator[]> input)
+      public Row apply(final Map.Entry<TimeAndDims, Object[]> input)
       {
         final TimeAndDims timeAndDims = input.getKey();
-        final Aggregator[] values = input.getValue();
+        final Object[] values = input.getValue();
 
         final int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
 
@@ -907,7 +899,7 @@ public abstract class IncrementalIndex implements Closeable
         }
 
         for (int i = 0; i < metrics.length; ++i) {
-          theVals.put(metrics[i].getName(), values[i].get());
+          theVals.put(metrics[i].getName(), aggregators[i].get(values[i]));
         }
 
         if (!postAggregators.isEmpty()) {

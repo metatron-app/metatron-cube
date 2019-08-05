@@ -386,7 +386,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
           if (!index.canAppendRow()) {
             dimOrder.addAll(index.getDimensionOrder());
-            log.info("current index full due to [%s]. creating new index.", index.getOutOfRowsReason());
+            log.info("current index full. creating new index.");
             flushIndexToContextAndClose(key, index, context);
             index = makeIncrementalIndex(bucket, combiningAggs, config, dimOrder);
           }
@@ -721,9 +721,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
           if (flush) {
             allDimensionNames.addAll(index.getDimensionOrder());
 
-            if (index.getOutOfRowsReason() != null) {
-              log.info(index.getOutOfRowsReason());
-            }
             log.info(
                 "%,d lines to %,d rows in %,d millis",
                 lineCount - runningTotalLineCount,

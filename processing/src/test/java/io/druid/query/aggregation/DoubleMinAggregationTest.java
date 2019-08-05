@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.primitives.Doubles;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
+import org.apache.commons.lang.mutable.MutableDouble;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,17 +60,13 @@ public class DoubleMinAggregationTest
   {
     DoubleMinAggregator agg = (DoubleMinAggregator) doubleMinAggFactory.factorize(colSelectorFactory);
 
-    aggregate(selector, agg);
-    aggregate(selector, agg);
-    aggregate(selector, agg);
-    aggregate(selector, agg);
+    MutableDouble aggregate = null;
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
 
-    Assert.assertEquals(values[2], ((Double) agg.get()).doubleValue(), 0.0001);
-    Assert.assertEquals((long) values[2], agg.getLong().longValue());
-    Assert.assertEquals(values[2], agg.getFloat(), 0.0001);
-
-    agg.reset();
-    Assert.assertEquals(Double.POSITIVE_INFINITY, (Double) agg.get(), 0.0001);
+    Assert.assertEquals(values[2], agg.get(aggregate).doubleValue(), 0.0001);
   }
 
   @Test
@@ -107,10 +104,11 @@ public class DoubleMinAggregationTest
     Assert.assertFalse(one.equals(two));
   }
 
-  private void aggregate(TestDoubleColumnSelector selector, DoubleMinAggregator agg)
+  private MutableDouble aggregate(TestDoubleColumnSelector selector, DoubleMinAggregator agg, MutableDouble aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private void aggregate(TestDoubleColumnSelector selector, DoubleMinBufferAggregator agg, ByteBuffer buff, int position)

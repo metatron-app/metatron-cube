@@ -21,39 +21,41 @@ package io.druid.query.topn;
 
 import com.google.common.collect.Maps;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * This has to be its own strategy because the pooled topn algorithm assumes each index is unique, and cannot handle multiple index numerals referencing the same dimension value.
  */
-public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][], Map<Comparable, Aggregator[]>, TopNParams>
+public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Object[][], Map<Comparable, Object[]>, TopNParams>
 {
   private final TopNQuery query;
 
-  public DimExtractionTopNAlgorithm(
-      Capabilities capabilities,
-      TopNQuery query
-  )
+  public DimExtractionTopNAlgorithm(Capabilities capabilities, TopNQuery query)
   {
     super(capabilities);
-
     this.query = query;
   }
 
   @Override
   public TopNParams makeInitParams(
       final DimensionSelector dimSelector,
+      final List<AggregatorFactory> aggregators,
       final Cursor cursor
   )
   {
     return new TopNParams(
         dimSelector,
+        aggregators,
         cursor,
         dimSelector.getValueCardinality(),
         Integer.MAX_VALUE
@@ -61,9 +63,9 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   }
 
   @Override
-  protected Aggregator[][] makeDimValSelector(TopNParams params, int numProcessed, int numToProcess)
+  protected Object[][] makeDimValSelector(TopNParams params, int numProcessed, int numToProcess)
   {
-    final AggregatorArrayProvider provider = new AggregatorArrayProvider(
+    final ObjectArrayProvider provider = new ObjectArrayProvider(
         params.getDimSelector(),
         query,
         params.getCardinality()
@@ -76,13 +78,13 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   }
 
   @Override
-  protected Aggregator[][] updateDimValSelector(Aggregator[][] aggregators, int numProcessed, int numToProcess)
+  protected Object[][] updateDimValSelector(Object[][] aggregators, int numProcessed, int numToProcess)
   {
     return aggregators;
   }
 
   @Override
-  protected Map<Comparable, Aggregator[]> makeDimValAggregateStore(TopNParams params)
+  protected Map<Comparable, Object[]> makeDimValAggregateStore(TopNParams params)
   {
     return Maps.newHashMap();
   }
@@ -90,55 +92,56 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   @Override
   public void scanAndAggregate(
       TopNParams params,
-      Aggregator[][] rowSelector,
-      Map<Comparable, Aggregator[]> aggregatesStore,
+      Object[][] rowSelector,
+      Map<Comparable, Object[]> aggregatesStore,
       int numProcessed
   )
   {
     final Cursor cursor = params.getCursor();
     final DimensionSelector dimSelector = params.getDimSelector();
     final ColumnSelectorFactory factory = params.getFactory();
+    final Aggregator[] aggregators = params.getAggregators();
+    final Function<Comparable, Object[]> populator = new Function<Comparable, Object[]>()
+    {
+      @Override
+      public Object[] apply(Comparable comparable)
+      {
+        return new Object[aggregators.length];
+      }
+    };
 
     while (!cursor.isDone()) {
       final IndexedInts dimValues = dimSelector.getRow();
 
       for (int i = 0; i < dimValues.size(); ++i) {
-
         final int dimIndex = dimValues.get(i);
-        Aggregator[] theAggregators = rowSelector[dimIndex];
-        if (theAggregators == null) {
-          final Comparable key = dimSelector.lookupName(dimIndex);
-          theAggregators = aggregatesStore.get(key);
-          if (theAggregators == null) {
-            theAggregators = makeAggregators(factory, query.getAggregatorSpecs());
-            aggregatesStore.put(key, theAggregators);
-          }
-          rowSelector[dimIndex] = theAggregators;
+        Object[] values = rowSelector[dimIndex];
+        if (values == null) {
+          values = aggregatesStore.computeIfAbsent(dimSelector.lookupName(dimIndex), populator);
+          rowSelector[dimIndex] = values;
         }
-
-        for (Aggregator aggregator : theAggregators) {
-          aggregator.aggregate();
-        }
+        Aggregators.aggregate(values, aggregators);
       }
-
       cursor.advance();
     }
+    Aggregators.close(aggregators);
   }
 
   @Override
   protected void updateResults(
       TopNParams params,
-      Aggregator[][] rowSelector,
-      Map<Comparable, Aggregator[]> aggregatesStore,
+      Object[][] rowSelector,
+      Map<Comparable, Object[]> aggregatesStore,
       TopNResultBuilder resultBuilder
   )
   {
-    for (Map.Entry<Comparable, Aggregator[]> entry : aggregatesStore.entrySet()) {
-      Aggregator[] aggs = entry.getValue();
+    final Aggregator[] aggregators = params.getAggregators();
+    for (Map.Entry<Comparable, Object[]> entry : aggregatesStore.entrySet()) {
+      Object[] aggs = entry.getValue();
       if (aggs != null && aggs.length > 0) {
-        Object[] vals = new Object[aggs.length];
+        final Object[] vals = new Object[aggs.length];
         for (int i = 0; i < aggs.length; i++) {
-          vals[i] = aggs[i].get();
+          vals[i] = aggregators[i].get(aggs[i]);
         }
 
         resultBuilder.addEntry(
@@ -151,13 +154,10 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   }
 
   @Override
-  protected void closeAggregators(Map<Comparable, Aggregator[]> stringMap)
+  protected void closeAggregators(TopNParams params, Map<Comparable, Object[]> stringMap)
   {
-    for (Aggregator[] aggregators : stringMap.values()) {
-      for (Aggregator agg : aggregators) {
-        agg.close();
-      }
-    }
+    super.closeAggregators(params, stringMap);
+    stringMap.clear();
   }
 
   @Override

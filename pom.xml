@@ -144,7 +144,6 @@
         <module>extensions-contrib/kafka-eight-simpleConsumer</module>
         <module>extensions-contrib/rabbitmq</module>
         <module>extensions-contrib/median</module>
-        <module>extensions-contrib/doccol</module>
         <module>extensions-contrib/jdbc-firehose</module>
         <module>extensions-contrib/distinctcount</module>
         <module>extensions-contrib/parquet-extensions</module>

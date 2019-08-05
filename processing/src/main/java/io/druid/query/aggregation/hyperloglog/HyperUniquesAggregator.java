@@ -25,65 +25,26 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public class HyperUniquesAggregator implements Aggregator
+public class HyperUniquesAggregator extends Aggregator.Abstract<HyperLogLogCollector>
 {
   private final ValueMatcher predicate;
   private final ObjectColumnSelector selector;
 
-  private HyperLogLogCollector collector;
-
-  public HyperUniquesAggregator(
-      ValueMatcher predicate,
-      ObjectColumnSelector selector
-  )
+  public HyperUniquesAggregator(ValueMatcher predicate, ObjectColumnSelector selector)
   {
     this.predicate = predicate;
     this.selector = selector;
-
-    this.collector = HyperLogLogCollector.makeLatestCollector();
   }
 
   @Override
-  public void aggregate()
+  public HyperLogLogCollector aggregate(HyperLogLogCollector current)
   {
     if (predicate.matches()) {
-      collector.fold((HyperLogLogCollector) selector.get());
+      if (current == null) {
+        current = HyperLogLogCollector.makeLatestCollector();
+      }
+      return current.fold((HyperLogLogCollector) selector.get());
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    collector = HyperLogLogCollector.makeLatestCollector();
-  }
-
-  @Override
-  public Object get()
-  {
-    return collector;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("HyperUniquesAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("HyperUniquesAggregator does not support getLong()");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("HyperUniquesAggregator does not support getDouble()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current;
   }
 }

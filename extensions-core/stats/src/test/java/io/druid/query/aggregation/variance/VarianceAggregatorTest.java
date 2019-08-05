@@ -76,18 +76,16 @@ public class VarianceAggregatorTest
   {
     VarianceAggregator agg = (VarianceAggregator) aggFactory.factorize(colSelectorFactory);
 
-    assertValues((VarianceAggregatorCollector) agg.get(), 0, 0d, 0d);
-    aggregate(selector, agg);
-    assertValues((VarianceAggregatorCollector) agg.get(), 1, 1.1d, 0d);
-    aggregate(selector, agg);
-    assertValues((VarianceAggregatorCollector) agg.get(), 2, 3.8d, 1.28d);
-    aggregate(selector, agg);
-    assertValues((VarianceAggregatorCollector) agg.get(), 3, 7.3d, 2.9866d);
-    aggregate(selector, agg);
-    assertValues((VarianceAggregatorCollector) agg.get(), 4, 8.6d, 3.95d);
-
-    agg.reset();
-    assertValues((VarianceAggregatorCollector) agg.get(), 0, 0d, 0d);
+    VarianceAggregatorCollector aggregate = null;
+    Assert.assertNull(agg.get(aggregate));
+    aggregate = aggregate(selector, agg, aggregate);
+    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 1, 1.1d, 0d);
+    aggregate = aggregate(selector, agg, aggregate);
+    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 2, 3.8d, 1.28d);
+    aggregate = aggregate(selector, agg, aggregate);
+    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 3, 7.3d, 2.9866d);
+    aggregate = aggregate(selector, agg, aggregate);
+    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 4, 8.6d, 3.95d);
   }
 
   private void assertValues(VarianceAggregatorCollector holder, long count, double sum, double nvariance)
@@ -149,10 +147,11 @@ public class VarianceAggregatorTest
     Assert.assertFalse(one.equals(two));
   }
 
-  private void aggregate(TestDoubleColumnSelector selector, VarianceAggregator agg)
+  private VarianceAggregatorCollector aggregate(TestDoubleColumnSelector selector, VarianceAggregator agg, VarianceAggregatorCollector aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private void aggregate(

@@ -22,22 +22,15 @@ package io.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import com.metamx.common.ISE;
 import com.metamx.common.parsers.ParseException;
-import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
-import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
-import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
 
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -46,10 +39,11 @@ import java.util.function.Function;
  */
 public class OnheapIncrementalIndex extends IncrementalIndex
 {
-  private final NavigableMap<TimeAndDims, Aggregator[]> facts;
-  private final Function<TimeAndDims, Aggregator[]> populator;
+  private final NavigableMap<TimeAndDims, Object[]> facts;
+  private final Function<TimeAndDims, Object[]> populator;
 
   private final int[] arrayAggregatorIndices;
+  private final AtomicInteger counter = new AtomicInteger();
 
   public OnheapIncrementalIndex(
       final IncrementalIndexSchema indexSchema,
@@ -66,34 +60,37 @@ public class OnheapIncrementalIndex extends IncrementalIndex
     } else {
       this.facts = new ConcurrentSkipListMap<>(dimsComparator());
     }
-    this.populator = new Function<TimeAndDims, Aggregator[]>()
+    this.populator = new Function<TimeAndDims, Object[]>()
     {
-      private final AtomicInteger counter = new AtomicInteger();
-
       @Override
-      public Aggregator[] apply(TimeAndDims timeAndDims)
+      public Object[] apply(TimeAndDims timeAndDims)
       {
         if (counter.incrementAndGet() > maxRowCount) {
           counter.decrementAndGet();
-          throw new ISE("Maximum number of rows [%d] reached", maxRowCount);
+          throw new IndexSizeExceededException("Maximum number of rows [%d] reached", maxRowCount);
         }
-        return factorize(metrics);
+        return new Object[aggregators.length];
       }
     };
-    List<Integer> arrayAggregatorIndices = Lists.newArrayList();
-    final AggregatorFactory[] metrics = getMetricAggs();
-    for (int i = 0; i < metrics.length; i++) {
-      if (metrics[i] instanceof AbstractArrayAggregatorFactory) {
+    final List<Integer> arrayAggregatorIndices = Lists.newArrayList();
+    for (int i = 0; i < aggregators.length; i++) {
+      if (aggregators[i] instanceof Aggregators.EstimableAggregator) {
         arrayAggregatorIndices.add(i);
       }
     }
     this.arrayAggregatorIndices = Ints.toArray(arrayAggregatorIndices);
   }
 
+  @Override
+  public boolean canAppendRow()
+  {
+    return counter.get() < maxRowCount;
+  }
+
   public OnheapIncrementalIndex(
       long minTimestamp,
       Granularity gran,
-      final AggregatorFactory[] metrics,
+      AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean rollup,
@@ -114,7 +111,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   }
 
   @VisibleForTesting
-  public OnheapIncrementalIndex(long minTimestamp, Granularity gran, final AggregatorFactory[] metrics, int maxRowCount)
+  public OnheapIncrementalIndex(long minTimestamp, Granularity gran, AggregatorFactory[] metrics, int maxRowCount)
   {
     this(minTimestamp, gran, true, metrics, maxRowCount);
   }
@@ -124,7 +121,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
       long minTimestamp,
       Granularity gran,
       boolean rollup,
-      final AggregatorFactory[] metrics,
+      AggregatorFactory[] metrics,
       int maxRowCount
   )
   {
@@ -152,52 +149,39 @@ public class OnheapIncrementalIndex extends IncrementalIndex
 
   @Override
   @SuppressWarnings("unchecked")
-  public Iterable<Map.Entry<TimeAndDims, Aggregator[]>> getRangeOf(long from, long to, Boolean timeDescending)
+  public Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending)
   {
     return getFacts(facts, from, to, timeDescending);
   }
 
   @Override
-  protected void addToFacts(TimeAndDims key, Row row, ThreadLocal<Row> rowContainer) throws IndexSizeExceededException
+  @SuppressWarnings("unchecked")
+  protected final void addToFacts(TimeAndDims key) throws IndexSizeExceededException
   {
-    rowContainer.set(row);
-    for (Aggregator agg : facts.computeIfAbsent(key, populator)) {
-      aggregate(agg, reportParseExceptions);
-    }
-  }
-
-  private Aggregator[] factorize(AggregatorFactory[] metrics)
-  {
-    final Aggregator[] aggs = new Aggregator[metrics.length];
-    for (int i = 0; i < metrics.length; i++) {
-      aggs[i] = metrics[i].factorize(selectors[i]);
-    }
-    return aggs;
-  }
-
-  private void aggregate(Aggregator agg, boolean reportParseExceptions)
-  {
-    try {
-      agg.aggregate();
-    }
-    catch (ParseException e) {
-      // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
-      if (reportParseExceptions) {
-        throw new ParseException(e, "Encountered parse error for aggregator[%s]", agg);
-      } else {
-        LOG.debug(e, "Encountered parse error, skipping aggregator[%s].", agg);
+    final Object[] current = facts.computeIfAbsent(key, populator);
+    for (int i = 0; i < aggregators.length; i++) {
+      try {
+        current[i] = aggregators[i].aggregate(current[i]);
+      }
+      catch (ParseException e) {
+        // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
+        if (reportParseExceptions) {
+          throw new ParseException(e, "Encountered parse error for aggregator[%s]", aggregators[i]);
+        }
+        LOG.debug(e, "Encountered parse error, skipping aggregator[%s].", aggregators[i]);
       }
     }
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public long estimatedOccupation()
   {
     long estimation = super.estimatedOccupation();
     if (arrayAggregatorIndices.length > 0) {
-      for (final Aggregator[] array : facts.values()) {
+      for (final Object[] array : facts.values()) {
         for (int index : arrayAggregatorIndices) {
-          estimation += ((Aggregators.EstimableAggregator) array[index]).estimateOccupation();
+          estimation += ((Aggregators.EstimableAggregator) aggregators[index]).estimateOccupation(array[index]);
         }
       }
     }
@@ -218,7 +202,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   public void close()
   {
     super.close();
-    Arrays.fill(selectors, null);
     facts.clear();
   }
 }

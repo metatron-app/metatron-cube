@@ -19,14 +19,10 @@
 
 package io.druid.segment.incremental;
 
-import java.io.IOException;
+import com.metamx.common.ISE;
 
-public class IndexSizeExceededException extends IOException
+public class IndexSizeExceededException extends ISE
 {
-  public IndexSizeExceededException()
-  {
-  }
-
   public IndexSizeExceededException(String formatText, Object... arguments)
   {
     super(String.format(formatText, arguments));
@@ -35,10 +31,5 @@ public class IndexSizeExceededException extends IOException
   public IndexSizeExceededException(Throwable cause, String formatText, Object... arguments)
   {
     super(String.format(formatText, arguments), cause);
-  }
-
-  public IndexSizeExceededException(Throwable cause)
-  {
-    super(cause);
   }
 }

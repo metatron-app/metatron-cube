@@ -19,12 +19,12 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.collect.Lists;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.List;
 
-public class JavaScriptAggregator implements Aggregator
+public class JavaScriptAggregator extends Aggregator.Abstract<MutableDouble>
 {
   static interface ScriptAggregator
   {
@@ -40,50 +40,25 @@ public class JavaScriptAggregator implements Aggregator
   private final ObjectColumnSelector[] selectorList;
   private final ScriptAggregator script;
 
-  private volatile double current;
-
   public JavaScriptAggregator(List<ObjectColumnSelector> selectorList, ScriptAggregator script)
   {
-    this.selectorList = Lists.newArrayList(selectorList).toArray(new ObjectColumnSelector[]{});
+    this.selectorList = selectorList.toArray(new ObjectColumnSelector[]{});
     this.script = script;
-
-    this.current = script.reset();
   }
 
   @Override
-  public void aggregate()
+  public MutableDouble aggregate(MutableDouble current)
   {
-    current = script.aggregate(current, selectorList);
-  }
-
-  @Override
-  public void reset()
-  {
-    current = script.reset();
-  }
-
-  @Override
-  public Object get()
-  {
+    if (current == null) {
+      current = new MutableDouble(script.reset());
+    }
+    current.setValue(script.aggregate(current.doubleValue(), selectorList));
     return current;
   }
 
-  @Override
-  public Float getFloat()
+  public Double get(MutableDouble current)
   {
-    return (float) current;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) current;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return current;
+    return current == null ? null : current.doubleValue();
   }
 
   @Override

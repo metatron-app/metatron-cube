@@ -80,7 +80,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     } else {
       return new DistinctCountAggregator(
           selector,
-          bitMapFactory.makeEmptyMutableBitmap(),
+          bitMapFactory,
           ColumnSelectors.toMatcher(predicate, columnFactory)
       );
     }

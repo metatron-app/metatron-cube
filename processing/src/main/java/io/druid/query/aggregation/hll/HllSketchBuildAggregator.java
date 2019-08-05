@@ -31,13 +31,11 @@ import io.druid.segment.ObjectColumnSelector;
  *
  * @author Alexander Saydakov
  */
-public class HllSketchBuildAggregator extends Aggregator.Abstract
+public class HllSketchBuildAggregator extends Aggregator.Abstract<HllSketch>
 {
-
   private final ObjectColumnSelector<Object> selector;
   private final int lgK;
   private final TgtHllType tgtHllType;
-  private HllSketch sketch;
 
   public HllSketchBuildAggregator(
       final ObjectColumnSelector<Object> selector,
@@ -48,47 +46,20 @@ public class HllSketchBuildAggregator extends Aggregator.Abstract
     this.selector = selector;
     this.lgK = lgK;
     this.tgtHllType = tgtHllType;
-    this.sketch = new HllSketch(lgK, tgtHllType);
   }
 
   @Override
-  public void reset()
-  {
-    sketch = new HllSketch(lgK, tgtHllType);
-  }
-
-  /*
-   * This method is synchronized because it can be used during indexing,
-   * and Druid can call aggregate() and get() concurrently.
-   * See https://github.com/druid-io/druid/pull/3956
-   */
-  @Override
-  public void aggregate()
+  public HllSketch aggregate(HllSketch current)
   {
     final Object value = selector.get();
     if (value == null) {
-      return;
+      return current;
     }
-    synchronized (this) {
-      updateSketch(sketch, value);
+    if (current == null) {
+      current = new HllSketch(lgK, tgtHllType);
     }
-  }
-
-  /*
-   * This method is synchronized because it can be used during indexing,
-   * and Druid can call aggregate() and get() concurrently.
-   * See https://github.com/druid-io/druid/pull/3956
-   */
-  @Override
-  public synchronized Object get()
-  {
-    return sketch.copy();
-  }
-
-  @Override
-  public void close()
-  {
-    sketch = null;
+    updateSketch(current, value);
+    return current;
   }
 
   static void updateSketch(final HllSketch sketch, final Object value)

@@ -131,7 +131,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     Assert.assertEquals(expected.size(), results.size());
     for (int i = 0; i < results.size(); i++) {
       Assert.assertArrayEquals(
-          i + " th row.. "+ Arrays.toString(expected.get(i)) + " vs " + Arrays.toString(expected.get(i)),
+          i + " th row.. "+ Arrays.toString(expected.get(i)) + " vs " + Arrays.toString(results.get(i)),
           expected.get(i), results.get(i)
       );
     }

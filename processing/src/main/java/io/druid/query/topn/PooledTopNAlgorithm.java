@@ -23,6 +23,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
@@ -31,6 +32,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -58,7 +60,9 @@ public class PooledTopNAlgorithm
 
   @Override
   public PooledTopNParams makeInitParams(
-      DimensionSelector dimSelector, Cursor cursor
+      DimensionSelector dimSelector,
+      List<AggregatorFactory> aggregators,
+      Cursor cursor
   )
   {
     ResourceHolder<ByteBuffer> resultsBufHolder = bufferPool.take();
@@ -101,6 +105,7 @@ public class PooledTopNAlgorithm
 
     return PooledTopNParams.builder()
                            .withDimSelector(dimSelector)
+                           .withAggregatorFactories(query.getAggregatorSpecs())
                            .withCursor(cursor)
                            .withCardinality(cardinality)
                            .withResultsBufHolder(resultsBufHolder)
@@ -486,8 +491,12 @@ public class PooledTopNAlgorithm
   }
 
   @Override
-  protected void closeAggregators(BufferAggregator[] bufferAggregators)
+  protected void closeAggregators(
+      PooledTopNParams params,
+      BufferAggregator[] bufferAggregators
+  )
   {
+    super.closeAggregators(params, bufferAggregators);
     for (BufferAggregator agg : bufferAggregators) {
       agg.close();
     }
@@ -516,6 +525,7 @@ public class PooledTopNAlgorithm
 
     public PooledTopNParams(
         DimensionSelector dimSelector,
+        List<AggregatorFactory> factories,
         Cursor cursor,
         int cardinality,
         ResourceHolder<ByteBuffer> resultsBufHolder,
@@ -526,7 +536,7 @@ public class PooledTopNAlgorithm
         TopNMetricSpecBuilder<int[]> arrayProvider
     )
     {
-      super(dimSelector, cursor, cardinality, numValuesPerPass);
+      super(dimSelector, factories, cursor, cardinality, numValuesPerPass);
 
       this.resultsBufHolder = resultsBufHolder;
       this.resultsBuf = resultsBuf;
@@ -568,6 +578,7 @@ public class PooledTopNAlgorithm
     public static class Builder
     {
       private DimensionSelector dimSelector;
+      private List<AggregatorFactory> factories;
       private Cursor cursor;
       private int cardinality;
       private ResourceHolder<ByteBuffer> resultsBufHolder;
@@ -593,6 +604,12 @@ public class PooledTopNAlgorithm
       public Builder withDimSelector(DimensionSelector dimSelector)
       {
         this.dimSelector = dimSelector;
+        return this;
+      }
+
+      public Builder withAggregatorFactories(List<AggregatorFactory> factories)
+      {
+        this.factories = factories;
         return this;
       }
 
@@ -648,6 +665,7 @@ public class PooledTopNAlgorithm
       {
         return new PooledTopNParams(
             dimSelector,
+            factories,
             cursor,
             cardinality,
             resultsBufHolder,

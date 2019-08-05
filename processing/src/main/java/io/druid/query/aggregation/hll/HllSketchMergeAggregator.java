@@ -31,11 +31,11 @@ import io.druid.segment.ObjectColumnSelector;
  *
  * @author Alexander Saydakov
  */
-public class HllSketchMergeAggregator extends Aggregator.Abstract
+public class HllSketchMergeAggregator extends Aggregator.Abstract<Union>
 {
   private final ObjectColumnSelector<HllSketch> selector;
   private final TgtHllType tgtHllType;
-  private final Union union;
+  private final int lgK;
 
   public HllSketchMergeAggregator(
       final ObjectColumnSelector<HllSketch> selector,
@@ -45,34 +45,26 @@ public class HllSketchMergeAggregator extends Aggregator.Abstract
   {
     this.selector = selector;
     this.tgtHllType = tgtHllType;
-    this.union = new Union(lgK);
+    this.lgK = lgK;
   }
 
-  /*
-   * This method is synchronized because it can be used during indexing,
-   * and Druid can call aggregate() and get() concurrently.
-   * See https://github.com/druid-io/druid/pull/3956
-   */
   @Override
-  public void aggregate()
+  public Union aggregate(Union current)
   {
     final HllSketch sketch = selector.get();
     if (sketch == null) {
-      return;
+      return current;
     }
-    synchronized (this) {
-      union.update(sketch);
+    if (current == null) {
+      current = new Union(lgK);
     }
+    current.update(sketch);
+    return current;
   }
 
-  /*
-   * This method is synchronized because it can be used during indexing,
-   * and Druid can call aggregate() and get() concurrently.
-   * See https://github.com/druid-io/druid/pull/3956
-   */
   @Override
-  public synchronized Object get()
+  public Object get(Union current)
   {
-    return union.getResult(tgtHllType);
+    return current == null ? null : current.getResult(tgtHllType);
   }
 }

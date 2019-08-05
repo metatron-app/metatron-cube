@@ -29,10 +29,11 @@ import java.util.Arrays;
 
 public class DruidTDigestAggregatorTest {
 
-  private void aggregate(TestObjectColumnSelector selector, Aggregator aggregator)
+  private DruidTDigest aggregate(TestObjectColumnSelector selector, DruidTDigestAggregator aggregator, DruidTDigest aggregate)
   {
-    aggregator.aggregate();
+    aggregate = aggregator.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private void aggregateBuffer(TestObjectColumnSelector selector, BufferAggregator aggregator, ByteBuffer buf, int position)
@@ -50,11 +51,12 @@ public class DruidTDigestAggregatorTest {
 
     DruidTDigestAggregator aggregator = new DruidTDigestAggregator(selector, 10);
 
+    DruidTDigest aggregate = null;
     for (double value: values) {
-      aggregate(selector, aggregator);
+      aggregate = aggregate(selector, aggregator, aggregate);
     }
 
-    DruidTDigest digest = (DruidTDigest) aggregator.get();
+    DruidTDigest digest = (DruidTDigest) aggregator.get(aggregate);
     double median = digest.median();
 
     Assert.assertEquals("median value does not match", 1000.0, median, 0);
@@ -141,12 +143,13 @@ public class DruidTDigestAggregatorTest {
 
     DruidTDigestAggregator aggregator = new DruidTDigestAggregator(selector, 10);
 
+    DruidTDigest aggregate = null;
     for (double value: values) {
-      aggregate(selector, aggregator);
+      aggregate = aggregate(selector, aggregator, aggregate);
     }
 
     Arrays.sort(values);
-    DruidTDigest digest = (DruidTDigest) aggregator.get();
+    DruidTDigest digest = (DruidTDigest) aggregator.get(aggregate);
     double median = digest.median();
 
     double expected = (values.length % 2 == 0) ? (values[values.length / 2] + values[values.length / 2 - 1]) / 2 : values[values.length / 2];

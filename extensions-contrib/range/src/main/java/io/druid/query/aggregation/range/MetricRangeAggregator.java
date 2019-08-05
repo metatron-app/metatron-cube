@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
 
-public class MetricRangeAggregator implements Aggregator
+public class MetricRangeAggregator extends Aggregator.Abstract<MetricRange>
 {
   public static final Comparator COMPARATOR = new Comparator() {
     @Override
@@ -42,55 +42,23 @@ public class MetricRangeAggregator implements Aggregator
   }
 
   private final ObjectColumnSelector selector;
-  private MetricRange metricRange;
 
-  public MetricRangeAggregator(
-      ObjectColumnSelector selector
-  )
+  public MetricRangeAggregator(ObjectColumnSelector selector)
   {
     this.selector = selector;
-    this.metricRange = new MetricRange();
   }
 
   @Override
-  public void aggregate()
+  public MetricRange aggregate(MetricRange current)
   {
-    metricRange.add(selector.get());
-  }
-
-  @Override
-  public void reset()
-  {
-    metricRange.reset();
-  }
-
-  @Override
-  public Object get()
-  {
-    return metricRange;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float)metricRange.getRange();
-  }
-
-  @Override
-  public void close()
-  {
-
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long)metricRange.getRange();
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return metricRange.getRange();
+    final Object o = selector.get();
+    if (o == null) {
+      return current;
+    }
+    if (current == null) {
+      current = new MetricRange();
+    }
+    current.add(o);
+    return current;
   }
 }

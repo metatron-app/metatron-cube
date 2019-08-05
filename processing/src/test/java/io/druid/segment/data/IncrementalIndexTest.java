@@ -59,6 +59,7 @@ import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -353,6 +354,7 @@ public class IncrementalIndexTest
   }
 
   @Test(timeout = 60_000L)
+  @Ignore("Not cocurrent anymore")
   public void testConcurrentAddRead() throws InterruptedException, ExecutionException
   {
     final int dimensionCount = 5;
@@ -578,6 +580,7 @@ public class IncrementalIndexTest
   }
 
   @Test
+  @Ignore("Not cocurrent anymore")
   public void testConcurrentAdd() throws Exception
   {
     final IncrementalIndex index = closer.closeLater(indexCreator.createIndex(defaultAggregatorFactories));

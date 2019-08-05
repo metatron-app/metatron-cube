@@ -21,7 +21,7 @@ package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregationTestHelper;
@@ -105,6 +105,6 @@ public class VarianceCombinedAggregationTest
         query
     );
 
-    return (MapBasedRow) Sequences.toList(seq, Lists.newArrayList()).get(0);
+    return (MapBasedRow) Sequences.only(seq);
   }
 }

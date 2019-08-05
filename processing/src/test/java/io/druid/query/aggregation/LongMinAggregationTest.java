@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.primitives.Longs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,17 +60,13 @@ public class LongMinAggregationTest
   {
     LongMinAggregator agg = (LongMinAggregator)longMinAggFactory.factorize(colSelectorFactory);
 
-    aggregate(selector, agg);
-    aggregate(selector, agg);
-    aggregate(selector, agg);
-    aggregate(selector, agg);
+    MutableLong aggregate = null;
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
+    aggregate = aggregate(selector, agg, aggregate);
 
-    Assert.assertEquals(values[2], ((Long) agg.get()).longValue());
-    Assert.assertEquals(values[2], agg.getLong().longValue());
-    Assert.assertEquals((float) values[2], agg.getFloat(), 0.0001);
-
-    agg.reset();
-    Assert.assertEquals(Long.MAX_VALUE, agg.getLong().longValue());
+    Assert.assertEquals(values[2], agg.get(aggregate).longValue());
   }
 
   @Test
@@ -107,10 +104,11 @@ public class LongMinAggregationTest
     Assert.assertFalse(one.equals(two));
   }
 
-  private void aggregate(TestLongColumnSelector selector, LongMinAggregator agg)
+  private MutableLong aggregate(TestLongColumnSelector selector, LongMinAggregator agg, MutableLong aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private void aggregate(TestLongColumnSelector selector, LongMinBufferAggregator agg, ByteBuffer buff, int position)

@@ -24,7 +24,6 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
-import com.yahoo.sketches.theta.SynchronizedUnion;
 import com.yahoo.sketches.theta.Union;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.DimensionSelector;
@@ -33,57 +32,32 @@ import io.druid.segment.data.IndexedInts;
 
 import java.util.List;
 
-public abstract class SketchAggregator implements Aggregator
+public abstract class SketchAggregator extends Aggregator.Abstract<Union>
 {
-  final Union union;
+  final int size;
 
   public SketchAggregator(int size)
   {
-    union = new SynchronizedUnion((Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION));
+    this.size = size;
   }
 
-  @Override
-  public void reset()
+  protected final Union union(Union current)
   {
-    union.reset();
+    return current == null ? (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION) : current;
   }
 
   @Override
-  public Object get()
+  public Object get(Union current)
   {
     //in the code below, I am returning SetOp.getResult(true, null)
     //"true" returns an ordered sketch but slower to compute than unordered sketch.
     //however, advantage of ordered sketch is that they are faster to "union" later
     //given that results from the aggregator will be combined further, it is better
     //to return the ordered sketch here
-    return union.getResult(true, null);
+    return current == null ? null : current.getResult(true, null);
   }
 
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public void close()
-  {
-    union.reset();
-  }
-
-  static void updateUnion(Union union, Object update)
+  static Union updateUnion(Union union, Object update)
   {
     if (update instanceof Memory) {
       union.update((Memory) update);
@@ -110,19 +84,21 @@ public abstract class SketchAggregator implements Aggregator
     } else {
       throw new ISE("Illegal type received while theta sketch merging [%s]", update.getClass());
     }
+    return union;
   }
 
   public static SketchAggregator create(final DimensionSelector selector, int size)
   {
     if (selector instanceof DimensionSelector.WithRawAccess) {
-      final DimensionSelector.WithRawAccess rawAccess = (DimensionSelector.WithRawAccess)selector;
+      final DimensionSelector.WithRawAccess rawAccess = (DimensionSelector.WithRawAccess) selector;
       return new SketchAggregator(size)
       {
         @Override
-        public void aggregate()
+        public Union aggregate(Union current)
         {
           final IndexedInts indexed = selector.getRow();
           final int length = indexed.size();
+          final Union union = union(current);
           if (length == 1) {
             union.update(rawAccess.lookupRaw(indexed.get(0)));
           } else if (length > 1) {
@@ -130,16 +106,18 @@ public abstract class SketchAggregator implements Aggregator
               union.update(rawAccess.lookupRaw(indexed.get(i)));
             }
           }
+          return union;
         }
       };
     } else {
       return new SketchAggregator(size)
       {
         @Override
-        public void aggregate()
+        public Union aggregate(Union current)
         {
           final IndexedInts indexed = selector.getRow();
           final int length = indexed.size();
+          final Union union = union(current);
           if (length == 1) {
             union.update((String) selector.lookupName(indexed.get(0)));
           } else if (length > 1) {
@@ -147,6 +125,7 @@ public abstract class SketchAggregator implements Aggregator
               union.update((String) selector.lookupName(indexed.get(i)));
             }
           }
+          return union;
         }
       };
     }
@@ -157,14 +136,13 @@ public abstract class SketchAggregator implements Aggregator
     return new SketchAggregator(size)
     {
       @Override
-      public void aggregate()
+      public Union aggregate(Union current)
       {
         final Object update = selector.get();
         if (update == null) {
-          return;
+          return current;
         }
-
-        updateUnion(union, update);
+        return updateUnion(union(current), update);
       }
     };
   }

@@ -204,7 +204,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-
   public Object finalizeComputation(Object object)
   {
     return HyperUniquesAggregatorFactory.estimateCardinality(object, round);

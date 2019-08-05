@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.AggregationBuffer;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -201,10 +202,8 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     final Object[] params = new Object[selectors.length];
 
     final EvalInspector prepared;
-    final GenericUDAFEvaluator.AggregationBuffer buffer;
     try {
       prepared = prepare(toAggregationMode());
-      buffer = prepared.evaluator().getNewAggregationBuffer();
     }
     catch (HiveException e) {
       throw Throwables.propagate(e);
@@ -212,40 +211,31 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     final GenericUDAFEvaluator evaluator = prepared.evaluator();
     final ObjectInspector outputOI = prepared.outputOI();
 
-    return new Aggregator.Abstract()
+    return new Aggregator<AggregationBuffer>()
     {
       @Override
-      public void reset()
-      {
-        try {
-          evaluator.reset(buffer);
-        }
-        catch (HiveException e) {
-          throw Throwables.propagate(e);
-        }
-      }
-
-      @Override
-      public void aggregate()
+      public AggregationBuffer aggregate(AggregationBuffer current)
       {
         for (int i = 0; i < selectors.length; i++) {
           params[i] = selectors[i].get();
         }
         try {
-          synchronized (buffer) {
-            evaluator.aggregate(buffer, params);
+          if (current == null) {
+            current = evaluator.getNewAggregationBuffer();
           }
+          evaluator.aggregate(current, params);
         }
         catch (HiveException e) {
           throw Throwables.propagate(e);
         }
+        return current;
       }
 
       @Override
-      public Object get()
+      public Object get(AggregationBuffer current)
       {
         try {
-          return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(buffer));
+          return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(current));
         }
         catch (HiveException e) {
           throw Throwables.propagate(e);
@@ -307,14 +297,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   @Override
   public BufferAggregator factorizeBuffered(final ColumnSelectorFactory metricFactory)
   {
-    return new Aggregators.RelayBufferAggregator()
-    {
-      @Override
-      protected Aggregator newAggregator()
-      {
-        return factorize(metricFactory);
-      }
-    };
+    return new Aggregators.RelayBufferAggregator(factorize(metricFactory));
   }
 
   @Override
@@ -334,7 +317,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   {
     try (EvalInspector prepared = withMerge(true).prepare(mode)) {
       final GenericUDAFEvaluator evaluator = prepared.evaluator();
-      final GenericUDAFEvaluator.AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
+      final AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
       final ObjectInspector outputOI = prepared.outputOI();
       return new Combiner<Object>()
       {

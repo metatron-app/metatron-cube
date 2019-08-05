@@ -71,31 +71,25 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
     if (ValueDesc.SHAPE.equals(type)) {
-      return new Aggregator.Abstract()
+      return new Aggregator.Abstract<Envelope>()
       {
-        private Envelope envelope = new Envelope();
-
         @Override
-        public void aggregate()
+        public Envelope aggregate(Envelope envelope)
         {
           final Geometry geometry = ShapeUtils.toGeometry((Shape) selector.get());
           if (geometry != null) {
-            synchronized (envelope) {
-              envelope.expandToInclude(geometry.getEnvelopeInternal());
+            if (envelope == null) {
+              envelope = new Envelope();
             }
+            envelope.expandToInclude(geometry.getEnvelopeInternal());
           }
+          return envelope;
         }
 
         @Override
-        public void reset()
+        public Object get(Envelope envelope)
         {
-          envelope = new Envelope();
-        }
-
-        @Override
-        public Object get()
-        {
-          return envelope.isNull() ? null :
+          return envelope == null || envelope.isNull() ? null :
                  new double[]{envelope.getMinX(), envelope.getMaxX(), envelope.getMinY(), envelope.getMaxY()};
         }
       };
@@ -238,12 +232,10 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
       public Aggregator factorize(ColumnSelectorFactory metricFactory)
       {
         final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(name);
-        return new Aggregator.Abstract()
+        return new Aggregator.Abstract<double[]>()
         {
-          private double[] envelope;
-
           @Override
-          public void aggregate()
+          public double[] aggregate(double[] envelope)
           {
             final double[] coordinates = ((double[]) selector.get());
             if (envelope == null) {
@@ -262,17 +254,6 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
                 envelope[3] = coordinates[3];
               }
             }
-          }
-
-          @Override
-          public void reset()
-          {
-            envelope = null;
-          }
-
-          @Override
-          public Object get()
-          {
             return envelope;
           }
         };

@@ -49,13 +49,14 @@ public class ApproximateHistogramPostAggregatorTest
 
     ApproximateHistogramAggregator agg = new ApproximateHistogramAggregator(
         "price", selector, 10, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, false, ValueMatcher.TRUE);
+    ApproximateHistogramHolder aggregate = null;
     for (int i = 0; i < VALUES.length; i++) {
-      agg.aggregate();
+      aggregate = agg.aggregate(aggregate);
       selector.increment();
     }
 
     Map<String, Object> metricValues = new HashMap<String, Object>();
-    metricValues.put(agg.getName(), agg.get());
+    metricValues.put(agg.getName(), agg.get(aggregate));
 
     ApproximateHistogramPostAggregator approximateHistogramPostAggregator = new EqualBucketsPostAggregator(
         "approxHist",

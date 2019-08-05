@@ -23,53 +23,35 @@ package io.druid.query.aggregation;
  * An Aggregator is an object that can aggregate metrics.  Its aggregation-related methods (namely, aggregate() and get())
  * do not take any arguments as the assumption is that the Aggregator was given something in its constructor that
  * it can use to get at the next bit of data.
- *
+ * <p>
  * Thus, an Aggregator can be thought of as a closure over some other thing that is stateful and changes between calls
  * to aggregate().  This is currently (as of this documentation) implemented through the use of Offset and
  * FloatColumnSelector objects.  The Aggregator has a handle on a FloatColumnSelector object which has a handle on an Offset.
  * QueryableIndex has both the Aggregators and the Offset object and iterates through the Offset calling the aggregate()
  * method on the Aggregators for each applicable row.
- *
+ * <p>
  * This interface is old and going away.  It is being replaced by BufferAggregator
  */
-public interface Aggregator {
-  void aggregate();
-  void reset();
-  Object get();
-  Float getFloat();
-  Long getLong();
-  Double getDouble();
+public interface Aggregator<T>
+{
+  T aggregate(T current);
+
+  Object get(T current);
+
   void close();
 
-  abstract class Abstract implements Aggregator
+  abstract class Abstract<T> implements Aggregator<T>
   {
     @Override
-    public void reset()
+    public T aggregate(T current)
     {
+      return current;
     }
 
     @Override
-    public Object get()
+    public Object get(T current)
     {
-      throw new UnsupportedOperationException("get");
-    }
-
-    @Override
-    public Float getFloat()
-    {
-      throw new UnsupportedOperationException("getFloat");
-    }
-
-    @Override
-    public Long getLong()
-    {
-      throw new UnsupportedOperationException("getLong");
-    }
-
-    @Override
-    public Double getDouble()
-    {
-      throw new UnsupportedOperationException("getDouble");
+      return current;
     }
 
     @Override
@@ -81,12 +63,13 @@ public interface Aggregator {
   Aggregator NULL = new Abstract()
   {
     @Override
-    public void aggregate()
+    public Object aggregate(Object current)
     {
+      return null;
     }
 
     @Override
-    public Object get()
+    public Object get(Object current)
     {
       return null;
     }

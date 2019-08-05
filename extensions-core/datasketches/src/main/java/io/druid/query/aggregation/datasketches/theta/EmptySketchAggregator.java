@@ -22,44 +22,11 @@ package io.druid.query.aggregation.datasketches.theta;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.sketch.ThetaOperations;
 
-public class EmptySketchAggregator implements Aggregator
+public class EmptySketchAggregator extends Aggregator.Abstract
 {
   @Override
-  public void aggregate()
-  {
-  }
-
-  @Override
-  public void reset()
-  {
-  }
-
-  @Override
-  public Object get()
+  public Object get(Object current)
   {
     return ThetaOperations.EMPTY_SKETCH;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public void close()
-  {
   }
 }

@@ -27,80 +27,32 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class PearsonAggregator implements Aggregator
+public abstract class PearsonAggregator extends Aggregator.Abstract<PearsonAggregatorCollector>
 {
-  protected final PearsonAggregatorCollector holder = new PearsonAggregatorCollector();
-
-  @Override
-  public void reset()
-  {
-    holder.reset();
-  }
-
-  @Override
-  public Object get()
-  {
-    return holder;
-  }
-
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("PearsonAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("PearsonAggregator does not support getDouble()");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("PearsonAggregator does not support getLong()");
-  }
-
   public static Aggregator create(
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
       final ValueMatcher predicate
   )
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new PearsonAggregator()
+    return new PearsonAggregator()
+    {
+      @Override
+      public PearsonAggregatorCollector aggregate(PearsonAggregatorCollector current)
       {
-        @Override
-        public void aggregate()
-        {
+        if (predicate.matches()) {
           final Double v1 = selector1.get();
           final Double v2 = selector2.get();
           if (v1 != null && v2 != null) {
-            holder.add(v1, v2);
-          }
-        }
-      };
-    } else {
-      return new PearsonAggregator()
-      {
-        @Override
-        public void aggregate()
-        {
-          if (predicate.matches()) {
-            final Double v1 = selector1.get();
-            final Double v2 = selector2.get();
-            if (v1 != null && v2 != null) {
-              holder.add(v1, v2);
+            if (current == null) {
+              current = new PearsonAggregatorCollector();
             }
+            current.add(v1, v2);
           }
         }
-      };
-    }
+        return current;
+      }
+    };
   }
 
   public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
@@ -111,11 +63,12 @@ public abstract class PearsonAggregator implements Aggregator
     return new PearsonAggregator()
     {
       @Override
-      public void aggregate()
+      public PearsonAggregatorCollector aggregate(PearsonAggregatorCollector current)
       {
         if (predicate.matches()) {
-          PearsonAggregatorCollector.combineValues(holder, selector.get());
+          return PearsonAggregatorCollector.combineValues(current, selector.get());
         }
+        return current;
       }
     };
   }

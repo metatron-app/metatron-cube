@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import org.apache.commons.lang.mutable.MutableLong;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,10 +29,11 @@ import java.util.Comparator;
  */
 public class LongSumAggregatorTest
 {
-  private void aggregate(TestLongColumnSelector selector, LongSumAggregator agg)
+  private MutableLong aggregate(TestLongColumnSelector selector, LongSumAggregator agg, MutableLong aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   @Test
@@ -40,17 +42,18 @@ public class LongSumAggregatorTest
     final TestLongColumnSelector selector = new TestLongColumnSelector(new long[]{24L, 20L});
     LongSumAggregator agg = LongSumAggregator.create(selector, null);
 
-    Assert.assertEquals(0L, agg.get());
-    Assert.assertEquals(0L, agg.get());
-    Assert.assertEquals(0L, agg.get());
-    aggregate(selector, agg);
-    Assert.assertEquals(24L, agg.get());
-    Assert.assertEquals(24L, agg.get());
-    Assert.assertEquals(24L, agg.get());
-    aggregate(selector, agg);
-    Assert.assertEquals(44L, agg.get());
-    Assert.assertEquals(44L, agg.get());
-    Assert.assertEquals(44L, agg.get());
+    MutableLong aggregate = null;
+    Assert.assertEquals(0L, agg.get(aggregate));
+    Assert.assertEquals(0L, agg.get(aggregate));
+    Assert.assertEquals(0L, agg.get(aggregate));
+    aggregate = aggregate(selector, agg, aggregate);
+    Assert.assertEquals(24L, agg.get(aggregate));
+    Assert.assertEquals(24L, agg.get(aggregate));
+    Assert.assertEquals(24L, agg.get(aggregate));
+    aggregate = aggregate(selector, agg, aggregate);
+    Assert.assertEquals(44L, agg.get(aggregate));
+    Assert.assertEquals(44L, agg.get(aggregate));
+    Assert.assertEquals(44L, agg.get(aggregate));
   }
 
   @Test
@@ -59,14 +62,15 @@ public class LongSumAggregatorTest
     final TestLongColumnSelector selector = new TestLongColumnSelector(new long[]{18293L});
     LongSumAggregator agg = LongSumAggregator.create(selector, null);
 
-    Object first = agg.get();
-    agg.aggregate();
+    MutableLong aggregate = null;
+    Object first = agg.get(aggregate);
+    aggregate = agg.aggregate(aggregate);
 
     Comparator comp = new LongSumAggregatorFactory("null", "null").getComparator();
 
-    Assert.assertEquals(-1, comp.compare(first, agg.get()));
+    Assert.assertEquals(-1, comp.compare(first, agg.get(aggregate)));
     Assert.assertEquals(0, comp.compare(first, first));
-    Assert.assertEquals(0, comp.compare(agg.get(), agg.get()));
-    Assert.assertEquals(1, comp.compare(agg.get(), first));
+    Assert.assertEquals(0, comp.compare(agg.get(aggregate), agg.get(aggregate)));
+    Assert.assertEquals(1, comp.compare(agg.get(aggregate), first));
   }
 }

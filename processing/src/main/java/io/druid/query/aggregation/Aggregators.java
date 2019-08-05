@@ -37,99 +37,72 @@ import java.util.Map;
  */
 public class Aggregators
 {
-  public static Aggregator noopAggregator()
+  public static Aggregator[] makeAggregators(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
   {
-    return new Aggregator()
-    {
-      @Override
-      public void aggregate()
-      {
-      }
-
-      @Override
-      public void reset()
-      {
-      }
-
-      @Override
-      public Object get()
-      {
-        return null;
-      }
-
-      @Override
-      public Float getFloat()
-      {
-        return null;
-      }
-
-      @Override
-      public Long getLong()
-      {
-        return null;
-      }
-
-      @Override
-      public Double getDouble()
-      {
-        return null;
-      }
-
-      @Override
-      public void close() {
-      }
-    };
+    Aggregator[] aggregators = new Aggregator[factories.size()];
+    for (int i = 0; i < aggregators.length; i++) {
+      aggregators[i] = factories.get(i).factorize(factory);
+    }
+    return aggregators;
   }
 
-  public static class DelegatedAggregator implements Aggregator
+  @SuppressWarnings("unchecked")
+  public static Object[] aggregate(Object[] values, Aggregator[] aggregators)
   {
-    private final Aggregator delegate;
+    for (int i = 0; i < aggregators.length; i++) {
+      values[i] = aggregators[i].aggregate(values[i]);
+    }
+    return values;
+  }
 
-    public DelegatedAggregator(Aggregator delegate)
+  @SuppressWarnings("unchecked")
+  public static Object[] get(Object[] values, Aggregator[] aggregators)
+  {
+    for (int i = 0; i < aggregators.length; i++) {
+      values[i] = aggregators[i].get(values[i]);
+    }
+    return values;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static void close(Aggregator[] aggregators)
+  {
+    for (int i = 0; i < aggregators.length; i++) {
+      aggregators[i].close();
+    }
+  }
+
+  public static Aggregator noopAggregator()
+  {
+    return Aggregator.NULL;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static class DelegatedAggregator<T> implements Aggregator<T>
+  {
+    final Aggregator<T> delegate;
+
+    public DelegatedAggregator(Aggregator<T> delegate)
     {
       this.delegate = delegate;
     }
 
     @Override
-    public void aggregate()
+    public T aggregate(T current)
     {
-      delegate.aggregate();
+      return delegate.aggregate(current);
     }
 
     @Override
-    public void reset()
+    public Object get(T current)
     {
-      delegate.reset();
-    }
-
-    @Override
-    public Object get()
-    {
-      return delegate.get();
-    }
-
-    @Override
-    public Float getFloat()
-    {
-      return delegate.getFloat();
+      return delegate.get(current);
     }
 
     @Override
     public void close()
     {
       delegate.close();
-    }
-
-    @Override
-    public Long getLong()
-    {
-      return delegate.getLong();
-    }
-
-    @Override
-    public Double getDouble()
-    {
-      return delegate.getDouble();
     }
   }
 
@@ -221,117 +194,117 @@ public class Aggregators
     }
     switch (type) {
       case ONLY_ONE:
-        return new RelayAggregator()
+        return new Aggregator.Abstract()
         {
           @Override
-          public void aggregate()
+          public Object aggregate(Object current)
           {
-            if (selected) {
+            if (current != null) {
               throw new IllegalStateException("cannot aggregate");
             }
-            update(selector);
+            return selector.get();
           }
         };
       case FIRST:
-        return new RelayAggregator()
+        return new Aggregator.Abstract()
         {
           @Override
-          public void aggregate()
+          public Object aggregate(Object current)
           {
-            if (!selected) {
-              update(selector);
-            }
+            return current == null ? selector.get() : current;
           }
         };
       case LAST:
-        return new RelayAggregator()
+        return new Aggregator.Abstract()
         {
           @Override
-          public void aggregate()
+          public Object aggregate(Object current)
           {
-            update(selector);
+            return selector.get();
           }
         };
       case MIN:
-        return new RelayAggregator()
+        return new Aggregator.Abstract()
         {
           @Override
           @SuppressWarnings("unchecked")
-          public void aggregate()
+          public Object aggregate(Object current)
           {
             final Object update = selector.get();
-            if (update != null && (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) > 0)) {
-              selected = true;
-              value = update;
+            if (update == null) {
+              return current;
             }
+            if (current == null || GuavaUtils.NULL_FIRST_NATURAL.compare(current, update) > 0) {
+              current = update;
+            }
+            return current;
           }
         };
       case MAX:
-        return new RelayAggregator()
+        return new Aggregator.Abstract()
         {
           @Override
           @SuppressWarnings("unchecked")
-          public void aggregate()
+          public Object aggregate(Object current)
           {
             final Object update = selector.get();
-            if (update != null && (!selected || GuavaUtils.NULL_FIRST_NATURAL.compare(value, update) < 0)) {
-              selected = true;
-              value = update;
+            if (update == null) {
+              return current;
             }
+            if (current == null || GuavaUtils.NULL_FIRST_NATURAL.compare(current, update) < 0) {
+              current = update;
+            }
+            return current;
           }
         };
       case TIME_MIN:
-        return new RelayAggregator()
+        return new Aggregator.Abstract<TimeTagged>()
         {
-          long minTime = -1;
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
           @SuppressWarnings("unchecked")
-          public void aggregate()
+          public TimeTagged aggregate(TimeTagged current)
           {
-            final Object update = selector.get();
-            if (update != null) {
-              final long current = timeSelector.get();
-              if (!selected || Longs.compare(minTime, current) > 0) {
-                selected = true;
-                value = update;
-                minTime = current;
-              }
+            final long timestamp = timeSelector.get();
+            if (current == null) {
+              current = new TimeTagged(timestamp, selector.get());
+            } else  if (Longs.compare(timestamp, current.timestamp) < 0) {
+              current.timestamp = timestamp;
+              current.value = selector.get();
             }
+            return current;
           }
 
           @Override
-          public Object get()
+          public Object get(TimeTagged current)
           {
-            return selected ? Arrays.asList(minTime, super.get()) : null;
+            return current == null ? null : Arrays.asList(current.timestamp, current.value);
           }
         };
       case TIME_MAX:
-        return new RelayAggregator()
+        return new Aggregator.Abstract<TimeTagged>()
         {
-          long maxTime = -1;
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
           @SuppressWarnings("unchecked")
-          public void aggregate()
+          public TimeTagged aggregate(TimeTagged current)
           {
-            final long current = timeSelector.get();
-            if (!selected || Longs.compare(maxTime, current) < 0) {
-              final Object update = selector.get();
-              if (update != null) {
-                selected = true;
-                value = selector.get();
-                maxTime = current;
-              }
+            final long timestamp = timeSelector.get();
+            if (current == null) {
+              current = new TimeTagged(timestamp, selector.get());
+            } else  if (Longs.compare(timestamp, current.timestamp) > 0) {
+              current.timestamp = timestamp;
+              current.value = selector.get();
             }
+            return current;
           }
 
           @Override
-          public Object get()
+          public Object get(TimeTagged current)
           {
-            return selected ? Arrays.asList(maxTime, super.get()) : null;
+            return current == null ? null : Arrays.asList(current.timestamp, current.value);
           }
         };
       default:
@@ -339,92 +312,16 @@ public class Aggregators
     }
   }
 
-  private static abstract class RelayAggregator implements Aggregator
+  private static class TimeTagged
   {
-    boolean selected;
+    long timestamp;
     Object value;
 
-    @Override
-    public void reset()
+    public TimeTagged(long timestamp, Object value)
     {
-      selected = false;
-      value = null;
+      this.timestamp = timestamp;
+      this.value = value;
     }
-
-    protected final void update(final ObjectColumnSelector selector)
-    {
-      final Object update = selector.get();
-      if (update != null) {
-        selected = true;
-        value = update;
-      }
-    }
-
-    @Override
-    public Object get()
-    {
-      return value;
-    }
-
-    @Override
-    public Float getFloat()
-    {
-      if (value == null) {
-        return null;
-      }
-      if (value instanceof Number) {
-        return ((Number) value).floatValue();
-      }
-      if (value instanceof String) {
-        Long longValue = Longs.tryParse((String) value);
-        if (longValue != null) {
-          return longValue.floatValue();
-        }
-        return Float.valueOf((String) value);
-      }
-      throw new IllegalArgumentException("cannot convert " + value.getClass() + " to float");
-    }
-
-    @Override
-    public Long getLong()
-    {
-      if (value == null) {
-        return null;
-      }
-      if (value instanceof Number) {
-        return ((Number) value).longValue();
-      }
-      if (value instanceof String) {
-        Long longValue = Longs.tryParse((String) value);
-        if (longValue != null) {
-          return longValue;
-        }
-        return Long.valueOf((String) value);
-      }
-      throw new IllegalArgumentException("cannot convert " + value.getClass() + " to long");
-    }
-
-    @Override
-    public Double getDouble()
-    {
-      if (value == null) {
-        return null;
-      }
-      if (value instanceof Number) {
-        return ((Number) value).doubleValue();
-      }
-      if (value instanceof String) {
-        Long longValue = Longs.tryParse((String) value);
-        if (longValue != null) {
-          return longValue.doubleValue();
-        }
-        return Double.valueOf((String) value);
-      }
-      throw new IllegalArgumentException("cannot convert " + value.getClass() + " to double");
-    }
-
-    @Override
-    public void close() {}
   }
 
   public static BufferAggregator relayBufferAggregator(
@@ -433,51 +330,53 @@ public class Aggregators
       final String type
   )
   {
-    return new RelayBufferAggregator()
-    {
-      private final RELAY_TYPE relayType = RELAY_TYPE.fromString(type);
-
-      @Override
-      protected Aggregator newAggregator()
-      {
-        return relayAggregator(factory, column, relayType);
-      }
-    };
+    return new RelayBufferAggregator(relayAggregator(factory, column, type));
   }
 
-  public static abstract class RelayBufferAggregator implements BufferAggregator
+  @SuppressWarnings("unchecked")
+  public static class RelayBufferAggregator implements BufferAggregator
   {
-    private final Map<IntArray, Aggregator> mapping = Maps.newHashMap();
+    private final Aggregator aggregator;
+    private final Map<IntArray, Object> mapping = Maps.newHashMap();
+
+    public RelayBufferAggregator(Aggregator aggregator)
+    {
+      this.aggregator = aggregator;
+    }
 
     private Aggregators.IntArray toKey(ByteBuffer buf, int position)
     {
       return new IntArray(new int[] {System.identityHashCode(buf), position});
     }
 
-    protected abstract Aggregator newAggregator();
-
     @Override
     public void init(ByteBuffer buf, int position)
     {
-      mapping.put(toKey(buf, position), newAggregator());
+      mapping.remove(toKey(buf, position));
     }
 
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {
-      mapping.get(toKey(buf, position)).aggregate();
+      final IntArray key = toKey(buf, position);
+      final Object current = mapping.get(key);
+      final Object updated = aggregator.aggregate(current);
+      if (current != updated) {
+        mapping.put(key, updated);
+      }
     }
 
     @Override
     public Object get(ByteBuffer buf, int position)
     {
-      return mapping.get(toKey(buf, position)).get();
+      return aggregator.get(mapping.get(toKey(buf, position)));
     }
 
     @Override
     public void close()
     {
       mapping.clear();
+      aggregator.close();
     }
   }
 
@@ -592,12 +491,13 @@ public class Aggregators
     }
   }
 
-  public static interface EstimableAggregator extends Aggregator
+  public static interface EstimableAggregator<T> extends Aggregator<T>
   {
-    int estimateOccupation();
+    int estimateOccupation(T current);
   }
 
-  public static abstract class AbstractEstimableAggregator extends Aggregator.Abstract implements EstimableAggregator
+  public static abstract class AbstractEstimableAggregator<T> extends Aggregator.Abstract<T>
+      implements EstimableAggregator<T>
   {
   }
 }

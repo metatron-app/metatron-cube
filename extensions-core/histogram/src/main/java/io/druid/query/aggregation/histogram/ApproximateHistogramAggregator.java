@@ -27,7 +27,8 @@ import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
-public class ApproximateHistogramAggregator extends Aggregator.Abstract implements Aggregators.EstimableAggregator
+public class ApproximateHistogramAggregator extends Aggregator.Abstract<ApproximateHistogramHolder>
+    implements Aggregators.EstimableAggregator<ApproximateHistogramHolder>
 {
   public static final Comparator COMPARATOR = new Comparator()
   {
@@ -51,8 +52,6 @@ public class ApproximateHistogramAggregator extends Aggregator.Abstract implemen
   private final boolean compact;
   private final ValueMatcher predicate;
 
-  private ApproximateHistogramHolder histogram;
-
   public ApproximateHistogramAggregator(
       String name,
       FloatColumnSelector selector,
@@ -70,31 +69,22 @@ public class ApproximateHistogramAggregator extends Aggregator.Abstract implemen
     this.upperLimit = upperLimit;
     this.compact = compact;
     this.predicate = predicate;
-    reset();
   }
 
   @Override
-  public void aggregate()
+  public ApproximateHistogramHolder aggregate(ApproximateHistogramHolder current)
   {
     if (predicate.matches()) {
       final Float value = selector.get();
-      if (value != null) {
-        histogram.offer(value);
+      if (value == null) {
+        return current;
       }
+      if (current == null) {
+        current = newInstance();
+      }
+      current.offer(value);
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    this.histogram = compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
-                             : new ApproximateHistogram(resolution, lowerLimit, upperLimit);
-  }
-
-  @Override
-  public Object get()
-  {
-    return histogram;
+    return current;
   }
 
   public String getName()
@@ -103,8 +93,14 @@ public class ApproximateHistogramAggregator extends Aggregator.Abstract implemen
   }
 
   @Override
-  public int estimateOccupation()
+  public int estimateOccupation(ApproximateHistogramHolder current)
   {
-    return histogram.estimateOccupation();
+    return current == null ? 0 : current.estimateOccupation();
+  }
+
+  private ApproximateHistogramHolder newInstance()
+  {
+    return compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
+                   : new ApproximateHistogram(resolution, lowerLimit, upperLimit);
   }
 }

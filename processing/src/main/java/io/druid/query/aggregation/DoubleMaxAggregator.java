@@ -22,12 +22,13 @@ package io.druid.query.aggregation;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleMaxAggregator implements Aggregator
+public abstract class DoubleMaxAggregator extends Aggregator.Abstract<MutableDouble>
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -36,42 +37,10 @@ public abstract class DoubleMaxAggregator implements Aggregator
     return Math.max(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
-  double max = Double.NEGATIVE_INFINITY;
-
   @Override
-  public void reset()
+  public Double get(MutableDouble current)
   {
-    max = Double.NEGATIVE_INFINITY;
-  }
-
-  @Override
-  public Object get()
-  {
-    return max;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) max;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) max;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return max;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current == null ? null : current.doubleValue();
   }
 
   public static DoubleMaxAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -80,30 +49,36 @@ public abstract class DoubleMaxAggregator implements Aggregator
       return new DoubleMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
-          final Float v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              max = Math.max(max, v);
-            }
+          final Float value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableDouble(value);
+          }
+          current.setValue(Math.max(current.floatValue(), value));
+          return current;
         }
       };
     } else {
       return new DoubleMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                max = Math.max(max, v);
-              }
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableDouble(value);
+            }
+            current.setValue(Math.max(current.floatValue(), value));
           }
+          return current;
         }
       };
     }
@@ -115,30 +90,36 @@ public abstract class DoubleMaxAggregator implements Aggregator
       return new DoubleMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
-          final Double v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              max = Math.max(max, v);
-            }
+          final Double value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableDouble(value);
+          }
+          current.setValue(Math.max(current.doubleValue(), value));
+          return current;
         }
       };
     } else {
       return new DoubleMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
-            final Double v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                max = Math.max(max, v);
-              }
+            final Double value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableDouble(value);
+            }
+            current.setValue(Math.max(current.doubleValue(), value));
           }
+          return current;
         }
       };
     }

@@ -55,11 +55,14 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
 
   @Override
   public TopNParams makeInitParams(
-      DimensionSelector dimSelector, Cursor cursor
+      DimensionSelector dimSelector,
+      List<AggregatorFactory> aggregators,
+      Cursor cursor
   )
   {
     return new TopNParams(
         dimSelector,
+        aggregators,
         cursor,
         dimSelector.getValueCardinality(),
         Integer.MAX_VALUE
@@ -67,9 +70,7 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
   }
 
   @Override
-  public void run(
-      TopNParams params, TopNResultBuilder resultBuilder, int[] ints
-  )
+  public void run(TopNParams params, TopNResultBuilder resultBuilder, int[] ints)
   {
     final String metric = query.getTopNMetricSpec().getMetricName(query.getDimensionSpec());
     Pair<List<AggregatorFactory>, List<PostAggregator>> condensedAggPostAggPair = AggregatorUtil.condensedAggregators(
@@ -92,12 +93,10 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
     PooledTopNAlgorithm.PooledTopNParams singleMetricParam = null;
     int[] dimValSelector = null;
     try {
-      singleMetricParam = singleMetricAlgo.makeInitParams(params.getDimSelector(), params.getCursor());
-      singleMetricAlgo.run(
-          singleMetricParam,
-          singleMetricResultBuilder,
-          null
+      singleMetricParam = singleMetricAlgo.makeInitParams(
+          params.getDimSelector(), condensedAggPostAggPair.lhs, params.getCursor()
       );
+      singleMetricAlgo.run(singleMetricParam, singleMetricResultBuilder, null);
 
       // Get only the topN dimension values
       dimValSelector = getDimValSelectorForTopNMetric(singleMetricParam, singleMetricResultBuilder);
@@ -110,7 +109,11 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
     PooledTopNAlgorithm.PooledTopNParams allMetricsParam = null;
     try {
       // Run topN for all metrics for top N dimension values
-      allMetricsParam = allMetricAlgo.makeInitParams(params.getDimSelector(), params.getCursor());
+      allMetricsParam = allMetricAlgo.makeInitParams(
+          params.getDimSelector(),
+          query.getAggregatorSpecs(),
+          params.getCursor()
+      );
       allMetricAlgo.run(
           allMetricsParam,
           resultBuilder,

@@ -113,27 +113,32 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     Preconditions.checkNotNull(inputType, "input type is not resolved");
     if (!ValueDesc.isArray(inputType)) {
       return factorize(metricFactory, inputType);
     }
-    ValueDesc elementType = ValueDesc.elementOfArray(inputType);
-    @SuppressWarnings("unchecked")
+    final ValueDesc elementType = ValueDesc.elementOfArray(inputType);
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
     return new Aggregators.DelegatedAggregator(factorize(factory, elementType))
     {
       @Override
-      public final void aggregate()
+      public final Object aggregate(Object current)
       {
-        List values = selector.get();
+        final List values = selector.get();
+        if (current == null) {
+          return values;
+        }
+        List list = (List) current;
         for (int i = 0; i < values.size(); i++) {
           factory.setIndex(i);
-          super.aggregate();
+          list.set(i, delegate.aggregate(list.get(i)));
         }
+        return list;
       }
     };
   }

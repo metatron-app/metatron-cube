@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import org.apache.commons.lang.mutable.MutableLong;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,17 +34,18 @@ public class CountAggregatorTest
   {
     CountAggregator agg = new CountAggregator();
 
-    Assert.assertEquals(0L, agg.get());
-    Assert.assertEquals(0L, agg.get());
-    Assert.assertEquals(0L, agg.get());
-    agg.aggregate();
-    Assert.assertEquals(1L, agg.get());
-    Assert.assertEquals(1L, agg.get());
-    Assert.assertEquals(1L, agg.get());
-    agg.aggregate();
-    Assert.assertEquals(2L, agg.get());
-    Assert.assertEquals(2L, agg.get());
-    Assert.assertEquals(2L, agg.get());
+    MutableLong x = null;
+    Assert.assertEquals(0L, agg.get(x));
+    Assert.assertEquals(0L, agg.get(x));
+    Assert.assertEquals(0L, agg.get(x));
+    x = agg.aggregate(x);
+    Assert.assertEquals(1L, agg.get(x));
+    Assert.assertEquals(1L, agg.get(x));
+    Assert.assertEquals(1L, agg.get(x));
+    x = agg.aggregate(x);
+    Assert.assertEquals(2L, agg.get(x));
+    Assert.assertEquals(2L, agg.get(x));
+    Assert.assertEquals(2L, agg.get(x));
   }
 
   @Test
@@ -51,14 +53,15 @@ public class CountAggregatorTest
   {
     CountAggregator agg = new CountAggregator();
 
-    Object first = agg.get();
-    agg.aggregate();
+    MutableLong x = null;
+    Object first = agg.get(x);
+    x = agg.aggregate(x);
 
     Comparator comp = new CountAggregatorFactory("null").getComparator();
 
-    Assert.assertEquals(-1, comp.compare(first, agg.get()));
+    Assert.assertEquals(-1, comp.compare(first, agg.get(x)));
     Assert.assertEquals(0, comp.compare(first, first));
-    Assert.assertEquals(0, comp.compare(agg.get(), agg.get()));
-    Assert.assertEquals(1, comp.compare(agg.get(), first));
+    Assert.assertEquals(0, comp.compare(agg.get(x), agg.get(x)));
+    Assert.assertEquals(1, comp.compare(agg.get(x), first));
   }
 }

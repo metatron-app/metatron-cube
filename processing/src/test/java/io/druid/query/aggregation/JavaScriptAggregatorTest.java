@@ -33,6 +33,7 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -118,11 +119,12 @@ public class JavaScriptAggregatorTest
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  private static void aggregate(TestDoubleColumnSelector selector1, TestDoubleColumnSelector selector2, Aggregator agg)
+  private static Object aggregate(TestDoubleColumnSelector selector1, TestDoubleColumnSelector selector2, Aggregator agg, Object current)
   {
-    agg.aggregate();
+    Object result = agg.aggregate(current);
     selector1.increment();
     selector2.increment();
+    return result;
   }
 
   private void aggregateBuffer(
@@ -137,16 +139,18 @@ public class JavaScriptAggregatorTest
     selector2.increment();
   }
 
-  private static void aggregate(TestDoubleColumnSelector selector, Aggregator agg)
+  private static Object aggregate(TestDoubleColumnSelector selector, Aggregator agg, Object current)
   {
-    agg.aggregate();
+    Object result = agg.aggregate(current);
     selector.increment();
+    return result;
   }
 
-  private static void aggregate(TestObjectColumnSelector selector, Aggregator agg)
+  private static Object aggregate(TestObjectColumnSelector selector, Aggregator agg, Object current)
   {
-    agg.aggregate();
+    Object result = agg.aggregate(current);
     selector.increment();
+    return result;
   }
 
   @Test
@@ -166,24 +170,23 @@ public class JavaScriptAggregatorTest
         )
     );
 
-    agg.reset();
-
-    double val = 10.;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    aggregate(selector1, selector2, agg);
+    Double val = new Double(10);
+    MutableDouble aggregate = null;
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
+    aggregate = (MutableDouble) aggregate(selector1, selector2, agg, aggregate);
 
     val += Math.log(42.12f) * 2f;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    aggregate = (MutableDouble) aggregate(selector1, selector2, agg, aggregate);
 
-    aggregate(selector1, selector2, agg);
     val += Math.log(9f) * 3f;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
   }
 
   @Test
@@ -238,22 +241,21 @@ public class JavaScriptAggregatorTest
         )
     );
 
-    final double val = 0;
+    Double val = new Double(0);
+    MutableDouble aggregate = null;
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
 
-    agg.reset();
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
+    aggregate = agg.aggregate(aggregate);
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
 
-    agg.aggregate();
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-
-    agg.aggregate();
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
+    aggregate = agg.aggregate(aggregate);
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
   }
 
   @Test
@@ -269,29 +271,28 @@ public class JavaScriptAggregatorTest
         )
     );
 
-    agg.reset();
-
-    double val = 0.;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    aggregate(ocs, agg);
+    Double val = new Double(0);
+    MutableDouble aggregate = null;
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
+    Assert.assertNull(agg.get(aggregate));
+    aggregate = (MutableDouble) aggregate(ocs, agg, aggregate);
 
     val += 1;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    aggregate(ocs, agg);
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    aggregate = (MutableDouble) aggregate(ocs, agg, aggregate);
 
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    aggregate(ocs, agg);
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    aggregate = (MutableDouble) aggregate(ocs, agg, aggregate);
 
     val += 2;
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
-    Assert.assertEquals(val, agg.get());
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
+    Assert.assertEquals(val, agg.get(aggregate));
   }
 
   @Test
@@ -366,34 +367,37 @@ public class JavaScriptAggregatorTest
 
     // warmup
     int i = 0;
-    long t = 0;
+    Object aggregate = null;
     while (i < 10000) {
-      aggregate(selector, aggRhino);
+      aggregate = aggregate(selector, aggRhino, aggregate);
       ++i;
     }
     i = 0;
+    aggregate = null;
     while (i < 10000) {
-      aggregate(selector, doubleAgg);
+      aggregate = aggregate(selector, doubleAgg, aggregate);
       ++i;
     }
 
-    t = System.currentTimeMillis();
+    long t = System.currentTimeMillis();
     i = 0;
+    aggregate = null;
     while (i < 500000000) {
-      aggregate(selector, aggRhino);
+      aggregate = aggregate(selector, aggRhino, aggregate);
       ++i;
     }
     long t1 = System.currentTimeMillis() - t;
-    System.out.println(String.format("JavaScript aggregator == %,f: %d ms", aggRhino.get(), t1));
+    System.out.println(String.format("JavaScript aggregator == %,f: %d ms", aggRhino.get((MutableDouble) aggregate), t1));
 
     t = System.currentTimeMillis();
     i = 0;
+    aggregate = null;
     while (i < 500000000) {
-      aggregate(selector, doubleAgg);
+      aggregate = aggregate(selector, doubleAgg, aggregate);
       ++i;
     }
     long t2 = System.currentTimeMillis() - t;
-    System.out.println(String.format("DoubleSum  aggregator == %,f: %d ms", doubleAgg.get(), t2));
+    System.out.println(String.format("DoubleSum  aggregator == %,f: %d ms", doubleAgg.get((MutableDouble) aggregate), t2));
 
     System.out.println(String.format("JavaScript is %2.1fx slower", (double) t1 / t2));
   }

@@ -24,6 +24,7 @@ import com.google.caliper.SimpleBenchmark;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.Map;
 
@@ -37,10 +38,11 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
     scriptDoubleSum.put("fnCombine", "function combine(a,b) { return a + b }");
   }
 
-  private static void aggregate(TestDoubleColumnSelector selector, Aggregator agg)
+  private static MutableDouble aggregate(TestDoubleColumnSelector selector, Aggregator<MutableDouble> agg, MutableDouble aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private JavaScriptAggregator jsAggregator;
@@ -66,20 +68,20 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
 
   public double timeJavaScriptDoubleSum(int reps)
   {
-    double val = 0;
+    MutableDouble aggregate = null;
     for(int i = 0; i < reps; ++i) {
-      aggregate(selector, jsAggregator);
+      aggregate = aggregate(selector, jsAggregator, aggregate);
     }
-    return val;
+    return jsAggregator.get(aggregate);
   }
 
   public double timeNativeDoubleSum(int reps)
   {
-    double val = 0;
+    MutableDouble aggregate = null;
     for(int i = 0; i < reps; ++i) {
-      aggregate(selector, doubleAgg);
+      aggregate = aggregate(selector, doubleAgg, aggregate);
     }
-    return val;
+    return (Double) doubleAgg.get(aggregate);
   }
 
   public static void main(String[] args) throws Exception

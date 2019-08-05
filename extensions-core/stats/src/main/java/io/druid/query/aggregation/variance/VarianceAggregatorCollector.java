@@ -73,19 +73,8 @@ public class VarianceAggregatorCollector
     }
   };
 
-  static Object combineValues(Object lhs, Object rhs)
+  static VarianceAggregatorCollector combineValues(Object lhs, Object rhs)
   {
-    if (lhs != null && !(lhs instanceof VarianceAggregatorCollector)) {
-      if (rhs instanceof VarianceAggregatorCollector) {
-        return rhs;
-      }
-      return new VarianceAggregatorCollector().add(lhs instanceof Number ? ((Number)lhs).doubleValue() : 0D);
-    }
-    if (rhs != null && !(rhs instanceof VarianceAggregatorCollector)) {
-      return lhs != null ? lhs :
-             new VarianceAggregatorCollector().add(rhs instanceof Number ? ((Number) rhs).doubleValue() : 0D);
-    }
-
     final VarianceAggregatorCollector holder1 = (VarianceAggregatorCollector) lhs;
     final VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) rhs;
 

@@ -107,12 +107,13 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return new BaseAggregator(inputType)
       {
         @Override
-        public void aggregate()
+        public TypedSketch aggregate(TypedSketch current)
         {
           TypedSketch sketch = (TypedSketch) selector.get();
           if (sketch != null) {
-            updateWithSketch(sketch.value());
+            return updateWithSketch(current, sketch.value());
           }
+          return current;
         }
       };
     }
@@ -126,17 +127,18 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return new BaseAggregator(selector.type())
       {
         @Override
-        public void aggregate()
+        public TypedSketch aggregate(TypedSketch current)
         {
           final IndexedInts row = selector.getRow();
           final int size = row.size();
           if (size == 1) {
-            updateWithValue(selector.lookupName(row.get(0)));
+            return updateWithValue(current, selector.lookupName(row.get(0)));
           } else if (size > 1) {
             for (int i = 0; i < size; i++) {
-              updateWithValue(selector.lookupName(row.get(i)));
+              current = updateWithValue(current, selector.lookupName(row.get(i)));
             }
           }
+          return current;
         }
       };
     }
@@ -146,20 +148,21 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return new BaseAggregator(elementType)
       {
         @Override
-        public void aggregate()
+        public TypedSketch aggregate(TypedSketch current)
         {
           Object value = selector.get();
           if (value == null) {
-            return;
+            return current;
           }
           if (value.getClass().isArray()) {
             int size = Array.getLength(value);
             for (int i = 0; i < size; i++) {
-              updateWithValue(Array.get(value, i));
+              current = updateWithValue(current, Array.get(value, i));
             }
           } else {
-            updateWithValue(value);
+            current = updateWithValue(current, value);
           }
+          return current;
         }
       };
     }
@@ -168,9 +171,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
       @Override
-      public void aggregate()
+      public TypedSketch aggregate(TypedSketch current)
       {
-        updateWithValue(selector.get());
+        return updateWithValue(current, selector.get());
       }
     };
   }
@@ -192,10 +195,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @SuppressWarnings("unchecked")
-  abstract class BaseAggregator extends Aggregator.Abstract
+  abstract class BaseAggregator extends Aggregator.Abstract<TypedSketch>
   {
     private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
-    private final TypedSketch sketch = handler.newUnion(sketchParam, inputType, sourceComparator());
 
     protected BaseAggregator(ValueDesc type)
     {
@@ -207,26 +209,29 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       }
     }
 
-    final void updateWithValue(Object value)
+    final TypedSketch updateWithValue(TypedSketch sketch, Object value)
     {
+      if (sketch == null) { sketch = newSketch(); }
       handler.updateWithValue(sketch, value);
+      return sketch;
     }
 
-    final void updateWithSketch(Object value)
+    final TypedSketch updateWithSketch(TypedSketch sketch, Object value)
     {
+      if (sketch == null) { sketch = newSketch(); }
       handler.updateWithSketch(sketch, value);
+      return sketch;
     }
 
     @Override
-    public void reset()
+    public Object get(TypedSketch current)
     {
-      handler.reset(sketch);
+      return handler.toSketch(current);
     }
 
-    @Override
-    public Object get()
+    private TypedSketch newSketch()
     {
-      return handler.toSketch(sketch);
+      return handler.newUnion(sketchParam, inputType, sourceComparator());
     }
   }
 

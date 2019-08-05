@@ -25,15 +25,14 @@ import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
-public class ApproximateHistogramFoldingAggregator extends Aggregator.Abstract
-    implements Aggregators.EstimableAggregator
+public class ApproximateHistogramFoldingAggregator extends Aggregator.Abstract<ApproximateHistogramHolder>
+    implements Aggregators.EstimableAggregator<ApproximateHistogramHolder>
 {
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
   private final int resolution;
   private final float lowerLimit;
   private final float upperLimit;
 
-  private ApproximateHistogramHolder histogram;
   private float[] tmpBufferP;
   private long[] tmpBufferB;
 
@@ -55,47 +54,40 @@ public class ApproximateHistogramFoldingAggregator extends Aggregator.Abstract
     this.upperLimit = upperLimit;
     this.predicate = predicate;
     this.compact = compact;
-    reset();
 
     tmpBufferP = new float[resolution];
     tmpBufferB = new long[resolution];
   }
 
   @Override
-  public void aggregate()
+  public ApproximateHistogramHolder aggregate(ApproximateHistogramHolder current)
   {
     if (predicate.matches()) {
       ApproximateHistogramHolder h = selector.get();
       if (h == null) {
-        return;
+        return current;
       }
-
-      synchronized (this) {
-        if (h.binCount() + histogram.binCount() <= tmpBufferB.length) {
-          histogram.foldFast(h, tmpBufferP, tmpBufferB);
-        } else {
-          histogram.foldFast(h);
-        }
+      if (current == null) {
+        current = newInstance();
+      }
+      if (h.binCount() + current.binCount() <= tmpBufferB.length) {
+        current.foldFast(h, tmpBufferP, tmpBufferB);
+      } else {
+        current.foldFast(h);
       }
     }
+    return current;
   }
 
-  @Override
-  public void reset()
+  private ApproximateHistogramHolder newInstance()
   {
-    this.histogram = compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
+    return compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
                              : new ApproximateHistogram(resolution, lowerLimit, upperLimit);
   }
 
   @Override
-  public Object get()
+  public int estimateOccupation(ApproximateHistogramHolder current)
   {
-    return histogram;
-  }
-
-  @Override
-  public int estimateOccupation()
-  {
-    return histogram.estimateOccupation();
+    return current == null ? 0 : current.estimateOccupation();
   }
 }

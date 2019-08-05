@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import org.apache.commons.lang.mutable.MutableDouble;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,10 +29,11 @@ import java.util.Comparator;
  */
 public class DoubleSumAggregatorTest
 {
-  private void aggregate(TestFloatColumnSelector selector, DoubleSumAggregator agg)
+  private MutableDouble aggregate(TestFloatColumnSelector selector, DoubleSumAggregator agg, MutableDouble aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   @Test
@@ -44,17 +46,18 @@ public class DoubleSumAggregatorTest
     double expectedFirst = new Double(values[0]).doubleValue();
     double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
 
-    Assert.assertEquals(0.0d, agg.get());
-    Assert.assertEquals(0.0d, agg.get());
-    Assert.assertEquals(0.0d, agg.get());
-    aggregate(selector, agg);
-    Assert.assertEquals(expectedFirst, agg.get());
-    Assert.assertEquals(expectedFirst, agg.get());
-    Assert.assertEquals(expectedFirst, agg.get());
-    aggregate(selector, agg);
-    Assert.assertEquals(expectedSecond, agg.get());
-    Assert.assertEquals(expectedSecond, agg.get());
-    Assert.assertEquals(expectedSecond, agg.get());
+    MutableDouble aggregate = null;
+    Assert.assertEquals(0.0d, agg.get(aggregate));
+    Assert.assertEquals(0.0d, agg.get(aggregate));
+    Assert.assertEquals(0.0d, agg.get(aggregate));
+    aggregate = aggregate(selector, agg, aggregate);
+    Assert.assertEquals(expectedFirst, agg.get(aggregate));
+    Assert.assertEquals(expectedFirst, agg.get(aggregate));
+    Assert.assertEquals(expectedFirst, agg.get(aggregate));
+    aggregate = aggregate(selector, agg, aggregate);
+    Assert.assertEquals(expectedSecond, agg.get(aggregate));
+    Assert.assertEquals(expectedSecond, agg.get(aggregate));
+    Assert.assertEquals(expectedSecond, agg.get(aggregate));
   }
 
   @Test
@@ -63,14 +66,15 @@ public class DoubleSumAggregatorTest
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(new float[]{0.15f, 0.27f});
     DoubleSumAggregator agg = DoubleSumAggregator.create(selector, null);
 
-    Object first = agg.get();
-    agg.aggregate();
+    MutableDouble aggregate = null;
+    Object first = agg.get(aggregate);
+    aggregate = agg.aggregate(aggregate);
 
     Comparator comp = new DoubleSumAggregatorFactory("null", "null").getComparator();
 
-    Assert.assertEquals(-1, comp.compare(first, agg.get()));
+    Assert.assertEquals(-1, comp.compare(first, agg.get(aggregate)));
     Assert.assertEquals(0, comp.compare(first, first));
-    Assert.assertEquals(0, comp.compare(agg.get(), agg.get()));
-    Assert.assertEquals(1, comp.compare(agg.get(), first));
+    Assert.assertEquals(0, comp.compare(agg.get(aggregate), agg.get(aggregate)));
+    Assert.assertEquals(1, comp.compare(agg.get(aggregate), first));
   }
 }

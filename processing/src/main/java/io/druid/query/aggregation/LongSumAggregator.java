@@ -19,31 +19,37 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class LongSumAggregator implements Aggregator
+public abstract class LongSumAggregator extends Aggregator.Abstract<MutableLong>
 {
-  static final Comparator COMPARATOR = new Comparator()
+  static final Comparator COMPARATOR = new Ordering()
   {
     @Override
     public int compare(Object o, Object o1)
     {
       return Longs.compare(((Number) o).longValue(), ((Number) o1).longValue());
     }
-  };
+  }.nullsFirst();
 
   static long combineValues(Object lhs, Object rhs)
   {
     return ((Number) lhs).longValue() + ((Number) rhs).longValue();
   }
 
-  long sum = 0;
+  @Override
+  public Object get(MutableLong current)
+  {
+    return current == null ? 0L : current.longValue();
+  }
 
   public static LongSumAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
@@ -51,68 +57,38 @@ public abstract class LongSumAggregator implements Aggregator
       return new LongSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableLong aggregate(final MutableLong current)
         {
-          final Long v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              sum += v;
-            }
+          final Long value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableLong(value);
+          }
+          current.add(value);
+          return current;
         }
       };
     } else {
       return new LongSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableLong aggregate(final MutableLong current)
         {
           if (predicate.matches()) {
-            final Long v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                sum += v;
-              }
+            final Long value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableLong(value);
+            }
+            current.add(value);
           }
+          return current;
         }
       };
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    sum = 0;
-  }
-
-  @Override
-  public Object get()
-  {
-    return sum;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) sum;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return sum;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) sum;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

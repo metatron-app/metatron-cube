@@ -26,8 +26,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.RowResolver;
@@ -54,6 +54,7 @@ import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 import org.junit.Before;
 import org.junit.Rule;
@@ -319,26 +320,27 @@ public abstract class BaseFilterTest
   protected long selectCountUsingFilteredAggregator(final DimFilter filter)
   {
     final Sequence<Cursor> cursors = makeCursorSequence(maybeOptimize(filter));
-    Sequence<Aggregator> aggSeq = Sequences.map(
+    Sequence<Object> aggSeq = Sequences.map(
         cursors,
-        new Function<Cursor, Aggregator>()
+        new Function<Cursor, Object>()
         {
           @Override
-          public Aggregator apply(Cursor input)
+          public Object apply(Cursor input)
           {
             Aggregator agg = new FilteredAggregatorFactory(
                 new CountAggregatorFactory("count"),
                 maybeOptimize(filter)
             ).factorize(input);
 
+            final MutableLong counter = new MutableLong();
             for (; !input.isDone(); input.advance()) {
-              agg.aggregate();
+              agg.aggregate(counter);
             }
 
-            return agg;
+            return agg.get(counter);
           }
         }
     );
-    return Sequences.toList(aggSeq, new ArrayList<Aggregator>()).get(0).getLong();
+    return (Long) Sequences.only(aggSeq);
   }
 }

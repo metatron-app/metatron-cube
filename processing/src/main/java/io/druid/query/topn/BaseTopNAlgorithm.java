@@ -20,8 +20,8 @@
 package io.druid.query.topn;
 
 import com.metamx.common.Pair;
-import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectorFactory;
@@ -43,17 +43,6 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
       return ((IndexProvidingSelector) selector).wrapFactory(factory);
     }
     return factory;
-  }
-
-  protected static Aggregator[] makeAggregators(ColumnSelectorFactory cursor, List<AggregatorFactory> aggregatorSpecs)
-  {
-    Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
-    int aggregatorIndex = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      aggregators[aggregatorIndex] = spec.factorize(cursor);
-      ++aggregatorIndex;
-    }
-    return aggregators;
   }
 
   protected static BufferAggregator[] makeBufferAggregators(
@@ -108,7 +97,7 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
 
       updateResults(params, theDimValSelector, aggregatesStore, resultBuilder);
 
-      closeAggregators(aggregatesStore);
+      closeAggregators(params, aggregatesStore);
 
       numProcessed += numToProcess;
       params.getCursor().reset();
@@ -153,25 +142,26 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
       TopNResultBuilder resultBuilder
   );
 
-  protected abstract void closeAggregators(
-      DimValAggregateStore dimValAggregateStore
-  );
-
-  protected class AggregatorArrayProvider extends BaseArrayProvider<Aggregator[][]>
+  protected void closeAggregators(Parameters params, DimValAggregateStore dimValAggregateStore)
   {
-    final Aggregator[][] expansionAggs;
+    Aggregators.close(params.getAggregators());
+  }
+
+  protected class ObjectArrayProvider extends BaseArrayProvider<Object[][]>
+  {
+    final Object[][] expansionAggs;
     final int cardinality;
 
-    public AggregatorArrayProvider(DimensionSelector dimSelector, TopNQuery query, int cardinality)
+    public ObjectArrayProvider(DimensionSelector dimSelector, TopNQuery query, int cardinality)
     {
       super(dimSelector, query, capabilities);
 
-      this.expansionAggs = new Aggregator[cardinality][];
+      this.expansionAggs = new Object[cardinality][];
       this.cardinality = cardinality;
     }
 
     @Override
-    public Aggregator[][] build()
+    public Object[][] build()
     {
       Pair<Integer, Integer> startEnd = computeStartEnd(cardinality);
 

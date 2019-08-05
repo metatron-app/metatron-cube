@@ -27,54 +27,27 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class KurtosisAggregator extends Aggregator.Abstract
+public abstract class KurtosisAggregator extends Aggregator.Abstract<KurtosisAggregatorCollector>
 {
-  protected final KurtosisAggregatorCollector holder = new KurtosisAggregatorCollector();
-
-  @Override
-  public void reset()
+  public static Aggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    holder.reset();
-  }
-
-  @Override
-  public Object get()
-  {
-    return holder.duplicate();
-  }
-
-  public static Aggregator create(
-      final DoubleColumnSelector selector,
-      final ValueMatcher predicate
-  )
-  {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new KurtosisAggregator()
+    return new KurtosisAggregator()
+    {
+      @Override
+      public KurtosisAggregatorCollector aggregate(KurtosisAggregatorCollector current)
       {
-        @Override
-        public void aggregate()
-        {
+        if (predicate.matches()) {
           final Double v = selector.get();
           if (v != null) {
-            holder.add(v);
-          }
-        }
-      };
-    } else {
-      return new KurtosisAggregator()
-      {
-        @Override
-        public void aggregate()
-        {
-          if (predicate.matches()) {
-            final Double v = selector.get();
-            if (v != null) {
-              holder.add(v);
+            if (current == null) {
+              current = new KurtosisAggregatorCollector();
             }
+            return current.add(v);
           }
         }
-      };
-    }
+        return current;
+      }
+    };
   }
 
   public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
@@ -85,11 +58,12 @@ public abstract class KurtosisAggregator extends Aggregator.Abstract
     return new KurtosisAggregator()
     {
       @Override
-      public void aggregate()
+      public KurtosisAggregatorCollector aggregate(KurtosisAggregatorCollector current)
       {
         if (predicate.matches()) {
-          KurtosisAggregatorCollector.combineValues(holder, selector.get());
+          return KurtosisAggregatorCollector.combineValues(current, selector.get());
         }
+        return current;
       }
     };
   }

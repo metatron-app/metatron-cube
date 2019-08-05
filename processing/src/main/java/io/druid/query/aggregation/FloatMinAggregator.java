@@ -21,12 +21,13 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableFloat;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMinAggregator implements Aggregator
+public abstract class FloatMinAggregator extends Aggregator.Abstract<MutableFloat>
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 
@@ -35,42 +36,10 @@ public abstract class FloatMinAggregator implements Aggregator
     return Math.min(((Number) lhs).floatValue(), ((Number) rhs).floatValue());
   }
 
-  float min = Float.POSITIVE_INFINITY;
-
   @Override
-  public void reset()
+  public Float get(MutableFloat current)
   {
-    min = Float.POSITIVE_INFINITY;
-  }
-
-  @Override
-  public Object get()
-  {
-    return min;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return min;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) min;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) min;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current == null ? null : current.floatValue();
   }
 
   public static FloatMinAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -79,30 +48,38 @@ public abstract class FloatMinAggregator implements Aggregator
       return new FloatMinAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableFloat aggregate(final MutableFloat current)
         {
-          final Float v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              min = Math.min(min, v);
+          if (predicate.matches()) {
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableFloat(value);
+            }
+            current.setValue(Math.min(current.floatValue(), value));
           }
+          return current;
         }
       };
     } else {
       return new FloatMinAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableFloat aggregate(MutableFloat current)
         {
           if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                min = Math.min(min, v);
-              }
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableFloat(value);
+            }
+            current.setValue(Math.min(current.floatValue(), value));
           }
+          return current;
         }
       };
     }

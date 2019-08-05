@@ -32,6 +32,7 @@ import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ExprEvalColumnSelector;
@@ -110,80 +111,81 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (ValueDesc.isArray(inputType)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
-      return new Aggregators.AbstractEstimableAggregator()
+      return new Aggregators.AbstractEstimableAggregator<Collection<Object>>()
       {
-        private int estimation = 32;
-
         @Override
-        public int estimateOccupation()
+        public int estimateOccupation(Collection<Object> current)
         {
+          int estimation = 32;
+          if (current != null) {
+            for (Object x : current) {
+              estimation += estimate(x);
+            }
+          }
           return estimation;
         }
 
-        private final Collection<Object> list = createCollection();
-
         @Override
-        public void reset()
-        {
-          list.clear();
-        }
-
-        @Override
-        public void aggregate()
+        public Collection<Object> aggregate(Collection<Object> current)
         {
           List value = selector.get();
-          synchronized (list) {
-            list.addAll(value);
-            if (limit > 0 && list.size() > limit) {
-              throw new IllegalStateException("Exceeding limit " + limit);
-            }
+          if (value == null) {
+            return current;
           }
-          estimation += estimate(value);
+          if (current == null) {
+            current = createCollection();
+          }
+          current.addAll(value);
+          if (limit > 0 && current.size() > limit) {
+            throw new IllegalStateException("Exceeding limit " + limit);
+          }
+          return current;
         }
 
         @Override
-        public Object get()
+        public Object get(Collection<Object> current)
         {
-          return finalizeCollection(list);
+          return current == null ? null : finalizeCollection(current);
         }
       };
     }
     final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    return new Aggregators.AbstractEstimableAggregator()
+    return new Aggregators.AbstractEstimableAggregator<Collection<Object>>()
     {
-      private int estimation = 32;
-
       @Override
-      public int estimateOccupation()
+      public int estimateOccupation(Collection<Object> current)
       {
+        int estimation = 32;
+        if (current != null) {
+          for (Object x : current) {
+            estimation += estimate(x);
+          }
+        }
         return estimation;
       }
 
-      private final Collection<Object> list = createCollection();
-
       @Override
-      public void reset()
+      public Collection<Object> aggregate(Collection<Object> current)
       {
-        list.clear();
-      }
-
-      @Override
-      public void aggregate()
-      {
-        Object value = Evals.castToValue(selector.get(), elementType);
-        synchronized (list) {
-          list.add(value);
-          if (limit > 0 && list.size() > limit) {
-            throw new IllegalStateException("Exceeding limit " + limit);
-          }
+        final ExprEval eval = selector.get();
+        if (eval.isNull()) {
+          return current;
         }
-        estimation += estimate(value);
+        if (current == null) {
+          current = createCollection();
+        }
+        Object value = Evals.castToValue(eval, elementType);
+        current.add(value);
+        if (limit > 0 && current.size() > limit) {
+          throw new IllegalStateException("Exceeding limit " + limit);
+        }
+        return current;
       }
 
       @Override
-      public Object get()
+      public Object get(Collection<Object> current)
       {
-        return finalizeCollection(list);
+        return current == null ? null : finalizeCollection(current);
       }
     };
   }

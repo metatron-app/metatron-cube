@@ -19,9 +19,14 @@
 
 package io.druid.query.topn;
 
+import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+
+import java.util.List;
 
 /**
  */
@@ -32,9 +37,11 @@ public class TopNParams
   private final ColumnSelectorFactory factory;
   private final int cardinality;
   private final int numValuesPerPass;
+  private final Aggregator[] aggregators;
 
   protected TopNParams(
       DimensionSelector dimSelector,
+      List<AggregatorFactory> factories,
       Cursor cursor,
       int cardinality,
       int numValuesPerPass
@@ -45,11 +52,17 @@ public class TopNParams
     this.cardinality = cardinality;
     this.numValuesPerPass = numValuesPerPass;
     this.factory = BaseTopNAlgorithm.wrap(cursor, dimSelector);
+    this.aggregators = Aggregators.makeAggregators(factories, factory);
   }
 
   public DimensionSelector getDimSelector()
   {
     return dimSelector;
+  }
+
+  public Aggregator[] getAggregators()
+  {
+    return aggregators;
   }
 
   public Cursor getCursor()

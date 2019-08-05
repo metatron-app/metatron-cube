@@ -112,7 +112,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
     }
 
     int rowNum = 0;
-    for (Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> fact : index.getAll(false)) {
+    for (Map.Entry<IncrementalIndex.TimeAndDims, Object[]> fact : index.getAll(false)) {
       final int[][] dims = fact.getKey().getDims();
 
       for (IncrementalIndex.DimensionDesc dimension : dimensions) {
@@ -227,6 +227,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
           sortedDimLookups[dimension.getIndex()] = indexers.get(dimension.getName()).getDimLookup();
         }
 
+        final Aggregator[] aggregators = index.getAggregators();
         /*
          * Note that the transform function increments a counter to determine the rowNum of
          * the iterated Rowboats. We need to return a new iterator on each
@@ -234,16 +235,16 @@ public class IncrementalIndexAdapter implements IndexableAdapter
          */
         return Iterators.transform(
             index.getAll(false).iterator(),
-            new Function<Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]>, Rowboat>()
+            new Function<Map.Entry<IncrementalIndex.TimeAndDims, Object[]>, Rowboat>()
             {
               int count = 0;
 
               @Override
-              public Rowboat apply(Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> input)
+              public Rowboat apply(Map.Entry<IncrementalIndex.TimeAndDims, Object[]> input)
               {
                 final IncrementalIndex.TimeAndDims timeAndDims = input.getKey();
                 final int[][] dimValues = timeAndDims.getDims();
-                final Aggregator[] aggregators = input.getValue();
+                final Object[] values = input.getValue();
 
                 int[][] dims = new int[dimValues.length][];
                 for (IncrementalIndex.DimensionDesc dimension : dimensions) {
@@ -266,9 +267,9 @@ public class IncrementalIndexAdapter implements IndexableAdapter
                   }
                 }
 
-                Object[] metrics = new Object[index.getMetricAggs().length];
-                for (int i = 0; i < metrics.length; i++) {
-                  metrics[i] = aggregators[i].get();
+                final Object[] metrics = new Object[aggregators.length];
+                for (int i = 0; i < aggregators.length; i++) {
+                  metrics[i] = aggregators[i].get(values[i]);
                 }
 
                 return new Rowboat(

@@ -54,10 +54,11 @@ import java.util.Arrays;
 
 public class FilteredAggregatorTest
 {
-  private void aggregate(TestFloatColumnSelector selector, FilteredAggregator agg)
+  private Object aggregate(TestFloatColumnSelector selector, FilteredAggregator agg, Object aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   @Test
@@ -218,14 +219,15 @@ public class FilteredAggregatorTest
   }
 
   private void assertValues(FilteredAggregator agg,TestFloatColumnSelector selector, double... expectedVals){
-    Assert.assertEquals(0.0d, agg.get());
-    Assert.assertEquals(0.0d, agg.get());
-    Assert.assertEquals(0.0d, agg.get());
+    Object aggregate = null;
+    Assert.assertEquals(0.0d, agg.get(aggregate));
+    Assert.assertEquals(0.0d, agg.get(aggregate));
+    Assert.assertEquals(0.0d, agg.get(aggregate));
     for(double expectedVal : expectedVals){
-      aggregate(selector, agg);
-      Assert.assertEquals(expectedVal, agg.get());
-      Assert.assertEquals(expectedVal, agg.get());
-      Assert.assertEquals(expectedVal, agg.get());
+      aggregate = aggregate(selector, agg, aggregate);
+      Assert.assertEquals(expectedVal, agg.get(aggregate));
+      Assert.assertEquals(expectedVal, agg.get(aggregate));
+      Assert.assertEquals(expectedVal, agg.get(aggregate));
     }
   }
 

@@ -51,7 +51,7 @@ public class TopNMapFn implements Function<Cursor, Result<TopNResultValue>>
 
     TopNParams params = null;
     try {
-      params = topNAlgorithm.makeInitParams(dimSelector, cursor);
+      params = topNAlgorithm.makeInitParams(dimSelector, query.getAggregatorSpecs(), cursor);
 
       TopNResultBuilder resultBuilder = BaseTopNAlgorithm.makeResultBuilder(params, query);
 

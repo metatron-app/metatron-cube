@@ -35,6 +35,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
@@ -42,6 +43,7 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +96,8 @@ public class TimeseriesQueryEngine
           return Sequences.empty();
         }
         final Granularity granularity = query.getGranularity();
-        final Aggregator[] aggregators = AggregatorFactory.toAggregatorsAsArray(cursor, aggregatorSpecs);
+        final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
+        final Object[] values = new Object[aggregators.length];
         if (granularity == Granularities.ALL) {
           return Sequences.simple(new Iterable<Row>()
           {
@@ -106,9 +109,7 @@ public class TimeseriesQueryEngine
                 @Override
                 public void close() throws IOException
                 {
-                  for (Aggregator agg : aggregators) {
-                    agg.close();
-                  }
+                  Aggregators.close(aggregators);
                 }
 
                 @Override
@@ -118,15 +119,14 @@ public class TimeseriesQueryEngine
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Row next()
                 {
                   while (!cursor.isDone()) {
-                    for (Aggregator aggregator : aggregators) {
-                      aggregator.aggregate();
-                    }
+                    Aggregators.aggregate(values, aggregators);
                     cursor.advance();
                   }
-                  return flushRow(cursor.getTime(), aggregators);
+                  return flushRow(cursor.getTime(), values, aggregators);
                 }
               };
             }
@@ -144,9 +144,7 @@ public class TimeseriesQueryEngine
               @Override
               public void close() throws IOException
               {
-                for (Aggregator agg : aggregators) {
-                  agg.close();
-                }
+                Aggregators.close(aggregators);
               }
 
               @Override
@@ -158,44 +156,42 @@ public class TimeseriesQueryEngine
               @Override
               public Row next()
               {
-                for (Aggregator agg : aggregators) {
-                  agg.reset();
-                }
                 while (!cursor.isDone()) {
                   final DateTime current = granularity.bucketStart(cursor.getRowTime());
                   if (prev == null) {
                     prev = current;
                   } else if (prev.getMillis() != current.getMillis()) {
-                    Row row = flushRow(prev, aggregators);
+                    Row row = flushRow(prev, values, aggregators);
                     prev = current;
                     return row;
                   }
-                  for (Aggregator aggregator : aggregators) {
-                    aggregator.aggregate();
-                  }
+                  Aggregators.aggregate(values, aggregators);
                   cursor.advance();
                 }
-                return flushRow(prev, aggregators);
+                return flushRow(prev, values, aggregators);
               }
             };
           }
         });
       }
 
-      private Row flushRow(DateTime current, Aggregator[] aggregators)
+      @SuppressWarnings("unchecked")
+      private Row flushRow(final DateTime current, final Object[] values, final Aggregator[] aggregators)
       {
         if (compact) {
-          final Object[] array = new Object[aggregators.length + 1];
-          for (int i = 1; i < array.length; i++) {
-            array[i] = aggregators[i - 1].get();
-          }
+          final Object[] array = new Object[values.length + 1];
           array[0] = current.getMillis();
+          for (int i = 0; i < aggregators.length; i++) {
+            array[i + 1] = aggregators[i].get(values[i]);
+          }
+          Arrays.fill(values, null);
           return new CompactRow(array);
         } else {
           final Map<String, Object> event = Maps.newLinkedHashMap();
-          for (int i = 0; i < aggregators.length; i++) {
-            event.put(aggregatorNames[i], aggregators[i].get());
+          for (int i = 0; i < values.length; i++) {
+            event.put(aggregatorNames[i], aggregators[i].get(values[i]));
           }
+          Arrays.fill(values, null);
           return new MapBasedRow(current, event);
         }
       }

@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.query.aggregation.CountAggregator;
 import io.druid.query.aggregation.PostAggregator;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,11 +44,12 @@ public class ArithmeticPostAggregatorTest
     ArithmeticPostAggregator arithmeticPostAggregator;
     MathPostAggregator mathPostAggregator;
     CountAggregator agg = new CountAggregator();
-    agg.aggregate();
-    agg.aggregate();
-    agg.aggregate();
+    MutableLong aggregate = null;
+    aggregate = agg.aggregate(aggregate);
+    aggregate = agg.aggregate(aggregate);
+    aggregate = agg.aggregate(aggregate);
     Map<String, Object> metricValues = new HashMap<String, Object>();
-    metricValues.put("rows", agg.get());
+    metricValues.put("rows", agg.get(aggregate));
 
     List<PostAggregator> postAggregatorList =
         Lists.newArrayList(
@@ -89,9 +91,10 @@ public class ArithmeticPostAggregatorTest
   public void testComparator()
   {
     ArithmeticPostAggregator arithmeticPostAggregator;
+    MutableLong aggregate = null;
     CountAggregator agg = new CountAggregator();
     Map<String, Object> metricValues = new HashMap<String, Object>();
-    metricValues.put("rows", agg.get());
+    metricValues.put("rows", agg.get(aggregate));
 
     List<PostAggregator> postAggregatorList =
         Lists.newArrayList(
@@ -108,10 +111,10 @@ public class ArithmeticPostAggregatorTest
 
     DateTime timestamp = DateTime.now();
     Object before = arithmeticPostAggregator.compute(timestamp, metricValues);
-    agg.aggregate();
-    agg.aggregate();
-    agg.aggregate();
-    metricValues.put("rows", agg.get());
+    aggregate = agg.aggregate(aggregate);
+    aggregate = agg.aggregate(aggregate);
+    aggregate = agg.aggregate(aggregate);
+    metricValues.put("rows", agg.get(aggregate));
     Object after = arithmeticPostAggregator.compute(timestamp, metricValues);
 
     Assert.assertEquals(-1, comp.compare(before, after));

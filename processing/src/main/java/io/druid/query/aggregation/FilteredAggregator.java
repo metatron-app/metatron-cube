@@ -21,53 +21,27 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 
-public class FilteredAggregator implements Aggregator
+public class FilteredAggregator<T> implements Aggregator<T>
 {
   private final ValueMatcher matcher;
-  private final Aggregator delegate;
+  private final Aggregator<T> delegate;
 
-  public FilteredAggregator(ValueMatcher matcher, Aggregator delegate)
+  public FilteredAggregator(ValueMatcher matcher, Aggregator<T> delegate)
   {
     this.matcher = matcher;
     this.delegate = delegate;
   }
 
   @Override
-  public void aggregate()
+  public T aggregate(T current)
   {
-    if (matcher.matches()) {
-      delegate.aggregate();
-    }
+    return matcher.matches() ? delegate.aggregate(current) : current;
   }
 
   @Override
-  public void reset()
+  public Object get(T current)
   {
-    delegate.reset();
-  }
-
-  @Override
-  public Object get()
-  {
-    return delegate.get();
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return delegate.getFloat();
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return delegate.getLong();
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return delegate.getDouble();
+    return delegate.get(current);
   }
 
   @Override

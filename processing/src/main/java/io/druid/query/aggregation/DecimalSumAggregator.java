@@ -26,10 +26,8 @@ import java.math.BigDecimal;
 
 /**
  */
-public abstract class DecimalSumAggregator implements Aggregator
+public abstract class DecimalSumAggregator extends Aggregator.Abstract<BigDecimal>
 {
-  BigDecimal sum = BigDecimal.ZERO;
-
   public static DecimalSumAggregator create(
       final ObjectColumnSelector<BigDecimal> selector,
       final ValueMatcher predicate
@@ -39,70 +37,37 @@ public abstract class DecimalSumAggregator implements Aggregator
       return new DecimalSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public BigDecimal aggregate(final BigDecimal current)
         {
-          BigDecimal v = selector.get();
-          if (v == null) {
-            return;
+          final BigDecimal value = selector.get();
+          if (value == null) {
+            return current;
           }
-          synchronized (this) {
-            sum = sum.add(v);
+          if (current == null) {
+            return value;
           }
+          return current.add(value);
         }
       };
     } else {
       return new DecimalSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public BigDecimal aggregate(final BigDecimal current)
         {
           if (predicate.matches()) {
-            BigDecimal v = selector.get();
-            if (v == null) {
-              return;
+            final BigDecimal value = selector.get();
+            if (value == null) {
+              return current;
             }
-            synchronized (this) {
-              sum = sum.add(v);
+            if (current == null) {
+              return value;
             }
+            return current.add(value);
           }
+          return current;
         }
       };
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    sum = BigDecimal.ZERO;
-  }
-
-  @Override
-  public Object get()
-  {
-    return sum;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return sum.floatValue();
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return sum.longValue();
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return sum.doubleValue();
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
   }
 }

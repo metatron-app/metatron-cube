@@ -21,14 +21,17 @@ package io.druid.query.topn;
 
 import com.google.common.collect.Maps;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
-public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Comparable, Aggregator[]>, TopNParams>
+public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Comparable, Object[]>, TopNParams>
 {
   public static final int[] EMPTY_INTS = new int[]{};
   private final TopNQuery query;
@@ -41,10 +44,11 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
 
 
   @Override
-  public TopNParams makeInitParams(DimensionSelector dimSelector, Cursor cursor)
+  public TopNParams makeInitParams(DimensionSelector dimSelector, List<AggregatorFactory> aggregators, Cursor cursor)
   {
     return new TopNParams(
         dimSelector,
+        aggregators,
         cursor,
         dimSelector.getValueCardinality(),
         Integer.MAX_VALUE
@@ -64,31 +68,34 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   }
 
   @Override
-  protected Map<Comparable, Aggregator[]> makeDimValAggregateStore(TopNParams params)
+  protected Map<Comparable, Object[]> makeDimValAggregateStore(TopNParams params)
   {
     return Maps.newHashMap();
   }
 
   @Override
   protected void scanAndAggregate(
-      TopNParams params, int[] dimValSelector, Map<Comparable, Aggregator[]> aggregatesStore, int numProcessed
+      TopNParams params, int[] dimValSelector, Map<Comparable, Object[]> aggregatesStore, int numProcessed
   )
   {
     final Cursor cursor = params.getCursor();
     final DimensionSelector dimSelector = params.getDimSelector();
     final ColumnSelectorFactory factory = params.getFactory();
 
+    final Aggregator[] aggregators = params.getAggregators();
+    final Function<Comparable, Object[]> populator = new Function<Comparable, Object[]>()
+    {
+      @Override
+      public Object[] apply(Comparable comparable)
+      {
+        return new Object[aggregators.length];
+      }
+    };
     while (!cursor.isDone()) {
       final Comparable key = dimSelector.lookupName(dimSelector.getRow().get(0));
-
-      Aggregator[] theAggregators = aggregatesStore.get(key);
-      if (theAggregators == null) {
-        theAggregators = makeAggregators(factory, query.getAggregatorSpecs());
-        aggregatesStore.put(key, theAggregators);
-      }
-
-      for (Aggregator aggregator : theAggregators) {
-        aggregator.aggregate();
+      final Object[] values = aggregatesStore.computeIfAbsent(key, populator);
+      for (int i = 0; i < aggregators.length; i++) {
+        values[i] = aggregators[i].aggregate(values[i]);
       }
 
       cursor.advance();
@@ -99,16 +106,17 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   protected void updateResults(
       TopNParams params,
       int[] dimValSelector,
-      Map<Comparable, Aggregator[]> aggregatesStore,
+      Map<Comparable, Object[]> aggregatesStore,
       TopNResultBuilder resultBuilder
   )
   {
-    for (Map.Entry<Comparable, Aggregator[]> entry : aggregatesStore.entrySet()) {
-      Aggregator[] aggs = entry.getValue();
+    final Aggregator[] aggregators = params.getAggregators();
+    for (Map.Entry<Comparable, Object[]> entry : aggregatesStore.entrySet()) {
+      Object[] aggs = entry.getValue();
       if (aggs != null && aggs.length > 0) {
-        Object[] vals = new Object[aggs.length];
+        final Object[] vals = new Object[aggs.length];
         for (int i = 0; i < aggs.length; i++) {
-          vals[i] = aggs[i].get();
+          vals[i] = aggregators[i].get(aggs[i]);
         }
 
         resultBuilder.addEntry(
@@ -121,13 +129,10 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   }
 
   @Override
-  protected void closeAggregators(Map<Comparable, Aggregator[]> stringMap)
+  protected void closeAggregators(TopNParams params, Map<Comparable, Object[]> stringMap)
   {
-    for (Aggregator[] aggregators : stringMap.values()) {
-      for (Aggregator agg : aggregators) {
-        agg.close();
-      }
-    }
+    super.closeAggregators(params, stringMap);
+    stringMap.clear();
   }
 
   @Override

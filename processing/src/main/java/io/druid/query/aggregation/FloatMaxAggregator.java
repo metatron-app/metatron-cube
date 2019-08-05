@@ -22,12 +22,13 @@ package io.druid.query.aggregation;
 import com.google.common.collect.Ordering;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableFloat;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMaxAggregator implements Aggregator
+public abstract class FloatMaxAggregator extends Aggregator.Abstract<MutableFloat>
 {
   static final Comparator COMPARATOR = new Ordering()
   {
@@ -43,42 +44,10 @@ public abstract class FloatMaxAggregator implements Aggregator
     return Math.max(((Number) lhs).floatValue(), ((Number) rhs).floatValue());
   }
 
-  float max = Float.NEGATIVE_INFINITY;
-
   @Override
-  public void reset()
+  public Float get(MutableFloat current)
   {
-    max = Float.NEGATIVE_INFINITY;
-  }
-
-  @Override
-  public Object get()
-  {
-    return max;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return max;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) max;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) max;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current == null ? null : current.floatValue();
   }
 
   public static FloatMaxAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -87,30 +56,38 @@ public abstract class FloatMaxAggregator implements Aggregator
       return new FloatMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableFloat aggregate(final MutableFloat current)
         {
-          final Float v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              max = Math.max(max, v);
+          if (predicate.matches()) {
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableFloat(value);
+            }
+            current.setValue(Math.max(current.floatValue(), value));
           }
+          return current;
         }
       };
     } else {
       return new FloatMaxAggregator()
       {
         @Override
-        public final void aggregate()
+        public final MutableFloat aggregate(MutableFloat current)
         {
           if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                max = Math.max(max, v);
-              }
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableFloat(value);
+            }
+            current.setValue(Math.max(current.floatValue(), value));
           }
+          return current;
         }
       };
     }

@@ -24,7 +24,7 @@ import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
-public class HistogramAggregator implements Aggregator
+public class HistogramAggregator extends Aggregator.Abstract<Histogram>
 {
   static final Comparator COMPARATOR = new Comparator()
   {
@@ -41,56 +41,24 @@ public class HistogramAggregator implements Aggregator
 
   private final FloatColumnSelector selector;
 
-  private Histogram histogram;
+  private final float[] breaks;
 
   public HistogramAggregator(FloatColumnSelector selector, float[] breaks)
   {
     this.selector = selector;
-    this.histogram = new Histogram(breaks);
+    this.breaks = breaks;
   }
 
   @Override
-  public void aggregate()
+  public Histogram aggregate(Histogram histogram)
   {
     final Float v = selector.get();
     if (v != null) {
+      if (histogram == null) {
+        histogram = new Histogram(breaks);
+      }
       histogram.offer(v);
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    this.histogram = new Histogram(histogram.breaks);
-  }
-
-  @Override
-  public Object get()
-  {
-    return this.histogram;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("HistogramAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("HistogramAggregator does not support getLong()");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("HistogramAggregator does not support getDouble()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return histogram;
   }
 }

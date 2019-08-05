@@ -20,12 +20,13 @@
 package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Comparator;
 
 /**
  */
-public class CountAggregator implements Aggregator
+public class CountAggregator extends Aggregator.Abstract<MutableLong>
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -34,7 +35,6 @@ public class CountAggregator implements Aggregator
     return ((Number) lhs).longValue() + ((Number) rhs).longValue();
   }
 
-  long count = 0;
   private final ValueMatcher predicate;
 
   public CountAggregator(ValueMatcher predicate)
@@ -48,54 +48,21 @@ public class CountAggregator implements Aggregator
   }
 
   @Override
-  public void aggregate()
+  public Object get(final MutableLong current)
+  {
+    return current == null ? 0L : current.longValue();
+  }
+
+  @Override
+  public MutableLong aggregate(MutableLong current)
   {
     if (predicate.matches()) {
-      synchronized (this) {
-        ++count;
+      if (current == null) {
+        current = new MutableLong(1);
+      } else {
+        current.add(1);
       }
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    count = 0;
-  }
-
-  @Override
-  public Object get()
-  {
-    return count;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) count;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return count;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) count;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new CountAggregator(predicate);
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current;
   }
 }

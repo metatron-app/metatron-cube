@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
 
-public class DruidTDigestAggregator implements Aggregator
+public class DruidTDigestAggregator extends Aggregator.Abstract<DruidTDigest>
 {
   public static final Comparator COMPARATOR = new Comparator()
   {
@@ -40,62 +40,24 @@ public class DruidTDigestAggregator implements Aggregator
 
   private final ObjectColumnSelector selector;
   private final double compression;
-  private DruidTDigest digest;
 
-  public DruidTDigestAggregator(
-      ObjectColumnSelector selector,
-      int compression
-  )
+  public DruidTDigestAggregator(ObjectColumnSelector selector, int compression)
   {
-    this.digest = new DruidTDigest(compression);
     this.selector = selector;
     this.compression = compression;
   }
 
   @Override
-  public void aggregate()
+  public DruidTDigest aggregate(DruidTDigest current)
   {
-    digest.add(selector.get());
-  }
-
-  @Override
-  public void reset()
-  {
-    this.digest = new DruidTDigest(compression);
-  }
-
-  @Override
-  public Object get()
-  {
-    return digest;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    throw new UnsupportedOperationException("DruidTDigestAggregator does not support getFloat()");
-  }
-
-  @Override
-  public Long getLong()
-  {
-    throw new UnsupportedOperationException("DruidTDigestAggregator does not support getLong()");
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    throw new UnsupportedOperationException("DruidTDigestAggregator does not support getDouble()");
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
-  }
-
-  public int getMaxStorageSize()
-  {
-    return digest.maxByteSize();
+    final Object value = selector.get();
+    if (value == null) {
+      return current;
+    }
+    if (current == null) {
+      current = new DruidTDigest(compression);
+    }
+    current.add(value);
+    return current;
   }
 }

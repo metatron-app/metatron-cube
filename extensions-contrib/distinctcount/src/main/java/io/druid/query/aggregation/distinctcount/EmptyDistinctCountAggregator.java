@@ -21,44 +21,11 @@ package io.druid.query.aggregation.distinctcount;
 
 import io.druid.query.aggregation.Aggregator;
 
-public class EmptyDistinctCountAggregator implements Aggregator
+public class EmptyDistinctCountAggregator extends Aggregator.Abstract
 {
   @Override
-  public void aggregate()
-  {
-  }
-
-  @Override
-  public void reset()
-  {
-  }
-
-  @Override
-  public Object get()
+  public Long get(Object current)
   {
     return 0L;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) 0;
-  }
-
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) 0;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) 0;
   }
 }

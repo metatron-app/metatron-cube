@@ -24,11 +24,13 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
 
-public class MetricAreaAggregator implements Aggregator
+public class MetricAreaAggregator extends Aggregator.Abstract<MetricArea>
 {
-  public static final Comparator COMPARATOR = new Comparator() {
+  public static final Comparator COMPARATOR = new Comparator()
+  {
     @Override
-    public int compare(Object o1, Object o2) {
+    public int compare(Object o1, Object o2)
+    {
       MetricArea ma1 = (MetricArea) o1;
       MetricArea ma2 = (MetricArea) o2;
 
@@ -38,58 +40,27 @@ public class MetricAreaAggregator implements Aggregator
 
   public static MetricArea combine(Object lma, Object rma)
   {
-    return ((MetricArea)lma).add(rma);
+    return ((MetricArea) lma).add(rma);
   }
 
   private final ObjectColumnSelector selector;
-  private MetricArea metricArea;
 
-  public MetricAreaAggregator(
-      ObjectColumnSelector selector
-  )
+  public MetricAreaAggregator(ObjectColumnSelector selector)
   {
     this.selector = selector;
-    this.metricArea = new MetricArea();
   }
 
   @Override
-  public void aggregate()
+  public MetricArea aggregate(MetricArea current)
   {
-    metricArea.add(selector.get());
-  }
-
-  @Override
-  public void reset()
-  {
-    metricArea.reset();
-  }
-
-  @Override
-  public Object get()
-  {
-    return metricArea;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float)metricArea.getArea();
-  }
-
-  @Override
-  public void close()
-  {
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) metricArea.getArea();
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return metricArea.getArea();
+    final Object o = selector.get();
+    if (o == null) {
+      return current;
+    }
+    if (current == null) {
+      current = new MetricArea();
+    }
+    current.add(o);
+    return current;
   }
 }

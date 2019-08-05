@@ -24,68 +24,40 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
-public class DistinctCountAggregator implements Aggregator
+public class DistinctCountAggregator extends Aggregator.Abstract<MutableBitmap>
 {
   private final DimensionSelector selector;
-  private final MutableBitmap mutableBitmap;
+  private final BitMapFactory bitMapFactory;
   private final ValueMatcher predicate;
 
   public DistinctCountAggregator(
       DimensionSelector selector,
-      MutableBitmap mutableBitmap,
+      BitMapFactory bitMapFactory,
       ValueMatcher predicate
   )
   {
     this.selector = selector;
-    this.mutableBitmap = mutableBitmap;
+    this.bitMapFactory = bitMapFactory;
     this.predicate = predicate;
   }
 
   @Override
-  public void aggregate()
+  public MutableBitmap aggregate(MutableBitmap current)
   {
     if (predicate.matches()) {
-      synchronized (this) {
-        for (final Integer index : selector.getRow()) {
-          mutableBitmap.add(index);
-        }
+      if (current == null) {
+        current = bitMapFactory.makeEmptyMutableBitmap();
+      }
+      for (final Integer index : selector.getRow()) {
+        current.add(index);
       }
     }
+    return current;
   }
 
   @Override
-  public void reset()
+  public Object get(MutableBitmap current)
   {
-    mutableBitmap.clear();
-  }
-
-  @Override
-  public Object get()
-  {
-    return mutableBitmap.size();
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) mutableBitmap.size();
-  }
-
-  @Override
-  public void close()
-  {
-    mutableBitmap.clear();
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) mutableBitmap.size();
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return (double) mutableBitmap.size();
+    return current == null ? 0 : current.size();
   }
 }

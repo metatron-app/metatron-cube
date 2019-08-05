@@ -24,12 +24,13 @@ import com.google.common.primitives.Doubles;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleSumAggregator implements Aggregator
+public abstract class DoubleSumAggregator extends Aggregator.Abstract<MutableDouble>
 {
   static final Comparator COMPARATOR = new Ordering()
   {
@@ -45,42 +46,10 @@ public abstract class DoubleSumAggregator implements Aggregator
     return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
   }
 
-  double sum = 0;
-
   @Override
-  public void reset()
+  public Object get(MutableDouble current)
   {
-    sum = 0;
-  }
-
-  @Override
-  public Object get()
-  {
-    return sum;
-  }
-
-  @Override
-  public Float getFloat()
-  {
-    return (float) sum;
-  }
-
-  @Override
-  public Long getLong()
-  {
-    return (long) sum;
-  }
-
-  @Override
-  public Double getDouble()
-  {
-    return sum;
-  }
-
-  @Override
-  public void close()
-  {
-    // no resources to cleanup
+    return current == null ? 0D : current.doubleValue();
   }
 
   public static DoubleSumAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -89,30 +58,36 @@ public abstract class DoubleSumAggregator implements Aggregator
       return new DoubleSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
-          final Float v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              sum += v;
-            }
+          final Float value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableDouble(value);
+          }
+          current.add(value);
+          return current;
         }
       };
     } else {
       return new DoubleSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
           if (predicate.matches()) {
-            final Float v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                sum += v;
-              }
+            final Float value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableDouble(value);
+            }
+            current.add(value);
           }
+          return current;
         }
       };
     }
@@ -124,30 +99,36 @@ public abstract class DoubleSumAggregator implements Aggregator
       return new DoubleSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
-          final Double v = selector.get();
-          if (v != null) {
-            synchronized (this) {
-              sum += v;
-            }
+          final Double value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableDouble(value);
+          }
+          current.add(value);
+          return current;
         }
       };
     } else {
       return new DoubleSumAggregator()
       {
         @Override
-        public final void aggregate()
+        public MutableDouble aggregate(final MutableDouble current)
         {
           if (predicate.matches()) {
-            final Double v = selector.get();
-            if (v != null) {
-              synchronized (this) {
-                sum += v;
-              }
+            final Double value = selector.get();
+            if (value == null) {
+              return current;
             }
+            if (current == null) {
+              return new MutableDouble(value);
+            }
+            current.add(value);
           }
+          return current;
         }
       };
     }

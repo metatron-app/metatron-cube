@@ -104,8 +104,6 @@
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-median</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-doccol</argument>
-                                <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-jdbc-firehose</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-uri-firehose</argument>

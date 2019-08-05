@@ -28,6 +28,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.AggregatorsModule;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Before;
@@ -73,7 +74,7 @@ public class TimestampMaxAggregationTest
       values[idx] = new Timestamp(time.getTime() - 10000 * idx);
     }
 
-    selector = new TestObjectColumnSelector(values);
+    selector = new TestObjectColumnSelector((Object[]) values);
     selectorFactory = EasyMock.createMock(ColumnSelectorFactory.class);
     EasyMock.expect(selectorFactory.makeObjectColumnSelector("test")).andReturn(selector);
     EasyMock.replay(selectorFactory);
@@ -85,15 +86,12 @@ public class TimestampMaxAggregationTest
   {
     TimestampMaxAggregator aggregator = (TimestampMaxAggregator) aggregatorFactory.factorize(selectorFactory);
 
+    MutableLong aggregate = null;
     for (Timestamp value: values) {
-      aggregate(selector, aggregator);
+      aggregate = aggregate(selector, aggregator, aggregate);
     }
 
-    Assert.assertEquals(values[0], new Timestamp(aggregator.getLong()));
-
-    aggregator.reset();
-
-    Assert.assertEquals(Long.MIN_VALUE, aggregator.get());
+    Assert.assertEquals(values[0], new Timestamp(aggregator.get(aggregate)));
   }
 
   @Test
@@ -180,10 +178,11 @@ public class TimestampMaxAggregationTest
     Assert.assertEquals(36, results.size());
   }
 
-  private void aggregate(TestObjectColumnSelector selector, TimestampMaxAggregator agg)
+  private MutableLong aggregate(TestObjectColumnSelector selector, TimestampMaxAggregator agg, MutableLong aggregate)
   {
-    agg.aggregate();
+    aggregate = agg.aggregate(aggregate);
     selector.increment();
+    return aggregate;
   }
 
   private void aggregate(TestObjectColumnSelector selector, TimestampMaxBufferAggregator agg, ByteBuffer buf, int pos)

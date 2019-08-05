@@ -241,9 +241,6 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       if (flush) {
         allDimensionNames.addAll(index.getDimensionOrder());
 
-        if (index.getOutOfRowsReason() != null) {
-          log.info(index.getOutOfRowsReason());
-        }
         log.info(
             "%,d lines to %,d rows in %,d millis",
             lineCount - runningTotalLineCount,

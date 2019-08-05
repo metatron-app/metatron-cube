@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class CardinalityAggregator extends Aggregator.Abstract
+public class CardinalityAggregator extends Aggregator.Abstract<HyperLogLogCollector>
 {
   private static final String NULL_STRING = "\u0000";
 
@@ -138,8 +138,6 @@ public class CardinalityAggregator extends Aggregator.Abstract
     }
   }
 
-  private HyperLogLogCollector collector;
-
   public CardinalityAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
@@ -150,7 +148,6 @@ public class CardinalityAggregator extends Aggregator.Abstract
     this.predicate = predicate;
     this.selectorList = selectorList;
     this.groupings = groupings;
-    this.collector = HyperLogLogCollector.makeLatestCollector();
     this.byRow = byRow;
   }
 
@@ -160,32 +157,18 @@ public class CardinalityAggregator extends Aggregator.Abstract
   }
 
   @Override
-  public void aggregate()
+  public HyperLogLogCollector aggregate(HyperLogLogCollector current)
   {
     if (predicate.matches()) {
+      if (current == null) {
+        current = HyperLogLogCollector.makeLatestCollector();
+      }
       if (byRow) {
-        hashRow(selectorList, groupings, collector);
+        hashRow(selectorList, groupings, current);
       } else {
-        hashValues(selectorList, collector);
+        hashValues(selectorList, current);
       }
     }
-  }
-
-  @Override
-  public void reset()
-  {
-    collector = HyperLogLogCollector.makeLatestCollector();
-  }
-
-  @Override
-  public Object get()
-  {
-    return collector;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new CardinalityAggregator(predicate, selectorList, groupings, byRow);
+    return current;
   }
 }

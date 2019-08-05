@@ -24,10 +24,8 @@ import io.druid.segment.DoubleColumnSelector;
 
 /**
  */
-public class AverageAggregator extends Aggregator.Abstract
+public class AverageAggregator extends Aggregator.Abstract<AverageAggregator.Avr>
 {
-  private long count;
-  private double sum;
   private final ValueMatcher predicate;
   private final DoubleColumnSelector selector;
 
@@ -38,29 +36,30 @@ public class AverageAggregator extends Aggregator.Abstract
   }
 
   @Override
-  public void aggregate()
+  public Avr aggregate(Avr current)
   {
     if (predicate.matches()) {
       final Double v = selector.get();
       if (v != null) {
-        synchronized (this) {
-          count++;
-          sum += v;
+        if (current == null) {
+          current = new Avr();
         }
+        current.count++;
+        current.sum += v;
       }
     }
+    return current;
   }
 
   @Override
-  public void reset()
+  public Object get(Avr current)
   {
-    count = 0;
-    sum = 0;
+    return current == null ? null : new long[]{current.count, Double.doubleToLongBits(current.sum)};
   }
 
-  @Override
-  public Object get()
+  public static final class Avr
   {
-    return new long[]{count, Double.doubleToLongBits(sum)};
+    private long count;
+    private double sum;
   }
 }

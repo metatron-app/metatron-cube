@@ -44,6 +44,7 @@ import io.druid.query.aggregation.CountAggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.SegmentMissingException;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -138,9 +139,10 @@ public class SpecificSegmentQueryRunnerTest
     );
 
     CountAggregator rows = new CountAggregator();
-    rows.aggregate();
+    MutableLong aggregate = null;
+    aggregate = rows.aggregate(aggregate);
     final Row value = new MapBasedRow(
-        new DateTime("2012-01-01T00:00:00Z"), ImmutableMap.<String, Object>of("rows", rows.get())
+        new DateTime("2012-01-01T00:00:00Z"), ImmutableMap.<String, Object>of("rows", rows.get(aggregate))
     );
 
     final SpecificSegmentQueryRunner queryRunner = new SpecificSegmentQueryRunner(
