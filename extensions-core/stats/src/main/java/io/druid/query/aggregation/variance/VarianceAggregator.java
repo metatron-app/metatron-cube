@@ -29,7 +29,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class VarianceAggregator extends Aggregator.Abstract<VarianceAggregatorCollector>
+public abstract class VarianceAggregator extends Aggregator.Simple<VarianceAggregatorCollector>
 {
   public static Aggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {

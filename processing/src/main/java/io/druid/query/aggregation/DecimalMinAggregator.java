@@ -26,15 +26,15 @@ import java.math.BigDecimal;
 
 /**
  */
-public abstract class DecimalSumAggregator extends Aggregator.Simple<BigDecimal>
+public abstract class DecimalMinAggregator extends Aggregator.Simple<BigDecimal>
 {
-  public static DecimalSumAggregator create(
+  public static DecimalMinAggregator create(
       final ObjectColumnSelector<BigDecimal> selector,
       final ValueMatcher predicate
   )
   {
     if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DecimalSumAggregator()
+      return new DecimalMinAggregator()
       {
         @Override
         public BigDecimal aggregate(final BigDecimal current)
@@ -46,11 +46,11 @@ public abstract class DecimalSumAggregator extends Aggregator.Simple<BigDecimal>
           if (current == null) {
             return value;
           }
-          return current.add(value);
+          return current.compareTo(value) < 0 ? current : value;
         }
       };
     } else {
-      return new DecimalSumAggregator()
+      return new DecimalMinAggregator()
       {
         @Override
         public BigDecimal aggregate(final BigDecimal current)
@@ -63,7 +63,7 @@ public abstract class DecimalSumAggregator extends Aggregator.Simple<BigDecimal>
             if (current == null) {
               return value;
             }
-            return current.add(value);
+            return current.compareTo(value) < 0 ? current : value;
           }
           return current;
         }

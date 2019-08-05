@@ -23,51 +23,53 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DecimalSumAggregator extends Aggregator.Simple<BigDecimal>
+public abstract class DecimalMinBufferAggregator extends DecimalBufferAggregator
 {
-  public static DecimalSumAggregator create(
+  public static DecimalMinBufferAggregator create(
       final ObjectColumnSelector<BigDecimal> selector,
-      final ValueMatcher predicate
+      final ValueMatcher predicate,
+      final DecimalMetricSerde metric
   )
   {
     if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DecimalSumAggregator()
+      return new DecimalMinBufferAggregator(metric)
       {
         @Override
-        public BigDecimal aggregate(final BigDecimal current)
+        public final void aggregate(ByteBuffer buf, int position)
         {
-          final BigDecimal value = selector.get();
-          if (value == null) {
-            return current;
+          final BigDecimal decimal = selector.get();
+          if (decimal != null) {
+            final BigDecimal current = read(buf, position);
+            if (current == null || decimal.compareTo(current) < 0) {
+              write(buf, position, decimal);
+            }
           }
-          if (current == null) {
-            return value;
-          }
-          return current.add(value);
         }
       };
     } else {
-      return new DecimalSumAggregator()
+      return new DecimalMinBufferAggregator(metric)
       {
         @Override
-        public BigDecimal aggregate(final BigDecimal current)
+        public final void aggregate(ByteBuffer buf, int position)
         {
-          if (predicate.matches()) {
-            final BigDecimal value = selector.get();
-            if (value == null) {
-              return current;
+          final BigDecimal decimal = selector.get();
+          if (decimal != null) {
+            final BigDecimal current = read(buf, position);
+            if (current == null || decimal.compareTo(current) < 0) {
+              write(buf, position, decimal);
             }
-            if (current == null) {
-              return value;
-            }
-            return current.add(value);
           }
-          return current;
         }
       };
     }
+  }
+
+  DecimalMinBufferAggregator(DecimalMetricSerde metric)
+  {
+    super(metric);
   }
 }

@@ -27,7 +27,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class KurtosisAggregator extends Aggregator.Abstract<KurtosisAggregatorCollector>
+public abstract class KurtosisAggregator extends Aggregator.Simple<KurtosisAggregatorCollector>
 {
   public static Aggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {

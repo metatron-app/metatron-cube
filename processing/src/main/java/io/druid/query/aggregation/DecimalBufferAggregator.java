@@ -43,15 +43,19 @@ public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
 
   protected final BigDecimal read(ByteBuffer buf, int position)
   {
-    buf = (ByteBuffer) buf.duplicate().position(position);
-    byte[] value = new byte[buf.get()];
+    buf = duplicate(buf, position);
+    final byte length = buf.get();
+    if (length == 0) {
+      return null;
+    }
+    byte[] value = new byte[length];
     buf.get(value, 0, value.length);
     return new BigDecimal(new BigInteger(value), scale);
   }
 
   protected final void write(ByteBuffer buf, int position, BigDecimal decimal)
   {
-    buf = (ByteBuffer) buf.duplicate().position(position);
+    buf = duplicate(buf, position);
     byte[] value = decimal.unscaledValue().toByteArray();
     Preconditions.checkArgument(value.length < 128, "overflow");
     buf.put((byte) value.length);
@@ -61,7 +65,12 @@ public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    write(buf, position, BigDecimal.ZERO);
+    duplicate(buf, position).put((byte) 0);
+  }
+
+  private ByteBuffer duplicate(ByteBuffer buf, int position)
+  {
+    return (ByteBuffer) buf.duplicate().position(position);
   }
 
   @Override

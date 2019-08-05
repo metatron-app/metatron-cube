@@ -79,13 +79,13 @@ public class VarianceAggregatorTest
     VarianceAggregatorCollector aggregate = null;
     Assert.assertNull(agg.get(aggregate));
     aggregate = aggregate(selector, agg, aggregate);
-    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 1, 1.1d, 0d);
+    assertValues(agg.get(aggregate), 1, 1.1d, 0d);
     aggregate = aggregate(selector, agg, aggregate);
-    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 2, 3.8d, 1.28d);
+    assertValues(agg.get(aggregate), 2, 3.8d, 1.28d);
     aggregate = aggregate(selector, agg, aggregate);
-    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 3, 7.3d, 2.9866d);
+    assertValues(agg.get(aggregate), 3, 7.3d, 2.9866d);
     aggregate = aggregate(selector, agg, aggregate);
-    assertValues((VarianceAggregatorCollector) agg.get(aggregate), 4, 8.6d, 3.95d);
+    assertValues(agg.get(aggregate), 4, 8.6d, 3.95d);
   }
 
   private void assertValues(VarianceAggregatorCollector holder, long count, double sum, double nvariance)

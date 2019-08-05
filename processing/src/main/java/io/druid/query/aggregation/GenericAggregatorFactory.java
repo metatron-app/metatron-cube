@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -81,7 +82,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
     this.outputType = inputType == null ? null : toOutputType(inputType);
-    this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : null;
+    this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : GuavaUtils.NULL_FIRST_NATURAL;
   }
 
   public GenericAggregatorFactory(String name, String fieldName, ValueDesc inputType)

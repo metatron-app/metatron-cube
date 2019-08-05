@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class CardinalityAggregator extends Aggregator.Abstract<HyperLogLogCollector>
+public class CardinalityAggregator extends Aggregator.Simple<HyperLogLogCollector>
 {
   private static final String NULL_STRING = "\u0000";
 

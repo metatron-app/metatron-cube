@@ -28,11 +28,19 @@ import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.serde.ComplexMetrics;
+
+import java.math.BigDecimal;
 
 /**
  */
 public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericMinAggregatorFactory of(String name, String fieldName)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, null, null, null);
+  }
+
   public static GenericMinAggregatorFactory ofLong(String name, String fieldName)
   {
     return new GenericMinAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
@@ -55,7 +63,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(outputType == null || outputType.isPrimitive(), "cannot min on complex type");
+    Preconditions.checkArgument(outputType == null || outputType.isNumeric(), "unsupported type " + outputType);
   }
 
   public GenericMinAggregatorFactory(String name, String fieldName, ValueDesc inputType)
@@ -94,8 +102,19 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ),
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
+      case COMPLEX:
+        if (valueType.isDecimal()) {
+          return DecimalMinAggregator.create(
+              ColumnSelectors.<BigDecimal>getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toMatcher(predicate, metricFactory)
+          );
+        }
     }
-    throw new IllegalStateException();
+    throw new IllegalArgumentException("unsupported type " + valueType);
   }
 
   @Override
@@ -129,8 +148,21 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ),
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
+      case COMPLEX:
+        if (valueType.isDecimal()) {
+          DecimalMetricSerde decimalSerde = (DecimalMetricSerde) ComplexMetrics.getSerdeForType(valueType);
+          return DecimalMinBufferAggregator.create(
+              ColumnSelectors.<BigDecimal>getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toMatcher(predicate, metricFactory),
+              Preconditions.checkNotNull(decimalSerde, "unsupported type " + valueType)
+          );
+        }
     }
-    throw new IllegalStateException();
+    throw new IllegalArgumentException("unsupported type " + valueType);
   }
 
   @Override

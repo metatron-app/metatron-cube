@@ -194,7 +194,7 @@ public class Aggregators
     }
     switch (type) {
       case ONLY_ONE:
-        return new Aggregator.Abstract()
+        return new Aggregator.Simple()
         {
           @Override
           public Object aggregate(Object current)
@@ -206,7 +206,7 @@ public class Aggregators
           }
         };
       case FIRST:
-        return new Aggregator.Abstract()
+        return new Aggregator.Simple()
         {
           @Override
           public Object aggregate(Object current)
@@ -215,7 +215,7 @@ public class Aggregators
           }
         };
       case LAST:
-        return new Aggregator.Abstract()
+        return new Aggregator.Simple()
         {
           @Override
           public Object aggregate(Object current)
@@ -224,7 +224,7 @@ public class Aggregators
           }
         };
       case MIN:
-        return new Aggregator.Abstract()
+        return new Aggregator.Simple()
         {
           @Override
           @SuppressWarnings("unchecked")
@@ -241,7 +241,7 @@ public class Aggregators
           }
         };
       case MAX:
-        return new Aggregator.Abstract()
+        return new Aggregator.Simple()
         {
           @Override
           @SuppressWarnings("unchecked")

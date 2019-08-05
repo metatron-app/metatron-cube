@@ -56,7 +56,7 @@ public class DruidTDigestAggregatorTest {
       aggregate = aggregate(selector, aggregator, aggregate);
     }
 
-    DruidTDigest digest = (DruidTDigest) aggregator.get(aggregate);
+    DruidTDigest digest = aggregator.get(aggregate);
     double median = digest.median();
 
     Assert.assertEquals("median value does not match", 1000.0, median, 0);
@@ -149,7 +149,7 @@ public class DruidTDigestAggregatorTest {
     }
 
     Arrays.sort(values);
-    DruidTDigest digest = (DruidTDigest) aggregator.get(aggregate);
+    DruidTDigest digest = aggregator.get(aggregate);
     double median = digest.median();
 
     double expected = (values.length % 2 == 0) ? (values[values.length / 2] + values[values.length / 2 - 1]) / 2 : values[values.length / 2];

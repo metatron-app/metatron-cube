@@ -25,7 +25,7 @@ import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
-public class ApproximateHistogramFoldingAggregator extends Aggregator.Abstract<ApproximateHistogramHolder>
+public class ApproximateHistogramFoldingAggregator extends Aggregator.Simple<ApproximateHistogramHolder>
     implements Aggregators.EstimableAggregator<ApproximateHistogramHolder>
 {
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;

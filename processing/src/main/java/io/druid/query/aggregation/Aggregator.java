@@ -49,14 +49,17 @@ public interface Aggregator<T>
     }
 
     @Override
-    public Object get(T current)
-    {
-      return current;
-    }
-
-    @Override
     public void close()
     {
+    }
+  }
+
+  abstract class Simple<T> extends Abstract<T>
+  {
+    @Override
+    public final T get(T current)
+    {
+      return current;
     }
   }
 

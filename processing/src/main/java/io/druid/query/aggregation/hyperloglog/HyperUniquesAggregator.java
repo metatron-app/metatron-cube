@@ -25,7 +25,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public class HyperUniquesAggregator extends Aggregator.Abstract<HyperLogLogCollector>
+public class HyperUniquesAggregator extends Aggregator.Simple<HyperLogLogCollector>
 {
   private final ValueMatcher predicate;
   private final ObjectColumnSelector selector;

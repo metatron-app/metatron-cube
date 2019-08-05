@@ -27,7 +27,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class CovarianceAggregator extends Aggregator.Abstract<CovarianceAggregatorCollector>
+public abstract class CovarianceAggregator extends Aggregator.Simple<CovarianceAggregatorCollector>
 {
   public static Aggregator create(
       final DoubleColumnSelector selector1,

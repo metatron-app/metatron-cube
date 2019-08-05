@@ -27,7 +27,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class PearsonAggregator extends Aggregator.Abstract<PearsonAggregatorCollector>
+public abstract class PearsonAggregator extends Aggregator.Simple<PearsonAggregatorCollector>
 {
   public static Aggregator create(
       final DoubleColumnSelector selector1,

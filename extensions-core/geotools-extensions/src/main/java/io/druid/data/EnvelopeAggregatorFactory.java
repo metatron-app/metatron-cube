@@ -232,7 +232,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
       public Aggregator factorize(ColumnSelectorFactory metricFactory)
       {
         final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(name);
-        return new Aggregator.Abstract<double[]>()
+        return new Aggregator.Simple<double[]>()
         {
           @Override
           public double[] aggregate(double[] envelope)
