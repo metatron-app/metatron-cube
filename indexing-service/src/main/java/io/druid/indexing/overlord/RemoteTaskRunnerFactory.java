@@ -25,7 +25,7 @@ import com.google.inject.Inject;
 import com.metamx.common.concurrent.ScheduledExecutorFactory;
 import com.metamx.common.logger.Logger;
 import com.metamx.http.client.HttpClient;
-import io.druid.curator.cache.SimplePathChildrenCacheFactory;
+import io.druid.curator.cache.PathChildrenCacheFactory;
 import io.druid.guice.annotations.Global;
 import io.druid.indexing.overlord.autoscaling.NoopResourceManagementStrategy;
 import io.druid.indexing.overlord.autoscaling.ResourceManagementSchedulerConfig;
@@ -86,10 +86,7 @@ public class RemoteTaskRunnerFactory implements TaskRunnerFactory<RemoteTaskRunn
         remoteTaskRunnerConfig,
         zkPaths,
         curator,
-        new SimplePathChildrenCacheFactory
-            .Builder()
-            .withCompressed(true)
-            .build(),
+        new PathChildrenCacheFactory.Builder().withCompressed(true),
         httpClient,
         workerConfigRef,
         factory.create(1, "RemoteTaskRunner-Scheduled-Cleanup--%d"),

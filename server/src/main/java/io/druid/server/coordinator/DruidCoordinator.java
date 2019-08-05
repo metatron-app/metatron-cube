@@ -591,7 +591,6 @@ public class DruidCoordinator
         leader = true;
         metadataSegmentManager.start();
         metadataRuleManager.start();
-        serverInventoryView.start();
         serviceAnnouncer.announce(self);
         final int startingLeaderCounter = leaderCounter;
 
@@ -769,7 +768,6 @@ public class DruidCoordinator
         loadManagementPeons.clear();
 
         serviceAnnouncer.unannounce(self);
-        serverInventoryView.stop();
         metadataRuleManager.stop();
         metadataSegmentManager.stop();
         leader = false;

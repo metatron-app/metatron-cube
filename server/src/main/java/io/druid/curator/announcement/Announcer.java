@@ -29,9 +29,8 @@ import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.common.logger.Logger;
-import io.druid.curator.ShutdownNowIgnoringExecutorService;
 import io.druid.curator.cache.PathChildrenCacheFactory;
-import io.druid.curator.cache.SimplePathChildrenCacheFactory;
+import com.google.common.io.Closer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.transaction.CuratorTransaction;
 import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
@@ -64,6 +63,7 @@ public class Announcer
 
   private final CuratorFramework curator;
   private final PathChildrenCacheFactory factory;
+  private final ExecutorService pathChildrenCacheExecutor;
 
   private final List<Announceable> toAnnounce = Lists.newArrayList();
   private final List<Announceable> toUpdate = Lists.newArrayList();
@@ -79,7 +79,13 @@ public class Announcer
   )
   {
     this.curator = curator;
-    this.factory = new SimplePathChildrenCacheFactory(false, true, new ShutdownNowIgnoringExecutorService(exec));
+    this.pathChildrenCacheExecutor = exec;
+    this.factory = new PathChildrenCacheFactory.Builder()
+        .withCacheData(false)
+        .withCompressed(true)
+        .withExecutorService(exec)
+        .withShutdownExecutorOnClose(false)
+        .build();
   }
 
   @LifecycleStart
@@ -114,8 +120,15 @@ public class Announcer
 
       started = false;
 
-      for (Map.Entry<String, PathChildrenCache> entry : listeners.entrySet()) {
-        CloseQuietly.close(entry.getValue());
+      Closer closer = Closer.create();
+      for (PathChildrenCache cache : listeners.values()) {
+        closer.register(cache);
+      }
+      try {
+        CloseQuietly.close(closer);
+      }
+      finally {
+        pathChildrenCacheExecutor.shutdown();
       }
 
       for (Map.Entry<String, ConcurrentMap<String, byte[]>> entry : announcements.entrySet()) {

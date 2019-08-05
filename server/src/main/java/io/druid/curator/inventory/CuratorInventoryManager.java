@@ -27,9 +27,8 @@ import com.google.common.collect.Sets;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.common.logger.Logger;
-import io.druid.curator.ShutdownNowIgnoringExecutorService;
 import io.druid.curator.cache.PathChildrenCacheFactory;
-import io.druid.curator.cache.SimplePathChildrenCacheFactory;
+import com.google.common.io.Closer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
@@ -66,6 +65,7 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
   private final ConcurrentMap<String, ContainerHolder> containers;
   private final Set<ContainerHolder> uninitializedInventory;
   private final PathChildrenCacheFactory cacheFactory;
+  private final ExecutorService pathChildrenCacheExecutor;
 
   private volatile PathChildrenCache childrenCache;
 
@@ -83,10 +83,16 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
     this.containers = new MapMaker().makeMap();
     this.uninitializedInventory = Sets.newConcurrentHashSet();
 
-    //NOTE: cacheData is temporarily set to false and we get data directly from ZK on each event.
-    //this is a workaround to solve curator's out-of-order events problem
-    //https://issues.apache.org/jira/browse/CURATOR-191
-    this.cacheFactory = new SimplePathChildrenCacheFactory(false, true, new ShutdownNowIgnoringExecutorService(exec));
+    this.pathChildrenCacheExecutor = exec;
+    this.cacheFactory = new PathChildrenCacheFactory.Builder()
+        //NOTE: cacheData is temporarily set to false and we get data directly from ZK on each event.
+        //this is a workaround to solve curator's out-of-order events problem
+        //https://issues.apache.org/jira/browse/CURATOR-191
+        .withCacheData(false)
+        .withCompressed(true)
+        .withExecutorService(pathChildrenCacheExecutor)
+        .withShutdownExecutorOnClose(false)
+        .build();
   }
 
   @LifecycleStart
@@ -131,14 +137,15 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
       childrenCache = null;
     }
 
-    for (String containerKey : Lists.newArrayList(containers.keySet())) {
-      final ContainerHolder containerHolder = containers.remove(containerKey);
-      if (containerHolder == null) {
-        log.error("Got key[%s] from keySet() but it didn't have a value!?", containerKey);
-      } else {
-        // This close() call actually calls shutdownNow() on the executor registered with the Cache object...
-        containerHolder.getCache().close();
-      }
+    Closer closer = Closer.create();
+    for (ContainerHolder containerHolder : containers.values()) {
+      closer.register(containerHolder.getCache());
+    }
+    try {
+      closer.close();
+    }
+    finally {
+      pathChildrenCacheExecutor.shutdown();
     }
   }
 

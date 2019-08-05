@@ -28,7 +28,6 @@ import com.metamx.http.client.HttpClient;
 import io.druid.common.guava.DSuppliers;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.cache.PathChildrenCacheFactory;
-import io.druid.curator.cache.SimplePathChildrenCacheFactory;
 import io.druid.indexing.common.IndexingServiceCondition;
 import io.druid.indexer.TaskLocation;
 import io.druid.indexer.TaskStatus;
@@ -121,7 +120,7 @@ public class RemoteTaskRunnerTestUtils
             }, null, null, null, null, null
         ),
         cf,
-        new SimplePathChildrenCacheFactory.Builder().build(),
+        new PathChildrenCacheFactory.Builder(),
         null,
         DSuppliers.of(new AtomicReference<>(WorkerBehaviorConfig.defaultConfig())),
         ScheduledExecutors.fixed(1, "Remote-Task-Runner-Cleanup--%d"),
@@ -176,7 +175,7 @@ public class RemoteTaskRunnerTestUtils
 
   void mockWorkerCompleteFailedTask(final String workerId, final Task task) throws Exception
   {
-    TaskAnnouncement taskAnnouncement = TaskAnnouncement.create(task, TaskStatus.failure(task.getId(), "reason"), DUMMY_LOCATION);
+    TaskAnnouncement taskAnnouncement = TaskAnnouncement.create(task, TaskStatus.failure(task.getId(), "TEST-FAILED"), DUMMY_LOCATION);
     cf.setData().forPath(joiner.join(statusPath, workerId, task.getId()), jsonMapper.writeValueAsBytes(taskAnnouncement));
   }
 
@@ -218,7 +217,7 @@ public class RemoteTaskRunnerTestUtils
         RemoteTaskRunnerConfig config,
         IndexerZkConfig indexerZkConfig,
         CuratorFramework cf,
-        PathChildrenCacheFactory pathChildrenCacheFactory,
+        PathChildrenCacheFactory.Builder pathChildrenCacheFactory,
         HttpClient httpClient,
         Supplier<WorkerBehaviorConfig> workerConfigRef,
         ScheduledExecutorService cleanupExec,
