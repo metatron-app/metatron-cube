@@ -5817,6 +5817,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     expectedResults = createExpectedRows(columnNames, array(1023L, 186L));
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results, true);
+
+    builder.aggregators(
+        new GenericSumAggregatorFactory("aggregationfunc_000", null, "if (index < 100, 0, 1) && if (index > 1000, 0, 1)", null, ValueDesc.LONG),
+        new GenericSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null, ValueDesc.LONG)
+    );
+    expectedResults = createExpectedRows(columnNames, array(791L, 186L));
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
   }
 
   @Test

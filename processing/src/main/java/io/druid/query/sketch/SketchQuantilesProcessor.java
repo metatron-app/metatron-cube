@@ -63,6 +63,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("evenCounted") Integer evenCounted,
       @JsonProperty("slopedSpaced") Integer slopedSpaced,
       @JsonProperty("splitPoints") Map<String, String[]> splitPoints,
+      @JsonProperty("maxThreshold") int maxThreshold,
       @JsonProperty("dedup") boolean dedup
   )
   {
@@ -78,7 +79,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
       parameter = fractions != null ? fractions :
                   evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced, dedup) :
                   evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted, dedup) :
-                  slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced, dedup) :
+                  slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced, maxThreshold, dedup) :
                   QuantileOperation.DEFAULT_QUANTILE_PARAM;
     } else {
       parameter = splitPoints;

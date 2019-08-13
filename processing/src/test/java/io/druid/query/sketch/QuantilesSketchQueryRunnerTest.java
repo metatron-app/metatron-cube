@@ -240,7 +240,7 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
     SketchQuery postProcessing = query.withOverriddenContext(
         ImmutableMap.<String, Object>of(
             Query.POST_PROCESSING,
-            new SketchQuantilesProcessor(QuantileOperation.QUANTILES, null, 2, null, null, null, false)
+            new SketchQuantilesProcessor(QuantileOperation.QUANTILES, null, 2, null, null, null, -1, false)
         )
     );
 

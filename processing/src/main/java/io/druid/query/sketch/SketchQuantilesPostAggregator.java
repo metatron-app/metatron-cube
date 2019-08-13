@@ -43,21 +43,21 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   public static SketchQuantilesPostAggregator fraction(String name, String fieldName, double fraction)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, QuantileOperation.QUANTILES, fraction, null, null, null, null, null, null, false, false
+        name, fieldName, QuantileOperation.QUANTILES, fraction, null, null, null, null, null, null, false, -1, false
     );
   }
 
   public static SketchQuantilesPostAggregator fractions(String name, String fieldName, double[] fractions)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, QuantileOperation.QUANTILES, null, fractions, null, null, null, null, null, false, false
+        name, fieldName, QuantileOperation.QUANTILES, null, fractions, null, null, null, null, null, false, -1, false
     );
   }
 
   public static SketchQuantilesPostAggregator evenSpaced(String name, String fieldName, int evenSpaced)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, QuantileOperation.QUANTILES, null, null, null, evenSpaced, null, null, null, false, false
+        name, fieldName, QuantileOperation.QUANTILES, null, null, null, evenSpaced, null, null, null, false, -1, false
     );
   }
 
@@ -79,6 +79,7 @@ public class SketchQuantilesPostAggregator implements PostAggregator
       @JsonProperty("slopedSpaced") Integer slopedSpaced,
       @JsonProperty("splitPoints") String[] splitPoints,
       @JsonProperty("ratioAsCount") boolean ratioAsCount,
+      @JsonProperty("maxThreshold") int maxThreshold,
       @JsonProperty("dedup") boolean dedup
   )
   {
@@ -94,7 +95,7 @@ public class SketchQuantilesPostAggregator implements PostAggregator
                          count != null ? count :
                          evenSpaced != null && evenSpaced > 0 ? QuantileOperation.evenSpaced(evenSpaced, dedup) :
                          evenCounted != null && evenCounted > 0 ? QuantileOperation.evenCounted(evenCounted, dedup) :
-                         slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced, dedup) :
+                         slopedSpaced != null && slopedSpaced > 0 ? QuantileOperation.slopedSpaced(slopedSpaced, maxThreshold, dedup) :
                          QuantileOperation.DEFAULT_QUANTILE_PARAM;
       if (op == null || op == QuantileOperation.QUANTILES) {
         this.parameter = parameter;

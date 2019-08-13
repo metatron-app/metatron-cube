@@ -61,18 +61,31 @@ public enum QuantileOperation
           thresholds[thresholds.length - 1] = 1;
           quantiles = sketch.getQuantiles(thresholds);
         } else if (quantileParam.slopedSpaced) {
+          int max = quantileParam.maxThreshold;
           // sigma(0 ~ p) of (ax + b) = total
-          // ((p * (p + 1)) / 2) * a + (p + 1) * b = total
-          // a = 2 * (total - (p + 1) * b) / (p * (p + 1))
-          int p = quantileParam.number - 2;
+          // ((p * (p - 1)) / 2) * a + p * b = total
+          int p = quantileParam.number - 1;
           double total = sketch.getN();
-          double b = total / (p * 1.7);
-          double a = (total - (p + 1) * b) * 2 / (p * (p + 1));
+          double mean = total / p;
+          double a;
+          double b;
+          if (max < 0) {
+            // a = (total - p * b) / (p * (p - 1)) * 2
+            b = mean * 0.4;
+            a = (total - p * b) / (p * (p - 1)) * 2;
+          } else {
+            // a * p + b = max * 0.95
+            // ((p * (p - 1)) / 2) * a + p * (max * 0.95 - a * p) = total
+            // ((p * (p - 1)) / 2 - p * p) * a + p * (max * 0.95) = total
+            // a = (total - p * (max * 0.95)) / ((p * (-p - 1)) / 2)
+            a = (total - p * (max * 0.95)) / ((p * (-p - 1)) / 2);
+            b = max * 0.95 - a * p;
+          }
           double[] thresholds = new double[quantileParam.number];
-          for (int i = 1; i <= p; i++) {
+          for (int i = 1; i < p; i++) {
             thresholds[i] = (i > 1 ? thresholds[i - 1] : 0) + a * (i - 1) + b;
           }
-          for (int i = 1; i <= p; i++) {
+          for (int i = 1; i < p; i++) {
             thresholds[i] /= total;
           }
           thresholds[0] = 0;
@@ -219,14 +232,16 @@ public enum QuantileOperation
   private static class QuantileParam
   {
     final int number;
+    final int maxThreshold;
     final boolean evenSpaced;
     final boolean evenCounted;
     final boolean slopedSpaced;
     final boolean dedup;
 
-    private QuantileParam(int number, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced, boolean dedup)
+    private QuantileParam(int number, int maxThreshold, boolean evenSpaced, boolean evenCounted, boolean slopedSpaced, boolean dedup)
     {
       this.number = number;
+      this.maxThreshold = maxThreshold;
       this.evenSpaced = evenSpaced;
       this.evenCounted = evenCounted;
       this.slopedSpaced = slopedSpaced;
@@ -236,26 +251,26 @@ public enum QuantileOperation
 
   public static QuantileParam evenSpaced(int partition, boolean dedup)
   {
-    return new QuantileParam(partition, true, false, false, dedup);
+    return new QuantileParam(partition, -1, true, false, false, dedup);
   }
 
   public static QuantileParam evenCounted(int partition, boolean dedup)
   {
-    return new QuantileParam(partition, false, true, false, dedup);
+    return new QuantileParam(partition, -1, false, true, false, dedup);
   }
 
-  public static QuantileParam slopedSpaced(int partition, boolean dedup)
+  public static QuantileParam slopedSpaced(int partition, int maxThreshold, boolean dedup)
   {
-    return new QuantileParam(partition, false, false, true, dedup);
+    return new QuantileParam(partition, maxThreshold, false, false, true, dedup);
   }
 
-  public static QuantileParam valueOf(String strategy, int partition, boolean dedup)
+  public static QuantileParam valueOf(String strategy, int partition, int maxThreshold, boolean dedup)
   {
     switch (strategy) {
       case "evenSpaced": return evenSpaced(partition, dedup);
       case "evenCounted": return evenCounted(partition, dedup);
-      case "slopedSpaced": return slopedSpaced(partition, dedup);
-      default: return slopedSpaced(partition, dedup);
+      case "slopedSpaced": return slopedSpaced(partition, maxThreshold, dedup);
+      default: return slopedSpaced(partition, maxThreshold, dedup);
     }
   }
 

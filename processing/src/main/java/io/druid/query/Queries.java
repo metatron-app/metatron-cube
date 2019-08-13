@@ -427,7 +427,12 @@ public class Queries
     return numSplit;
   }
 
-  public static Object[] getThresholds(List<DictionaryEncodedColumn> dictionaries, int numSplit, String strategy)
+  public static Object[] getThresholds(
+      List<DictionaryEncodedColumn> dictionaries,
+      int numSplit,
+      String strategy,
+      int maxThreshold
+  )
   {
     ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
     for (DictionaryEncodedColumn dictionary : dictionaries) {
@@ -435,7 +440,7 @@ public class Queries
     }
     if (!itemsUnion.isEmpty()) {
       return (Object[]) QuantileOperation.QUANTILES.calculate(
-          itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, true)
+          itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, maxThreshold, true)
       );
     }
     return null;
@@ -449,7 +454,8 @@ public class Queries
       TimeseriesQuery metaQuery,
       DimensionSpec dimensionSpec,
       int numSplits,
-      String splitType
+      String splitType,
+      int maxThreshold
   )
   {
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
@@ -486,6 +492,7 @@ public class Queries
                                          .put("op", "QUANTILES")
                                          .put("dedup", true)
                                          .put(splitType, numSplits + 1)
+                                         .put("maxThreshold", maxThreshold)
                                          .build();
 
     PostAggregator postAggregator = Queries.convert(pg, segmentWalker.getObjectMapper(), PostAggregator.class);

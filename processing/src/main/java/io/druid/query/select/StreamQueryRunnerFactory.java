@@ -154,7 +154,7 @@ public class StreamQueryRunnerFactory
         if (numSplit < 2) {
           return null;
         }
-        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy);
+        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, -1);
       }
     }
     finally {
@@ -163,7 +163,7 @@ public class StreamQueryRunnerFactory
     if (thresholds == null) {
       DimensionSpec dimensionSpec = DefaultDimensionSpec.of(sortColumn);
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
+          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, -1
       );
     }
     if (thresholds == null || thresholds.length < 3) {

@@ -234,15 +234,19 @@ public class GroupByQueryRunnerFactory
       return null;  // use timeseries query
     }
     GroupByQueryConfig gbyConfig = config.getGroupBy();
+    int maxResults = config.getMaxResults(query);
     int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, gbyConfig.getLocalSplitNum());
     if (numSplit < 0) {
-      int maxCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
-      if (maxCardinality > 1) {
+      int splitCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
+      if (splitCardinality > 1) {
+        splitCardinality = Math.min(splitCardinality, maxResults);
         long cardinality = Queries.estimateCardinality(query, segmentWalker, config);
-        numSplit = Math.min(MAX_LOCAL_SPLIT, (int) Math.ceil((double) cardinality / maxCardinality));
+        numSplit = (int) Math.ceil((double) cardinality / splitCardinality);
       }
     }
-    if (numSplit < 2) {
+    if (numSplit > MAX_LOCAL_SPLIT) {
+      throw new ISE("Too many splits %,d", numSplit);
+    } else if (numSplit < 2) {
       return null;
     }
 
@@ -258,7 +262,7 @@ public class GroupByQueryRunnerFactory
         if (numSplit < 2) {
           return null;
         }
-        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy);
+        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, maxResults);
       }
     }
     finally {
@@ -266,7 +270,7 @@ public class GroupByQueryRunnerFactory
     }
     if (thresholds == null) {
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy
+          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
       );
     }
     if (thresholds == null || thresholds.length < 3) {
