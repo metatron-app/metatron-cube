@@ -235,6 +235,12 @@ public class HadoopDruidIndexerConfig
           )
       );
     }
+    if (pathSpec instanceof PathSpec.SchemaRewriting) {
+      DataSchema rewritten = ((PathSpec.SchemaRewriting) pathSpec).rewrite(spec.getDataSchema());
+      if (rewritten != spec.getDataSchema()) {
+        spec = spec.withDataSchema(rewritten);
+      }
+    }
     this.schema = spec;
     this.pathSpec = pathSpec;
     for (Map.Entry<Long, List<HadoopyShardSpec>> entry : spec.getTuningConfig().getShardSpecs().entrySet()) {

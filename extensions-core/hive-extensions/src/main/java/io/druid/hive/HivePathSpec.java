@@ -72,8 +72,8 @@ public class HivePathSpec implements PathSpec.Resolving
       @JsonProperty("properties") Map<String, Object> properties
   ) throws Exception
   {
-    this.source = Preconditions.checkNotNull(source, "source cannot be null");
-    this.metastoreUri = Preconditions.checkNotNull(metastoreUri, "source cannot be null");
+    this.source = Preconditions.checkNotNull(source, "'source' cannot be null");
+    this.metastoreUri = Preconditions.checkNotNull(metastoreUri, "'metastoreUri' cannot be null");
     Preconditions.checkArgument(partialPartitions == null || partialPartitionList == null);
     this.partialPartitionList = partialPartitionList == null && partialPartitions != null ?
                                 Arrays.asList(partialPartitions) :
@@ -96,7 +96,7 @@ public class HivePathSpec implements PathSpec.Resolving
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<Map<String, String>> getPartialPartitionList()
   {
     return partialPartitionList;
@@ -117,7 +117,7 @@ public class HivePathSpec implements PathSpec.Resolving
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -156,6 +156,19 @@ public class HivePathSpec implements PathSpec.Resolving
           table.getSerializationLib(),
           table.getDataLocation()
       );
+      List<FieldSchema> schema = table.getCols();
+      if (table.isPartitioned()) {
+        schema = Lists.newArrayList(schema);
+        schema.removeAll(table.getPartitionKeys());
+      }
+      StringBuilder builder = new StringBuilder("struct<");
+      for (FieldSchema field : schema) {
+        if (builder.length() > 7) {
+          builder.append(',');
+        }
+        builder.append(field.getName()).append(':').append(field.getType());
+      }
+      String tableTypeString = builder.append('>').toString();
       // todo rewrite parser spec with serde
 
       Class inputFormat = table.getInputFormatClass();
@@ -219,6 +232,7 @@ public class HivePathSpec implements PathSpec.Resolving
           false,
           table.isPartitioned(),
           extractPartitionRegex,
+          tableTypeString,
           properties
       );
     }
@@ -228,7 +242,12 @@ public class HivePathSpec implements PathSpec.Resolving
     }
     finally {
       if (client != null) {
-        client.close();
+        try {
+          client.close();
+        }
+        catch (Exception e) {
+          // ignore
+        }
       }
     }
   }

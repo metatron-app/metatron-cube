@@ -231,6 +231,18 @@ public class DataSchema
                           jsonMapper);
   }
 
+  public DataSchema withParser(Map<String, Object> parser)
+  {
+    return new DataSchema(dataSource,
+                          parser,
+                          aggregators,
+                          enforceType,
+                          granularitySpec,
+                          evaluations,
+                          validations,
+                          jsonMapper);
+  }
+
   @Override
   public String toString()
   {

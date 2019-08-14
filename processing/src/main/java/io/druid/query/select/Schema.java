@@ -353,7 +353,7 @@ public class Schema implements TypeResolver, RowSignature
       } else if (type1 == null && type2 != null) {
         mergedTypes.add(merged.getOrDefault(columnName, type2));
       } else {
-        mergedTypes.add(merged.getOrDefault(columnName, ValueDesc.UNKNOWN));
+        mergedTypes.add(merged.getOrDefault(columnName, ValueDesc.toCommonType(type1, type2)));
       }
     }
     Map<String, ColumnCapabilities> capabilitiesMap = Maps.newHashMap();

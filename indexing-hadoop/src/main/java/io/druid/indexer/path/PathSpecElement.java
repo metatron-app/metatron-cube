@@ -20,6 +20,7 @@
 package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -53,6 +54,7 @@ public class PathSpecElement
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getDataSource()
   {
     return dataSource;
@@ -65,12 +67,14 @@ public class PathSpecElement
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Class<? extends InputFormat> getInputFormat()
   {
     return inputFormat;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Interval getInterval()
   {
     return interval;

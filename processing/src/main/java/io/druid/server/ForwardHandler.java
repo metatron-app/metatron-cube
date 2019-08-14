@@ -152,7 +152,8 @@ ForwardHandler implements ForwardConstants
             @Override
             public String get()
             {
-              return schema != null ? schema : QueryUtils.retrieveSchema(query, segmentWalker).columnAndTypesString();
+              return schema != null ? schema :
+                     QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, true).columnAndTypesString();
             }
           });
           return wrapForwardResult(

@@ -26,12 +26,14 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.SkippingTextInputFormat;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -46,7 +48,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("hadoop")
-public class HadoopPathSpec implements PathSpec
+public class HadoopPathSpec implements PathSpec.SchemaRewriting
 {
   public static final int DEFAULT_SPLIT_SIZE = HadoopCombineInputFormat.COMBINE_PER_ELEMENT;
 
@@ -68,6 +70,7 @@ public class HadoopPathSpec implements PathSpec
   private final boolean findRecursive;
   private final boolean extractPartition;
   private final String extractPartitionRegex;
+  private final String typeString;
   private final Map<String, Object> properties;
 
   @JsonCreator
@@ -80,6 +83,7 @@ public class HadoopPathSpec implements PathSpec
       @JsonProperty("findRecursive") boolean findRecursive,
       @JsonProperty("extractPartition") boolean extractPartition,
       @JsonProperty("extractPartitionRegex") String extractPartitionRegex,
+      @JsonProperty("typeString") String typeString,
       @JsonProperty("properties") Map<String, Object> properties
   )
   {
@@ -95,6 +99,7 @@ public class HadoopPathSpec implements PathSpec
     this.findRecursive = findRecursive;
     this.extractPartition = extractPartition;
     this.extractPartitionRegex = extractPartition ? extractPartitionRegex : null;
+    this.typeString = typeString;
     this.properties = properties;
     Preconditions.checkArgument(!elements.isEmpty());
     Preconditions.checkArgument(basePath == null || new Path(basePath).isAbsolute());
@@ -107,19 +112,6 @@ public class HadoopPathSpec implements PathSpec
         }
       }
     }
-  }
-
-  protected HadoopPathSpec(HadoopPathSpec pathSpec)
-  {
-    this.basePath = pathSpec.basePath;
-    this.elements = pathSpec.elements;
-    this.inputFormat = pathSpec.inputFormat;
-    this.splitSize = pathSpec.splitSize;
-    this.skipHeader = pathSpec.skipHeader;
-    this.findRecursive = pathSpec.findRecursive;
-    this.extractPartition = pathSpec.extractPartition;
-    this.extractPartitionRegex = pathSpec.extractPartitionRegex;
-    this.properties = pathSpec.properties;
   }
 
   @JsonProperty
@@ -162,6 +154,13 @@ public class HadoopPathSpec implements PathSpec
 
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTypeString()
+  {
+    return typeString;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -248,7 +247,7 @@ public class HadoopPathSpec implements PathSpec
         job.getConfiguration().setBoolean(entry.getKey(), (Boolean) value);
       } else if (value instanceof List) {
         List<String> casted = GuavaUtils.cast((List<?>) value);
-        job.getConfiguration().setStrings(entry.getKey(), casted.toArray(new String[casted.size()]));
+        job.getConfiguration().setStrings(entry.getKey(), casted.toArray(new String[] {}));
       } else {
         new Logger(HadoopPathSpec.class).warn("Invalid type value %s (%s).. ignoring", value, value.getClass());
       }
@@ -310,5 +309,20 @@ public class HadoopPathSpec implements PathSpec
            ", extractPartition=" + extractPartition +
            ", properties=" + properties +
            '}';
+  }
+
+  @Override
+  public DataSchema rewrite(DataSchema schema)
+  {
+    if (StringUtils.isNullOrEmpty(typeString)) {
+      return schema;
+    }
+    Map<String, Object> parser = schema.getParserMap();
+    if (!"orc".equals(parser.get("type")) || parser.containsKey("typeString") || parser.containsKey("schema")) {
+      return schema;
+    }
+    parser = Maps.newHashMap(parser);
+    parser.put("typeString", typeString);
+    return schema.withParser(parser);
   }
 }
