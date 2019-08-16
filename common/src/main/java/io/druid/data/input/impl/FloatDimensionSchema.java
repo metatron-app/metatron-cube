@@ -30,15 +30,16 @@ public class FloatDimensionSchema extends DimensionSchema
   @JsonCreator
   public FloatDimensionSchema(
       @JsonProperty("name") String name,
+      @JsonProperty("fieldName") String fieldName,
       @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling
   )
   {
-    super(name, multiValueHandling);
+    super(name, fieldName, multiValueHandling);
   }
 
   public FloatDimensionSchema(String name)
   {
-    this(name, null);
+    this(name, null, null);
   }
 
   @Override

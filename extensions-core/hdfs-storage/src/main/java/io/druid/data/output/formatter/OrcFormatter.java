@@ -22,11 +22,9 @@ package io.druid.data.output.formatter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.data.Rows;
-import io.druid.data.ValueDesc;
 import io.druid.data.output.Formatter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,6 +41,7 @@ import org.apache.orc.Writer;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -64,50 +63,23 @@ public class OrcFormatter implements Formatter
 
   private int counter;
 
-  public OrcFormatter(Path path, FileSystem fs, String typeString, ObjectMapper mapper) throws IOException
+  public OrcFormatter(Path path, FileSystem fs, String[] columnNames, String typeString, ObjectMapper mapper) throws IOException
   {
-    this.mapper = mapper;
-    this.columnNames = Lists.newArrayList();
-    StringBuilder builder = new StringBuilder();
-    builder.append("struct<");
-    for (String column : typeString.split(",")) {
-      if (builder.length() > 7) {
-        builder.append(",");
-      }
-      int index = column.indexOf(':');
-      if (index < 0) {
-        builder.append(column);
-        builder.append(":string");
-        columnNames.add(column);
-      } else {
-        String type = column.substring(index + 1, column.length());
-        if (ValueDesc.isDimension(type)) {
-          builder.append(column, 0, index);
-          builder.append(':').append(ValueDesc.subElementOf(type));
-        } else if (type.equalsIgnoreCase(ValueDesc.LONG_TYPE)) {
-          builder.append(column, 0, index);
-          builder.append(":bigint");
-        } else {
-          builder.append(column);
-        }
-        columnNames.add(column.substring(0, index));
-      }
-    }
-    String schemaString = builder.append('>').toString();
-    log.info("Applying schema : " + schemaString);
-
+    log.info("Applying schema : %s", typeString);
     ClassLoader prev = Thread.currentThread().getContextClassLoader();
     Thread.currentThread().setContextClassLoader(OrcFormatter.class.getClassLoader());
     try {
       Configuration conf = new Configuration();
-      TypeDescription schema = TypeDescriptions.fromString(schemaString);
-      columnTypes = schema.getChildren();
-      writer = OrcFile.createWriter(path, OrcFile.writerOptions(conf).setSchema(schema));
-      batch = schema.createRowBatch();
+      TypeDescription schema = TypeDescriptions.fromString(typeString);
+      this.columnNames = columnNames == null ? schema.getFieldNames() : Arrays.asList(columnNames);
+      this.columnTypes = schema.getChildren();
+      this.writer = OrcFile.createWriter(path, OrcFile.writerOptions(conf).setSchema(schema));
+      this.batch = schema.createRowBatch();
     }
     finally {
       Thread.currentThread().setContextClassLoader(prev);
     }
+    this.mapper = mapper;
     this.path = path;
     this.fs = fs;
   }

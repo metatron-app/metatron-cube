@@ -30,15 +30,16 @@ public class DoubleDimensionSchema extends DimensionSchema
   @JsonCreator
   public DoubleDimensionSchema(
       @JsonProperty("name") String name,
+      @JsonProperty("fieldName") String fieldName,
       @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling
   )
   {
-    super(name, multiValueHandling);
+    super(name, fieldName, multiValueHandling);
   }
 
   public DoubleDimensionSchema(String name)
   {
-    this(name, null);
+    this(name, null, null);
   }
 
   @Override

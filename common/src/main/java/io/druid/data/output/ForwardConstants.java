@@ -23,6 +23,7 @@ public interface ForwardConstants
 {
   String FORMAT = "format";
   String CLEANUP = "cleanup";
+  String DATA_FILENAME = "dataFileName";
 
   // format
   String INDEX_FORMAT = "index";
@@ -30,18 +31,22 @@ public interface ForwardConstants
   String CSV_FORMAT = "csv";
   String TSV_FORMAT = "tsv";
   String EXCEL_FORMAT = "excel";
+  String ORC_FORMAT = "orc";
+
+  // column name mapping
+  String COLUMNS = "columns"; // name of columns of row (aka. fieldNames)
+  String MAPPED_COLUMNS = "outputColumns";    // re-mapped column name (for SQL)
+  String SCHEMA = "schema";   // index schema for 'index', type string for 'orc'
 
   // index-format
   String DATASOURCE = "dataSource";
   String REGISTER_TABLE = "registerTable";
   String TEMPORARY = "temporary";
-  String SCHEMA = "schema";
   String INTERVAL = "interval";
   String WAIT_TIMEOUT = "waitTimeout";
   String ASSERT_LOADED = "assertLoaded";
 
   // json
-  String COLUMNS = "columns";
   String WRAP_AS_LIST = "wrapAsList";
 
   // xsv

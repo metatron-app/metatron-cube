@@ -373,7 +373,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
           @Override
           public DimensionSchema apply(String input)
           {
-            return new StringDimensionSchema(input, null);
+            return new StringDimensionSchema(input, null, null);
           }
         }
     );

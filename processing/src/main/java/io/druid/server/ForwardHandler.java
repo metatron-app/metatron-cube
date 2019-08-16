@@ -101,7 +101,7 @@ ForwardHandler implements ForwardConstants
 
     final StorageHandler handler = getHandler(scheme);
     if (handler == null) {
-      LOG.warn("Unsupported scheme '" + scheme + "'");
+      LOG.warn("Unsupported scheme '%s'", scheme);
       throw new IAE("Unsupported scheme '%s'", scheme);
     }
     final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
@@ -141,11 +141,12 @@ ForwardHandler implements ForwardConstants
           if (StorageHandler.FILE_SCHEME.equals(scheme) || StorageHandler.LOCAL_SCHEME.equals(scheme)) {
             rewritten = rewriteURI(rewritten, scheme, node, null);
           }
-          if (ForwardConstants.LOCAL_TEMP_PATH.equals(rewritten.getPath())) {
+          if (LOCAL_TEMP_PATH.equals(rewritten.getPath())) {
             File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
             rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
           }
-          final String schema = Objects.toString(forwardContext.get("schema"), null);
+          final String[] inputColumns = Formatters.parseStrings(forwardContext.get(COLUMNS));
+          final String schema = Objects.toString(forwardContext.get(SCHEMA), null);
           final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), responseContext);
           final Supplier<String> typeString = Suppliers.memoize(new Supplier<String>()
           {
@@ -159,7 +160,7 @@ ForwardHandler implements ForwardConstants
           return wrapForwardResult(
               query,
               forwardContext,
-              handler.write(rewritten, QueryResult.of(sequence, typeString), forwardContext)
+              handler.write(rewritten, new QueryResult(sequence, inputColumns, typeString), forwardContext)
           );
         }
         catch (Exception e) {

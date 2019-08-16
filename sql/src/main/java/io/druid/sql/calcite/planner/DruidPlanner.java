@@ -35,6 +35,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.output.ForwardConstants;
 import io.druid.query.Query;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
 import io.druid.sql.calcite.ddl.SqlDropTable;
 import io.druid.sql.calcite.ddl.SqlInsertDirectory;
@@ -161,9 +162,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     if (source.getKind() == SqlKind.EXPLAIN) {
       return handleExplain(druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
-      return handleCTAS(druidRel, (SqlCreateTable) source, brokerServerView);
+      return handleCTAS(Utils.getFieldNames(root), druidRel, (SqlCreateTable) source, brokerServerView);
     } else if (source instanceof SqlInsertDirectory) {
-      return handleInsertDirectory(druidRel, (SqlInsertDirectory) source, brokerServerView);
+      return handleInsertDirectory(Utils.getFieldNames(root), druidRel, (SqlInsertDirectory) source, brokerServerView);
     }
 
     final QueryMaker queryMaker = druidRel.getQueryMaker();
@@ -177,6 +178,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         if (root.isRefTrivial()) {
           return sequence;
         }
+        final int[] indices = Utils.getFieldIndices(root);
         // Add a mapping on top to accommodate root.fields.
         return Sequences.map(
             sequence,
@@ -186,8 +188,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
               public Object[] apply(final Object[] input)
               {
                 final Object[] retVal = new Object[root.fields.size()];
-                for (int i = 0; i < root.fields.size(); i++) {
-                  retVal[i] = input[root.fields.get(i).getKey()];
+                for (int i = 0; i < indices.length; i++) {
+                  retVal[i] = input[indices[i]];
                 }
                 return retVal;
               }
@@ -306,6 +308,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
   @SuppressWarnings("unchecked")
   private PlannerResult handleCTAS(
+      final List<String> mappedColumns,
       final DruidRel<?> druidRel,
       final SqlCreateTable source,
       final BrokerServerView brokerServerView
@@ -318,7 +321,11 @@ public class DruidPlanner implements Closeable, ForwardConstants
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
-    IncrementalIndexSchema schema = rowSignature.asSchema().asRelaySchema();
+    Map<String, String> mapping = null;
+    if (!Iterables.elementsEqual(rowSignature.getRowOrder(), mappedColumns)) {
+      mapping = GuavaUtils.zipAsMap(rowSignature.getRowOrder(), mappedColumns);
+    }
+    IncrementalIndexSchema schema = rowSignature.asSchema().asRelaySchema(mapping);
 
     Map<String, Object> context = Maps.newHashMap();
     context.put(Query.FORWARD_URL, LOCAL_TEMP_URL);
@@ -364,6 +371,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
   @SuppressWarnings("unchecked")
   private PlannerResult handleInsertDirectory(
+      final List<String> mappedColumns,
       final DruidRel<?> druidRel,
       final SqlInsertDirectory source,
       final BrokerServerView brokerServerView
@@ -373,13 +381,23 @@ public class DruidPlanner implements Closeable, ForwardConstants
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     Map<String, Object> context = Maps.newHashMap();
-
     Map forwardContext = Maps.newHashMap();
     if (source.getProperties() != null) {
       forwardContext.putAll(source.getProperties());
     }
+
     forwardContext.put(FORMAT, source.getFormat());
     forwardContext.put(CLEANUP, source.isOverwrite());
+
+    RowSignature rowSignature = druidQuery.getOutputRowSignature();
+    forwardContext.put(COLUMNS, rowSignature.getRowOrder());
+    forwardContext.put(MAPPED_COLUMNS, mappedColumns);
+
+    if (!Iterables.elementsEqual(rowSignature.getRowOrder(), mappedColumns)) {
+      rowSignature = rowSignature.replaceColumnNames(mappedColumns);
+    }
+
+    forwardContext.put(SCHEMA, rowSignature.asTypeString());    // for orc
 
     context.put(Query.FORWARD_URL, source.getDirectory());
     context.put(Query.FORWARD_CONTEXT, forwardContext);

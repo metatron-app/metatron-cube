@@ -183,15 +183,15 @@ public class HdfsStorageHandler implements StorageHandler
       fileSystem = ((LocalFileSystem) fileSystem).getRawFileSystem();
     }
 
-    boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
+    boolean cleanup = PropUtils.parseBoolean(context, CLEANUP, false);
     if (cleanup) {
       fileSystem.delete(physicalPath, true);
     }
     if (fileSystem.isFile(physicalPath)) {
-      throw new IllegalStateException("'resultDirectory' should not be a file");
+      throw new IAE("target location [%s] should not be a file", physicalPath);
     }
     if (!fileSystem.exists(physicalPath) && !fileSystem.mkdirs(physicalPath)) {
-      throw new IllegalStateException("failed to make target directory");
+      throw new IAE("failed to make target directory");
     }
     Map<String, Object> info = Maps.newLinkedHashMap();
     CountingAccumulator exporter = toExporter(result, context, nominalPath, physicalPath, fileSystem);
@@ -443,9 +443,15 @@ public class HdfsStorageHandler implements StorageHandler
         }
       };
     }
-    final Path dataFile = new Path(physicalPath, PropUtils.parseString(context, "dataFileName", "data"));
-    if ("orc".equals(format)) {
-      return Formatters.wrapToExporter(new OrcFormatter(dataFile, fs, result.getTypeString(), jsonMapper));
+    final Path dataFile = new Path(physicalPath, PropUtils.parseString(context, DATA_FILENAME, "data"));
+    if (ORC_FORMAT.equals(format)) {
+      return Formatters.wrapToExporter(new OrcFormatter(
+          dataFile,
+          fs,
+          result.getInputColumns(),
+          result.getTypeString(),
+          jsonMapper
+      ));
     }
     return Formatters.toBasicExporter(
         context, jsonMapper, new ByteSink()
@@ -471,7 +477,10 @@ public class HdfsStorageHandler implements StorageHandler
     switch (indexOutURI.getScheme()) {
       case "hdfs":
       case "viewfs":
+      case "wasb":
+      case "wasbs":
       case "gs":
+        // use hdfs puller, whatever the scheme is
         return ImmutableMap.<String, Object>of(
             "type", "hdfs",
             "path", indexOutURI.toString()

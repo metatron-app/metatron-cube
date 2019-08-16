@@ -34,7 +34,7 @@ public class StringDimensionSchema extends DimensionSchema
   {
     List<DimensionSchema> schemas = Lists.newArrayList();
     for (String dimension : dimensions) {
-      schemas.add(new StringDimensionSchema(dimension, null));
+      schemas.add(new StringDimensionSchema(dimension, null, null));
     }
     return schemas;
   }
@@ -42,15 +42,16 @@ public class StringDimensionSchema extends DimensionSchema
   @JsonCreator
   public StringDimensionSchema(
       @JsonProperty("name") String name,
+      @JsonProperty("fieldName") String fieldName,
       @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling
   )
   {
-    super(name, multiValueHandling);
+    super(name, fieldName, multiValueHandling);
   }
 
   public StringDimensionSchema(String name)
   {
-    this(name, null);
+    this(name, null, null);
   }
 
   @Override

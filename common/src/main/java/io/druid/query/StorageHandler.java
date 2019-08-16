@@ -24,6 +24,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.output.ForwardConstants;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,7 +33,7 @@ import java.util.Map;
 
 /**
  */
-public interface StorageHandler
+public interface StorageHandler extends ForwardConstants
 {
   String FILE_SCHEME = "file";
   String LOCAL_SCHEME = "local";

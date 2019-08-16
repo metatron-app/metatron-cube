@@ -77,8 +77,10 @@ public class Formatters implements ForwardConstants
       throws IOException
   {
     final String[] columns = parseStrings(context.get(COLUMNS));
+    final String[] mappedColumns = parseStrings(context.get(MAPPED_COLUMNS), columns);
     final int flushInterval = parseInt(context.get(FLUSH_INTERVAL), DEFAULT_FLUSH_INTERVAL);
     final int maxRowsPerSheet = parseInt(context.get(MAX_ROWS_PER_SHEET), DEFAULT_MAX_ROWS_PER_SHEET);
+    final boolean header = parseBoolean(context.get(WITH_HEADER), true);    // backward compatible -_-;
 
     if (columns != null) {
       return new ExcelAccumulator(sink, flushInterval, maxRowsPerSheet)
@@ -87,10 +89,12 @@ public class Formatters implements ForwardConstants
         public void nextSheet()
         {
           super.nextSheet();
-          Row r = nextRow(true);
-          for (int i = 0; i < columns.length; i++) {
-            Cell c = r.createCell(i);
-            c.setCellValue(columns[i]);
+          if (header) {
+            Row r = nextRow(true);
+            for (int i = 0; i < mappedColumns.length; i++) {
+              Cell c = r.createCell(i);
+              c.setCellValue(mappedColumns[i]);
+            }
           }
         }
 
@@ -146,13 +150,13 @@ public class Formatters implements ForwardConstants
       this.maxRowsPerSheet = maxRowsPerSheet > 0 ? Math.min(maxRowsPerSheet, MAX_ROW_INDEX) : MAX_ROW_INDEX;
     }
 
-    protected Row nextRow(boolean header)
+    protected Row nextRow(boolean headerLine)
     {
       if (sheet == null || rowNumInSheet >= maxRowsPerSheet) {
         nextSheet();
       }
       Row r = sheet.createRow(rowNumInSheet++);
-      if (!header) {
+      if (!headerLine) {
         rowNum++;
       }
       return r;
@@ -263,6 +267,7 @@ public class Formatters implements ForwardConstants
       throws IOException
   {
     String[] columns = parseStrings(context.get(COLUMNS));
+    String[] mappedColumns = parseStrings(context.get(MAPPED_COLUMNS), columns);
     String format = Formatters.getFormat(context);
     if (format.equalsIgnoreCase(JSON_FORMAT)) {
       boolean wrapAsList = parseBoolean(context.get(WRAP_AS_LIST), false);
@@ -281,7 +286,16 @@ public class Formatters implements ForwardConstants
     String nullValue = Objects.toString(context.get(NULL_VALUE), null);
     String charset = Objects.toString(context.get(CHARSET), null);
 
-    return new Formatter.XSVFormatter(output, jsonMapper, separator, nullValue, columns, header, charset);
+    return new Formatter.XSVFormatter(
+        output,
+        jsonMapper,
+        separator,
+        nullValue,
+        columns,
+        mappedColumns,
+        header,
+        charset
+    );
   }
 
   private static boolean isNullOrEmpty(String string)
@@ -301,7 +315,12 @@ public class Formatters implements ForwardConstants
            input instanceof Number ? ((Number) input).intValue() : Integer.valueOf(String.valueOf(input));
   }
 
-  private static String[] parseStrings(Object input)
+  public static String[] parseStrings(Object input)
+  {
+    return parseStrings(input, null);
+  }
+
+  public static String[] parseStrings(Object input, String[] defaultValue)
   {
     if (input instanceof List) {
       List<String> stringList = Lists.transform((List<?>) input, Functions.toStringFunction());
@@ -309,7 +328,7 @@ public class Formatters implements ForwardConstants
     }
     String stringVal = Objects.toString(input, null);
     if (isNullOrEmpty(stringVal)) {
-      return null;
+      return defaultValue;
     }
     return Iterables.toArray(
         Iterables.transform(

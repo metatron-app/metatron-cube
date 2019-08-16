@@ -280,7 +280,7 @@ public abstract class IncrementalIndex implements Closeable
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
         capabilities.setHasSpatialIndexes(true);
       } else {
-        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling());
+        addNewDimension(dimSchema.getName(), dimSchema.getFieldName(), capabilities, dimSchema.getMultiValueHandling());
       }
       columnCapabilities.put(dimSchema.getName(), capabilities);
     }
@@ -446,7 +446,7 @@ public abstract class IncrementalIndex implements Closeable
         }
 
         if (desc == null) {
-          desc = addNewDimension(dimension, capabilities, null);
+          desc = addNewDimension(dimension, null, capabilities, null);
 
           if (overflow == null) {
             overflow = Lists.newArrayList();
@@ -538,10 +538,9 @@ public abstract class IncrementalIndex implements Closeable
   @SuppressWarnings("unchecked")
   private TimeAndDims toTimeAndDims(Row row)
   {
-    int[][] dims = new int[dimensionDescs.size()][];
-    for (Map.Entry<String, DimensionDesc> entry : dimensionDescs.entrySet()) {
-      DimensionDesc dimDesc = entry.getValue();
-      final Object raw = row.getRaw(entry.getKey());
+    final int[][] dims = new int[dimensionDescs.size()][];
+    for (DimensionDesc dimDesc : dimensionDescs.values()) {
+      final Object raw = row.getRaw(dimDesc.getFieldName());
       if (raw instanceof Comparable) {
         dims[dimDesc.index] = getDimVal(dimDesc, (Comparable) raw);
       } else if (raw instanceof List) {
@@ -717,22 +716,27 @@ public abstract class IncrementalIndex implements Closeable
           ColumnCapabilities capabilities = new ColumnCapabilities();
           capabilities.setType(ValueType.STRING);
           columnCapabilities.put(dim, capabilities);
-          addNewDimension(dim, capabilities, null);
+          addNewDimension(dim, null, capabilities, null);
         }
       }
     }
   }
 
   @GuardedBy("dimensionDescs")
-  private DimensionDesc addNewDimension(String dim, ColumnCapabilities capabilities, MultiValueHandling handling)
+  private DimensionDesc addNewDimension(
+      String name,
+      String fieldName,
+      ColumnCapabilities capabilities,
+      MultiValueHandling handling
+  )
   {
     DimDim values = newDimDim(capabilities.getType());
-    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), dim, values, capabilities, handling);
+    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), name, fieldName, values, capabilities, handling);
     if (dimValues.size() != desc.getIndex()) {
-      throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", dim);
+      throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", name);
     }
 
-    dimensionDescs.put(dim, desc);
+    dimensionDescs.put(name, desc);
     dimValues.add(desc.getValues());
     return desc;
   }
@@ -958,19 +962,22 @@ public abstract class IncrementalIndex implements Closeable
   {
     private final int index;
     private final String name;
+    private final String fieldName;
     private final DimDim values;
     private final ColumnCapabilities capabilities;
     private final MultiValueHandling multiValueHandling;
 
     public DimensionDesc(int index,
                          String name,
+                         String fieldName,
                          DimDim values,
                          ColumnCapabilities capabilities,
                          MultiValueHandling multiValueHandling
     )
     {
       this.index = index;
-      this.name = name;
+      this.name = Preconditions.checkNotNull(name);
+      this.fieldName = fieldName == null ? name : fieldName;
       this.values = values;
       this.capabilities = capabilities;
       this.multiValueHandling =
@@ -985,6 +992,11 @@ public abstract class IncrementalIndex implements Closeable
     public String getName()
     {
       return name;
+    }
+
+    public String getFieldName()
+    {
+      return fieldName;
     }
 
     public DimDim getValues()

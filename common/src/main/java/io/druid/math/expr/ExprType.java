@@ -48,4 +48,15 @@ public class ExprType
     }
     return ValueDesc.of(name);
   }
+
+  public static String sqlType(ValueDesc desc)
+  {
+    if (desc == null) {
+      return "string";
+    }
+    if (desc.isLong()) {
+      return "bigint";
+    }
+    return desc.typeName().toLowerCase();
+  }
 }

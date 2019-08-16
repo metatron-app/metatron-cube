@@ -57,6 +57,7 @@ public interface Formatter
     private final String separator;
     private final String nullValue;
     private final String[] columns;
+    private final String[] mappedColumns;
     private final boolean header;
     private final String charset;
 
@@ -72,15 +73,25 @@ public interface Formatter
 
     public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator) throws IOException
     {
-      this(sink, mapper, separator, null, null, false, null);
+      this(sink, mapper, separator, null, null, null, false, null);
     }
 
-    public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator, String nullValue, String[] columns, boolean header, String charset)
+    public XSVFormatter(
+        ByteSink sink,
+        ObjectMapper mapper,
+        String separator,
+        String nullValue,
+        String[] columns,
+        String[] mappedColumns,
+        boolean header,
+        String charset
+    )
         throws IOException
     {
       this.separator = separator == null ? "," : separator;
       this.nullValue = nullValue == null ? "NULL" : nullValue;
       this.columns = columns;
+      this.mappedColumns = mappedColumns == null ? columns : mappedColumns;
       this.sink = sink;
       this.mapper = mapper;
       this.output = new CountingOutputStream(sink.openBufferedStream());
@@ -94,7 +105,8 @@ public interface Formatter
     public void write(Map<String, Object> datum) throws IOException
     {
       if (firstLine && header) {
-        writeHeader(columns == null ? datum.keySet() : Arrays.asList(columns));
+        Collection<String> header = mappedColumns == null ? datum.keySet() : Arrays.asList(mappedColumns);
+        writeHeader(header);
       }
       builder.setLength(0);
 

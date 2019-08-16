@@ -30,6 +30,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.math.expr.ExprType;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.Schema;
@@ -268,6 +269,20 @@ public class RowSignature implements TypeResolver
     return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
   }
 
+  public String asTypeString()
+  {
+    final StringBuilder s = new StringBuilder("struct<");
+    for (int i = 0; i < columnNames.size(); i++) {
+      if (i > 0) {
+        s.append(',');
+      }
+      final String columnName = columnNames.get(i);
+      final ValueDesc columnType = columnTypes.getOrDefault(columnName, ValueDesc.UNKNOWN);
+      s.append(columnName).append(':').append(ExprType.sqlType(columnType));
+    }
+    return s.append(">").toString();
+  }
+
   @Override
   public int hashCode()
   {
@@ -301,6 +316,16 @@ public class RowSignature implements TypeResolver
   {
     final ValueDesc resolved = resolve(column);
     return resolved != null ? resolved : defaultType;
+  }
+
+  public RowSignature replaceColumnNames(List<String> fieldNames)
+  {
+    Preconditions.checkArgument(columnNames.size() == fieldNames.size(), "inconsistent");
+    Builder builder = new Builder();
+    for (int i = 0; i < fieldNames.size(); i++) {
+      builder.add(fieldNames.get(i), columnTypes.getOrDefault(columnNames.get(i), ValueDesc.UNKNOWN));
+    }
+    return builder.build();
   }
 
   public static class Builder

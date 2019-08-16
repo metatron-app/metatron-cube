@@ -21,11 +21,13 @@ package io.druid.sql.calcite;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -37,6 +39,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.util.Pair;
 
 import java.util.List;
 
@@ -117,5 +120,23 @@ public class Utils
   public static RelDataType asRelDataType(Class clazz)
   {
     return clazz != null && clazz != Object.class ? TYPE_FACTORY.createType(clazz) : TYPE_FACTORY.createUnknownType();
+  }
+
+  public static List<String> getFieldNames(RelRoot root)
+  {
+    List<String> names = Lists.newArrayList();
+    for (Pair<Integer, String> pair : root.fields) {
+      names.add(pair.right);
+    }
+    return names;
+  }
+
+  public static int[] getFieldIndices(RelRoot root)
+  {
+    List<Integer> indices = Lists.newArrayList();
+    for (Pair<Integer, String> pair : root.fields) {
+      indices.add(pair.left);
+    }
+    return Ints.toArray(indices);
   }
 }

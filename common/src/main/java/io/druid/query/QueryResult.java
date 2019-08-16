@@ -28,18 +28,20 @@ import java.util.Map;
  */
 public class QueryResult
 {
-  public static QueryResult of(Sequence<Map<String, Object>> sequence, Supplier<String> typeString)
-  {
-    return new QueryResult(sequence, typeString);
-  }
-
   private final Sequence<Map<String, Object>> sequence;
+  private final String[] inputColumns;
   private final Supplier<String> typeString;
 
-  private QueryResult(Sequence<Map<String, Object>> sequence, Supplier<String> typeString)
+  public QueryResult(Sequence<Map<String, Object>> sequence, String[] inputColumns, Supplier<String> typeString)
   {
     this.typeString = typeString;
+    this.inputColumns = inputColumns;
     this.sequence = sequence;
+  }
+
+  public String[] getInputColumns()
+  {
+    return inputColumns;
   }
 
   public String getTypeString()

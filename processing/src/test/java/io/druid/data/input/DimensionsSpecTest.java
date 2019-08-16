@@ -47,8 +47,8 @@ public class DimensionsSpecTest
     Assert.assertEquals(
         new DimensionsSpec(
             Arrays.<DimensionSchema>asList(
-                new StringDimensionSchema("dim1", DimensionSchema.MultiValueHandling.SET),
-                new StringDimensionSchema("dim2", DimensionSchema.MultiValueHandling.ARRAY)
+                new StringDimensionSchema("dim1", null, DimensionSchema.MultiValueHandling.SET),
+                new StringDimensionSchema("dim2", null, DimensionSchema.MultiValueHandling.ARRAY)
             ), null, null
         ),
         mapper.readValue(spec2, DimensionsSpec.class)
@@ -57,8 +57,8 @@ public class DimensionsSpecTest
     Assert.assertEquals(
         new DimensionsSpec(
             Arrays.<DimensionSchema>asList(
-                new StringDimensionSchema("dim1", DimensionSchema.MultiValueHandling.SET),
-                new StringDimensionSchema("dim2", DimensionSchema.MultiValueHandling.ARRAY)
+                new StringDimensionSchema("dim1", null, DimensionSchema.MultiValueHandling.SET),
+                new StringDimensionSchema("dim2", null, DimensionSchema.MultiValueHandling.ARRAY)
             ), null, null
         ),
         mapper.readValue(spec3, DimensionsSpec.class)

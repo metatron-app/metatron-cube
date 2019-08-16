@@ -34,6 +34,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -43,6 +45,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
@@ -514,9 +517,35 @@ public class Schema implements TypeResolver, RowSignature
     return new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)
         .withQueryGranularity(Granularities.ALL)
-        .withFixedSchema(true)
         .withDimensions(getDimensionNames(), getDimensionTypes())
         .withMetrics(AggregatorFactory.toRelay(getMetricNames(), getMetricTypes()))
+        .withFixedSchema(true)
+        .withRollup(false)
+        .build();
+  }
+
+  // input to output mapping
+  public IncrementalIndexSchema asRelaySchema(Map<String, String> mapping)
+  {
+    if (GuavaUtils.isNullOrEmpty(mapping)) {
+      return asRelaySchema();
+    }
+    List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
+    for (Pair<String, ValueDesc> pair : dimensionAndTypes()) {
+      ValueType type = pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type();
+      dimensionSchemas.add(DimensionSchema.of(mapping.get(pair.lhs), pair.lhs, type));
+    }
+    List<AggregatorFactory> merics = Lists.newArrayList();
+    for (Pair<String, ValueDesc> pair : metricAndTypes()) {
+      merics.add(new RelayAggregatorFactory(mapping.get(pair.lhs), pair.lhs, pair.rhs.typeName()));
+    }
+    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
+    return new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(Granularities.ALL)
+        .withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
+        .withMetrics(merics)
+        .withFixedSchema(true)
         .withRollup(false)
         .build();
   }

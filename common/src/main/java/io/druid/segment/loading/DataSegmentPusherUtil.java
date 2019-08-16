@@ -20,16 +20,25 @@
 package io.druid.segment.loading;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.format.ISODateTimeFormat;
+
+import java.util.Set;
 
 /**
  */
 public class DataSegmentPusherUtil
 {
   private static final Joiner JOINER = Joiner.on("/").skipNulls();
+  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of("hdfs", "viewfs", "wasb", "wasbs");
+
+  public static String getStorageDir(String scheme, DataSegment segment)
+  {
+    return HDFS_DIR_SCHEMES.contains(scheme) ? getHdfsStorageDir(segment) : getStorageDir(segment);
+  }
 
   public static String getStorageDir(DataSegment segment)
   {

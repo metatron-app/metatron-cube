@@ -44,15 +44,15 @@ public class IncrementalIndexMultiValueSpecTest
   {
     DimensionsSpec dimensionsSpec = new DimensionsSpec(
         Arrays.<DimensionSchema>asList(
-            new StringDimensionSchema("string1", DimensionSchema.MultiValueHandling.ARRAY),
-            new StringDimensionSchema("string2", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
-            new StringDimensionSchema("string3", DimensionSchema.MultiValueHandling.SET),
-            new FloatDimensionSchema("float1", DimensionSchema.MultiValueHandling.ARRAY),
-            new FloatDimensionSchema("float2", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
-            new FloatDimensionSchema("float3", DimensionSchema.MultiValueHandling.SET),
-            new LongDimensionSchema("long1", DimensionSchema.MultiValueHandling.ARRAY),
-            new LongDimensionSchema("long2", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
-            new LongDimensionSchema("long3", DimensionSchema.MultiValueHandling.SET)
+            new StringDimensionSchema("string1", null, DimensionSchema.MultiValueHandling.ARRAY),
+            new StringDimensionSchema("string2", null, DimensionSchema.MultiValueHandling.SORTED_ARRAY),
+            new StringDimensionSchema("string3", null, DimensionSchema.MultiValueHandling.SET),
+            new FloatDimensionSchema("float1", null, DimensionSchema.MultiValueHandling.ARRAY),
+            new FloatDimensionSchema("float2", null, DimensionSchema.MultiValueHandling.SORTED_ARRAY),
+            new FloatDimensionSchema("float3", null, DimensionSchema.MultiValueHandling.SET),
+            new LongDimensionSchema("long1", null, DimensionSchema.MultiValueHandling.ARRAY),
+            new LongDimensionSchema("long2", null, DimensionSchema.MultiValueHandling.SORTED_ARRAY),
+            new LongDimensionSchema("long3", null, DimensionSchema.MultiValueHandling.SET)
         ),
         null, null
     );

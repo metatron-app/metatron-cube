@@ -44,7 +44,7 @@ public class NewSpatialDimensionSchema extends DimensionSchema
       @JsonProperty("dims") List<String> dims
   )
   {
-    super(name, null);
+    super(name, null, null);
     this.dims = dims;
   }
 

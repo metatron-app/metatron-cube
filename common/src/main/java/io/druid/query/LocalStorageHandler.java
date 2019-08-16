@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.inject.Inject;
+import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.PropUtils;
@@ -61,19 +62,19 @@ public class LocalStorageHandler implements StorageHandler
   public Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context)
       throws IOException
   {
-    LOG.info("Result will be forwarded to " + location + " with context " + context);
+    LOG.info("Result will be forwarded to [%s] with context %s", location, context);
     File targetDirectory = new File(location.getPath());
-    boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
+    boolean cleanup = PropUtils.parseBoolean(context, CLEANUP, false);
     if (cleanup) {
       FileUtils.deleteDirectory(targetDirectory);
     }
     if (targetDirectory.isFile()) {
-      throw new IllegalStateException("'resultDirectory' should not be a file");
+      throw new IAE("target location [%s] should not be a file", location);
     }
     if (!targetDirectory.exists() && !targetDirectory.mkdirs()) {
-      throw new IllegalStateException("failed to make target directory");
+      throw new IAE("failed to make target directory");
     }
-    File dataFile = new File(targetDirectory, PropUtils.parseString(context, "dataFileName", "data"));
+    File dataFile = new File(targetDirectory, PropUtils.parseString(context, DATA_FILENAME, "data"));
 
     Map<String, Object> info = Maps.newLinkedHashMap();
     CountingAccumulator exporter = toExporter(context, mapper, location, dataFile);

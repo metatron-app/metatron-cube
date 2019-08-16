@@ -21,6 +21,7 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -57,6 +58,21 @@ public abstract class DimensionSchema
     throw new ISE("not supported type %s [%s]", type, name);
   }
 
+  public static DimensionSchema of(String name, String fieldName, ValueType type)
+  {
+    switch (type) {
+      case FLOAT:
+        return new FloatDimensionSchema(name, fieldName, null);
+      case LONG:
+        return new LongDimensionSchema(name, fieldName, null);
+      case DOUBLE:
+        return new DoubleDimensionSchema(name, fieldName, null);
+      case STRING:
+        return new StringDimensionSchema(name, fieldName, null);
+    }
+    throw new ISE("not supported type %s [%s]", type, name);
+  }
+
   public static final String SPATIAL_TYPE_NAME = "spatial";
 
   // main druid and druid-api should really use the same ValueType enum.
@@ -83,11 +99,13 @@ public abstract class DimensionSchema
   }
 
   private final String name;
+  private final String fieldName;
   private final MultiValueHandling multiValueHandling;
 
-  protected DimensionSchema(String name, MultiValueHandling multiValueHandling)
+  protected DimensionSchema(String name, String fieldName, MultiValueHandling multiValueHandling)
   {
-    this.name = Preconditions.checkNotNull(name, "Dimension name cannot be null.");
+    this.name = Preconditions.checkNotNull(name == null ? fieldName : name, "Dimension name cannot be null.");
+    this.fieldName = fieldName;
     this.multiValueHandling = multiValueHandling == null ? MultiValueHandling.ARRAY : multiValueHandling;
     Preconditions.checkArgument(!name.contains(","), "Column name should not contain comma");
   }
@@ -96,6 +114,13 @@ public abstract class DimensionSchema
   public String getName()
   {
     return name;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getFieldName()
+  {
+    return fieldName;
   }
 
   @JsonProperty
