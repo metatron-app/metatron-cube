@@ -64,9 +64,9 @@ import io.druid.segment.realtime.FireDepartment;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.RealtimeMetricsMonitor;
 import io.druid.segment.realtime.appenderator.Appenderator;
+import io.druid.segment.realtime.appenderator.AppenderatorDriver;
+import io.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
 import io.druid.segment.realtime.appenderator.Appenderators;
-import io.druid.segment.realtime.appenderator.FiniteAppenderatorDriver;
-import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.appenderator.TransactionalSegmentPublisher;
 import io.druid.segment.realtime.firehose.ChatHandler;
@@ -293,7 +293,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
 
     try (
         final Appenderator appenderator0 = newAppenderator(fireDepartmentMetrics, toolbox);
-        final FiniteAppenderatorDriver driver = newDriver(appenderator0, toolbox, fireDepartmentMetrics);
+        final AppenderatorDriver driver = newDriver(appenderator0, toolbox, fireDepartmentMetrics);
         final KafkaConsumer<byte[], byte[]> consumer = newConsumer()
     ) {
       toolbox.getDataSegmentServerAnnouncer().announce();
@@ -445,13 +445,20 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                 if (!ioConfig.getMinimumMessageTime().isPresent() ||
                     !ioConfig.getMinimumMessageTime().get().isAfter(row.getTimestamp())) {
 
-                  final SegmentIdentifier identifier = driver.add(
+                  final String sequenceName = sequenceNames.get(record.partition());
+                  final AppenderatorDriverAddResult addResult = driver.add(
                       row,
-                      sequenceNames.get(record.partition()),
+                      sequenceName,
                       committerSupplier
                   );
 
-                  if (identifier == null) {
+                  if (addResult.isOk()) {
+                    // If the number of rows in the segment exceeds the threshold after adding a row,
+                    // move the segment out from the active segments of AppenderatorDriver to make a new segment.
+                    if (addResult.getNumRowsInSegment() > tuningConfig.getMaxRowsPerSegment()) {
+                      driver.moveSegmentOut(sequenceName, ImmutableList.of(addResult.getSegmentIdentifier()));
+                    }
+                  } else {
                     // Failure to allocate segment puts determinism at risk, bail out to be safe.
                     // May want configurable behavior here at some point.
                     // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
@@ -502,48 +509,59 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         status = Status.PUBLISHING;
       }
 
-      final TransactionalSegmentPublisher publisher = new TransactionalSegmentPublisher()
-      {
-        @Override
-        public boolean publishSegments(Set<DataSegment> segments, Object commitMetadata) throws IOException
-        {
-          final KafkaPartitions finalPartitions = toolbox.getObjectMapper().convertValue(
-              ((Map) commitMetadata).get(METADATA_NEXT_PARTITIONS),
-              KafkaPartitions.class
-          );
+      final TransactionalSegmentPublisher publisher = (segments, commitMetadata) -> {
+        final KafkaPartitions finalPartitions = toolbox.getObjectMapper().convertValue(
+            ((Map) commitMetadata).get(METADATA_NEXT_PARTITIONS),
+            KafkaPartitions.class
+        );
 
-          // Sanity check, we should only be publishing things that match our desired end state.
-          if (!endOffsets.equals(finalPartitions.getPartitionOffsetMap())) {
-            throw new ISE("Driver attempted to publish invalid metadata[%s].", commitMetadata);
-          }
-
-          final SegmentTransactionalInsertAction action;
-
-          if (ioConfig.isUseTransaction()) {
-            action = new SegmentTransactionalInsertAction(
-                segments,
-                new KafkaDataSourceMetadata(ioConfig.getStartPartitions()),
-                new KafkaDataSourceMetadata(finalPartitions)
-            );
-          } else {
-            action = new SegmentTransactionalInsertAction(segments, null, null);
-          }
-
-          log.info("Publishing with isTransaction[%s].", ioConfig.isUseTransaction());
-
-          return toolbox.getTaskActionClient().submit(action).isSuccess();
+        // Sanity check, we should only be publishing things that match our desired end state.
+        if (!endOffsets.equals(finalPartitions.getPartitionOffsetMap())) {
+          throw new ISE("Driver attempted to publish invalid metadata[%s].", commitMetadata);
         }
+
+        final SegmentTransactionalInsertAction action;
+
+        if (ioConfig.isUseTransaction()) {
+          action = new SegmentTransactionalInsertAction(
+              segments,
+              new KafkaDataSourceMetadata(ioConfig.getStartPartitions()),
+              new KafkaDataSourceMetadata(finalPartitions)
+          );
+        } else {
+          action = new SegmentTransactionalInsertAction(segments, null, null);
+        }
+
+        log.info("Publishing with isTransaction[%s].", ioConfig.isUseTransaction());
+
+        return toolbox.getTaskActionClient().submit(action).isSuccess();
       };
 
-      final SegmentsAndMetadata published = driver.finish(publisher, committerSupplier.get());
-      if (published == null) {
+      // Supervised kafka tasks are killed by KafkaSupervisor if they are stuck during publishing segments or waiting
+      // for hand off. See KafkaSupervisorIOConfig.completionTimeout.
+      final SegmentsAndMetadata published = driver.publish(
+          publisher,
+          committerSupplier.get(),
+          sequenceNames.values()
+      ).get();
+
+      final SegmentsAndMetadata handedOff;
+      if (tuningConfig.getHandoffConditionTimeout() == 0) {
+        handedOff = driver.registerHandoff(published)
+                          .get();
+      } else {
+        handedOff = driver.registerHandoff(published)
+                          .get(tuningConfig.getHandoffConditionTimeout(), TimeUnit.MILLISECONDS);
+      }
+
+      if (handedOff == null) {
         throw new ISE("Transaction failure publishing segments, aborting");
       } else {
         log.info(
             "Published segments[%s] with metadata[%s].",
             Joiner.on(", ").join(
                 Iterables.transform(
-                    published.getSegments(),
+                    handedOff.getSegments(),
                     new Function<DataSegment, String>()
                     {
                       @Override
@@ -554,7 +572,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                     }
                 )
             ),
-            published.getCommitMetadata()
+            handedOff.getCommitMetadata()
         );
       }
     }
@@ -577,10 +595,10 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       if (chatHandlerProvider.isPresent()) {
         chatHandlerProvider.get().unregister(getId());
       }
+
+      toolbox.getDataSegmentServerAnnouncer().unannounce();
     }
 
-    toolbox.getDataSegmentServerAnnouncer().unannounce();
-    
     return success();
   }
 
@@ -844,12 +862,9 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
 
   private Appenderator newAppenderator(FireDepartmentMetrics metrics, TaskToolbox toolbox)
   {
-    final int maxRowsInMemoryPerPartition = (tuningConfig.getMaxRowsInMemory() /
-                                             ioConfig.getStartPartitions().getPartitionOffsetMap().size());
     return Appenderators.createRealtime(
         dataSchema,
-        tuningConfig.withBasePersistDirectory(new File(toolbox.getTaskWorkDir(), "persist"))
-                    .withMaxRowsInMemory(maxRowsInMemoryPerPartition),
+        tuningConfig.withBasePersistDirectory(new File(toolbox.getTaskWorkDir(), "persist")),
         metrics,
         toolbox.getSegmentPusher(),
         toolbox.getObjectMapper(),
@@ -864,20 +879,18 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
     );
   }
 
-  private FiniteAppenderatorDriver newDriver(
+  private AppenderatorDriver newDriver(
       final Appenderator appenderator,
       final TaskToolbox toolbox,
       final FireDepartmentMetrics metrics
   )
   {
-    return new FiniteAppenderatorDriver(
+    return new AppenderatorDriver(
         appenderator,
         new ActionBasedSegmentAllocator(toolbox.getTaskActionClient(), dataSchema),
         toolbox.getSegmentHandoffNotifierFactory(),
         new ActionBasedUsedSegmentChecker(toolbox.getTaskActionClient()),
         toolbox.getObjectMapper(),
-        tuningConfig.getMaxRowsPerSegment(),
-        tuningConfig.getHandoffConditionTimeout(),
         metrics
     );
   }

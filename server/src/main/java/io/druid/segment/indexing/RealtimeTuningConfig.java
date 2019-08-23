@@ -132,7 +132,6 @@ public class RealtimeTuningConfig extends BaseTuningConfig implements Appenderat
     this.reportParseExceptions = reportParseExceptions == null
                                  ? defaultReportParseExceptions
                                  : reportParseExceptions;
-
     this.handoffConditionTimeout = handoffConditionTimeout == null
                                    ? defaultHandoffConditionTimeout
                                    : handoffConditionTimeout;

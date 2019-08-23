@@ -25,20 +25,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
-public class FiniteAppenderatorDriverMetadata
+public class AppenderatorDriverMetadata
 {
   private final Map<String, List<SegmentIdentifier>> activeSegments;
+  private final Map<String, List<SegmentIdentifier>> publishPendingSegments;
   private final Map<String, String> lastSegmentIds;
   private final Object callerMetadata;
 
   @JsonCreator
-  public FiniteAppenderatorDriverMetadata(
+  public AppenderatorDriverMetadata(
       @JsonProperty("activeSegments") Map<String, List<SegmentIdentifier>> activeSegments,
+      @JsonProperty("publishPendingSegments") Map<String, List<SegmentIdentifier>> publishPendingSegments,
       @JsonProperty("lastSegmentIds") Map<String, String> lastSegmentIds,
       @JsonProperty("callerMetadata") Object callerMetadata
   )
   {
     this.activeSegments = activeSegments;
+    this.publishPendingSegments = publishPendingSegments;
     this.lastSegmentIds = lastSegmentIds;
     this.callerMetadata = callerMetadata;
   }
@@ -47,6 +50,12 @@ public class FiniteAppenderatorDriverMetadata
   public Map<String, List<SegmentIdentifier>> getActiveSegments()
   {
     return activeSegments;
+  }
+
+  @JsonProperty
+  public Map<String, List<SegmentIdentifier>> getPublishPendingSegments()
+  {
+    return publishPendingSegments;
   }
 
   @JsonProperty
@@ -64,8 +73,9 @@ public class FiniteAppenderatorDriverMetadata
   @Override
   public String toString()
   {
-    return "FiniteAppenderatorDriverMetadata{" +
+    return "AppenderatorDriverMetadata{" +
            "activeSegments=" + activeSegments +
+           ", publishPendingSegments=" + publishPendingSegments +
            ", lastSegmentIds=" + lastSegmentIds +
            ", callerMetadata=" + callerMetadata +
            '}';

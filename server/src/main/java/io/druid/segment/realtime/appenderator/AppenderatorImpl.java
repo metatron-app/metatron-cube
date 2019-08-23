@@ -39,6 +39,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
+import com.metamx.common.RetryUtils;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
@@ -99,6 +100,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -137,7 +139,9 @@ public class AppenderatorImpl implements Appenderator
   private final VersionedIntervalTimeline<String, Sink> sinkTimeline = new VersionedIntervalTimeline<>(
       String.CASE_INSENSITIVE_ORDER
   );
+  // This variable updated in add(), persist(), and drop()
   private final AtomicInteger rowsCurrentlyInMemory = new AtomicInteger();
+  private final AtomicInteger totalRows = new AtomicInteger();
 
   private volatile ListeningExecutorService persistExecutor = null;
   private volatile ListeningExecutorService pushExecutor = null;
@@ -243,7 +247,9 @@ public class AppenderatorImpl implements Appenderator
       throw new SegmentNotWritableException("Attempt to add row to swapped-out sink for segment[%s].", identifier);
     }
 
-    rowsCurrentlyInMemory.addAndGet(sinkRowsInMemoryAfterAdd - sinkRowsInMemoryBeforeAdd);
+    final int numAddedRows = sinkRowsInMemoryAfterAdd - sinkRowsInMemoryBeforeAdd;
+    rowsCurrentlyInMemory.addAndGet(numAddedRows);
+    totalRows.addAndGet(numAddedRows);
 
     if (!sink.canAppendRow()
         || System.currentTimeMillis() > nextFlush
@@ -271,6 +277,12 @@ public class AppenderatorImpl implements Appenderator
     } else {
       return sink.getNumRows();
     }
+  }
+
+  @Override
+  public int getTotalRowCount()
+  {
+    return totalRows.get();
   }
 
   @VisibleForTesting
@@ -587,17 +599,21 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
-  public ListenableFuture<Object> persistAll(final Committer committer)
+  public ListenableFuture<Object> persist(Collection<SegmentIdentifier> identifiers, Committer committer)
   {
     // Submit persistAll task to the persistExecutor
 
     final Map<SegmentIdentifier, Integer> commitHydrants = Maps.newHashMap();
     final List<Pair<FireHydrant, SegmentIdentifier>> indexesToPersist = Lists.newArrayList();
-    for (Map.Entry<SegmentIdentifier, Sink> entry : sinks.entrySet()) {
-      final Sink sink = entry.getValue();
-      final SegmentIdentifier identifier = entry.getKey();
+    int numPersistedRows = 0;
+    for (SegmentIdentifier identifier : identifiers) {
+      final Sink sink = sinks.get(identifier);
+      if (sink == null) {
+        throw new ISE("No sink for identifier: %s", identifier);
+      }
       final List<FireHydrant> hydrants = Lists.newArrayList(sink);
       commitHydrants.put(identifier, hydrants.size());
+      numPersistedRows += sink.getNumRowsInMemory();
 
       final int limit = sink.isWritable() ? hydrants.size() - 1 : hydrants.size();
 
@@ -673,14 +689,21 @@ public class AppenderatorImpl implements Appenderator
     resetNextFlush();
 
     // NB: The rows are still in memory until they're done persisting, but we only count rows in active indexes.
-    rowsCurrentlyInMemory.set(0);
+    rowsCurrentlyInMemory.addAndGet(-numPersistedRows);
 
     return future;
   }
 
   @Override
+  public ListenableFuture<Object> persistAll(final Committer committer)
+  {
+    // Submit persistAll task to the persistExecutor
+    return persist(sinks.keySet(), committer);
+  }
+
+  @Override
   public ListenableFuture<SegmentsAndMetadata> push(
-      final List<SegmentIdentifier> identifiers,
+      final Collection<SegmentIdentifier> identifiers,
       final Committer committer
   )
   {
@@ -688,14 +711,14 @@ public class AppenderatorImpl implements Appenderator
     for (final SegmentIdentifier identifier : identifiers) {
       final Sink sink = sinks.get(identifier);
       if (sink == null) {
-        throw new NullPointerException("No sink for identifier: " + identifier);
+        throw new ISE("No sink for identifier: %s", identifier);
       }
       theSinks.put(identifier, sink);
       sink.finishWriting();
     }
 
     return Futures.transform(
-        persistAll(committer),
+        persist(identifiers, committer),
         new Function<Object, SegmentsAndMetadata>()
         {
           @Override
@@ -813,9 +836,14 @@ public class AppenderatorImpl implements Appenderator
 
       QueryableIndex index = indexIO.loadIndex(mergedFile);
 
-      DataSegment segment = dataSegmentPusher.push(
-          mergedFile,
-          sink.getSegment().withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
+      // Retry pushing segments because uploading to deep storage might fail especially for cloud storage types
+      final DataSegment segment = RetryUtils.retry(
+          () -> dataSegmentPusher.push(
+              mergedFile,
+              sink.getSegment().withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
+          ),
+          exception -> exception instanceof Exception,
+          5
       );
 
       objectMapper.writeValue(descriptorFile, segment);
@@ -1104,6 +1132,7 @@ public class AppenderatorImpl implements Appenderator
 
     // Decrement this sink's rows from rowsCurrentlyInMemory (we only count active sinks).
     rowsCurrentlyInMemory.addAndGet(-sink.getNumRowsInMemory());
+    totalRows.addAndGet(-sink.getNumRows());
 
     // Wait for any outstanding pushes to finish, then abandon the segment inside the persist thread.
     return Futures.transform(

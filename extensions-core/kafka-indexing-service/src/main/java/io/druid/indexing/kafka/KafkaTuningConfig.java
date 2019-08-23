@@ -42,6 +42,7 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
   private final File basePersistDirectory;
   private final int maxPendingPersists;
   private final boolean reportParseExceptions;
+  @Deprecated
   private final long handoffConditionTimeout;
   private final boolean resetOffsetAutomatically;
 
@@ -128,6 +129,7 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
     return reportParseExceptions;
   }
 
+  @Deprecated
   @JsonProperty
   public long getHandoffConditionTimeout()
   {
@@ -148,23 +150,6 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
         maxRowsPerSegment,
         intermediatePersistPeriod,
         dir,
-        maxPendingPersists,
-        getIndexSpec(),
-        getBuildV9Directly(),
-        reportParseExceptions,
-        handoffConditionTimeout,
-        resetOffsetAutomatically
-    );
-  }
-
-  public KafkaTuningConfig withMaxRowsInMemory(int rows)
-  {
-    return new KafkaTuningConfig(
-        rows,
-        getMaxOccupationInMemory(),
-        maxRowsPerSegment,
-        intermediatePersistPeriod,
-        basePersistDirectory,
         maxPendingPersists,
         getIndexSpec(),
         getBuildV9Directly(),
