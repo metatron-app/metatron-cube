@@ -639,6 +639,16 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return this;
     }
 
+    public Builder<T> dimensions(DimensionSpec... dimensions)
+    {
+      return setDimensions(dimensions);
+    }
+
+    public Builder<T> dimensions(List<DimensionSpec> dimensions)
+    {
+      return setDimensions(dimensions);
+    }
+
     public Builder<T> setVirtualColumns(List<VirtualColumn> virtualColumns)
     {
       this.virtualColumns = virtualColumns;

@@ -57,9 +57,19 @@ import java.util.Set;
  */
 public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 {
+  public static PivotSpec of(PivotColumnSpec pivotColumn, String... valueColumns)
+  {
+    return of(Arrays.asList(pivotColumn), valueColumns);
+  }
+
   public static PivotSpec of(List<PivotColumnSpec> pivotColumns, String... valueColumns)
   {
     return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, null, false, false);
+  }
+
+  public static PivotSpec tabular(PivotColumnSpec pivotColumn, String... valueColumns)
+  {
+    return tabular(Arrays.asList(pivotColumn), valueColumns);
   }
 
   public static PivotSpec tabular(List<PivotColumnSpec> pivotColumns, String... valueColumns)
@@ -399,14 +409,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         final Map<StringArray, ExprEval> mapping = Maps.newHashMap();
         final DateTime dateTime = partition.get(0).getTimestamp();
 
-next:
         for (Row row : partition) {
-          String[] array = new String[keyLength];
-          for (int i = 0; i < extractors.size(); i++) {
-            array[i] = extractors.get(i).apply(row);
-            if (whitelist[i] != null && !whitelist[i].contains(array[i])) {
-              continue next;
-            }
+          String[] array = convertToArray(row);
+          if (array == null) {
+            continue;
           }
           if (appendValueColumn) {
             for (int i = 0; i < values.length; i++) {
@@ -440,6 +446,19 @@ next:
           allColumns.addAll(event.keySet());
         }
         return Arrays.<Row>asList(new MapBasedRow(dateTime, event));
+      }
+
+      // extract value of pivot columns as array to compose output column name
+      private String[] convertToArray(Row row)
+      {
+        final String[] array = new String[keyLength];
+        for (int i = 0; i < extractors.size(); i++) {
+          array[i] = extractors.get(i).apply(row);
+          if (whitelist[i] != null && !whitelist[i].contains(array[i])) {
+            return null;
+          }
+        }
+        return array;
       }
 
       @Override

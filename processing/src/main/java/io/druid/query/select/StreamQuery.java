@@ -226,14 +226,14 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    if (!GuavaUtils.isNullOrEmpty(orderingSpecs)) {
-      return this;
-    }
     // try ordering push down
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
       WindowingSpec first = windowingSpecs.get(0);
-      windowingSpecs.set(0, first.withoutSorting());
+      if (first.isSkipSorting()) {
+        return this;    // already done
+      }
+      windowingSpecs.set(0, first.skipSorting());
       return new StreamQuery(
           getDataSource(),
           getQuerySegmentSpec(),
@@ -241,7 +241,7 @@ public class StreamQuery extends BaseQuery<Object[]>
           getFilter(),
           getColumns(),
           getVirtualColumns(),
-          first.getSortingColumns(),
+          first.getRequiredOrdering(),
           getConcatString(),
           limitSpec.withWindowing(windowingSpecs),
           getOutputColumns(),
@@ -327,7 +327,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       final WindowingSpec windowingSpec = GuavaUtils.lastOf(limitSpec.getWindowingSpecs());
       if (windowingSpec.getPivotSpec() == null && windowingSpec.getFlattenSpec() == null) {
-        return windowingSpec.getSortingColumns();
+        return windowingSpec.getRequiredOrdering();
       }
       return null;  // we cannot know
     }

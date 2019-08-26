@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,11 +52,13 @@ public class WindowingSpec implements Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, Arrays.asList(expressions), null, null);
+    return new WindowingSpec(null, null, true, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
+  private final boolean skipSorting;
+
   private final List<String> expressions;
   private final FlattenSpec flattenSpec;
   private final PivotSpec pivotSpec;
@@ -64,6 +67,7 @@ public class WindowingSpec implements Cacheable
   public WindowingSpec(
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
+      @JsonProperty("skipSorting") boolean skipSorting,
       @JsonProperty("expressions") List<String> expressions,
       @JsonProperty("flattenSpec") FlattenSpec flattenSpec,
       @JsonProperty("pivotSpec") PivotSpec pivotSpec
@@ -71,6 +75,7 @@ public class WindowingSpec implements Cacheable
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
+    this.skipSorting = skipSorting;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.flattenSpec = flattenSpec;
     this.pivotSpec = pivotSpec;
@@ -83,7 +88,7 @@ public class WindowingSpec implements Cacheable
       FlattenSpec flattenSpec
   )
   {
-    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, flattenSpec, null);
+    this(partitionColumns, sortingColumns, false, expressions, flattenSpec, null);
   }
 
   public WindowingSpec(
@@ -93,7 +98,7 @@ public class WindowingSpec implements Cacheable
       PivotSpec pivotSpec
   )
   {
-    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, null, pivotSpec);
+    this(partitionColumns, sortingColumns, false, expressions, null, pivotSpec);
   }
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, String... expressions)
@@ -103,15 +108,16 @@ public class WindowingSpec implements Cacheable
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, List<String> expressions)
   {
-    this(partitionColumns, toPartitionOrdering(partitionColumns, sortingColumns), expressions, null, null);
+    this(partitionColumns, sortingColumns, false, expressions, null, null);
   }
 
-  public WindowingSpec withoutSorting()
+  // used by pre-ordering (gby, stream)
+  public WindowingSpec skipSorting()
   {
-    return new WindowingSpec(partitionColumns, null, expressions, flattenSpec, pivotSpec);
+    return new WindowingSpec(partitionColumns, null, true, expressions, flattenSpec, pivotSpec);
   }
 
-  private static List<OrderByColumnSpec> toPartitionOrdering(
+  private static List<OrderByColumnSpec> toOrderingSpec(
       List<String> partitionColumns,
       List<OrderByColumnSpec> sortingColumns
   )
@@ -156,6 +162,12 @@ public class WindowingSpec implements Cacheable
   }
 
   @JsonProperty
+  public boolean isSkipSorting()
+  {
+    return skipSorting;
+  }
+
+  @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getExpressions()
   {
@@ -174,6 +186,12 @@ public class WindowingSpec implements Cacheable
   public PivotSpec getPivotSpec()
   {
     return pivotSpec;
+  }
+
+  @JsonIgnore
+  public List<OrderByColumnSpec> getRequiredOrdering()
+  {
+    return skipSorting ? ImmutableList.<OrderByColumnSpec>of() : toOrderingSpec(partitionColumns, sortingColumns);
   }
 
   public PartitionEvaluator toEvaluator(final WindowContext context)
@@ -269,13 +287,14 @@ public class WindowingSpec implements Cacheable
     byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattenSpec);
     byte[] pivotSpecBytes = QueryCacheHelper.computeCacheBytes(pivotSpec);
 
-    int length = 4 + partitionColumnsBytes.length
+    int length = 5 + partitionColumnsBytes.length
                  + sortingColumnsBytes.length
                  + expressionsBytes.length
                  + flattenerBytes.length
                  + pivotSpecBytes.length;
 
     return ByteBuffer.allocate(length)
+                     .put(skipSorting ? (byte) 0x01 : (byte) 0x00)
                      .put(partitionColumnsBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(sortingColumnsBytes)
@@ -306,6 +325,9 @@ public class WindowingSpec implements Cacheable
     if (!sortingColumns.equals(that.sortingColumns)) {
       return false;
     }
+    if (skipSorting != that.skipSorting) {
+      return false;
+    }
     if (!expressions.equals(that.expressions)) {
       return false;
     }
@@ -321,14 +343,15 @@ public class WindowingSpec implements Cacheable
   @Override
   public int hashCode()
   {
-    return Objects.hash(partitionColumns, sortingColumns, expressions, flattenSpec, pivotSpec);
+    return Objects.hash(partitionColumns, sortingColumns, skipSorting, expressions, flattenSpec, pivotSpec);
   }
 
   @Override
   public String toString()
   {
     return "WindowingSpec{" +
-           "partitionColumns=" + partitionColumns +
+           "skipSorting=" + skipSorting +
+           ", partitionColumns=" + partitionColumns +
            (GuavaUtils.isNullOrEmpty(sortingColumns) ? "" : ", sortingColumns=" + sortingColumns) +
            (GuavaUtils.isNullOrEmpty(expressions) ? "" : ", expressions=" + expressions) +
            (flattenSpec == null ? "" : ", flattenSpec=" + flattenSpec) +

@@ -527,9 +527,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
       WindowingSpec first = windowingSpecs.get(0);
-      List<DimensionSpec> rewritten = applyExplicitOrdering(first.getSortingColumns(), dimensionSpecs);
+      List<DimensionSpec> rewritten = applyExplicitOrdering(first.getRequiredOrdering(), dimensionSpecs);
       if (rewritten != null) {
-        windowingSpecs.set(0, first.withoutSorting());
+        windowingSpecs.set(0, first.skipSorting());
         query = query.withLimitSpec(limitSpec.withWindowing(windowingSpecs))
                      .withDimensionSpecs(rewritten);
       }

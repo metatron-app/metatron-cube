@@ -345,7 +345,7 @@ public class CalciteQueryTest extends CalciteTestBase
         "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' WITH ('withHeader' => 'true') SELECT 1 + 1, dim1 FROM foo LIMIT 1",
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{true, 1, MASKED, 15L}
+            new Object[]{true, 1, MASKED, 19L}
         )
     );
   }

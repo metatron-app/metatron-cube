@@ -17,6 +17,8 @@
 
 package io.druid.query;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.Intervals;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -471,6 +473,109 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     };
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     Iterable<Row> results = runQuery(builder.build());
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void test2475()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .virtualColumns(
+            new ExprVirtualColumn(
+                "time_format(__time,out.format='yyyy-MM',out.timezone='Asia/Seoul',out.locale='en')",
+                "MONTH(OrderDate).inner"
+            ))
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(
+            DefaultDimensionSpec.of("Category"),
+            DefaultDimensionSpec.of("MONTH(OrderDate).inner", "MONTH(OrderDate)")
+        )
+        .aggregators(
+            new GenericSumAggregatorFactory("SUM(Sales)", "Sales", ValueDesc.DOUBLE)
+        )
+        .granularity(Granularities.ALL)
+        .limitSpec(
+            new LimitSpec(
+                Arrays.asList(OrderByColumnSpec.asc("MONTH(OrderDate)")),
+                1000,
+                Arrays.asList(
+                    new WindowingSpec(
+                        Arrays.asList("MONTH(OrderDate)"), null, null,
+                        PivotSpec.tabular(PivotColumnSpec.of("Category"), "SUM(Sales)")
+                                 .withAppendValueColumn(true)
+                    )
+                )
+            )
+        )
+        .addContext(
+            "postProcessing",
+            ImmutableMap.of(
+                "type", "postAggregations",
+                "postAggregations", ImmutableList.of(ImmutableMap.of(
+                    "type", "math",
+                    "name", "MONTH(OrderDate)",
+                    "expression", "time_format(\"MONTH(OrderDate)\",'yyyy-MM','UTC','en',out.format='MMM yyyy',out.timezone='UTC',out.locale='en')"
+                )
+            ))
+        )
+        .build();
+    String[] columnNames = {
+        "__time", "MONTH(OrderDate)", "Furniture-SUM(Sales)", "Office Supplies-SUM(Sales)", "Technology-SUM(Sales)"
+    };
+    Object[][] objects = {
+        array("2011-01-01", "Jan 2011", 5952.0, 4852.0, 3143.0),
+        array("2011-01-01", "Feb 2011", 2131.0, 1070.0, 1608.0),
+        array("2011-01-01", "Mar 2011", 14575.0, 8604.0, 32510.0),
+        array("2011-01-01", "Apr 2011", 7944.0, 11155.0, 9195.0),
+        array("2011-01-01", "May 2011", 6911.0, 7135.0, 9602.0),
+        array("2011-01-01", "Jun 2011", 13206.0, 12955.0, 8437.0),
+        array("2011-01-01", "Jul 2011", 10820.0, 15124.0, 8004.0),
+        array("2011-01-01", "Aug 2011", 7317.0, 11382.0, 9209.0),
+        array("2011-01-01", "Sep 2011", 23819.0, 27429.0, 30539.0),
+        array("2011-01-01", "Oct 2011", 12304.0, 7206.0, 11938.0),
+        array("2011-01-01", "Nov 2011", 21565.0, 26866.0, 30203.0),
+        array("2011-01-01", "Dec 2011", 30644.0, 18004.0, 20897.0),
+        array("2011-01-01", "Jan 2012", 11739.0, 1809.0, 4624.0),
+        array("2011-01-01", "Feb 2012", 3321.0, 5427.0, 3466.0),
+        array("2011-01-01", "Mar 2012", 12316.0, 15827.0, 10329.0),
+        array("2011-01-01", "Apr 2012", 10475.0, 12559.0, 11164.0),
+        array("2011-01-01", "May 2012", 9376.0, 9117.0, 11644.0),
+        array("2011-01-01", "Jun 2012", 7713.0, 10649.0, 6438.0),
+        array("2011-01-01", "Jul 2012", 13674.0, 4719.0, 10372.0),
+        array("2011-01-01", "Aug 2012", 9637.0, 11736.0, 15526.0),
+        array("2011-01-01", "Sep 2012", 26275.0, 19310.0, 19016.0),
+        array("2011-01-01", "Oct 2012", 12024.0, 8674.0, 10708.0),
+        array("2011-01-01", "Nov 2012", 30882.0, 21221.0, 23876.0),
+        array("2011-01-01", "Dec 2012", 23086.0, 16200.0, 35631.0),
+        array("2011-01-01", "Jan 2013", 7624.0, 5303.0, 5621.0),
+        array("2011-01-01", "Feb 2013", 3926.0, 6683.0, 12259.0),
+        array("2011-01-01", "Mar 2013", 12471.0, 17458.0, 21257.0),
+        array("2011-01-01", "Apr 2013", 13409.0, 10640.0, 15206.0),
+        array("2011-01-01", "May 2013", 15035.0, 13010.0, 28652.0),
+        array("2011-01-01", "Jun 2013", 12028.0, 10908.0, 16502.0),
+        array("2011-01-01", "Jul 2013", 13199.0, 12678.0, 12564.0),
+        array("2011-01-01", "Aug 2013", 13619.0, 9220.0, 10430.0),
+        array("2011-01-01", "Sep 2013", 26737.0, 23288.0, 22888.0),
+        array("2011-01-01", "Oct 2013", 10133.0, 14799.0, 31536.0),
+        array("2011-01-01", "Nov 2013", 33659.0, 21428.0, 27106.0),
+        array("2011-01-01", "Dec 2013", 37070.0, 38116.0, 22061.0),
+        array("2011-01-01", "Jan 2014", 5965.0, 21706.0, 17037.0),
+        array("2011-01-01", "Feb 2014", 6868.0, 7391.0, 6029.0),
+        array("2011-01-01", "Mar 2014", 10600.0, 14320.0, 28996.0),
+        array("2011-01-01", "Apr 2014", 9050.0, 14928.0, 16138.0),
+        array("2011-01-01", "May 2014", 17265.0, 14139.0, 14246.0),
+        array("2011-01-01", "Jun 2014", 16902.0, 15296.0, 16061.0),
+        array("2011-01-01", "Jul 2014", 13881.0, 10698.0, 23851.0),
+        array("2011-01-01", "Aug 2014", 14910.0, 29982.0, 16635.0),
+        array("2011-01-01", "Sep 2014", 29598.0, 32771.0, 28139.0),
+        array("2011-01-01", "Oct 2014", 21883.0, 23411.0, 32510.0),
+        array("2011-01-01", "Nov 2014", 32926.0, 30073.0, 49336.0),
+        array("2011-01-01", "Dec 2014", 35542.0, 31851.0, 23082.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

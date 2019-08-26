@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -4203,7 +4202,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     DimensionSpec dimensionSpec = query.getDimensions().get(1);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);  // 0 is basic ordering
     WindowingSpec windowingSpec = query.getLimitSpec().getWindowingSpecs().get(0);
-    Assert.assertTrue(GuavaUtils.isNullOrEmpty(windowingSpec.getSortingColumns()));
+    Assert.assertTrue(windowingSpec.isSkipSorting());
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);

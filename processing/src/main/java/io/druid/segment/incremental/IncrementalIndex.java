@@ -803,11 +803,7 @@ public abstract class IncrementalIndex implements Closeable
   }
 
   @SuppressWarnings("unchecked")
-  public static <K, V> List<Map.Entry<K, V>> sortOn(
-      Map<K, V> facts,
-      boolean timeLog,
-      Comparator<K> comparator
-  )
+  public static <K, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, Comparator<K> comparator, boolean timeLog)
   {
     return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(comparator), facts.size(), timeLog);
   }

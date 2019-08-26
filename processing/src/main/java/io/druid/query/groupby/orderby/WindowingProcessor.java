@@ -94,7 +94,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private PartitionDefinition createPartitionSpec(WindowingSpec windowingSpec)
   {
     List<String> partitionColumns = windowingSpec.getPartitionColumns();
-    List<OrderByColumnSpec> orderingSpecs = windowingSpec.getSortingColumns();
+    List<OrderByColumnSpec> orderingSpecs = windowingSpec.getRequiredOrdering();
     PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
 
     Ordering<Row> ordering = processor.toRowOrdering(orderingSpecs, false);
@@ -183,9 +183,12 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
       List<Row> rewritten = null;
       for (Map.Entry<Object[], int[]> entry : partitions.entrySet()) {
-        int[] index = entry.getValue();
-        List<Row> partition = input.subList(index[0], index[1]);
-        List<Row> result = evaluator.evaluate(entry.getKey(), partition);
+        final int[] index = entry.getValue();
+        final List<Row> partition = input.subList(index[0], index[1]);
+        if (partition.isEmpty()) {
+          continue;
+        }
+        final List<Row> result = evaluator.evaluate(entry.getKey(), partition);
         if (rewritten != null || result != partition) {
           if (rewritten == null) {
             rewritten = index[0] > 0 ? Lists.newArrayList(input.subList(0, index[0] - 1)) : Lists.<Row>newArrayList();
