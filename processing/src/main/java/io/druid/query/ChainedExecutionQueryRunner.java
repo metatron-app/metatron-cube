@@ -33,8 +33,8 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.MergeIterable;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 
 import java.util.Iterator;

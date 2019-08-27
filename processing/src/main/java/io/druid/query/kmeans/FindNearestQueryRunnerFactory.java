@@ -24,7 +24,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;

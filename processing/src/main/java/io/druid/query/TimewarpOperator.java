@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;

@@ -282,8 +282,8 @@ public abstract class BaseQuery<T> implements Query<T>
   {
     QuerySegmentSpec spec = querySegmentSpec == null ? MultipleIntervalSegmentSpec.ETERNITY : querySegmentSpec;
     QueryRunner<T> runner = spec.lookup(this, walker);
-    if (walker instanceof QuerySegmentWalker.Wrapper) {
-      runner = ((QuerySegmentWalker.Wrapper) walker).wrap(this, runner);
+    if (walker instanceof ForwardingSegmentWalker) {
+      runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
     return runner.run(this, assertContext(context));
   }

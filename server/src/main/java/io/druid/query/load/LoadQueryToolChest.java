@@ -17,41 +17,32 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.query.load;
 
-import com.google.common.base.Function;
-import com.metamx.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
+import com.fasterxml.jackson.core.type.TypeReference;
+import io.druid.query.QueryRunner;
+import io.druid.query.QueryToolChest;
 
 import java.util.Map;
 
 /**
-*/
-public class ConcatQueryRunner<T> implements QueryRunner<T>
+ */
+public class LoadQueryToolChest extends QueryToolChest<Map<String, Object>, LoadQuery>
 {
-  private final Sequence<QueryRunner<T>> queryRunners;
+  private static final TypeReference<Map<String, Object>> TYPE_REFERENCE =
+      new TypeReference<Map<String, Object>>()
+      {
+      };
 
-  public ConcatQueryRunner(
-      Sequence<QueryRunner<T>> queryRunners
-  ) {
-    this.queryRunners = queryRunners;
+  @Override
+  public QueryRunner<Map<String, Object>> mergeResults(QueryRunner<Map<String, Object>> queryRunner)
+  {
+    return queryRunner;
   }
 
   @Override
-  public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
+  public TypeReference<Map<String, Object>> getResultTypeReference()
   {
-    return Sequences.concat(
-        Sequences.map(
-            queryRunners,
-            new Function<QueryRunner<T>, Sequence<T>>()
-            {
-              @Override
-              public Sequence<T> apply(final QueryRunner<T> input)
-              {
-                return input.run(query, responseContext);
-              }
-            }
-        )
-    );
+    return TYPE_REFERENCE;
   }
 }

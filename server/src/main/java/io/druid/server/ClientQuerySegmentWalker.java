@@ -136,7 +136,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
   }
 
   @Override
-  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  public <T> QueryRunner<T> handle(Query<T> query, QueryRunner<T> baseRunner)
   {
     return forwardHandler.wrapForward(query, baseRunner);
   }

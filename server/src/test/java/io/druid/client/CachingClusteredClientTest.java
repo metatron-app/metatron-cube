@@ -2099,8 +2099,7 @@ public class CachingClusteredClientTest
     TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
     return new CachingClusteredClient(
         null,
-        null,
-        WAREHOUSE,
+        CachingClusteredClientTest.WAREHOUSE,
         new TimelineServerView()
         {
           @Override

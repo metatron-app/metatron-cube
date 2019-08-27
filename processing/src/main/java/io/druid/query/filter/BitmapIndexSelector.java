@@ -25,8 +25,8 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Indexed;
 

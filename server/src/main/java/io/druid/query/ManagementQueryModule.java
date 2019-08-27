@@ -32,6 +32,9 @@ import io.druid.query.config.ConfigQueryToolChest;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.query.jmx.JMXQueryToolChest;
+import io.druid.query.load.LoadQuery;
+import io.druid.query.load.LoadQueryRunnerFactory;
+import io.druid.query.load.LoadQueryToolChest;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,12 +51,16 @@ public class ManagementQueryModule implements DruidModule
       binder.bind(JMXQueryToolChest.class).in(LazySingleton.class);
       toolChests.addBinding(ConfigQuery.class).to(ConfigQueryToolChest.class);
       binder.bind(ConfigQueryToolChest.class).in(LazySingleton.class);
+      toolChests.addBinding(LoadQuery.class).to(LoadQueryToolChest.class);
+      binder.bind(LoadQueryToolChest.class).in(LazySingleton.class);
 
       MapBinder<Class<? extends Query>, QueryRunnerFactory> factories = QueryToolBinders.queryRunnerFactoryBinder(binder);
       factories.addBinding(JMXQuery.class).to(JMXQueryRunnerFactory.class);
       binder.bind(JMXQueryRunnerFactory.class).in(LazySingleton.class);
       factories.addBinding(ConfigQuery.class).to(ConfigQueryRunnerFactory.class);
       binder.bind(ConfigQueryRunnerFactory.class).in(LazySingleton.class);
+      factories.addBinding(LoadQuery.class).to(LoadQueryRunnerFactory.class);
+      binder.bind(LoadQueryRunnerFactory.class).in(LazySingleton.class);
     }
   }
 
@@ -64,6 +71,7 @@ public class ManagementQueryModule implements DruidModule
         new SimpleModule("ManagementModule")
             .registerSubtypes(JMXQuery.class)
             .registerSubtypes(ConfigQuery.class)
+            .registerSubtypes(LoadQuery.class)
     );
   }
 }

@@ -23,8 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 

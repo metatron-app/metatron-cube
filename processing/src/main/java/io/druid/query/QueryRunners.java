@@ -99,4 +99,16 @@ public class QueryRunners
       }
     };
   }
+
+  public static <T> QueryRunner<T> wrap(final Sequence<T> sequence)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return sequence;
+      }
+    };
+  }
 }

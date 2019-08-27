@@ -730,47 +730,6 @@ public class GuavaUtils
     }
   }
 
-  public static <T> Iterator<T> concat(final Iterator<Iterator<T>> readers)
-  {
-    return new Progressing.OnIterator<T>()
-    {
-      private Iterator<T> current = Iterators.emptyIterator();
-
-      @Override
-      public float progress()
-      {
-        return current instanceof Progressing ? ((Progressing) current).progress() : hasNext() ? 0 : 1;
-      }
-
-      @Override
-      public void close() throws IOException
-      {
-        if (current instanceof Closeable) {
-          ((Closeable) current).close();
-        }
-      }
-
-      @Override
-      public boolean hasNext()
-      {
-        for (; !current.hasNext() && readers.hasNext(); current = readers.next()) {
-        }
-        return current.hasNext();
-      }
-
-      @Override
-      public T next()
-      {
-        return current.next();
-      }
-
-      @Override
-      public void remove()
-      {
-
-      }
-    };
-  }
 
   public static <K, V> Map<K, V> mutableMap(K k1, V v1)
   {

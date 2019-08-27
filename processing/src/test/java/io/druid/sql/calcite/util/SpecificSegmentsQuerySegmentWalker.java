@@ -106,7 +106,7 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
   }
 
   @Override
-  public <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> baseRunner)
+  public <T> QueryRunner<T> handle(Query<T> query, QueryRunner<T> baseRunner)
   {
     return handler.wrapForward(query, baseRunner);
   }

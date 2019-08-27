@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 
 import java.util.List;
 import java.util.Map;

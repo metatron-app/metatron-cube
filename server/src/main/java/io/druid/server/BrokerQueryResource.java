@@ -19,7 +19,6 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Function;
@@ -41,39 +40,30 @@ import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.PrioritizedCallable;
-import io.druid.data.input.Row;
-import io.druid.data.input.Rows;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.output.ForwardConstants;
+import io.druid.data.Pair;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.DummyQuery;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.RegexDataSource;
 import io.druid.query.SegmentDescriptor;
-import io.druid.query.StorageHandler;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
-import io.druid.segment.incremental.BaseTuningConfig;
-import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.indexing.DataSchema;
-import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -100,7 +90,6 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -309,8 +298,6 @@ public class BrokerQueryResource extends QueryResource
   @SuppressWarnings("unchecked")
   public Response loadToIndex(
       BrokerLoadSpec loadSpec,
-      @Deprecated @QueryParam("rollup") Boolean rollup,
-      @QueryParam("temporary") Boolean temporary,
       @QueryParam("async") Boolean async,
       @QueryParam("pretty") String pretty,
       @Context final HttpServletRequest req
@@ -319,65 +306,16 @@ public class BrokerQueryResource extends QueryResource
     if (!(segmentWalker instanceof ForwardingSegmentWalker)) {
       throw new UnsupportedOperationException("loadToIndex");
     }
+    final ForwardingSegmentWalker forward = (ForwardingSegmentWalker) segmentWalker;
     final RequestContext context = new RequestContext(req, pretty != null);
+
+    log.info("Start loading.. %s into index", loadSpec.getPaths());
     try {
-      final DataSchema schema = loadSpec.getSchema();
-      final InputRowParser parser = loadSpec.getParser();
-
-      List<URI> locations = loadSpec.getURIs();
-      String scheme = locations.get(0).getScheme();
-      StorageHandler writer = ((ForwardingSegmentWalker) segmentWalker).getHandler(scheme);
-      if (writer == null) {
-        throw new IAE("Unsupported scheme '%s'", scheme);
-      }
-
-      final BaseTuningConfig tuningConfig = loadSpec.getTuningConfig();
-      final GranularitySpec granularitySpec = schema.getGranularitySpec();
-
-      IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
-          .withDimensionsSpec(parser.getDimensionsSpec())
-          .withMetrics(schema.getAggregators())
-          .withQueryGranularity(granularitySpec.getQueryGranularity())
-          .withSegmentGranularity(granularitySpec.getSegmentGranularity())
-          .withRollup(rollup == null ? granularitySpec.isRollup() : rollup)
-          .withFixedSchema(true)
-          .build();
-
-      Map<String, Object> forwardContext = Maps.newHashMap(loadSpec.getProperties());
-      forwardContext.put("format", "index");
-      forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
-      forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() { } ));
-      forwardContext.put("timestampColumn", Row.TIME_COLUMN_NAME);
-      forwardContext.put("dataSource", schema.getDataSource());
-      forwardContext.put("registerTable", true);
-      forwardContext.put("temporary", temporary == null || temporary);
-      forwardContext.put("segmentGranularity", granularitySpec.getSegmentGranularity());
-
-      final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
-          ImmutableMap.<String, Object>of(
-              BaseQuery.QUERYID, UUID.randomUUID().toString(),
-              Query.FORWARD_URL, ForwardConstants.LOCAL_TEMP_URL,
-              Query.FORWARD_CONTEXT, forwardContext,
-              QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
-          )
-      );
-      log.info("Start loading.. %s into index", locations);
-
-      Map<String, Object> loadContext = Maps.newHashMap(forwardContext);
-      loadContext.put("skipFirstN", loadSpec.getSkipFirstN());
-      loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
-
-      final Sequence<Row> sequence = writer.read(locations, parser, loadContext);
-      final QueryRunner runner = ((ForwardingSegmentWalker) segmentWalker).wrap(
-          query, new QueryRunner()
-          {
-            @Override
-            public Sequence<Map<String, Object>> run(Query query, Map responseContext)
-            {
-              return Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME));
-            }
-          }
-      );
+      final Pair<Query, Sequence> pair = loadSpec.readFrom(forward);
+      final Query query = pair.lhs;         // dummy forward query
+      final Sequence sequence = pair.rhs;   // progressing sequence
+      // now it's blocking call
+      final QueryRunner runner = forward.handle(query, QueryRunners.wrap(sequence));
       if (async) {
         queryManager.registerQuery(
             query, new ProgressingFuture(

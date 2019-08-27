@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;

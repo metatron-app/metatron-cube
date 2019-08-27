@@ -26,7 +26,6 @@ import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
-import io.druid.segment.DoubleColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;

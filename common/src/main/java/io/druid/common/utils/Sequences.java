@@ -24,6 +24,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -216,9 +217,71 @@ public class Sequences extends com.metamx.common.guava.Sequences
     };
   }
 
+  public static <From, To> Sequence<To> map(Sequence<From> sequence, Function<From, To> fn)
+  {
+    Sequence<To> mapped = new MappedSequence<>(sequence, fn);
+    if (sequence instanceof Progressing) {
+      mapped = new ProgressingSequence<>(mapped, (Progressing) sequence);
+    }
+    return mapped;
+  }
+
+  public static <T> Iterator<T> concat(final Iterator<Iterator<T>> readers)
+  {
+    return new Progressing.OnIterator<T>()
+    {
+      private Iterator<T> current = Iterators.emptyIterator();
+
+      @Override
+      public float progress()
+      {
+        return current instanceof Progressing ? ((Progressing) current).progress() : hasNext() ? 0 : 1;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        if (current instanceof Closeable) {
+          ((Closeable) current).close();
+        }
+      }
+
+      @Override
+      public boolean hasNext()
+      {
+        for (; !current.hasNext() && readers.hasNext(); current = closeAndNext()) {
+        }
+        return current.hasNext();
+      }
+
+      public Iterator<T> closeAndNext()
+      {
+        try {
+          close();
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+        return readers.next();
+      }
+
+      @Override
+      public T next()
+      {
+        return current.next();
+      }
+
+      @Override
+      public void remove()
+      {
+        throw new UnsupportedOperationException("remove");
+      }
+    };
+  }
+
   public static <T> Sequence<T> once(final Iterator<T> iterator)
   {
-    final Sequence<T> sequence = new BaseSequence<>(
+    Sequence<T> sequence = new BaseSequence<>(
         new BaseSequence.IteratorMaker<T, Iterator<T>>()
         {
           @Override
@@ -237,28 +300,7 @@ public class Sequences extends com.metamx.common.guava.Sequences
         }
     );
     if (iterator instanceof Progressing) {
-      return new WithProgress<T>()
-      {
-        @Override
-        public float progress()
-        {
-          return ((Progressing) iterator).progress();
-        }
-
-        @Override
-        public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
-        {
-          return sequence.accumulate(initValue, accumulator);
-        }
-
-        @Override
-        public <OutType> Yielder<OutType> toYielder(
-            OutType initValue, YieldingAccumulator<OutType, T> accumulator
-        )
-        {
-          return sequence.toYielder(initValue, accumulator);
-        }
-      };
+      sequence = new ProgressingSequence<T>(sequence, (Progressing) iterator);
     }
     return sequence;
   }
@@ -337,7 +379,33 @@ public class Sequences extends com.metamx.common.guava.Sequences
     protected abstract T peek(T row);
   }
 
-  public static interface WithProgress<T> extends Sequence<T>, Progressing
+  public static class ProgressingSequence<T> implements Sequence<T>, Progressing
   {
+    private final Progressing progressing;
+    private final Sequence<T> sequence;
+
+    public ProgressingSequence(Sequence<T> sequence, Progressing progressing)
+    {
+      this.progressing = progressing;
+      this.sequence = sequence;
+    }
+
+    @Override
+    public float progress()
+    {
+      return progressing.progress();
+    }
+
+    @Override
+    public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+    {
+      return sequence.accumulate(initValue, accumulator);
+    }
+
+    @Override
+    public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
+    {
+      return sequence.toYielder(initValue, accumulator);
+    }
   }
 }

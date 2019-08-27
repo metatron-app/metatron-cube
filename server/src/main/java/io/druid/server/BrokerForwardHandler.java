@@ -41,7 +41,7 @@ import io.druid.query.StorageHandler;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.loading.DataSegmentPusher;
-import io.druid.server.log.Events;
+import io.druid.server.log.Events.SimpleEvent;
 import io.druid.timeline.DataSegment;
 
 import java.io.File;
@@ -99,19 +99,23 @@ public class BrokerForwardHandler extends ForwardHandler
         LOG.info("Nothing to publish..");
         return Sequences.simple(Arrays.asList(result));
       }
+      boolean temporary = PropUtils.parseBoolean(forwardContext, TEMPORARY, true);
+
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
       ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-      builder.put("feed", "BrokerQueryResource");
+      builder.put("feed", "BrokerForwardHandler");
+      builder.put("type", "loadTable");
       builder.put("broker", node.getHostAndPort());
       builder.put("payload", segment);
-      if (PropUtils.parseBoolean(forwardContext, TEMPORARY, true)) {
-        LOG.info("Publishing index to temporary table..");
+      builder.put("temporary", temporary);
+
+      LOG.info("Publishing segments...");
+      if (temporary) {
         QueryableIndex index = merger.getIndexIO().loadIndex(new File(location.getPath()));
         brokerServerView.addedLocalSegment(segment, index, result);
-        builder.put("type", "localPublish");
+        LOG.info("Segments are registered to temporary table %s", segment.getDataSource());
       } else {
-        LOG.info("Publishing index to table..");
         segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
         Set<DataSegment> segments = Sets.newHashSet(segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
@@ -124,9 +128,9 @@ public class BrokerForwardHandler extends ForwardHandler
           // ignore
           LOG.info("failed to notify coordinator directly by %s.. just wait next round of coordination", e);
         }
-        builder.put("type", "publish");
+        LOG.info("Segments are registered to table %s", segment.getDataSource());
       }
-      eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
+      eventEmitter.emit(new SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
     }
     return Sequences.simple(Arrays.asList(result));
   }

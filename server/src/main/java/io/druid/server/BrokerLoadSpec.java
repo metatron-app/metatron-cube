@@ -24,19 +24,38 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.metamx.common.IAE;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.data.Pair;
+import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.output.ForwardConstants;
+import io.druid.query.BaseQuery;
+import io.druid.query.DummyQuery;
+import io.druid.query.ForwardingSegmentWalker;
+import io.druid.query.Query;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.BaseTuningConfig;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  */
@@ -50,6 +69,7 @@ public class BrokerLoadSpec
 
   private final DataSchema schema;
   private final BaseTuningConfig tuningConfig;
+  private final Boolean temporary;
 
   private final Map<String, Object> properties;
 
@@ -60,6 +80,7 @@ public class BrokerLoadSpec
       @JsonProperty("inputFormat") String inputFormat,
       @JsonProperty("skipFirstN") int skipFirstN,
       @JsonProperty("schema") DataSchema schema,
+      @JsonProperty("temporary") Boolean temporary,
       @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig,
       @JsonProperty("properties") Map<String, Object> properties
   )
@@ -69,6 +90,7 @@ public class BrokerLoadSpec
     this.inputFormat = inputFormat;
     this.skipFirstN = skipFirstN;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
+    this.temporary = temporary;
     this.tuningConfig = tuningConfig;
     this.properties = properties == null ? ImmutableMap.<String, Object>of() : properties;
     Preconditions.checkArgument(!paths.isEmpty(), "paths should not be empty");
@@ -114,6 +136,12 @@ public class BrokerLoadSpec
   }
 
   @JsonProperty
+  public boolean isTemporary()
+  {
+    return temporary == null || temporary;
+  }
+
+  @JsonProperty
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -126,19 +154,24 @@ public class BrokerLoadSpec
   }
 
   @JsonIgnore
-  public List<URI> getURIs() throws URISyntaxException
+  public List<URI> getURIs()
   {
-    URI parent = basePath == null ? null : normalize(new URI(basePath));
     List<URI> uris = Lists.newArrayList();
-    String prev = null;
-    for (String path : paths) {
-      URI child = resolve(parent, new URI(path));
-      if (prev == null || prev.equals(child.getScheme())) {
-        prev = child.getScheme();
-        uris.add(child);
-        continue;
+    try {
+      URI parent = basePath == null ? null : normalize(new URI(basePath));
+      String prev = null;
+      for (String path : paths) {
+        URI child = resolve(parent, new URI(path));
+        if (prev == null || prev.equals(child.getScheme())) {
+          prev = child.getScheme();
+          uris.add(child);
+          continue;
+        }
+        throw new IAE("conflicting schema %s and %s", prev, child.getScheme());
       }
-      throw new IllegalArgumentException("Conflicting schema " + prev + " and " + child.getScheme());
+    }
+    catch (URISyntaxException e) {
+      throw new IAE(e, "invalid URL %s", basePath);
     }
     return uris;
   }
@@ -170,6 +203,58 @@ public class BrokerLoadSpec
     ).normalize();
   }
 
+  @SuppressWarnings("unchecked")
+  public Pair<Query, Sequence> readFrom(ForwardingSegmentWalker walker) throws IOException
+  {
+    final InputRowParser parser = getParser();
+    final List<URI> locations = getURIs();
+    final String scheme = locations.get(0).getScheme();
+    final StorageHandler handler = walker.getHandler(scheme);
+    if (handler == null) {
+      throw new IAE("Unsupported scheme '%s'", scheme);
+    }
+    final ObjectMapper jsonMapper = walker.getObjectMapper();
+
+    final GranularitySpec granularitySpec = schema.getGranularitySpec();
+
+    final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
+        .withDimensionsSpec(parser.getDimensionsSpec())
+        .withMetrics(schema.getAggregators())
+        .withQueryGranularity(granularitySpec.getQueryGranularity())
+        .withSegmentGranularity(granularitySpec.getSegmentGranularity())
+        .withRollup(granularitySpec.isRollup())
+        .withFixedSchema(true)
+        .withNoQuery(true)
+        .build();
+
+    final Map<String, Object> forwardContext = Maps.newHashMap(properties);
+    forwardContext.put("format", "index");
+    forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() {}));
+    forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() {}));
+    forwardContext.put("timestampColumn", Row.TIME_COLUMN_NAME);
+    forwardContext.put("dataSource", schema.getDataSource());
+    forwardContext.put("registerTable", true);
+    forwardContext.put("temporary", isTemporary());
+    forwardContext.put("segmentGranularity", granularitySpec.getSegmentGranularity());
+
+    final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            BaseQuery.QUERYID, UUID.randomUUID().toString(),
+            Query.FORWARD_URL, ForwardConstants.LOCAL_TEMP_URL,
+            Query.FORWARD_CONTEXT, forwardContext,
+            QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
+        )
+    );
+
+    final Map<String, Object> loadContext = Maps.newHashMap(forwardContext);
+    loadContext.put("skipFirstN", skipFirstN);
+    loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+
+    // progressing sequence
+    final Sequence<Row> sequence = handler.read(locations, parser, loadContext);
+    return Pair.of(query, Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME)));
+  }
+
   @Override
   public String toString()
   {
@@ -179,6 +264,7 @@ public class BrokerLoadSpec
            ", inputFormat=" + inputFormat +
            ", skipFirstN=" + skipFirstN +
            ", schema=" + schema +
+           ", temporary=" + temporary +
            ", tuningConfig=" + tuningConfig +
            ", properties=" + properties +
            '}';

@@ -30,11 +30,11 @@ import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
@@ -59,8 +59,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-public class
-ForwardHandler implements ForwardConstants
+public class ForwardHandler implements ForwardConstants
 {
   protected static final Logger LOG = new Logger(ForwardHandler.class);
 

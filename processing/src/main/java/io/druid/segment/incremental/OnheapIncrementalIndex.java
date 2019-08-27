@@ -191,7 +191,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   @Override
   public int size()
   {
-    return facts.size();
+    return counter.get();   // ConcurrentSkipListMap.size() is very very expensive (10x than indexing itself)
   }
 
   /**

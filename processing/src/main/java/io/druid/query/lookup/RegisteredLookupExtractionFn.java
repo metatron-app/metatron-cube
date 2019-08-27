@@ -25,8 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
 import io.druid.query.extraction.ExtractionFn;
-import java.nio.ByteBuffer;
+
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
 
 public class RegisteredLookupExtractionFn implements ExtractionFn
 {

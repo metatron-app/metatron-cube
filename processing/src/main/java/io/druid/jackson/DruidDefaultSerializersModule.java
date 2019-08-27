@@ -31,9 +31,9 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Sequences;
 import io.druid.query.groupby.UTF8Bytes;
 import org.joda.time.DateTimeZone;
 

@@ -24,9 +24,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.DurationGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.NoneGranularity;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.granularity.Granularity;
 
 /**
  */

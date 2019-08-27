@@ -19,7 +19,9 @@
 
 package io.druid.query;
 
-public interface ForwardingSegmentWalker extends QuerySegmentWalker.Wrapper
+public interface ForwardingSegmentWalker extends QuerySegmentWalker
 {
   StorageHandler getHandler(String scheme);
+
+  <T> QueryRunner<T> handle(Query<T> query, QueryRunner<T> baseRunner);
 }

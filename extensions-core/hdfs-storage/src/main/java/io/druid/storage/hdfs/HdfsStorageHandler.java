@@ -164,7 +164,7 @@ public class HdfsStorageHandler implements StorageHandler
         }
       }
     };
-    return Sequences.once(GuavaUtils.concat(Iterators.transform(locations.iterator(), converter)));
+    return Sequences.once(Sequences.concat(Iterators.transform(locations.iterator(), converter)));
   }
 
   @Override

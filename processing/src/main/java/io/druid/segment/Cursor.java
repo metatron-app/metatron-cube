@@ -19,7 +19,6 @@
 
 package io.druid.segment;
 
-import io.druid.query.RowResolver;
 import org.joda.time.DateTime;
 
 /**

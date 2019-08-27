@@ -26,10 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Comparator;
 import java.util.List;

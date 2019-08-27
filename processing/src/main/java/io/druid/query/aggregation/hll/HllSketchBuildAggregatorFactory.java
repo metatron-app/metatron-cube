@@ -19,8 +19,6 @@
 
 package io.druid.query.aggregation.hll;
 
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yahoo.sketches.hll.HllSketch;
@@ -30,6 +28,8 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+
+import javax.annotation.Nullable;
 
 /**
  * This aggregator factory is for building sketches from raw data.

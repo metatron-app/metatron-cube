@@ -105,7 +105,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   private static final EmittingLogger log = new EmittingLogger(CachingClusteredClient.class);
 
   private final ServiceDiscovery<String> discovery;
-  private final QueryRunnerFactoryConglomerate conglomerate;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
   private final TierSelectorStrategy tierSelectorStrategy;
@@ -119,7 +118,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   @Inject
   public CachingClusteredClient(
       ServiceDiscovery<String> discovery,
-      QueryRunnerFactoryConglomerate conglomerate,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
       TierSelectorStrategy tierSelectorStrategy,
@@ -132,7 +130,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   )
   {
     this.discovery = discovery;
-    this.conglomerate = conglomerate;
     this.warehouse = warehouse;
     this.serverView = serverView;
     this.tierSelectorStrategy = tierSelectorStrategy;
@@ -622,11 +619,14 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
   private List<DruidServer> getManagementTargets(Query<T> query) throws Exception
   {
-    List<DruidServer> servers = Lists.newArrayList();
-    for (QueryableServer server : serverView.getServers()) {
-      servers.add(server.getServer());
-    }
+    Set<DruidServer> dedup = Sets.newLinkedHashSet();
     Set<String> supports = ((Query.ManagementQuery) query).supports();
+    for (QueryableServer registered : serverView.getServers()) {
+      DruidServer server = registered.getServer();
+      if (supports.isEmpty() || supports.contains(server.getType())) {
+        dedup.add(server);
+      }
+    }
     if (!GuavaUtils.isNullOrEmpty(supports)) {
       // damn shity discovery..
       for (String service : discovery.queryForNames()) {
@@ -634,11 +634,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           String type = instance.getPayload();
           if (type != null && supports.contains(type)) {
             String name = instance.getAddress() + ":" + instance.getPort();
-            servers.add(new DruidServer(name, name, -1, type, "", -1));
+            dedup.add(new DruidServer(name, name, -1, type, "", -1));
           }
         }
       }
     }
+    List<DruidServer> servers = Lists.newArrayList(dedup);
     if (query instanceof FilterableManagementQuery) {
       servers = ((FilterableManagementQuery) query).filter(servers);
     }
