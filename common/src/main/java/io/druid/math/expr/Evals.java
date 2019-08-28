@@ -93,6 +93,12 @@ public class Evals
 
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
+    if (leftVal.isNull() && rightVal.isNull()) {
+      return true;
+    }
+    if (leftVal.isNull() || rightVal.isNull()) {
+      return false;
+    }
     final ValueDesc lt = leftVal.type();
     final ValueDesc rt = rightVal.type();
     if (lt.isLong() && rt.isLong()) {

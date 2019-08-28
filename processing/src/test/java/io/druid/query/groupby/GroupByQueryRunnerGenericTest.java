@@ -5792,8 +5792,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   @Test
   public void test2357()
   {
-    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -5823,6 +5821,25 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     expectedResults = createExpectedRows(columnNames, array(791L, 186L));
     results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+  }
+
+  @Test
+  public void test2505()
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setAggregatorSpecs(
+            GenericSumAggregatorFactory.expr("aggregationfunc_000", "isNull(partial_null_column)", ValueDesc.DOUBLE),
+            GenericSumAggregatorFactory.expr("aggregationfunc_001", "isNotNull(partial_null_column)", ValueDesc.DOUBLE)
+        );
+
+    String[] columnNames = new String[]{"aggregationfunc_000", "aggregationfunc_001"};
+
+    List<Row> expectedResults = createExpectedRows(columnNames, array(1023D, 186D));
+    List<Row> results = runQuery(builder.build());
     validate(columnNames, expectedResults, results, true);
   }
 

@@ -473,7 +473,10 @@ final class UnaryMinusExpr implements UnaryOp
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    ExprEval ret = expr.eval(bindings);
+    final ExprEval ret = expr.eval(bindings);
+    if (ret.isNull()) {
+      return ret;
+    }
     if (ret.isLong()) {
       return ExprEval.of(-ret.longValue());
     }

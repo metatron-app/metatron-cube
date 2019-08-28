@@ -178,15 +178,7 @@ public class ColumnSelectors
     if (fieldName != null) {
       return metricFactory.makeDoubleColumnSelector(fieldName);
     }
-    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
-    return new DoubleColumnSelector()
-    {
-      @Override
-      public Double get()
-      {
-        return numeric.get().doubleValue();
-      }
-    };
+    return wrapAsDoubleSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
   public static LongColumnSelector getLongColumnSelector(

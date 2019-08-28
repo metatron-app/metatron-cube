@@ -992,7 +992,10 @@ public interface BuiltinFunctions extends Function.Library
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            ExprEval param = Evals.eval(args.get(0), bindings);
+            final ExprEval param = Evals.eval(args.get(0), bindings);
+            if (param.isNull()) {
+              return param;
+            }
             ValueDesc type = param.type();
             if (type.isLong()) {
               return param;
@@ -1026,7 +1029,10 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          ExprEval param = Evals.eval(args.get(0), bindings);
+          final ExprEval param = Evals.eval(args.get(0), bindings);
+          if (param.isNull()) {
+            return param;
+          }
           ValueDesc type = param.type();
           if (type.isLong()) {
             return param;
