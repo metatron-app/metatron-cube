@@ -45,6 +45,11 @@ public class ServerHolder implements Comparable<ServerHolder>
     return server;
   }
 
+  public String getName()
+  {
+    return server.getName();
+  }
+
   public LoadQueuePeon getPeon()
   {
     return peon;
@@ -114,7 +119,7 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public boolean isServingSegment(DataSegment segment)
   {
-    return (server.getSegment(segment.getIdentifier()) != null);
+    return server.contains(segment);
   }
 
   public boolean isLoadingSegment(DataSegment segment)

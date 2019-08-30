@@ -447,8 +447,7 @@ public class DruidCoordinator
             public void execute()
             {
               try {
-                if (serverInventoryView.isSegmentLoadedByServer(toServer.getName(), segment) &&
-                    curator.checkExists().forPath(toLoadQueueSegPath) == null) {
+                if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
                   dropPeon.dropSegment(segment, "balancing", callback);
                 } else if (callback != null) {
                   callback.execute();

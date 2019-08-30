@@ -71,18 +71,17 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       return Arrays.asList();
     }
     final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
-    final int serverCount = serverHolders.size();
 
     final Set<String> dataSourceNames = Sets.newTreeSet();  // sorted to estimate progress
-    final ImmutableDruidServer[] servers = new ImmutableDruidServer[serverCount];
-    final int[] totalSegmentsPerServer = new int[serverCount];
+    final ServerHolder[] servers = serverHolders.toArray(new ServerHolder[0]);
+    final int[] totalSegmentsPerServer = new int[servers.length];
     int totalSegments = 0;
-    for (int i = 0; i < serverCount; i++) {
-      servers[i] = serverHolders.get(i).getServer();
-      totalSegmentsPerServer[i] = servers[i].getSegments().size();
+    for (int i = 0; i < servers.length; i++) {
+      totalSegmentsPerServer[i] = servers[i].getServer().getSegments().size();
       totalSegments += totalSegmentsPerServer[i];
-      Iterables.addAll(dataSourceNames, servers[i].getDataSourceNames());
+      Iterables.addAll(dataSourceNames, servers[i].getServer().getDataSourceNames());
     }
+    final int serverCount = servers.length;
     final int baseLine = (int) (totalSegments / serverCount * BASELINE_RATIO);
     final List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
 
@@ -102,10 +101,10 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
     for (String dataSourceName : dataSourceNames) {
       List<Pair<Integer, DataSegment>> allSegmentsInDS = Lists.newArrayList();
       for (int i = 0; i < serverCount; i++) {
-        ImmutableDruidDataSource dataSource = servers[i].getDataSource(dataSourceName);
+        ImmutableDruidDataSource dataSource = servers[i].getServer().getDataSource(dataSourceName);
         if (dataSource != null) {
           for (DataSegment segment : dataSource.getSegments()) {
-            if (segment.getInterval().getEndMillis() <= start) {
+            if (segment.getInterval().getEndMillis() <= start && !servers[i].isDroppingSegment(segment)) {
               allSegmentsInDS.add(Pair.of(i, segment));
             }
           }
@@ -179,7 +178,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
                 servers[from].getName(),
                 servers[to].getName()
             );
-            found.add(Pair.of(new BalancerSegmentHolder(servers[from], segment), servers[to]));
+            found.add(Pair.of(new BalancerSegmentHolder(servers[from].getServer(), segment), servers[to].getServer()));
 
             totalSegmentsPerServerInDs[from]--;
             totalSegmentsPerServerInDs[to]++;
@@ -194,11 +193,11 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
     return found;
   }
 
-  private DataSegment findTarget(ImmutableDruidServer server, List<DataSegment> from, List<DataSegment> to)
+  private DataSegment findTarget(ServerHolder server, List<DataSegment> from, List<DataSegment> to)
   {
     for (int i = from.size() - 1; i >= 0; i--) {
-      DataSegment segment = from.get(i);
-      if (!to.contains(segment) && !server.contains(segment)) {
+      final DataSegment segment = from.get(i);
+      if (!to.contains(segment) && !server.isServingSegment(segment)) {
         from.remove(i);
         to.add(segment);
         return segment;

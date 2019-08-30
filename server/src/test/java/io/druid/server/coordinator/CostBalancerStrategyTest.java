@@ -79,6 +79,7 @@ public class CostBalancerStrategyTest
     EasyMock.expect(druidServer.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer.isDecommissioned()).andReturn(false).anyTimes();
 
+    EasyMock.expect(druidServer.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
     Map<String, DataSegment> segments = Maps.newHashMap();
     for (int j = 0; j < (maxSegments - 2); j++) {
