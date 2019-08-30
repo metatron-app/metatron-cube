@@ -157,7 +157,6 @@ public class DruidCoordinatorBalancerProfiler
                                 .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                 .withEmitter(emitter)
                                 .withDatabaseRuleManager(manager)
-                                .withReplicationManager(new ReplicationThrottler(2, 500))
                                 .withSegmentReplicantLookup(
                                     SegmentReplicantLookup.make(
                                         new DruidCluster(

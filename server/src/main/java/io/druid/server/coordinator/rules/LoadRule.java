@@ -32,8 +32,6 @@ import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
-import io.druid.server.coordinator.LoadPeonCallback;
-import io.druid.server.coordinator.ReplicationThrottler;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
@@ -105,7 +103,6 @@ public abstract class LoadRule implements Rule
         int assigned = assign(
             tier,
             segment,
-            params.getReplicationManager(),
             totalReplicantsInCluster,
             expectedReplicantsInTier,
             totalReplicantsInTier,
@@ -128,7 +125,6 @@ public abstract class LoadRule implements Rule
   private int assign(
       final String tier,
       final DataSegment segment,
-      final ReplicationThrottler replicationManager,
       final int totalReplicantsInCluster,
       final int expectedReplicantsInTier,
       final int totalReplicantsInTier,
@@ -142,10 +138,6 @@ public abstract class LoadRule implements Rule
     while (currReplicantsInTier < expectedReplicantsInTier) {
       boolean replicate = currTotalReplicantsInCluster > 0;
 
-      if (replicate && !replicationManager.canCreateReplicant(tier)) {
-        break;
-      }
-
       final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, serverHolderList);
 
       if (holder == null) {
@@ -158,27 +150,10 @@ public abstract class LoadRule implements Rule
         break;
       }
 
-      if (replicate) {
-        replicationManager.registerReplicantCreation(
-            tier, segment.getIdentifier(), holder.getServer().getHost()
-        );
-      }
-
       holder.getPeon().loadSegment(
           segment,
           StringUtils.safeFormat("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier),
-          new LoadPeonCallback()
-          {
-            @Override
-            public void execute()
-            {
-              replicationManager.unregisterReplicantCreation(
-                  tier,
-                  segment.getIdentifier(),
-                  holder.getServer().getHost()
-              );
-            }
-          }
+          null
       );
 
       ++assigned;
@@ -202,8 +177,6 @@ public abstract class LoadRule implements Rule
       }
     }
 
-    final ReplicationThrottler replicationManager = params.getReplicationManager();
-
     // Find all instances of this segment across tiers
     final SegmentReplicantLookup lookup = params.getSegmentReplicantLookup();
     final Map<String, Integer> replicantsByTier = lookup.getClusterTiers(segment.getIdentifier());
@@ -216,7 +189,7 @@ public abstract class LoadRule implements Rule
         log.makeAlert("No holders found for tier[%s]", tier).emit();
         continue;
       }
-      int dropped = drop(tier, segment, entry.getValue(), replicationManager, serverQueue);
+      int dropped = drop(tier, segment, entry.getValue(), serverQueue);
       if (dropped > 0) {
         stats.addToTieredStat(droppedCount, tier, dropped);
       }
@@ -227,7 +200,6 @@ public abstract class LoadRule implements Rule
       final String tier,
       final DataSegment segment,
       final int loadedNumReplicantsForTier,
-      final ReplicationThrottler replicationManager,
       final MinMaxPriorityQueue<ServerHolder> serverQueue
   )
   {
@@ -248,19 +220,6 @@ public abstract class LoadRule implements Rule
       }
 
       if (holder.isServingSegment(segment)) {
-        if (expectedNumReplicantsForTier > 0) { // don't throttle unless we are removing extra replicants
-          if (!replicationManager.canDestroyReplicant(tier)) {
-            serverQueue.add(holder);
-            break;
-          }
-
-          replicationManager.registerReplicantTermination(
-              tier,
-              segment.getIdentifier(),
-              holder.getServer().getHost()
-          );
-        }
-
         holder.getPeon().dropSegment(
             segment,
             StringUtils.safeFormat(
@@ -268,18 +227,7 @@ public abstract class LoadRule implements Rule
                 loadedNumReplicantsForTier,
                 expectedNumReplicantsForTier
             ),
-            new LoadPeonCallback()
-            {
-              @Override
-              public void execute()
-              {
-                replicationManager.unregisterReplicantTermination(
-                    tier,
-                    segment.getIdentifier(),
-                    holder.getServer().getHost()
-                );
-              }
-            }
+            null
         );
         --currentNumReplicantsForTier;
         ++dropped;

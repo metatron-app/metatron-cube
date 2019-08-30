@@ -42,7 +42,6 @@ import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
-import io.druid.server.coordinator.ReplicationThrottler;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
@@ -78,7 +77,6 @@ public class LoadRuleTest
 
   private DruidCoordinator coordinator;
   private LoadQueuePeon mockPeon;
-  private ReplicationThrottler throttler;
   private DataSegment segment;
 
 
@@ -93,11 +91,6 @@ public class LoadRuleTest
     EasyMock.replay(coordinator);
 
     mockPeon = EasyMock.createMock(LoadQueuePeon.class);
-    throttler = new ReplicationThrottler(2, 1);
-    for (String tier : Arrays.asList("hot", DruidServer.DEFAULT_TIER)) {
-      throttler.updateReplicationState(tier);
-      throttler.updateTerminationState(tier);
-    }
     segment = new DataSegment(
         "foo",
         new Interval("0/3000"),
@@ -216,7 +209,6 @@ public class LoadRuleTest
                                      .withDruidCluster(druidCluster)
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
-                                     .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
@@ -330,7 +322,6 @@ public class LoadRuleTest
                                      .withDruidCluster(druidCluster)
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
-                                     .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
@@ -425,7 +416,6 @@ public class LoadRuleTest
                                      .withDruidCluster(druidCluster)
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
-                                     .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
@@ -534,7 +524,6 @@ public class LoadRuleTest
                                      .withDruidCluster(druidCluster)
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
-                                     .withReplicationManager(throttler)
                                      .withBalancerStrategy(balancerStrategy)
                                      .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();

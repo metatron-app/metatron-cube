@@ -399,11 +399,11 @@ public class LoadQueuePeon
   {
     synchronized (lock) {
       if (currentlyProcessing == null) {
-        log.warn("Server[%s] an entry[%s] was removed even though it wasn't loading!?", server, path);
+        log.debug("Server[%s] an entry[%s] was removed even though it wasn't loading!?", server, path);
         return;
       }
       if (!ZKPaths.getNodeFromPath(path).equals(currentlyProcessing.getSegmentIdentifier())) {
-        log.warn(
+        log.debug(
             "Server[%s] entry [%s] was removed even though it's not what is currently loading[%s]",
             server, path, currentlyProcessing
         );
@@ -419,7 +419,7 @@ public class LoadQueuePeon
   private void failAssign(Exception e)
   {
     synchronized (lock) {
-      log.error(e, "Server[%s], throwable caught when submitting [%s].", server, currentlyProcessing);
+      log.debug(e, "Server[%s], throwable caught when submitting [%s].", server, currentlyProcessing);
       failedAssignCount.getAndIncrement();
       // Act like it was completed so that the coordinator gives it to someone else
       actionCompleted();

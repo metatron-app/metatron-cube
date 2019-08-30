@@ -149,8 +149,6 @@ public class DruidCoordinator
   private final BalancerStrategyFactory factory;
   private final ListeningExecutorService balancerExec;
 
-  private final ReplicationThrottler replicatorThrottler;
-
   @Inject
   public DruidCoordinator(
       DruidCoordinatorConfig config,
@@ -237,10 +235,6 @@ public class DruidCoordinator
     final CoordinatorDynamicConfig dynamicConfigs = getDynamicConfigs();
     this.balancerExec = MoreExecutors.listeningDecorator(
         Executors.newFixedThreadPool(dynamicConfigs.getBalancerComputeThreads())
-    );
-    this.replicatorThrottler = new ReplicationThrottler(
-        dynamicConfigs.getReplicationThrottleLimit(),
-        dynamicConfigs.getReplicantLifetime()
     );
     if (serverInventoryView.toString().contains("EasyMock")) {
       return;   // damn easy mock
@@ -1006,7 +1000,6 @@ public class DruidCoordinator
                   .withSegmentReplicantLookup(SegmentReplicantLookup.make(cluster))
                   .withBalancerReferenceTimestamp(DateTime.now())
                   .withBalancerStrategy(factory.createBalancerStrategy(balancerExec))
-                  .withReplicationManager(replicatorThrottler)
                   .build();
   }
 

@@ -67,8 +67,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       numberOfQueuedSegments += holder.getPeon().getNumberOfQueuedSegments();
     }
     final int maxSegmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
-    if (maxSegmentsToMove <= 0 ||
-        numberOfQueuedSegments >= params.getCoordinatorDynamicConfig().getReplicationThrottleLimit()) {
+    if (maxSegmentsToMove <= 0) {
       return Arrays.asList();
     }
     final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();

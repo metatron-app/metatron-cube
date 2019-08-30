@@ -30,7 +30,6 @@ import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
-import io.druid.server.coordinator.ReplicationThrottler;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.server.coordinator.rules.Rule;
@@ -60,12 +59,6 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    ReplicationThrottler replicatorThrottler = getReplicationThrottler(params);
-    replicatorThrottler.updateParams(
-        coordinator.getDynamicConfigs().getReplicationThrottleLimit(),
-        coordinator.getDynamicConfigs().getReplicantLifetime()
-    );
-
     CoordinatorStats stats = new CoordinatorStats();
     DruidCluster cluster = params.getDruidCluster();
 
@@ -74,14 +67,8 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
       return params;
     }
 
-    for (String tier : cluster.getTierNames()) {
-      replicatorThrottler.updateReplicationState(tier);
-      replicatorThrottler.updateTerminationState(tier);
-    }
-
     DruidCoordinatorRuntimeParams paramsWithReplicationManager = params.buildFromExisting()
                                                                        .withCoordinatorStats(stats)
-                                                                       .withReplicationManager(replicatorThrottler)
                                                                        .build();
 
     // Run through all matched rules for available segments
@@ -169,11 +156,6 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
         );
       }
     }
-  }
-
-  protected ReplicationThrottler getReplicationThrottler(DruidCoordinatorRuntimeParams params)
-  {
-    return params.getReplicationManager();
   }
 
   protected Iterable<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)

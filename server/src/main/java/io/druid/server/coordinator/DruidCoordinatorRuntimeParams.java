@@ -50,7 +50,6 @@ public class DruidCoordinatorRuntimeParams
   private final Set<DruidDataSource> dataSources;
   private final Iterable<DataSegment> availableSegments;
   private final Map<String, LoadQueuePeon> loadManagementPeons;
-  private final ReplicationThrottler replicationManager;
   private final ServiceEmitter emitter;
   private final CoordinatorDynamicConfig coordinatorDynamicConfig;
   private final CoordinatorStats stats;
@@ -70,7 +69,6 @@ public class DruidCoordinatorRuntimeParams
       Set<DruidDataSource> dataSources,
       Iterable<DataSegment> availableSegments,
       Map<String, LoadQueuePeon> loadManagementPeons,
-      ReplicationThrottler replicationManager,
       ServiceEmitter emitter,
       CoordinatorDynamicConfig coordinatorDynamicConfig,
       CoordinatorStats stats,
@@ -86,7 +84,6 @@ public class DruidCoordinatorRuntimeParams
     this.dataSources = dataSources;
     this.availableSegments = availableSegments;
     this.loadManagementPeons = loadManagementPeons;
-    this.replicationManager = replicationManager;
     this.emitter = emitter;
     this.coordinatorDynamicConfig = coordinatorDynamicConfig;
     this.stats = stats;
@@ -201,11 +198,6 @@ public class DruidCoordinatorRuntimeParams
     return loadManagementPeons;
   }
 
-  public ReplicationThrottler getReplicationManager()
-  {
-    return replicationManager;
-  }
-
   public ServiceEmitter getEmitter()
   {
     return emitter;
@@ -252,7 +244,6 @@ public class DruidCoordinatorRuntimeParams
         dataSources,
         availableSegments,
         loadManagementPeons,
-        replicationManager,
         emitter,
         coordinatorDynamicConfig,
         stats,
@@ -280,7 +271,6 @@ public class DruidCoordinatorRuntimeParams
     private final Set<DruidDataSource> dataSources;
     private Iterable<DataSegment> availableSegments;
     private final Map<String, LoadQueuePeon> loadManagementPeons;
-    private ReplicationThrottler replicationManager;
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
     private CoordinatorStats stats;
@@ -301,7 +291,6 @@ public class DruidCoordinatorRuntimeParams
       this.dataSources = Sets.newHashSet();
       this.availableSegments = null;
       this.loadManagementPeons = Maps.newHashMap();
-      this.replicationManager = null;
       this.emitter = null;
       this.stats = new CoordinatorStats();
       this.coordinatorDynamicConfig = new CoordinatorDynamicConfig.Builder().build();
@@ -317,7 +306,6 @@ public class DruidCoordinatorRuntimeParams
         Set<DruidDataSource> dataSources,
         Iterable<DataSegment> availableSegments,
         Map<String, LoadQueuePeon> loadManagementPeons,
-        ReplicationThrottler replicationManager,
         ServiceEmitter emitter,
         CoordinatorDynamicConfig coordinatorDynamicConfig,
         CoordinatorStats stats,
@@ -333,7 +321,6 @@ public class DruidCoordinatorRuntimeParams
       this.dataSources = dataSources;
       this.availableSegments = availableSegments;
       this.loadManagementPeons = loadManagementPeons;
-      this.replicationManager = replicationManager;
       this.emitter = emitter;
       this.coordinatorDynamicConfig = coordinatorDynamicConfig;
       this.stats = stats;
@@ -351,7 +338,6 @@ public class DruidCoordinatorRuntimeParams
           dataSources,
           availableSegments,
           loadManagementPeons,
-          replicationManager,
           emitter,
           coordinatorDynamicConfig,
           stats,
@@ -411,12 +397,6 @@ public class DruidCoordinatorRuntimeParams
     public Builder withLoadManagementPeons(Map<String, LoadQueuePeon> loadManagementPeonsCollection)
     {
       loadManagementPeons.putAll(Collections.unmodifiableMap(loadManagementPeonsCollection));
-      return this;
-    }
-
-    public Builder withReplicationManager(ReplicationThrottler replicationManager)
-    {
-      this.replicationManager = replicationManager;
       return this;
     }
 
