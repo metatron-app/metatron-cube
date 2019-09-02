@@ -44,10 +44,12 @@ import io.druid.segment.ObjectColumnSelector;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.AggregationBuffer;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
+import org.apache.hadoop.hive.ql.udf.generic.Hack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -199,11 +201,9 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     for (int i = 0; i < selectors.length; i++) {
       selectors[i] = metricFactory.makeObjectColumnSelector(fieldNames.get(i));
     }
-    final Object[] params = new Object[selectors.length];
-
     final EvalInspector prepared;
     try {
-      prepared = prepare(toAggregationMode());
+      prepared = prepare(toAggregationMode(), false);
     }
     catch (HiveException e) {
       throw Throwables.propagate(e);
@@ -216,6 +216,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
       @Override
       public AggregationBuffer aggregate(AggregationBuffer current)
       {
+        final Object[] params = new Object[selectors.length];
         for (int i = 0; i < selectors.length; i++) {
           params[i] = selectors[i].get();
         }
@@ -260,7 +261,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     return merge ? Mode.PARTIAL2 : Mode.PARTIAL1;
   }
 
-  private EvalInspector prepare(Mode mode) throws SemanticException
+  private EvalInspector prepare(Mode mode, boolean synchronize) throws SemanticException
   {
     try {
       final TypeInfo[] typeInfos = new TypeInfo[inputTypes.size()];
@@ -278,6 +279,9 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
       }
       GenericUDAFEvaluator evaluator = getUDAFResolver().getEvaluator(typeInfos);
       ObjectInspector outputOI = evaluator.init(mode, inputOIs);
+      if (synchronize && evaluator instanceof GenericUDAFBridge.GenericUDAFBridgeEvaluator) {
+        evaluator = Hack.synchronize((GenericUDAFBridge.GenericUDAFBridgeEvaluator) evaluator);
+      }
       return EvalInspector.of(evaluator, outputOI);
     }
     catch (Exception e) {
@@ -315,17 +319,16 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
 
   private Combiner<Object> toCombiner(Mode mode)
   {
-    try (EvalInspector prepared = withMerge(true).prepare(mode)) {
+    try (EvalInspector prepared = withMerge(true).prepare(mode, true)) {
       final GenericUDAFEvaluator evaluator = prepared.evaluator();
-      final AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
       final ObjectInspector outputOI = prepared.outputOI();
       return new Combiner<Object>()
       {
         @Override
-        public Object combine(Object param1, Object param2)
+        public Object combine(final Object param1, final Object param2)
         {
           try {
-            evaluator.reset(buffer);
+            final AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
             evaluator.merge(buffer, param1);
             evaluator.merge(buffer, param2);
             return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(buffer));
@@ -403,7 +406,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
 
   private ValueDesc resolveType(Mode mode)
   {
-    try (EvalInspector prepared = prepare(mode)) {
+    try (EvalInspector prepared = prepare(mode, false)) {
       return Preconditions.checkNotNull(
           ObjectInspectors.typeOf(prepared.outputOI(), null), "Cannot resolve output type"
       );
