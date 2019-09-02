@@ -63,6 +63,7 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
   private final Granularity preferredSegmentGranularity;
   private final String sequenceName;
   private final String previousSegmentId;
+  private final boolean skipSegmentLineageCheck;
 
   public SegmentAllocateAction(
       @JsonProperty("dataSource") String dataSource,
@@ -70,7 +71,8 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
       @JsonProperty("queryGranularity") Granularity queryGranularity,
       @JsonProperty("preferredSegmentGranularity") Granularity preferredSegmentGranularity,
       @JsonProperty("sequenceName") String sequenceName,
-      @JsonProperty("previousSegmentId") String previousSegmentId
+      @JsonProperty("previousSegmentId") String previousSegmentId,
+      @JsonProperty("skipSegmentLineageCheck") boolean skipSegmentLineageCheck
   )
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
@@ -82,6 +84,7 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
     );
     this.sequenceName = Preconditions.checkNotNull(sequenceName, "sequenceName");
     this.previousSegmentId = previousSegmentId;
+    this.skipSegmentLineageCheck = skipSegmentLineageCheck;
   }
 
   @JsonProperty
@@ -118,6 +121,12 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
   public String getPreviousSegmentId()
   {
     return previousSegmentId;
+  }
+
+  @JsonProperty
+  public boolean isSkipSegmentLineageCheck()
+  {
+    return skipSegmentLineageCheck;
   }
 
   @Override
@@ -183,7 +192,8 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
                 sequenceName,
                 previousSegmentId,
                 tryInterval,
-                tryLock.getVersion()
+                tryLock.getVersion(),
+                skipSegmentLineageCheck
             );
             if (identifier != null) {
               return identifier;
@@ -250,6 +260,7 @@ public class SegmentAllocateAction implements TaskAction<SegmentIdentifier>
            ", preferredSegmentGranularity=" + preferredSegmentGranularity +
            ", sequenceName='" + sequenceName + '\'' +
            ", previousSegmentId='" + previousSegmentId + '\'' +
+           ", skipSegmentLineageCheck='" + skipSegmentLineageCheck + '\'' +
            '}';
   }
 }

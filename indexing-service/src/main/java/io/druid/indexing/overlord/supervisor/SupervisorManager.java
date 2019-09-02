@@ -158,6 +158,31 @@ public class SupervisorManager
     return supervisor == null ? Optional.<SupervisorReport>absent() : Optional.fromNullable(supervisor.lhs.getStatus());
   }
 
+  public boolean checkPointDataSourceMetadata(
+      String supervisorId,
+      @Nullable String sequenceName,
+      @Nullable DataSourceMetadata previousDataSourceMetadata,
+      @Nullable DataSourceMetadata currentDataSourceMetadata
+  )
+  {
+    try {
+      Preconditions.checkState(started, "SupervisorManager not started");
+      Preconditions.checkNotNull(supervisorId, "supervisorId cannot be null");
+
+      Pair<Supervisor, SupervisorSpec> supervisor = supervisors.get(supervisorId);
+
+      Preconditions.checkNotNull(supervisor, "supervisor could not be found. supervisorId = %s",
+                                 supervisorId);
+
+      supervisor.lhs.checkpoint(sequenceName, previousDataSourceMetadata, currentDataSourceMetadata);
+      return true;
+    }
+    catch (Exception e) {
+      log.error(e, "Checkpoint request failed");
+    }
+    return false;
+  }
+
   /**
    * Stops a supervisor with a given id and then removes it from the list.
    * <p/>

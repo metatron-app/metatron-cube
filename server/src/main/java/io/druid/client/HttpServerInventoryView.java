@@ -152,7 +152,7 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
               public void run()
               {
                 if (!lifecycleLock.awaitStarted()) {
-                  log.error("WTF! lifecycle not started, segments will not be discovered.");
+                  log.error("lifecycle not started, segments will not be discovered.");
                   return;
                 }
 

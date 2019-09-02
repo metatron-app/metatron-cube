@@ -106,6 +106,11 @@ public abstract class SQLMetadataConnector implements MetadataStorageConnector
    */
   protected abstract int getStreamingFetchSize();
 
+  /**
+   * @return the string that should be used to quote string fields
+   */
+  public abstract String getQuoteString();
+
   public String getValidationQuery() { return "SELECT 1"; }
 
   public abstract boolean tableExists(Handle handle, final String tableName);

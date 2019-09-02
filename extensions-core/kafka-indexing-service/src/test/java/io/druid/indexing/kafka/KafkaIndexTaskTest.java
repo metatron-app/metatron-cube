@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -47,6 +48,7 @@ import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.metrics.MonitorScheduler;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
+import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -70,7 +72,9 @@ import io.druid.indexing.common.actions.TaskActionToolbox;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.Task;
+import io.druid.indexing.kafka.supervisor.KafkaSupervisor;
 import io.druid.indexing.kafka.test.TestBroker;
+import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.indexing.overlord.MetadataTaskStorage;
 import io.druid.indexing.overlord.TaskLockbox;
@@ -111,6 +115,7 @@ import io.druid.segment.loading.LocalDataSegmentPusherConfig;
 import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoaderLocalCacheManager;
 import io.druid.segment.loading.StorageLocationConfig;
+import io.druid.segment.realtime.appenderator.AppenderatorImpl;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.server.coordination.DataSegmentServerAnnouncer;
@@ -133,12 +138,18 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -159,11 +170,13 @@ public class KafkaIndexTaskTest
   private static int topicPostfix;
 
   private final List<Task> runningTasks = Lists.newArrayList();
-  private final boolean buildV9Directly;
+  private final boolean buildV9Directly= true;
 
   private long handoffConditionTimeout = 0;
   private boolean reportParseExceptions = false;
+  private boolean resetOffsetAutomatically = false;
   private boolean doHandoff = true;
+  private Integer maxRowsPerSegment = null;
 
   private TaskToolboxFactory toolboxFactory;
   private IndexerMetadataStorageCoordinator metadataStorageCoordinator;
@@ -172,6 +185,21 @@ public class KafkaIndexTaskTest
   private File directory;
   private String topic;
   private List<ProducerRecord<byte[], byte[]>> records;
+  private final boolean isIncrementalHandoffSupported;
+  private final Set<Integer> checkpointRequestsHash = Sets.newHashSet();
+
+  // This should be removed in versions greater that 0.11.1
+  // isIncrementalHandoffSupported should always be set to true in those later versions
+  @Parameterized.Parameters(name = "isIncrementalHandoffSupported = {0}")
+  public static Iterable<Object[]> constructorFeeder()
+  {
+    return ImmutableList.of(new Object[]{true}, new Object[]{false});
+  }
+
+  public KafkaIndexTaskTest(boolean isIncrementalHandoffSupported)
+  {
+    this.isIncrementalHandoffSupported = isIncrementalHandoffSupported;
+  }
 
   private static final DataSchema DATA_SCHEMA = new DataSchema(
       "test_ds",
@@ -204,6 +232,7 @@ public class KafkaIndexTaskTest
         new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2010", "c", "y", 1.0f)),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "d", "y", 1.0f)),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "e", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("246140482-04-24T15:36:27.903Z", "x", "z", 1.0f)),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, "unparseable".getBytes()),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, null),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2013", "f", "y", 1.0f)),
@@ -219,17 +248,6 @@ public class KafkaIndexTaskTest
 
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Parameterized.Parameters(name = "buildV9Directly = {0}")
-  public static Iterable<Object[]> constructorFeeder()
-  {
-    return ImmutableList.of(new Object[]{true}, new Object[]{false});
-  }
-
-  public KafkaIndexTaskTest(boolean buildV9Directly)
-  {
-    this.buildV9Directly = buildV9Directly;
-  }
 
   @Rule
   public final TestDerbyConnector.DerbyConnectorRule derby = new TestDerbyConnector.DerbyConnectorRule();
@@ -329,9 +347,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -373,9 +389,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -415,6 +429,96 @@ public class KafkaIndexTaskTest
   }
 
   @Test(timeout = 60_000L)
+  public void testIncrementalHandOff() throws Exception
+  {
+    if (!isIncrementalHandoffSupported) {
+      return;
+    }
+    final String baseSequenceName = "sequence0";
+    // as soon as any segment has more than one record, incremental publishing should happen
+    maxRowsPerSegment = 1;
+
+    // Insert data
+    try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
+      for (ProducerRecord<byte[], byte[]> record : records) {
+        kafkaProducer.send(record).get();
+      }
+    }
+    Map<String, String> consumerProps = kafkaServer.consumerProperties();
+    consumerProps.put("max.poll.records", "1");
+
+    final KafkaPartitions startPartitions = new KafkaPartitions(topic, ImmutableMap.of(0, 0L, 1, 0L));
+    // Checkpointing will happen at either checkpoint1 or checkpoint2 depending on ordering
+    // of events fetched across two partitions from Kafka
+    final KafkaPartitions checkpoint1 = new KafkaPartitions(topic, ImmutableMap.of(0, 5L, 1, 0L));
+    final KafkaPartitions checkpoint2 = new KafkaPartitions(topic, ImmutableMap.of(0, 4L, 1, 2L));
+    final KafkaPartitions endPartitions = new KafkaPartitions(topic, ImmutableMap.of(0, 9L, 1, 2L));
+    final KafkaIndexTask task = createTask(
+        null,
+        new KafkaIOConfig(
+            baseSequenceName,
+            startPartitions,
+            endPartitions,
+            consumerProps,
+            true,
+            false,
+            null,
+            null,
+            false
+        )
+    );
+    final ListenableFuture<TaskStatus> future = runTask(task);
+    while (task.getStatus() != KafkaIndexTask.Status.PAUSED) {
+      Thread.sleep(10);
+    }
+    final Map<Integer, Long> currentOffsets = ImmutableMap.copyOf(task.getCurrentOffsets());
+    Assert.assertTrue(checkpoint1.getPartitionOffsetMap().equals(currentOffsets) || checkpoint2.getPartitionOffsetMap()
+                                                                                               .equals(currentOffsets));
+    task.setEndOffsets(currentOffsets, true, false);
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
+
+    Assert.assertEquals(1, checkpointRequestsHash.size());
+    Assert.assertTrue(checkpointRequestsHash.contains(
+        Objects.hash(
+            DATA_SCHEMA.getDataSource(),
+            baseSequenceName,
+            new KafkaDataSourceMetadata(startPartitions),
+            new KafkaDataSourceMetadata(new KafkaPartitions(topic, currentOffsets))
+        )
+    ));
+
+    // Check metrics
+    Assert.assertEquals(8, task.getFireDepartmentMetrics().processed());
+    Assert.assertEquals(2, task.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(1, task.getFireDepartmentMetrics().thrownAway());
+
+    // Check published metadata
+    SegmentDescriptor desc1 = SD(task, "2008/P1D", 0);
+    SegmentDescriptor desc2 = SD(task, "2009/P1D", 0);
+    SegmentDescriptor desc3 = SD(task, "2010/P1D", 0);
+    SegmentDescriptor desc4 = SD(task, "2011/P1D", 0);
+    SegmentDescriptor desc5 = SD(task, "2011/P1D", 1);
+    SegmentDescriptor desc6 = SD(task, "2012/P1D", 0);
+    SegmentDescriptor desc7 = SD(task, "2013/P1D", 0);
+    Assert.assertEquals(ImmutableSet.of(desc1, desc2, desc3, desc4, desc5, desc6, desc7), publishedDescriptors());
+    Assert.assertEquals(
+        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 9L, 1, 2L))),
+        metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
+    );
+
+    // Check segments in deep storage
+    Assert.assertEquals(ImmutableList.of("a"), readSegmentColumn("dim1", desc1));
+    Assert.assertEquals(ImmutableList.of("b"), readSegmentColumn("dim1", desc2));
+    Assert.assertEquals(ImmutableList.of("c"), readSegmentColumn("dim1", desc3));
+    Assert.assertTrue((ImmutableList.of("d", "e").equals(readSegmentColumn("dim1", desc4))
+                       && ImmutableList.of("h").equals(readSegmentColumn("dim1", desc5))) ||
+                      (ImmutableList.of("d", "h").equals(readSegmentColumn("dim1", desc4))
+                       && ImmutableList.of("e").equals(readSegmentColumn("dim1", desc5))));
+    Assert.assertEquals(ImmutableList.of("g"), readSegmentColumn("dim1", desc6));
+    Assert.assertEquals(ImmutableList.of("f"), readSegmentColumn("dim1", desc7));
+  }
+
+  @Test(timeout = 60_000L)
   public void testRunWithMinimumMessageTime() throws Exception
   {
     final KafkaIndexTask task = createTask(
@@ -429,9 +533,7 @@ public class KafkaIndexTaskTest
             new DateTime("2010"),
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -485,9 +587,7 @@ public class KafkaIndexTaskTest
             null,
             new DateTime("2010"),
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -550,9 +650,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -593,9 +691,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -647,15 +743,16 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
 
     // Wait for task to exit
-    Assert.assertEquals(TaskState.FAILED, future.get().getStatusCode());
+    Assert.assertEquals(
+        isIncrementalHandoffSupported ? TaskState.SUCCESS : TaskState.FAILED,
+        future.get().getStatusCode()
+    );
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
@@ -700,9 +797,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -735,9 +830,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
     final KafkaIndexTask task2 = createTask(
         null,
@@ -751,9 +844,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future1 = runTask(task1);
@@ -807,25 +898,21 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
     final KafkaIndexTask task2 = createTask(
         null,
         new KafkaIOConfig(
             "sequence1",
             new KafkaPartitions(topic, ImmutableMap.of(0, 3L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 8L)),
+            new KafkaPartitions(topic, ImmutableMap.of(0, 9L)),
             kafkaServer.consumerProperties(),
             true,
             false,
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     // Insert data
@@ -849,7 +936,7 @@ public class KafkaIndexTaskTest
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().thrownAway());
     Assert.assertEquals(3, task2.getFireDepartmentMetrics().processed());
     Assert.assertEquals(2, task2.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(0, task2.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task2.getFireDepartmentMetrics().thrownAway());
 
     // Check published segments & metadata, should all be from the first task
     SegmentDescriptor desc1 = SD(task1, "2010/P1D", 0);
@@ -880,25 +967,21 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
     final KafkaIndexTask task2 = createTask(
         null,
         new KafkaIOConfig(
             "sequence1",
             new KafkaPartitions(topic, ImmutableMap.of(0, 3L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 8L)),
+            new KafkaPartitions(topic, ImmutableMap.of(0, 9L)),
             kafkaServer.consumerProperties(),
             false,
             false,
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     // Insert data
@@ -928,7 +1011,7 @@ public class KafkaIndexTaskTest
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().thrownAway());
     Assert.assertEquals(3, task2.getFireDepartmentMetrics().processed());
     Assert.assertEquals(2, task2.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(0, task2.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task2.getFireDepartmentMetrics().thrownAway());
 
     // Check published segments & metadata
     SegmentDescriptor desc3 = SD(task2, "2011/P1D", 1);
@@ -958,9 +1041,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -984,9 +1065,12 @@ public class KafkaIndexTaskTest
     // Check published segments & metadata
     SegmentDescriptor desc1 = SD(task, "2010/P1D", 0);
     SegmentDescriptor desc2 = SD(task, "2011/P1D", 0);
+    // desc3 will not be created in KafkaIndexTask (0.11.1) as it does not create per Kafka partition Druid segments
     SegmentDescriptor desc3 = SD(task, "2011/P1D", 1);
     SegmentDescriptor desc4 = SD(task, "2012/P1D", 0);
-    Assert.assertEquals(ImmutableSet.of(desc1, desc2, desc3, desc4), publishedDescriptors());
+    Assert.assertEquals(isIncrementalHandoffSupported
+                        ? ImmutableSet.of(desc1, desc2, desc4)
+                        : ImmutableSet.of(desc1, desc2, desc3, desc4), publishedDescriptors());
     Assert.assertEquals(
         new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 5L, 1, 2L))),
         metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
@@ -998,8 +1082,12 @@ public class KafkaIndexTaskTest
 
     // Check desc2/desc3 without strong ordering because two partitions are interleaved nondeterministically
     Assert.assertEquals(
-        ImmutableSet.of(ImmutableList.of("d", "e"), ImmutableList.of("h")),
-        ImmutableSet.of(readSegmentDim1(desc2), readSegmentDim1(desc3))
+        isIncrementalHandoffSupported
+        ? ImmutableSet.of(ImmutableList.of("d", "e", "h"))
+        : ImmutableSet.of(ImmutableList.of("d", "e"), ImmutableList.of("h")),
+        isIncrementalHandoffSupported
+        ? ImmutableSet.of(readSegmentColumn("dim1", desc2))
+        : ImmutableSet.of(readSegmentColumn("dim1", desc2), readSegmentColumn("dim1", desc3))
     );
   }
 
@@ -1018,9 +1106,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
     final KafkaIndexTask task2 = createTask(
         null,
@@ -1034,9 +1120,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future1 = runTask(task1);
@@ -1092,9 +1176,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future1 = runTask(task1);
@@ -1114,6 +1196,8 @@ public class KafkaIndexTaskTest
 
     // Stop without publishing segment
     task1.stopGracefully();
+    unlockAppenderatorBasePersistDirForTask(task1);
+
     Assert.assertEquals(TaskState.SUCCESS, future1.get().getStatusCode());
 
     // Start a new task
@@ -1129,9 +1213,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future2 = runTask(task2);
@@ -1183,9 +1265,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -1269,9 +1349,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     final ListenableFuture<TaskStatus> future = runTask(task);
@@ -1292,7 +1370,7 @@ public class KafkaIndexTaskTest
 
     Assert.assertEquals(ImmutableMap.of(0, 3L), task.getEndOffsets());
     Map<Integer, Long> newEndOffsets = ImmutableMap.of(0, 4L);
-    task.setEndOffsets(newEndOffsets, false);
+    task.setEndOffsets(newEndOffsets, false, true);
     Assert.assertEquals(newEndOffsets, task.getEndOffsets());
     Assert.assertEquals(KafkaIndexTask.Status.PAUSED, task.getStatus());
     task.resume();
@@ -1306,8 +1384,8 @@ public class KafkaIndexTaskTest
     Assert.assertEquals(KafkaIndexTask.Status.PAUSED, task.getStatus());
 
     // try again but with resume flag == true
-    newEndOffsets = ImmutableMap.of(0, 6L);
-    task.setEndOffsets(newEndOffsets, true);
+    newEndOffsets = ImmutableMap.of(0, 7L);
+    task.setEndOffsets(newEndOffsets, true, true);
     Assert.assertEquals(newEndOffsets, task.getEndOffsets());
     Assert.assertNotEquals(KafkaIndexTask.Status.PAUSED, task.getStatus());
 
@@ -1325,7 +1403,7 @@ public class KafkaIndexTaskTest
     // Check metrics
     Assert.assertEquals(4, task.getFireDepartmentMetrics().processed());
     Assert.assertEquals(1, task.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(0, task.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task.getFireDepartmentMetrics().thrownAway());
 
     // Check published metadata
     SegmentDescriptor desc1 = SD(task, "2009/P1D", 0);
@@ -1333,7 +1411,7 @@ public class KafkaIndexTaskTest
     SegmentDescriptor desc3 = SD(task, "2011/P1D", 0);
     Assert.assertEquals(ImmutableSet.of(desc1, desc2, desc3), publishedDescriptors());
     Assert.assertEquals(
-        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 6L))),
+        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 7L))),
         metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
     );
 
@@ -1358,9 +1436,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        null
+        )
     );
 
     runTask(task);
@@ -1379,6 +1455,7 @@ public class KafkaIndexTaskTest
   @Test(timeout = 30_000L)
   public void testRunWithOffsetOutOfRangeExceptionAndNextOffsetGreaterThanLeastAvailable() throws Exception
   {
+    resetOffsetAutomatically = true;
     // Insert data
     try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
       for (ProducerRecord<byte[], byte[]> record : records) {
@@ -1398,9 +1475,7 @@ public class KafkaIndexTaskTest
             null,
             null,
             false
-        ),
-        null,
-        true
+        )
     );
 
     runTask(task);
@@ -1414,6 +1489,72 @@ public class KafkaIndexTaskTest
       // Offset should not be reset
       Assert.assertTrue(task.getCurrentOffsets().get(0) == 200L);
     }
+  }
+
+  @Test(timeout = 60_000L)
+  public void testRunContextSequenceAheadOfStartingOffsets() throws Exception
+  {
+    // This tests the case when a replacement task is created in place of a failed test
+    // which has done some incremental handoffs, thus the context will contain starting
+    // sequence offsets from which the task should start reading and ignore the start offsets
+    if (!isIncrementalHandoffSupported) {
+      return;
+    }
+    // Insert data
+    try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
+      for (ProducerRecord<byte[], byte[]> record : records) {
+        kafkaProducer.send(record).get();
+      }
+    }
+
+    final TreeMap<Integer, Map<Integer, Long>> sequences = new TreeMap<>();
+    // Here the sequence number is 1 meaning that one incremental handoff was done by the failed task
+    // and this task should start reading from offset 2 for partition 0
+    sequences.put(1, ImmutableMap.of(0, 2L));
+    final Map<String, Object> context = new HashMap<>();
+    context.put("checkpoints", objectMapper.writerWithType(new TypeReference<TreeMap<Integer, Map<Integer, Long>>>()
+    {
+    }).writeValueAsString(sequences));
+
+    final KafkaIndexTask task = createTask(
+        null,
+        new KafkaIOConfig(
+            "sequence0",
+            // task should ignore these and use sequence info sent in the context
+            new KafkaPartitions(topic, ImmutableMap.of(0, 0L)),
+            new KafkaPartitions(topic, ImmutableMap.of(0, 5L)),
+            kafkaServer.consumerProperties(),
+            true,
+            false,
+            null,
+            null,
+            false
+        ),
+        context
+    );
+
+    final ListenableFuture<TaskStatus> future = runTask(task);
+
+    // Wait for task to exit
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
+
+    // Check metrics
+    Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
+    Assert.assertEquals(0, task.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(0, task.getFireDepartmentMetrics().thrownAway());
+
+    // Check published metadata
+    SegmentDescriptor desc1 = SD(task, "2010/P1D", 0);
+    SegmentDescriptor desc2 = SD(task, "2011/P1D", 0);
+    Assert.assertEquals(ImmutableSet.of(desc1, desc2), publishedDescriptors());
+    Assert.assertEquals(
+        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 5L))),
+        metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
+    );
+
+    // Check segments in deep storage
+    Assert.assertEquals(ImmutableList.of("c"), readSegmentColumn("dim1", desc1));
+    Assert.assertEquals(ImmutableList.of("d", "e"), readSegmentColumn("dim1", desc2));
   }
 
   private ListenableFuture<TaskStatus> runTask(final Task task)
@@ -1468,9 +1609,25 @@ public class KafkaIndexTaskTest
 
   private KafkaIndexTask createTask(
       final String taskId,
+      final KafkaIOConfig ioConfig
+  )
+  {
+    return createTask(taskId, DATA_SCHEMA, ioConfig);
+  }
+
+  private KafkaIndexTask createTask(
+      final String taskId,
       final KafkaIOConfig ioConfig,
-      final Integer maxRowsPerSegment,
-      final Boolean resetOffsetAutomatically
+      final Map<String, Object> context
+  )
+  {
+    return createTask(taskId, DATA_SCHEMA, ioConfig, context);
+  }
+
+  private KafkaIndexTask createTask(
+      final String taskId,
+      final DataSchema dataSchema,
+      final KafkaIOConfig ioConfig
   )
   {
     final KafkaTuningConfig tuningConfig = new KafkaTuningConfig(
@@ -1486,17 +1643,69 @@ public class KafkaIndexTaskTest
         handoffConditionTimeout,
         resetOffsetAutomatically
     );
+    final Map<String, Object> context = isIncrementalHandoffSupported
+                                        ? ImmutableMap.of(KafkaSupervisor.IS_INCREMENTAL_HANDOFF_SUPPORTED, true)
+                                        : null;
     final KafkaIndexTask task = new KafkaIndexTask(
         taskId,
         null,
-        DATA_SCHEMA,
+        dataSchema,
         tuningConfig,
         ioConfig,
-        null,
+        context,
         null
     );
     task.setPollRetryMs(POLL_RETRY_MS);
     return task;
+  }
+
+  private KafkaIndexTask createTask(
+      final String taskId,
+      final DataSchema dataSchema,
+      final KafkaIOConfig ioConfig,
+      final Map<String, Object> context
+  )
+  {
+    final KafkaTuningConfig tuningConfig = new KafkaTuningConfig(
+        1000,
+        null,
+        maxRowsPerSegment,
+        new Period("P1Y"),
+        null,
+        null,
+        null,
+        buildV9Directly,
+        reportParseExceptions,
+        handoffConditionTimeout,
+        resetOffsetAutomatically
+    );
+
+    if (isIncrementalHandoffSupported) {
+      context.put(KafkaSupervisor.IS_INCREMENTAL_HANDOFF_SUPPORTED, true);
+    }
+
+    final KafkaIndexTask task = new KafkaIndexTask(
+        taskId,
+        null,
+        cloneDataSchema(dataSchema),
+        tuningConfig,
+        ioConfig,
+        context,
+        null
+    );
+    task.setPollRetryMs(POLL_RETRY_MS);
+    return task;
+  }
+
+  private static DataSchema cloneDataSchema(final DataSchema dataSchema)
+  {
+    return new DataSchema(
+        dataSchema.getDataSource(),
+        dataSchema.getParserMap(),
+        dataSchema.getAggregators(),
+        dataSchema.getGranularitySpec(),
+        objectMapper
+    );
   }
 
   private QueryRunnerFactoryConglomerate makeTimeseriesOnlyConglomerate()
@@ -1572,6 +1781,25 @@ public class KafkaIndexTaskTest
         metadataStorageCoordinator,
         emitter,
         new SupervisorManager(null)
+        {
+          @Override
+          public boolean checkPointDataSourceMetadata(
+              String supervisorId,
+              @Nullable String sequenceName,
+              @Nullable DataSourceMetadata previousDataSourceMetadata,
+              @Nullable DataSourceMetadata currentDataSourceMetadata
+          )
+          {
+            log.info("Adding checkpoint hash to the set");
+            checkpointRequestsHash.add(Objects.hash(
+                supervisorId,
+                sequenceName,
+                previousDataSourceMetadata,
+                currentDataSourceMetadata
+            ));
+            return true;
+          }
+        }
     );
     final TaskActionClientFactory taskActionClientFactory = new LocalTaskActionClientFactory(
         taskStorage,
@@ -1676,9 +1904,61 @@ public class KafkaIndexTaskTest
     ).toSet();
   }
 
+  private void unlockAppenderatorBasePersistDirForTask(KafkaIndexTask task)
+      throws NoSuchMethodException, InvocationTargetException, IllegalAccessException
+  {
+    Method unlockBasePersistDir = ((AppenderatorImpl) task.getAppenderator()).getClass()
+                                                                             .getDeclaredMethod(
+                                                                                 "unlockBasePersistDirectory");
+    unlockBasePersistDir.setAccessible(true);
+    unlockBasePersistDir.invoke(task.getAppenderator());
+  }
+
   private File getSegmentDirectory()
   {
     return new File(directory, "segments");
+  }
+
+  private List<String> readSegmentColumn(final String column, final SegmentDescriptor descriptor) throws IOException
+  {
+    File indexZip = new File(
+        StringUtils.format(
+            "%s/%s/%s_%s/%s/%d/index.zip",
+            getSegmentDirectory(),
+            DATA_SCHEMA.getDataSource(),
+            descriptor.getInterval().getStart(),
+            descriptor.getInterval().getEnd(),
+            descriptor.getVersion(),
+            descriptor.getPartitionNumber()
+        )
+    );
+    File outputLocation = new File(
+        directory,
+        StringUtils.format(
+            "%s_%s_%s_%s",
+            descriptor.getInterval().getStart(),
+            descriptor.getInterval().getEnd(),
+            descriptor.getVersion(),
+            descriptor.getPartitionNumber()
+        )
+    );
+    outputLocation.mkdir();
+    CompressionUtils.unzip(
+        Files.asByteSource(indexZip),
+        outputLocation,
+        Predicates.<Throwable>alwaysFalse(),
+        false
+    );
+    IndexIO indexIO = new TestUtils().getTestIndexIO();
+    QueryableIndex index = indexIO.loadIndex(outputLocation);
+    DictionaryEncodedColumn theColumn = index.getColumn(column).getDictionaryEncoding();
+    List<String> values = Lists.newArrayList();
+    for (int i = 0; i < theColumn.length(); i++) {
+      int id = theColumn.getSingleValueRow(i);
+      String value = theColumn.lookupName(id);
+      values.add(value);
+    }
+    return values;
   }
 
   private List<String> readSegmentDim1(final SegmentDescriptor descriptor) throws IOException

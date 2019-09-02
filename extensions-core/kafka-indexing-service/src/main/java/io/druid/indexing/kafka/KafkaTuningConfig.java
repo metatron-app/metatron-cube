@@ -40,9 +40,9 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
   private final int maxRowsPerSegment;
   private final Period intermediatePersistPeriod;
   private final File basePersistDirectory;
+  @Deprecated
   private final int maxPendingPersists;
   private final boolean reportParseExceptions;
-  @Deprecated
   private final long handoffConditionTimeout;
   private final boolean resetOffsetAutomatically;
 
@@ -70,7 +70,7 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
                                      ? defaults.getIntermediatePersistPeriod()
                                      : intermediatePersistPeriod;
     this.basePersistDirectory = defaults.getBasePersistDirectory();
-    this.maxPendingPersists = maxPendingPersists == null ? defaults.getMaxPendingPersists() : maxPendingPersists;
+    this.maxPendingPersists = 0;
     this.reportParseExceptions = reportParseExceptions == null
                                  ? defaults.isReportParseExceptions()
                                  : reportParseExceptions;
@@ -118,6 +118,7 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
   }
 
   @JsonProperty
+  @Deprecated
   public int getMaxPendingPersists()
   {
     return maxPendingPersists;
@@ -129,7 +130,6 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
     return reportParseExceptions;
   }
 
-  @Deprecated
   @JsonProperty
   public long getHandoffConditionTimeout()
   {

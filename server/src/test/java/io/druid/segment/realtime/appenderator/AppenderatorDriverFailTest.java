@@ -419,6 +419,11 @@ public class AppenderatorDriverFailTest
 
     }
 
+    public void closeNow()
+    {
+
+    }
+
     @Override
     public ObjectMapper getObjectMapper()
     {

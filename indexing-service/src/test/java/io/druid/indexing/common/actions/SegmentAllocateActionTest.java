@@ -680,7 +680,8 @@ public class SegmentAllocateActionTest
         QueryGranularities.MINUTE,
         Granularities.HOUR,
         "s1",
-        "prev"
+        "prev",
+        false
     );
 
     final ObjectMapper objectMapper = new DefaultObjectMapper();
@@ -712,7 +713,8 @@ public class SegmentAllocateActionTest
         queryGranularity,
         preferredSegmentGranularity,
         sequenceName,
-        sequencePreviousId
+        sequencePreviousId,
+        false
     );
     return action.perform(task, taskActionTestKit.getTaskActionToolbox());
   }

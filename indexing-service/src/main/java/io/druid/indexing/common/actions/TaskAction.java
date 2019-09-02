@@ -42,7 +42,8 @@ import java.io.IOException;
     @JsonSubTypes.Type(name = "segmentAllocate", value = SegmentAllocateAction.class),
     @JsonSubTypes.Type(name = "segmentAppend", value = SegmentAppendingAction.class),
     @JsonSubTypes.Type(name = "segmentLoad", value = SegmentLoadAction.class),
-    @JsonSubTypes.Type(name = "resetDataSourceMetadata", value = ResetDataSourceMetadataAction.class)
+    @JsonSubTypes.Type(name = "resetDataSourceMetadata", value = ResetDataSourceMetadataAction.class),
+    @JsonSubTypes.Type(name = "checkPointDataSourceMetadata", value = CheckPointDataSourceMetadataAction.class)
 })
 public interface TaskAction<RetType>
 {

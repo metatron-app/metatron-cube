@@ -35,11 +35,11 @@ import com.google.common.io.BaseEncoding;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.StringUtils;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.core.NoopEmitter;
+import io.druid.common.utils.StringUtils;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.indexing.overlord.SegmentPublishResult;
@@ -379,7 +379,8 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
       final String sequenceName,
       final String previousSegmentId,
       final Interval interval,
-      final String maxVersion
+      final String maxVersion,
+      final boolean skipSegmentLineageCheck
   ) throws IOException
   {
     Preconditions.checkNotNull(dataSource, "dataSource");
@@ -395,20 +396,40 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
           @Override
           public SegmentIdentifier inTransaction(Handle handle, TransactionStatus transactionStatus) throws Exception
           {
-            final List<byte[]> existingBytes = handle
-                .createQuery(
-                    String.format(
-                        "SELECT payload FROM %s WHERE "
-                        + "dataSource = :dataSource AND "
-                        + "sequence_name = :sequence_name AND "
-                        + "sequence_prev_id = :sequence_prev_id",
-                        dbTables.getPendingSegmentsTable()
-                    )
-                ).bind("dataSource", dataSource)
-                .bind("sequence_name", sequenceName)
-                .bind("sequence_prev_id", previousSegmentIdNotNull)
-                .map(ByteArrayMapper.FIRST)
-                .list();
+            final List<byte[]> existingBytes;
+            if (!skipSegmentLineageCheck) {
+              existingBytes = handle
+                  .createQuery(
+                      StringUtils.format(
+                          "SELECT payload FROM %s WHERE "
+                          + "dataSource = :dataSource AND "
+                          + "sequence_name = :sequence_name AND "
+                          + "sequence_prev_id = :sequence_prev_id",
+                          dbTables.getPendingSegmentsTable()
+                      )
+                  ).bind("dataSource", dataSource)
+                  .bind("sequence_name", sequenceName)
+                  .bind("sequence_prev_id", previousSegmentIdNotNull)
+                  .map(ByteArrayMapper.FIRST)
+                  .list();
+            } else {
+              existingBytes = handle
+                  .createQuery(
+                      StringUtils.format(
+                          "SELECT payload FROM %s WHERE "
+                          + "dataSource = :dataSource AND "
+                          + "sequence_name = :sequence_name AND "
+                          + "start = :start AND "
+                          + "%2$send%2$s = :end",
+                          dbTables.getPendingSegmentsTable(), connector.getQuoteString()
+                      )
+                  ).bind("dataSource", dataSource)
+                  .bind("sequence_name", sequenceName)
+                  .bind("start", interval.getStart().toString())
+                  .bind("end", interval.getEnd().toString())
+                  .map(ByteArrayMapper.FIRST)
+                  .list();
+            }
 
             if (!existingBytes.isEmpty()) {
               final SegmentIdentifier existingIdentifier = jsonMapper.readValue(
@@ -767,6 +788,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     if (!startMetadataMatchesExisting) {
       // Not in the desired start state.
       log.info("Not updating metadata, existing state is not the expected start state.");
+      log.debug("Existing database state [%s], request's start metadata [%s]", oldCommitMetadataFromDb, startMetadata);
       return false;
     }
 
