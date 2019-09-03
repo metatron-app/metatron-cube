@@ -67,19 +67,20 @@ public enum QuantileOperation
           int p = quantileParam.number - 1;
           double total = sketch.getN();
           double mean = total / p;
-          double a;
-          double b;
-          if (max < 0) {
-            // a = (total - p * b) / (p * (p - 1)) * 2
-            b = mean * 0.4;
-            a = (total - p * b) / (p * (p - 1)) * 2;
-          } else {
+          double a = -1;
+          double b = -1;
+          if (max > 0) {
             // a * p + b = max * 0.95
             // ((p * (p - 1)) / 2) * a + p * (max * 0.95 - a * p) = total
             // ((p * (p - 1)) / 2 - p * p) * a + p * (max * 0.95) = total
             // a = (total - p * (max * 0.95)) / ((p * (-p - 1)) / 2)
             a = (total - p * (max * 0.95)) / ((p * (-p - 1)) / 2);
             b = max * 0.95 - a * p;
+          }
+          if (a < 0 || b < 0) {
+            // a = (total - p * b) / (p * (p - 1)) * 2
+            b = mean * 0.4;
+            a = (total - p * b) / (p * (p - 1)) * 2;
           }
           double[] thresholds = new double[quantileParam.number];
           for (int i = 1; i < p; i++) {

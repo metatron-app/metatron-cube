@@ -5844,6 +5844,48 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void test2541()
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setAggregatorSpecs(
+            GenericSumAggregatorFactory.expr("aggregationfunc_000", "isNull(partial_null_column)", ValueDesc.DOUBLE),
+            GenericSumAggregatorFactory.expr("aggregationfunc_001", "isNotNull(partial_null_column)", ValueDesc.DOUBLE)
+        )
+        .setPostAggregatorSpecs(new MathPostAggregator(
+            "D2.0누적실적",
+            "case("
+            + "isFinite(aggregationfunc_000/aggregationfunc_001),aggregationfunc_000/aggregationfunc_001,''"
+            + ")"))
+        .setLimitSpec(LimitSpec.of(
+            new WindowingSpec(
+                null, null, null,
+                PivotSpec.tabular(Arrays.<PivotColumnSpec>asList(), "D2.0누적실적")
+                         .withPartitionExpressions(
+                             "#_ = $sum(_)",
+                             "concat(_, '.percent') = case(#_ == 0, 0.0, cast(\"_\", 'DOUBLE') / #_ * 100)"
+                         )
+        )));
+
+    String[] columnNames = new String[]{"D2.0누적실적", "D2.0누적실적.percent"};
+
+    List<Row> expectedResults = createExpectedRows(columnNames, array(5.5D, 100D));
+    List<Row> results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+
+    // explicit null
+    builder.setPostAggregatorSpecs(new MathPostAggregator(
+            "D2.0누적실적",
+            "case("
+            + "isFinite(aggregationfunc_000/aggregationfunc_001),aggregationfunc_000/aggregationfunc_001,NULL"
+            + ")"));
+    results = runQuery(builder.build());
+    validate(columnNames, expectedResults, results, true);
+  }
+
+  @Test
   public void testPivotWithGroupingSet()
   {
     OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");

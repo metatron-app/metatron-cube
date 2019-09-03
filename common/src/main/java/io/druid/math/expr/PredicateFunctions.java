@@ -101,6 +101,39 @@ public interface PredicateFunctions extends Function.Library
     }
   }
 
+  @Function.Named("isNaN")
+  final class isNaN extends SingleParamBooleanFactory
+  {
+    @Override
+    public boolean evaluate(ExprEval param)
+    {
+      final Double value = param.asDouble();
+      return value != null && Double.isNaN(value);
+    }
+  }
+
+  @Function.Named("isInfinite")
+  final class isInfinite extends SingleParamBooleanFactory
+  {
+    @Override
+    public boolean evaluate(ExprEval param)
+    {
+      final Double value = param.asDouble();
+      return value != null && Double.isInfinite(value);
+    }
+  }
+
+  @Function.Named("isFinite")
+  final class isFinite extends SingleParamBooleanFactory
+  {
+    @Override
+    public boolean evaluate(ExprEval param)
+    {
+      final Double value = param.asDouble();
+      return value != null && Double.isFinite(value);
+    }
+  }
+
   @Function.Named("like")
   final class Like extends NamedFactory.BooleanType
   {

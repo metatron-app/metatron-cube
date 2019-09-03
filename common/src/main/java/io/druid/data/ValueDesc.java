@@ -26,10 +26,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -290,7 +290,22 @@ public class ValueDesc implements Serializable, Cacheable
     return current == null || current.isUnknown() ? notFound : current;
   }
 
-  public static ValueDesc toCommonType(@Nullable ValueDesc type1, @NotNull ValueDesc type2)
+  public static ValueDesc toCommonType(Expr type1, Expr type2)
+  {
+    if (Evals.isExplicitNull(type1)) {
+      return Evals.isExplicitNull(type2) ? null : type2.returns();
+    } else if (Evals.isExplicitNull(type2)) {
+      return type1.returns();
+    }
+    return toCommonType(type1.returns(), type2.returns());
+  }
+
+  public static ValueDesc toCommonType(ValueDesc type1, Expr type2)
+  {
+    return Evals.isExplicitNull(type2) ? type1 : toCommonType(type1, type2.returns());
+  }
+
+  public static ValueDesc toCommonType(ValueDesc type1, ValueDesc type2)
   {
     if (type1 == null) {
       return type2;

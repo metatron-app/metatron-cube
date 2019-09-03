@@ -71,6 +71,7 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Vector;
 import java.util.regex.Matcher;
@@ -1609,12 +1610,13 @@ public interface BuiltinFunctions extends Function.Library
     {
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).returns());
-        if (prev.isUnknown()) {
+        prev = ValueDesc.toCommonType(prev, args.get(i));
+        if (prev != null && prev.isUnknown()) {
           return ValueDesc.UNKNOWN;
         }
       }
-      return ValueDesc.toCommonType(prev, GuavaUtils.lastOf(args).returns());
+      final ValueDesc type = ValueDesc.toCommonType(prev, (Expr) GuavaUtils.lastOf(args));
+      return Optional.ofNullable(type).orElse(ValueDesc.STRING);
     }
   }
 
@@ -1659,9 +1661,9 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() != 2) {
         throw new IAE("function 'nvl' needs 2 arguments");
       }
-      final ValueDesc type1 = args.get(0).returns();
-      final ValueDesc type2 = args.get(1).returns();
-      final ValueDesc common = ValueDesc.toCommonType(type1, type2);
+      final Expr type1 = args.get(0);
+      final Expr type2 = args.get(1);
+      final ValueDesc common = Optional.ofNullable(ValueDesc.toCommonType(type1, type2)).orElse(ValueDesc.STRING);
       return new Function()
       {
         @Override
@@ -1692,11 +1694,11 @@ public interface BuiltinFunctions extends Function.Library
       if (args.isEmpty()) {
         throw new IAE("function 'coalesce' needs at least 1 argument");
       }
-      ValueDesc x = args.get(0).returns();
-      for (int i = 1; i < args.size(); i++) {
-        x = ValueDesc.toCommonType(x, args.get(1).returns());
+      ValueDesc prev = null;
+      for (int i = 0; i < args.size(); i++) {
+        prev = ValueDesc.toCommonType(prev, args.get(i));
       }
-      final ValueDesc type = x;
+      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
       return new Child()
       {
         @Override
@@ -1729,15 +1731,15 @@ public interface BuiltinFunctions extends Function.Library
       }
       ValueDesc prev = null;
       for (int i = 2; i < args.size(); i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).returns());
-        if (prev.equals(ValueDesc.UNKNOWN)) {
+        prev = ValueDesc.toCommonType(prev, args.get(i));
+        if (prev != null && prev.equals(ValueDesc.UNKNOWN)) {
           break;
         }
       }
       if (args.size() % 2 != 1) {
-        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).returns());
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
-      final ValueDesc type = prev;
+      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);;
       return new Child()
       {
         @Override
@@ -1775,15 +1777,15 @@ public interface BuiltinFunctions extends Function.Library
       }
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        prev = ValueDesc.toCommonType(prev, args.get(i).returns());
-        if (prev.equals(ValueDesc.UNKNOWN)) {
+        prev = ValueDesc.toCommonType(prev, args.get(i));
+        if (prev != null && prev.equals(ValueDesc.UNKNOWN)) {
           break;
         }
       }
       if (args.size() % 2 == 1) {
-        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).returns());
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
-      final ValueDesc type = prev;
+      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);;
       return new Child()
       {
         @Override
@@ -1809,7 +1811,7 @@ public interface BuiltinFunctions extends Function.Library
           for (int i = 1; i < size - 1; i += 2) {
             type = ValueDesc.toCommonType(type, args.get(i).eval(bindings).type());
           }
-          return ExprEval.of(null, type == null ? ValueDesc.STRING : type);
+          return ExprEval.of(null, Optional.ofNullable(type).orElse(ValueDesc.STRING));
         }
       };
     }

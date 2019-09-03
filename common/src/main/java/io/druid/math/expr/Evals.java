@@ -338,6 +338,11 @@ public class Evals
     return new AssignExpr(assignee, assigned);
   }
 
+  public static boolean isExplicitNull(Expr expr)
+  {
+    return expr == null || (Evals.isConstantString(expr) && ((StringExpr) expr).get() == null);
+  }
+
   private static class RelayExpr implements Constant
   {
     private final ExprEval eval;

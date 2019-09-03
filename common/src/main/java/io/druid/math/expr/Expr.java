@@ -163,7 +163,7 @@ final class StringExpr implements Constant
 
   public StringExpr(String value)
   {
-    this.value = value;
+    this.value = Strings.emptyToNull(value);
   }
 
   @Override
@@ -185,7 +185,7 @@ final class StringExpr implements Constant
   }
 
   @Override
-  public Object get()
+  public String get()
   {
     return value;
   }

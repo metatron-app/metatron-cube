@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -113,7 +114,7 @@ public class ArithmeticPostAggregator implements PostAggregator
     for (PostAggregator field : fields) {
       type = ValueDesc.toCommonType(type, field.resolve(bindings));
     }
-    return type;
+    return Optional.ofNullable(type).orElse(ValueDesc.UNKNOWN);
   }
 
   @Override
