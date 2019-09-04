@@ -75,7 +75,7 @@ import org.jline.terminal.TerminalBuilder;
 
 import javax.ws.rs.core.MediaType;
 import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -457,7 +457,7 @@ public class DruidShell extends CommonShell.WithUtils
           if (builder.length() > 0) {
             builder.append('\n');
           }
-          if (line.endsWith(";")) {
+          if (line.endsWith(";") || (builder.length() == 0 && line.startsWith("?"))) {
             line = builder.append(line).toString();
           } else {
             builder.append(line);
@@ -487,41 +487,63 @@ public class DruidShell extends CommonShell.WithUtils
           if (sqlPart == null) {
             return;
           }
+          if (builder.length() == sqlPart.length() && sqlPart.startsWith("?")) {
+            // regard it's command
+            String command = sqlPart.substring(1).trim();
+            if (command.startsWith("set")) {
+              if (command.length() == 3) {
+                for (Map.Entry<String, String> entry : properties.entrySet()) {
+                  writer.print("     ");
+                  writer.println(entry);
+                }
+              } else {
+                final String[] property = command.substring(3).trim().split("=");
+                final String key = property[0].trim();
+                if (property.length == 1) {
+                  writer.println(String.format("     %s = %s", key, properties.get(key)));
+                } else if (property.length == 2) {
+                  final String value = property[1].trim();
+                  if (value.isEmpty()) {
+                    properties.remove(key);
+                  } else {
+                    properties.put(key, value);
+                    writer.println(String.format("     %s = %s", key, value));
+                  }
+                } else {
+                  writer.println("     ??");
+                }
+              }
+            } else if (command.startsWith("run")) {
+              StringBuilder temp = new StringBuilder();
+              try (BufferedReader fileReader = new BufferedReader(new FileReader(command.substring(3).trim()))) {
+                String fileLine;
+                while ((fileLine = fileReader.readLine()) != null) {
+                  if (temp.length() > 0) {
+                    temp.append('\n');
+                  }
+                  temp.append(fileLine);
+                  writer.println(fileLine);
+                }
+                writer.flush();
+                if (temp.length() > 0) {
+                  String sql = temp.toString().trim();
+                  if (sql.endsWith(";")) {
+                    sql = sql.substring(0, sql.length() - 1);
+                  }
+                  runSQL(brokerURLs, writer, sql, properties);
+                }
+              }
+            }
+            builder.setLength(0);
+            continue;
+          }
           if (sqlPart.endsWith(";")) {
             String SQL = builder.toString();
             if (SQL.length() == 1) {
               break;
             }
             String sqlString = SQL.substring(0, SQL.length() - 1).trim();
-            if (sqlString.startsWith("?")) {
-              // regard it's command
-              if (sqlString.startsWith("?set")) {
-                if (sqlString.length() == 4) {
-                  for (Map.Entry<String, String> entry : properties.entrySet()) {
-                    writer.print("     ");
-                    writer.println(entry);
-                  }
-                } else {
-                  final String[] property = sqlString.substring(4).trim().split("=");
-                  final String key = property[0].trim();
-                  if (property.length == 1) {
-                    writer.println(String.format("     %s = %s", key, properties.get(key)));
-                  } else if (property.length == 2) {
-                    final String value = property[1].trim();
-                    if (value.isEmpty()) {
-                      properties.remove(key);
-                    } else {
-                      properties.put(key, value);
-                      writer.println(String.format("     %s = %s", key, value));
-                    }
-                  } else {
-                    writer.println("     ??");
-                  }
-                }
-              }
-            } else {
-              runSQL(brokerURLs, writer, sqlString, properties);
-            }
+            runSQL(brokerURLs, writer, sqlString, properties);
             builder.setLength(0);
           }
         }
