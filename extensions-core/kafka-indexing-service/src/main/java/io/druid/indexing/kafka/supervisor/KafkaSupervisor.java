@@ -1770,6 +1770,11 @@ public class KafkaSupervisor implements Supervisor
                                             .put(IS_INCREMENTAL_HANDOFF_SUPPORTED, true)
                                             .putAll(spec.getContext())
                                             .build();
+    String specId = null;
+    if (!spec.getId().equals(spec.getDataSchema().getDataSource())) {
+      log.warn("Supervisor created with no verify duplicate datasource. Should shutdown and re-create it.", spec.getId());
+      specId = spec.getId();
+    }
     for (int i = 0; i < replicas; i++) {
       String taskId = Joiner.on("_").join(sequenceName, getRandomId());
       KafkaIndexTask indexTask = new KafkaIndexTask(
@@ -1778,7 +1783,9 @@ public class KafkaSupervisor implements Supervisor
           spec.getDataSchema(),
           taskTuningConfig,
           kafkaIOConfig,
-          context,
+          specId == null
+            ? context
+            : ImmutableMap.<String, Object>builder().put("supervisorId", specId).putAll(context).build(),
           null
       );
 

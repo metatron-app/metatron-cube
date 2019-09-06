@@ -203,7 +203,7 @@ public class SupervisorManager
     }
     pair.lhs.stop(true);
     supervisors.remove(id);
-
+    log.info("datasource duplicated and stopped. id = %s", id);
     return true;
   }
 

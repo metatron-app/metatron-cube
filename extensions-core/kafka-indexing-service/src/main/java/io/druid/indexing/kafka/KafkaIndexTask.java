@@ -153,6 +153,8 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   private static final String METADATA_NEXT_PARTITIONS = "nextPartitions";
   private static final String METADATA_PUBLISH_PARTITIONS = "publishPartitions";
 
+  @Deprecated // Only for the backward compatibility(UUID). Id should be datasource.
+  private final String supervisorId;
   private final DataSchema dataSchema;
   private final InputRowParser<ByteBuffer> parser;
   private final KafkaTuningConfig tuningConfig;
@@ -270,6 +272,12 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       useLegacy = false;
     } else {
       useLegacy = true;
+    }
+
+    if (context != null && context.get("supervisorId") != null) {
+      this.supervisorId = context.get("supervisorId").toString();
+    } else {
+      this.supervisorId = null;
     }
   }
 
@@ -728,7 +736,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
             );
             requestPause(PAUSE_FOREVER);
             if (!toolbox.getTaskActionClient().submit(new CheckPointDataSourceMetadataAction(
-                getDataSource(),
+                supervisorId == null ? getDataSource() : supervisorId,
                 ioConfig.getBaseSequenceName(),
                 new KafkaDataSourceMetadata(new KafkaPartitions(topic, sequenceToCheckpoint.getStartOffsets())),
                 new KafkaDataSourceMetadata(new KafkaPartitions(topic, nextOffsets))

@@ -95,7 +95,7 @@ public class KafkaSupervisorSpec implements SupervisorSpec
                             null
                         );
     this.ioConfig = Preconditions.checkNotNull(ioConfig, "ioConfig");
-    this.id = id == null ? UUIDUtils.generateUuid(dataSchema.getDataSource()) : id;
+    this.id = id == null ? dataSchema.getDataSource() : id;
     this.context = context;
 
     this.taskStorage = taskStorage;
