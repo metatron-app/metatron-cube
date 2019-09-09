@@ -29,18 +29,22 @@ import io.druid.data.output.Formatter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -103,26 +107,39 @@ public class OrcFormatter implements Formatter
       throws JsonProcessingException
   {
     if (object == null) {
-      vector.isNull[rowId] = true;
-      vector.noNulls = false;
+      setNull(vector, rowId);
       return;
     }
     switch (column.getCategory()) {
       case INT:
       case LONG:
-        ((LongColumnVector) vector).vector[rowId] = Rows.parseLong(object);
+        final Long longVal = Rows.parseLong(object);
+        if (longVal != null) {
+          ((LongColumnVector) vector).vector[rowId] = longVal;
+          return;
+        }
         break;
       case FLOAT:
       case DOUBLE:
-        ((DoubleColumnVector) vector).vector[rowId] = Rows.parseDouble(object);
+        final Double doubleVal = Rows.parseDouble(object);
+        if (doubleVal != null) {
+          ((DoubleColumnVector) vector).vector[rowId] = doubleVal;
+          return;
+        }
         break;
+      case DECIMAL:
+        if (object instanceof BigDecimal) {
+          ((DecimalColumnVector) vector).vector[rowId] =
+              new HiveDecimalWritable(HiveDecimal.create((BigDecimal) object));
+        }
+        return;
       case STRING:
         ((BytesColumnVector) vector).setVal(rowId, StringUtils.toUtf8(object.toString()));
-        break;
+        return;
       case BINARY:
         byte[] b = object instanceof byte[] ? (byte[]) object : mapper.writeValueAsBytes(object);
         ((BytesColumnVector) vector).setVal(rowId, b, 1, b.length - 1);
-        break;
+        return;
       case LIST:
         final ListColumnVector list = (ListColumnVector) vector;
         final TypeDescription elementType = column.getChildren().get(0);
@@ -151,10 +168,17 @@ public class OrcFormatter implements Formatter
         list.offsets[rowId] = offset;
         list.lengths[rowId] = length;
         list.childCount += length;
-        break;
+        return;
       default:
         throw new UnsupportedOperationException("Not supported type " + column.getCategory());
     }
+    setNull(vector, rowId);
+  }
+
+  private void setNull(ColumnVector vector, int index)
+  {
+    vector.isNull[index] = true;
+    vector.noNulls = false;
   }
 
   @Override
