@@ -80,7 +80,7 @@ public class GroupByQueryRunnerFactory
 {
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
-  private static final int MAX_LOCAL_SPLIT = 32;
+  private static final int MAX_LOCAL_SPLIT = 64;
 
   private final GroupByQueryEngine engine;
   private final QueryConfig config;
@@ -241,7 +241,13 @@ public class GroupByQueryRunnerFactory
       if (splitCardinality > 1) {
         splitCardinality = Math.min(splitCardinality, maxResults);
         long cardinality = Queries.estimateCardinality(query, segmentWalker, config);
-        numSplit = (int) Math.ceil((double) cardinality / splitCardinality);
+        if (cardinality <= 0) {
+          return null;    // failed ?
+        }
+        numSplit = (int) Math.ceil(cardinality * 1.2 / splitCardinality);
+        if (numSplit > 1) {
+          logger.info("Expected cardinality %d, split into %d queries", cardinality, numSplit);
+        }
       }
     }
     if (numSplit > MAX_LOCAL_SPLIT) {

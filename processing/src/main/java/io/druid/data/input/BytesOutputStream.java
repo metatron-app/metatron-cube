@@ -29,6 +29,7 @@ import java.io.IOException;
 // copied from ByteStreams.ByteArrayDataOutputStream
 public class BytesOutputStream extends ByteArrayOutputStream implements ByteArrayDataOutput
 {
+  private int mark;
   private final DataOutput output;
 
   public BytesOutputStream()
@@ -179,6 +180,11 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     catch (IOException impossible) {
       throw new AssertionError(impossible);
     }
+  }
+
+  public void reset(int mark)
+  {
+    count = mark;
   }
 
   public void writeVarSizeBytes(byte[] value)

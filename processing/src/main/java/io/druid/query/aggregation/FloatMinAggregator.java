@@ -50,16 +50,14 @@ public abstract class FloatMinAggregator extends Aggregator.Abstract<MutableFloa
         @Override
         public MutableFloat aggregate(final MutableFloat current)
         {
-          if (predicate.matches()) {
-            final Float value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableFloat(value);
-            }
-            current.setValue(Math.min(current.floatValue(), value));
+          final Float value = selector.get();
+          if (value == null) {
+            return current;
           }
+          if (current == null) {
+            return new MutableFloat(value);
+          }
+          current.setValue(Math.min(current.floatValue(), value));
           return current;
         }
       };

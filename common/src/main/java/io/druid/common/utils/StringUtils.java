@@ -22,7 +22,10 @@ package io.druid.common.utils;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 
+import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
 import java.util.IllegalFormatException;
 import java.util.Locale;
 import java.util.Objects;
@@ -59,6 +62,18 @@ public class StringUtils extends com.metamx.common.StringUtils
   };
 
   public static final byte[] EMPTY_BYTES = new byte[0];
+
+  @Nullable
+  public static byte[] nullableToUtf8(@Nullable final String string)
+  {
+    try {
+      return string == null ? null : string.getBytes(UTF8_STRING);
+    }
+    catch (UnsupportedEncodingException e) {
+      // Should never happen
+      throw Throwables.propagate(e);
+    }
+  }
 
   // should be used only for estimation
   // returns the same result with StringUtils.fromUtf8(value).length for valid string values

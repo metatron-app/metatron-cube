@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.hyperloglog;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
@@ -309,6 +310,28 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     add(bucket, positionOf1);
   }
 
+  // murmur128
+  public synchronized void add(long[] hashedValue)
+  {
+    estimatedCardinality = null;
+    final short bucket = (short) (hashedValue[1] & bucketMask);
+
+    byte positionOf1 = 0;
+    long reversed = Long.reverseBytes(hashedValue[0]);
+    for (int i = 0; i < 8; ++i) {
+      final byte lookupVal = ByteBitLookup.lookup[(int) (reversed & 0xff)];
+      if (lookupVal != 0) {
+        positionOf1 += lookupVal;
+        break;
+      }
+      positionOf1 += (byte) 8;
+      reversed >>= 8;
+    }
+
+    add(bucket, positionOf1);
+  }
+
+  @VisibleForTesting
   public synchronized void add(short bucket, byte positionOf1)
   {
     if (storageBuffer.isReadOnly()) {

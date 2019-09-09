@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.cardinality;
 
+import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.filter.ValueMatcher;
@@ -33,6 +34,7 @@ public class CardinalityBufferAggregator extends BufferAggregator.Abstract
   private final ValueMatcher predicate;
   private final int[][] groupings;
   private final boolean byRow;
+  private final BytesOutputStream buffer = new BytesOutputStream();
 
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
 
@@ -73,9 +75,9 @@ public class CardinalityBufferAggregator extends BufferAggregator.Abstract
       try {
         final HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buf);
         if (byRow) {
-          CardinalityAggregator.hashRow(selectorList, groupings, collector);
+          CardinalityAggregator.hashRow(selectorList, groupings, collector, buffer);
         } else {
-          CardinalityAggregator.hashValues(selectorList, collector);
+          CardinalityAggregator.hashValues(selectorList, collector, buffer);
         }
       }
       finally {

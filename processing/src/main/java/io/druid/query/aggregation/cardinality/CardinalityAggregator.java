@@ -19,122 +19,183 @@
 
 package io.druid.query.aggregation.cardinality;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.groupby.UTF8Bytes;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 public class CardinalityAggregator extends Aggregator.Simple<HyperLogLogCollector>
 {
-  private static final String NULL_STRING = "\u0000";
+  // aggregator can be shared by multi threads
+  private static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
+  {
+    @Override
+    protected BytesOutputStream initialValue()
+    {
+      return new BytesOutputStream();
+    }
+  };
 
   private final ValueMatcher predicate;
   private final List<DimensionSelector> selectorList;
   private final int[][] groupings;
   private final boolean byRow;
 
-  private static final HashFunction hashFn = Hashing.murmur3_128();
-  public static final char SEPARATOR = '\u0001';
-
-  protected static void hashRow(List<DimensionSelector> selectorList, int[][] groupings, HyperLogLogCollector collector)
+  protected static void hashRow(
+      List<DimensionSelector> selectorList,
+      int[][] groupings,
+      HyperLogLogCollector collector,
+      BytesOutputStream buffer
+  )
   {
     final Object[] values = new Object[selectorList.size()];
     for (int i = 0; i < values.length; i++) {
       final DimensionSelector selector = selectorList.get(i);
-      final IndexedInts row = selector.getRow();
-      // nothing to add to hasher if size == 0, only handle size == 1 and size != 0 cases.
-      if (row.size() == 1) {
-        values[i] = Objects.toString(selector.lookupName(row.get(0)), NULL_STRING);
-      } else {
-        final String[] multi = new String[row.size()];
-        for (int j = 0; j < multi.length; ++j) {
-          multi[j] = Objects.toString(selector.lookupName(row.get(j)), NULL_STRING);
-        }
-        // Values need to be sorted to ensure consistent multi-value ordering across different segments
-        Arrays.sort(multi);
-        values[i] = multi;
-      }
+      values[i] = toValue(selector, selector instanceof DimensionSelector.WithRawAccess, groupings == null);
     }
     if (groupings == null) {
-      collector.add(makeHash(values).hash().asBytes());
+      collect(values, collector, buffer);
     } else {
       if (groupings.length == 0) {
-        populateAndHash(values, 0, collector);
+        populateAndCollect(values, 0, collector, buffer);
       } else {
         for (int[] grouping : groupings) {
           final Object[] copy = new Object[values.length];
           for (int index : grouping) {
             copy[index] = values[index];
           }
-          populateAndHash(copy, 0, collector);
+          populateAndCollect(copy, 0, collector, buffer);
         }
       }
     }
   }
 
-  private static void populateAndHash(final Object[] values, final int index, final HyperLogLogCollector collector)
+  private static Object toValue(final DimensionSelector selector, final boolean rawBytes, final boolean sort)
+  {
+    final IndexedInts row = selector.getRow();
+    // nothing to add to hasher if size == 0, only handle size == 1 and size != 0 cases.
+    final int length = row.size();
+    if (length == 1) {
+      return _toValue(selector, row.get(0), rawBytes);
+    }
+    if (length > 1) {
+      final byte[][] multi = new byte[length][];
+      for (int j = 0; j < multi.length; ++j) {
+        multi[j] = _toValue(selector, row.get(j), rawBytes);
+      }
+      // Values need to be sorted to ensure consistent multi-value ordering across different segments
+      if (sort) {
+        Arrays.sort(multi, UTF8Bytes.COMPARATOR_NF);
+      }
+      return multi;
+    }
+    return null;
+  }
+
+  @Nullable
+  private static byte[] _toValue(final DimensionSelector selector, final int id, final boolean rawBytes)
+  {
+    if (rawBytes) {
+      return ((DimensionSelector.WithRawAccess) selector).lookupRaw(id);
+    } else {
+      return StringUtils.nullableToUtf8(Objects.toString(selector.lookupName(id), null));
+    }
+  }
+
+  private static final byte NULL_VALUE  = (byte) 0x00;    // HLL seemingly expects this to be zero
+  private static final byte COLUMN_SEPARATOR = (byte) 0x01;
+  private static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
+
+  // concat multi-valued dimension
+  private static void collect(
+      final Object[] values,
+      final HyperLogLogCollector collector,
+      final BytesOutputStream buffer
+  )
+  {
+    write(values[0], buffer);
+    for (int i = 1; i < values.length; i++) {
+      buffer.writeByte(COLUMN_SEPARATOR);
+      write(values[i], buffer);
+    }
+    collector.add(Murmur3.hash128(buffer.toByteArray()));
+    buffer.reset();
+  }
+
+  // mimics group-by like population of multi-valued dimension
+  private static void populateAndCollect(
+      final Object[] values,
+      final int index,
+      final HyperLogLogCollector collector,
+      final BytesOutputStream buffer
+  )
   {
     if (values.length == index) {
-      collector.add(makeHash(values).hash().asBytes());
+      collector.add(Murmur3.hash128(buffer.toByteArray()));
       return;
     }
+    if (index > 0) {
+      buffer.write(COLUMN_SEPARATOR);
+    }
     final Object value = values[index];
-    if (value == null || value instanceof String) {
-      populateAndHash(values, index + 1, collector);
+    if (value == null) {
+      buffer.write(NULL_VALUE);
+      populateAndCollect(values, index + 1, collector, buffer);
+    } else if (value instanceof byte[]) {
+      buffer.write((byte[]) value);
+      populateAndCollect(values, index + 1, collector, buffer);
     } else {
-      for (String element : (String[]) value) {
-        Object[] copy = Arrays.copyOf(values, values.length);
-        copy[index] = element;
-        populateAndHash(copy, index + 1, collector);
+      final byte[][] array = (byte[][]) value;
+      final int mark = buffer.size();
+      for (byte[] element : array) {
+        buffer.write(element);
+        populateAndCollect(values, index + 1, collector, buffer);
+        buffer.reset(mark);
       }
     }
-  }
-  private static Hasher makeHash(final Object[] values)
-  {
-    final Hasher hasher = hashFn.newHasher();
-    for (int i = 0; i < values.length; i++) {
-      if (i != 0) {
-        hasher.putByte((byte) 0);
-      }
-      final Object value = values[i];
-      if (value == null) {
-        hasher.putUnencodedChars(NULL_STRING);
-      } else if (value instanceof String) {
-        hasher.putUnencodedChars((String) value);
-      } else {
-        final String[] multi = (String[]) value;
-        for (int j = 0; j < multi.length; j++) {
-          if (j != 0) {
-            hasher.putChar(SEPARATOR);
-          }
-          hasher.putUnencodedChars(multi[j]);
-        }
-      }
+    if (index == 0) {
+      buffer.reset();
     }
-    if (values.length == 0) {
-      hasher.putUnencodedChars(NULL_STRING);
-    }
-    return hasher;
   }
 
-  protected static void hashValues(final List<DimensionSelector> selectors, HyperLogLogCollector collector)
+  private static void write(final Object value, final BytesOutputStream buffer)
   {
-    for (final DimensionSelector selector : selectors) {
-      for (final Integer index : selector.getRow()) {
-        final String value = Objects.toString(selector.lookupName(index), null);
-        collector.add(hashFn.hashUnencodedChars(value == null ? NULL_STRING : value).asBytes());
+    if (value == null) {
+      buffer.write(NULL_VALUE);
+    } else if (value instanceof byte[]) {
+      buffer.write((byte[]) value);
+    } else {
+      final byte[][] values = (byte[][]) value;
+      write(values[0], buffer);
+      for (int i = 1; i < values.length; i++) {
+        buffer.writeByte(MULTIVALUE_SEPARATOR);
+        write(values[i], buffer);
       }
     }
-    if (selectors.isEmpty()) {
-      collector.add(hashFn.hashUnencodedChars(NULL_STRING).asBytes());
+  }
+
+  protected static void hashValues(
+      final List<DimensionSelector> selectors,
+      final HyperLogLogCollector collector,
+      final BytesOutputStream buffer
+  )
+  {
+    for (final DimensionSelector selector : selectors) {
+      final boolean rawAccess = selector instanceof DimensionSelector.WithRawAccess;
+      for (final Integer index : selector.getRow()) {
+        write(_toValue(selector, index, rawAccess), buffer);
+        collector.add(Murmur3.hash128(buffer.toByteArray()));
+        buffer.reset();
+      }
     }
   }
 
@@ -163,10 +224,14 @@ public class CardinalityAggregator extends Aggregator.Simple<HyperLogLogCollecto
       if (current == null) {
         current = HyperLogLogCollector.makeLatestCollector();
       }
+      if (selectorList.isEmpty()) {
+        current.add(Murmur3.hash128(new byte[]{NULL_VALUE}));
+        return current;
+      }
       if (byRow) {
-        hashRow(selectorList, groupings, current);
+        hashRow(selectorList, groupings, current, BUFFERS.get());
       } else {
-        hashValues(selectorList, current);
+        hashValues(selectorList, current, BUFFERS.get());
       }
     }
     return current;
