@@ -210,7 +210,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
       @Override
       public Object combine(Object lhs, Object rhs)
       {
-        return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
+        return lhs == null ? rhs : comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
       }
     };
   }
