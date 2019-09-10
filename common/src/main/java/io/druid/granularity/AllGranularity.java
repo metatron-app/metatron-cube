@@ -21,6 +21,7 @@ package io.druid.granularity;
 
 import com.google.common.collect.ImmutableList;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.format.DateTimeFormatter;
@@ -58,6 +59,12 @@ public class AllGranularity extends Granularity
   public DateTime bucketStart(DateTime time)
   {
     return DateTimes.MIN;
+  }
+
+  @Override
+  public long bucketStart(long current)
+  {
+    return JodaUtils.MIN_INSTANT;
   }
 
   @Override

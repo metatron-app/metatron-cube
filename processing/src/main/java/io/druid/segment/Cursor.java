@@ -27,7 +27,7 @@ import org.joda.time.DateTime;
 public interface Cursor extends ColumnSelectorFactory
 {
   public DateTime getTime();
-  public DateTime getRowTime();
+  public long getRowTimestamp();
   public void advance();
   public void advanceTo(int offset);
   public boolean isDone();

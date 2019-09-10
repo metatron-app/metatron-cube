@@ -152,14 +152,12 @@ public abstract class Granularity implements Cacheable
   }
 
   // made just for compile success.. consider using other 'safe' methods
-  @Deprecated
-  public long next(long current)
+  public long bucketEnd(long current)
   {
     return this == Granularities.NONE ? current + 1 : bucketEnd(toDateTime(current)).getMillis();
   }
 
-  @Deprecated
-  public long truncate(long current)
+  public long bucketStart(long current)
   {
     return this == Granularities.NONE ? current : bucketStart(toDateTime(current)).getMillis();
   }

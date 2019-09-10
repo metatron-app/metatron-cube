@@ -157,12 +157,12 @@ public class TimeseriesQueryEngine
               public Row next()
               {
                 while (!cursor.isDone()) {
-                  final DateTime current = granularity.bucketStart(cursor.getRowTime());
+                  final long current = granularity.bucketStart(cursor.getRowTimestamp());
                   if (prev == null) {
-                    prev = current;
-                  } else if (prev.getMillis() != current.getMillis()) {
+                    prev = granularity.toDateTime(current);
+                  } else if (prev.getMillis() != current) {
                     Row row = flushRow(prev, values, aggregators);
-                    prev = current;
+                    prev = granularity.toDateTime(current);
                     return row;
                   }
                   Aggregators.aggregate(values, aggregators);

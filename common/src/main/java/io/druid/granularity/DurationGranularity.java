@@ -91,13 +91,18 @@ public class DurationGranularity extends Granularity
   @Override
   public DateTime bucketStart(DateTime time)
   {
-    long t = time.getMillis();
+    return new DateTime(bucketStart(time.getMillis()), time.getChronology());
+  }
+
+  @Override
+  public long bucketStart(long current)
+  {
     final long duration = getDurationMillis();
-    long offset = t % duration - origin;
+    long offset = current % duration - origin;
     if (offset < 0) {
       offset += duration;
     }
-    return new DateTime(t - offset, time.getChronology());
+    return current - offset;
   }
 
   @Override

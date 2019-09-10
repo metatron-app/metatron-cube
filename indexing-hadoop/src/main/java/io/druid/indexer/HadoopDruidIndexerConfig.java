@@ -456,7 +456,7 @@ public class HadoopDruidIndexerConfig
     final DateTime bucketStart = timeBucket.get().getStart();
     final ShardSpec actualSpec = shardSpecLookups.get(bucketStart.getMillis())
                                                  .getShardSpec(
-                                                     rollupGran.truncate(inputRow.getTimestampFromEpoch()),
+                                                     rollupGran.bucketStart(inputRow.getTimestampFromEpoch()),
                                                      inputRow
                                                  );
     final HadoopyShardSpec hadoopyShardSpec = hadoopShardSpecLookup.get(bucketStart.getMillis()).get(actualSpec);

@@ -116,7 +116,7 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   @Override
   public String apply(long value)
   {
-    long truncated = granularity.truncate(value);
+    long truncated = granularity.bucketStart(value);
     return formatter == null ? String.valueOf(truncated) : formatter.print(truncated);
   }
 

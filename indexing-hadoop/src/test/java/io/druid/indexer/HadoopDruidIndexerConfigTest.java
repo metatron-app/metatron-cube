@@ -241,7 +241,7 @@ public class HadoopDruidIndexerConfigTest
     );
     final long timestamp = new DateTime("2010-01-01T01:00:01").getMillis();
     final Bucket expectedBucket = config.getBucket(new MapBasedInputRow(timestamp, dims, values)).get();
-    final long nextBucketTimestamp = QueryGranularities.MINUTE.next(timestamp);
+    final long nextBucketTimestamp = QueryGranularities.MINUTE.bucketEnd(timestamp);
     // check that all rows having same set of dims and truncated timestamp hash to same bucket
     for (int i = 0; timestamp + i < nextBucketTimestamp; i++) {
       Assert.assertEquals(

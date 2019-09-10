@@ -435,9 +435,9 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     }
 
                     @Override
-                    public DateTime getRowTime()
+                    public long getRowTimestamp()
                     {
-                      return granularity.toDateTime(timestamps.getLong(cursorOffset.getOffset()));
+                      return timestamps.getLong(cursorOffset.getOffset());
                     }
 
                     @Override

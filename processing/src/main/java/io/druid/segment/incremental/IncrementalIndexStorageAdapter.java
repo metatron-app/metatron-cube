@@ -313,9 +313,9 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               }
 
               @Override
-              public DateTime getRowTime()
+              public long getRowTimestamp()
               {
-                return granularity.toDateTime(currEntry.getKey().getTimestamp());
+                return currEntry.getKey().getTimestamp();
               }
 
               @Override

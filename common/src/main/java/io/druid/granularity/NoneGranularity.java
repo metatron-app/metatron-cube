@@ -58,6 +58,12 @@ public class NoneGranularity extends Granularity
   }
 
   @Override
+  public long bucketStart(long current)
+  {
+    return current;
+  }
+
+  @Override
   public DateTime toDate(String filePath, Formatter formatter)
   {
     throw new UnsupportedOperationException("This method should not be invoked for this granularity type");

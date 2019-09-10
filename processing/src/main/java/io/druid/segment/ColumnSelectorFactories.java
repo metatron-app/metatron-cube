@@ -218,7 +218,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public DateTime getRowTime()
+    public long getRowTimestamp()
     {
       throw new UnsupportedOperationException("getRowTime");
     }
@@ -811,9 +811,9 @@ public class ColumnSelectorFactories
               }
 
               @Override
-              public DateTime getRowTime()
+              public long getRowTimestamp()
               {
-                return input.getStart();
+                return input.getStartMillis();
               }
 
               @Override

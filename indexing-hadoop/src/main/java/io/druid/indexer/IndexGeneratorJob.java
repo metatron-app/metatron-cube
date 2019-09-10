@@ -311,7 +311,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       }
 
       final long timestampFromEpoch = inputRow.getTimestampFromEpoch();
-      final long truncatedTimestamp = granularitySpec.getQueryGranularity().truncate(timestampFromEpoch);
+      final long truncatedTimestamp = granularitySpec.getQueryGranularity().bucketStart(timestampFromEpoch);
       final byte[] hashedDimensions = Rows.toGroupHash(
           hashFunction.newHasher(), truncatedTimestamp, inputRow, partitionDimensions
       ).asBytes();

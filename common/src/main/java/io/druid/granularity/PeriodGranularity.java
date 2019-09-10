@@ -142,6 +142,12 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
     return new DateTime(_truncate(time.getMillis()), getTimeZone());
   }
 
+  @Override
+  public long bucketStart(long current)
+  {
+    return _truncate(current);
+  }
+
   // Used only for Segments. Not for Queries
   @Override
   public DateTime toDate(String filePath, Formatter formatter)

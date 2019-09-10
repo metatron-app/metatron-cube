@@ -110,7 +110,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   )
   {
     return interval.contains(inputRow.getTimestampFromEpoch())
-           && shardSpec.isInChunk(rollupGran.truncate(inputRow.getTimestampFromEpoch()), inputRow);
+           && shardSpec.isInChunk(rollupGran.bucketStart(inputRow.getTimestampFromEpoch()), inputRow);
   }
 
   private static String makeId(String id, IndexIngestionSpec ingestionSchema)
@@ -342,7 +342,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         }
         if (interval.contains(inputRow.getTimestampFromEpoch())) {
           final List<Object> groupKey = Rows.toGroupKey(
-              queryGranularity.truncate(inputRow.getTimestampFromEpoch()),
+              queryGranularity.bucketStart(inputRow.getTimestampFromEpoch()),
               inputRow
           );
           collector.add(

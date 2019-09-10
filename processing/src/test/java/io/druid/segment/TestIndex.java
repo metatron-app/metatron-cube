@@ -335,7 +335,7 @@ public class TestIndex
                 index.add((Row) inputRow);
               }
               for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
-                Interval interval = new Interval(entry.getKey(), granularity.next(entry.getKey()));
+                Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));
                 DataSegment segment = new DataSegment(
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
