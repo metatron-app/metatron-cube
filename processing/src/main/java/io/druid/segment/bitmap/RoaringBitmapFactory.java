@@ -18,6 +18,7 @@ package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import org.roaringbitmap.IntIterator;
 
 import java.util.BitSet;
@@ -33,6 +34,19 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   public RoaringBitmapFactory(boolean compressRunOnSerialization)
   {
     super(compressRunOnSerialization);
+  }
+
+  @Override
+  public ImmutableBitmap makeEmptyImmutableBitmap()
+  {
+    return new WrappedImmutableRoaringBitmap(((WrappedImmutableRoaringBitmap) super.makeEmptyImmutableBitmap()).getBitmap())
+    {
+      @Override
+      public boolean get(int value)
+      {
+        return false;
+      }
+    };
   }
 
   @Override
