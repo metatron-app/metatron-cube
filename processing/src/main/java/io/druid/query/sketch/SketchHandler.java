@@ -178,7 +178,7 @@ public interface SketchHandler<U>
         for (int i = 0; i < cardinality; ++i) {
           List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
           ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
-          if (bitmap.size() > 0) {
+          if (!bitmap.isEmpty()) {
             union.value().update(bitmapIndex.getValueAsRaw(i));
           }
         }
@@ -186,7 +186,7 @@ public interface SketchHandler<U>
         for (int i = 0; i < cardinality; ++i) {
           List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
           ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
-          if (bitmap.size() > 0) {
+          if (!bitmap.isEmpty()) {
             union.value().update(function.apply(bitmapIndex.getValue(i)));
           }
         }
@@ -283,7 +283,7 @@ public interface SketchHandler<U>
       for (int i = 0; i < cardinality; ++i) {
         final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
         final ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
-        if (bitmap.size() > 0) {
+        if (!bitmap.isEmpty()) {
           final String value = extraction.apply(bitmapIndex.getValue(i));
           update(union, value, bitmap.size());
         }

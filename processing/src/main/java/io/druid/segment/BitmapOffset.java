@@ -77,7 +77,7 @@ public class BitmapOffset implements Offset
   @Override
   public Offset clone()
   {
-    if (bitmapIndex == null || bitmapIndex.size() == 0) {
+    if (bitmapIndex == null || bitmapIndex.isEmpty()) {
       return new BitmapOffset(bitmapFactory, bitmapFactory.makeEmptyImmutableBitmap(), descending);
     }
 

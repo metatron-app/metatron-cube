@@ -27,6 +27,8 @@ import java.io.IOException;
  */
 public abstract class AbstractGenericColumn implements GenericColumn
 {
+  protected static final int DEFAULT_PREFETCH = 32;
+
   @Override
   public String getString(int rowNum)
   {

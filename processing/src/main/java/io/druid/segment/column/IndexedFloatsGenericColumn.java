@@ -32,10 +32,15 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   private final IndexedFloats column;
   private final ImmutableBitmap nulls;
 
+  private int from = -1;
+  private int to = -1;
+  private final float[] buffered;
+
   public IndexedFloatsGenericColumn(IndexedFloats column, ImmutableBitmap nulls)
   {
     this.column = column;
     this.nulls = nulls;
+    this.buffered = new float[DEFAULT_PREFETCH];
   }
 
   @Override
@@ -53,25 +58,40 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   @Override
   public Double getDouble(int rowNum)
   {
-    return nulls.get(rowNum) ? null : (double) column.get(rowNum);
+    final Float value = getValue(rowNum);
+    return value == null ? null : value.doubleValue();
   }
 
   @Override
   public Float getFloat(int rowNum)
   {
-    return nulls.get(rowNum) ? null : column.get(rowNum);
+    return getValue(rowNum);
   }
 
   @Override
   public Long getLong(int rowNum)
   {
-    return nulls.get(rowNum) ? null : (long) column.get(rowNum);
+    final Float value = getValue(rowNum);
+    return value == null ? null : value.longValue();
   }
 
   @Override
-  public Object getValue(int rowNum)
+  public Float getValue(final int rowNum)
   {
-    return getFloat(rowNum);
+    if (nulls.get(rowNum)) {
+      return null;
+    }
+    if (rowNum >= from && rowNum < to) {
+      return buffered[rowNum - from];
+    }
+    final int loaded = column.fill(rowNum, buffered);
+    if (loaded == 0) {
+      from = to = -1;
+      return null;
+    }
+    from = rowNum;
+    to = rowNum + loaded;
+    return buffered[0];
   }
 
   @Override

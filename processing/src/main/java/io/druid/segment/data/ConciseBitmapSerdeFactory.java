@@ -60,13 +60,13 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
         WrappedImmutableConciseBitmap conciseSet, WrappedImmutableConciseBitmap conciseSet1
     )
     {
-      if (conciseSet.size() == 0 && conciseSet1.size() == 0) {
+      if (conciseSet.isEmpty() && conciseSet1.isEmpty()) {
         return 0;
       }
-      if (conciseSet.size() == 0) {
+      if (conciseSet.isEmpty()) {
         return -1;
       }
-      if (conciseSet1.size() == 0) {
+      if (conciseSet1.isEmpty()) {
         return 1;
       }
       return conciseSet.compareTo(conciseSet1);
@@ -93,7 +93,7 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
     @Override
     public byte[] toBytes(ImmutableBitmap val)
     {
-      if (val == null || val.size() == 0) {
+      if (val == null || val.isEmpty()) {
         return new byte[]{};
       }
       return val.toBytes();

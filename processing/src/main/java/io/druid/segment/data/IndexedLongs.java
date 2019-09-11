@@ -26,9 +26,9 @@ import java.io.Closeable;
  */
 public interface IndexedLongs extends Closeable
 {
-  public int size();
-  public long get(int index);
-  public void fill(int index, long[] toFill);
+  int size();
+  long get(int index);
+  int fill(int index, long[] toFill);
   int binarySearch(long key);
   int binarySearch(long key, int from, int to);
 }

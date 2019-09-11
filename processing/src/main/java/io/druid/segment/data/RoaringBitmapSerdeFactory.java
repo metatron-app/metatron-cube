@@ -61,13 +61,13 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
         WrappedImmutableRoaringBitmap set1, WrappedImmutableRoaringBitmap set2
     )
     {
-      if (set1.size() == 0 && set2.size() == 0) {
+      if (set1.isEmpty() && set2.isEmpty()) {
         return 0;
       }
-      if (set1.size() == 0) {
+      if (set1.isEmpty()) {
         return -1;
       }
-      if (set2.size() == 0) {
+      if (set2.isEmpty()) {
         return 1;
       }
 
@@ -98,7 +98,7 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
     @Override
     public byte[] toBytes(ImmutableBitmap val)
     {
-      if (val == null || val.size() == 0) {
+      if (val == null || val.isEmpty()) {
         return new byte[]{};
       }
       return val.toBytes();

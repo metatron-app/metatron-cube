@@ -26,7 +26,7 @@ import java.io.Closeable;
  */
 public interface IndexedFloats extends Closeable
 {
-  public int size();
-  public float get(int index);
-  public void fill(int index, float[] toFill);
+  int size();
+  float get(int index);
+  int fill(int index, float[] toFill);
 }

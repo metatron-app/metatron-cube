@@ -253,34 +253,23 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     }
 
     @Override
-    public void fill(int index, double[] toFill)
+    public int fill(final int index, final double[] toFill)
     {
-      if (totalSize - index < toFill.length) {
-        throw new IndexOutOfBoundsException(
-            String.format(
-                "Cannot fill array of size[%,d] at index[%,d].  Max size[%,d]", toFill.length, index, totalSize
-            )
-        );
+      final int bufferNum = index / sizePer;
+      final int bufferIndex = index % sizePer;
+
+      if (bufferNum != currIndex) {
+        loadBuffer(bufferNum);
       }
 
-      int bufferNum = index / sizePer;
-      int bufferIndex = index % sizePer;
+      buffer.mark();
+      buffer.position(buffer.position() + bufferIndex);
 
-      int leftToFill = toFill.length;
-      while (leftToFill > 0) {
-        if (bufferNum != currIndex) {
-          loadBuffer(bufferNum);
-        }
+      final int numToGet = Math.min(buffer.remaining(), toFill.length);
+      buffer.get(toFill, 0, numToGet);
+      buffer.reset();
 
-        buffer.mark();
-        buffer.position(buffer.position() + bufferIndex);
-        final int numToGet = Math.min(buffer.remaining(), leftToFill);
-        buffer.get(toFill, toFill.length - leftToFill, numToGet);
-        buffer.reset();
-        leftToFill -= numToGet;
-        ++bufferNum;
-        bufferIndex = 0;
-      }
+      return numToGet;
     }
 
     protected void loadBuffer(int bufferNum)
