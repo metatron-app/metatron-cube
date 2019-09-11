@@ -50,6 +50,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderingProcessor;
 import io.druid.query.groupby.orderby.WindowingSpec;
@@ -91,8 +92,6 @@ public class StreamQuery extends BaseQuery<Object[]>
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("orderingSpecs") List<OrderByColumnSpec> orderingSpecs,
       @JsonProperty("concatString") String concatString,
-      @Deprecated @JsonProperty("orderBySpecs") List<OrderByColumnSpec> orderBySpecs,
-      @Deprecated @JsonProperty("limit") int limit,
       @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
@@ -104,7 +103,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     this.orderingSpecs = orderingSpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
-    this.limitSpec = limitSpec == null ? LimitSpec.of(limit, orderBySpecs) : limitSpec;
+    this.limitSpec = limitSpec == null ? NoopLimitSpec.INSTANCE : limitSpec;
     this.outputColumns = outputColumns;
     if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       for (WindowingSpec windowing : limitSpec.getWindowingSpecs()) {
@@ -113,37 +112,6 @@ public class StreamQuery extends BaseQuery<Object[]>
         );
       }
     }
-  }
-
-  public StreamQuery(
-      DataSource dataSource,
-      QuerySegmentSpec querySegmentSpec,
-      boolean descending,
-      DimFilter filter,
-      List<String> columns,
-      List<VirtualColumn> virtualColumns,
-      List<OrderByColumnSpec> orderingSpecs,
-      String concatString,
-      LimitSpec limitSpec,
-      List<String> outputColumns,
-      Map<String, Object> context
-  )
-  {
-    this(
-        dataSource,
-        querySegmentSpec,
-        descending,
-        filter,
-        columns,
-        virtualColumns,
-        orderingSpecs,
-        concatString,
-        null,
-        0,
-        limitSpec,
-        outputColumns,
-        context
-    );
   }
 
   @Override
