@@ -45,9 +45,9 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        QueryRunner<T> runner = PostProcessingOperators.wrap(
-            toolChest.finalQueryDecoration(toolChest.finalizeResults(baseRunner)), objectMapper
-        );
+        QueryRunner<T> runner = toolChest.finalQueryDecoration(PostProcessingOperators.wrap(
+            toolChest.finalizeResults(baseRunner), objectMapper
+        ));
         return runner.run(query, responseContext);
       }
     };

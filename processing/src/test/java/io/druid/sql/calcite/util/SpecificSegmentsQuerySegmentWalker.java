@@ -38,6 +38,7 @@ import io.druid.data.Pair;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocalStorageHandler;
@@ -511,12 +512,12 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
             );
           }
         });
-        return toolChest.finalQueryDecoration(
-            toolChest.finalizeResults(
-                toolChest.mergeResults(
-                    factory.mergeRunners(executor, runners, optimizer)
-                )
-            )
+        return FinalizeResultsQueryRunner.finalize(
+            toolChest.mergeResults(
+                factory.mergeRunners(executor, runners, optimizer)
+            ),
+            toolChest,
+            objectMapper
         );
       }
     };

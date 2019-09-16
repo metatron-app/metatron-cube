@@ -25,6 +25,7 @@ import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.SegmentDescriptor;
 import org.joda.time.Interval;
@@ -67,6 +68,7 @@ public class DirectClientQuerySegmentWalker implements QuerySegmentWalker
   @SuppressWarnings("unchecked")
   private <T> QueryRunner<T> makeRunner(final Query<T> query)
   {
-    return FinalizeResultsQueryRunner.finalize(baseClient, warehouse.getToolChest(query), baseClient.getObjectMapper());
+    final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
+    return FinalizeResultsQueryRunner.finalize(baseClient, toolChest, baseClient.getObjectMapper());
   }
 }
