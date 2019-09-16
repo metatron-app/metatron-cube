@@ -35,6 +35,7 @@ public interface Segment extends SchemaProvider, Closeable
   QueryableIndex asQueryableIndex(boolean forQuery);
   StorageAdapter asStorageAdapter(boolean forQuery);
   long getLastAccessTime();
+  boolean isIndexed();
 
   class WithDescriptor implements Segment
   {
@@ -84,6 +85,12 @@ public interface Segment extends SchemaProvider, Closeable
     public long getLastAccessTime()
     {
       return segment.getLastAccessTime();
+    }
+
+    @Override
+    public boolean isIndexed()
+    {
+      return segment.isIndexed();
     }
 
     @Override

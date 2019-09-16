@@ -51,6 +51,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -457,6 +458,10 @@ public class QueryResource
     if (queryId != null) {
       // test queries don't have ids
       query = QueryUtils.setQueryId(query, queryId);
+    }
+    if (ServiceTypes.PEON.equals(node.getType()) ||
+        ServiceTypes.REALTIME.equals(node.getType())) {
+      query = DimFilters.rewriteLuceneFilter(query);
     }
     return query;
   }

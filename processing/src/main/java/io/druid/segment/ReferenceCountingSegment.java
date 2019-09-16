@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.query.select.Schema;
 import org.joda.time.Interval;
@@ -37,7 +38,13 @@ public class ReferenceCountingSegment implements Segment
 
   public ReferenceCountingSegment(Segment baseSegment)
   {
-    this.baseSegment = baseSegment;
+    this.baseSegment = Preconditions.checkNotNull(baseSegment);
+  }
+
+  @Override
+  public boolean isIndexed()
+  {
+    return baseSegment.isIndexed();
   }
 
   public synchronized Segment getBaseSegment()

@@ -45,7 +45,7 @@ public class QueryConfig
   public boolean useCustomSerdeForDateTime;
 
   @JsonProperty
-  public boolean useHandedOffSegmentsOnlyForLuceneIndex;
+  public boolean useHistoricalNodesOnlyForLuceneFilter;
 
   @JsonProperty
   @Min(1_000)
@@ -113,9 +113,9 @@ public class QueryConfig
     return true;
   }
 
-  public boolean isUseHandedOffSegmentsOnlyForLuceneIndex()
+  public boolean isUseHistoricalNodesOnlyForLuceneFilter()
   {
-    return useHandedOffSegmentsOnlyForLuceneIndex;
+    return useHistoricalNodesOnlyForLuceneFilter;
   }
 
   public boolean useBulkRow(Query query)

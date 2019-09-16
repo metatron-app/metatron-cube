@@ -664,6 +664,12 @@ public class ServerManagerTest
     }
 
     @Override
+    public boolean isIndexed()
+    {
+      return false;
+    }
+
+    @Override
     public Schema asSchema(boolean prependTime)
     {
       throw new UnsupportedOperationException();

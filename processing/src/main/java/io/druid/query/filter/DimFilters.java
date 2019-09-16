@@ -32,10 +32,13 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expressions;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.Filters;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -193,6 +196,61 @@ public class DimFilters
     return filter;
   }
 
+  public static Query rewriteLuceneFilter(Query query)
+  {
+    final DimFilter dimFilter = BaseQuery.getDimFilter(query);
+    if (hasAnyLucene(dimFilter)) {
+      query = ((Query.FilterSupport) query).withFilter(
+          Expressions.rewrite(dimFilter, DimFilter.FACTORY, new Expressions.Rewriter<DimFilter>()
+          {
+            @Override
+            public DimFilter visit(DimFilter expression)
+            {
+              if (expression instanceof DimFilter.LuceneFilter) {
+                expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
+              }
+              return expression;
+            }
+          })
+      );
+    }
+    return query;
+  }
+
+  public static boolean hasAnyLucene(final DimFilter filter)
+  {
+    return filter != null && hasAny(filter, new Predicate<DimFilter>()
+    {
+      @Override
+      public boolean apply(@Nullable DimFilter input)
+      {
+        return input instanceof DimFilter.LuceneFilter;
+      }
+    });
+  }
+
+  public static boolean hasAny(final DimFilter filter, final Predicate<DimFilter> predicate)
+  {
+    return Expressions.traverse(
+        filter, new Expressions.Visitor<DimFilter, Boolean>()
+        {
+          private boolean hasAny;
+
+          @Override
+          public boolean visit(DimFilter expression)
+          {
+            return hasAny = predicate.apply(expression);
+          }
+
+          @Override
+          public Boolean get()
+          {
+            return hasAny;
+          }
+        }
+    );
+  }
+
   public static DimFilter NONE = new None();
 
   public static class None extends DimFilter.NotOptimizable
@@ -200,7 +258,7 @@ public class DimFilters
     @Override
     public byte[] getCacheKey()
     {
-      return new byte[] {0x7f, 0x00};
+      return new byte[]{0x7f, 0x00};
     }
 
     @Override
@@ -210,9 +268,7 @@ public class DimFilters
     }
 
     @Override
-    public void addDependent(Set<String> handler)
-    {
-    }
+    public void addDependent(Set<String> handler) {}
 
     @Override
     public Filter toFilter(TypeResolver resolver)
@@ -228,7 +284,7 @@ public class DimFilters
     @Override
     public byte[] getCacheKey()
     {
-      return new byte[] {0x7f, 0x01};
+      return new byte[]{0x7f, 0x01};
     }
 
     @Override
@@ -238,9 +294,7 @@ public class DimFilters
     }
 
     @Override
-    public void addDependent(Set<String> handler)
-    {
-    }
+    public void addDependent(Set<String> handler) {}
 
     @Override
     public Filter toFilter(TypeResolver resolver)

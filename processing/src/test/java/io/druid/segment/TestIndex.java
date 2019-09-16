@@ -61,7 +61,7 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -144,8 +144,8 @@ public class TestIndex
   private static QueryableIndex noRollupMmappedIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
-  public static SpecificSegmentsQuerySegmentWalker segmentWalker =
-      new SpecificSegmentsQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG);
+  public static TestQuerySegmentWalker segmentWalker =
+      new TestQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG);
 
   public static final IncrementalIndexSchema SAMPLE_SCHEMA = new IncrementalIndexSchema.Builder()
       .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
@@ -216,24 +216,26 @@ public class TestIndex
 
   private static void addSalesIndex()
   {
-    addIndex("sales", "sales_schema.json", "sales.tsv");
+    addIndex("sales", "sales_schema.json", "sales.tsv", true);
   }
 
   private static void addCategoryAliasIndex()
   {
-    addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv");
+    addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
   }
 
   private static void addEstateIndex()
   {
-    addIndex("estate", "estate_schema.json", "estate.csv");
+    addIndex("estate", "estate_schema.json", "estate.csv", true);
+    addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
   }
 
-  public static synchronized void addIndex(
+  private static synchronized void addIndex(
       final String ds,
       final String schemaFile,
-      final String sourceFile) {
-    addIndex(ds, schemaFile, sourceFile, TestHelper.JSON_MAPPER);
+      final String sourceFile,
+      final boolean mmapped) {
+    addIndex(ds, schemaFile, sourceFile, TestHelper.JSON_MAPPER, mmapped);
   }
 
   public static synchronized void addIndex(
@@ -241,6 +243,17 @@ public class TestIndex
       final String schemaFile,
       final String sourceFile,
       final ObjectMapper mapper
+  )
+  {
+    addIndex(ds, schemaFile, sourceFile, mapper, true);
+  }
+
+  public static synchronized void addIndex(
+      final String ds,
+      final String schemaFile,
+      final String sourceFile,
+      final ObjectMapper mapper,
+      final boolean mmapped
   )
   {
     TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {}, mapper);
@@ -252,7 +265,7 @@ public class TestIndex
         return asCharSource(sourceFile);
       }
     };
-    load(ds, schema, source, mapper);
+    load(ds, schema, source, mapper, mmapped);
   }
 
   public static synchronized void addIndex(
@@ -293,14 +306,15 @@ public class TestIndex
         metrics.toArray(new AggregatorFactory[0]),
         null, null, false, false, true, null
     );
-    load(ds, schema, Suppliers.ofInstance(CharSource.wrap(source)), TestHelper.JSON_MAPPER);
+    load(ds, schema, Suppliers.ofInstance(CharSource.wrap(source)), TestHelper.JSON_MAPPER, true);
   }
 
   public static void load(
       final String ds,
       final TestLoadSpec schema,
       final Supplier<CharSource> source,
-      final ObjectMapper mapper
+      final ObjectMapper mapper,
+      final boolean mmapped
   )
   {
     segmentWalker.addPopulator(
@@ -336,12 +350,14 @@ public class TestIndex
               }
               for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
                 Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));
-                DataSegment segment = new DataSegment(
+                DataSegment segmentSpec = new DataSegment(
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
-                segments.add(Pair.of(segment, (Segment) new QueryableIndexSegment(
-                    segment.getIdentifier(), persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())
-                )));
+                String identifier = segmentSpec.getIdentifier();
+                Segment segment = mmapped ? new QueryableIndexSegment(
+                    identifier, persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())) :
+                                  new IncrementalIndexSegment(entry.getValue(), identifier);
+                segments.add(Pair.of(segmentSpec, segment));
               }
             }
             catch (Exception e) {

@@ -1098,40 +1098,6 @@ public class Filters
     return ((WrappedImmutableRoaringBitmap) roaringBitmap).getBitmap().getReverseIntIterator();
   }
 
-  public static boolean hasAnyLucene(final DimFilter filter)
-  {
-    return Filters.hasAny(filter, new Predicate<DimFilter>()
-    {
-      @Override
-      public boolean apply(@Nullable DimFilter input)
-      {
-        return input instanceof DimFilter.LuceneFilter;
-      }
-    });
-  }
-
-  public static boolean hasAny(final DimFilter filter, final Predicate<DimFilter> predicate)
-  {
-    return Expressions.traverse(
-        filter, new Expressions.Visitor<DimFilter, Boolean>()
-        {
-          private boolean hasAny;
-
-          @Override
-          public boolean visit(DimFilter expression)
-          {
-            return !(hasAny = predicate.apply(expression));
-          }
-
-          @Override
-          public Boolean get()
-          {
-            return hasAny;
-          }
-        }
-    );
-  }
-
   public static TypeResolver asTypeResolver(final BitmapIndexSelector selector)
   {
     return new TypeResolver.Abstract()

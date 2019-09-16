@@ -145,6 +145,10 @@ public class ShapeUtils
 
   public static Shape toShape(Geometry geometry)
   {
+    if (geometry.getEnvelopeInternal().getWidth() == 360) {
+      // kind of select all.. just disable dateline180Check
+      return SHAPE_FACTORY.makeShape(geometry, false, SHAPE_FACTORY.isAllowMultiOverlap());
+    }
     return SHAPE_FACTORY.makeShape(geometry);
   }
 

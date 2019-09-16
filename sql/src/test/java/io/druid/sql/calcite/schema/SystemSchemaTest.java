@@ -58,7 +58,7 @@ import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.util.TestServerInventoryView;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.timeline.DataSegment;
@@ -110,7 +110,7 @@ public class SystemSchemaTest extends CalciteTestBase
   );
 
   private SystemSchema schema;
-  private SpecificSegmentsQuerySegmentWalker walker;
+  private TestQuerySegmentWalker walker;
   private CoordinatorClient coordinatorClient;
   private IndexingServiceClient indexingServiceClient;
   private TimelineServerView serverView;

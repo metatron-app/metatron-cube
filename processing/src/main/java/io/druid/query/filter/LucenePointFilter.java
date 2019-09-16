@@ -215,6 +215,39 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   }
 
   @Override
+  public DimFilter toExpressionFilter()
+  {
+    int index = field.indexOf(".");
+    String columnName = index < 0 ? field : field.substring(0, index);
+
+    switch (query) {
+      case DISTANCE:
+        return new MathExprFilter(
+            String.format(
+                "shape_contains(shape_buffer(shape_fromLatLon(%f, %f), %f), shape_fromLatLon(\"%s\"))",
+                latitudes[0], longitudes[0], radiusMeters, columnName
+            )
+        );
+      case BBOX:
+      case POLYGON:
+        StringBuilder multiPoint = new StringBuilder();
+        for (int i = 0; i < longitudes.length; i++) {
+          if (multiPoint.length() > 0) {
+            multiPoint.append(", ");
+          }
+          multiPoint.append('(').append(longitudes[i]).append(' ').append(latitudes[i]).append(')');
+        }
+        return new MathExprFilter(
+            String.format(
+                "shape_contains(shape_envelop('MULTIPOINT (%s)'), shape_fromLatLon(\"%s\"))", multiPoint, columnName
+            )
+        );
+      default:
+        return super.toExpressionFilter();
+    }
+  }
+
+  @Override
   public String toString()
   {
     return "LucenePointFilter{" +

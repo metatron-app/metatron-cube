@@ -184,9 +184,9 @@ public class CalciteTests
     // No instantiation.
   }
 
-  public static SpecificSegmentsQuerySegmentWalker newSegmentWalker()
+  public static TestQuerySegmentWalker newSegmentWalker()
   {
-    return new SpecificSegmentsQuerySegmentWalker(
+    return new TestQuerySegmentWalker(
         QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG
     );
   }
@@ -207,7 +207,7 @@ public class CalciteTests
     return mapper;
   }
 
-  public static SpecificSegmentsQuerySegmentWalker createMockWalker(final File tmpDir)
+  public static TestQuerySegmentWalker createMockWalker(final File tmpDir)
   {
     final QueryableIndex index1 = IndexBuilder.create()
                                               .tmpDir(new File(tmpDir, "1"))
@@ -270,7 +270,7 @@ public class CalciteTests
   }
 
   public static DruidSchema createMockSchema(
-      final SpecificSegmentsQuerySegmentWalker walker,
+      final TestQuerySegmentWalker walker,
       final PlannerConfig plannerConfig
   )
   {
@@ -278,7 +278,7 @@ public class CalciteTests
   }
 
   public static DruidSchema createMockSchema(
-      final SpecificSegmentsQuerySegmentWalker walker,
+      final TestQuerySegmentWalker walker,
       final PlannerConfig plannerConfig,
       final ViewManager viewManager
   )
@@ -321,7 +321,7 @@ public class CalciteTests
 
   public static SystemSchema createMockSystemSchema(
       final DruidSchema druidSchema,
-      final SpecificSegmentsQuerySegmentWalker walker
+      final TestQuerySegmentWalker walker
   )
   {
     final DruidLeaderClient druidLeaderClient = new DruidLeaderClient(

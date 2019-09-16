@@ -71,6 +71,12 @@ public class ReferenceCountingSegmentTest
           }
 
           @Override
+          public boolean isIndexed()
+          {
+            return false;
+          }
+
+          @Override
           public Schema asSchema(boolean prependTime)
           {
             return null;

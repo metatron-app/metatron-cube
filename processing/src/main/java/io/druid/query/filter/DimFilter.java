@@ -114,7 +114,14 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  abstract class LuceneFilter extends NotOptimizable {
+  abstract class LuceneFilter extends NotOptimizable
+  {
+    // just best-effort conversion.. instead of 'no lucene index' exception
+    public DimFilter toExpressionFilter()
+    {
+      // return MathExprFilter with shape or esri expressions
+      throw new UnsupportedOperationException("not supports rewritting " + this);
+    }
   }
 
   interface RangeFilter extends DimFilter

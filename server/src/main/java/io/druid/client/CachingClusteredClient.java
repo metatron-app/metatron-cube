@@ -62,17 +62,16 @@ import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.MetricManipulatorFns;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
-import io.druid.segment.filter.Filters;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -364,7 +363,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     Predicate<QueryableDruidServer> predicate = null;
-    if (queryConfig.isUseHandedOffSegmentsOnlyForLuceneIndex() && Filters.hasAnyLucene(BaseQuery.getDimFilter(query))) {
+    if (queryConfig.isUseHistoricalNodesOnlyForLuceneFilter()
+        && DimFilters.hasAnyLucene(BaseQuery.getDimFilter(query))) {
       predicate = new Predicate<QueryableDruidServer>()
       {
         @Override

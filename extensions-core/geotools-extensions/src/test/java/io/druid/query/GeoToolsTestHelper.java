@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.data.ConstantQuery;
 import io.druid.data.GeoToolsFunctions;
@@ -28,13 +29,13 @@ import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.segment.TestIndex;
 import io.druid.segment.lucene.ShapeIndexingStrategy;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
 import java.util.concurrent.Executors;
 
 public class GeoToolsTestHelper extends QueryRunnerTestHelper
 {
-  static SpecificSegmentsQuerySegmentWalker segmentWalker;
+  static TestQuerySegmentWalker segmentWalker;
 
   static {
     Parser.register(ShapeFunctions.class);
@@ -50,10 +51,15 @@ public class GeoToolsTestHelper extends QueryRunnerTestHelper
     mapper.registerSubtypes(GeoBoundaryFilterQuery.class);
     segmentWalker = TestIndex.segmentWalker.withObjectMapper(mapper)
                                            .withExecutor(Executors.newWorkStealingPool(2));
+
+    // for toMap post processor
+    mapper.setInjectableValues(
+        new InjectableValues.Std()
+            .addValue(QueryToolChestWarehouse.class, segmentWalker));
   }
 
   @Override
-  protected SpecificSegmentsQuerySegmentWalker getSegmentWalker()
+  protected TestQuerySegmentWalker getSegmentWalker()
   {
     return segmentWalker;
   }

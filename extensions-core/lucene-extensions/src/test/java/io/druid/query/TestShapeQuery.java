@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.math.expr.Parser;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
@@ -40,9 +41,12 @@ import java.util.Map;
 public class TestShapeQuery extends QueryRunnerTestHelper
 {
   static {
+    Parser.register(ShapeFunctions.class);
+
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);
     TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
+    TestIndex.addIndex("seoul_roads_incremental", "seoul_roads_schema.json", "seoul_roads.tsv", mapper, false);
     TestIndex.addIndex("world_border", "world_schema.json", "world.csv", mapper);
   }
 
@@ -73,11 +77,17 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   }
 
   @Test
-  public void testSimpleFilter()
+  public void testSpatialFilter()
+  {
+    testSpatialFilter("seoul_roads");
+    testSpatialFilter("seoul_roads_incremental");
+  }
+
+  private void testSpatialFilter(String dataSource)
   {
     String[] columns = new String[]{"name", "geom"};
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
-        .dataSource("seoul_roads")
+        .dataSource(dataSource)
         .columns(columns)
         .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
 
@@ -88,6 +98,14 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)"},
         new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)"}
     );
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    builder.filters(new LuceneSpatialFilter(
+        "geom",
+        SpatialOperations.BBOX_WITHIN,
+        ShapeFormat.WKT,
+        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))"
+    ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
     builder.filters(new LuceneSpatialFilter(
@@ -119,7 +137,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "geom",
         SpatialOperations.BBOX_INTERSECTS,
         ShapeFormat.WKT,
-        "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497879))"
+        "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497838))"
     ));
     expected = createExpectedMaps(
         columns,

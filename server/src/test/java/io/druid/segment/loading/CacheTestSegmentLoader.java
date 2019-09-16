@@ -78,6 +78,12 @@ public class CacheTestSegmentLoader implements SegmentLoader
       }
 
       @Override
+      public boolean isIndexed()
+      {
+        return false;
+      }
+
+      @Override
       public Schema asSchema(boolean prependTime)
       {
         throw new UnsupportedOperationException();

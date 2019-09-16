@@ -168,6 +168,19 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
   }
 
   @Override
+  public DimFilter toExpressionFilter()
+  {
+    final int index = field.indexOf(".");
+    final String columnName = field.substring(0, index);
+    final String shapeReader = shapeFormat == ShapeFormat.WKT ?
+                               "shape_fromWKT('" + shapeString + "')" :
+                               "shape_fromGeoJson('" + shapeString + "')";
+    return new MathExprFilter(
+        "shape_contains(" + shapeReader + ", shape_fromLatLon(\"" + columnName + "\"))"
+    );
+  }
+
+  @Override
   public String toString()
   {
     return "LuceneLatLonPolygonFilter{" +

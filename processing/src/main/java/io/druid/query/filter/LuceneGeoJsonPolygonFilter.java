@@ -147,6 +147,16 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
   }
 
   @Override
+  public DimFilter toExpressionFilter()
+  {
+    final int index = field.indexOf(".");
+    final String columnName = field.substring(0, index);
+    return new MathExprFilter(
+        "shape_contains(shape_fromGeoJson('" + geoJson + "'), shape_fromLatLon(\"" + columnName + "\"))"
+    );
+  }
+
+  @Override
   public String toString()
   {
     return "LuceneGeoJsonPolygonFilter{" +

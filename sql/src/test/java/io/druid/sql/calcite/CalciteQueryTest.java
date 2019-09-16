@@ -100,7 +100,7 @@ import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.view.InProcessViewManager;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -243,7 +243,7 @@ public class CalciteQueryTest extends CalciteTestBase
   @Rule
   public QueryLogHook queryLogHook = QueryLogHook.create();
 
-  private SpecificSegmentsQuerySegmentWalker walker = null;
+  private TestQuerySegmentWalker walker = null;
 
   @Before
   public void setUp() throws Exception

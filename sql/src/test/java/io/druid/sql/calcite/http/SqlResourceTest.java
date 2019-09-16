@@ -40,7 +40,7 @@ import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.http.ResultFormat;
 import io.druid.sql.http.SqlQuery;
 import io.druid.sql.http.SqlResource;
@@ -77,7 +77,7 @@ public class SqlResourceTest extends CalciteTestBase
   @Rule
   public QueryLogHook queryLogHook = QueryLogHook.create();
 
-  private SpecificSegmentsQuerySegmentWalker walker = null;
+  private TestQuerySegmentWalker walker = null;
 
   private SqlResource resource;
 

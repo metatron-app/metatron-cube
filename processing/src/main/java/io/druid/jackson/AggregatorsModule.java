@@ -125,7 +125,7 @@ public class AggregatorsModule extends SimpleModule
     registerSubtypes(RequestLogParseSpec.class);
   }
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RelayAggregatorFactory.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = "count", value = CountAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longSum", value = LongSumAggregatorFactory.class),

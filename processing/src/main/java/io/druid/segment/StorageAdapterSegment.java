@@ -58,6 +58,12 @@ public class StorageAdapterSegment extends AbstractSegment
   }
 
   @Override
+  public boolean isIndexed()
+  {
+    return false;
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return adapter.asSchema(prependTime);

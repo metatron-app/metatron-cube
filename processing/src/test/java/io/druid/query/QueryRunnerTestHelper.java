@@ -102,7 +102,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import org.joda.time.DateTime;
@@ -914,7 +914,7 @@ public class QueryRunnerTestHelper
     return runQuery(query, getSegmentWalker());
   }
 
-  protected SpecificSegmentsQuerySegmentWalker getSegmentWalker()
+  protected TestQuerySegmentWalker getSegmentWalker()
   {
     return TestIndex.segmentWalker;
   }

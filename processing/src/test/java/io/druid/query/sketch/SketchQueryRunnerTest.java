@@ -37,7 +37,7 @@ import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 
 import java.util.Arrays;
@@ -49,7 +49,7 @@ import java.util.concurrent.ExecutorService;
  */
 public class SketchQueryRunnerTest extends QueryRunnerTestHelper
 {
-  protected static final SpecificSegmentsQuerySegmentWalker segmentWalker;
+  protected static final TestQuerySegmentWalker segmentWalker;
 
   protected static final ObjectMapper JSON_MAPPER;
 
@@ -100,7 +100,7 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
   }
 
   @Override
-  protected SpecificSegmentsQuerySegmentWalker getSegmentWalker()
+  protected TestQuerySegmentWalker getSegmentWalker()
   {
     return segmentWalker;
   }

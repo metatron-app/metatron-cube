@@ -68,9 +68,20 @@ public class ShapeFunctions implements Function.Library
             first = Evals.evalDouble(args.get(0), bindings);
             second = Evals.evalDouble(args.get(1), bindings);
           } else {
-            double[] lonlat = (double[]) Evals.eval(args.get(0), bindings).value();
-            first = lonlat[0];
-            second = lonlat[1];
+            final ExprEval eval = Evals.eval(args.get(0), bindings);
+            final Object value = eval.value();
+            if (value instanceof double[]) {
+              double[] array = (double[]) value;
+              first = array[0];
+              second = array[1];
+            } else if (value instanceof Object[]) {
+              // struct
+              Object[] array = (Object[]) value;
+              first = ((Number) array[0]).doubleValue();
+              second = ((Number) array[1]).doubleValue();
+            } else {
+              throw new UnsupportedOperationException();
+            }
           }
           return makeJtsGeometry(first, second);
         }

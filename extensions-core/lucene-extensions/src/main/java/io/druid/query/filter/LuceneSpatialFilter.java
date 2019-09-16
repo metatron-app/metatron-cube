@@ -224,6 +224,26 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
     };
   }
 
+  @Override
+  public DimFilter toExpressionFilter()
+  {
+    int index = field.indexOf(".");
+    String columnName = index < 0 ? field : field.substring(0, index);
+
+    String shapeReader = shapeFormat == ShapeFormat.WKT ?
+                         "shape_fromWKT('" + shapeString + "')" :
+                         "shape_fromGeoJson('" + shapeString + "')";
+    if (operation == SpatialOperations.BBOX_WITHIN || operation == SpatialOperations.BBOX_INTERSECTS) {
+      shapeReader = "shape_envelop(" + shapeReader + ")";
+    }
+    // todo check columns descriptor
+    String columnReader = shapeFormat == ShapeFormat.WKT ?
+                          "shape_fromWKT(\"" + columnName + "\")" :
+                          "shape_fromGeoJson(\"" + columnName + "\")";
+
+    return new MathExprFilter(toShapeOp(operation) + "(" + shapeReader + ", " + columnReader + ")");
+  }
+
   private SpatialArgs makeSpatialArgs(JtsSpatialContext ctx) throws IOException, ParseException
   {
     final Shape shape = shapeFormat.newReader(ctx).read(shapeString);
@@ -244,6 +264,28 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
       case OVERLAPS:
     }
     throw new UnsupportedOperationException(operation + " is not supported yet");
+  }
+
+  // I'm not sure of this
+  private static String toShapeOp(SpatialOperations operation)
+  {
+    switch (operation) {
+      case INTERSECTS:
+      case BBOX_INTERSECTS:
+        return "shape_intersects";
+      case BBOX_WITHIN:
+        return "shape_contains";
+      case COVERS:
+        return "shape_covers";
+      case COVEREDBY:
+        return "shape_coveredBy";
+      case EQUALTO:
+        return "shape_equals";
+      case OVERLAPS:
+        return "shape_overlaps";
+      default:
+        throw new UnsupportedOperationException("cannot find compatible expression for " + operation);
+    }
   }
 
   @Override

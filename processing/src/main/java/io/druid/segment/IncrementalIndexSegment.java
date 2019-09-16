@@ -63,6 +63,12 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
+  public boolean isIndexed()
+  {
+    return false;
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);

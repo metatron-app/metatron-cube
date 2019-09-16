@@ -50,7 +50,7 @@ import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.apache.calcite.avatica.AvaticaClientRuntimeException;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.MissingResultsException;
@@ -113,7 +113,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   @Rule
   public QueryLogHook queryLogHook = QueryLogHook.create();
 
-  private SpecificSegmentsQuerySegmentWalker walker;
+  private TestQuerySegmentWalker walker;
   private Server server;
   private Connection client;
   private Connection superuserClient;

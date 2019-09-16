@@ -221,6 +221,11 @@ public class Expressions
     }
   }
 
+  public static interface Rewriter<T extends Expression>
+  {
+    T visit(T expression);
+  }
+
   @SuppressWarnings("unchecked")
   public static <T extends Expression, V> boolean traverse(T expression, Visitor<T, V> visitor)
   {
@@ -235,6 +240,35 @@ public class Expressions
       return true;
     }
     return visitor.visit(expression);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends Expression, V> T rewrite(T expression, Expression.Factory<T> factory, Rewriter<T> visitor)
+  {
+    if (expression instanceof NotExpression) {
+      T child = ((NotExpression) expression).getChild();
+      T rewritten = rewrite(child, factory, visitor);
+      if (child != rewritten) {
+        expression = factory.not(rewritten);
+      }
+    } else if (expression instanceof RelationExpression) {
+      List<T> rewrittens = Lists.newArrayList();
+      boolean changed = false;
+      for (Expression child : ((RelationExpression) expression).getChildren()) {
+        T rewritten = rewrite((T) child, factory, visitor);
+        changed |= child != rewritten;
+      }
+      if (changed) {
+        if (expression instanceof AndExpression) {
+          expression = factory.and(rewrittens);
+        } else if (expression instanceof OrExpression) {
+          expression = factory.or(rewrittens);
+        }
+      }
+    } else {
+      expression = visitor.visit(expression);
+    }
+    return expression;
   }
 
   private static final Set<String> COMPARES = ImmutableSet.of("==", ">", "<", "=>", "<=");

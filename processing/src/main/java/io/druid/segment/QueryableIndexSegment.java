@@ -65,6 +65,12 @@ public class QueryableIndexSegment extends AbstractSegment
   }
 
   @Override
+  public boolean isIndexed()
+  {
+    return true;
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);

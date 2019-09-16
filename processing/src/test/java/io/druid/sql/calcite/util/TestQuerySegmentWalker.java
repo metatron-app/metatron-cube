@@ -61,6 +61,7 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.query.StorageHandler;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.MetricManipulatorFns;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -90,7 +91,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalker, QueryToolChestWarehouse
+public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToolChestWarehouse
 {
   private final ObjectMapper objectMapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
@@ -178,12 +179,12 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     }
   }
 
-  public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
+  public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
   {
     this(TestHelper.JSON_MAPPER, conglomerate, MoreExecutors.sameThreadExecutor(), config, new PopulatingMap());
   }
 
-  private SpecificSegmentsQuerySegmentWalker(
+  private TestQuerySegmentWalker(
       ObjectMapper objectMapper,
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
@@ -205,9 +206,9 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     );
   }
 
-  public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
+  public TestQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
   {
-    return new SpecificSegmentsQuerySegmentWalker(
+    return new TestQuerySegmentWalker(
         objectMapper,
         conglomerate,
         executor,
@@ -216,9 +217,9 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     );
   }
 
-  public SpecificSegmentsQuerySegmentWalker withObjectMapper(ObjectMapper objectMapper)
+  public TestQuerySegmentWalker withObjectMapper(ObjectMapper objectMapper)
   {
-    return new SpecificSegmentsQuerySegmentWalker(
+    return new TestQuerySegmentWalker(
         objectMapper,
         conglomerate,
         executor,
@@ -227,9 +228,9 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     );
   }
 
-  public SpecificSegmentsQuerySegmentWalker withExecutor(ExecutorService executor)
+  public TestQuerySegmentWalker withExecutor(ExecutorService executor)
   {
-    return new SpecificSegmentsQuerySegmentWalker(
+    return new TestQuerySegmentWalker(
         objectMapper,
         conglomerate,
         executor,
@@ -238,9 +239,9 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     );
   }
 
-  public SpecificSegmentsQuerySegmentWalker duplicate()
+  public TestQuerySegmentWalker duplicate()
   {
-    return new SpecificSegmentsQuerySegmentWalker(
+    return new TestQuerySegmentWalker(
         objectMapper,
         conglomerate,
         executor,
@@ -259,13 +260,13 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
     return executor;
   }
 
-  public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
+  public TestQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
   {
     timeLines.addSegment(descriptor, new IncrementalIndexSegment(index, descriptor.getIdentifier()));
     return this;
   }
 
-  public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
+  public TestQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
   {
     timeLines.addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
     return this;
@@ -286,7 +287,7 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
     query = QueryUtils.setQueryId(query, queryId);
-    query = QueryUtils.rewriteRecursively(query, SpecificSegmentsQuerySegmentWalker.this, queryConfig);
+    query = QueryUtils.rewriteRecursively(query, TestQuerySegmentWalker.this, queryConfig);
     return QueryUtils.resolveRecursively(query, this);
   }
 
@@ -500,13 +501,23 @@ public class SpecificSegmentsQuerySegmentWalker implements ForwardingSegmentWalk
         Iterable<QueryRunner<T>> runners = Iterables.transform(segments, new Function<Segment, QueryRunner<T>>()
         {
           @Override
-          public QueryRunner<T> apply(Segment segment)
+          public QueryRunner<T> apply(final Segment segment)
           {
+            final QueryRunner<T> runner = new QueryRunner<T>()
+            {
+              private final QueryRunner<T> runner = factory.createRunner(segment, optimizer);
+
+              @Override
+              public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+              {
+                return runner.run(segment.isIndexed() ? query : DimFilters.rewriteLuceneFilter(query), responseContext);
+              }
+            };
             return new SpecificSegmentQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
                     segment.getIdentifier(),
                     segment.getDataInterval().getStart(),
-                    factory.createRunner(segment, optimizer)
+                    runner
                 ),
                 new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor())
             );

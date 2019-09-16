@@ -36,7 +36,7 @@ import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.util.TestServerInventoryView;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.timeline.DataSegment;
@@ -76,7 +76,7 @@ public class DruidSchemaTest extends CalciteTestBase
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private SpecificSegmentsQuerySegmentWalker walker = null;
+  private TestQuerySegmentWalker walker = null;
   private DruidSchema schema = null;
 
   @Before
