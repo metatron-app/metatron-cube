@@ -711,6 +711,9 @@ public class IndexMergerV9 extends IndexMerger
       final SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
       GenericColumnSerializer writer;
       switch (type.type()) {
+        case BOOLEAN:
+          writer = BooleanColumnSerializer.create(serdeFactory);
+          break;
         case LONG:
           writer = LongColumnSerializer.create(
               ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers

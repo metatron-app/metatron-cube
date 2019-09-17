@@ -353,7 +353,7 @@ public class IndexViewer extends CommonShell.WithUtils
     writer.println();
     writer.println(format("> Size of Index (except metadata) : %,d bytes", totalSize));
     writer.println(
-        format("  Number of Rows in index : %,d", index.getColumn(Column.TIME_COLUMN_NAME).getLength())
+        format("  Number of Rows in index : %,d", index.getColumn(Column.TIME_COLUMN_NAME).getNumRows())
     );
     Metadata metadata = index.getMetadata();
     if (metadata == null) {

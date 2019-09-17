@@ -45,7 +45,7 @@ public interface Column
   public static final String TIME_COLUMN_NAME = Row.TIME_COLUMN_NAME;
   public ColumnCapabilities getCapabilities();
 
-  public int getLength();
+  public int getNumRows();
   public long getSerializedSize();
   public long getSerializedSize(EncodeType encodeType);
   public float getAverageSize();

@@ -46,9 +46,9 @@ public class DoubleGenericColumnSupplier implements ColumnPartProvider<GenericCo
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
-    return column.size();
+    return column.numRows();
   }
 
   @Override

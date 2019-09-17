@@ -54,6 +54,12 @@ public abstract class AbstractGenericColumn implements GenericColumn
   }
 
   @Override
+  public Boolean getBoolean(int rowNum)
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return null;

@@ -44,7 +44,8 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class),
     @JsonSubTypes.Type(name = "lucene", value = ComplexColumnSerializer.LuceneIndexPartSerDe.class),
     @JsonSubTypes.Type(name = "histogram", value = HistogramBitmaps.SerDe.class),
-    @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmaps.SerDe.class)
+    @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmaps.SerDe.class),
+    @JsonSubTypes.Type(name = "boolean", value = BooleanColumnPartSerde.class)
 })
 public interface ColumnPartSerde
 {

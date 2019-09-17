@@ -100,6 +100,8 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public static Class<?> toClass(ValueDesc valueDesc)
   {
     switch (valueDesc.type()) {
+      case BOOLEAN:
+        return Boolean.class;
       case STRING:
         return String.class;
       case FLOAT:

@@ -19,37 +19,50 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.base.Supplier;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.column.BooleanGenericColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.IndexedStringsGenericColumn;
-import io.druid.segment.data.GenericIndexed;
 
 /**
  */
-public class StringColumnPartSupplier implements ColumnPartProvider<GenericColumn>
+public class BooleanColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
-  private final GenericIndexed<String> indexed;
+  private final int serializedLength;
+  private final int numRows;
 
-  public StringColumnPartSupplier(GenericIndexed<String> indexed)
-  {
-    this.indexed = indexed;
-  }
+  private final Supplier<ImmutableBitmap> values;
+  private final Supplier<ImmutableBitmap> nulls;
 
-  @Override
-  public int numRows()
+  public BooleanColumnSupplier(
+      int serializedLength,
+      int numRows,
+      Supplier<ImmutableBitmap> values,
+      Supplier<ImmutableBitmap> nulls
+  )
   {
-    return indexed.size();
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return indexed.getSerializedSize();
+    this.values = values;
+    this.nulls = nulls;
+    this.numRows = numRows;
+    this.serializedLength = serializedLength;
   }
 
   @Override
   public GenericColumn get()
   {
-    return new IndexedStringsGenericColumn(indexed);
+    return new BooleanGenericColumn(values.get(), nulls.get(), numRows);
+  }
+
+  @Override
+  public int numRows()
+  {
+    return numRows;
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return serializedLength;
   }
 }

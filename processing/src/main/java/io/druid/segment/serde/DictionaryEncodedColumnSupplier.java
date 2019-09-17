@@ -61,9 +61,9 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
-    return singleValuedColumn != null ? singleValuedColumn.size() : multiValuedColumn.size();
+    return singleValuedColumn != null ? singleValuedColumn.numRows() : multiValuedColumn.numRows();
   }
 
   @Override

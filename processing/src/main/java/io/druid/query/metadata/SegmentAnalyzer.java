@@ -125,8 +125,12 @@ public class SegmentAnalyzer
         maxValue = (Comparable) stats.get("max");
         minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount && stats.containsKey("numZeros")) {
-        nullCount = (Integer) stats.get("numZeros");
+      if (analyzingNullCount) {
+        if (stats.containsKey("numNulls")) {
+          nullCount = (Integer) stats.get("numNulls");
+        } else if (stats.containsKey("numZeros")) {
+          nullCount = (Integer) stats.get("numZeros");
+        }
       }
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
@@ -229,8 +233,12 @@ public class SegmentAnalyzer
         maxValue = (Comparable) stats.get("max");
         minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount && stats.containsKey("numZeros")) {
-        nullCount = (Integer) stats.get("numZeros");
+      if (analyzingNullCount) {
+        if (stats.containsKey("numNulls")) {
+          nullCount = (Integer) stats.get("numNulls");
+        } else if (stats.containsKey("numZeros")) {
+          nullCount = (Integer) stats.get("numZeros");
+        }
       }
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {

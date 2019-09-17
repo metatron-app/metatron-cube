@@ -116,9 +116,9 @@ public class CompressedVSizeIndexedV3Supplier implements WritableSupplier<Indexe
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
-    return offsetSupplier.size();
+    return offsetSupplier.numRows();
   }
 
   @Override

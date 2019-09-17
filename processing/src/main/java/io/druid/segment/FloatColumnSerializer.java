@@ -71,6 +71,17 @@ public class FloatColumnSerializer implements GenericColumnSerializer
         }
 
         @Override
+        public long getSerializedSize()
+        {
+          long serialized = super.getSerializedSize();
+          if (!nulls.isEmpty()) {
+            serialized += Integer.BYTES;
+            serialized += serdeFactory.getObjectStrategy().toBytes(nulls).length;
+          }
+          return serialized;
+        }
+
+        @Override
         public void writeToChannel(WritableByteChannel channel) throws IOException
         {
           super.writeToChannel(channel);
@@ -79,6 +90,20 @@ public class FloatColumnSerializer implements GenericColumnSerializer
             channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
             channel.write(ByteBuffer.wrap(serialized));
           }
+        }
+
+        @Override
+        public Map<String, Object> getSerializeStats()
+        {
+          if (writer.size() == 0) {
+            return null;
+          }
+          return ImmutableMap.<String, Object>of(
+              "min", histogram.getMin(),
+              "max", histogram.getMax(),
+              "numZeros", histogram.getNumZeros(),
+              "numNulls", nulls.size()
+          );
         }
       };
     } else {

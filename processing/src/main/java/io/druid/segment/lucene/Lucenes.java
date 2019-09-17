@@ -176,14 +176,14 @@ public class Lucenes
     Directory directory = writer.getDirectory();
     String[] files = directory.listAll();
 
-    int headerOffset = Ints.BYTES;  // number of files
+    int headerOffset = Integer.BYTES;  // number of files
     int dataOffset = 0;
     Pair<byte[], int[]>[] dataOffsets = new Pair[files.length];
     for (int i = 0; i < files.length; i++) {
       byte[] binary = StringUtils.toUtf8WithNullToEmpty(files[i]);
       int dataLength = Ints.checkedCast(directory.fileLength(files[i]));
       dataOffsets[i] = Pair.of(binary, new int[]{dataOffset, dataLength});
-      headerOffset += Ints.BYTES + binary.length + Ints.BYTES + Ints.BYTES;
+      headerOffset += Integer.BYTES + binary.length + Integer.BYTES + Integer.BYTES;
       dataOffset += dataLength;
     }
     DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));

@@ -64,6 +64,7 @@ public class Comparators
             return Long.compare(o1.longValue(), o2.longValue());
           }
         });
+      case BOOLEAN:
       case STRING:
       case DATETIME:
         return GuavaUtils.NULL_FIRST_NATURAL;

@@ -82,7 +82,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public int getNumRows()
   {
-    return columns.get(Column.TIME_COLUMN_NAME).getLength();
+    return columns.get(Column.TIME_COLUMN_NAME).getNumRows();
   }
 
   @Override

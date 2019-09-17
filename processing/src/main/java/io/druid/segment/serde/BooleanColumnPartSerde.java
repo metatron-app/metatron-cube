@@ -26,27 +26,27 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.ByteBufferSerializer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
  */
-public class LongGenericColumnPartSerde implements ColumnPartSerde
+public class BooleanColumnPartSerde implements ColumnPartSerde
 {
   @JsonCreator
-  public static LongGenericColumnPartSerde createDeserializer(
+  public static BooleanColumnPartSerde createDeserializer(
       @JsonProperty("byteOrder") ByteOrder byteOrder
   )
   {
-    return new LongGenericColumnPartSerde(byteOrder, null);
+    return new BooleanColumnPartSerde(byteOrder, null);
   }
 
   private final ByteOrder byteOrder;
   private Serializer serializer;
 
-  public LongGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
+  public BooleanColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {
     this.byteOrder = byteOrder;
     this.serializer = serializer;
@@ -76,11 +76,14 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
           final BitmapSerdeFactory serdeFactory
       )
       {
-        final CompressedLongsIndexedSupplier column = CompressedLongsIndexedSupplier.fromByteBuffer(buffer, byteOrder);
-        final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
-        builder.setType(ValueDesc.LONG)
+        final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer);
+        final int size = serialized.remaining();
+        final int numRows = serialized.getInt();
+        final Supplier<ImmutableBitmap> values = ComplexMetrics.readBitmap(serialized, serdeFactory);
+        final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(serialized, serdeFactory);
+        builder.setType(ValueDesc.BOOLEAN)
                .setHasMultipleValues(false)
-               .setGenericColumn(new LongGenericColumnSupplier(column, nulls));
+               .setGenericColumn(new BooleanColumnSupplier(size, numRows, values, nulls));
       }
     };
   }

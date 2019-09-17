@@ -19,13 +19,20 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
+import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
 
+import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Map;
 
@@ -105,5 +112,22 @@ public class ComplexMetrics
   {
     complexSerializers.put(type, serde);
     classToTypeName.put(serde.getObjectStrategy().getClazz(), type);
+  }
+
+  static Supplier<ImmutableBitmap> readBitmap(ByteBuffer buffer, final BitmapSerdeFactory serdeFactory)
+  {
+    if (buffer.remaining() > Ints.BYTES) {
+      final int size = buffer.getInt();
+      final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer, size);
+      return new Supplier<ImmutableBitmap>()
+      {
+        @Override
+        public ImmutableBitmap get()
+        {
+          return serdeFactory.getObjectStrategy().fromByteBuffer(serialized, size);
+        }
+      };
+    }
+    return Suppliers.<ImmutableBitmap>ofInstance(serdeFactory.getBitmapFactory().makeEmptyImmutableBitmap());
   }
 }

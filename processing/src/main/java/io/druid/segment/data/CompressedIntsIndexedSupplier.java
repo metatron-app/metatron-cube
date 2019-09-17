@@ -60,7 +60,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     this.compression = compression;
   }
 
-  public int size()
+  public int numRows()
   {
     return totalSize;
   }

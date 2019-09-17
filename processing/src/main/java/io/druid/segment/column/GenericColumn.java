@@ -26,12 +26,13 @@ import io.druid.data.ValueType;
  */
 public interface GenericColumn extends ColumnAccess
 {
-  int length();
+  int getNumRows();
   ValueType getType();
 
   String getString(int rowNum);
   Float getFloat(int rowNum);
   Long getLong(int rowNum);
   Double getDouble(int rowNum);
+  Boolean getBoolean(int rowNum);
   ImmutableBitmap getNulls();
 }

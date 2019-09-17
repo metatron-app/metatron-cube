@@ -39,6 +39,15 @@ public class Rows
     throw new ParseException("Unable to parse boolean from value[%s]", value);
   }
 
+  public static Boolean parseBoolean(Object value, Boolean defaultValue)
+  {
+    final Comparable parsed = parseBooleanIfPossible(value);
+    if (parsed == null || parsed instanceof Boolean) {
+      return (Boolean) parsed;
+    }
+    return defaultValue;
+  }
+
   public static Comparable parseBooleanIfPossible(Object value)
   {
     if (StringUtils.isNullOrEmpty(value)) {
@@ -63,6 +72,15 @@ public class Rows
       return (Float) parsed;
     }
     throw new ParseException("Unable to parse float from value[%s]", value);
+  }
+
+  public static Float parseFloat(Object value, Float defaultValue)
+  {
+    final Comparable parsed = parseFloatIfPossible(value);
+    if (parsed == null || parsed instanceof Float) {
+      return (Float) parsed;
+    }
+    return defaultValue;
   }
 
   public static Comparable parseFloatIfPossible(Object value)
@@ -91,6 +109,15 @@ public class Rows
       return (Double) parsed;
     }
     throw new ParseException("Unable to parse double from value[%s]", value);
+  }
+
+  public static Double parseDouble(Object value, Double defaultValue)
+  {
+    final Comparable parsed = parseDoubleIfPossible(value);
+    if (parsed == null || parsed instanceof Double) {
+      return (Double) parsed;
+    }
+    return defaultValue;
   }
 
   public static Comparable parseDoubleIfPossible(Object value)
@@ -133,6 +160,15 @@ public class Rows
       return (Long) parsed;
     }
     throw new ParseException("Unable to parse long from value[%s]", value);
+  }
+
+  public static Long parseLong(Object value, Long defaultValue)
+  {
+    final Comparable parsed = parseLongIfPossible(value);
+    if (parsed == null || parsed instanceof Long) {
+      return (Long) parsed;
+    }
+    return defaultValue;
   }
 
   public static Comparable parseLongIfPossible(Object value)

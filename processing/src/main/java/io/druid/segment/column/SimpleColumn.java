@@ -79,11 +79,11 @@ class SimpleColumn implements Column
   }
 
   @Override
-  public int getLength()
+  public int getNumRows()
   {
     if (genericColumn != null) {
       try (GenericColumn column = genericColumn.get()) {
-        return column.length();
+        return column.getNumRows();
       }
       catch (Throwable e) {
         // ignore
@@ -167,28 +167,28 @@ class SimpleColumn implements Column
       return dictionary.totalLengthOfWords() / dictionary.size();
     }
     if (runLengthColumn != null) {
-      return runLengthColumn.getSerializedSize() / runLengthColumn.size();
+      return runLengthColumn.getSerializedSize() / runLengthColumn.numRows();
     }
     if (genericColumn != null) {
-      return genericColumn.getSerializedSize() / genericColumn.size();
+      return genericColumn.getSerializedSize() / genericColumn.numRows();
     }
     if (complexColumn != null) {
-      return complexColumn.getSerializedSize() / complexColumn.size();
+      return complexColumn.getSerializedSize() / complexColumn.numRows();
     }
     if (bitmapIndex != null) {
-      return bitmapIndex.getSerializedSize() / bitmapIndex.size();
+      return bitmapIndex.getSerializedSize() / bitmapIndex.numRows();
     }
     if (spatialIndex != null) {
-      return spatialIndex.getSerializedSize() / spatialIndex.size();
+      return spatialIndex.getSerializedSize() / spatialIndex.numRows();
     }
     if (metricBitmap != null) {
-      return metricBitmap.getSerializedSize() / metricBitmap.size();
+      return metricBitmap.getSerializedSize() / metricBitmap.numRows();
     }
     if (bitSlicedBitmap != null) {
-      return bitSlicedBitmap.getSerializedSize() / bitSlicedBitmap.size();
+      return bitSlicedBitmap.getSerializedSize() / bitSlicedBitmap.numRows();
     }
     if (luceneIndex != null) {
-      return luceneIndex.getSerializedSize() / luceneIndex.size();
+      return luceneIndex.getSerializedSize() / luceneIndex.numRows();
     }
     return 0;
   }

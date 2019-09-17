@@ -44,7 +44,7 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public int length()
+  public int getNumRows()
   {
     return column.size();
   }

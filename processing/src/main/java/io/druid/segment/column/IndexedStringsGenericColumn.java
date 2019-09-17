@@ -34,7 +34,7 @@ public class IndexedStringsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public int length()
+  public int getNumRows()
   {
     return indexed.size();
   }

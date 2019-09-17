@@ -39,16 +39,19 @@ public class ArrayOfStructSerDe extends ArrayOfItemsSerDe<Object[]>
 
   public ArrayOfStructSerDe(List<ValueType> fields)
   {
-    this.fields = fields.toArray(new ValueType[fields.size()]);
+    this.fields = fields.toArray(new ValueType[0]);
   }
 
   @Override
   public byte[] serializeToByteArray(final Object[][] items)
   {
-    ByteArrayDataOutput output = ByteStreams.newDataOutput();
+    final ByteArrayDataOutput output = ByteStreams.newDataOutput();
     for (Object[] item : items) {
       for (int j = 0; j < fields.length; j++) {
         switch (fields[j]) {
+          case BOOLEAN:
+            output.writeBoolean((Boolean) item[j]);
+            break;
           case FLOAT:
             output.writeFloat(((Number) item[j]).floatValue());
             break;
@@ -80,6 +83,10 @@ public class ArrayOfStructSerDe extends ArrayOfItemsSerDe<Object[]>
     for (Object[] item : items) {
       for (int j = 0; j < fields.length; j++) {
         switch (fields[j]) {
+          case BOOLEAN:
+            item[j] = mem.getBoolean(offsetBytes);
+            offsetBytes += Byte.BYTES;
+            break;
           case FLOAT:
             item[j] = mem.getFloat(offsetBytes);
             offsetBytes += Float.BYTES;

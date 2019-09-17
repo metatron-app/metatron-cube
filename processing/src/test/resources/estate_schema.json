@@ -3,7 +3,7 @@
     "format" : "csv"
   },
   "columns": [
-    "idx","gu","py","amt","x","y","addr"
+    "idx","gu","py","amt","x","y","addr","price"
   ],
   "timestampSpec": {
     "column":"inspection_date", "format":"MM/dd/yyyy", "missingValue": "2018-07-16"
@@ -12,18 +12,22 @@
     "dimensions": ["idx", "gu"]
   },
   "evaluations":[
-    { "outputName": "gis", "expressions": [ "struct(y,x,addr)" ] }
+    { "outputName": "gis", "expressions": [ "struct(y,x,addr)" ] },
+    { "outputName": "hasPrice", "expressions": [ "isNotNull(price)" ] }
   ],
   "metricsSpec": [
     {"type": "relay", "name": "py", "typeName": "float"},
     {"type": "relay", "name": "amt", "typeName": "long"},
-    {"type": "relay", "name": "gis", "typeName": "struct(lat:double,lon:double,addr:string)"}
+    {"type": "relay", "name": "gis", "typeName": "struct(lat:double,lon:double,addr:string)"},
+    {"type": "relay", "name": "price", "typeName": "double"},
+    {"type": "relay", "name": "hasPrice", "typeName": "boolean"}
   ],
   "queryGran": "DAY",
   "segmentGran": "YEAR",
   "fixedSchema": true,
   "rollup": false,
   "indexSpec": {
+    "allowNullForNumbers": true,
     "bitmap": { "type": "roaring" },
     "secondaryIndexing": {
       "gis": {

@@ -55,7 +55,7 @@ public class ColumnBuilder
 
   private <T> ColumnPartProvider<T> setNumRows(ColumnPartProvider<T> provider)
   {
-    setNumRows(provider.size());
+    setNumRows(provider.numRows());
     return provider;
   }
 
@@ -73,7 +73,7 @@ public class ColumnBuilder
 
   public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider.DictionarySupport dictionaryEncodedColumn)
   {
-    setNumRows(dictionaryEncodedColumn.size());
+    setNumRows(dictionaryEncodedColumn.numRows());
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     return this;
   }

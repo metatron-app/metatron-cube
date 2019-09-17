@@ -21,88 +21,70 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
-import io.druid.segment.data.IndexedDoubles;
-
-import java.io.IOException;
 
 /**
-*/
-public class IndexedDoublesGenericColumn extends AbstractGenericColumn
+ */
+public class BooleanGenericColumn extends AbstractGenericColumn
 {
-  private final IndexedDoubles column;
+  private final int numRows;
+  private final ImmutableBitmap values;
   private final ImmutableBitmap nulls;
 
-  private int from = -1;
-  private int to = -1;
-  private final double[] buffered;
-
-  public IndexedDoublesGenericColumn(IndexedDoubles column, ImmutableBitmap nulls)
+  public BooleanGenericColumn(ImmutableBitmap values, ImmutableBitmap nulls, int numRows)
   {
-    this.column = column;
+    this.values = values;
     this.nulls = nulls;
-    this.buffered = new double[DEFAULT_PREFETCH];
+    this.numRows = numRows;
   }
 
   @Override
   public int getNumRows()
   {
-    return column.size();
+    return numRows;
   }
 
   @Override
   public ValueType getType()
   {
-    return ValueType.DOUBLE;
+    return ValueType.BOOLEAN;
   }
 
   @Override
   public Double getDouble(int rowNum)
   {
-    return getValue(rowNum);
+    final Boolean value = getValue(rowNum);
+    return value == null ? null : value ? 1D : 0D;
   }
 
   @Override
   public Float getFloat(int rowNum)
   {
-    final Double value = getValue(rowNum);
-    return value == null ? null : value.floatValue();
+    final Boolean value = getValue(rowNum);
+    return value == null ? null : value ? 1F : 0F;
   }
 
   @Override
   public Long getLong(int rowNum)
   {
-    final Double value = getValue(rowNum);
-    return value == null ? null : value.longValue();
+    final Boolean value = getValue(rowNum);
+    return value == null ? null : value ? 1L : 0L;
   }
 
   @Override
-  public Double getValue(final int rowNum)
+  public Boolean getBoolean(int rowNum)
   {
-    if (nulls.get(rowNum)) {
-      return null;
-    }
-    if (rowNum >= from && rowNum < to) {
-      return buffered[rowNum - from];
-    }
-    final int loaded = column.fill(rowNum, buffered);
-    if (loaded == 0) {
-      from = to = -1;
-      return null;
-    }
-    from = rowNum;
-    to = rowNum + loaded;
-    return buffered[0];
+    return getValue(rowNum);
+  }
+
+  @Override
+  public Boolean getValue(final int rowNum)
+  {
+    return nulls.get(rowNum) ? null : values.get(rowNum);
   }
 
   @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-    column.close();
   }
 }

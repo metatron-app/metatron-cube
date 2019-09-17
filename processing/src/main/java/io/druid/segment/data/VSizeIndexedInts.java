@@ -234,7 +234,7 @@ public class VSizeIndexedInts implements IndexedInts, Comparable<VSizeIndexedInt
     }
 
     @Override
-    public int size()
+    public int numRows()
     {
       return delegate.size();
     }

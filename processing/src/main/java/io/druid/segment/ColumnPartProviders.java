@@ -47,7 +47,7 @@ public class ColumnPartProviders
     return new ColumnPartProvider<T>()
     {
       @Override
-      public int size()
+      public int numRows()
       {
         return count;
       }
@@ -77,7 +77,7 @@ public class ColumnPartProviders
     return new ColumnPartProvider<T>()
     {
       @Override
-      public int size()
+      public int numRows()
       {
         return numRows;
       }
@@ -107,7 +107,7 @@ public class ColumnPartProviders
     return new ColumnPartProvider<BitSlicedBitmap>()
     {
       @Override
-      public int size()
+      public int numRows()
       {
         return numRows;
       }

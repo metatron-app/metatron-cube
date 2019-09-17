@@ -46,7 +46,7 @@ public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericCol
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return column.size();
   }

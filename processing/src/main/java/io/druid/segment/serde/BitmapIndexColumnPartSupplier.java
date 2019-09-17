@@ -100,7 +100,7 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return bitmaps.size();
   }

@@ -251,7 +251,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
               new ColumnPartProvider<LuceneIndex>()
               {
                 @Override
-                public int size()
+                public int numRows()
                 {
                   return numRows;
                 }

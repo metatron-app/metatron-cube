@@ -50,7 +50,7 @@ public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<Spatia
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return indexedTree.size();
   }

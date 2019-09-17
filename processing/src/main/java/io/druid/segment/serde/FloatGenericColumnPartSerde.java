@@ -22,13 +22,10 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedFloatsIndexedSupplier;
 
 import java.nio.ByteBuffer;
@@ -80,21 +77,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
       )
       {
         final CompressedFloatsIndexedSupplier column = CompressedFloatsIndexedSupplier.fromByteBuffer(buffer, byteOrder);
-        final Supplier<ImmutableBitmap> nulls;
-        if (buffer.remaining() > Ints.BYTES) {
-          final int size = buffer.getInt();
-          final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer, size);
-          nulls = new Supplier<ImmutableBitmap>()
-          {
-            @Override
-            public ImmutableBitmap get()
-            {
-              return serdeFactory.getObjectStrategy().fromByteBuffer(serialized, size);
-            }
-          };
-        } else {
-          nulls = Suppliers.<ImmutableBitmap>ofInstance(serdeFactory.getBitmapFactory().makeEmptyImmutableBitmap());
-        }
+        final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
         builder.setType(ValueDesc.FLOAT)
                .setHasMultipleValues(false)
                .setGenericColumn(new FloatGenericColumnSupplier(column, nulls));

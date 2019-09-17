@@ -220,6 +220,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
     IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
     if (metricDesc != null) {
       switch (metricDesc.getCapabilities().getType()) {
+        case BOOLEAN: return Byte.BYTES;
         case FLOAT: return Floats.BYTES;
         case LONG: return Longs.BYTES;
         case DOUBLE: return Doubles.BYTES;

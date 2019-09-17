@@ -172,7 +172,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
-      return DateTimes.utc(column.getLong(column.length() - 1));
+      return DateTimes.utc(column.getLong(column.getNumRows() - 1));
     }
     finally {
       CloseQuietly.close(column);
@@ -993,6 +993,27 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             public String get()
                             {
                               return columnVals.getString(cursorOffset.getOffset());
+                            }
+                          };
+                        } else if (type == ValueType.BOOLEAN) {
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Boolean>()
+                          {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
+                            @Override
+                            public ValueDesc type()
+                            {
+                              return ValueDesc.BOOLEAN;
+                            }
+
+                            @Override
+                            public Boolean get()
+                            {
+                              return columnVals.getBoolean(cursorOffset.getOffset());
                             }
                           };
                         }

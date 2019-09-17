@@ -45,7 +45,7 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return column.size();
   }

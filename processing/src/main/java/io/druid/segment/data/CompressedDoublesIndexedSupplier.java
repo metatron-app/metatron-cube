@@ -50,27 +50,27 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   public static final byte version = 0x2;
   public static final int MAX_DOUBLES_IN_BUFFER = CompressedPools.BUFFER_SIZE / Doubles.BYTES;
 
-  private final int totalSize;
+  private final int numRows;
   private final int sizePer;
   private final GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers;
   private final CompressedObjectStrategy.CompressionStrategy compression;
 
   CompressedDoublesIndexedSupplier(
-      int totalSize,
+      int numRows,
       int sizePer,
       GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers,
       CompressedObjectStrategy.CompressionStrategy compression
   )
   {
-    this.totalSize = totalSize;
+    this.numRows = numRows;
     this.sizePer = sizePer;
     this.baseDoubleBuffers = baseDoubleBuffers;
     this.compression = compression;
   }
 
-  public int size()
+  public int numRows()
   {
-    return totalSize;
+    return numRows;
   }
 
   @Override
@@ -110,7 +110,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{version}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseDoubleBuffers.writeToChannel(channel);
@@ -125,7 +125,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   public CompressedDoublesIndexedSupplier convertByteOrder(ByteOrder order)
   {
     return new CompressedDoublesIndexedSupplier(
-        totalSize,
+        numRows,
         sizePer,
         GenericIndexed.fromIterable(baseDoubleBuffers, CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
         compression
@@ -236,7 +236,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     @Override
     public int size()
     {
-      return totalSize;
+      return numRows;
     }
 
     @Override
@@ -287,7 +287,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreadedDoubleBuffers.size() +
-             ", totalSize=" + totalSize +
+             ", totalSize=" + numRows +
              '}';
     }
 

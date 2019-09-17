@@ -110,7 +110,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
     {
       throw new UnsupportedOperationException("makeObjectColumnSelector");
     }
@@ -156,7 +156,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
     {
       return delegate.makeObjectColumnSelector(columnName);
     }
@@ -312,6 +312,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ObjectColumnSelector makeObjectColumnSelector(String columnName)
     {
       return new ObjectColumnSelector()
@@ -600,6 +601,8 @@ public class ColumnSelectorFactories
                 return in.get().getLong(column);
               case DOUBLE:
                 return in.get().getDouble(column);
+              case BOOLEAN:
+                return in.get().getBoolean(column);
             }
             return in.get().getRaw(column);
           }
@@ -728,8 +731,7 @@ public class ColumnSelectorFactories
     }
   }
 
-  @SuppressWarnings("unchecked")
-  public static Sequence<Cursor> toCursor(Sequence<Row> sequence, Schema schema, Query query)
+  public static Sequence<Cursor> toCursor(Sequence<Row> sequence, Schema schema, Query<?> query)
   {
     final CloseableIterator<Row> iterator = Sequences.toIterator(sequence);
     if (!iterator.hasNext()) {

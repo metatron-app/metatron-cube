@@ -21,10 +21,24 @@ package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
+import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.LucenePointFilter;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.metadata.metadata.ColumnAnalysis;
+import io.druid.query.metadata.metadata.ListColumnIncluderator;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
+import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,14 +53,60 @@ public class TestEstateQuery extends QueryRunnerTestHelper
   {
     Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate")));
     Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
-    Assert.assertEquals(Arrays.asList("gis", "amt", "py"), schema.getMetricNames());
+    Assert.assertEquals(Arrays.asList("gis", "price", "amt", "py", "hasPrice"), schema.getMetricNames());
     Assert.assertEquals(
-        "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), long, float]",
+        "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), double, long, float, boolean]",
         schema.getColumnTypes().toString()
     );
     Assert.assertEquals(
         "{gis={coord=point(latitude=lat,longitude=lon), addr=text}}", schema.getDescriptors().toString()
     );
+  }
+
+  @Test
+  public void testGroupBy()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("estate")
+        .setDimensions(DefaultDimensionSpec.of("gu"))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("count", "hasPrice"),
+            new GenericSumAggregatorFactory("price", "price", null)
+        )
+        .setGranularity(Granularities.YEAR)
+        .havingSpec(new ExpressionHavingSpec("count > 0"))
+        .build();
+    String[] columnNames = {"__time", "gu", "count", "price"};
+    Object[][] objects = {
+        array("2018-01-01", "강남구", 46L, 46000.0),
+        array("2018-01-01", "강동구", 27L, 27000.0),
+        array("2018-01-01", "강북구", 4L, 4000.0),
+        array("2018-01-01", "강서구", 9L, 9000.0),
+        array("2018-01-01", "관악구", 5L, 5000.0),
+        array("2018-01-01", "광진구", 2L, 2000.0),
+        array("2018-01-01", "구로구", 10L, 10000.0),
+        array("2018-01-01", "금천구", 4L, 4000.0),
+        array("2018-01-01", "노원구", 6L, 6000.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    SegmentMetadataQuery meta = Druids.newSegmentMetadataQueryBuilder()
+                                      .dataSource("estate")
+                                      .toInclude(new ListColumnIncluderator(Arrays.asList("price", "py")))
+                                      .analysisTypes(AnalysisType.NULL_COUNT)
+                                      .build();
+
+    SegmentAnalysis segment = (SegmentAnalysis) Iterables.getOnlyElement(runQuery(meta));
+    Assert.assertEquals(5862, segment.getNumRows());
+
+    ColumnAnalysis price = segment.getColumns().get("price");
+    Assert.assertEquals(5749, price.getNullCount());
+
+    ColumnAnalysis py = segment.getColumns().get("py");
+    Assert.assertEquals(0, py.getNullCount());
   }
 
   @Test

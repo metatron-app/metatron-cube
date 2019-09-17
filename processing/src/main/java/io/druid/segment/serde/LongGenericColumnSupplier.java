@@ -46,7 +46,7 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return column.size();
   }
