@@ -26,6 +26,7 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.ChoroplethMapQuery;
 import io.druid.query.GeoHashFunctions;
 import io.druid.query.H3Functions;
+import io.druid.query.ShapeFunctions;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
 import org.geohex.geohex4j.GeoHexFunctions;
@@ -48,6 +49,7 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(H3Functions.class)
             .registerSubtypes(GeoHexFunctions.class)
             .registerSubtypes(ChoroplethMapQuery.class)
+            .registerSubtypes(ShapeFunctions.class)
     );
   }
 

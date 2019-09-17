@@ -37,7 +37,7 @@ public class GeoToolsDruidModule implements DruidModule
   {
     return Arrays.<Module>asList(
         new SimpleModule("GeoToolsDruidModule")
-            .registerSubtypes(ShapeFunctions.class)
+            .registerSubtypes(GeoToolsFunctions.class)
             .registerSubtypes(ConstantQuery.class)
             .registerSubtypes(GeoBoundaryFilterQuery.class)
             .registerSubtypes(EnvelopeAggregatorFactory.class)

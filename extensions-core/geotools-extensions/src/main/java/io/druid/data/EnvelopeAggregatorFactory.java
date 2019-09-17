@@ -76,7 +76,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public Envelope aggregate(Envelope envelope)
         {
-          final Geometry geometry = ShapeUtils.toGeometry((Shape) selector.get());
+          final Geometry geometry = GeoToolsUtils.toGeometry((Shape) selector.get());
           if (geometry != null) {
             if (envelope == null) {
               envelope = new Envelope();
@@ -120,7 +120,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public void aggregate(ByteBuffer buf, int position)
         {
-          final Geometry geometry = ShapeUtils.toGeometry((Shape) selector.get());
+          final Geometry geometry = GeoToolsUtils.toGeometry((Shape) selector.get());
           if (geometry == null) {
             return;
           }

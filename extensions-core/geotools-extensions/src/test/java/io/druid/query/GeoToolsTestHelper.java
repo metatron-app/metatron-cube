@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.data.ConstantQuery;
-import io.druid.data.ShapeFunctions;
+import io.druid.data.GeoToolsFunctions;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
@@ -38,6 +38,7 @@ public class GeoToolsTestHelper extends QueryRunnerTestHelper
 
   static {
     Parser.register(ShapeFunctions.class);
+    Parser.register(GeoToolsFunctions.class);
 
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);

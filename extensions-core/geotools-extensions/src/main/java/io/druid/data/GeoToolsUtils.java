@@ -22,13 +22,10 @@ package io.druid.data;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import io.druid.query.ShapeUtils;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
-import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
-import org.locationtech.spatial4j.shape.Shape;
-import org.locationtech.spatial4j.shape.jts.JtsShapeFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
@@ -36,10 +33,8 @@ import org.opengis.referencing.operation.TransformException;
 import java.util.Map;
 import java.util.function.Function;
 
-public class ShapeUtils extends io.druid.query.ShapeUtils
+public class GeoToolsUtils extends ShapeUtils
 {
-  static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
-
   static final CoordinateReferenceSystem EPSG_4326;
   static final CoordinateReferenceSystem EPSG_3857;
 
@@ -83,7 +78,7 @@ public class ShapeUtils extends io.druid.query.ShapeUtils
 
   static enum CAP
   {
-    CAP_ROUND, CAP_FLAT, CAP_SQUARE;
+    CAP_ROUND, CAP_FLAT, CAP_SQUARE
   }
 
   static CAP capStyle(String name)
@@ -141,40 +136,5 @@ public class ShapeUtils extends io.druid.query.ShapeUtils
     Geometry buffered = geom3857.buffer(meter, quadrantSegments, endCapStyle);
     Geometry geom4326 = JTS.transform(buffered, T_3857_4326);
     return geom4326;
-  }
-
-  static Shape boundary(Geometry geometry)
-  {
-    return toShape(geometry.getBoundary());
-  }
-
-  static Shape convexHull(Geometry geometry)
-  {
-    return toShape(geometry.convexHull());
-  }
-
-  static Shape envelop(Geometry geometry)
-  {
-    return toShape(geometry.getEnvelope());
-  }
-
-  static double area(Geometry geometry)
-  {
-    return geometry.getArea();
-  }
-
-  static double length(Geometry geometry)
-  {
-    return geometry.getLength();
-  }
-
-  static Shape toShape(Geometry geometry)
-  {
-    return SHAPE_FACTORY.makeShape(geometry);
-  }
-
-  static Object toShape(Envelope envelope)
-  {
-    return toShape(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
   }
 }

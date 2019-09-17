@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.Iterables;
 import io.druid.data.EnvelopeAggregatorFactory;
 import io.druid.data.GeoToolsDruidModule;
-import io.druid.data.ShapeFunctions;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -47,7 +46,6 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
 {
   static {
     Parser.register(GeoHashFunctions.class);
-    Parser.register(ShapeFunctions.class);
     TestIndex.addIndex("estate_wkt", "estate_wkt_schema.json", "estate_wkt.csv", segmentWalker.getObjectMapper());
   }
 

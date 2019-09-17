@@ -19,9 +19,12 @@
 
 package io.druid.query;
 
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.Function;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.ShapeReader;
@@ -30,12 +33,51 @@ import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 import org.locationtech.spatial4j.shape.jts.JtsPoint;
+import org.locationtech.spatial4j.shape.jts.JtsShapeFactory;
 
 import java.text.ParseException;
+import java.util.List;
 
 public class ShapeUtils
 {
   public static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE", Shape.class);
+  public static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
+
+  public static ExprEval asShapeEval(Geometry geometry)
+  {
+    return asShapeEval(ShapeUtils.toShape(geometry));
+  }
+
+  public static ExprEval asShapeEval(Shape shape)
+  {
+    return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
+  }
+
+  public static abstract class ShapeFuncFactory extends Function.NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public ValueDesc returns()
+    {
+      return ShapeUtils.SHAPE_TYPE;
+    }
+
+    public abstract class ShapeChild extends Child
+    {
+      @Override
+      public ValueDesc returns()
+      {
+        return ShapeUtils.SHAPE_TYPE;
+      }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return asShapeEval(_eval(args, bindings));
+      }
+
+      protected abstract Shape _eval(List<Expr> args, Expr.NumericBinding bindings);
+    }
+  }
 
   public static ShapeReader newWKTReader()
   {
@@ -74,5 +116,40 @@ public class ShapeUtils
       return ((JtsPoint) shape).getGeom();
     }
     return null;
+  }
+
+  static Shape boundary(Geometry geometry)
+  {
+    return toShape(geometry.getBoundary());
+  }
+
+  static Shape convexHull(Geometry geometry)
+  {
+    return toShape(geometry.convexHull());
+  }
+
+  static Shape envelop(Geometry geometry)
+  {
+    return toShape(geometry.getEnvelope());
+  }
+
+  static double area(Geometry geometry)
+  {
+    return geometry.getArea();
+  }
+
+  static double length(Geometry geometry)
+  {
+    return geometry.getLength();
+  }
+
+  public static Shape toShape(Geometry geometry)
+  {
+    return SHAPE_FACTORY.makeShape(geometry);
+  }
+
+  public static Object toShape(Envelope envelope)
+  {
+    return toShape(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
   }
 }

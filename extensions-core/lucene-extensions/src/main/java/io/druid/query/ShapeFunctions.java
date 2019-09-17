@@ -17,28 +17,23 @@
  * under the License.
  */
 
-package io.druid.data;
+package io.druid.query;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryCollection;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
-import com.vividsolutions.jts.operation.buffer.BufferParameters;
-import io.druid.math.expr.BuiltinFunctions;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
-import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.jts.JTS;
-import org.geotools.referencing.CRS;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
@@ -46,105 +41,15 @@ import org.locationtech.spatial4j.io.ShapeWriter;
 import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
 import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
 import org.locationtech.spatial4j.shape.Shape;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
-import java.util.Map;
 
 public class ShapeFunctions implements Function.Library
 {
-  @Deprecated
-  @Function.Named("lonlat.to4326")
-  public static class LonLatTo4326 extends NamedFactory.DoubleArrayType
-  {
-    @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
-    {
-      if (args.size() < 2) {
-        throw new IAE("Function[%s] must have at least 2 arguments", name());
-      }
-      final String fromCRS = Evals.getConstantString(args.get(0));
-
-      final CoordinateReferenceSystem sourceCRS;
-      final CoordinateReferenceSystem targetCRS;
-      final MathTransform transform;
-      try {
-        sourceCRS = ShapeUtils.getCRS(fromCRS);
-        targetCRS = ShapeUtils.getCRS("EPSG:4326");
-        transform = CRS.findMathTransform(sourceCRS, targetCRS, true);
-      }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-      return new DoubleArrayChild()
-      {
-        private final DirectPosition2D from = new DirectPosition2D(sourceCRS);
-        private final DirectPosition2D to = new DirectPosition2D(targetCRS);
-
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          if (args.size() == 2) {
-            double[] lonlat = (double[]) Evals.eval(args.get(1), bindings).value();
-            from.setLocation(lonlat[0], lonlat[1]);
-          } else {
-            double longitude = Evals.evalDouble(args.get(1), bindings);
-            double latitude = Evals.evalDouble(args.get(2), bindings);
-            from.setLocation(longitude, latitude);
-          }
-          try {
-            return ExprEval.of(transform.transform(from, to).getCoordinate(), ValueDesc.DOUBLE_ARRAY);
-          }
-          catch (Exception e) {
-            throw Throwables.propagate(e);
-          }
-        }
-      };
-    }
-  }
-
-  static ExprEval asShapeEval(Geometry geometry)
-  {
-    return asShapeEval(ShapeUtils.toShape(geometry));
-  }
-
-  static ExprEval asShapeEval(Shape shape)
-  {
-    return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
-  }
-
-  static abstract class ShapeFuncFactory extends NamedFactory implements Function.FixedTyped
-  {
-    @Override
-    public ValueDesc returns()
-    {
-      return ShapeUtils.SHAPE_TYPE;
-    }
-
-    public abstract class ShapeChild extends Child
-    {
-      @Override
-      public ValueDesc returns()
-      {
-        return ShapeUtils.SHAPE_TYPE;
-      }
-
-      @Override
-      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-      {
-        return asShapeEval(_eval(args, bindings));
-      }
-
-      protected abstract Shape _eval(List<Expr> args, Expr.NumericBinding bindings);
-    }
-  }
-
   @Function.Named("shape_fromLatLon")
-  public static class FromLatLon extends ShapeFuncFactory
+  public static class FromLatLon extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -188,7 +93,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public static abstract class ShapeFrom extends ShapeFuncFactory
+  public static abstract class ShapeFrom extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -285,78 +190,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_buffer")
-  public static class Buffer extends BuiltinFunctions.NamedParams implements Function.FixedTyped
-  {
-    @Override
-    public ValueDesc returns()
-    {
-      return ShapeUtils.SHAPE_TYPE;
-    }
-
-    @Override
-    protected final Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter)
-    {
-      if (start < 2) {
-        throw new IAE("Function[%s] must have at least 2 arguments", name());
-      }
-      double d = Evals.getConstantEval(args.get(1)).asDouble();
-
-      Double m = null;
-      ExprEval qs = parameter.get("quadrantSegments");
-      ExprEval ecs = parameter.get("endCapStyle");
-
-      // for SQL
-      for (Expr arg : args.subList(2, start)) {
-        String value = String.valueOf(Evals.getConstant(arg)).toLowerCase();
-        if (ShapeUtils.DIST_UNITS.containsKey(value)) {
-          m = ShapeUtils.DIST_UNITS.get(value);
-          continue;
-        }
-        if (ecs == null) {
-          ShapeUtils.CAP cap = ShapeUtils.capStyle(value);
-          if (cap != null) {
-            ecs = ExprEval.of(cap.ordinal() + 1);
-            continue;
-          }
-        }
-        if (qs == null) {
-          Long parsed = Longs.tryParse(value);
-          if (parsed != null) {
-            qs = ExprEval.of(parsed);
-          }
-        }
-      }
-      final double distance = m == null ? d : d * m;
-      final int quadrantSegments = qs != null ? qs.asInt() : BufferParameters.DEFAULT_QUADRANT_SEGMENTS;
-      final int endCapStyle = ecs != null ? ecs.asInt() : BufferParameters.CAP_ROUND;
-      return new Child()
-      {
-        @Override
-        public ValueDesc returns()
-        {
-          return ShapeUtils.SHAPE_TYPE;
-        }
-
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          if (geometry == null) {
-            return asShapeEval((Shape) null);
-          }
-          try {
-            return asShapeEval(ShapeUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
-          }
-          catch (TransformException e) {
-            return asShapeEval((Shape) null);
-          }
-        }
-      };
-    }
-  }
-
-  public abstract static class SingleShapeFunc extends ShapeFuncFactory
+  public abstract static class SingleShapeFunc extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -378,7 +212,7 @@ public class ShapeFunctions implements Function.Library
     protected abstract Shape op(Geometry geometry);
   }
 
-  public abstract static class BinaryShapeFunc extends ShapeFuncFactory
+  public abstract static class BinaryShapeFunc extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -606,7 +440,7 @@ public class ShapeFunctions implements Function.Library
   private static final GeometryFactory GEOM_FACTORY = new GeometryFactory();
 
   @Function.Named("shape_union")
-  public static class ShapeUnion extends ShapeFuncFactory
+  public static class ShapeUnion extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -798,64 +632,6 @@ public class ShapeFunctions implements Function.Library
           }
           final double distance = Evals.evalDouble(args.get(2), bindings);
           return ExprEval.of(geom1.isWithinDistance(geom2, distance));
-        }
-      };
-    }
-  }
-
-  @Function.Named("shape_transform")
-  public static class Transform extends ShapeFuncFactory
-  {
-    @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
-    {
-      if (args.size() < 2) {
-        throw new IAE("Function[%s] must have 3 arguments", name());
-      }
-      final String fromCRS = Evals.getConstantString(args.get(1));
-      final String toCRS = Evals.getConstantString(args.get(2));
-      final MathTransform transform = ShapeUtils.getTransform(fromCRS, toCRS);
-
-      return new ShapeChild()
-      {
-        @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          if (geometry == null) {
-            return null;
-          }
-          try {
-            return ShapeUtils.toShape(JTS.transform(geometry, transform));
-          }
-          catch (Exception e) {
-            throw Throwables.propagate(e);
-          }
-        }
-      };
-    }
-  }
-
-  @Function.Named("shape_smooth")
-  public static class Smooth extends ShapeFuncFactory
-  {
-    @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
-    {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have at 3 arguments", name());
-      }
-      return new ShapeChild()
-      {
-        @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          if (geometry == null) {
-            return null;
-          }
-          final double fit = Evals.evalDouble(args.get(1), bindings);
-          return ShapeUtils.toShape(JTS.smooth(geometry, fit));
         }
       };
     }
