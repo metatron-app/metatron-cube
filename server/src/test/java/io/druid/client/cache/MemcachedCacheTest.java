@@ -30,6 +30,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import com.metamx.common.StringUtils;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.core.Emitter;
@@ -228,10 +229,10 @@ public class MemcachedCacheTest
   @Test
   public void testSanity() throws Exception
   {
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HI)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HI)));
     put(cache, "a", HI, 1);
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("the", HI)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("the"), HI)));
 
     put(cache, "the", HI, 2);
     Assert.assertEquals(1, get(cache, "a", HI));
@@ -239,13 +240,13 @@ public class MemcachedCacheTest
 
     put(cache, "the", HO, 10);
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HO)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HO)));
     Assert.assertEquals(2, get(cache, "the", HI));
     Assert.assertEquals(10, get(cache, "the", HO));
 
     cache.close("the");
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HO)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HO)));
 
     cache.close("a");
   }
@@ -253,13 +254,13 @@ public class MemcachedCacheTest
   @Test
   public void testGetBulk() throws Exception
   {
-    Assert.assertNull(cache.get(new Cache.NamedKey("the", HI)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("the"), HI)));
 
     put(cache, "the", HI, 2);
     put(cache, "the", HO, 10);
 
-    Cache.NamedKey key1 = new Cache.NamedKey("the", HI);
-    Cache.NamedKey key2 = new Cache.NamedKey("the", HO);
+    Cache.NamedKey key1 = new Cache.NamedKey(StringUtils.toUtf8("the"), HI);
+    Cache.NamedKey key2 = new Cache.NamedKey(StringUtils.toUtf8("the"), HO);
 
     Map<Cache.NamedKey, byte[]> result = cache.getBulk(
         Lists.newArrayList(
@@ -274,12 +275,12 @@ public class MemcachedCacheTest
 
   public void put(Cache cache, String namespace, byte[] key, Integer value)
   {
-    cache.put(new Cache.NamedKey(namespace, key), Ints.toByteArray(value));
+    cache.put(new Cache.NamedKey(StringUtils.toUtf8(namespace), key), Ints.toByteArray(value));
   }
 
   public int get(Cache cache, String namespace, byte[] key)
   {
-    return Ints.fromByteArray(cache.get(new Cache.NamedKey(namespace, key)));
+    return Ints.fromByteArray(cache.get(new Cache.NamedKey(StringUtils.toUtf8(namespace), key)));
   }
 }
 

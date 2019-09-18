@@ -22,21 +22,22 @@ package io.druid.client.cache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
+import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.cache.Cache;
 import io.druid.cache.CacheStats;
+import io.druid.common.guava.ByteArray;
 
-import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 /**
  */
-public class MapCache extends Cache.ZipSupport
+public class MapCache extends Cache.ZipSupport implements Function<ByteArray, byte[]>
 {
   private static final Logger logger = new Logger(MapCache.class);
 
@@ -45,9 +46,8 @@ public class MapCache extends Cache.ZipSupport
     return new MapCache(new ByteCountingLRUMap(sizeInBytes));
   }
 
-  private final Map<ByteBuffer, byte[]> baseMap;
-
-  private final Map<String, byte[]> namespaceId;
+  private final Map<ByteArray, byte[]> baseMap;
+  private final Map<ByteArray, byte[]> namespaceId;
   private final AtomicInteger ids = new AtomicInteger();
 
   private final Object clearLock = new Object();
@@ -58,7 +58,7 @@ public class MapCache extends Cache.ZipSupport
   MapCache(ByteCountingLRUMap baseMap)
   {
     this.baseMap = baseMap;
-    this.namespaceId = Maps.newHashMap();
+    this.namespaceId = Maps.newConcurrentMap();
     logger.info("Creating local cache with size " + baseMap.getSizeInBytes());
   }
 
@@ -79,7 +79,7 @@ public class MapCache extends Cache.ZipSupport
   @Override
   public byte[] get(NamedKey key)
   {
-    final ByteBuffer computed = computeKey(getNamespaceId(key.namespace), key.key);
+    final ByteArray computed = concat(ensureNamespaceId(key.namespace), key.key);
     final byte[] compressed;
     synchronized (clearLock) {
       compressed = baseMap.get(computed);
@@ -95,7 +95,7 @@ public class MapCache extends Cache.ZipSupport
   @Override
   public void put(NamedKey key, byte[] value)
   {
-    final ByteBuffer computed = computeKey(getNamespaceId(key.namespace), key.key);
+    final ByteArray computed = concat(ensureNamespaceId(key.namespace), key.key);
     final byte[] compressed = serialize(value);
     synchronized (clearLock) {
       baseMap.put(computed, compressed);
@@ -118,53 +118,40 @@ public class MapCache extends Cache.ZipSupport
   @Override
   public void close(String namespace)
   {
-    byte[] idBytes;
-    synchronized (namespaceId) {
-      idBytes = getNamespaceId(namespace);
-      if (idBytes == null) {
-        return;
-      }
-
-      namespaceId.remove(namespace);
+    final byte[] idBytes = removeNamespaceId(namespace);
+    if (idBytes == null) {
+      return;
     }
+    final int id = Ints.fromByteArray(idBytes);
     synchronized (clearLock) {
-      Iterator<ByteBuffer> iter = baseMap.keySet().iterator();
-      List<ByteBuffer> toRemove = Lists.newLinkedList();
-      while (iter.hasNext()) {
-        ByteBuffer next = iter.next();
-
-        if (next.get(0) == idBytes[0]
-            && next.get(1) == idBytes[1]
-            && next.get(2) == idBytes[2]
-            && next.get(3) == idBytes[3]) {
-          toRemove.add(next);
+      List<ByteArray> toRemove = Lists.newLinkedList();
+      for (ByteArray key : baseMap.keySet()) {
+        if (Ints.fromByteArray(key.array()) == id) {
+          toRemove.add(key);
         }
       }
-      for (ByteBuffer key : toRemove) {
+      for (ByteArray key : toRemove) {
         baseMap.remove(key);
       }
     }
   }
 
-  private byte[] getNamespaceId(final String identifier)
+  private byte[] removeNamespaceId(final String identifier)
   {
-    synchronized (namespaceId) {
-      byte[] idBytes = namespaceId.get(identifier);
-      if (idBytes != null) {
-        return idBytes;
-      }
-
-      idBytes = Ints.toByteArray(ids.getAndIncrement());
-      namespaceId.put(identifier, idBytes);
-      return idBytes;
-    }
+    return namespaceId.remove(new ByteArray(StringUtils.toUtf8(identifier)));
   }
 
-  private ByteBuffer computeKey(byte[] idBytes, byte[] key)
+  private byte[] ensureNamespaceId(final byte[] identifier)
   {
-    final ByteBuffer retVal = ByteBuffer.allocate(key.length + 4).put(idBytes).put(key);
-    retVal.rewind();
-    return retVal;
+    return namespaceId.computeIfAbsent(new ByteArray(identifier), this);
+  }
+
+  private ByteArray concat(byte[] idBytes, byte[] key)
+  {
+    byte[] retVal = new byte[idBytes.length + key.length];
+    System.arraycopy(idBytes, 0, retVal, 0, idBytes.length);
+    System.arraycopy(key, 0, retVal, idBytes.length, key.length);
+    return new ByteArray(retVal);
   }
 
   public boolean isLocal()
@@ -176,5 +163,11 @@ public class MapCache extends Cache.ZipSupport
   public void doMonitor(ServiceEmitter emitter)
   {
     // No special monitoring
+  }
+
+  @Override
+  public byte[] apply(ByteArray ByteArray)
+  {
+    return Ints.toByteArray(ids.getAndIncrement());
   }
 }

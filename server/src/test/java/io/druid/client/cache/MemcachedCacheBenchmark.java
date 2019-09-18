@@ -24,6 +24,7 @@ import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
+import com.metamx.common.StringUtils;
 import io.druid.cache.Cache;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
@@ -42,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 
 public class MemcachedCacheBenchmark extends SimpleBenchmark
 {
-  public static final String NAMESPACE = "default";
+  public static final byte[] NAMESPACE = StringUtils.toUtf8("default");
   private static final String BASE_KEY = "test_2012-11-26T00:00:00.000Z_2012-11-27T00:00:00.000Z_2012-11-27T04:11:25.979Z_";
   private static byte[] randBytes;
   @Param({"localhost:11211"})

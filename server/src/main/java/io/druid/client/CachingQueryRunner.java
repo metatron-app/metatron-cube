@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.metamx.common.StringUtils;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
@@ -53,7 +54,7 @@ import java.util.concurrent.ExecutorService;
 public class CachingQueryRunner<T> implements QueryRunner<T>
 {
   private static final Logger log = new Logger(CachingQueryRunner.class);
-  private final String segmentIdentifier;
+  private final byte[] segmentIdentifier;
   private final SegmentDescriptor segmentDescriptor;
   private final QueryRunner<T> base;
   private final QueryToolChest<T, Query<T>> toolChest;
@@ -74,7 +75,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   )
   {
     this.base = base;
-    this.segmentIdentifier = segmentIdentifier;
+    this.segmentIdentifier = StringUtils.toUtf8(segmentIdentifier);
     this.segmentDescriptor = segmentDescriptor;
     this.toolChest = toolchest;
     this.cache = cache;

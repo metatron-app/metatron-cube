@@ -38,6 +38,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
+import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.cache.Cache;
@@ -317,7 +318,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       Map<Pair<ServerSelector, SegmentDescriptor>, Cache.NamedKey> cacheKeys = Maps.newLinkedHashMap();
       for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
         final Cache.NamedKey segmentCacheKey = CacheUtil.computeSegmentCacheKey(
-            segment.lhs.getSegment().getIdentifier(),
+            StringUtils.toUtf8(segment.lhs.getSegment().getIdentifier()),
             segment.rhs,
             queryCacheKey
         );

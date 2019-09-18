@@ -33,7 +33,7 @@ import java.util.List;
 public class CacheUtil
 {
   public static Cache.NamedKey computeSegmentCacheKey(
-      String segmentIdentifier,
+      byte[] segmentIdentifier,
       SegmentDescriptor descriptor,
       byte[] queryCacheKey
   )

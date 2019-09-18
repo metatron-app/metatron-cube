@@ -26,6 +26,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
+import com.metamx.common.StringUtils;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -218,7 +219,7 @@ public class CachingQueryRunnerTest
 
     CacheStrategy cacheStrategy = toolchest.getCacheStrategyIfExists(query);
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
-        segmentIdentifier,
+        StringUtils.toUtf8(segmentIdentifier),
         segmentDescriptor,
         cacheStrategy.computeCacheKey(query)
     );
@@ -261,7 +262,7 @@ public class CachingQueryRunnerTest
 
     CacheStrategy cacheStrategy = toolchest.getCacheStrategyIfExists(query);
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
-        segmentIdentifier,
+        StringUtils.toUtf8(segmentIdentifier),
         segmentDescriptor,
         cacheStrategy.computeCacheKey(query)
     );

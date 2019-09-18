@@ -27,6 +27,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import com.metamx.common.StringUtils;
 import io.druid.cache.Cache;
 import io.druid.guice.CacheModule;
 import io.druid.guice.GuiceInjectors;
@@ -85,10 +86,10 @@ public class HybridCacheTest
     final MapCache l2 = new MapCache(new ByteCountingLRUMap(1024 * 1024));
     HybridCache cache = new HybridCache(l1, l2);
 
-    final Cache.NamedKey key1 = new Cache.NamedKey("a", HI);
-    final Cache.NamedKey key2 = new Cache.NamedKey("b", HI);
-    final Cache.NamedKey key3 = new Cache.NamedKey("c", HI);
-    final Cache.NamedKey key4 = new Cache.NamedKey("d", HI);
+    final Cache.NamedKey key1 = new Cache.NamedKey(StringUtils.toUtf8("a"), HI);
+    final Cache.NamedKey key2 = new Cache.NamedKey(StringUtils.toUtf8("b"), HI);
+    final Cache.NamedKey key3 = new Cache.NamedKey(StringUtils.toUtf8("c"), HI);
+    final Cache.NamedKey key4 = new Cache.NamedKey(StringUtils.toUtf8("d"), HI);
 
     final byte[] value1 = Ints.toByteArray(1);
     final byte[] value2 = Ints.toByteArray(2);

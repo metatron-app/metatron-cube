@@ -20,11 +20,11 @@
 package io.druid.client.cache;
 
 import com.google.common.collect.Lists;
+import io.druid.common.guava.ByteArray;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 
@@ -43,41 +43,41 @@ public class ByteCountingLRUMapTest
   @Test
   public void testSanity() throws Exception
   {
-    final ByteBuffer tenKey = ByteBuffer.allocate(10);
-    final byte[] eightyEightVal = ByteBuffer.allocate(88).array();
-    final byte[] eightNineNineVal = ByteBuffer.allocate(89).array();
-    final ByteBuffer oneByte = ByteBuffer.allocate(1);
-    final ByteBuffer twoByte = ByteBuffer.allocate(2);
+    final ByteArray tenKey = ByteArray.allocate(10);
+    final byte[] eightyEightVal = ByteArray.allocate(88).array();
+    final byte[] eightNineNineVal = ByteArray.allocate(89).array();
+    final ByteArray oneByte = ByteArray.allocate(1);
+    final ByteArray twoByte = ByteArray.allocate(2);
 
     assertMapValues(0, 0, 0);
     map.put(tenKey, eightNineNineVal);
     assertMapValues(1, 99, 0);
-    Assert.assertEquals(ByteBuffer.wrap(eightNineNineVal), ByteBuffer.wrap(map.get(tenKey)));
+    Assert.assertEquals(ByteArray.wrap(eightNineNineVal), ByteArray.wrap(map.get(tenKey)));
 
     map.put(oneByte, oneByte.array());
     assertMapValues(1, 2, 1);
     Assert.assertNull(map.get(tenKey));
-    Assert.assertEquals(oneByte, ByteBuffer.wrap(map.get(oneByte)));
+    Assert.assertEquals(oneByte, ByteArray.wrap(map.get(oneByte)));
 
     map.put(tenKey, eightyEightVal);
     assertMapValues(2, 100, 1);
-    Assert.assertEquals(oneByte, ByteBuffer.wrap(map.get(oneByte)));
-    Assert.assertEquals(ByteBuffer.wrap(eightyEightVal), ByteBuffer.wrap(map.get(tenKey)));
+    Assert.assertEquals(oneByte, ByteArray.wrap(map.get(oneByte)));
+    Assert.assertEquals(ByteArray.wrap(eightyEightVal), ByteArray.wrap(map.get(tenKey)));
 
     map.put(twoByte, oneByte.array());
     assertMapValues(2, 101, 2);
-    Assert.assertEquals(ByteBuffer.wrap(eightyEightVal), ByteBuffer.wrap(map.get(tenKey)));
-    Assert.assertEquals(oneByte, ByteBuffer.wrap(map.get(twoByte)));
+    Assert.assertEquals(ByteArray.wrap(eightyEightVal), ByteArray.wrap(map.get(tenKey)));
+    Assert.assertEquals(oneByte, ByteArray.wrap(map.get(twoByte)));
 
-    Iterator<ByteBuffer> it = map.keySet().iterator();
-    List<ByteBuffer> toRemove = Lists.newLinkedList();
+    Iterator<ByteArray> it = map.keySet().iterator();
+    List<ByteArray> toRemove = Lists.newLinkedList();
     while(it.hasNext()) {
-      ByteBuffer buf = it.next();
-      if(buf.remaining() == 10) {
+      ByteArray buf = it.next();
+      if(buf.length() == 10) {
         toRemove.add(buf);
       }
     }
-    for(ByteBuffer buf : toRemove) {
+    for(ByteArray buf : toRemove) {
       map.remove(buf);
     }
     assertMapValues(1, 3, 2);

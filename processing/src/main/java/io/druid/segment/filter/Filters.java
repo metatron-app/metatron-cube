@@ -465,12 +465,13 @@ public class Filters
     if (cache == null || segmentId == null || segmentCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
+    final byte[] namespace = com.metamx.common.StringUtils.toUtf8(segmentId);
     return new FilterContext(selector)
     {
       @Override
       public BitmapHolder createBitmap(DimFilter filter)
       {
-        Cache.NamedKey key = new Cache.NamedKey(segmentId, filter.getCacheKey());
+        Cache.NamedKey key = new Cache.NamedKey(namespace, filter.getCacheKey());
         byte[] cached = cache.get(key);
         if (cached != null) {
           ByteBuffer wrapped = ByteBuffer.wrap(cached);

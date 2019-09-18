@@ -21,25 +21,33 @@ package io.druid.common.guava;
 
 import java.util.Arrays;
 
-public class BytesRef
+public class ByteArray
 {
-  public final byte[] bytes;
-  public final int length;
-
-  public BytesRef(byte[] bytes)
+  public static ByteArray allocate(int length)
   {
-    this(bytes, bytes.length);
+    return wrap(new byte[length]);
   }
 
-  public BytesRef(byte[] bytes, int length)
+  public static ByteArray wrap(byte[] array)
+  {
+    return new ByteArray(array);
+  }
+
+  public final byte[] bytes;
+
+  public ByteArray(byte[] bytes)
   {
     this.bytes = bytes;
-    this.length = length;
   }
 
-  public byte[] asArray()
+  public byte[] array()
   {
-    return Arrays.copyOfRange(bytes, 0, length);
+    return bytes;
+  }
+
+  public int length()
+  {
+    return bytes.length;
   }
 
   @Override
@@ -51,25 +59,12 @@ public class BytesRef
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    BytesRef bytesRef = (BytesRef) o;
-    if (length != bytesRef.length) {
-      return false;
-    }
-    for (int i = 0; i < length; i++) {
-      if (bytes[i] != bytesRef.bytes[i]) {
-        return false;
-      }
-    }
-    return true;
+    return Arrays.equals(bytes, ((ByteArray) o).bytes);
   }
 
   @Override
   public int hashCode()
   {
-    int result = 1;
-    for (int i = 0; i < length; i++) {
-      result = 31 * result + bytes[i];
-    }
-    return result;
+    return Arrays.hashCode(bytes);
   }
 }

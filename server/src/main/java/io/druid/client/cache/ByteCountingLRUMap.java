@@ -20,16 +20,16 @@
 package io.druid.client.cache;
 
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.ByteArray;
 
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 /**
-*/
-class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
+ */
+class ByteCountingLRUMap extends LinkedHashMap<ByteArray, byte[]>
 {
   private static final Logger log = new Logger(ByteCountingLRUMap.class);
 
@@ -40,9 +40,7 @@ class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
   private volatile long numBytes;
   private volatile long evictionCount;
 
-  public ByteCountingLRUMap(
-      final long sizeInBytes
-  )
+  public ByteCountingLRUMap(final long sizeInBytes)
   {
     this(16, 0, sizeInBytes);
   }
@@ -78,14 +76,14 @@ class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
   }
 
   @Override
-  public byte[] put(ByteBuffer key, byte[] value)
+  public byte[] put(ByteArray key, byte[] value)
   {
-    numBytes += key.remaining() + value.length;
+    numBytes += key.length() + value.length;
     return super.put(key, value);
   }
 
   @Override
-  protected boolean removeEldestEntry(Map.Entry<ByteBuffer, byte[]> eldest)
+  protected boolean removeEldestEntry(Map.Entry<ByteArray, byte[]> eldest)
   {
     if (numBytes > sizeInBytes) {
       ++evictionCount;
@@ -99,7 +97,7 @@ class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
         );
       }
 
-      numBytes -= eldest.getKey().remaining() + eldest.getValue().length;
+      numBytes -= eldest.getKey().length() + eldest.getValue().length;
       return true;
     }
     return false;
@@ -109,8 +107,8 @@ class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
   public byte[] remove(Object key)
   {
     byte[] value = super.remove(key);
-    if(value != null) {
-      numBytes -= ((ByteBuffer)key).remaining() + value.length;
+    if (value != null) {
+      numBytes -= ((ByteArray) key).length() + value.length;
     }
     return value;
   }
@@ -120,7 +118,7 @@ class ByteCountingLRUMap extends LinkedHashMap<ByteBuffer, byte[]>
    * All removal operations must use ByteCountingLRUMap.remove()
    */
   @Override
-  public Set<ByteBuffer> keySet()
+  public Set<ByteArray> keySet()
   {
     return Collections.unmodifiableSet(super.keySet());
   }

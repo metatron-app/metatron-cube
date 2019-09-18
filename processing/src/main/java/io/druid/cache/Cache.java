@@ -21,7 +21,6 @@ package io.druid.cache;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import com.metamx.common.StringUtils;
 import com.metamx.emitter.service.ServiceEmitter;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -36,12 +35,14 @@ import java.util.Map;
 public interface Cache
 {
   byte[] get(NamedKey key);
+
   void put(NamedKey key, byte[] value);
 
   /**
    * Resulting map should not contain any null values (i.e. cache misses should not be included)
    *
    * @param keys
+   *
    * @return
    */
   Map<NamedKey, byte[]> getBulk(Iterable<NamedKey> keys);
@@ -54,28 +55,30 @@ public interface Cache
 
   /**
    * Custom metrics not covered by CacheStats may be emitted by this method.
+   *
    * @param emitter The service emitter to emit on.
    */
   void doMonitor(ServiceEmitter emitter);
 
   class NamedKey
   {
-    final public String namespace;
+    final public byte[] namespace;
     final public byte[] key;
 
-    public NamedKey(String namespace, byte[] key) {
+    public NamedKey(byte[] namespace, byte[] key)
+    {
       Preconditions.checkArgument(namespace != null, "namespace must not be null");
       Preconditions.checkArgument(key != null, "key must not be null");
       this.namespace = namespace;
       this.key = key;
     }
 
-    public byte[] toByteArray() {
-      final byte[] nsBytes = StringUtils.toUtf8(this.namespace);
-      return ByteBuffer.allocate(Ints.BYTES + nsBytes.length + this.key.length)
-          .putInt(nsBytes.length)
-          .put(nsBytes)
-          .put(this.key).array();
+    public byte[] toByteArray()
+    {
+      return ByteBuffer.allocate(Ints.BYTES + namespace.length + this.key.length)
+                       .putInt(namespace.length)
+                       .put(namespace)
+                       .put(key).array();
     }
 
     @Override
@@ -90,7 +93,7 @@ public interface Cache
 
       NamedKey namedKey = (NamedKey) o;
 
-      if (!namespace.equals(namedKey.namespace)) {
+      if (!Arrays.equals(namespace, namedKey.namespace)) {
         return false;
       }
       if (!Arrays.equals(key, namedKey.key)) {
@@ -103,7 +106,7 @@ public interface Cache
     @Override
     public int hashCode()
     {
-      int result = namespace.hashCode();
+      int result = Arrays.hashCode(namespace);
       result = 31 * result + Arrays.hashCode(key);
       return result;
     }

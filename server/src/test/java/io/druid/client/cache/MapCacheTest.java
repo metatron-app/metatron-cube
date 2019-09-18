@@ -20,6 +20,7 @@
 package io.druid.client.cache;
 
 import com.google.common.primitives.Ints;
+import com.metamx.common.StringUtils;
 import io.druid.cache.Cache;
 import org.junit.Assert;
 import org.junit.Before;
@@ -44,12 +45,12 @@ public class MapCacheTest
   @Test
   public void testSanity() throws Exception
   {
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HI)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HI)));
     Assert.assertEquals(0, baseMap.size());
     put(cache, "a", HI, 1);
     Assert.assertEquals(1, baseMap.size());
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("the", HI)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("the"), HI)));
 
     put(cache, "the", HI, 2);
     Assert.assertEquals(2, baseMap.size());
@@ -59,14 +60,14 @@ public class MapCacheTest
     put(cache, "the", HO, 10);
     Assert.assertEquals(3, baseMap.size());
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HO)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HO)));
     Assert.assertEquals(2, get(cache, "the", HI));
     Assert.assertEquals(10, get(cache, "the", HO));
 
     cache.close("the");
     Assert.assertEquals(1, baseMap.size());
     Assert.assertEquals(1, get(cache, "a", HI));
-    Assert.assertNull(cache.get(new Cache.NamedKey("a", HO)));
+    Assert.assertNull(cache.get(new Cache.NamedKey(StringUtils.toUtf8("a"), HO)));
 
     cache.close("a");
     Assert.assertEquals(0, baseMap.size());
@@ -74,11 +75,11 @@ public class MapCacheTest
 
   public void put(Cache cache, String namespace, byte[] key, Integer value)
   {
-    cache.put(new Cache.NamedKey(namespace, key), Ints.toByteArray(value));
+    cache.put(new Cache.NamedKey(StringUtils.toUtf8(namespace), key), Ints.toByteArray(value));
   }
 
   public int get(Cache cache, String namespace, byte[] key)
   {
-    return Ints.fromByteArray(cache.get(new Cache.NamedKey(namespace, key)));
+    return Ints.fromByteArray(cache.get(new Cache.NamedKey(StringUtils.toUtf8(namespace), key)));
   }
 }
