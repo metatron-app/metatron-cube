@@ -27,6 +27,8 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.LucenePointFilter;
+import io.druid.query.filter.MathExprFilter;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
@@ -107,6 +109,78 @@ public class TestEstateQuery extends QueryRunnerTestHelper
 
     ColumnAnalysis py = segment.getColumns().get("py");
     Assert.assertEquals(0, py.getNullCount());
+  }
+
+  @Test
+  public void testBooleanFilter()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("estate")
+        .setDimensions(DefaultDimensionSpec.of("gu"))
+        .setDimFilter(new SelectorDimFilter("hasPrice", "true", null))
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("count"),
+            new GenericSumAggregatorFactory("price", "price", null)
+        )
+        .setGranularity(Granularities.YEAR)
+        .havingSpec(new ExpressionHavingSpec("count > 0"))
+        .build();
+    String[] columnNames = {"__time", "gu", "count", "price"};
+    Object[][] objects = {
+        array("2018-01-01", "강남구", 46L, 46000.0),
+        array("2018-01-01", "강동구", 27L, 27000.0),
+        array("2018-01-01", "강북구", 4L, 4000.0),
+        array("2018-01-01", "강서구", 9L, 9000.0),
+        array("2018-01-01", "관악구", 5L, 5000.0),
+        array("2018-01-01", "광진구", 2L, 2000.0),
+        array("2018-01-01", "구로구", 10L, 10000.0),
+        array("2018-01-01", "금천구", 4L, 4000.0),
+        array("2018-01-01", "노원구", 6L, 6000.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    query = query.withFilter(new MathExprFilter("hasPrice"));
+    results = runQuery(query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    query = query.withFilter(new SelectorDimFilter("hasPrice", "false", null));
+    objects = new Object[][]{
+        array("2018-01-01", "강남구", 259L, 0.0),
+        array("2018-01-01", "강동구", 219L, 0.0),
+        array("2018-01-01", "강북구", 136L, 0.0),
+        array("2018-01-01", "강서구", 496L, 0.0),
+        array("2018-01-01", "관악구", 176L, 0.0),
+        array("2018-01-01", "광진구", 99L, 0.0),
+        array("2018-01-01", "구로구", 288L, 0.0),
+        array("2018-01-01", "금천구", 130L, 0.0),
+        array("2018-01-01", "노원구", 616L, 0.0),
+        array("2018-01-01", "도봉구", 267L, 0.0),
+        array("2018-01-01", "동대문구", 208L, 0.0),
+        array("2018-01-01", "동작구", 318L, 0.0),
+        array("2018-01-01", "마포구", 151L, 0.0),
+        array("2018-01-01", "서대문구", 156L, 0.0),
+        array("2018-01-01", "서초구", 240L, 0.0),
+        array("2018-01-01", "성동구", 207L, 0.0),
+        array("2018-01-01", "성북구", 281L, 0.0),
+        array("2018-01-01", "송파구", 325L, 0.0),
+        array("2018-01-01", "양천구", 340L, 0.0),
+        array("2018-01-01", "영등포구", 293L, 0.0),
+        array("2018-01-01", "용산구", 77L, 0.0),
+        array("2018-01-01", "은평구", 173L, 0.0),
+        array("2018-01-01", "종로구", 35L, 0.0),
+        array("2018-01-01", "중구", 74L, 0.0),
+        array("2018-01-01", "중랑구", 185L, 0.0)
+    };
+    results = runQuery(query);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    query = query.withFilter(new MathExprFilter("!hasPrice"));
+    results = runQuery(query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

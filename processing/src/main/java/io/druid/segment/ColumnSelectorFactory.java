@@ -72,7 +72,6 @@ public interface ColumnSelectorFactory extends TypeResolver
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public ExprEvalColumnSelector makeMathExpressionSelector(final Expr parsed)
     {
       final Map<String, Supplier> values = Maps.newHashMap();

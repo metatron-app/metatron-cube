@@ -289,6 +289,12 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
                     }
 
                     @Override
+                    public boolean isExact()
+                    {
+                      return true;    // really?
+                    }
+
+                    @Override
                     public TopDocs query(Query query)
                     {
                       try {

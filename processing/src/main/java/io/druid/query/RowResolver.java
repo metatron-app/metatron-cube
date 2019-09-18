@@ -24,23 +24,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.Expression;
-import io.druid.math.expr.Expression.RelationExpression;
-import io.druid.math.expr.Expressions;
-import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.filter.BitmapType;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.MathExprFilter;
 import io.druid.query.select.Schema;
 import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
@@ -48,13 +38,11 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
-import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -315,113 +303,5 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     Set<String> names = Sets.newLinkedHashSet(virtualColumns.getVirtualColumnNames());
     names.addAll(schema.getColumnNames()); // override
     return names;
-  }
-
-  public boolean supports(DimFilter filter, EnumSet<BitmapType> using)
-  {
-    if (filter instanceof RelationExpression) {
-      for (Expression child : ((RelationExpression) filter).getChildren()) {
-        if (!supports((DimFilter) child, using)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    if (filter instanceof MathExprFilter) {
-      Expr root = Parser.parse(((MathExprFilter) filter).getExpression());
-      return supports(Expressions.convertToCNF(root, Parser.EXPR_FACTORY), using);
-    }
-    Set<String> dependents = Filters.getDependents(filter);
-    if (dependents.size() != 1) {
-      return false;
-    }
-    final String column = Iterables.getOnlyElement(dependents);
-    if (using.contains(BitmapType.DIMENSIONAL) && supports(column, BitmapType.DIMENSIONAL)) {
-      return true;
-    }
-    if (using.contains(BitmapType.LUCENE_INDEX) && supports(column, BitmapType.LUCENE_INDEX)) {
-      return filter instanceof DimFilter.LuceneFilter;
-    }
-    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && supports(column, BitmapType.HISTOGRAM_BITMAP) ||
-        using.contains(BitmapType.BSB) && supports(column, BitmapType.BSB)) {
-      return filter instanceof DimFilter.RangeFilter && ((DimFilter.RangeFilter)filter).possible(this);
-    }
-    return false;
-  }
-
-  private static final Set<String> BINARY_OPS = Sets.newHashSet("==", "<", ">", "=>", "<=", "in", "between", "isNull");
-
-  private boolean supports(Expr expr, EnumSet<BitmapType> using)
-  {
-    if (expr instanceof RelationExpression) {
-      for (Expression child : ((RelationExpression) expr).getChildren()) {
-        if (!supports((Expr) child, using)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    if (expr instanceof Expression.FuncExpression) {
-      Expression.FuncExpression function = (Expression.FuncExpression) expr;
-      List<Expression> children = function.getChildren();
-      if (!BINARY_OPS.contains(function.op()) || children.isEmpty()) {
-        return false;
-      }
-      final Expr arg = (Expr) children.get(0);
-      if (!Evals.isIdentifier(arg) || !supports(arg.toString(), using)) {
-        return false;
-      }
-      for (int i = 1; i < children.size(); i++) {
-        if (!Evals.isConstant((Expr) children.get(i))) {
-          return false;
-        }
-      }
-      return true;
-    }
-    return false;
-  }
-
-  private boolean supports(String column, BitmapType type, BitmapType... types)
-  {
-    return supports(column, EnumSet.of(type, types));
-  }
-
-  private boolean supports(final String column, EnumSet<BitmapType> using)
-  {
-    String current = column;
-    String field = column;
-    ColumnCapabilities capabilities = schema.getColumnCapability(current);
-    for (int index = column.indexOf('.'); capabilities == null && index > 0; index = column.indexOf('.', index + 1)) {
-      current = column.substring(0, index);
-      field = column.substring(index + 1);
-      capabilities = schema.getColumnCapability(current);
-    }
-    if (capabilities == null) {
-      return false;   // dimension type does not assert existence of bitmap (incremental index, for example)
-    }
-    if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
-      return true;
-    }
-    if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
-      final Map<String, String> descriptor = getDescriptor(current);
-      return descriptor != null && descriptor.get(field) != null;
-    }
-    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
-      return true;
-    }
-    if (using.contains(BitmapType.BSB) && capabilities.hasBitSlicedBitmap()) {
-      return true;
-    }
-    return false;
-  }
-
-  public boolean supportsExact(Iterable<String> columns, DimFilter filter)
-  {
-    for (String column : columns) {
-      if (!supports(column, BitmapType.EXACT)) {
-        return false;
-      }
-    }
-    return filter == null || supports(filter, BitmapType.EXACT);
   }
 }

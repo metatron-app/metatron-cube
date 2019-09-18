@@ -31,12 +31,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.StringUtils;
 import io.druid.common.utils.Ranges;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
+import io.netty.util.internal.StringUtil;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -47,7 +50,7 @@ import java.util.Set;
 
 /**
  */
-public class SelectorDimFilter implements DimFilter.RangeFilter
+public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.BooleanColumnSupport
 {
   public static DimFilter or(final String dimension, String... values)
   {
@@ -141,6 +144,13 @@ public class SelectorDimFilter implements DimFilter.RangeFilter
       };
       return new DimensionPredicateFilter(dimension, predicate, extractionFn);
     }
+  }
+
+  @Override
+  public ImmutableBitmap toBooleanFilter(TypeResolver resolver, BitmapIndexSelector selector)
+  {
+    final Boolean bool = StringUtil.isNullOrEmpty(value) ? null : Rows.parseBoolean(value);
+    return selector.getBitmapIndex(dimension, bool);
   }
 
   @JsonProperty

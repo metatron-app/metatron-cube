@@ -47,7 +47,6 @@ import org.locationtech.spatial4j.shape.Shape;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -182,11 +181,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(
-          BitmapIndexSelector selector,
-          EnumSet<BitmapType> using,
-          ImmutableBitmap baseBitmap
-      )
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;

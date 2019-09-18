@@ -47,7 +47,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class SketchQueryRunnerTest extends QueryRunnerTestHelper
+public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
 {
   protected static final TestQuerySegmentWalker segmentWalker;
 

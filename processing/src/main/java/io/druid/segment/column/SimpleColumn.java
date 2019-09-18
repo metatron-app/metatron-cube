@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import com.google.common.base.Preconditions;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
@@ -58,7 +59,7 @@ class SimpleColumn implements Column
       Map<String, String> descs
   )
   {
-    this.capabilities = capabilities;
+    this.capabilities = Preconditions.checkNotNull(capabilities);
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     this.runLengthColumn = runLengthColumn;
     this.genericColumn = genericColumn;

@@ -35,7 +35,6 @@ import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -45,7 +44,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedID;
 
-import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -81,11 +79,7 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(
-      final BitmapIndexSelector selector,
-      final EnumSet<BitmapType> using,
-      final ImmutableBitmap baseBitmap
-  )
+  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, final ImmutableBitmap baseBitmap)
   {
     Preconditions.checkArgument(
         extractionFn == null || Filters.hasBitmapOrNull(selector, dimension),

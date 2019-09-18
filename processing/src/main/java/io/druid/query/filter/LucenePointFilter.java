@@ -35,7 +35,6 @@ import org.apache.lucene.search.Query;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -178,11 +177,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(
-          BitmapIndexSelector selector,
-          EnumSet<BitmapType> using,
-          ImmutableBitmap baseBitmap
-      )
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
         String columnName = field;
         String fieldName = field;

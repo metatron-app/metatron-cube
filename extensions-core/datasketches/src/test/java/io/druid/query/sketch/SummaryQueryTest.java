@@ -37,7 +37,7 @@ import java.util.Map;
 
 /**
  */
-public class SummaryQueryTest extends SketchQueryRunnerTest
+public class SummaryQueryTest extends SketchQueryRunnerTestHelper
 {
   @Test
   @SuppressWarnings("unchecked")

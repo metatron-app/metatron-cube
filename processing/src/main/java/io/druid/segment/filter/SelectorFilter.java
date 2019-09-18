@@ -24,13 +24,13 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import com.metamx.common.ISE;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -41,8 +41,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.lucene.Lucenes;
 
-import java.util.EnumSet;
-
 /**
  */
 public class SelectorFilter implements Filter
@@ -50,10 +48,7 @@ public class SelectorFilter implements Filter
   private final String dimension;
   private final String value;
 
-  public SelectorFilter(
-      String dimension,
-      String value
-  )
+  public SelectorFilter(String dimension, String value)
   {
     this.dimension = dimension;
     this.value = value;
@@ -73,26 +68,22 @@ public class SelectorFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(
-      BitmapIndexSelector selector,
-      EnumSet<BitmapType> using,
-      ImmutableBitmap baseBitmap
-  )
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
-    ColumnCapabilities capabilities = selector.getCapabilities(dimension);
+    final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     if (capabilities == null) {
       return selector.getBitmapIndex(dimension, value);
     }
-    if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
+    if (capabilities.hasBitmapIndexes()) {
       return selector.getBitmapIndex(dimension, value);
-    } else if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
+    } else if (capabilities.hasLuceneIndex()) {
       return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), baseBitmap);
-    } else if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
+    } else if (capabilities.hasMetricBitmap()) {
       return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
-    } else if (using.contains(BitmapType.BSB) && capabilities.hasBitSlicedBitmap()) {
+    } else if (capabilities.hasBitSlicedBitmap()) {
       return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
     }
-    throw new IllegalArgumentException("column " + dimension + " is not indexed with " + using);
+    throw new ISE("column %s is not indexed", dimension);
   }
 
   @Override

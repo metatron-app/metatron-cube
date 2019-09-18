@@ -26,15 +26,11 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.LucenePointFilter;
-import io.druid.query.filter.MathExprFilter;
-import io.druid.query.filter.NotDimFilter;
-import io.druid.query.filter.SelectorDimFilter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
@@ -75,96 +71,6 @@ public class FiltersTest
 
     DimFilter expected = DimFilters.and(dim1, dim2, DimFilters.or(dim3, dim4));
     Assert.assertEquals(expected, DimFilters.convertToCNF(complex));
-  }
-
-  @Test
-  public void testPartitionWithBitmapSupport()
-  {
-    DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
-
-    DimFilter dim2 = new MathExprFilter("market == 'spot' && quality == 'business'");
-
-    DimFilter dim3 = DimFilters.and(dim1, dim2);
-
-    DimFilter dim4 = DimFilters.or(dim1, dim2);
-
-    // DIM1 AND !(DIM1 OR DIM2) -> DIM1 AND !DIM1 AND !DIM2
-    DimFilter dim5 = DimFilters.and(dim1, NotDimFilter.of(dim4));
-
-    DimFilter[] filters;
-
-    filters = DimFilters.partitionWithBitmapSupport(null, resolver);
-    Assert.assertNull(filters);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim1, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim1, filters[0]);
-    Assert.assertNull(filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim2, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim2, filters[0]);
-    Assert.assertNull(filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim3, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim3, filters[0]);
-    Assert.assertNull(filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim4, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim4, filters[0]);
-    Assert.assertNull(filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim5, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1), NotDimFilter.of(dim2)), filters[0]);
-    Assert.assertNull(filters[1]);
-  }
-
-  @Test
-  public void testPartitionWithBitmapSupport2()
-  {
-    DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
-
-    DimFilter dim2 = new MathExprFilter("cast(market, 'string') == 'spot' && quality == 'business'");
-
-    DimFilter dim3 = DimFilters.and(dim1, dim2);
-
-    DimFilter dim4 = DimFilters.or(dim1, dim2);
-
-    // DIM1 AND !(DIM1 OR DIM2) -> DIM1 AND !DIM1 AND !DIM2
-    DimFilter dim5 = DimFilters.and(dim1, NotDimFilter.of(dim4));
-
-    DimFilter[] filters;
-
-    filters = DimFilters.partitionWithBitmapSupport(null, resolver);
-    Assert.assertNull(filters);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim1, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim1, filters[0]);
-    Assert.assertNull(filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim2, resolver);
-    Assert.assertNotNull(filters);
-    Assert.assertNull(filters[0]);
-    assertEquals(dim2, filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim3, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(dim1, filters[0]);
-    assertEquals(dim2, filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim4, resolver);
-    Assert.assertNotNull(filters);
-    Assert.assertNull(filters[0]);
-    assertEquals(dim4, filters[1]);
-
-    filters = DimFilters.partitionWithBitmapSupport(dim5, resolver);
-    Assert.assertNotNull(filters);
-    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
-    assertEquals(NotDimFilter.of(dim2), filters[1]);
   }
 
   @Test

@@ -50,7 +50,7 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
-public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTest
+public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
 {
   @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException

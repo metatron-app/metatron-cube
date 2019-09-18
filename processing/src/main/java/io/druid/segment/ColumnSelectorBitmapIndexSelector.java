@@ -29,8 +29,10 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.BooleanGenericColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
@@ -39,6 +41,7 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -53,13 +56,10 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
   private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
-  public ColumnSelectorBitmapIndexSelector(
-      final BitmapFactory bitmapFactory,
-      final QueryableIndex index
-  )
+  public ColumnSelectorBitmapIndexSelector(QueryableIndex index)
   {
-    this.bitmapFactory = bitmapFactory;
     this.index = index;
+    this.bitmapFactory = index.getBitmapFactoryForDimensions();
     this.numRows = index.getNumRows();
   }
 
@@ -139,11 +139,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   {
     final Column column = index.getColumn(dimension);
     if (column == null) {
-      if (Strings.isNullOrEmpty(value)) {
-        return DimFilters.makeTrue(bitmapFactory, getNumRows());
-      } else {
-        return bitmapFactory.makeEmptyImmutableBitmap();
-      }
+      return makeBooleanBitmap(Strings.isNullOrEmpty(value));
     }
 
     if (!column.getCapabilities().hasBitmapIndexes()) {
@@ -152,6 +148,31 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
 
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
     return bitmapIndex.getBitmap(bitmapIndex.getIndex(value));
+  }
+
+  @Override
+  public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
+  {
+    final Column column = index.getColumn(dimension);
+    if (column == null) {
+      return makeBooleanBitmap(value == null);
+    }
+    final GenericColumn genericColumn = column.getGenericColumn();
+    if (genericColumn instanceof BooleanGenericColumn) {
+      final ImmutableBitmap nulls = genericColumn.getNulls();
+      if (value == null) {
+        return nulls;
+      }
+      ImmutableBitmap values = ((BooleanGenericColumn) genericColumn).getValues();
+      if (!value) {
+        values = bitmapFactory.complement(values, numRows);
+      }
+      if (nulls.isEmpty()) {
+        return values;
+      }
+      return bitmapFactory.intersection(Arrays.asList(bitmapFactory.complement(nulls, numRows), values));
+    }
+    return null;
   }
 
   @Override
@@ -229,5 +250,14 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     luceneIndices.clear();
     metricBitmaps.clear();
     bitSlicedBitmapMaps.clear();
+  }
+
+  private ImmutableBitmap makeBooleanBitmap(boolean bool)
+  {
+    if (bool) {
+      return DimFilters.makeTrue(bitmapFactory, numRows);
+    } else {
+      return DimFilters.makeFalse(bitmapFactory);
+    }
   }
 }

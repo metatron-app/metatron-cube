@@ -230,7 +230,7 @@ public class Expressions
   public static <T extends Expression, V> boolean traverse(T expression, Visitor<T, V> visitor)
   {
     if (expression instanceof NotExpression) {
-      return traverse((T) ((NotExpression) expression).getChild(), visitor);
+      return traverse(((NotExpression) expression).getChild(), visitor);
     } else if (expression instanceof RelationExpression) {
       for (Expression child : ((RelationExpression) expression).getChildren()) {
         if (!traverse((T) child, visitor)) {

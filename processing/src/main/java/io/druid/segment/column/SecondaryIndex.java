@@ -32,5 +32,7 @@ public interface SecondaryIndex<T> extends Closeable
 
   ImmutableBitmap filterFor(T query, ImmutableBitmap baseBitmap);
 
+  boolean isExact();
+
   int rows();
 }

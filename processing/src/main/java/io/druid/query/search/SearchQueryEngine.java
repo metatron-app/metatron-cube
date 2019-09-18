@@ -32,6 +32,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
+import io.druid.data.Pair;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
@@ -40,8 +41,9 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.extraction.IdentityExtractionFn;
-import io.druid.query.filter.BitmapType;
+import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
@@ -100,7 +102,6 @@ public class SearchQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    final String segmentId = segment.getIdentifier();
     final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
     final DimFilter filter = query.getFilter();
@@ -117,18 +118,18 @@ public class SearchQueryEngine
 
     final DateTime timestamp = segment.getDataInterval().getStart();
     final List<String> columns = DimensionSpecs.toInputNames(dimensions);
-    if (index != null && resolver.supportsExact(columns, filter)) {
-      final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
-      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
-
-      ImmutableBitmap baseFilter = null;
-      if (filter != null) {
-        try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
-          baseFilter = Filters.toBitmap(filter, context, BitmapType.EXACT);
-        }
+    OUT:
+    if (index != null) {
+      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index);
+      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
+      if (extracted.getValue() != null) {
+        break OUT;
       }
+      final ImmutableBitmap baseFilter = extracted.getKey();
+      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+
+      final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
       for (DimensionSpec dimension : dimensions) {
         final Column column = index.getColumn(dimension.getDimension());
         if (column == null) {
@@ -229,6 +230,20 @@ public class SearchQueryEngine
     );
 
     return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, limit);
+  }
+
+  private Pair<ImmutableBitmap, DimFilter> extractBitmaps(
+      final BitmapIndexSelector selector,
+      final String segmentId,
+      final DimFilter filter
+  )
+  {
+    if (filter == null) {
+      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
+    }
+    try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
+      return DimFilters.extractBitmaps(filter, context);
+    }
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(

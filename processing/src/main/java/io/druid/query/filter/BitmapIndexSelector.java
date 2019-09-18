@@ -42,6 +42,7 @@ public interface BitmapIndexSelector extends Closeable
   public BitmapFactory getBitmapFactory();
   public BitmapIndex getBitmapIndex(String dimension);
   public ImmutableBitmap getBitmapIndex(String dimension, String value);
+  public ImmutableBitmap getBitmapIndex(String dimension, Boolean value);
   public ImmutableRTree getSpatialIndex(String dimension);
   public LuceneIndex getLuceneIndex(String dimension);
   public HistogramBitmap getMetricBitmap(String dimension);
@@ -83,6 +84,12 @@ public interface BitmapIndexSelector extends Closeable
 
     @Override
     public ImmutableBitmap getBitmapIndex(String dimension, String value)
+    {
+      return null;
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
     {
       return null;
     }

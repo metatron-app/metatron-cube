@@ -82,6 +82,11 @@ public class BooleanGenericColumn extends AbstractGenericColumn
     return nulls.get(rowNum) ? null : values.get(rowNum);
   }
 
+  public ImmutableBitmap getValues()
+  {
+    return values;
+  }
+
   @Override
   public ImmutableBitmap getNulls()
   {

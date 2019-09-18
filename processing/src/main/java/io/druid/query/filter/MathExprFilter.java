@@ -89,7 +89,7 @@ public class MathExprFilter implements DimFilter
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return Filters.ofExpr(Parser.parse(expression));
+    return Filters.ofExpr(Parser.parse(expression, resolver));
   }
 
   @Override

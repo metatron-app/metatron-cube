@@ -35,7 +35,7 @@ import java.util.List;
 
 /**
  */
-public class SimilarityQueryTest extends SketchQueryRunnerTest
+public class SimilarityQueryTest extends SketchQueryRunnerTestHelper
 {
   @Test
   @SuppressWarnings("unchecked")

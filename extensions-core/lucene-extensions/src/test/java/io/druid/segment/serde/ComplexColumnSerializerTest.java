@@ -197,7 +197,7 @@ public class ComplexColumnSerializerTest
     };
     LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동);
     TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("geom", ValueDesc.STRING));
-    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(selector, null, null);
+    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(selector, null);
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(2));

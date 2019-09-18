@@ -29,7 +29,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
@@ -39,7 +38,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.BitmapIndex;
 
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.Iterator;
 
 public class BoundFilter implements Filter
@@ -73,11 +71,7 @@ public class BoundFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(
-      BitmapIndexSelector selector,
-      EnumSet<BitmapType> using,
-      ImmutableBitmap baseBitmap
-  )
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     // asserted to existing dimension
     if (boundDimFilter.isLexicographic() && boundDimFilter.getExtractionFn() == null) {

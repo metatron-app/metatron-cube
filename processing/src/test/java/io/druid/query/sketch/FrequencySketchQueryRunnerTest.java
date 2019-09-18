@@ -48,7 +48,7 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
-public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTest
+public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
 {
   @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException

@@ -40,7 +40,7 @@ import java.util.List;
 /**
  */
 @RunWith(Parameterized.class)
-public class SketchGroupByQueryRunnerGenericTest extends SketchQueryRunnerTest
+public class SketchGroupByQueryRunnerGenericTest extends SketchQueryRunnerTestHelper
 {
   @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException

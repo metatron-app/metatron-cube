@@ -54,7 +54,7 @@ import java.util.Map;
  */
 @RunWith(Parameterized.class)
 @SuppressWarnings("unchecked")
-public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
+public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
 {
   @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException

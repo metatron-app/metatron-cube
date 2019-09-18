@@ -23,14 +23,11 @@ import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.search.Bound;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.incremental.SpatialDimensionRowTransformer;
-
-import java.util.EnumSet;
 
 /**
  */
@@ -39,10 +36,7 @@ public class SpatialFilter implements Filter
   private final String dimension;
   private final Bound bound;
 
-  public SpatialFilter(
-      String dimension,
-      Bound bound
-  )
+  public SpatialFilter(String dimension, Bound bound)
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension");
     this.bound = Preconditions.checkNotNull(bound, "bound");
@@ -55,11 +49,7 @@ public class SpatialFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(
-      final BitmapIndexSelector selector,
-      EnumSet<BitmapType> using,
-      ImmutableBitmap baseBitmap
-  )
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     Iterable<ImmutableBitmap> search = selector.getSpatialIndex(dimension).search(bound);
     return selector.getBitmapFactory().union(search);

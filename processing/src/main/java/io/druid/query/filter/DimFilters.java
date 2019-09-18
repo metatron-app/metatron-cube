@@ -30,17 +30,17 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.Ranges;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
+import io.druid.math.expr.Expression;
 import io.druid.math.expr.Expressions;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
-import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,7 +50,8 @@ import java.util.Set;
  */
 public class DimFilters
 {
-  private static final Logger logger = new Logger(DimFilters.class);
+  private static final Logger LOG = new Logger(DimFilters.class);
+  private static final Expression.Factory<DimFilter> FACTORY = new DimFilter.Factory();
 
   public static SelectorDimFilter dimEquals(String dimension, String value)
   {
@@ -112,57 +113,34 @@ public class DimFilters
 
   public static DimFilter convertToCNF(DimFilter current)
   {
-    return current == null ? null : Expressions.convertToCNF(current, DimFilter.FACTORY);
+    return current == null ? null : Expressions.convertToCNF(current, FACTORY);
   }
 
-  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final RowResolver resolver)
+  public static Pair<ImmutableBitmap, DimFilter> extractBitmaps(DimFilter current, Filters.FilterContext context)
   {
     if (current == null) {
-      return null;
+      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
     }
-    return partitionFilterWith(
-        DimFilters.convertToCNF(current), new Predicate<DimFilter>()
-        {
-          @Override
-          public boolean apply(DimFilter input)
-          {
-            return resolver.supports(input, BitmapType.EXACT);
-          }
-        }
-    );
-  }
-
-  private static DimFilter[] partitionFilterWith(DimFilter current, Predicate<DimFilter> predicate)
-  {
-    // current should be CNF form
-    if (current == null) {
-      return null;
-    }
-    List<DimFilter> bitmapIndexSupported = Lists.newArrayList();
-    List<DimFilter> bitmapIndexNotSupported = Lists.newArrayList();
-
-    traverse(current, predicate, bitmapIndexSupported, bitmapIndexNotSupported);
-
-    return new DimFilter[]{DimFilters.and(bitmapIndexSupported), DimFilters.and(bitmapIndexNotSupported)};
-  }
-
-  private static void traverse(
-      DimFilter current,
-      Predicate<DimFilter> predicate,
-      List<DimFilter> support,
-      List<DimFilter> notSupport
-  )
-  {
     if (current instanceof AndDimFilter) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      List<DimFilter> remainings = Lists.newArrayList();
       for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-        traverse(child, predicate, support, notSupport);
+        Filters.BitmapHolder holder = Filters.toBitmapHolder(child, context);
+        if (holder != null) {
+          bitmaps.add(holder.bitmap());
+        }
+        if (holder == null || !holder.exact()) {
+          remainings.add(child);
+        }
       }
+      ImmutableBitmap extracted = bitmaps.isEmpty() ? null : context.bitmapFactory().intersection(bitmaps);
+      return Pair.<ImmutableBitmap, DimFilter>of(extracted, and(remainings));
     } else {
-      if (predicate.apply(current)) {
-        support.add(current);
-      } else {
-        notSupport.add(current);
+      Filters.BitmapHolder holder = Filters.toBitmapHolder(current, context);
+      if (holder != null) {
+        return Pair.<ImmutableBitmap, DimFilter>of(holder.bitmap(), holder.exact() ? null : current);
       }
+      return Pair.<ImmutableBitmap, DimFilter>of(null, current);
     }
   }
 
@@ -192,27 +170,29 @@ public class DimFilters
       dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
     }
     DimFilter filter = DimFilters.or(dimFilters).optimize();
-    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
+    LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
     return filter;
   }
 
+  // called for non-historical nodes (see QueryResource.prepareQuery)
   public static Query rewriteLuceneFilter(Query query)
   {
-    final DimFilter dimFilter = BaseQuery.getDimFilter(query);
-    if (hasAnyLucene(dimFilter)) {
-      query = ((Query.FilterSupport) query).withFilter(
-          Expressions.rewrite(dimFilter, DimFilter.FACTORY, new Expressions.Rewriter<DimFilter>()
-          {
-            @Override
-            public DimFilter visit(DimFilter expression)
-            {
-              if (expression instanceof DimFilter.LuceneFilter) {
-                expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
-              }
-              return expression;
-            }
-          })
-      );
+    final DimFilter filter = BaseQuery.getDimFilter(query);
+    if (filter != null) {
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, new Expressions.Rewriter<DimFilter>()
+      {
+        @Override
+        public DimFilter visit(DimFilter expression)
+        {
+          if (expression instanceof DimFilter.LuceneFilter) {
+            expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
+          }
+          return expression;
+        }
+      });
+      if (filter != rewritten) {
+        query = ((Query.FilterSupport) query).withFilter(rewritten);
+      }
     }
     return query;
   }
@@ -308,9 +288,7 @@ public class DimFilters
         }
 
         @Override
-        public ImmutableBitmap getBitmapIndex(
-            BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
-        )
+        public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
         {
           return baseBitmap != null ? baseBitmap : makeTrue(selector.getBitmapFactory(), selector.getNumRows());
         }

@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
@@ -35,6 +34,7 @@ import io.druid.cache.Cache;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Sequences;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
@@ -42,7 +42,6 @@ import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
@@ -168,7 +167,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
     Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
     Map<String, Object> columnStats = timeColumn.getColumnStats();
     if (columnStats != null && columnStats.get("max") instanceof Number) {
-      return DateTimes.utc(((Number)columnStats.get("max")).longValue());
+      return DateTimes.utc(((Number) columnStats.get("max")).longValue());
     }
     GenericColumn column = timeColumn.getGenericColumn();
     try {
@@ -183,6 +182,10 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   public Comparable getMinValue(String dimension)
   {
     Column column = index.getColumn(dimension);
+    Map<String, Object> columnStats = column.getColumnStats();
+    if (columnStats != null && columnStats.get("min") instanceof Comparable) {
+      return (Comparable) columnStats.get("min");
+    }
     if (column != null && column.getCapabilities().hasBitmapIndexes()) {
       BitmapIndex bitmap = column.getBitmapIndex();
       return bitmap.getCardinality() > 0 ? bitmap.getValue(0) : null;
@@ -194,6 +197,10 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   public Comparable getMaxValue(String dimension)
   {
     Column column = index.getColumn(dimension);
+    Map<String, Object> columnStats = column.getColumnStats();
+    if (columnStats != null && columnStats.get("max") instanceof Comparable) {
+      return (Comparable) columnStats.get("max");
+    }
     if (column != null && column.getCapabilities().hasBitmapIndexes()) {
       BitmapIndex bitmap = column.getBitmapIndex();
       return bitmap.getCardinality() > 0 ? bitmap.getValue(bitmap.getCardinality() - 1) : null;
@@ -259,39 +266,21 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
     }
     final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
-    final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index);
+    final FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
 
-    final DimFilter[] filters = DimFilters.partitionWithBitmapSupport(filter, resolver);
-
-    final DimFilter bitmapFilter = filters == null ? null : filters[0];
-    final DimFilter valuesFilter = filters == null ? null : filters[1];
-
-    final FilterContext context = Filters.getFilterContext(
-        new ColumnSelectorBitmapIndexSelector(bitmapFactory, index), cache, segmentId
-    );
-
-    ImmutableBitmap baseBitmap = null;
-    if (bitmapFilter != null) {
-      baseBitmap = Filters.toBitmap(bitmapFilter, context, BitmapType.EXACT);
-    }
-    if (valuesFilter != null) {
-      ImmutableBitmap bitmap = Filters.toBitmap(valuesFilter, context, BitmapType.HELPER);
-      baseBitmap = Filters.intersection(bitmapFactory, baseBitmap, bitmap);
-    }
+    final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
+    final ImmutableBitmap baseBitmap = extracted.getKey();
+    final DimFilter valueMatcher = extracted.getValue();
 
     final Offset offset;
     if (baseBitmap == null) {
       offset = descending ? new DescNoFilter(0, context.getNumRows()) : new AscNoFilter(0, context.getNumRows());
     } else {
       if (LOG.isDebugEnabled()) {
-        LOG.debug(
-            "%s : %,d / %,d",
-            DimFilters.and(bitmapFilter, valuesFilter),
-            baseBitmap.size(),
-            context.getNumRows()
-        );
+        LOG.debug("%,d / %,d", baseBitmap.size(), context.getNumRows());
       }
-      offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
+      offset = new BitmapOffset(selector.getBitmapFactory(), baseBitmap, descending);
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
 
@@ -303,7 +292,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                 resolver,
                 granularity,
                 offset,
-                Filters.toFilter(valuesFilter, resolver),
+                Filters.toFilter(valueMatcher, resolver),
                 minDataTimestamp,
                 maxDataTimestamp,
                 descending,
@@ -386,7 +375,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
               new Function<Interval, Cursor>()
               {
                 @Override
-               public Cursor apply(final Interval inputInterval)
+                public Cursor apply(final Interval inputInterval)
                 {
                   final long timeStart = Math.max(interval.getStartMillis(), inputInterval.getStartMillis());
                   final long timeEnd = Math.min(
@@ -1027,7 +1016,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     @Override
                     public ValueMatcher makePredicateMatcher(DimFilter filter)
                     {
-                      BitmapHolder holder = Filters.toBitmapHolder(filter, context, BitmapType.ALL);
+                      BitmapHolder holder = Filters.toBitmapHolder(filter, context);
                       if (holder == null || holder.bitmap().size() == index.getNumRows()) {
                         return super.makePredicateMatcher(filter);
                       }

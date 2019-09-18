@@ -22,6 +22,7 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.Range;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
@@ -56,8 +57,6 @@ import java.util.Set;
 })
 public interface DimFilter extends Expression, Cacheable
 {
-  final Expression.Factory<DimFilter> FACTORY = new Factory();
-
   /**
    * @return Returns an optimized filter.
    * returning the same filter can be a straightforward default implementation.
@@ -129,5 +128,10 @@ public interface DimFilter extends Expression, Cacheable
     boolean possible(TypeResolver resolver);
 
     List<Range> toRanges(TypeResolver resolver);
+  }
+
+  interface BooleanColumnSupport extends DimFilter
+  {
+    ImmutableBitmap toBooleanFilter(TypeResolver resolver, BitmapIndexSelector selector);
   }
 }

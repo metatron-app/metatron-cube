@@ -29,7 +29,6 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.Filter;
@@ -134,6 +133,12 @@ public class ExtractionDimFilterTest
     }
 
     @Override
+    public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
+    {
+      return null;
+    }
+
+    @Override
     public BitmapIndex getBitmapIndex(String dimension)
     {
       return new BitmapIndexColumnPartSupplier(
@@ -208,7 +213,7 @@ public class ExtractionDimFilterTest
         "foo", "NFDJUKFNDSJFNS", DIM_EXTRACTION_FN
     ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
+        BITMAP_INDEX_SELECTOR, null
     );
     Assert.assertEquals(0, immutableBitmap.size());
   }
@@ -220,7 +225,7 @@ public class ExtractionDimFilterTest
         "FDHJSFFHDS", "extractDimVal", DIM_EXTRACTION_FN
     ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
+        BITMAP_INDEX_SELECTOR, null
     );
     Assert.assertEquals(0, immutableBitmap.size());
   }
@@ -232,7 +237,7 @@ public class ExtractionDimFilterTest
         "foo", "extractDimVal", DIM_EXTRACTION_FN
     ).toFilter(null);
     ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null
+        BITMAP_INDEX_SELECTOR, null
     );
     Assert.assertEquals(1, immutableBitmap.size());
   }
@@ -251,7 +256,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
 
     Assert.assertEquals(
@@ -272,7 +277,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
   }
 
@@ -290,7 +295,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
 
     Assert.assertEquals(
@@ -311,7 +316,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
   }
 
@@ -330,7 +335,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
 
     Assert.assertEquals(
@@ -345,7 +350,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, BitmapType.EXACT, null).size()
+        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
     );
   }
 }

@@ -19,12 +19,9 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
@@ -32,6 +29,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.query.Query;
@@ -39,11 +37,10 @@ import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -141,17 +138,15 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
-    Iterable<String> columns = DimensionSpecs.toInputNames(
-        Iterables.filter(dimensions, Predicates.<DimensionSpec>notNull())
-    );
-    if (!sketchOp.isCardinalitySensitive()
-        && queryable != null
-        && metrics.isEmpty()
-        && resolver.supportsExact(columns, filter)) {
+    OUT:
+    if (queryable != null && metrics.isEmpty() && !sketchOp.isCardinalitySensitive()) {
+      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(queryable);
+      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
+      if (extracted.getValue() != null) {
+        break OUT;
+      }
       // Closing this will cause segfaults in unit tests.
-      final BitmapFactory bitmapFactory = queryable.getBitmapFactoryForDimensions();
-      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, queryable);
-      final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
+      final ImmutableBitmap filterBitmap = extracted.getKey();
       for (DimensionSpec spec : dimensions) {
         if (spec == null) {
           continue;
@@ -202,14 +197,18 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
     return Sequences.simple(Arrays.asList(new Result<Object[]>(start, sketches)));
   }
 
-  private ImmutableBitmap toDependentBitmap(DimFilter current, BitmapIndexSelector selector)
+  private Pair<ImmutableBitmap, DimFilter> extractBitmaps(
+      final BitmapIndexSelector selector,
+      final String segmentId,
+      final DimFilter filter
+  )
   {
-    if (current != null) {
-      try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segment.getIdentifier())) {
-        return Filters.toBitmap(current, context, BitmapType.EXACT);
-      }
+    if (filter == null) {
+      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
     }
-    return null;
+    try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
+      return DimFilters.extractBitmaps(filter, context);
+    }
   }
 
   private Accumulator<Map<String, TypedSketch>, Cursor> createAccumulator(

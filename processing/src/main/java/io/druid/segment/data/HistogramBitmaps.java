@@ -278,6 +278,12 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   }
 
   @Override
+  public boolean isExact()
+  {
+    return false;
+  }
+
+  @Override
   public int numBins()
   {
     return bins.length;
@@ -423,7 +429,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
     @Override
     protected boolean isPointZero(Range<Long> range)
     {
-      return Ranges.isPoint(range) && range.lowerEndpoint() == 0l;
+      return Ranges.isPoint(range) && range.lowerEndpoint() == 0L;
     }
 
     @Override

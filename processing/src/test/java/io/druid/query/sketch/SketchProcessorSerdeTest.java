@@ -30,27 +30,27 @@ public class SketchProcessorSerdeTest
   @Test
   public void testTheta() throws IOException
   {
-    String value = SketchQueryRunnerTest.JSON_MAPPER.writeValueAsString(new SketchThetaProcessor());
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchThetaProcessor());
     Assert.assertEquals("{\"type\":\"sketch.theta\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTest.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
     Assert.assertTrue(operator instanceof SketchThetaProcessor);
   }
 
   @Test
   public void testSampling() throws IOException
   {
-    String value = SketchQueryRunnerTest.JSON_MAPPER.writeValueAsString(new SketchSamplingProcessor());
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchSamplingProcessor());
     Assert.assertEquals("{\"type\":\"sketch.sampling\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTest.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
     Assert.assertTrue(operator instanceof SketchSamplingProcessor);
   }
 
   @Test
   public void testFrequency() throws IOException
   {
-    String value = SketchQueryRunnerTest.JSON_MAPPER.writeValueAsString(new SketchFrequencyProcessor());
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchFrequencyProcessor());
     Assert.assertEquals("{\"type\":\"sketch.frequency\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTest.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
     Assert.assertTrue(operator instanceof SketchFrequencyProcessor);
   }
 }

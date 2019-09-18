@@ -28,7 +28,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.BitmapType;
 import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
@@ -170,6 +169,12 @@ public class DimensionPredicateFilterBenchmark
       }
 
       @Override
+      public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
+      {
+        return null;
+      }
+
+      @Override
       public BitmapIndex getBitmapIndex(String dimension)
       {
         return bitmapIndex;
@@ -212,7 +217,7 @@ public class DimensionPredicateFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchIsEven()
   {
-    final ImmutableBitmap bitmapIndex = IS_EVEN.getBitmapIndex(selector, BitmapType.EXACT, null);
+    final ImmutableBitmap bitmapIndex = IS_EVEN.getBitmapIndex(selector, null);
     Preconditions.checkState(bitmapIndex.size() == cardinality / 2);
   }
 

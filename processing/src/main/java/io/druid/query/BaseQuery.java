@@ -42,6 +42,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -244,12 +245,11 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
   {
     Query<T> query = ViewSupportHelper.rewrite(this, resolver);
     if (query instanceof AggregationsSupport) {
-      AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
+      AggregationsSupport<T> aggregationsSupport = (AggregationsSupport<T>) query;
       boolean changed = false;
       List<AggregatorFactory> resolved = Lists.newArrayList();
       for (AggregatorFactory factory : aggregationsSupport.getAggregatorSpecs()) {
@@ -263,15 +263,15 @@ public abstract class BaseQuery<T> implements Query<T>
         query = aggregationsSupport.withAggregatorSpecs(resolved);
       }
     }
-    if (query instanceof Query.FilterSupport && ((FilterSupport) query).getFilter() != null) {
-      FilterSupport<T> filterSupport = (FilterSupport) query;
-      DimFilter optimized = filterSupport.getFilter().optimize();
-      Map<String, String> aliasMapping  = QueryUtils.aliasMapping(this);
+    DimFilter filter = BaseQuery.getDimFilter(query);
+    if (filter != null) {
+      DimFilter optimized = DimFilters.convertToCNF(filter).optimize();
+      Map<String, String> aliasMapping = QueryUtils.aliasMapping(this);
       if (!aliasMapping.isEmpty()) {
         optimized = optimized.withRedirection(aliasMapping);
       }
-      if (optimized != filterSupport.getFilter()) {
-        query = filterSupport.withFilter(optimized);
+      if (filter != optimized) {
+        query = ((FilterSupport<T>) query).withFilter(optimized);
       }
     }
     return query;

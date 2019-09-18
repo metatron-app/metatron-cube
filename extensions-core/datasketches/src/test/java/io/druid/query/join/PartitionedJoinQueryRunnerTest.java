@@ -37,7 +37,7 @@ import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.sketch.SketchQueryRunnerTest;
+import io.druid.query.sketch.SketchQueryRunnerTestHelper;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
@@ -55,7 +55,7 @@ import java.util.List;
 /**
  */
 @RunWith(Parameterized.class)
-public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
+public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
 {
   static final String JOIN_DS_P = "join_test_p";
 
