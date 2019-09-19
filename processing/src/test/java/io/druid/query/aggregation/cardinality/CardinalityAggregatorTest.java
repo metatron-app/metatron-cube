@@ -45,9 +45,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -120,7 +118,7 @@ public class CardinalityAggregatorTest
     public IndexedInts getRow()
     {
       final int p = this.pos;
-      return new IndexedInts()
+      return new IndexedInts.Abstract()
       {
         @Override
         public int size()
@@ -132,24 +130,6 @@ public class CardinalityAggregatorTest
         public int get(int i)
         {
           return column.get(p)[i];
-        }
-
-        @Override
-        public Iterator<Integer> iterator()
-        {
-          return Iterators.forArray(column.get(p));
-        }
-
-        @Override
-        public void fill(int index, int[] toFill)
-        {
-          throw new UnsupportedOperationException("fill not supported");
-        }
-
-        @Override
-        public void close() throws IOException
-        {
-
         }
       };
     }

@@ -19,20 +19,13 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.ImmutableList;
-
-import java.io.IOException;
-import java.util.Iterator;
-
 /**
  */
-public class EmptyIndexedInts implements IndexedInts
+public class EmptyIndexedInts extends IndexedInts.Abstract
 {
   public static final EmptyIndexedInts EMPTY_INDEXED_INTS = new EmptyIndexedInts();
 
-  private EmptyIndexedInts()
-  {
-  }
+  private EmptyIndexedInts() {}
 
   @Override
   public int size()
@@ -44,23 +37,5 @@ public class EmptyIndexedInts implements IndexedInts
   public int get(int index)
   {
     throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Iterator<Integer> iterator()
-  {
-    return ImmutableList.<Integer>of().iterator();
-  }
-
-  @Override
-  public void fill(int index, int[] toFill)
-  {
-    throw new UnsupportedOperationException("fill not supported");
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-
   }
 }

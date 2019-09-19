@@ -60,6 +60,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -69,11 +70,8 @@ import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -327,15 +325,15 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   return;
                 }
 
+                int advanced = 0;
                 while (baseIter.hasNext()) {
-                  if (Thread.interrupted()) {
-                    throw new QueryInterruptedException(new InterruptedException());
-                  }
-
                   currEntry.set(baseIter.next());
 
                   if (filterMatcher.matches()) {
                     return;
+                  }
+                  if (++advanced % 1000 == 0 && Thread.interrupted()) {
+                    throw new QueryInterruptedException(new InterruptedException());
                   }
                 }
 
@@ -401,9 +399,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                 return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec), this);
               }
 
-              private DimensionSelector makeDimensionSelectorUndecorated(
-                  DimensionSpec dimensionSpec
-              )
+              private DimensionSelector makeDimensionSelectorUndecorated(DimensionSpec dimensionSpec)
               {
                 final String dimension = dimensionSpec.getDimension();
                 final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
@@ -422,7 +418,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   if (virtualColumn != null) {
                     return virtualColumn.asDimension(dimension, extractionFn, this);
                   }
-                  if (index.getMetricIndex(dimension) != null) {
+                  if (index.getMetricIndex(dimension) >= 0) {
                     // todo: group-by columns are converted to string
                     return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                   }
@@ -441,56 +437,40 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   {
                     final int[][] dims = currEntry.getKey().getDims();
 
-                    int[] indices = dimIndex < dims.length ? dims[dimIndex] : null;
+                    final int[] indices = dimIndex < dims.length ? dims[dimIndex] : null;
 
-                    List<Integer> valsTmp = null;
-                    if ((indices == null || indices.length == 0) && dimValLookup.contains(null)) {
-                      int id = dimValLookup.getId(null);
-                      if (id < maxId) {
-                        valsTmp = new ArrayList<>(1);
-                        valsTmp.add(id);
+                    int length = 0;
+                    int[] values = null;
+                    if (indices == null || indices.length == 0) {
+                      final int id = dimValLookup.getId(null);
+                      if (id < 0 || id >= maxId) {
+                        return EmptyIndexedInts.EMPTY_INDEXED_INTS;
                       }
+                      length = 1;
+                      values = new int[] {id};
                     } else if (indices != null && indices.length > 0) {
-                      valsTmp = new ArrayList<>(indices.length);
+                      values = new int[indices.length];
                       for (int i = 0; i < indices.length; i++) {
-                        int id = indices[i];
+                        final int id = indices[i];
                         if (id < maxId) {
-                          valsTmp.add(id);
+                          values[length++] = id;
                         }
                       }
                     }
 
-                    final List<Integer> vals = valsTmp == null ? Collections.<Integer>emptyList() : valsTmp;
-                    return new IndexedInts()
+                    final int[] vals = values.length == length ? values : Arrays.copyOf(values, length);
+                    return new IndexedInts.Abstract()
                     {
                       @Override
                       public int size()
                       {
-                        return vals.size();
+                        return vals.length;
                       }
 
                       @Override
                       public int get(int index)
                       {
-                        return vals.get(index);
-                      }
-
-                      @Override
-                      public Iterator<Integer> iterator()
-                      {
-                        return vals.iterator();
-                      }
-
-                      @Override
-                      public void fill(int index, int[] toFill)
-                      {
-                        throw new UnsupportedOperationException("fill not supported");
-                      }
-
-                      @Override
-                      public void close() throws IOException
-                      {
-
+                        return vals[index];
                       }
                     };
                   }
@@ -532,8 +512,8 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               @Override
               public FloatColumnSelector makeFloatColumnSelector(String columnName)
               {
-                final Integer metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt == null) {
+                final int metricIndexInt = index.getMetricIndex(columnName);
+                if (metricIndexInt < 0) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -564,8 +544,8 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               @Override
               public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
               {
-                final Integer metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt == null) {
+                final int metricIndexInt = index.getMetricIndex(columnName);
+                if (metricIndexInt < 0) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -606,8 +586,8 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                     }
                   };
                 }
-                final Integer metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt == null) {
+                final int metricIndexInt = index.getMetricIndex(columnName);
+                if (metricIndexInt < 0) {
                   final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -655,9 +635,8 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   };
                 }
 
-                final Integer metricIndexInt = index.getMetricIndex(column);
-                if (metricIndexInt != null) {
-                  final int metricIndex = metricIndexInt;
+                final int metricIndex = index.getMetricIndex(column);
+                if (metricIndex >= 0) {
                   final ValueDesc valueType = index.getMetricType(column);
                   final Aggregator aggregator = index.getAggregators()[metricIndex];
                   return new ObjectColumnSelector()

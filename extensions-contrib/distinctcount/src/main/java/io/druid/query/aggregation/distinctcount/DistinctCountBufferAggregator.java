@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.WrappedRoaringBitmap;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -55,8 +56,10 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   {
     if (predicate.matches()) {
       MutableBitmap mutableBitmap = getMutableBitmap(buf, position);
-      for (final Integer index : selector.getRow()) {
-        mutableBitmap.add(index);
+      final IndexedInts row = selector.getRow();
+      final int length = row.size();
+      for (int i = 0; i < length; i++) {
+        mutableBitmap.add(row.get(i));
       }
       buf.putLong(position, mutableBitmap.size());
     }

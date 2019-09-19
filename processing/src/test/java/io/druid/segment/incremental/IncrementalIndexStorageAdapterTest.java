@@ -441,9 +441,10 @@ public class IncrementalIndexStorageAdapterTest
 
                 // and then, cursoring continues in the other thread
                 while (!cursor.isDone()) {
-                  IndexedInts row = dimSelector.getRow();
-                  for (int i : row) {
-                    Assert.assertTrue(i < cardinality);
+                  final IndexedInts row = dimSelector.getRow();
+                  final int length = row.size();
+                  for (int i = 0; i < length; i++) {
+                    Assert.assertTrue(row.get(i) < cardinality);
                   }
                   cursor.advance();
                 }

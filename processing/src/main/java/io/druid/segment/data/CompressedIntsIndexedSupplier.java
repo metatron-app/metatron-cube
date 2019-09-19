@@ -293,43 +293,6 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
       return buffer.get(buffer.position() + bufferIndex);
     }
 
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return new IndexedIntsIterator(this);
-    }
-
-    @Override
-    public void fill(int index, int[] toFill)
-    {
-      if (totalSize - index < toFill.length) {
-        throw new IndexOutOfBoundsException(
-            String.format(
-                "Cannot fill array of size[%,d] at index[%,d].  Max size[%,d]", toFill.length, index, totalSize
-            )
-        );
-      }
-
-      int bufferNum = index / sizePer;
-      int bufferIndex = index % sizePer;
-
-      int leftToFill = toFill.length;
-      while (leftToFill > 0) {
-        if (bufferNum != currIndex) {
-          loadBuffer(bufferNum);
-        }
-
-        buffer.mark();
-        buffer.position(buffer.position() + bufferIndex);
-        final int numToGet = Math.min(buffer.remaining(), leftToFill);
-        buffer.get(toFill, toFill.length - leftToFill, numToGet);
-        buffer.reset();
-        leftToFill -= numToGet;
-        ++bufferNum;
-        bufferIndex = 0;
-      }
-    }
-
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);

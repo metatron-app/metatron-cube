@@ -21,12 +21,13 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.ListBasedIndexedInts;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,16 +128,19 @@ public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
       @Override
       public IndexedInts getRow()
       {
-        IndexedInts baseRow = selector.getRow();
-        List<Integer> result = new ArrayList<>(baseRow.size());
+        final IndexedInts baseRow = selector.getRow();
+        final int length = baseRow.size();
+        final List<Integer> result = new ArrayList<>(length);
 
-        for (int i : baseRow) {
-          if (forwardMapping.containsKey(i)) {
-            result.add(forwardMapping.get(i));
+        for (int i = 0; i < length; i++) {
+          final int id = baseRow.get(i);
+          final Integer mapped = forwardMapping.get(id);
+          if (mapped != null) {
+            result.add(mapped);
           }
         }
 
-        return new ListBasedIndexedInts(result);
+        return new ArrayBasedIndexedInts(Ints.toArray(result));
       }
 
       @Override

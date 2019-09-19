@@ -22,13 +22,11 @@ package io.druid.segment.data;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 
 /**
  */
-public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIndexedInts>
+public class IntBufferIndexedInts extends IndexedInts.Abstract implements Comparable<IntBufferIndexedInts>
 {
   public static ObjectStrategy<IntBufferIndexedInts> objectStrategy =
       new IntBufferIndexedIntsObjectStrategy();
@@ -71,12 +69,6 @@ public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIn
     return buffer.compareTo(o.getBuffer());
   }
 
-  @Override
-  public Iterator<Integer> iterator()
-  {
-    return new IndexedIntsIterator(this);
-  }
-
   private static class IntBufferIndexedIntsObjectStrategy implements ObjectStrategy<IntBufferIndexedInts>
   {
     @Override
@@ -108,17 +100,5 @@ public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIn
     {
       return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
-  }
-
-  @Override
-  public void fill(int index, int[] toFill)
-  {
-    throw new UnsupportedOperationException("fill not supported");
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-
   }
 }

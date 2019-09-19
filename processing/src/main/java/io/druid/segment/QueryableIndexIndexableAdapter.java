@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
@@ -34,14 +35,13 @@ import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.data.BitmapCompressedIndexedInts;
-import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -271,20 +271,17 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @VisibleForTesting
-  IndexedInts getBitmapIndex(String dimension, String value)
+  ImmutableBitmap getBitmap(String dimension, String value)
   {
     final Column column = input.getColumn(dimension);
-
     if (column == null) {
-      return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+      return null;
     }
-
     final BitmapIndex bitmaps = column.getBitmapIndex();
     if (bitmaps == null) {
-      return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+      return null;
     }
-
-    return new BitmapCompressedIndexedInts(bitmaps.getBitmap(bitmaps.getIndex(value)));
+    return bitmaps.getBitmap(bitmaps.getIndex(value));
   }
 
   @Override
@@ -308,23 +305,18 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public IndexedInts getBitmapIndex(String dimension, int dictId)
+  @Nullable
+  public ImmutableBitmap getBitmap(String dimension, int dictId)
   {
     final Column column = input.getColumn(dimension);
     if (column == null) {
-      return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+      return null;
     }
-
     final BitmapIndex bitmaps = column.getBitmapIndex();
     if (bitmaps == null) {
-      return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+      return null;
     }
-
-    if (dictId >= 0) {
-      return new BitmapCompressedIndexedInts(bitmaps.getBitmap(dictId));
-    } else {
-      return EmptyIndexedInts.EMPTY_INDEXED_INTS;
-    }
+    return bitmaps.getBitmap(dictId);
   }
 
   @Override

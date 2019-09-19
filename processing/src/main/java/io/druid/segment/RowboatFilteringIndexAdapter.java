@@ -21,10 +21,10 @@ package io.druid.segment;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedInts;
 import org.joda.time.Interval;
 
 /**
@@ -89,9 +89,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public IndexedInts getBitmapIndex(String dimension, int dictId)
+  public ImmutableBitmap getBitmap(String dimension, int dictId)
   {
-    return baseAdapter.getBitmapIndex(dimension, dictId);
+    return baseAdapter.getBitmap(dimension, dictId);
   }
 
   @Override

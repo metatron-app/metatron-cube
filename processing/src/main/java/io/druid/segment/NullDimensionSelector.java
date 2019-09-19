@@ -19,19 +19,15 @@
 
 package io.druid.segment;
 
-import com.google.common.collect.Iterators;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.IndexedInts;
-
-import java.io.IOException;
-import java.util.Iterator;
 
 public class NullDimensionSelector implements DimensionSelector
 {
   public static final DimensionSelector STRING_TYPE = new NullDimensionSelector(ValueDesc.STRING);
 
-  public static final IndexedInts SINGLETON = new IndexedInts()
+  public static final IndexedInts SINGLETON = new IndexedInts.Abstract()
   {
     @Override
     public int size()
@@ -43,23 +39,6 @@ public class NullDimensionSelector implements DimensionSelector
     public int get(int index)
     {
       return 0;
-    }
-
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return Iterators.singletonIterator(0);
-    }
-
-    @Override
-    public void fill(int index, int[] toFill)
-    {
-      throw new UnsupportedOperationException("NullDimensionSelector does not support fill");
-    }
-
-    @Override
-    public void close() throws IOException
-    {
     }
   };
 

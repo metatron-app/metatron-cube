@@ -44,7 +44,6 @@ import io.druid.segment.filter.Filters;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -308,42 +307,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           }
 
           @Override
-          public void fill(int index, int[] toFill)
-          {
-            throw new UnsupportedOperationException("fill");
-          }
-
-          @Override
           public void close() throws IOException
           {
             indexed.close();
-          }
-
-          @Override
-          public Iterator<Integer> iterator()
-          {
-            return new Iterator<Integer>()
-            {
-              private int index;
-
-              @Override
-              public boolean hasNext()
-              {
-                return index < size;
-              }
-
-              @Override
-              public Integer next()
-              {
-                return indexed.get(mapping[index++]);
-              }
-
-              @Override
-              public void remove()
-              {
-                throw new UnsupportedOperationException("remove");
-              }
-            };
           }
         };
       }

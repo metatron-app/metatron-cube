@@ -74,7 +74,6 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
@@ -89,6 +88,7 @@ import io.druid.segment.serde.ComplexMetrics;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -981,8 +981,8 @@ public class IndexMerger
         ByteBufferWriter<ImmutableRTree> spatialWriter = null;
         RTree tree = null;
         IOPeon spatialIoPeon = new TmpFileIOPeon();
+        final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
         if (isSpatialDim) {
-          BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
           spatialWriter = new ByteBufferWriter<ImmutableRTree>(
               spatialIoPeon, dimension, new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapFactory)
           );
@@ -990,40 +990,37 @@ public class IndexMerger
           tree = new RTree(2, new LinearGutmanSplitStrategy(0, 50, bitmapFactory), bitmapFactory);
         }
 
-        IndexSeeker[] dictIdSeeker = toIndexSeekers(indexes, dimConversions, dimension);
+        final IndexSeeker[] dictIdSeeker = toIndexSeekers(indexes, dimConversions, dimension);
 
         //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
         for (int dictId = 0; dictId < dimVals.size(); dictId++) {
           progress.progress();
-          List<Iterable<Integer>> convertedInverteds = Lists.newArrayListWithCapacity(indexes.size());
+          final MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
           for (int j = 0; j < indexes.size(); ++j) {
-            int seekedDictId = dictIdSeeker[j].seek(dictId);
-            if (seekedDictId != IndexSeeker.NOT_EXIST) {
-              convertedInverteds.add(
-                  new ConvertingIndexedInts(
-                      indexes.get(j).getBitmapIndex(dimension, seekedDictId), rowNumConversions[j]
-                  )
-              );
+            final int[] conversion = Arrays.copyOf(rowNumConversions[j], rowNumConversions[j].length);
+            final int seekedDictId = dictIdSeeker[j].seek(dictId);
+            if (seekedDictId == IndexSeeker.NOT_EXIST) {
+              continue;
+            }
+            final ImmutableBitmap bitmap = indexes.get(j).getBitmap(dimension, seekedDictId);
+            if (bitmap == null || bitmap.isEmpty()) {
+              continue;
+            }
+            final IntIterator iterator = bitmap.iterator();
+            while (iterator.hasNext()) {
+              final int id = iterator.next();
+              if (conversion[id] != INVALID_ROW) {
+                bitset.add(conversion[id]);
+                conversion[id] = INVALID_ROW;
+              }
             }
           }
 
-          MutableBitmap bitset = bitmapSerdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
-          for (Integer row : CombiningIterable.createSplatted(
-              convertedInverteds,
-              GuavaUtils.<Integer>nullFirstNatural()
-          )) {
-            if (row != INVALID_ROW) {
-              bitset.add(row);
-            }
-          }
-
-          if ((dictId == 0) && (Iterables.getFirst(dimVals, "") == null)) {
+          if (dictId == 0 && (Iterables.getFirst(dimVals, "") == null)) {
             bitset.or(nullRowsList.get(i));
           }
 
-          writer.add(
-              bitmapSerdeFactory.getBitmapFactory().makeImmutableBitmap(bitset)
-          );
+          writer.add(bitmapFactory.makeImmutableBitmap(bitset));
 
           if (isSpatialDim) {
             String dimVal = dimVals.get(dictId);
@@ -1341,47 +1338,6 @@ public class IndexMerger
       } else {
         return NOT_EXIST;
       }
-    }
-  }
-
-  public static class ConvertingIndexedInts implements Iterable<Integer>
-  {
-    private final IndexedInts baseIndex;
-    private final int[] conversion;
-
-    public ConvertingIndexedInts(
-        IndexedInts baseIndex,
-        int[] conversion
-    )
-    {
-      this.baseIndex = baseIndex;
-      this.conversion = conversion;
-    }
-
-    public int size()
-    {
-      return baseIndex.size();
-    }
-
-    public int get(int index)
-    {
-      return conversion[baseIndex.get(index)];
-    }
-
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return Iterators.transform(
-          baseIndex.iterator(),
-          new Function<Integer, Integer>()
-          {
-            @Override
-            public Integer apply(Integer input)
-            {
-              return conversion[input];
-            }
-          }
-      );
     }
   }
 

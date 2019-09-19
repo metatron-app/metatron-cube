@@ -22,7 +22,6 @@ package io.druid.segment;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -70,44 +69,9 @@ public interface IndexProvidingSelector extends DimensionSelector
         }
 
         @Override
-        public void fill(int index, int[] toFill)
-        {
-          throw new UnsupportedOperationException("fill");
-        }
-
-        @Override
         public void close() throws IOException
         {
           delegate.close();
-        }
-
-        @Override
-        public Iterator<Integer> iterator()
-        {
-          final Iterator<Integer> iterator = delegate.iterator();
-          return new Iterator<Integer>()
-          {
-            private int index = 0;
-
-            @Override
-            public boolean hasNext()
-            {
-              return iterator.hasNext();
-            }
-
-            @Override
-            public Integer next()
-            {
-              IndexHolder.this.index = index++;
-              return iterator.next();
-            }
-
-            @Override
-            public void remove()
-            {
-              iterator.remove();
-            }
-          };
         }
       };
     }

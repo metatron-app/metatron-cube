@@ -19,12 +19,9 @@
 
 package io.druid.segment.data;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 /**
 */
-public class ArrayBasedIndexedInts implements IndexedInts
+public class ArrayBasedIndexedInts extends IndexedInts.Abstract
 {
   private final int[] expansion;
 
@@ -40,35 +37,5 @@ public class ArrayBasedIndexedInts implements IndexedInts
   public int get(int index)
   {
     return expansion[index];
-  }
-
-  @Override
-  public Iterator<Integer> iterator()
-  {
-    return new IndexedIntsIterator(this);
-  }
-
-  @Override
-  public void fill(int index, int[] toFill)
-  {
-    throw new UnsupportedOperationException("fill not supported");
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-
-  }
-
-  public static int[] toIntArray(IndexedInts indexed)
-  {
-    if (indexed instanceof ArrayBasedIndexedInts) {
-      return ((ArrayBasedIndexedInts) indexed).expansion;
-    }
-    int[] array = new int[indexed.size()];
-    for (int i = 0; i < array.length; i++) {
-      array[i] = indexed.get(i);
-    }
-    return array;
   }
 }

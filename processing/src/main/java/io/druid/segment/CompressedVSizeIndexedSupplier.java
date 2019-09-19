@@ -23,7 +23,6 @@ import com.metamx.common.IAE;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedIntsIterator;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.WritableSupplier;
@@ -183,7 +182,7 @@ public class CompressedVSizeIndexedSupplier implements WritableSupplier<IndexedM
       final int offset = offsets.get(index);
       final int size = offsets.get(index + 1) - offset;
 
-      return new IndexedInts()
+      return new IndexedInts.Abstract()
       {
         @Override
         public int size()
@@ -198,24 +197,6 @@ public class CompressedVSizeIndexedSupplier implements WritableSupplier<IndexedM
             throw new IllegalArgumentException(String.format("Index[%s] >= size[%s]", index, size));
           }
           return values.get(index + offset);
-        }
-
-        @Override
-        public void fill(int index, int[] toFill)
-        {
-          throw new UnsupportedOperationException("fill not supported");
-        }
-
-        @Override
-        public void close() throws IOException
-        {
-          // no-op
-        }
-
-        @Override
-        public Iterator<Integer> iterator()
-        {
-          return new IndexedIntsIterator(this);
         }
       };
     }

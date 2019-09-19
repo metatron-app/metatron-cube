@@ -19,11 +19,13 @@
 
 package io.druid.segment;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedInts;
 import org.joda.time.Interval;
+
+import javax.annotation.Nullable;
 
 /**
  * An adapter to an index
@@ -42,7 +44,8 @@ public interface IndexableAdapter
 
   Iterable<Rowboat> getRows(int indexNum);
 
-  IndexedInts getBitmapIndex(String dimension, int dictId);
+  @Nullable
+  ImmutableBitmap getBitmap(String dimension, int dictId);
 
   ValueDesc getMetricType(String metric);
 

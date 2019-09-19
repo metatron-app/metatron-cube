@@ -366,18 +366,6 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
              buffer.getInt(pos) & littleEndianMask;
     }
 
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return new IndexedIntsIterator(this);
-    }
-
-    @Override
-    public void fill(int index, int[] toFill)
-    {
-      throw new UnsupportedOperationException("fill not supported");
-    }
-
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);

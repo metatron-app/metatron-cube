@@ -26,12 +26,11 @@ import com.metamx.common.IAE;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Iterator;
 import java.util.List;
 
 /**
  */
-public class VSizeIndexedInts implements IndexedInts, Comparable<VSizeIndexedInts>
+public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable<VSizeIndexedInts>
 {
   public static final byte VERSION = 0x0;
 
@@ -177,12 +176,6 @@ public class VSizeIndexedInts implements IndexedInts, Comparable<VSizeIndexedInt
     return 1 + 1 + 4 + buffer.remaining();
   }
 
-  @Override
-  public Iterator<Integer> iterator()
-  {
-    return new IndexedIntsIterator(this);
-  }
-
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
@@ -208,18 +201,6 @@ public class VSizeIndexedInts implements IndexedInts, Comparable<VSizeIndexedInt
     }
 
     throw new IAE("Unknown version[%s]", versionFromBuffer);
-  }
-
-  @Override
-  public void fill(int index, int[] toFill)
-  {
-    throw new UnsupportedOperationException("fill not supported");
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-
   }
 
   public WritableSupplier<IndexedInts> asWritableSupplier() {

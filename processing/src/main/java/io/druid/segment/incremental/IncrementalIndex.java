@@ -746,10 +746,10 @@ public abstract class IncrementalIndex implements Closeable
     return ImmutableList.copyOf(metricDescs.keySet());
   }
 
-  public Integer getMetricIndex(String metricName)
+  public int getMetricIndex(String metricName)
   {
     MetricDesc metSpec = getMetricDesc(metricName);
-    return metSpec == null ? null : metSpec.getIndex();
+    return metSpec == null ? -1 : metSpec.getIndex();
   }
 
   public MetricDesc getMetricDesc(String metricName)

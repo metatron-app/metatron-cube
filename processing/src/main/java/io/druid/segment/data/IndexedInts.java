@@ -19,22 +19,22 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Iterators;
-
 import java.io.Closeable;
-import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * Get a int an index (array or list lookup abstraction without boxing).
  */
-public interface IndexedInts extends Iterable<Integer>, Closeable
+public interface IndexedInts extends Closeable
 {
   int size();
   int get(int index);
-  void fill(int index, int[] toFill);
 
-  abstract class SingleValued implements IndexedInts
+  abstract class Abstract implements IndexedInts
+  {
+    @Override public void close() {}
+  }
+
+  abstract class SingleValued extends Abstract
   {
     @Override
     public int size()
@@ -48,23 +48,6 @@ public interface IndexedInts extends Iterable<Integer>, Closeable
     public int get(int index)
     {
       return get();
-    }
-
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return Iterators.singletonIterator(get());
-    }
-
-    @Override
-    public void fill(int index, int[] toFill)
-    {
-      throw new UnsupportedOperationException("fill not supported");
-    }
-
-    @Override
-    public void close() throws IOException
-    {
     }
   }
 }

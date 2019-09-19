@@ -191,8 +191,10 @@ public class CardinalityAggregator extends Aggregator.Simple<HyperLogLogCollecto
   {
     for (final DimensionSelector selector : selectors) {
       final boolean rawAccess = selector instanceof DimensionSelector.WithRawAccess;
-      for (final Integer index : selector.getRow()) {
-        write(_toValue(selector, index, rawAccess), buffer);
+      final IndexedInts row = selector.getRow();
+      final int size = row.size();
+      for (int i = 0; i < size; i++) {
+        write(_toValue(selector, row.get(i), rawAccess), buffer);
         collector.add(Murmur3.hash128(buffer.toByteArray()));
         buffer.reset();
       }

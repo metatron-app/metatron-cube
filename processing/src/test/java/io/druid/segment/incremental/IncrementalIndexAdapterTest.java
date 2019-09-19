@@ -21,6 +21,7 @@ package io.druid.segment.incremental;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexSpec;
@@ -30,8 +31,6 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IncrementalIndexTest;
-import io.druid.segment.data.IndexedInts;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -61,8 +60,8 @@ public class IncrementalIndexAdapterTest
     );
     String dimension = "dim1";
     for (int i = 0; i < adapter.getDimValueLookup(dimension).size(); i++) {
-      IndexedInts indexedInts = adapter.getBitmapIndex(dimension, i);
-      Assert.assertEquals(1, indexedInts.size());
+      ImmutableBitmap bitmap = adapter.getBitmap(dimension, i);
+      Assert.assertEquals(1, bitmap.size());
     }
   }
 

@@ -47,6 +47,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
+import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -54,8 +55,6 @@ import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -654,42 +653,23 @@ public class ColumnSelectorFactories
         public IndexedInts getRow()
         {
           final List<String> dimensionValues = in.get().getDimension(dimension);
-          final ArrayList<Integer> vals = Lists.newArrayList();
-          if (dimensionValues != null) {
-            for (int i = 0; i < dimensionValues.size(); ++i) {
-              vals.add(i);
-            }
+          if (dimensionValues == null) {
+            return EmptyIndexedInts.EMPTY_INDEXED_INTS;
           }
+          final int length = dimensionValues.size();
 
-          return new IndexedInts()
+          return new IndexedInts.Abstract()
           {
             @Override
             public int size()
             {
-              return vals.size();
+              return length;
             }
 
             @Override
             public int get(int index)
             {
-              return vals.get(index);
-            }
-
-            @Override
-            public Iterator<Integer> iterator()
-            {
-              return vals.iterator();
-            }
-
-            @Override
-            public void close() throws IOException
-            {
-            }
-
-            @Override
-            public void fill(int index, int[] toFill)
-            {
-              throw new UnsupportedOperationException("fill not supported");
+              return index;
             }
           };
         }

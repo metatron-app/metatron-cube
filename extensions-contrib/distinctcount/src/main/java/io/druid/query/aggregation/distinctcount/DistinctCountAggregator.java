@@ -23,6 +23,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.data.IndexedInts;
 
 public class DistinctCountAggregator extends Aggregator.Abstract<MutableBitmap>
 {
@@ -48,8 +49,10 @@ public class DistinctCountAggregator extends Aggregator.Abstract<MutableBitmap>
       if (current == null) {
         current = bitMapFactory.makeEmptyMutableBitmap();
       }
-      for (final Integer index : selector.getRow()) {
-        current.add(index);
+      final IndexedInts row = selector.getRow();
+      final int length = row.size();
+      for (int i = 0; i < length; i++) {
+        current.add(row.get(i));
       }
     }
     return current;
