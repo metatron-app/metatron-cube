@@ -21,10 +21,8 @@ package io.druid.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.KeyDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -36,6 +34,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.joda.deser.DurationDeserializer;
 import com.fasterxml.jackson.datatype.joda.deser.PeriodDeserializer;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -53,7 +52,7 @@ public class JodaStuff
   {
     ObjectMapper client = mapper.copy();
     SimpleSerializers serializers = new SimpleSerializers();
-    serializers.addSerializer(DateTime.class, new DateTimeSerializer());
+    serializers.addSerializer(DateTime.class, new CustomDateTimeSerializer());
     return client.setSerializerFactory(mapper.getSerializerFactory().withAdditionalSerializers(serializers));
   }
 
@@ -61,12 +60,11 @@ public class JodaStuff
   static SimpleModule register(SimpleModule module)
   {
     module.addKeyDeserializer(DateTime.class, new DateTimeKeyDeserializer());
-    module.addDeserializer(DateTime.class, new DateTimeDeserializer());
-    module.addSerializer(DateTime.class, ToStringSerializer.instance);
+    module.addDeserializer(DateTime.class, new CustomDateTimeDeserializer());
+    module.addSerializer(DateTime.class, new DateTimeSerializer());
     module.addDeserializer(Interval.class, new JodaStuff.IntervalDeserializer());
     module.addSerializer(Interval.class, ToStringSerializer.instance);
-    JsonDeserializer<?> periodDeserializer = new PeriodDeserializer();
-    module.addDeserializer(Period.class, (JsonDeserializer<Period>) periodDeserializer);
+    module.addDeserializer(Period.class, new PeriodDeserializer());
     module.addSerializer(Period.class, ToStringSerializer.instance);
     module.addDeserializer(Duration.class, new DurationDeserializer());
     module.addSerializer(Duration.class, ToStringSerializer.instance);
@@ -85,7 +83,7 @@ public class JodaStuff
 
     @Override
     public Interval deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
-        throws IOException, JsonProcessingException
+        throws IOException
     {
       return new Interval(jsonParser.getText());
     }
@@ -94,15 +92,42 @@ public class JodaStuff
   private static class DateTimeKeyDeserializer extends KeyDeserializer
   {
     @Override
-    public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException, JsonProcessingException
+    public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException
     {
       return new DateTime(key);
     }
   }
 
-  private static class DateTimeSerializer extends StdSerializer<DateTime>
+  private static class DateTimeSerializer extends ToStringSerializer
   {
-    protected DateTimeSerializer()
+    private static final String MIN_INSTANT = DateTimes.MIN.toString();
+    private static final String MAX_INSTANT = DateTimes.MAX.toString();
+    private static final String EPOCH_INSTANT = DateTimes.EPOCH.toString();
+
+    @Override
+    public void serialize(Object value, JsonGenerator jgen, SerializerProvider provider) throws IOException
+    {
+      final DateTime dateTime = (DateTime) value;
+      if (dateTime.getZone() == DateTimeZone.UTC) {
+        final long timeMillis = dateTime.getMillis();
+        if (timeMillis == JodaUtils.MIN_INSTANT) {
+          jgen.writeString(MIN_INSTANT);
+        } else if (timeMillis == JodaUtils.MAX_INSTANT) {
+          jgen.writeString(MAX_INSTANT);
+        } else if (timeMillis == 0) {
+          jgen.writeString(EPOCH_INSTANT);
+        } else {
+          jgen.writeString(dateTime.toString());
+        }
+      } else {
+        jgen.writeString(dateTime.toString());
+      }
+    }
+  }
+
+  private static class CustomDateTimeSerializer extends StdSerializer<DateTime>
+  {
+    protected CustomDateTimeSerializer()
     {
       super(DateTime.class);
     }
@@ -122,9 +147,9 @@ public class JodaStuff
     }
   }
 
-  private static class DateTimeDeserializer extends StdDeserializer<DateTime>
+  private static class CustomDateTimeDeserializer extends StdDeserializer<DateTime>
   {
-    public DateTimeDeserializer()
+    public CustomDateTimeDeserializer()
     {
       super(DateTime.class);
     }
@@ -134,9 +159,6 @@ public class JodaStuff
         throws IOException
     {
       JsonToken t = jp.getCurrentToken();
-      if (t == JsonToken.VALUE_NUMBER_INT) {
-        return DateTimes.utc(jp.getLongValue());
-      }
       if (t == JsonToken.VALUE_STRING) {
         String str = jp.getText().trim();
         if (str.length() == 0) { // [JACKSON-360]
@@ -146,6 +168,9 @@ public class JodaStuff
         return ISODateTimeFormat.dateTimeParser()
                                 .withOffsetParsed()
                                 .parseDateTime(str);
+      }
+      if (t == JsonToken.VALUE_NUMBER_INT) {
+        return DateTimes.utc(jp.getLongValue());
       }
       if (t == JsonToken.START_OBJECT) {
         long millis = 0;
