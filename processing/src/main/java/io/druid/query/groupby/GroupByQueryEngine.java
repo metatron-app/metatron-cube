@@ -22,7 +22,6 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -88,28 +87,6 @@ import java.util.Set;
 public class GroupByQueryEngine
 {
   private static final Logger log = new Logger(GroupByQueryEngine.class);
-
-  /**
-   * If "query" has a single universal timestamp, return it. Otherwise return null. This is useful
-   * for keeping timestamps in sync across partial queries that may have different intervals.
-   *
-   * @param query the query
-   *
-   * @return universal timestamp, or null
-   */
-  public static Long getUniversalTimestamp(final Query<?> query)
-  {
-    final Granularity gran = query.getGranularity();
-    final String timestampStringFromContext = query.getContextValue(Query.FUDGE_TIMESTAMP);
-
-    if (!Strings.isNullOrEmpty(timestampStringFromContext)) {
-      return Long.parseLong(timestampStringFromContext);
-    } else if (Granularities.ALL.equals(gran)) {
-      return query.getIntervals().get(0).getStartMillis();
-    } else {
-      return null;
-    }
-  }
 
   private final StupidPool<ByteBuffer> intermediateResultsBufferPool;
 
@@ -203,10 +180,7 @@ public class GroupByQueryEngine
       this.rowUpdater = new RowUpdater(bufferPool, maxPage);
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
                         query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
-      String fudgeTimestampString = query.getContextValue(Query.FUDGE_TIMESTAMP);
-      fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
-                                   ? null
-                                   : new DateTime(Long.parseLong(fudgeTimestampString));
+      fixedTimeForAllGranularity = BaseQuery.getUniversalTimestamp(query);
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];

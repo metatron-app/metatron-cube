@@ -55,7 +55,6 @@ import java.util.List;
 
 public class DistinctCountGroupByQueryTest
 {
-
   @Test
   public void testGroupByWithDistinctCountAgg() throws Exception
   {
@@ -149,7 +148,7 @@ public class DistinctCountGroupByQueryTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(
         factory,
         factory.createRunner(incrementalIndexSegment, null),
-        query
+        query.resolveQuery(null, null)    // fudge timestamp
     );
 
     List<Row> expectedResults = Arrays.asList(

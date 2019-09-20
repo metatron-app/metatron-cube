@@ -20,6 +20,7 @@
 package io.druid.query.timeseries;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
@@ -126,7 +127,9 @@ public class TimeseriesQueryEngine
                     Aggregators.aggregate(values, aggregators);
                     cursor.advance();
                   }
-                  return flushRow(cursor.getTime(), values, aggregators);
+                  final DateTime timestamp = Optional.fromNullable(BaseQuery.getUniversalTimestamp(query))
+                                                     .or(cursor.getTime());
+                  return flushRow(timestamp, values, aggregators);
                 }
               };
             }

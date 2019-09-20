@@ -19,6 +19,7 @@
 
 package io.druid.common.guava;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
@@ -26,6 +27,7 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.common.Yielders;
+import io.druid.common.utils.Sequences;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,12 +37,23 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CombiningSequence<T> implements Sequence<T>
 {
   public static <T> Sequence<T> create(
-      Sequence<T> baseSequence,
-      Ordering<T> ordering,
-      BinaryFn<T, T, T> mergeFn
+      final Sequence<T> sequence,
+      final Ordering<T> ordering,
+      final BinaryFn<T, T, T> mergeFn
   )
   {
-    return new CombiningSequence<T>(baseSequence, ordering, mergeFn);
+    if (ordering == null) {
+      return Sequences.lazy(new Supplier<Sequence<T>>()
+      {
+        @Override
+        public Sequence<T> get()
+        {
+          final T accumulated = Sequences.accumulate(sequence, mergeFn);
+          return accumulated == null ? Sequences.empty() : Sequences.of(accumulated);
+        }
+      });
+    }
+    return new CombiningSequence<T>(sequence, ordering, mergeFn);
   }
 
   private final Sequence<T> baseSequence;

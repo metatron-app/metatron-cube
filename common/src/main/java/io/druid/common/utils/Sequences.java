@@ -38,6 +38,7 @@ import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
+import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
@@ -79,6 +80,18 @@ public class Sequences extends com.metamx.common.guava.Sequences
           }
         }
     );
+  }
+
+  public static <T> T accumulate(final Sequence<T> sequence, final BinaryFn<T, T, T> function)
+  {
+    return sequence.accumulate(null, new Accumulator<T, T>()
+    {
+      @Override
+      public T accumulate(T accumulated, T in)
+      {
+        return function.apply(accumulated, in);
+      }
+    });
   }
 
   public static <T> Sequence<T> lazy(Supplier<Sequence<T>> supplier)

@@ -65,7 +65,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -129,10 +128,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        final GroupByQuery groupBy = (GroupByQuery) query.withOverriddenContext(
-            Query.FUDGE_TIMESTAMP,
-            Objects.toString(GroupByQueryEngine.getUniversalTimestamp(query), "")
-        );
+        final GroupByQuery groupBy = (GroupByQuery) query;
         final int maxPage = groupBy.getContextIntWithMax(
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
             config.getGroupBy().getMaxStreamSubQueryPage()

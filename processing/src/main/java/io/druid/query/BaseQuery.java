@@ -33,10 +33,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -47,6 +49,7 @@ import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
@@ -450,6 +453,36 @@ public abstract class BaseQuery<T> implements Query<T>
     }
 
     return overridden;
+  }
+
+
+  /**
+   * If "query" has a single universal timestamp, return it. Otherwise return null. This is useful
+   * for keeping timestamps in sync across partial queries that may have different intervals.
+   *
+   * @param query the query
+   *
+   * @return universal timestamp, or null
+   */
+  public static <T> Query<T> setUniversalTimestamp(Query<T> query)
+  {
+    final Number fudgeTimestamp = query.getContextValue(FUDGE_TIMESTAMP);
+    if (fudgeTimestamp == null && Granularities.ALL.equals(query.getGranularity())) {
+      final List<Interval> intervals = query.getIntervals();
+      if (!intervals.isEmpty()) {
+        return query.withOverriddenContext(FUDGE_TIMESTAMP, intervals.get(0).getStartMillis());
+      }
+    }
+    return query;
+  }
+
+  public static <T> DateTime getUniversalTimestamp(Query<T> query)
+  {
+    final Number fudgeTimestamp = query.getContextValue(FUDGE_TIMESTAMP);
+    if (fudgeTimestamp != null) {
+      return DateTimes.utc(fudgeTimestamp.longValue());
+    }
+    return null;
   }
 
   @Override

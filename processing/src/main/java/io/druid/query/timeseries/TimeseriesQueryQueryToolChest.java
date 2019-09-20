@@ -25,7 +25,6 @@ import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -64,7 +63,7 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   {
     final Granularity granularity = timeseries.getGranularity();
     if (Granularities.ALL.equals(granularity)) {
-      return GuavaUtils.allEquals();
+      return null;  // accumulate all
     }
     return Ordering.from(new Comparator<Row>()
     {

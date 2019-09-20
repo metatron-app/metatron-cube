@@ -472,7 +472,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   {
     Map<String, Object> override = defaultPostActionContext();
     override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
-    override.put(FUDGE_TIMESTAMP, Objects.toString(GroupByQueryEngine.getUniversalTimestamp(this), null));
 
     return new GroupByQuery(
         getDataSource(),

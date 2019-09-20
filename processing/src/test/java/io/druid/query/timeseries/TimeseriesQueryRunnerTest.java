@@ -27,8 +27,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -149,10 +149,7 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    Iterable<Row> results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Row>newArrayList()
-    );
+    Iterable<Row> results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
 
     final String[] expectedIndex = descending ?
                                    QueryRunnerTestHelper.expectedFullOnIndexValuesDesc :
@@ -215,23 +212,9 @@ public class TimeseriesQueryRunnerTest
                                   .descending(descending)
                                   .build();
 
-    DateTime expectedEarliest = new DateTime("2011-01-12");
-    DateTime expectedSplit = new DateTime("2011-03-01");
-    DateTime expectedLast = new DateTime("2011-04-15");
+    Row result = Sequences.only(query.run(TestIndex.segmentWalker, CONTEXT));
 
-    Iterable<Row> results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Row>newArrayList()
-    );
-    Row result = results.iterator().next();
-
-    DateTime expected = descending && dataSource.equals("mmapped-split") ? expectedSplit : expectedEarliest;
-    Assert.assertEquals(expected, result.getTimestamp());
-    Assert.assertFalse(
-        String.format("Timestamp[%s] > expectedLast[%s]", result.getTimestamp(), expectedLast),
-        result.getTimestamp().isAfter(expectedLast)
-    );
-
+    Assert.assertEquals(DateTimes.EPOCH, result.getTimestamp());
     Assert.assertEquals(result.toString(), 1870.06103515625, result.getDoubleMetric("maxIndex"), 0.0);
     Assert.assertEquals(result.toString(), 59.02102279663086, result.getDoubleMetric("minIndex"), 0.0);
   }

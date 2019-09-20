@@ -23,9 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -281,6 +283,12 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
+  public Query<Row> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  {
+    return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver, mapper));
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {
@@ -404,7 +412,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       orderByColumnSpecs = builder.orderByColumnSpecs;
       limit = builder.limit;
       havingSpec = builder.havingSpec;
-      lateralViewSpec= builder.lateralViewSpec;
+      lateralViewSpec = builder.lateralViewSpec;
       outputColumns = builder.outputColumns;
       context = builder.context;
     }
