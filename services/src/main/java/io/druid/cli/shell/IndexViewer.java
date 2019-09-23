@@ -19,7 +19,6 @@
 
 package io.druid.cli.shell;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
@@ -91,26 +90,30 @@ public class IndexViewer extends CommonShell.WithUtils
 {
   private static final Logger LOG = new Logger(DruidShell.class);
 
+  private static final String DEFAULT_PROMPT = "> ";
+  private static final DateTimeZone DEFAULT_TIMEZONE = DateTimeZone.UTC;
+
   private final IndexIO indexIO;
   private final ObjectMapper jsonMapper;
 
   @Inject
-  public IndexViewer(
-      IndexIO indexIO,
-      @JacksonInject ObjectMapper jsonMapper
-  )
+  public IndexViewer(IndexIO indexIO)
   {
     this.indexIO = indexIO;
-    this.jsonMapper = jsonMapper;
+    this.jsonMapper = indexIO.getObjectMapper();
   }
 
   public void run(List<String> arguments) throws Exception
   {
-    DateTimeZone timeZone = null;
+    String prompt = DEFAULT_PROMPT;
+    DateTimeZone timeZone = DEFAULT_TIMEZONE;
     if (!GuavaUtils.isNullOrEmpty(arguments)) {
       for (int i = 0; i < arguments.size() - 1; i++) {
-        if (arguments.get(i).equals("-z") || arguments.get(i).equals("--zone")) {
+        final String argument = arguments.get(i);
+        if (argument.equals("-z") || argument.equals("--zone")) {
           timeZone = JodaUtils.toTimeZone(arguments.get(++i));
+        } else if (argument.equals("-p")) {
+          prompt = arguments.get(++i);
         }
       }
     }
@@ -175,7 +178,7 @@ public class IndexViewer extends CommonShell.WithUtils
     }
 
     try (Terminal terminal = TerminalBuilder.builder().build()) {
-      execute(mapping1, mapping2, terminal);
+      execute(mapping1, mapping2, terminal, prompt);
     }
   }
 
@@ -195,11 +198,11 @@ public class IndexViewer extends CommonShell.WithUtils
   private void execute(
       final Map<String, IndexMeta> mapping1,
       final Map<String, List<IndexMeta>> mapping2,
-      final Terminal terminal
+      final Terminal terminal,
+      final String prompt
   )
       throws Exception
   {
-    final String prompt = "> ";
     final PrintWriter writer = terminal.writer();
 
     final Function<String, Candidate> toCandidate = new Function<String, Candidate>()

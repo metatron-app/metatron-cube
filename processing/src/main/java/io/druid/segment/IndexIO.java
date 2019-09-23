@@ -72,7 +72,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
-import io.druid.segment.serde.BooleanColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
@@ -139,6 +138,11 @@ public class IndexIO
                                .build();
 
 
+  }
+
+  public ObjectMapper getObjectMapper()
+  {
+    return mapper;
   }
 
   public void validateTwoSegments(File dir1, File dir2) throws IOException

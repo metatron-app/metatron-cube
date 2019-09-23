@@ -20,16 +20,18 @@
 package io.druid.cli.shell;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Predicate;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -47,15 +49,13 @@ import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.segment.IndexIO;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.initialization.IndexerZkConfig;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.leader.LeaderLatch;
-import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.curator.x.discovery.ServiceDiscovery;
-import org.apache.curator.x.discovery.ServiceInstance;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -83,12 +83,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -114,6 +111,7 @@ public class DruidShell extends CommonShell.WithUtils
   private final ServiceDiscovery<String> discovery;
   private final HttpClient httpClient;
   private final ObjectMapper jsonMapper;
+  private final IndexViewer viewer;
 
   @Inject
   public DruidShell(
@@ -129,95 +127,52 @@ public class DruidShell extends CommonShell.WithUtils
     this.discovery = discovery;
     this.httpClient = httpClient;
     this.jsonMapper = jsonMapper;
+    this.viewer = new IndexViewer(new IndexIO(jsonMapper));
   }
 
   public void run(List<String> arguments) throws Exception
   {
-    final LeaderLatch coordinatorLatch = new LeaderLatch(
-        curator,
-        ZKPaths.makePath(zkPaths.getZkPathsConfig().getCoordinatorPath(), DruidCoordinator.COORDINATOR_OWNER_NODE)
+    Supplier<List<URL>> brokerURLs = new Supplier<List<URL>>()
+    {
+      @Override
+      public List<URL> get()
+      {
+        return discoverFromNodeType(discovery, "broker");
+      }
+    };
+    final String coordPath = ZKPaths.makePath(
+        zkPaths.getZkPathsConfig().getCoordinatorPath(),
+        DruidCoordinator.COORDINATOR_OWNER_NODE
     );
-    LOG.info("Coordinator leader : %s", coordinatorLatch.getLeader());
-    for (Participant participant : coordinatorLatch.getParticipants()) {
-      if (!participant.isLeader()) {
-        LOG.info("Coordinator participant : %s", participant);
+    final Supplier<URL> coordinatorURL = new Supplier<URL>()
+    {
+      @Override
+      public URL get()
+      {
+        return discoverFromZK(curator, coordPath);
       }
-    }
-    final LeaderLatch indexerLatch = new LeaderLatch(curator, zkPaths.getLeaderLatchPath());
-    LOG.info("Overlord leader : %s", indexerLatch.getLeader());
-    for (Participant participant : indexerLatch.getParticipants()) {
-      if (!participant.isLeader()) {
-        LOG.info("Overlord participant : %s", participant);
+    };
+    final Supplier<URL> overlordURL = new Supplier<URL>() {
+      @Override
+      public URL get()
+      {
+        return discoverFromZK(curator, zkPaths.getLeaderLatchPath());
       }
-    }
-    Properties properties = loadNodeProperties("broker");
-    String serviceName = Optional.ofNullable(properties.getProperty("druid.service")).orElse("broker");
-    List<URL> brokerURLs = discover(serviceName);
-    for (URL broker : brokerURLs) {
-      LOG.info("Broker : %s", broker);
-    }
-    final URL coordinatorURL = new URL("http://" + coordinatorLatch.getLeader().getId());
-    final URL overlordURL = new URL("http://" + indexerLatch.getLeader().getId());
+    };
 
     try (Terminal terminal = TerminalBuilder.builder().build()) {
       execute(coordinatorURL, overlordURL, brokerURLs, terminal, arguments);
     }
   }
 
-  private List<URL> discover(final String service) throws Exception
-  {
-    Collection<ServiceInstance<String>> services = discovery.queryForInstances(service);
-    if (services.isEmpty()) {
-      services = Lists.newArrayList(
-          Iterables.concat(Iterables.transform(Iterables.filter(discovery.queryForNames(), new Predicate<String>()
-          {
-            @Override
-            public boolean apply(String input)
-            {
-              return input != null && input.contains(service);
-            }
-          }), new Function<String, Collection<ServiceInstance<String>>>()
-          {
-            @Override
-            public Collection<ServiceInstance<String>> apply(String input)
-            {
-              try {
-                return discovery.queryForInstances(input);
-              }
-              catch (Exception e) {
-                return Collections.emptyList();
-              }
-            }
-          }))
-      );
-    }
-    return Lists.newArrayList(
-        Iterables.transform(
-            services,
-            new Function<ServiceInstance<String>, URL>()
-            {
-              @Override
-              public URL apply(ServiceInstance<String> input)
-              {
-                try {
-                  return new URL("http://" + input.getAddress() + ":" + input.getPort());
-                }
-                catch (Exception e) {
-                  throw Throwables.propagate(e);
-                }
-              }
-            }
-        )
-    );
-  }
-
   private static final String DEFAULT_PROMPT = "> ";
   private static final String SQL_PROMPT = "sql> ";
+  private static final String INDEX_PROMPT = "index> ";
 
   private void execute(
-      final URL coordinatorURL,
-      final URL overlordURL,
-      final List<URL> brokerURLs,
+      final Supplier<URL> coordinatorURL,
+      final Supplier<URL> overlordURL,
+      final Supplier<List<URL>> brokerURLs,
       final Terminal terminal,
       List<String> arguments
   )
@@ -265,6 +220,7 @@ public class DruidShell extends CommonShell.WithUtils
         "query",
         "help",
         "sql",
+        "index",
         "quit",
         "exit"
     );
@@ -551,6 +507,10 @@ public class DruidShell extends CommonShell.WithUtils
         inSQL.set(false);
         continue;
       }
+      if (line.equals("index")) {
+        viewer.run(ImmutableList.<String>of("-p", INDEX_PROMPT));
+        continue;
+      }
       if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")) {
         break;
       }
@@ -603,9 +563,9 @@ public class DruidShell extends CommonShell.WithUtils
   private static final String[] PREFIX = new String[]{"  >> ", "    >> ", "      >> "};
 
   private void handleCommand(
-      URL coordinatorURL,
-      URL overlordURL,
-      List<URL> brokerURLs,
+      Supplier<URL> coordinatorURL,
+      Supplier<URL> overlordURL,
+      Supplier<List<URL>> brokerURLs,
       PrintWriter writer,
       Cursor cursor
   )
@@ -699,11 +659,15 @@ public class DruidShell extends CommonShell.WithUtils
         resource.append("/druid/coordinator/v1/servers").append(cursor.next());
         if (cursor.hasMore() && cursor.next().equals("-full")) {
           resource.appendOption(cursor.current());
-          for (Map<String, Object> segment : execute(coordinatorURL, resource.get(), LIST_MAP)) {
+          for (Map<String, Object> segment : execute(coordinatorURL, resource.append("/segments").get(), LIST_MAP)) {
             writer.println(PREFIX[0] + segment);
           }
         } else {
-          writer.println(execute(coordinatorURL, resource.get(), LIST));
+          final List<String> segments = execute(coordinatorURL, resource.append("/segments").get(), LIST);
+          Collections.sort(segments);
+          for (String segment : segments) {
+            writer.println(segment);
+          }
         }
         break;
       case "segment":
@@ -1014,7 +978,7 @@ public class DruidShell extends CommonShell.WithUtils
               return;
             case "-log":
               resource.append("log");
-              InputStream stream = stream(overlordURL, resource.get());
+              InputStream stream = stream(overlordURL.get(), resource.get());
               writer.println(PREFIX[0] + "............... dump");
               BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
               for (String line; (line = reader.readLine()) != null;) {
@@ -1026,12 +990,8 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println(PREFIX[0] + execute(overlordURL, resource.get(), MAP));
         break;
       case "query": {
-        if (brokerURLs.isEmpty()) {
-          writer.println("no broker..");
-          return;
-        }
         if (!cursor.hasMore()) {
-          writer.println("needs datasource & comma separated intervals");
+          writer.println("!! needs datasource & comma separated intervals");
           return;
         }
         String dataSource = cursor.next();
@@ -1039,15 +999,15 @@ public class DruidShell extends CommonShell.WithUtils
         resource.append("/druid/v2/candidates");
         resource.appendOption("datasource=" + dataSource);
         if (!cursor.hasMore()) {
-          writer.println("comma separated intervals");
+          writer.println("!! needs comma separated intervals");
           return;
         }
         String intervals = cursor.next();
         boolean full = cursor.hasMore() && cursor.next().equals("-full");
 
         resource.appendOption("intervals=" + URLEncoder.encode(intervals, StringUtils.UTF8_STRING));
-        for (LocatedSegmentDescriptor located : execute(
-            brokerURLs.get(0),
+        for (LocatedSegmentDescriptor located : executeAll(
+            brokerURLs,
             resource.get(),
             new TypeReference<List<LocatedSegmentDescriptor>>()
             {
@@ -1081,10 +1041,6 @@ public class DruidShell extends CommonShell.WithUtils
         break;
       }
       case "sql": {
-        if (brokerURLs.isEmpty()) {
-          writer.println("no broker..");
-          return;
-        }
         if (!cursor.hasMore()) {
           writer.println("needs sql string");
           return;
@@ -1097,46 +1053,28 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
-  private void runSQL(List<URL> brokerURLs, PrintWriter writer, String sql, Map<String, String> context)
+  private void runSQL(Supplier<List<URL>> brokers, PrintWriter writer, String sql, Map<String, String> context)
   {
-    brokerURLs = ensureBroker(brokerURLs);
-    if (brokerURLs.isEmpty()) {
-      writer.println("!! cannot find broker");
-      return;
-    }
-    int numRow = 0;
-    long start = System.currentTimeMillis();
+    String mediaType = MediaType.TEXT_PLAIN;
     try {
-      String mediaType = MediaType.TEXT_PLAIN;
       if (!GuavaUtils.isNullOrEmpty(context)) {
         // SqlQuery
         sql = jsonMapper.writeValueAsString(ImmutableMap.of("query", sql, "context", context));
         mediaType = MediaType.APPLICATION_JSON;
       }
-      boolean header = false;
-      for (Map<String, Object> row : execute(
-          HttpMethod.POST,
-          brokerURLs.get(0),
-          "/druid/v2/sql",
-          mediaType,
-          sql.getBytes(),
-          new TypeReference<List<Map<String, Object>>>() {}
-      )) {
-        if (!header) {
-          writer.print("  ");
-          String columns = row.keySet().toString();
-          writer.println(columns);
-          writer.print("  ");
-          for (int i = 0; i < columns.length(); i++) {
-            writer.print('-');
-          }
-          writer.println();
-          header = true;
-        }
-        writer.print("  ");
-        writer.println(row.values().toString());
-        numRow++;
-      }
+    }
+    catch (JsonProcessingException e) {
+      writer.println("!! invalid query");
+      return;
+    }
+    List<URL> brokerURLs = brokers.get();
+    if (GuavaUtils.isNullOrEmpty(brokerURLs)) {
+      writer.println("!! cannot find broker");
+      return;
+    }
+    long start = System.currentTimeMillis();
+    try {
+      int numRow = runAndDump(writer, sql, mediaType, brokerURLs);
       writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
     }
     catch (Exception e) {
@@ -1144,17 +1082,43 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
-  private List<URL> ensureBroker(List<URL> brokerURLs)
+  private int runAndDump(PrintWriter writer, String sql, String mediaType, List<URL> brokerURLs)
   {
-    if (brokerURLs.isEmpty()) {
+    for (URL brokerURL : brokerURLs) {
+      int numRow = 0;
+      boolean header = false;
       try {
-        return discover("broker");
+        final List<Map<String, Object>> execute = execute(
+            HttpMethod.POST,
+            brokerURL,
+            "/druid/v2/sql",
+            mediaType,
+            sql.getBytes(),
+            new TypeReference<List<Map<String, Object>>>() {}
+        );
+        for (Map<String, Object> row : execute) {
+          if (!header) {
+            writer.print("  ");
+            String columns = row.keySet().toString();
+            writer.println(columns);
+            writer.print("  ");
+            for (int i = 0; i < columns.length(); i++) {
+              writer.print('-');
+            }
+            writer.println();
+            header = true;
+          }
+          writer.print("  ");
+          writer.println(row.values().toString());
+          numRow++;
+        }
+        return numRow;
       }
       catch (Exception e) {
         // ignore
       }
     }
-    return brokerURLs;
+    throw new ISE("!! cannot find valid broker");
   }
 
   private DescExtractor getDescExtractor(Cursor cursor)
@@ -1260,9 +1224,22 @@ public class DruidShell extends CommonShell.WithUtils
   {
   };
 
-  private <T> T execute(URL baseURL, String resource, TypeReference<T> resultType)
+  private <T> T executeAll(Supplier<List<URL>> baseURLs, String resource, TypeReference<T> resultType)
   {
-    return execute(HttpMethod.GET, baseURL, resource, null, null, resultType);
+    for (URL baseURL : Preconditions.checkNotNull(baseURLs.get())) {
+      try {
+        return execute(HttpMethod.GET, baseURL, resource, null, null, resultType);
+      }
+      catch (Exception e) {
+        // ignore
+      }
+    }
+    throw new IllegalStateException();
+  }
+
+  private <T> T execute(Supplier<URL> baseURL, String resource, TypeReference<T> resultType)
+  {
+    return execute(HttpMethod.GET, Preconditions.checkNotNull(baseURL.get()), resource, null, null, resultType);
   }
 
   private <T> T execute(
