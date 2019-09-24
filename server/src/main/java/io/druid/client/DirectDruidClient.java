@@ -149,7 +149,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final URL cancelUrl;
     final ListenableFuture<InputStream> future;
 
-    final byte[] bytes;
     try {
       url = new URL(String.format("http://%s/druid/v2/", host));
       cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
@@ -160,10 +159,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       builder.setDimension("server", host);
       builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
 
-      bytes = objectMapper.writeValueAsBytes(query);
       future = httpClient.go(
           new Request(HttpMethod.POST, url)
-              .setContent(bytes)
+              .setContent(objectMapper.writeValueAsBytes(query))
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
           handlerFactory.create(query, url, ioConfig.getQueueSize(), builder, context)
       );
@@ -192,9 +190,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                 // forward the cancellation to underlying queryable node
                 try {
                   StatusResponseHolder res = httpClient.go(
-                      new Request(HttpMethod.DELETE, cancelUrl)
-                          .setContent(bytes)
-                          .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
+                      new Request(HttpMethod.DELETE, cancelUrl),
                       new StatusResponseHandler(Charsets.UTF_8)
                   ).get();
                   if (res.getStatus().getCode() >= 500) {
@@ -245,9 +241,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                     public StatusResponseHolder call() throws Exception
                     {
                       return httpClient.go(
-                          new Request(HttpMethod.DELETE, cancelUrl)
-                              .setContent(bytes)
-                              .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
+                          new Request(HttpMethod.DELETE, cancelUrl),
                           new StatusResponseHandler(Charsets.UTF_8)
                       ).get();
                     }
