@@ -237,6 +237,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final int threshold = queryConfig.getHashJoinThreshold(this);
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
 
+    double currentEstimation = ROWNUM_UNKNOWN;
     final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
     for (int i = 0; i < elements.size(); i++) {
       JoinElement element = elements.get(i);
@@ -262,6 +263,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftHashing) {
           query = query.withOverriddenContext(JoinElement.HASHING, true);
         }
+        currentEstimation = leftEstimated;
         queries.add(query);
       }
       LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
@@ -269,6 +271,32 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       Query query = JoinElement.toQuery(right, sortOn, segmentSpec, getContext());
       if (rightHashing) {
         query = query.withOverriddenContext(JoinElement.HASHING, true);
+      }
+      switch (element.getJoinType()) {
+        case INNER:
+          if (currentEstimation > 0 && rightEstimated > 0) {
+            currentEstimation = Math.min(currentEstimation, rightEstimated);
+          } else if (currentEstimation < 0) {
+            currentEstimation = rightEstimated;
+          }
+          break;
+        case LO:
+          if (currentEstimation > 0 && rightEstimated > currentEstimation) {
+            currentEstimation *= ((double) rightEstimated) / currentEstimation;
+          }
+          break;
+        case RO:
+          if (rightEstimated > 0) {
+            if (currentEstimation > rightEstimated){
+              currentEstimation = rightEstimated * (currentEstimation / rightEstimated);
+            } else {
+              currentEstimation = rightEstimated;
+            }
+          }
+          break;
+        case FULL:
+          currentEstimation = ROWNUM_UNKNOWN;
+          break;
       }
       queries.add(query);
     }
@@ -298,7 +326,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     // removed parallelism.. executed parallel in join post processor
     return new JoinDelegate(
-        queries, prefixAliases, timeColumn, limit, computeOverriddenContext(joinContext)
+        queries, prefixAliases, timeColumn, (long) currentEstimation, limit, computeOverriddenContext(joinContext)
     );
   }
 
@@ -336,6 +364,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     private final List<String> prefixAliases;  // for schema resolving
     private final String timeColumnName;
+    private final long estimatedCardinality;
 
     private List<OrderByColumnSpec> collation;        // set when smb join is applied
 
@@ -343,6 +372,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
         String timeColumnName,
+        long estimatedCardinality,
         int limit,
         Map<String, Object> context
     )
@@ -350,6 +380,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       super(null, list, false, limit, -1, context);
       this.prefixAliases = prefixAliases;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
+      this.estimatedCardinality = estimatedCardinality;
     }
 
     public List<String> getPrefixAliases()
@@ -372,6 +403,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       this.collation = collation;
     }
 
+    public long getEstimatedCardinality()
+    {
+      return estimatedCardinality;
+    }
+
     @Override
     public Query withQueries(List queries)
     {
@@ -379,6 +415,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           queries,
           prefixAliases,
           timeColumnName,
+          estimatedCardinality,
           getLimit(),
           getContext()
       );
@@ -403,6 +440,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           queries,
           prefixAliases,
           timeColumnName,
+          estimatedCardinality,
           getLimit(),
           context
       );

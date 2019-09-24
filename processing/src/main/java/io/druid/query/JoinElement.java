@@ -259,6 +259,12 @@ public class JoinElement
       if (query.getDataSource() instanceof QueryDataSource) {
         return -1;  // see later
       }
+      if (query instanceof JoinQuery.JoinDelegate) {
+        long estimated = ((JoinQuery.JoinDelegate) query).getEstimatedCardinality();
+        if (estimated > 0) {
+          return estimated;
+        }
+      }
       if (query instanceof TimeseriesQuery) {
         Granularity granularity = query.getGranularity();
         long count = 0;
