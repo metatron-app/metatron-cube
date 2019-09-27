@@ -47,6 +47,11 @@ public class TimestampSpecTest
         new DateTime("2002-01-01T03:44:14.50"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "2002/01/01 03:44:14.50"))
     );
+    spec = new DefaultTimestampSpec("ts", "yyyy/MM/dd HH:mm:ss,SSS", null);
+    Assert.assertEquals(
+        new DateTime("2002-01-01T03:44:14.50"),
+        spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "2002/01/01 03:44:14,50"))
+    );
     DateTimeFormatter formatter = DateTimeFormat.forPattern("MM/dd/yyyy hh:mm:ss.SSSSSS a");
     formatter = formatter.withLocale(new Locale("en"));
     Assert.assertEquals("01/01/2002 11:44:14.500000 PM", formatter.print(new DateTime("2002-01-01T23:44:14.50")));

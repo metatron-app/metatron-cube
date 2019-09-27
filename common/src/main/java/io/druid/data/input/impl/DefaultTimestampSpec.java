@@ -164,14 +164,14 @@ public class DefaultTimestampSpec implements TimestampSpec
       @Override
       public Function<String, DateTime> apply(String input)
       {
-        String property = format;
         if (format.equals("adaptive") && properties != null) {
-          property = properties.getProperty("adaptive.timestamp.format.list", "").trim();
+          String property = properties.getProperty("adaptive.timestamp.format.list", "").trim();
           if (property.startsWith("[") && property.endsWith("]")) {
             property = property.substring(1, property.length() - 1).trim();
           }
+          return findFormat(stripQuotes(input), property.split(","));
         }
-        return findFormat(stripQuotes(input), property.split(","));
+        return findFormat(stripQuotes(input), format);
       }
     };
     final Function<Number, DateTime> numericFunc = wrapInvalidHandling(
