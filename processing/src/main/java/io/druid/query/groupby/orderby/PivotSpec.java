@@ -356,14 +356,17 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   {
     if (pivotColumns.isEmpty()) {
       // just for metatron.. I hate this
-      final List<String> removeColumns = GuavaUtils.exclude(context.getExcludedColumns(), valueColumns);
+      final List<String> excludedColumns = GuavaUtils.concat(context.getExcludedColumns(), valueColumns);
       if (rowExpressions.isEmpty() && partitionExpressions.isEmpty()) {
         return new PartitionEvaluator()
         {
           @Override
           public List<Row> finalize(List<Row> partition)
           {
-            return retainColumns(partition, GuavaUtils.exclude(context.getOutputColumns(), removeColumns));
+            List<String> retainColumns = GuavaUtils.concat(
+                GuavaUtils.exclude(context.getOutputColumns(), excludedColumns), valueColumns
+            );
+            return retainColumns(partition, retainColumns);
           }
         };
       }
@@ -384,7 +387,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
           List<Row> evaluated = context.with(null, partition).evaluate(
               toEvaluators(partitionExpressions, context, valueColumns)
           );
-          return retainColumns(evaluated, GuavaUtils.exclude(context.getOutputColumns(), removeColumns));
+          List<String> retainColumns = GuavaUtils.concat(
+              GuavaUtils.exclude(context.getOutputColumns(), excludedColumns), valueColumns
+          );
+          return retainColumns(evaluated, retainColumns);
         }
       };
     }

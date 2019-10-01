@@ -19,11 +19,14 @@ package io.druid.query;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import io.druid.common.Intervals;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
@@ -42,6 +45,7 @@ import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -577,5 +581,61 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     Iterable<Row> results = runQuery(query);
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void test2662()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.of("Category"))
+        .aggregators(
+            new GenericSumAggregatorFactory("SUM(Sales)", "Sales", ValueDesc.DOUBLE),
+            new GenericSumAggregatorFactory("SUM(Profit)", "Profit", ValueDesc.DOUBLE),
+            new GenericMinAggregatorFactory("MIN(Profit)", "Profit", ValueDesc.DOUBLE),
+            new CountAggregatorFactory("count")
+        )
+        .granularity(Granularities.ALL)
+        .postAggregators(
+            new ArithmeticPostAggregator(
+                "AVG(Sales)", "/",
+                Arrays.<PostAggregator>asList(
+                    new FieldAccessPostAggregator("SUM(Sales)", "SUM(Sales)"),
+                    new FieldAccessPostAggregator("count", "count"))
+            )
+        )
+        .limitSpec(
+            new LimitSpec(
+                Arrays.asList(OrderByColumnSpec.asc("Category")),
+                1000,
+                Arrays.asList(
+                    new WindowingSpec(
+                        Arrays.asList("Category"), null, null,
+                        PivotSpec.tabular(Arrays.<PivotColumnSpec>asList(), "MIN(Profit)", "AVG(Sales)", "SUM(Sales)")
+                                 .withAppendValueColumn(true)
+                    )
+                )
+            )
+        )
+        .build();
+    String[] columnNames = {
+        "__time", "Category", "MIN(Profit)", "AVG(Sales)", "SUM(Sales)"
+    };
+    Object[][] objects = {
+        array("2011-01-01", "Furniture", -1862.0, 350.00283018867924, 742006.0),
+        array("2011-01-01", "Office Supplies", -3702.0, 119.33737139064056, 719127.0),
+        array("2011-01-01", "Technology", -6600.0, 452.74553329723875, 836221.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    printToExpected(columnNames, results);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    // test ordering
+    Assert.assertEquals(
+        Arrays.asList("Category", "MIN(Profit)", "AVG(Sales)", "SUM(Sales)"),
+        Lists.newArrayList(Iterables.getFirst(results, null).getColumns())
+    );
   }
 }
