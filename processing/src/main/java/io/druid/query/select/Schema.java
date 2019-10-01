@@ -37,6 +37,7 @@ import io.druid.data.ValueType;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.Granularities;
+import io.druid.math.expr.ExprType;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -228,6 +229,18 @@ public class Schema implements TypeResolver, RowSignature
   public String columnAndTypesString()
   {
     return toString(columnAndTypes());
+  }
+
+  public String asTypeString()
+  {
+    final StringBuilder s = new StringBuilder("struct<");
+    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
+      if (s.length() > 7) {
+        s.append(',');
+      }
+      s.append(pair.lhs).append(':').append(ExprType.sqlType(pair.rhs));
+    }
+    return s.append('>').toString();
   }
 
   private String toString(Iterable<Pair<String, ValueDesc>> nameAndTypes)

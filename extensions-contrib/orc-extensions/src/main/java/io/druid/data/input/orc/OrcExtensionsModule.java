@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
+import io.druid.data.output.formatter.OrcFormatter;
 import io.druid.initialization.DruidModule;
 
 import java.util.Arrays;
@@ -30,17 +31,15 @@ import java.util.List;
 public class OrcExtensionsModule implements DruidModule
 {
   @Override
-  public List<? extends Module> getJacksonModules() {
+  public List<? extends Module> getJacksonModules()
+  {
     return Arrays.asList(
         new SimpleModule("OrcInputRowParserModule")
-            .registerSubtypes(
-                new NamedType(OrcHadoopInputRowParser.class, "orc")
-            )
+            .registerSubtypes(new NamedType(OrcHadoopInputRowParser.class, "orc"))
+            .registerSubtypes(new NamedType(OrcFormatter.class, "orc"))
     );
   }
 
   @Override
-  public void configure(Binder binder) {
-
-  }
+  public void configure(Binder binder) {}
 }

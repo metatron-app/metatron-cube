@@ -19,6 +19,10 @@
 
 package io.druid.data.output.formatter;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -52,13 +56,14 @@ import java.util.Map;
 /**
  * to validate, use hive --orcfiledump -d path
  */
+@JsonTypeName("orc")
 public class OrcFormatter implements Formatter
 {
   private static final Logger log = new Logger(OrcFormatter.class);
 
   private final ObjectMapper mapper;
-  private final List<String> columnNames;
-  private final List<TypeDescription> columnTypes;
+  private final List<String> inputColumns;
+  private final List<TypeDescription> outputSchema;
 
   private final Path path;
   private final FileSystem fs;
@@ -67,7 +72,13 @@ public class OrcFormatter implements Formatter
 
   private int counter;
 
-  public OrcFormatter(Path path, FileSystem fs, String[] columnNames, String typeString, ObjectMapper mapper) throws IOException
+  @JsonCreator
+  public OrcFormatter(
+      @JsonProperty("outputPath") String outputPath,
+      @JsonProperty("inputColumns") String[] inputColumns,
+      @JsonProperty("typeString") String typeString,
+      @JacksonInject ObjectMapper mapper
+  ) throws IOException
   {
     log.info("Applying schema : %s", typeString);
     ClassLoader prev = Thread.currentThread().getContextClassLoader();
@@ -75,26 +86,26 @@ public class OrcFormatter implements Formatter
     try {
       Configuration conf = new Configuration();
       TypeDescription schema = TypeDescriptions.fromString(typeString);
-      this.columnNames = columnNames == null ? schema.getFieldNames() : Arrays.asList(columnNames);
-      this.columnTypes = schema.getChildren();
+      this.path = new Path(outputPath);
+      this.inputColumns = inputColumns == null ? schema.getFieldNames() : Arrays.asList(inputColumns);
+      this.outputSchema = schema.getChildren();
       this.writer = OrcFile.createWriter(path, OrcFile.writerOptions(conf).setSchema(schema));
       this.batch = schema.createRowBatch();
+      this.fs = path.getFileSystem(conf);
     }
     finally {
       Thread.currentThread().setContextClassLoader(prev);
     }
     this.mapper = mapper;
-    this.path = path;
-    this.fs = fs;
   }
 
   @Override
   public void write(Map<String, Object> datum) throws IOException
   {
     final int rowId = batch.size++;
-    for (int i = 0; i < columnNames.size(); i++) {
-      Object object = datum.get(columnNames.get(i));
-      setColumn(rowId, object, batch.cols[i], columnTypes.get(i));
+    for (int i = 0; i < inputColumns.size(); i++) {
+      Object object = datum.get(inputColumns.get(i));
+      setColumn(rowId, object, batch.cols[i], outputSchema.get(i));
     }
     if (batch.size == batch.getMaxSize()) {
       writer.addRowBatch(batch);

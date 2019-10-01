@@ -19,6 +19,8 @@
 
 package io.druid.data.output;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -37,6 +39,11 @@ import java.util.regex.Pattern;
 
 /**
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "xsv", value = Formatter.XSVFormatter.class),
+    @JsonSubTypes.Type(name = "json", value = Formatter.JsonFormatter.class),
+})
 public interface Formatter
 {
   void write(Map<String, Object> datum) throws IOException;

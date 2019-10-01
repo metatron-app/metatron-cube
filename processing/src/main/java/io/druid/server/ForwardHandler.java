@@ -145,7 +145,7 @@ public class ForwardHandler implements ForwardConstants
             rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
           }
           final String[] inputColumns = Formatters.parseStrings(forwardContext.get(COLUMNS));
-          final String schema = Objects.toString(forwardContext.get(SCHEMA), null);
+          final String schema = Objects.toString(forwardContext.get(TYPE_STRING), null);
           final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), responseContext);
           final Supplier<String> typeString = Suppliers.memoize(new Supplier<String>()
           {
@@ -153,7 +153,7 @@ public class ForwardHandler implements ForwardConstants
             public String get()
             {
               return schema != null ? schema :
-                     QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, true).columnAndTypesString();
+                     QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, true).asTypeString();
             }
           });
           return wrapForwardResult(

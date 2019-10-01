@@ -65,9 +65,12 @@ public class Formatters implements ForwardConstants
   {
     if (EXCEL_FORMAT.equalsIgnoreCase(getFormat(context))) {
       return toExcelExporter(output, context);
-    } else {
-      return wrapToExporter(toBasicFormatter(output, context, jsonMapper));
     }
+    final Formatter formatter = toBasicFormatter(output, context, jsonMapper);
+    if (formatter != null) {
+      return wrapToExporter(formatter);
+    }
+    return null;
   }
 
   private static final int DEFAULT_FLUSH_INTERVAL = 4096;
@@ -235,6 +238,7 @@ public class Formatters implements ForwardConstants
 
   public static CountingAccumulator wrapToExporter(final Formatter formatter)
   {
+    Preconditions.checkNotNull(formatter, "Invalid formatter");
     return new CountingAccumulator()
     {
       @Override
@@ -280,7 +284,7 @@ public class Formatters implements ForwardConstants
     } else if (format.equalsIgnoreCase(TSV_FORMAT)) {
       separator = "\t";
     } else {
-      throw new IllegalArgumentException("Unsupported format " + format);
+      return null;
     }
     boolean header = parseBoolean(context.get(WITH_HEADER), false);
     String nullValue = Objects.toString(context.get(NULL_VALUE), null);

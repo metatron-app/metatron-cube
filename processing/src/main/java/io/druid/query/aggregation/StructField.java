@@ -28,7 +28,7 @@ import java.util.List;
  */
 public class StructField
 {
-  public static String toTypeName(List<StructField> elements)
+  public static String toTypeDescription(List<StructField> elements)
   {
     StringBuilder builder = new StringBuilder();
     builder.append("struct<");

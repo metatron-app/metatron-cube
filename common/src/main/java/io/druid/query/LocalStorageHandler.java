@@ -76,8 +76,11 @@ public class LocalStorageHandler implements StorageHandler
     }
     File dataFile = new File(targetDirectory, PropUtils.parseString(context, DATA_FILENAME, "data"));
 
+    final CountingAccumulator exporter = toExporter(context, mapper, location, dataFile);
+    if (exporter == null) {
+      throw new IAE("Cannot find writer of format '%s'", Formatters.getFormat(context));
+    }
     Map<String, Object> info = Maps.newLinkedHashMap();
-    CountingAccumulator exporter = toExporter(context, mapper, location, dataFile);
     try {
       result.getSequence().accumulate(null, exporter.init());
     }

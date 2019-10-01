@@ -36,7 +36,8 @@ public interface ForwardConstants
   // column name mapping
   String COLUMNS = "columns"; // name of columns of row (aka. fieldNames)
   String MAPPED_COLUMNS = "outputColumns";    // re-mapped column name (for SQL)
-  String SCHEMA = "schema";   // index schema for 'index', type string for 'orc'
+  String SCHEMA = "schema";   // index schema for 'index'
+  String TYPE_STRING = "typeString";
 
   // index-format
   String DATASOURCE = "dataSource";

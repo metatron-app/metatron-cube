@@ -51,8 +51,11 @@ public class ExprType
 
   public static String sqlType(ValueDesc desc)
   {
-    if (desc == null) {
+    if (desc == null || desc.isUnknown()) {
       return "string";
+    }
+    if (desc.isDimension()) {
+      return ValueDesc.subElementOf(desc.typeName());
     }
     if (desc.isLong()) {
       return "bigint";

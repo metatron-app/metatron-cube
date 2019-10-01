@@ -43,8 +43,8 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
+import io.druid.data.output.Formatter;
 import io.druid.data.output.Formatters;
-import io.druid.data.output.formatter.OrcFormatter;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryResult;
@@ -444,16 +444,7 @@ public class HdfsStorageHandler implements StorageHandler
       };
     }
     final Path dataFile = new Path(physicalPath, PropUtils.parseString(context, DATA_FILENAME, "data"));
-    if (ORC_FORMAT.equals(format)) {
-      return Formatters.wrapToExporter(new OrcFormatter(
-          dataFile,
-          fs,
-          result.getInputColumns(),
-          result.getTypeString(),
-          jsonMapper
-      ));
-    }
-    return Formatters.toBasicExporter(
+    final CountingAccumulator exporter = Formatters.toBasicExporter(
         context, jsonMapper, new ByteSink()
         {
           @Override
@@ -469,6 +460,19 @@ public class HdfsStorageHandler implements StorageHandler
           }
         }
     );
+    if (exporter != null) {
+      return exporter;
+    }
+    final Map<String, Object> parameter = Maps.newHashMap();
+    parameter.put("format", format);
+    parameter.put("outputPath", dataFile.toString());
+    parameter.put("inputColumns", result.getInputColumns());
+    parameter.put("typeString", result.getTypeString());
+    final Formatter formatter = jsonMapper.convertValue(parameter, Formatter.class);
+    if (formatter != null) {
+      return Formatters.wrapToExporter(formatter);
+    }
+    throw new IAE("Cannot find writer of format '%s'", format);
   }
 
   // copied from JobHelper.serializeOutIndex (in indexing-hadoop)
