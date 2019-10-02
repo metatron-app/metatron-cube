@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.data.input.orc;
+package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -29,10 +29,6 @@ import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
-import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedInputRow;
-import io.druid.data.input.Rows;
-import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;

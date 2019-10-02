@@ -16,16 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.druid.data.input.parquet;
+package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import io.druid.data.ParsingFail;
-import io.druid.data.input.AvroStreamInputRowParser;
-import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedInputRow;
-import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;

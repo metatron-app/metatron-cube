@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.data.output.formatter;
+package io.druid.data.output;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.data.Rows;
-import io.druid.data.output.Formatter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -61,6 +60,7 @@ public class OrcFormatter implements Formatter
 {
   private static final Logger log = new Logger(OrcFormatter.class);
 
+  private final String typeString;
   private final ObjectMapper mapper;
   private final List<String> inputColumns;
   private final List<TypeDescription> outputSchema;
@@ -85,7 +85,7 @@ public class OrcFormatter implements Formatter
     Thread.currentThread().setContextClassLoader(OrcFormatter.class.getClassLoader());
     try {
       Configuration conf = new Configuration();
-      TypeDescription schema = TypeDescriptions.fromString(typeString);
+      TypeDescription schema = TypeDescriptions.fromString(TypeDescriptions.toOrcTypeString(typeString));
       this.path = new Path(outputPath);
       this.inputColumns = inputColumns == null ? schema.getFieldNames() : Arrays.asList(inputColumns);
       this.outputSchema = schema.getChildren();
@@ -97,6 +97,7 @@ public class OrcFormatter implements Formatter
       Thread.currentThread().setContextClassLoader(prev);
     }
     this.mapper = mapper;
+    this.typeString = typeString;
   }
 
   @Override
@@ -202,6 +203,7 @@ public class OrcFormatter implements Formatter
     long length = fs.getFileStatus(path).getLen();
     return ImmutableMap.<String, Object>of(
         "rowCount", counter,
+        "typeString", typeString,
         "data", ImmutableMap.of(path.toString(), length)
     );
   }

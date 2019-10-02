@@ -16,33 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package io.druid.data.input.parquet;
+package io.druid.data;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
+import io.druid.data.input.OrcHadoopInputRowParser;
+import io.druid.data.output.OrcFormatter;
 import io.druid.initialization.DruidModule;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class ParquetExtensionsModule implements DruidModule
+public class OrcExtensionsModule implements DruidModule
 {
-
   @Override
   public List<? extends Module> getJacksonModules()
   {
     return Arrays.asList(
-        new SimpleModule("ParuqetInputRowParserModule")
-            .registerSubtypes(
-                new NamedType(ParquetHadoopInputRowParser.class, "parquet")
-            )
+        new SimpleModule("OrcExtensionsModule")
+            .registerSubtypes(new NamedType(OrcHadoopInputRowParser.class, "orc"))
+            .registerSubtypes(new NamedType(OrcFormatter.class, "orc"))
     );
   }
 
   @Override
-  public void configure(Binder binder)
-  { }
+  public void configure(Binder binder) {}
 }

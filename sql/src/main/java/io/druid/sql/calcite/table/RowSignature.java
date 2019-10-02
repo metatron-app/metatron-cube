@@ -271,16 +271,16 @@ public class RowSignature implements TypeResolver
 
   public String asTypeString()
   {
-    final StringBuilder s = new StringBuilder("struct<");
+    final StringBuilder s = new StringBuilder();
     for (int i = 0; i < columnNames.size(); i++) {
       if (i > 0) {
         s.append(',');
       }
       final String columnName = columnNames.get(i);
       final ValueDesc columnType = columnTypes.getOrDefault(columnName, ValueDesc.UNKNOWN);
-      s.append(columnName).append(':').append(ExprType.sqlType(columnType));
+      s.append(columnName).append(':').append(ExprType.toTypeString(columnType));
     }
-    return s.append(">").toString();
+    return s.toString();
   }
 
   @Override

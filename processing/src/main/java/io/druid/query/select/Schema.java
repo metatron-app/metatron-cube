@@ -233,14 +233,14 @@ public class Schema implements TypeResolver, RowSignature
 
   public String asTypeString()
   {
-    final StringBuilder s = new StringBuilder("struct<");
+    final StringBuilder s = new StringBuilder();
     for (Pair<String, ValueDesc> pair : columnAndTypes()) {
-      if (s.length() > 7) {
+      if (s.length() > 0) {
         s.append(',');
       }
-      s.append(pair.lhs).append(':').append(ExprType.sqlType(pair.rhs));
+      s.append(pair.lhs).append(':').append(ExprType.toTypeString(pair.rhs));
     }
-    return s.append('>').toString();
+    return s.toString();
   }
 
   private String toString(Iterable<Pair<String, ValueDesc>> nameAndTypes)

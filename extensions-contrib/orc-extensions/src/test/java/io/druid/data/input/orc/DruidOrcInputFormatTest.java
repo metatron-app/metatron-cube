@@ -19,6 +19,7 @@
 package io.druid.data.input.orc;
 
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.OrcHadoopInputRowParser;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;

@@ -49,16 +49,13 @@ public class ExprType
     return ValueDesc.of(name);
   }
 
-  public static String sqlType(ValueDesc desc)
+  public static String toTypeString(ValueDesc desc)
   {
     if (desc == null || desc.isUnknown()) {
       return "string";
     }
     if (desc.isDimension()) {
       return ValueDesc.subElementOf(desc.typeName());
-    }
-    if (desc.isLong()) {
-      return "bigint";
     }
     return desc.typeName().toLowerCase();
   }

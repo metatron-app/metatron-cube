@@ -259,7 +259,8 @@ public class Initialization
   // -_-;;;
   private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
       "druid-hive-udf-extensions",
-      "druid-orc-extensions"
+      "druid-orc-extensions",
+      "druid-parquet-extensions"
   );
 
   private static File toModuleDirectory(File rootExtensionsDir, String extensionName)

@@ -18,6 +18,7 @@
  */
 package io.druid.data.input.parquet;
 
+import io.druid.data.input.DruidParquetInputFormat;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
