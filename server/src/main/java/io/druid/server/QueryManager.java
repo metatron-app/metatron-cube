@@ -21,6 +21,7 @@ package io.druid.server;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -156,6 +157,23 @@ public class QueryManager implements QueryWatcher, Runnable
       }
     }
     return -1;
+  }
+
+  public List<Map<String, Object>> getRunningQueryStatus()
+  {
+    List<Map<String, Object>> result = Lists.newArrayList();
+    for (Map.Entry<String, QueryStatus> entry : queries.entrySet()) {
+      QueryStatus status = entry.getValue();
+      if (status.canceled || status.end >= 0) {
+        continue;
+      }
+      result.add(ImmutableMap.of(
+          "queryId", entry.getKey(),
+          "queryType", status.type,
+          "start", DateTimes.utc(status.start).toString()
+      ));
+    }
+    return result;
   }
 
   public void dumpAll()

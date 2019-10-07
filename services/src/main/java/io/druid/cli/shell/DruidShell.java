@@ -219,6 +219,7 @@ public class DruidShell extends CommonShell.WithUtils
         "lookup",
         "tasks",
         "task",
+        "queries",
         "candidates",
         "query",
         "help",
@@ -607,6 +608,7 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println("query <file-name>");
         writer.println("sql <sql-string>");
         writer.println("jmx");
+        writer.println("queries");
         writer.println("exit/quit");
         writer.println(">> index");
         writer.println(">> sql");
@@ -1010,6 +1012,10 @@ public class DruidShell extends CommonShell.WithUtils
           }
         }
         runQuery(brokerURLs, writer, builder.toString());
+        break;
+      }
+      case "queries": {
+        dumpMap(writer, executeAll(brokerURLs, "/druid/v2/running", LIST_MAP));
         break;
       }
       case "jmx": {

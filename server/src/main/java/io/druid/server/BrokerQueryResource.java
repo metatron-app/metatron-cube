@@ -360,6 +360,20 @@ public class BrokerQueryResource extends QueryResource
     }
   }
 
+  @GET
+  @Path("/running")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getRunningIds(@Context final HttpServletRequest req) throws Exception
+  {
+    final RequestContext context = new RequestContext(req, false);
+    try {
+      return context.ok(queryManager.getRunningQueryStatus());
+    }
+    catch (Throwable e) {
+      return context.gotError(e);
+    }
+  }
+
   private static class ProgressingFuture<T> extends ForwardingListenableFuture<T> implements Progressing
   {
     private final ListenableFuture<T> delegate;
