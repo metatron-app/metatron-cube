@@ -179,7 +179,7 @@ public class InformationSchema extends AbstractSchema
   private static final String GC_COLLECTION_COUNT = "gc.collectionCount";
   private static final String GX_COLLECTION_TIME = "gc.collectionTime";
 
-  private static final RowSignature SERVERS_SIGNATURE = RowSignature
+  public static final RowSignature SERVERS_SIGNATURE = RowSignature
       .builder()
       .add(HOST, ValueDesc.STRING)
       .add(TYPE, ValueDesc.STRING)

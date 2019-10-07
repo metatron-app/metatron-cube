@@ -44,6 +44,7 @@ import java.util.Set;
 
 import static io.druid.server.ServiceTypes.BROKER;
 import static io.druid.server.ServiceTypes.COORDINATOR;
+import static io.druid.server.ServiceTypes.HISTORICAL;
 import static io.druid.server.ServiceTypes.MIDDLE_MANAGER;
 import static io.druid.server.ServiceTypes.OVERLORD;
 
@@ -52,6 +53,11 @@ import static io.druid.server.ServiceTypes.OVERLORD;
 @JsonTypeName("jmx")
 public class JMXQuery extends BaseQuery<Map<String, Object>> implements FilterableManagementQuery
 {
+  public static JMXQuery of(String expression)
+  {
+    return new JMXQuery(null, null, expression, false, null);
+  }
+
   private final String expression;
   private final boolean dumpLongestStack;
 
@@ -112,6 +118,17 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         expression,
         dumpLongestStack,
         computeOverriddenContext(contextOverride)
+    );
+  }
+
+  public JMXQuery withExpression(String expression)
+  {
+    return new JMXQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        expression,
+        dumpLongestStack,
+        getContext()
     );
   }
 
@@ -185,6 +202,6 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   @Override
   public Set<String> supports()
   {
-    return ImmutableSet.of(COORDINATOR, BROKER, OVERLORD, MIDDLE_MANAGER);
+    return ImmutableSet.of(COORDINATOR, BROKER, HISTORICAL, OVERLORD, MIDDLE_MANAGER);
   }
 }

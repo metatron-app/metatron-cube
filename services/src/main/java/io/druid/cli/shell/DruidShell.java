@@ -49,10 +49,12 @@ import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.query.jmx.JMXQuery;
 import io.druid.segment.IndexIO;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.initialization.IndexerZkConfig;
+import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.curator.x.discovery.ServiceDiscovery;
@@ -604,9 +606,10 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println("candidates <datasource-name> <intervals> [-full]");
         writer.println("query <file-name>");
         writer.println("sql <sql-string>");
+        writer.println("jmx");
         writer.println("exit/quit");
-        writer.println("index");
-        writer.println("sql");
+        writer.println(">> index");
+        writer.println(">> sql");
         return;
       case "loadstatus":
         Map<String, Object> loadStatus = execute(coordinatorURL, "/druid/coordinator/v1/loadstatus", MAP);
@@ -1009,6 +1012,32 @@ public class DruidShell extends CommonShell.WithUtils
         runQuery(brokerURLs, writer, builder.toString());
         break;
       }
+      case "jmx": {
+        List<URL> brokers = brokerURLs.get();
+        String query = jsonMapper.writeValueAsString(JMXQuery.of(cursor.hasMore() ? cursor.next() : null));
+        List<String> rowOrder = InformationSchema.SERVERS_SIGNATURE.getRowOrder();
+        writer.print("  ");
+        String columns = rowOrder.toString();
+        writer.println(columns);
+        writer.print("  ");
+        for (int i = 0; i < columns.length(); i++) {
+          writer.print('-');
+        }
+        writer.println();
+        for (Map<String, Object> map : runQuery(query, brokers, LIST_MAP)) {
+          for (Map.Entry<String, Object> entry : map.entrySet()) {
+            Map<String, Object> result = (Map<String, Object>) entry.getValue();
+            writer.print("  [");
+            writer.print(entry.getKey());
+            for (int i = 1; i < rowOrder.size(); i++) {
+              writer.print(", ");
+              writer.print(result.get(rowOrder.get(i)));
+            }
+            writer.println("]");
+          }
+        }
+        break;
+      }
       case "candidates": {
         if (!cursor.hasMore()) {
           writer.println("!! needs datasource & comma separated intervals");
@@ -1111,7 +1140,7 @@ public class DruidShell extends CommonShell.WithUtils
     }
     long start = System.currentTimeMillis();
     try {
-      int numRow = runAndDump(writer, "/druid/v2/sql", sql, mediaType, brokerURLs);
+      int numRow = runAndDump(writer, null, sql, mediaType, brokerURLs);
       writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
     }
     catch (Exception e) {
@@ -1121,46 +1150,64 @@ public class DruidShell extends CommonShell.WithUtils
 
   private int runAndDump(PrintWriter writer, String resource, String query, String mediaType, List<URL> brokerURLs)
   {
+    return dumpMap(writer, runQuery(resource, query, mediaType, brokerURLs, LIST_MAP));
+  }
+
+  private <T> T runQuery(String query, List<URL> brokerURLs, TypeReference<T> reference)
+  {
+    return runQuery("/druid/v2", query, MediaType.APPLICATION_JSON, brokerURLs, reference);
+  }
+
+  private <T> T runQuery(
+      String resource,
+      String query,
+      String mediaType,
+      List<URL> brokerURLs,
+      TypeReference<T> reference
+  )
+  {
     Preconditions.checkArgument(!brokerURLs.isEmpty());
 
     Exception ex = null;
     for (URL brokerURL : brokerURLs) {
-      int numRow = 0;
-      List<Map<String, Object>> execute;
       try {
-        execute = execute(
+        return execute(
             HttpMethod.POST,
             brokerURL,
-            resource,
-            mediaType,
+            resource == null ? "/druid/v2/sql" : resource,
+            mediaType == null ? MediaType.TEXT_PLAIN : mediaType,
             query.getBytes(),
-            new TypeReference<List<Map<String, Object>>>() {}
+            reference
         );
       }
       catch (Exception e) {
         ex = e;
-        continue; // ignore
       }
-      boolean header = false;
-      for (Map<String, Object> row : execute) {
-        if (!header) {
-          writer.print("  ");
-          String columns = row.keySet().toString();
-          writer.println(columns);
-          writer.print("  ");
-          for (int i = 0; i < columns.length(); i++) {
-            writer.print('-');
-          }
-          writer.println();
-          header = true;
-        }
-        writer.print("  ");
-        writer.println(row.values().toString());
-        numRow++;
-      }
-      return numRow;
     }
     throw Throwables.propagate(ex);
+  }
+
+  private int dumpMap(PrintWriter writer, List<Map<String, Object>> execute)
+  {
+    int numRow = 0;
+    boolean header = false;
+    for (Map<String, Object> row : execute) {
+      if (!header) {
+        writer.print("  ");
+        String columns = row.keySet().toString();
+        writer.println(columns);
+        writer.print("  ");
+        for (int i = 0; i < columns.length(); i++) {
+          writer.print('-');
+        }
+        writer.println();
+        header = true;
+      }
+      writer.print("  ");
+      writer.println(row.values().toString());
+      numRow++;
+    }
+    return numRow;
   }
 
   private DescExtractor getDescExtractor(Cursor cursor)
