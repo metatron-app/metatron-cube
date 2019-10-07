@@ -81,6 +81,12 @@ public interface PostProcessingOperator<T>
     }
   }
 
+  public abstract class ReturnsMap<T> extends Abstract<T>
+  {
+    @Override
+    public final boolean hasTabularOutput() { return true; }
+  }
+
   // this is needed to be implemented by all post processors, but let's do it step by step
   interface SchemaResolving
   {

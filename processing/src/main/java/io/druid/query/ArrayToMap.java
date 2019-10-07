@@ -31,7 +31,7 @@ import java.util.Map;
 
 /**
  */
-public class ArrayToMap extends PostProcessingOperator.Abstract<Object[]>
+public class ArrayToMap extends PostProcessingOperator.ReturnsMap<Object[]>
 {
   private final List<String> columnNames;
 
@@ -71,12 +71,6 @@ public class ArrayToMap extends PostProcessingOperator.Abstract<Object[]>
         });
       }
     };
-  }
-
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return true;
   }
 
   @Override

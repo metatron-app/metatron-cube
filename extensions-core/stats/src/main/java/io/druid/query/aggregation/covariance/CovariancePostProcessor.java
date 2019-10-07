@@ -44,7 +44,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("stats.covariance")
-public class CovariancePostProcessor extends PostProcessingOperator.Abstract
+public class CovariancePostProcessor extends PostProcessingOperator.ReturnsMap
 {
   @JsonCreator
   public CovariancePostProcessor() { }
@@ -99,11 +99,5 @@ public class CovariancePostProcessor extends PostProcessingOperator.Abstract
         return Sequences.simple(covarianceBest);
       }
     };
-  }
-
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return true;
   }
 }

@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  */
-public class ToMapPostProcessor extends PostProcessingOperator.Abstract
+public class ToMapPostProcessor extends PostProcessingOperator.ReturnsMap
 {
   private final String timestampColumn;
   private final QueryToolChestWarehouse warehouse;
@@ -68,14 +68,8 @@ public class ToMapPostProcessor extends PostProcessingOperator.Abstract
   }
 
   @Override
-  public boolean hasTabularOutput()
-  {
-    return true;
-  }
-
-  @Override
   public String toString()
   {
-    return "TabularPostProcessor{timestampColumn=" + timestampColumn + "}";
+    return "ToMapPostProcessor{timestampColumn=" + timestampColumn + "}";
   }
 }

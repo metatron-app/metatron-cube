@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  */
 @SuppressWarnings("unchecked")
-public class RowToMap extends PostProcessingOperator.Abstract<Row>
+public class RowToMap extends PostProcessingOperator.ReturnsMap<Row>
 {
   private final String timestampColumn;
 
@@ -60,12 +60,6 @@ public class RowToMap extends PostProcessingOperator.Abstract<Row>
         return Sequences.map(baseRunner.run(query, responseContext), Rows.rowToMap(timestampColumn));
       }
     };
-  }
-
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return true;
   }
 
   @Override

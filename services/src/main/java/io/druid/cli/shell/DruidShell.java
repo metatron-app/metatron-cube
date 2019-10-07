@@ -217,6 +217,7 @@ public class DruidShell extends CommonShell.WithUtils
         "lookup",
         "tasks",
         "task",
+        "candidates",
         "query",
         "help",
         "sql",
@@ -235,7 +236,7 @@ public class DruidShell extends CommonShell.WithUtils
       }
     };
 
-    final Set<String> dsRequired = ImmutableSet.of("datasource", "rule", "desc", "query");
+    final Set<String> dsRequired = ImmutableSet.of("datasource", "rule", "desc", "candidates");
     Completer dsCompleter = new Completer()
     {
       @Override
@@ -600,8 +601,12 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println("lookup <tier-name> [lookup-name]");
         writer.println("tasks [-simple] [-completed [-recent=<duration>]]");
         writer.println("task <task-id> [-status|-segments|-log]");
-        writer.println("query <datasource-name> <intervals> [-full]");
+        writer.println("candidates <datasource-name> <intervals> [-full]");
+        writer.println("query <file-name>");
         writer.println("sql <sql-string>");
+        writer.println("exit/quit");
+        writer.println("index");
+        writer.println("sql");
         return;
       case "loadstatus":
         Map<String, Object> loadStatus = execute(coordinatorURL, "/druid/coordinator/v1/loadstatus", MAP);
@@ -642,7 +647,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "server":
         resource.append("/druid/coordinator/v1/servers");
         if (!cursor.hasMore()) {
-          writer.println("needs server name");
+          writer.println("!! needs server name");
           return;
         }
         resource.append(cursor.next());
@@ -653,7 +658,7 @@ public class DruidShell extends CommonShell.WithUtils
         break;
       case "segments":
         if (!cursor.hasMore()) {
-          writer.println("needs server name");
+          writer.println("!! needs server name");
           return;
         }
         resource.append("/druid/coordinator/v1/servers").append(cursor.next());
@@ -673,7 +678,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "segment":
         resource.append("/druid/coordinator/v1/servers");
         if (!cursor.hasMore(2)) {
-          writer.println("needs server name & segment name");
+          writer.println("!! needs server name & segment name");
           return;
         }
 
@@ -709,7 +714,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "datasource": {
         resource.append("/druid/coordinator/v1/datasources");
         if (!cursor.hasMore()) {
-          writer.println("needs datasource name");
+          writer.println("!! needs datasource name");
           return;
         }
         resource.append(cursor.next());
@@ -746,12 +751,12 @@ public class DruidShell extends CommonShell.WithUtils
           }
         }
         if ((intervals || interval != null) && (segments || segment != null)) {
-          writer.println("interval(s) or segment(s), just pick one");
+          writer.println("!! interval(s) or segment(s), just pick one");
           return;
         }
         if (disable) {
           if (intervals || segments) {
-            writer.println("disable does not take -intervals or -segments");
+            writer.println("!! disable does not take -intervals or -segments");
             return;
           }
           if (interval != null) {
@@ -813,17 +818,17 @@ public class DruidShell extends CommonShell.WithUtils
       case "desc":
         resource.append("/druid/coordinator/v1/datasources");
         if (!cursor.hasMore()) {
-          writer.println("needs datasource name");
+          writer.println("!! needs datasource name");
           return;
         }
         resource.append(cursor.next()).append("desc");
         if (!cursor.hasMore()) {
-          writer.println("needs desc type, ont of " + Arrays.toString(DescExtractor.values()));
+          writer.println("!! needs desc type, ont of " + Arrays.toString(DescExtractor.values()));
           return;
         }
         DescExtractor extractor = getDescExtractor(cursor);
         if (extractor == null) {
-          writer.println("invalid desc type " + cursor.current());
+          writer.println("!! invalid desc type " + cursor.current());
           return;
         }
         resource.append(cursor.current());
@@ -837,7 +842,7 @@ public class DruidShell extends CommonShell.WithUtils
             return;
           case COLUMN_PROPS:
             if (!cursor.hasMore()) {
-              writer.println("column value is missing");
+              writer.println("!! column value is missing");
               return;
             }
             resource.appendOption("column=" + cursor.next());
@@ -863,7 +868,7 @@ public class DruidShell extends CommonShell.WithUtils
           if (cursor.hasMore()) {
             resource.append(cursor.next());
           } else {
-            writer.println("needs tier name");
+            writer.println("!! needs tier name");
             return;
           }
         }
@@ -893,7 +898,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "rule":
         resource.append("/druid/coordinator/v1/rules");
         if (!cursor.hasMore()) {
-          writer.println("needs datasource name");
+          writer.println("!! needs datasource name");
           return;
         }
         resource.append(cursor.next());
@@ -912,7 +917,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "lookup":
         resource.append("/druid/coordinator/v1/lookups");
         if (!cursor.hasMore()) {
-          writer.println("needs tier name");
+          writer.println("!! needs tier name");
           return;
         }
         resource.append(cursor.next());
@@ -991,6 +996,21 @@ public class DruidShell extends CommonShell.WithUtils
         break;
       case "query": {
         if (!cursor.hasMore()) {
+          writer.println("!! needs file-name");
+          return;
+        }
+        StringBuilder builder = new StringBuilder();
+        try (BufferedReader fileReader = new BufferedReader(new FileReader(cursor.next()))) {
+          String fileLine;
+          while ((fileLine = fileReader.readLine()) != null) {
+            builder.append(fileLine);
+          }
+        }
+        runQuery(brokerURLs, writer, builder.toString());
+        break;
+      }
+      case "candidates": {
+        if (!cursor.hasMore()) {
           writer.println("!! needs datasource & comma separated intervals");
           return;
         }
@@ -1053,6 +1073,23 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
+  private void runQuery(Supplier<List<URL>> brokers, PrintWriter writer, String query)
+  {
+    List<URL> brokerURLs = brokers.get();
+    if (GuavaUtils.isNullOrEmpty(brokerURLs)) {
+      writer.println("!! cannot find broker");
+      return;
+    }
+    long start = System.currentTimeMillis();
+    try {
+      int numRow = runAndDump(writer, "/druid/v2", query, MediaType.APPLICATION_JSON, brokerURLs);
+      writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
+    }
+    catch (Exception e) {
+      writer.println(String.format("> Failed by exception : %s", e));
+    }
+  }
+
   private void runSQL(Supplier<List<URL>> brokers, PrintWriter writer, String sql, Map<String, String> context)
   {
     String mediaType = MediaType.TEXT_PLAIN;
@@ -1074,7 +1111,7 @@ public class DruidShell extends CommonShell.WithUtils
     }
     long start = System.currentTimeMillis();
     try {
-      int numRow = runAndDump(writer, sql, mediaType, brokerURLs);
+      int numRow = runAndDump(writer, "/druid/v2/sql", sql, mediaType, brokerURLs);
       writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
     }
     catch (Exception e) {
@@ -1082,43 +1119,48 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
-  private int runAndDump(PrintWriter writer, String sql, String mediaType, List<URL> brokerURLs)
+  private int runAndDump(PrintWriter writer, String resource, String query, String mediaType, List<URL> brokerURLs)
   {
+    Preconditions.checkArgument(!brokerURLs.isEmpty());
+
+    Exception ex = null;
     for (URL brokerURL : brokerURLs) {
       int numRow = 0;
-      boolean header = false;
+      List<Map<String, Object>> execute;
       try {
-        final List<Map<String, Object>> execute = execute(
+        execute = execute(
             HttpMethod.POST,
             brokerURL,
-            "/druid/v2/sql",
+            resource,
             mediaType,
-            sql.getBytes(),
+            query.getBytes(),
             new TypeReference<List<Map<String, Object>>>() {}
         );
-        for (Map<String, Object> row : execute) {
-          if (!header) {
-            writer.print("  ");
-            String columns = row.keySet().toString();
-            writer.println(columns);
-            writer.print("  ");
-            for (int i = 0; i < columns.length(); i++) {
-              writer.print('-');
-            }
-            writer.println();
-            header = true;
-          }
-          writer.print("  ");
-          writer.println(row.values().toString());
-          numRow++;
-        }
-        return numRow;
       }
       catch (Exception e) {
-        // ignore
+        ex = e;
+        continue; // ignore
       }
+      boolean header = false;
+      for (Map<String, Object> row : execute) {
+        if (!header) {
+          writer.print("  ");
+          String columns = row.keySet().toString();
+          writer.println(columns);
+          writer.print("  ");
+          for (int i = 0; i < columns.length(); i++) {
+            writer.print('-');
+          }
+          writer.println();
+          header = true;
+        }
+        writer.print("  ");
+        writer.println(row.values().toString());
+        numRow++;
+      }
+      return numRow;
     }
-    throw new ISE("!! cannot find valid broker");
+    throw Throwables.propagate(ex);
   }
 
   private DescExtractor getDescExtractor(Cursor cursor)
