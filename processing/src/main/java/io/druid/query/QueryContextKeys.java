@@ -39,6 +39,7 @@ public interface QueryContextKeys
   public static final String FUDGE_TIMESTAMP = "#fudgeTimestamp";
   public static final String USE_BULK_ROW = "#useBulkRow";
   public static final String MAJOR_TYPES = "#majorTypes";   // for sketch
+  public static final String DISABLE_LOG = "#disableLog";
 
   // group-by config.. overriding
   public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";

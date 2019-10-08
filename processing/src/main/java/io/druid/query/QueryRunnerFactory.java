@@ -97,7 +97,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
         QuerySegmentWalker segmentWalker
     );
 
-    Iterable<QueryType> splitQuery(
+    List<QueryType> splitQuery(
         QueryType query,
         List<Segment> targets,
         Future<Object> optimizer,

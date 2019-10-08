@@ -153,7 +153,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       url = new URL(String.format("http://%s/druid/v2/", host));
       cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
 
-      log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
+      if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
+        log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
+      }
 
       final ServiceMetricEvent.Builder builder = toolChest.makeMetricBuilder().apply(query);
       builder.setDimension("server", host);

@@ -446,7 +446,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public OrderingSupport<Object[]> withResultOrdering(List<OrderByColumnSpec> orderingSpecs)
+  public StreamQuery withResultOrdering(List<OrderByColumnSpec> orderingSpecs)
   {
     return new StreamQuery(
         getDataSource(),

@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
@@ -70,6 +69,7 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -431,10 +431,11 @@ public class Queries
       List<DictionaryEncodedColumn> dictionaries,
       int numSplit,
       String strategy,
-      int maxThreshold
+      int maxThreshold,
+      Comparator comparator
   )
   {
-    ItemsUnion<String> itemsUnion = ItemsUnion.getInstance(32, Ordering.natural().nullsFirst());
+    ItemsUnion itemsUnion = ItemsUnion.getInstance(32, comparator);
     for (DictionaryEncodedColumn dictionary : dictionaries) {
       itemsUnion.update(dictionary.getQuantile());
     }

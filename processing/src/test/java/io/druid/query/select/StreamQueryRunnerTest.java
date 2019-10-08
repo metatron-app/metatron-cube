@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.Druids;
+import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -131,6 +132,30 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
         Lists.<Object[]>newArrayList()
+    );
+    validate(expected, results);
+  }
+
+  @Test
+  public void testSplit()
+  {
+    Druids.SelectQueryBuilder builder = testEq(newTestQuery());
+    testEq(builder.columns(Arrays.asList("market", "quality")));
+    testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index", "indexMin")));
+    testEq(builder.intervals(I_0112_0114));
+    testEq(builder.limit(3));
+
+    StreamQuery query = builder.streaming();
+    query = query.withResultOrdering(OrderByColumnSpec.descending("index"));
+    query = (StreamQuery) query.withOverriddenContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, 2);
+    List<Object[]> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
+        Lists.<Object[]>newArrayList()
+    );
+    List<Object[]> expected = createExpected(
+        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F},
+        new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
+        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "mezzanine", 1040.945556640625D, 1040.9456F}
     );
     validate(expected, results);
   }

@@ -67,14 +67,15 @@ public class StreamHandlerFactory
     this.mapper = mapper;
   }
 
-  public StreamHandler create(final String queryId, final URL url, final int queueSize)
+  public StreamHandler create(final Query query, final URL url, final int queueSize)
   {
-    return new BaseHandler(queryId, url, queueSize);
+    return new BaseHandler(query, url, queueSize);
   }
 
   private class BaseHandler implements StreamHandler
   {
     private final String queryId;
+    private final boolean disableLog;
     private final URL url;
 
     private final long requestStartTime = System.currentTimeMillis();
@@ -84,9 +85,10 @@ public class StreamHandlerFactory
     private final AtomicLong byteCount = new AtomicLong(0);
     private final AtomicBoolean done = new AtomicBoolean(false);
 
-    private BaseHandler(String queryId, URL url, int queueSize)
+    private BaseHandler(Query query, URL url, int queueSize)
     {
-      this.queryId = queryId;
+      this.queryId = query.getId();
+      this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.url = url;
       this.queue = new LinkedBlockingDeque<>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
     }
@@ -106,10 +108,12 @@ public class StreamHandlerFactory
       response(requestStartTime, responseStartTime = System.currentTimeMillis());
 
       HttpResponseStatus status = response.getStatus();
-      log.debug(
-          "Initial response from url[%s] for queryId[%s] with status[%s] in %,d msec",
-          url, queryId, status, responseStartTime - requestStartTime
-      );
+      if (!disableLog) {
+        log.debug(
+            "Initial response from url[%s] for queryId[%s] with status[%s] in %,d msec",
+            url, queryId, status, responseStartTime - requestStartTime
+        );
+      }
 
       if (status.getCode() >= HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode()) {
         final ByteBuffer contents = response.getContent().toByteBuffer();
@@ -228,14 +232,16 @@ public class StreamHandlerFactory
     public ClientResponse<InputStream> done(ClientResponse<InputStream> clientResponse)
     {
       long stopTime = System.currentTimeMillis();
-      log.debug(
-          "Completed queryId[%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
-          queryId,
-          url,
-          byteCount.get(),
-          stopTime - responseStartTime,
-          StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, stopTime - responseStartTime))
-      );
+      if (!disableLog) {
+        log.debug(
+            "Completed queryId[%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
+            queryId,
+            url,
+            byteCount.get(),
+            stopTime - responseStartTime,
+            StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, stopTime - responseStartTime))
+        );
+      }
       finished(responseStartTime, stopTime, byteCount.get());
       synchronized (done) {
         done.set(true);
@@ -289,7 +295,7 @@ public class StreamHandlerFactory
         final Map<String, Object> context
     )
     {
-      return new BaseHandler(query.getId(), url, queueSize)
+      return new BaseHandler(query, url, queueSize)
       {
         @Override
         public void handleHeader(HttpHeaders headers) throws IOException

@@ -634,12 +634,7 @@ public class StringComparators
       if (defaultOrdering) {
         return sourceType.comparator();
       }
-      OrderingSpec orderingSpec = orderingSpecs.get(0);
-      Comparator comparator = makeComparator(orderingSpec.getDimensionOrder());
-      if (orderingSpec.getDirection() == Direction.DESCENDING) {
-        comparator = Ordering.from(comparator).reverse();
-      }
-      return comparator;
+      return orderingSpecs.get(0).getComparator();
     }
     Preconditions.checkArgument(sourceType.isStruct(), "not supported type " + sourceType);
     String[] parsed = Preconditions.checkNotNull(TypeUtils.splitDescriptiveType(sourceType.typeName()));

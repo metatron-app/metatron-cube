@@ -255,7 +255,7 @@ public class ServerManager implements ForwardingSegmentWalker
       PartitionChunk<ReferenceCountingSegment> removed = loadedIntervals.remove(
           segment.getInterval(),
           segment.getVersion(),
-          segment.getShardSpecWithDefault().createChunk((ReferenceCountingSegment) null)
+          segment.getShardSpecWithDefault().createChunk(null)
       );
       ReferenceCountingSegment oldQueryable = (removed == null) ? null : removed.getObject();
 
@@ -413,7 +413,9 @@ public class ServerManager implements ForwardingSegmentWalker
       List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
   )
   {
-    log.info("Running resolved [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
+    if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
+      log.info("Running resolved [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
+    }
 
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
@@ -494,7 +496,7 @@ public class ServerManager implements ForwardingSegmentWalker
       public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
       {
         // stop streaming if canceled
-        final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture(), "split-runner");
+        final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "split-runner");
         queryManager.registerQuery(baseQuery, future);
         return Sequences.withBaggage(
             Sequences.interruptible(future, Sequences.concat(

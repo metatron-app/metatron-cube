@@ -42,11 +42,11 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
-import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
@@ -103,10 +103,10 @@ public class StreamQueryRunnerFactory
   private static final int SPLIT_MIN_ROWS = 8192;
   private static final int SPLIT_DEFAULT_ROWS = 131072;
 
-  private static final int SPLIT_MAX_SPLIT = 12;
+  private static final int SPLIT_MAX_SPLIT = 32;
 
   @Override
-  public Iterable<StreamQuery> splitQuery(
+  public List<StreamQuery> splitQuery(
       StreamQuery query,
       List<Segment> segments,
       Future<Object> optimizer,
@@ -125,6 +125,7 @@ public class StreamQueryRunnerFactory
         DataSource ds = query.getDataSource();
         DimFilter filter = query.getFilter();
         Map<String, Object> context = BaseQuery.copyContextForMeta(query);
+        context.put(Query.DISABLE_LOG, true);
         for (Segment segment : segments) {
           SelectMetaQuery meta = SelectMetaQuery.of(
               ds, new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor()), filter, context
@@ -146,7 +147,9 @@ public class StreamQueryRunnerFactory
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
 
     Object[] thresholds = null;
-    String sortColumn = query.getOrderingSpecs().get(0).getDimension();
+    OrderByColumnSpec orderingSpec = query.getOrderingSpecs().get(0);
+    Map<String, String> mapping = QueryUtils.aliasMapping(query);
+    String sortColumn = mapping.getOrDefault(orderingSpec.getDimension(), orderingSpec.getDimension());
     List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, sortColumn);
     try {
       if (dictionaries.size() << 2 > segments.size()) {
@@ -154,16 +157,15 @@ public class StreamQueryRunnerFactory
         if (numSplit < 2) {
           return null;
         }
-        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, -1);
+        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, -1, orderingSpec.getComparator());
       }
     }
     finally {
       GuavaUtils.closeQuietly(dictionaries);
     }
     if (thresholds == null) {
-      DimensionSpec dimensionSpec = DefaultDimensionSpec.of(sortColumn);
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, -1
+          resolver, segmentWalker, query.asTimeseriesQuery(), orderingSpec.asDimensionSpec(), numSplit, strategy, -1
       );
     }
     if (thresholds == null || thresholds.length < 3) {
@@ -171,23 +173,30 @@ public class StreamQueryRunnerFactory
     }
     logger.info("split %s on values : %s", sortColumn, Arrays.toString(thresholds));
 
+    Direction direction = orderingSpec.getDirection();
     List<StreamQuery> splits = Lists.newArrayList();
     for (int i = 1; i < thresholds.length; i++) {
       BoundDimFilter filter;
       if (i == 1) {
-        filter = BoundDimFilter.lt(sortColumn, thresholds[i]);
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.lt(sortColumn, thresholds[i]) :
+                     BoundDimFilter.gte(sortColumn, thresholds[i]);
       } else if (i < thresholds.length - 1) {
-        filter = BoundDimFilter.between(sortColumn, thresholds[i - 1], thresholds[i]);
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.between(sortColumn, thresholds[i - 1], thresholds[i]) :
+                     BoundDimFilter.between(sortColumn, thresholds[i], thresholds[i - 1]);
       } else {
-        filter = BoundDimFilter.gte(sortColumn, thresholds[i - 1]);
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.gte(sortColumn, thresholds[i - 1]) :
+                     BoundDimFilter.lt(sortColumn, thresholds[i - 1]);
       }
-      logger.debug("--> filter : %s ", filter);
+      if (!orderingSpec.isNaturalOrdering()) {
+        filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
+      }
+      logger.debug("--> filter : %s", filter);
       splits.add(
           query.withFilter(DimFilters.and(query.getFilter(), filter))
       );
-    }
-    if (query.isDescending()) {
-      splits = Lists.reverse(splits);
     }
     return splits;
   }
@@ -239,9 +248,15 @@ public class StreamQueryRunnerFactory
               Sequences.<Object[]>callableToLazy()
           );
         } else {
+          int priority = BaseQuery.getContextPriority(query, 0);
           Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
           iterable = Iterables.transform(
-              Execs.execute(executor, QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext)),
+              Execs.execute(
+                  executor,
+                  QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext),
+                  semaphore,
+                  priority
+              ),
               FutureSequence.<Object[]>toSequence()
           );
         }

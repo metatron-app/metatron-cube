@@ -54,11 +54,11 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecWithOrdering;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Segment;
@@ -215,7 +215,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public Iterable<GroupByQuery> splitQuery(
+  public List<GroupByQuery> splitQuery(
       GroupByQuery query,
       List<Segment> segments,
       Future<Object> optimizer,
@@ -268,7 +268,9 @@ public class GroupByQueryRunnerFactory
         if (numSplit < 2) {
           return null;
         }
-        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, maxResults);
+        thresholds = Queries.getThresholds(
+            dictionaries, numSplit, strategy, maxResults, DimensionSpecs.toComparator(dimensionSpec)
+        );
       }
     }
     finally {
@@ -288,12 +290,8 @@ public class GroupByQueryRunnerFactory
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }
-    OrderingSpec orderingSpec = OrderingSpec.create(null);
-    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
-      orderingSpec = explicit.asOrderingSpec();
-    }
     Map<String, String> mapping = QueryUtils.aliasMapping(query);
+    OrderByColumnSpec orderingSpec = DimensionSpecs.asOrderByColumnSpec(dimensionSpec);
     String dimension = mapping.getOrDefault(dimensionSpec.getOutputName(), dimensionSpec.getOutputName());
 
     Direction direction = orderingSpec.getDirection();
@@ -320,9 +318,6 @@ public class GroupByQueryRunnerFactory
       splits.add(
           query.withFilter(DimFilters.and(query.getFilter(), filter))
       );
-    }
-    if (query.isDescending()) {
-      splits = Lists.reverse(splits);
     }
     return splits;
   }

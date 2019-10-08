@@ -27,6 +27,9 @@ import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
@@ -169,6 +172,14 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   public OrderByColumnSpec withComparator(String comparatorName)
   {
     return new OrderByColumnSpec(dimension, direction, comparatorName);
+  }
+
+  public DimensionSpec asDimensionSpec()
+  {
+    if (!isBasicOrdering()) {
+      return new DimensionSpecWithOrdering(DefaultDimensionSpec.of(dimension), direction, getDimensionOrder());
+    }
+    return DefaultDimensionSpec.of(dimension);
   }
 
   @Override

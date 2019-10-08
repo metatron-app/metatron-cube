@@ -734,7 +734,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
                                    .streaming();
         int threshold = configuration.getInt(CONF_DRUID_STREAM_THRESHOLD, DEFAULT_STREAM_THRESHOLD);
         streamHandler = new StreamHandlerFactory(logger, mapper).create(
-            query.getId(), request.getUrl(), threshold
+            query, request.getUrl(), threshold
         );
         events = new JsonParserIterator.FromFutureStream<Map<String, Object>>(
             mapper,

@@ -61,13 +61,18 @@ public class DimensionSpecs
   {
     List<OrderByColumnSpec> orderingSpecs = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        orderingSpecs.add(((DimensionSpecWithOrdering) dimensionSpec).asOrderByColumnSpec());
-      } else {
-        orderingSpecs.add(OrderByColumnSpec.asc(dimensionSpec.getOutputName()));
-      }
+      orderingSpecs.add(asOrderByColumnSpec(dimensionSpec));
     }
     return orderingSpecs;
+  }
+
+  public static OrderByColumnSpec asOrderByColumnSpec(DimensionSpec dimensionSpec)
+  {
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      return ((DimensionSpecWithOrdering) dimensionSpec).asOrderByColumnSpec();
+    } else {
+      return OrderByColumnSpec.asc(dimensionSpec.getOutputName());
+    }
   }
 
   public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)

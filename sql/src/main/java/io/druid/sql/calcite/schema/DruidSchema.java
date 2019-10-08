@@ -524,7 +524,7 @@ public class DruidSchema extends AbstractSchema
         new AllColumnIncluderator(),
         null,
         false,
-        ImmutableMap.of(),
+        ImmutableMap.of(Query.DISABLE_LOG, true),
         EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
         false,
         false
