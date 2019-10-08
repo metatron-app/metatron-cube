@@ -88,6 +88,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 
 /**
@@ -253,7 +254,18 @@ public class QueryResource
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
-      Execs.SettableFuture future = new Execs.SettableFuture<Object>();
+      final AtomicReference<Thread> writer = new AtomicReference<>();
+      final Execs.SettableFuture future = new Execs.SettableFuture<Object>()
+      {
+        @Override
+        protected void interruptTask()
+        {
+          final Thread thread = writer.get();
+          if (thread != null) {
+            thread.interrupt();
+          }
+        }
+      };
       queryManager.registerQuery(query, future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
@@ -292,6 +304,10 @@ public class QueryResource
         {
           // json serializer will always close the yielder
           CountingOutputStream os = new CountingOutputStream(outputStream);
+          if (future.isCancelled()) {
+            throw new QueryInterruptedException(new InterruptedException());
+          }
+          writer.set(Thread.currentThread());
           try {
             // it'll block for ServerConfig.maxIdleTime * 1.5 and throw exception, killing the thread
             jsonWriter.writeValue(os, yielder);
@@ -309,6 +325,8 @@ public class QueryResource
               throw (WebApplicationException) t;
             }
             throw Throwables.propagate(t);
+          } finally {
+            writer.set(null);
           }
 
           long queryTime = System.currentTimeMillis() - start;
