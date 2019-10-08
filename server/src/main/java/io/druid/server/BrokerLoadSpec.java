@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -39,6 +40,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
+import io.druid.initialization.Initialization;
 import io.druid.query.BaseQuery;
 import io.druid.query.DummyQuery;
 import io.druid.query.ForwardingSegmentWalker;
@@ -59,12 +61,15 @@ import java.util.UUID;
 
 /**
  */
-public class BrokerLoadSpec
+public class BrokerLoadSpec implements ForwardConstants
 {
+  private static final TypeReference<Map<String, Object>> MAP_REF = new TypeReference<Map<String, Object>>() {};
+
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
   private final List<String> paths;
   private final String inputFormat; // todo
+  private final String extension;
   private final int skipFirstN;
 
   private final DataSchema schema;
@@ -77,6 +82,7 @@ public class BrokerLoadSpec
   public BrokerLoadSpec(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") List<String> paths,
+      @JsonProperty("extension") String extension,
       @JsonProperty("inputFormat") String inputFormat,
       @JsonProperty("skipFirstN") int skipFirstN,
       @JsonProperty("schema") DataSchema schema,
@@ -87,6 +93,7 @@ public class BrokerLoadSpec
   {
     this.basePath = basePath;
     this.paths = Preconditions.checkNotNull(paths, "paths should not be null");
+    this.extension = extension;
     this.inputFormat = inputFormat;
     this.skipFirstN = skipFirstN;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
@@ -117,6 +124,13 @@ public class BrokerLoadSpec
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public String getExtension()
+  {
+    return extension;
+  }
+
+  @JsonProperty
   public int getSkipFirstN()
   {
     return skipFirstN;
@@ -136,12 +150,14 @@ public class BrokerLoadSpec
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public boolean isTemporary()
   {
     return temporary == null || temporary;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public Map<String, Object> getProperties()
   {
     return properties;
@@ -228,14 +244,13 @@ public class BrokerLoadSpec
         .build();
 
     final Map<String, Object> forwardContext = Maps.newHashMap(properties);
-    forwardContext.put("format", "index");
-    forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() {}));
-    forwardContext.put("tuningConfig", jsonMapper.convertValue(tuningConfig, new TypeReference<Map<String, Object>>() {}));
-    forwardContext.put("timestampColumn", Row.TIME_COLUMN_NAME);
-    forwardContext.put("dataSource", schema.getDataSource());
-    forwardContext.put("registerTable", true);
-    forwardContext.put("temporary", isTemporary());
-    forwardContext.put("segmentGranularity", granularitySpec.getSegmentGranularity());
+    forwardContext.put(FORMAT, INDEX_FORMAT);
+    forwardContext.put(SCHEMA, jsonMapper.convertValue(indexSchema, MAP_REF));
+    forwardContext.put(TUNING_CONFIG, jsonMapper.convertValue(tuningConfig, MAP_REF));
+    forwardContext.put(TIMESTAMP_COLUMN, Row.TIME_COLUMN_NAME);
+    forwardContext.put(DATASOURCE, schema.getDataSource());
+    forwardContext.put(REGISTER_TABLE, true);
+    forwardContext.put(TEMPORARY, isTemporary());
 
     final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
         ImmutableMap.<String, Object>of(
@@ -246,13 +261,43 @@ public class BrokerLoadSpec
         )
     );
 
-    final Map<String, Object> loadContext = Maps.newHashMap(forwardContext);
+    // use properties for encoding, extractPartition, etc.
+    final Map<String, Object> loadContext = Maps.newHashMap(properties);
     loadContext.put("skipFirstN", skipFirstN);
     loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
 
+    if (inputFormat != null && extension != null) {
+      loadContext.put("inputFormat", loadClass(inputFormat, extension));
+    } else {
+      loadContext.put("inputFormat", inputFormat);
+    }
     // progressing sequence
-    final Sequence<Row> sequence = handler.read(locations, parser, loadContext);
-    return Pair.of(query, Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME)));
+    try {
+      final Sequence<Row> sequence = handler.read(locations, parser, loadContext);
+      return Pair.of(query, Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME)));
+    }
+    catch (InterruptedException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private Class loadClass(String className, String extension) throws IOException
+  {
+    ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    ClassLoader loader = BrokerLoadSpec.class.getClassLoader();
+    if (extension != null) {
+      loader = Initialization.getClassLoaderForExtension(extension);
+    }
+    Thread.currentThread().setContextClassLoader(loader);
+    try {
+      return loader.loadClass(className);
+    }
+    catch (Exception ex) {
+      throw Throwables.propagate(ex);
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
   }
 
   @Override
@@ -261,6 +306,7 @@ public class BrokerLoadSpec
     return "BrokerLoadSpec{" +
            "basePath=" + basePath +
            ", elements=" + paths +
+           ", extension=" + extension +
            ", inputFormat=" + inputFormat +
            ", skipFirstN=" + skipFirstN +
            ", schema=" + schema +

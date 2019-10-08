@@ -56,7 +56,7 @@ public class PostAggregationsPostProcessor
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<PostAggregator> getPostAggregations()
   {
     return postAggregations;

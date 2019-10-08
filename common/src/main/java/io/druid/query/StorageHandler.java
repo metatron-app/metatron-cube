@@ -38,7 +38,8 @@ public interface StorageHandler extends ForwardConstants
   String FILE_SCHEME = "file";
   String LOCAL_SCHEME = "local";
 
-  Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context) throws IOException;
+  Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context)
+      throws IOException, InterruptedException;
 
   Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context) throws IOException;
 

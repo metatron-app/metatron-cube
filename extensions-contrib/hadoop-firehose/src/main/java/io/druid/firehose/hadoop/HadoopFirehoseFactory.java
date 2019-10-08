@@ -23,38 +23,25 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterators;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.indexer.hadoop.HadoopAwareParser;
-import io.druid.indexer.hadoop.HadoopInputContext;
+import io.druid.indexer.hadoop.HadoopInputUtils;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
 import io.druid.utils.Runnables;
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.apache.hadoop.mapreduce.TaskType;
-import org.apache.hadoop.mapreduce.task.JobContextImpl;
-import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
-import org.apache.hadoop.util.ReflectionUtils;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static io.druid.indexer.HadoopDruidIndexerConfig.JSON_MAPPER;
 
@@ -63,7 +50,7 @@ public class HadoopFirehoseFactory implements FirehoseFactory
 {
   private static final Logger LOG = new Logger(HadoopFirehoseFactory.class);
 
-  private final String extension;
+  private final String extension;   // for path-spec
   private final Map<String, Object> pathSpec;
 
   @JsonCreator
@@ -89,92 +76,42 @@ public class HadoopFirehoseFactory implements FirehoseFactory
     return extension;
   }
 
-  private void setupHadoopAwareParser(InputRowParser parser, MapperContext context) throws IOException
-  {
-    if (parser instanceof HadoopAwareParser) {
-      ((HadoopAwareParser) parser).setup(context);
-    }
-    if (parser instanceof InputRowParser.Delegated) {
-      setupHadoopAwareParser(((InputRowParser.Delegated) parser).getDelegate(), context);
-    }
-  }
-
   @Override
   public Firehose connect(final InputRowParser parser) throws IOException, ParseException
   {
     LOG.info("Loading from path spec %s", pathSpec);
-    final Job spec = configureJob();
-    final Configuration configuration = spec.getConfiguration();
-    final TaskAttemptContextImpl attempt = new TaskAttemptContextImpl(
-        configuration,
-        new TaskAttemptID("test", 0, TaskType.MAP, 0, 0)
-    );
-    final MapperContext context = new MapperContext(configuration);
-
-    setupHadoopAwareParser(parser, context);
-
-    final Iterator<RecordReader> readers;
     try {
-      final InputFormat<?, ?> format = ReflectionUtils.newInstance(spec.getInputFormatClass(), configuration);
-      final List<InputSplit> splits = format.getSplits(new JobContextImpl(configuration, new JobID("test", 0)));
-      readers = Iterators.transform(
-          splits.iterator(),
-          new Function<InputSplit, RecordReader>()
-          {
-            @Override
-            public RecordReader apply(InputSplit split)
-            {
-              try {
-                context.current = split;
-                return format.createRecordReader(split, attempt);
-              }
-              catch (Exception e) {
-                throw Throwables.propagate(e);
-              }
-            }
-          }
-      );
+      return toFirehose(parser, configureJobFromPathSpec());
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  public static Firehose toFirehose(final InputRowParser parser, final Job job) throws Exception
+  {
+    final RecordReader<Object, InputRow> reader = HadoopInputUtils.toRecordReader(parser, job);
+
     return new Firehose()
     {
-      private RecordReader reader;
-      private boolean hasMore;
-
-      private RecordReader reader() throws IOException, InterruptedException
-      {
-        for (; !hasMore; hasMore = reader.nextKeyValue()) {
-          IOUtils.closeQuietly(reader);
-          if (!readers.hasNext()) {
-            return null;
-          }
-          reader = readers.next();
-        }
-        return reader;
-      }
+      private boolean hasMore = reader.nextKeyValue();
 
       @Override
       public boolean hasMore()
       {
-        try {
-          return reader() != null;
-        }
-        catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
+        return hasMore;
       }
 
       @Override
-      @SuppressWarnings("unchecked")
       public InputRow nextRow()
       {
+        if (!hasMore) {
+          throw new NoSuchElementException();
+        }
         try {
-          RecordReader current = reader();
-          Object value = current.getCurrentValue();
-          hasMore = current.nextKeyValue();
-          return parser.parse(value);
+          final InputRow value = reader.getCurrentValue();
+          hasMore = reader.nextKeyValue();
+          return value;
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -195,7 +132,7 @@ public class HadoopFirehoseFactory implements FirehoseFactory
     };
   }
 
-  private Job configureJob() throws IOException
+  private Job configureJobFromPathSpec() throws IOException
   {
     ClassLoader prev = Thread.currentThread().getContextClassLoader();
     ClassLoader loader = HadoopFirehoseFactory.class.getClassLoader();
@@ -208,40 +145,11 @@ public class HadoopFirehoseFactory implements FirehoseFactory
       return pathSpec.addInputPaths(null, Job.getInstance());
     }
     catch (NoClassDefFoundError e) {
-      LOG.info("Cannot find class.. use 'extension' for accessing classes in other extension");
+      LOG.info(e, "Cannot find class.. use 'extension' for accessing classes in other extension");
       throw e;
     }
     finally {
       Thread.currentThread().setContextClassLoader(prev);
-    }
-  }
-
-  private static class MapperContext implements HadoopInputContext
-  {
-    private final Configuration configuration;
-    private InputSplit current;
-
-    private MapperContext(Configuration configuration)
-    {
-      this.configuration = configuration;
-    }
-
-    @Override
-    public Configuration getConfiguration()
-    {
-      return configuration;
-    }
-
-    @Override
-    public InputSplit getInputSplit()
-    {
-      return current;
-    }
-
-    @Override
-    public <T> T unwrap(Class<T> clazz)
-    {
-      return null;
     }
   }
 }

@@ -46,6 +46,8 @@ public interface ForwardConstants
   String INTERVAL = "interval";
   String WAIT_TIMEOUT = "waitTimeout";
   String ASSERT_LOADED = "assertLoaded";
+  String TUNING_CONFIG = "tuningConfig";
+  String TIMESTAMP_COLUMN = "timestampColumn";
 
   // json
   String WRAP_AS_LIST = "wrapAsList";

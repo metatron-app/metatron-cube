@@ -582,24 +582,23 @@ public abstract class IncrementalIndex implements Closeable
   @SuppressWarnings("unchecked")
   private int[] getDimVal(final DimensionDesc dimDesc, final Comparable dimValue)
   {
-    return new int[] {dimDesc.getValues().add(dimValue)};
+    return new int[] {dimDesc.addValue(dimValue)};
   }
 
   @SuppressWarnings("unchecked")
   private int[] getDimVals(final DimensionDesc dimDesc, final List<Comparable> dimValues)
   {
-    final DimDim dimLookup = dimDesc.getValues();
     if (dimValues.size() == 0) {
       // NULL VALUE
-      dimLookup.add(null);
+      dimDesc.getValues().add(null);
       return null;
     }
 
     if (dimValues.size() == 1) {
-      Comparable dimVal = dimValues.get(0);
+      final Comparable dimVal = dimValues.get(0);
       // For Strings, return an array of dictionary-encoded IDs
       // For numerics, return the numeric values directly
-      return new int[]{dimLookup.add(dimVal)};
+      return new int[]{dimDesc.addValue(dimVal)};
     }
 
     final MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
@@ -615,10 +614,10 @@ public abstract class IncrementalIndex implements Closeable
     int pos = 0;
     for (int i = 0; i < dimArray.length; i++) {
       if (multiValueHandling != MultiValueHandling.SET) {
-        retVal[pos++] = dimLookup.add(dimArray[i]);
+        retVal[pos++] = dimDesc.addValue(dimArray[i]);
         continue;
       }
-      int index = dimLookup.add(dimArray[i]);
+      final int index = dimDesc.addValue(dimArray[i]);
       if (index != prevId) {
         prevId = retVal[pos++] = index;
       }
@@ -962,6 +961,7 @@ public abstract class IncrementalIndex implements Closeable
     private final DimDim values;
     private final ColumnCapabilities capabilities;
     private final MultiValueHandling multiValueHandling;
+    private final ValueType type;
 
     public DimensionDesc(int index,
                          String name,
@@ -978,6 +978,7 @@ public abstract class IncrementalIndex implements Closeable
       this.capabilities = capabilities;
       this.multiValueHandling =
           multiValueHandling == null ? MultiValueHandling.ARRAY : multiValueHandling;
+      this.type = capabilities.getType();
     }
 
     public int getIndex()
@@ -1008,6 +1009,12 @@ public abstract class IncrementalIndex implements Closeable
     public MultiValueHandling getMultiValueHandling()
     {
       return multiValueHandling;
+    }
+
+    @SuppressWarnings("unchecked")
+    public int addValue(Comparable dimValue)
+    {
+      return values.add(type.cast(dimValue));
     }
   }
 

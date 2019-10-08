@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
 import java.util.IllegalFormatException;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -203,6 +204,23 @@ public class StringUtils extends com.metamx.common.StringUtils
         builder.append(delimiter);
       }
       builder.append(Strings.nullToEmpty(strings[i]));
+    }
+    return builder.toString();
+  }
+
+  public static String concat(String delimiter, Iterable<String> strings)
+  {
+    Iterator<String> iterator = strings.iterator();
+    if (!iterator.hasNext()) {
+      return "";
+    }
+    int i = 0;
+    StringBuilder builder = new StringBuilder();
+    while (iterator.hasNext()) {
+      if (i++ > 0) {
+        builder.append(delimiter);
+      }
+      builder.append(Strings.nullToEmpty(iterator.next()));
     }
     return builder.toString();
   }

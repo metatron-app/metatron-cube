@@ -21,6 +21,7 @@ package io.druid.storage.hdfs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -37,6 +38,8 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.input.InputRow;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -47,6 +50,8 @@ import io.druid.data.output.Formatter;
 import io.druid.data.output.Formatters;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.indexer.hadoop.HadoopInputUtils;
+import io.druid.indexer.path.PathSpec;
 import io.druid.query.QueryResult;
 import io.druid.query.StorageHandler;
 import io.druid.segment.BaseProgressIndicator;
@@ -67,6 +72,11 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -83,6 +93,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import static io.druid.indexer.HadoopDruidIndexerConfig.JSON_MAPPER;
 
 public class HdfsStorageHandler implements StorageHandler
 {
@@ -108,8 +120,33 @@ public class HdfsStorageHandler implements StorageHandler
 
   @Override
   public Sequence<Row> read(final List<URI> locations, final InputRowParser parser, final Map<String, Object> context)
-      throws IOException
+      throws IOException, InterruptedException
   {
+    final Object inputFormat = context.get("inputFormat");
+    final Class<?> inputFormatClass;
+    if (inputFormat instanceof Class) {
+      inputFormatClass = (Class) inputFormat;
+    } else {
+      inputFormatClass = hadoopConfig.getClassByNameOrNull(Objects.toString(inputFormat, null));
+    }
+    if (inputFormatClass != null &&
+        InputFormat.class.isAssignableFrom(inputFormatClass) ||
+        org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
+      final InputFormat format;
+      if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
+        format = new InputFormatWrapper(
+            (org.apache.hadoop.mapred.InputFormat) ReflectionUtils.newInstance(inputFormatClass, hadoopConfig)
+        );
+      } else {
+        format = (InputFormat) ReflectionUtils.newInstance(inputFormatClass, hadoopConfig);
+      }
+      Job job = Job.getInstance(hadoopConfig);
+      FileInputFormat.setInputPaths(
+          job, StringUtils.concat(",", Iterables.transform(locations, Functions.toStringFunction()))
+      );
+      final RecordReader<Object, InputRow> reader = HadoopInputUtils.toRecordReader(format, parser, job);
+      return Sequences.once(HadoopInputUtils.<Row>toIterator(reader));
+    }
     long total = 0;
     final float[] thresholds = new float[locations.size() + 1];
     for (int i = 0; i < locations.size(); i++) {
@@ -237,17 +274,17 @@ public class HdfsStorageHandler implements StorageHandler
   {
     final String format = Formatters.getFormat(context);
 
-    if ("index".equals(format)) {
+    if (INDEX_FORMAT.equals(format)) {
       final long start = System.currentTimeMillis();
-      final String timestampColumn = PropUtils.parseString(context, "timestampColumn", Row.TIME_COLUMN_NAME);
-      final String dataSource = PropUtils.parseString(context, "dataSource", "___temporary_" + new DateTime());
+      final String timestampColumn = PropUtils.parseString(context, TIMESTAMP_COLUMN, Row.TIME_COLUMN_NAME);
+      final String dataSource = PropUtils.parseString(context, DATASOURCE, "___temporary_" + new DateTime());
       final IncrementalIndexSchema schema = Preconditions.checkNotNull(
-          jsonMapper.convertValue(context.get("schema"), IncrementalIndexSchema.class),
+          jsonMapper.convertValue(context.get(SCHEMA), IncrementalIndexSchema.class),
           "cannot find/create index schema"
       );
-      final Granularity segmentGranularity = (Granularity) context.get("segmentGranularity");
+      final Granularity segmentGranularity = schema.getSegmentGran();
       final Interval queryInterval = jsonMapper.convertValue(context.get("interval"), Interval.class);
-      final BaseTuningConfig tuning = jsonMapper.convertValue(context.get("tuningConfig"), BaseTuningConfig.class);
+      final BaseTuningConfig tuning = jsonMapper.convertValue(context.get(TUNING_CONFIG), BaseTuningConfig.class);
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
 
