@@ -43,6 +43,8 @@ import com.metamx.common.Pair;
 import com.metamx.common.io.smoosh.FileSmoosher;
 import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
+import io.druid.collections.CombiningIterable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
@@ -76,7 +78,6 @@ import io.druid.segment.serde.StringMetricSerde;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
-import org.roaringbitmap.IntIterator;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -522,23 +523,20 @@ public class IndexMergerV9 extends IndexMerger
       //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
       for (int dictId = 0; dictId < dimVals.size(); dictId++) {
         progress.progress();
-        final MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
+        final List<Iterable<Integer>> convertedInverteds = Lists.newArrayListWithCapacity(adapters.size());
         for (int j = 0; j < adapters.size(); ++j) {
-          final int[] conversion = Arrays.copyOf(rowNumConversions[j], rowNumConversions[j].length);
           final int seekedDictId = dictIdSeeker[j].seek(dictId);
           if (seekedDictId != IndexSeeker.NOT_EXIST) {
-            final ImmutableBitmap bitmap = adapters.get(j).getBitmap(dimension, seekedDictId);
-            if (bitmap == null || bitmap.isEmpty()) {
-              continue;
-            }
-            final IntIterator iterator = bitmap.iterator();
-            while (iterator.hasNext()) {
-              final int id = iterator.next();
-              if (conversion[id] != INVALID_ROW) {
-                bitset.add(conversion[id]);
-                conversion[id] = INVALID_ROW;
-              }
-            }
+            convertedInverteds.add(
+                new ConvertingIndexedInts(adapters.get(j).getBitmap(dimension, seekedDictId), rowNumConversions[j])
+            );
+          }
+        }
+
+        final MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
+        for (int row : CombiningIterable.createSplatted(convertedInverteds, GuavaUtils.<Integer>nullFirstNatural())) {
+          if (row != INVALID_ROW) {
+            bitset.add(row);
           }
         }
 

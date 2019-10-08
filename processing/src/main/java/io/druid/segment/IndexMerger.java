@@ -995,24 +995,20 @@ public class IndexMerger
         //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
         for (int dictId = 0; dictId < dimVals.size(); dictId++) {
           progress.progress();
-          final MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
+          final List<Iterable<Integer>> convertedInverteds = Lists.newArrayListWithCapacity(indexes.size());
           for (int j = 0; j < indexes.size(); ++j) {
-            final int[] conversion = Arrays.copyOf(rowNumConversions[j], rowNumConversions[j].length);
             final int seekedDictId = dictIdSeeker[j].seek(dictId);
-            if (seekedDictId == IndexSeeker.NOT_EXIST) {
-              continue;
+            if (seekedDictId != IndexSeeker.NOT_EXIST) {
+              convertedInverteds.add(
+                  new ConvertingIndexedInts(indexes.get(j).getBitmap(dimension, seekedDictId), rowNumConversions[j])
+              );
             }
-            final ImmutableBitmap bitmap = indexes.get(j).getBitmap(dimension, seekedDictId);
-            if (bitmap == null || bitmap.isEmpty()) {
-              continue;
-            }
-            final IntIterator iterator = bitmap.iterator();
-            while (iterator.hasNext()) {
-              final int id = iterator.next();
-              if (conversion[id] != INVALID_ROW) {
-                bitset.add(conversion[id]);
-                conversion[id] = INVALID_ROW;
-              }
+          }
+
+          final MutableBitmap bitset = bitmapSerdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
+          for (int row : CombiningIterable.createSplatted(convertedInverteds, GuavaUtils.<Integer>nullFirstNatural())) {
+            if (row != INVALID_ROW) {
+              bitset.add(row);
             }
           }
 
@@ -1338,6 +1334,42 @@ public class IndexMerger
       } else {
         return NOT_EXIST;
       }
+    }
+  }
+
+  static class ConvertingIndexedInts implements Iterable<Integer>
+  {
+    private final ImmutableBitmap baseIndex;
+    private final int[] conversion;
+
+    public ConvertingIndexedInts(ImmutableBitmap baseIndex, int[] conversion)
+    {
+      this.baseIndex = baseIndex;
+      this.conversion = conversion;
+    }
+
+    @Override
+    public Iterator<Integer> iterator()
+    {
+      if (baseIndex == null) {
+        return Iterators.emptyIterator();
+      }
+      return new Iterator<Integer>()
+      {
+        private final IntIterator iterator = baseIndex.iterator();
+
+        @Override
+        public boolean hasNext()
+        {
+          return iterator.hasNext();
+        }
+
+        @Override
+        public Integer next()
+        {
+          return conversion[iterator.next()];
+        }
+      };
     }
   }
 
