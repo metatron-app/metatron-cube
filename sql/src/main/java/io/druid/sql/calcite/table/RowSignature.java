@@ -216,7 +216,13 @@ public class RowSignature implements TypeResolver
             break;
           case COMPLEX:
             // Loses information about exactly what kind of complex column this is.
-            type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.OTHER, true);
+            SqlTypeName typeName = SqlTypeName.OTHER;
+            if (columnType.isMap()) {
+              typeName = SqlTypeName.MAP;
+            } else if (columnType.isList() || columnType.isStruct()) {
+              typeName = SqlTypeName.ARRAY;
+            }
+            type = Calcites.createSqlTypeWithNullability(typeFactory, typeName, true);
             break;
           default:
             throw new ISE("valueType[%s] not translatable?", columnType);

@@ -79,6 +79,11 @@ public class ShapeFunctions implements Function.Library
               Object[] array = (Object[]) value;
               first = ((Number) array[0]).doubleValue();
               second = ((Number) array[1]).doubleValue();
+            } else if (value instanceof List) {
+              // struct or list
+              List list = (List) value;
+              first = ((Number) list.get(0)).doubleValue();
+              second = ((Number) list.get(1)).doubleValue();
             } else {
               throw new UnsupportedOperationException();
             }

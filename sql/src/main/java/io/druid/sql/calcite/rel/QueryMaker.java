@@ -367,7 +367,7 @@ public class QueryMaker
       // Complex type got out somehow.
       coercedValue = value.getClass().getName();
     } else {
-      throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+      coercedValue = value;   // return as-is... it seemed better than exception
     }
 
     return coercedValue;

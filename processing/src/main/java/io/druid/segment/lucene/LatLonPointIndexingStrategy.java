@@ -32,6 +32,7 @@ import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonPoint;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -113,9 +114,17 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
         @Override
         public Field[] apply(Object input)
         {
-          Object[] struct = (Object[]) input;
-          double latitude = ((Number) struct[indexLat]).doubleValue();
-          double longitude = ((Number) struct[indexLon]).doubleValue();
+          double latitude;
+          double longitude;
+          if (input instanceof List) {
+            List struct = (List) input;
+            latitude = ((Number) struct.get(indexLat)).doubleValue();
+            longitude = ((Number) struct.get(indexLon)).doubleValue();
+          } else {
+            Object[] struct = (Object[]) input;
+            latitude = ((Number) struct[indexLat]).doubleValue();
+            longitude = ((Number) struct[indexLon]).doubleValue();
+          }
           return new Field[]{new LatLonPoint(fieldName, latitude, longitude)};
         }
       };
@@ -128,9 +137,15 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
       @Override
       public Field[] apply(Object input)
       {
-        Object[] struct = (Object[]) input;
-        lonlat[0] = ((Number) struct[indexLon]).doubleValue();
-        lonlat[1] = ((Number) struct[indexLat]).doubleValue();
+        if (input instanceof List) {
+          List struct = (List) input;
+          lonlat[0] = ((Number) struct.get(indexLon)).doubleValue();
+          lonlat[1] = ((Number) struct.get(indexLat)).doubleValue();
+        } else {
+          Object[] struct = (Object[]) input;
+          lonlat[0] = ((Number) struct[indexLon]).doubleValue();
+          lonlat[1] = ((Number) struct[indexLat]).doubleValue();
+        }
         double[] converted = (double[]) expr.eval(binding).value();
         return new Field[]{new LatLonPoint(fieldName, converted[1], converted[0])};
       }

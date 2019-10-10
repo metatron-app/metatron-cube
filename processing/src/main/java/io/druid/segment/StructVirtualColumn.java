@@ -32,6 +32,7 @@ import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -76,8 +77,11 @@ public class StructVirtualColumn implements VirtualColumn
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(dimension.startsWith(outputName));
-    ValueDesc columnType = factory.resolve(columnName);
-    Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
+    final ValueDesc columnType = factory.resolve(columnName);
+    if (columnType == null) {
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+    Preconditions.checkArgument(columnType.isStruct(), "%s is not struct type (was %s)", columnName, columnType);
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
     if (dimension.equals(outputName)) {
@@ -89,8 +93,10 @@ public class StructVirtualColumn implements VirtualColumn
     if (index < 0) {
       return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
-    ValueType elementType = serde.type(index);
-    Preconditions.checkArgument(elementType.isPrimitive(), "only primitives are allowed in struct");
+    final ValueType elementType = serde.type(index);
+    Preconditions.checkArgument(
+        elementType.isPrimitive(), "only primitive types are allowed in struct (was %s)", elementType
+    );
 
     final ValueDesc fieldType = ValueDesc.of(elementType);
     return new ObjectColumnSelector()
@@ -98,7 +104,14 @@ public class StructVirtualColumn implements VirtualColumn
       @Override
       public Object get()
       {
-        return ((Object[])selector.get())[index];
+        final Object o = selector.get();
+        if (o == null) {
+          return null;
+        } else if (o instanceof List) {
+          return ((List) o).get(index);
+        } else {
+          return ((Object[]) o)[index];
+        }
       }
 
       @Override
