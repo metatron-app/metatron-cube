@@ -36,6 +36,7 @@ import io.druid.query.Result;
 import java.util.Map;
 
 /**
+ * useless
  */
 @JsonTypeName("sketch.frequency")
 public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
@@ -64,15 +65,14 @@ public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
               @Override
               public Object apply(Object input)
               {
-                Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
-                Map<String, Object> result = element.getValue();
-                for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  Map<String, Object> columns = Maps.newLinkedHashMap();
-                  TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+                final Object[] sketches = ((Result<Object[]>) input).getValue();
+                for (int i = 0; i < sketches.length; i++) {
+                  Map<Object, Object> columns = Maps.newLinkedHashMap();
+                  TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) sketches[i];
                   for (ItemsSketch.Row row : sketch.value().getFrequentItems(ErrorType.NO_FALSE_NEGATIVES)) {
-                    columns.put((String) row.getItem(), row.getEstimate());
+                    columns.put(row.getItem(), row.getEstimate());
                   }
-                  entry.setValue(columns);
+                  sketches[i] = columns;
                 }
                 return input;
               }

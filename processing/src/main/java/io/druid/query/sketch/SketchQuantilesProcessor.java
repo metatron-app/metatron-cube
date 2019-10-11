@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
@@ -108,9 +107,7 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
               @Override
               public Object apply(Object input)
               {
-                final Map<String, Object> result = Maps.newLinkedHashMap();
-                Result<Object[]> element = (Result<Object[]>) input;
-                final Object[] sketches = element.getValue();
+                final Object[] sketches = ((Result<Object[]>) input).getValue();
                 for (int i = 0; i < sketches.length; i++) {
                   Object param = parameter instanceof Map ? ((Map)parameter).get(columns.get(i)) : parameter;
                   sketches[i] = op.calculate(((TypedSketch<ItemsSketch>) sketches[i]).value(), param);
