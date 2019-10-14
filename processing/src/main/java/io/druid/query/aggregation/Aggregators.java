@@ -269,7 +269,7 @@ public class Aggregators
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else  if (Longs.compare(timestamp, current.timestamp) < 0) {
+            } else if (Longs.compare(timestamp, current.timestamp) < 0) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -294,7 +294,7 @@ public class Aggregators
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else  if (Longs.compare(timestamp, current.timestamp) > 0) {
+            } else if (Longs.compare(timestamp, current.timestamp) > 0) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -346,7 +346,7 @@ public class Aggregators
 
     private Aggregators.IntArray toKey(ByteBuffer buf, int position)
     {
-      return new IntArray(new int[] {System.identityHashCode(buf), position});
+      return new IntArray(new int[]{System.identityHashCode(buf), position});
     }
 
     @Override
@@ -499,5 +499,17 @@ public class Aggregators
   public static abstract class AbstractEstimableAggregator<T> extends Aggregator.Abstract<T>
       implements EstimableAggregator<T>
   {
+  }
+
+  public static <T> Aggregator<T> asAggregator(final Combiner<T> combiner, final ObjectColumnSelector<T> selector)
+  {
+    return new Aggregator.Simple<T>()
+    {
+      @Override
+      public T aggregate(T current)
+      {
+        return combiner.combine(selector.get(), current);
+      }
+    };
   }
 }

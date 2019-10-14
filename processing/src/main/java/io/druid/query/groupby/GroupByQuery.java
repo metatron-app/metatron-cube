@@ -877,7 +877,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     }
     // marker to mimic group-by style handling in cardinality aggregator
     if (groupingSet == null) {
-      groupingSet = new GroupingSetSpec.Indices(null);
+      groupingSet = GroupingSetSpec.EMPTY;
     }
     List<DimensionSpec> fields = Lists.newArrayList();
     for (String column : candidate) {

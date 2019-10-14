@@ -21,11 +21,16 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.FutureSequence;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 public class QueryRunners
 {
@@ -108,6 +113,46 @@ public class QueryRunners
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         return sequence;
+      }
+    };
+  }
+
+  public static <T> QueryRunner<T> executeParallel(
+      final ExecutorService executor,
+      final List<QueryRunner<T>> runners,
+      final Ordering<T> ordering
+  )
+  {
+    if (runners.isEmpty()) {
+      return QueryRunners.empty();
+    }
+    if (runners.size() == 1) {
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          return runners.get(0).run(query, responseContext);
+        }
+      };
+    }
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        final int priority = BaseQuery.getContextPriority(query, 0);
+        final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
+        final Iterable<Sequence<T>> sequences = Iterables.transform(
+            Execs.execute(
+                executor,
+                QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext),
+                semaphore,
+                priority
+            ),
+            FutureSequence.<T>toSequence()
+        );
+        return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
       }
     };
   }

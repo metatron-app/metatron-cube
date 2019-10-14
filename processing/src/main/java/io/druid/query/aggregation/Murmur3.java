@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.cardinality;
+package io.druid.query.aggregation;
 
 // from org.apache.hive.common.util.Murmur3
 public class Murmur3

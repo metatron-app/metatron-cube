@@ -128,6 +128,11 @@ public class Sequences extends com.metamx.common.guava.Sequences
     };
   }
 
+  public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Iterable<Sequence<T>> baseSequences)
+  {
+    return mergeSort(ordering, Sequences.simple(baseSequences));
+  }
+
   public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Sequence<Sequence<T>> baseSequences)
   {
     return new MergeSequence<T>(ordering, baseSequences);

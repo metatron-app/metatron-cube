@@ -19,11 +19,13 @@
 
 package io.druid.query.groupby.orderby;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
+
+import java.util.Comparator;
+import java.util.Iterator;
 
 /**
  * A utility class that sorts a list of comparable items in the given order, and keeps only the
@@ -31,18 +33,18 @@ import com.metamx.common.guava.Sequence;
  */
 public class TopNSorter<T>
 {
-  public static <T> Iterable<T> topN(Ordering<T> ordering, Sequence<T> items, int n)
+  public static <T> Iterator<T> topN(Comparator<T> ordering, Sequence<T> items, int n)
   {
     return new TopNSorter<>(ordering).toTopN(items, n);
   }
 
-  private Ordering<T> ordering;
+  private Comparator<T> ordering;
 
   /**
    * Constructs a sorter that will sort items with given ordering.
    * @param ordering the order that this sorter instance will use for sorting
    */
-  public TopNSorter(Ordering<T> ordering)
+  public TopNSorter(Comparator<T> ordering)
   {
     this.ordering = ordering;
   }
@@ -53,10 +55,10 @@ public class TopNSorter<T>
    * @param n the number of items to be retained
    * @return Top n items that are sorted in the order specified when this instance is constructed.
    */
-  public Iterable<T> toTopN(Iterable<T> items, int n)
+  public Iterator<T> toTopN(Iterable<T> items, int n)
   {
     if(n <= 0) {
-      return ImmutableList.of();
+      return Iterators.emptyIterator();
     }
 
     MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create(items);
@@ -64,10 +66,10 @@ public class TopNSorter<T>
     return new OrderedPriorityQueueItems<T>(queue);
   }
 
-  public Iterable<T> toTopN(Sequence<T> items, int n)
+  public Iterator<T> toTopN(Sequence<T> items, int n)
   {
     if(n <= 0) {
-      return ImmutableList.of();
+      return Iterators.emptyIterator();
     }
 
     final MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create();

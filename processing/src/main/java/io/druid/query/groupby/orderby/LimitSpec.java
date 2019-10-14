@@ -49,6 +49,7 @@ import io.druid.query.select.StreamQuery;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
@@ -245,7 +246,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       {
         final Ordering<Row> ordering = processor.toRowOrdering(columns);
         if (limit > 0 && limit <= input.size()) {
-          return Sequences.simple(new TopNSorter<>(ordering).toTopN(input, limit));
+          return Sequences.once(new TopNSorter<>(ordering).toTopN(input, limit));
         }
         Collections.sort(input, ordering);
         return Sequences.simple(input);
@@ -298,7 +299,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
         final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(sourceColumns));
         final Ordering<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
         if (limit > 0 && limit <= input.size()) {
-          Iterable<Object[]> topn = new TopNSorter<>(ordering).toTopN(processed, limit);
+          return Sequences.once(new TopNSorter<>(ordering).toTopN(processed, limit));
         }
         final List<Object[]> materialize = Lists.newArrayList(processed);
         Collections.sort(materialize, ordering);
@@ -402,10 +403,10 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
 
   public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>
   {
-    private final Ordering<Object[]> ordering;
+    private final Comparator<Object[]> ordering;
     private final int limit;
 
-    public SortingArrayFn(Ordering<Object[]> ordering, int limit)
+    public SortingArrayFn(Comparator<Object[]> ordering, int limit)
     {
       this.ordering = ordering;
       this.limit = limit;
@@ -414,15 +415,13 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     @Override
     public Sequence<Object[]> apply(Sequence<Object[]> sequence)
     {
-      final Iterable<Object[]> sorted;
       if (limit > 0) {
-        sorted = TopNSorter.topN(ordering, sequence, limit);
+        return Sequences.once(TopNSorter.topN(ordering, sequence, limit));
       } else {
         final Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
         Arrays.sort(array, ordering);
-        sorted = Arrays.asList(array);
+        return Sequences.simple(Arrays.asList(array));
       }
-      return Sequences.simple(sorted);
     }
   }
 

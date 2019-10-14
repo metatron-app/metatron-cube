@@ -17,35 +17,36 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.cardinality;
+package io.druid.query.aggregation.countmin;
 
 import io.druid.query.aggregation.HashAggregator;
-import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
+public class CountMinAggregator extends HashAggregator<CountMinSketch>
 {
-  public CardinalityAggregator(
+  private final int width;
+  private final int depth;
+
+  public CountMinAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      int width,
+      int depth
   )
   {
     super(predicate, selectorList, groupings, byRow);
-  }
-
-  public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
-  {
-    super(ValueMatcher.TRUE, selectorList, null, byRow);
+    this.width = width;
+    this.depth = depth;
   }
 
   @Override
-  protected final HyperLogLogCollector newCollector()
+  protected final CountMinSketch newCollector()
   {
-    return HyperLogLogCollector.makeLatestCollector();
+    return new CountMinSketch(width, depth);
   }
 }

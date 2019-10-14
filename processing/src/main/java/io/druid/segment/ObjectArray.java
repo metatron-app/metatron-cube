@@ -23,10 +23,12 @@ import io.druid.common.guava.GuavaUtils;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Objects;
 
 /**
  */
-public class ObjectArray<T> implements Comparable<ObjectArray<T>>
+public class ObjectArray<T> implements Comparable<ObjectArray<T>>, Iterable<T>
 {
   protected final T[] array;
 
@@ -48,12 +50,6 @@ public class ObjectArray<T> implements Comparable<ObjectArray<T>>
   public T get(int index)
   {
     return array[index];
-  }
-
-  public ObjectArray<T> pack(T[] values)
-  {
-    System.arraycopy(values, 0, array, 0, values.length);
-    return this;
   }
 
   public String concat(String delimiter, String postfix)
@@ -99,5 +95,82 @@ public class ObjectArray<T> implements Comparable<ObjectArray<T>>
       }
     }
     return 0;
+  }
+
+  @Override
+  public Iterator<T> iterator()
+  {
+    return Arrays.asList(array).iterator();
+  }
+
+  public static class WithHash<T> extends ObjectArray<T>
+  {
+    private final int hash;
+
+    public WithHash(T[] array, int hash)
+    {
+      super(Arrays.copyOf(array, array.length));
+      this.hash = hash;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return hash;
+    }
+  }
+
+  public static class From<T> extends ObjectArray<T>
+  {
+    private final int from;
+    public From(T[] array, int from)
+    {
+      super(array);
+      this.from = from;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      final Object[] other = ((ObjectArray) o).array;
+      for (int i = from; i < array.length; i++) {
+        if (!Objects.equals(array[i], other[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      int result = 1;
+      for (int i = from; i < array.length; i++) {
+        result = 31 * result + array[i].hashCode();
+      }
+
+      return result;
+    }
+
+    @Override
+    public String toString()
+    {
+      return Arrays.toString(Arrays.copyOfRange(array, from, array.length));
+    }
+
+    private static final Comparator comparator = GuavaUtils.nullFirstNatural();
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(ObjectArray<T> o)
+    {
+      for (int i = from; i < array.length; i++) {
+        final int compare = comparator.compare(array[i], o.array[i]);
+        if (compare != 0) {
+          return compare;
+        }
+      }
+      return 0;
+    }
   }
 }

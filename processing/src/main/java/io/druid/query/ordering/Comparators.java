@@ -126,6 +126,15 @@ public class Comparators
     return comparator;
   }
 
+  public static Comparator<Object[]> NF_ARRAY = new Comparator<Object[]>()
+  {
+    @Override
+    public int compare(Object[] o1, Object[] o2)
+    {
+      return compareNF(o1, o2);
+    }
+  };
+
   public static Comparator<Object[]> toArrayComparator(List<Comparator> comparators)
   {
     return toArrayComparator(comparators.toArray(new Comparator[0]));

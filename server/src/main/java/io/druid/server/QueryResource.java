@@ -442,9 +442,13 @@ public class QueryResource
   // suppress excessive interval logging in historical node
   protected Query toLoggingQuery(Query<?> query)
   {
-    return query.withQuerySegmentSpec(
+    query = query.withQuerySegmentSpec(
         new MultipleIntervalSegmentSpec(Arrays.asList(JodaUtils.umbrellaInterval(query.getIntervals())))
     );
+    if (query instanceof Query.LogProvider) {
+      query = ((Query.LogProvider) query).forLog();
+    }
+    return query;
   }
 
   protected Access authorize(Query query, HttpServletRequest req)

@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
@@ -93,7 +94,7 @@ public class TopNSorterTest
     for (int i = 0; i < 100; i++) {
       Collections.shuffle(inputs, new Random(System.currentTimeMillis()));
 
-      Iterable<String> result = new TopNSorter<String>(ordering).toTopN(inputs, limit);
+      Iterator<String> result = new TopNSorter<String>(ordering).toTopN(inputs, limit);
       Assert.assertEquals(expected, Lists.newArrayList(result));
 
       result = TopNSorter.topN(ordering, Sequences.simple(inputs), limit);

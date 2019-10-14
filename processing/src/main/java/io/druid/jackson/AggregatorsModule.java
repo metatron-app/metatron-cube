@@ -59,6 +59,8 @@ import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.TimestampMaxAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.countmin.CountMinAggregatorFactory;
+import io.druid.query.aggregation.countmin.CountMinPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
@@ -68,6 +70,7 @@ import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.JavaScriptPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
+import io.druid.query.frequency.FrequencyQuery;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StringMetricSerde;
@@ -123,6 +126,7 @@ public class AggregatorsModule extends SimpleModule
     registerSubtypes(ExpressionTimestampSpec.class);
     registerSubtypes(SelectEachQuery.class);
     registerSubtypes(RequestLogParseSpec.class);
+    registerSubtypes(FrequencyQuery.class);
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RelayAggregatorFactory.class)
@@ -151,6 +155,8 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class),
+
+      @JsonSubTypes.Type(name = "countMin", value = CountMinAggregatorFactory.class),
   })
   public static interface AggregatorFactoryMixin
   {
@@ -164,7 +170,8 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "constant", value = ConstantPostAggregator.class),
       @JsonSubTypes.Type(name = "javascript", value = JavaScriptPostAggregator.class),
       @JsonSubTypes.Type(name = "hyperUniqueCardinality", value = HyperUniqueFinalizingPostAggregator.class),
-      @JsonSubTypes.Type(name = "count", value = CollectionCountPostAggregator.class)
+      @JsonSubTypes.Type(name = "count", value = CollectionCountPostAggregator.class),
+      @JsonSubTypes.Type(name = "countMin", value = CountMinPostAggregator.class),
   })
   public static interface PostAggregatorMixin
   {

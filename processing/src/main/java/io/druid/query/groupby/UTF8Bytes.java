@@ -54,10 +54,7 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   @Override
   public boolean equals(Object o)
   {
-    if (!(o instanceof UTF8Bytes)) {
-      return false;
-    }
-    return compareTo((UTF8Bytes) o) == 0;
+    return o instanceof UTF8Bytes && compareTo((UTF8Bytes) o) == 0;
   }
 
   @Override

@@ -208,6 +208,9 @@ public class BrokerQueryResource extends QueryResource
   @Override
   protected Query toLoggingQuery(Query<?> query)
   {
+    if (query instanceof Query.LogProvider) {
+      query = ((Query.LogProvider) query).forLog();
+    }
     return query;
   }
 

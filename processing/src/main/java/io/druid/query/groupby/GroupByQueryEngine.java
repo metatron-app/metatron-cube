@@ -544,7 +544,7 @@ public class GroupByQueryEngine
       @Override
       public Sequence<Object[]> apply(Sequence<Object[]> sequence)
       {
-        return Sequences.simple(TopNSorter.topN(ordering, sequence, limiting.getLimit()));
+        return Sequences.once(TopNSorter.topN(ordering, sequence, limiting.getLimit()));
       }
     };
   }

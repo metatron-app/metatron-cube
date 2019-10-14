@@ -27,6 +27,8 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQueryRunnerFactory;
+import io.druid.query.frequency.FrequencyQuery;
+import io.druid.query.frequency.FrequencyQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -76,6 +78,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(DataSourceMetadataQuery.class, DataSourceMetadataQueryRunnerFactory.class)
                   .put(FindNearestQuery.class, FindNearestQueryRunnerFactory.class)
                   .put(SketchQuery.class, SketchQueryRunnerFactory.class)
+                  .put(FrequencyQuery.class, FrequencyQueryRunnerFactory.class)
                   .build();
 
   @Override

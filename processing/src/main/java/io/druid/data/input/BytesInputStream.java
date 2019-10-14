@@ -27,6 +27,7 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 // copied from ByteStreams.ByteArrayDataInputStream
 public class BytesInputStream extends ByteArrayInputStream implements ByteArrayDataInput
@@ -222,6 +223,17 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
     int i;
     int b;
     for (i = 0; ((b = readUnsignedByte()) & 128) != 0; i += 7) {
+      value |= (b & 127) << i;
+    }
+    return value | b << i;
+  }
+
+  public static int readUnsignedVarInt(ByteBuffer buffer)
+  {
+    int value = 0;
+    int i;
+    int b;
+    for (i = 0; ((b = buffer.get() & 0xff) & 128) != 0; i += 7) {
       value |= (b & 127) << i;
     }
     return value | b << i;

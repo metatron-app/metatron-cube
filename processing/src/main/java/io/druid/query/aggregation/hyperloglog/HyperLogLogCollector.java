@@ -24,6 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import io.druid.query.aggregation.HashCollector;
+import io.druid.query.aggregation.Murmur3;
 
 import java.nio.ByteBuffer;
 
@@ -45,7 +47,7 @@ import java.nio.ByteBuffer;
  *
  * If you have multiple threads calling methods on this concurrently, I hope you manage to get correct behavior
  */
-public abstract class HyperLogLogCollector implements Comparable<HyperLogLogCollector>
+public abstract class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector
 {
   public static final int DENSE_THRESHOLD = 128;
   public static final int BITS_FOR_BUCKETS = 11;
@@ -730,5 +732,11 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   public int compareTo(HyperLogLogCollector other)
   {
     return Double.compare(this.estimateCardinality(), other.estimateCardinality());
+  }
+
+  @Override
+  public void collect(Object[] values, byte[] bytes)
+  {
+    add(Murmur3.hash128(bytes));
   }
 }

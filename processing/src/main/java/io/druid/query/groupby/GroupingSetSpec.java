@@ -43,6 +43,8 @@ import java.util.List;
 })
 public interface GroupingSetSpec
 {
+  GroupingSetSpec EMPTY = new GroupingSetSpec.Indices(null);
+
   void validate(List<String> dimensions);
 
   int[][] getGroupings(List<String> dimensions);

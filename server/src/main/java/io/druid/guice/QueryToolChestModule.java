@@ -29,6 +29,8 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryToolChest;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
+import io.druid.query.frequency.FrequencyQuery;
+import io.druid.query.frequency.FrequencyQueryToolChest;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -83,6 +85,7 @@ public class QueryToolChestModule implements Module
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)
                   .put(FindNearestQuery.class, FindNearestQueryToolChest.class)
                   .put(SketchQuery.class, SketchQueryQueryToolChest.class)
+                  .put(FrequencyQuery.class, FrequencyQueryToolChest.class)
                   .build();
 
   @Override

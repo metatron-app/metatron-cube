@@ -238,4 +238,9 @@ public interface Query<T> extends QueryContextKeys
 
     WrappingQuery<T> withQuery(Query query);
   }
+
+  interface LogProvider<T> extends Query<T>
+  {
+    Query<T> forLog();
+  }
 }

@@ -54,6 +54,9 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.frequency.FrequencyQuery;
+import io.druid.query.frequency.FrequencyQueryRunnerFactory;
+import io.druid.query.frequency.FrequencyQueryToolChest;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -268,6 +271,13 @@ public class QueryRunnerTestHelper
                       new FindNearestQueryRunnerFactory(
                           new FindNearestQueryToolChest(),
                           new StreamQueryEngine(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      FrequencyQuery.class,
+                      new FrequencyQueryRunnerFactory(
+                          new FrequencyQueryToolChest(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )
