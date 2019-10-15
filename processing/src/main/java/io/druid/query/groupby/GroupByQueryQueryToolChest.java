@@ -231,12 +231,12 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   @Override
   public Function<Row, Row> makePostComputeManipulatorFn(final GroupByQuery query, final MetricManipulationFn fn)
   {
-    final Function<Row, Row> preCompute = super.makePostComputeManipulatorFn(query, fn);
+    final Function<Row, Row> postCompute = super.makePostComputeManipulatorFn(query, fn);
     final Set<String> optimizedDims = ImmutableSet.copyOf(
         DimensionSpecs.toOutputNames(extractionsToRewrite(query))
     );
     if (optimizedDims.isEmpty()) {
-      return preCompute;
+      return postCompute;
     }
 
     // If we have optimizations that can be done at this level, we apply them here
@@ -253,7 +253,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
       @Override
       public Row apply(Row input)
       {
-        final Row.Updatable updatable = Rows.toUpdatable(preCompute.apply(input));
+        final Row.Updatable updatable = Rows.toUpdatable(postCompute.apply(input));
         for (String dim : optimizedDims) {
           final Object eventVal = updatable.getRaw(dim);
           updatable.set(dim, extractionFnMap.get(dim).apply(eventVal));

@@ -970,9 +970,4 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     }
   }
 
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return !asArray;
-  }
 }

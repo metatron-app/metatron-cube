@@ -36,7 +36,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.theta")
-public class SketchThetaProcessor extends PostProcessingOperator.Abstract
+public class SketchThetaProcessor extends PostProcessingOperator.ReturnsArray
 {
   private static final Logger LOG = new Logger(SketchThetaProcessor.class);
 
@@ -45,12 +45,12 @@ public class SketchThetaProcessor extends PostProcessingOperator.Abstract
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Object[]> postProcess(final QueryRunner baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Object[]> run(Query query, Map responseContext)
       {
         if (!(query instanceof SketchQuery) || ((SketchQuery) query).getSketchOp() != SketchOp.THETA) {
           LOG.info("query should be 'sketch' type with 'theta' operation");

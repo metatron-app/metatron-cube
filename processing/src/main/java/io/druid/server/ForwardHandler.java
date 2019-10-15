@@ -171,8 +171,8 @@ public class ForwardHandler implements ForwardConstants
       {
         // union-all does not have toolchest. delegate it to inner query
         Sequence sequence = baseRunner.run(query, responseContext);
-        if (PostProcessingOperators.isTabularOutput(query, jsonMapper)) {
-          // already converted to tabular format
+        if (PostProcessingOperators.isMapOutput(query, jsonMapper)) {
+          // already converted to map
           return sequence;
         }
         Query<T> representative = BaseQuery.getRepresentative(query);

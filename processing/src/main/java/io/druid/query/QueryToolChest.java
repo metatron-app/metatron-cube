@@ -21,11 +21,11 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -117,7 +117,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public Function<ResultType, ResultType> makePreComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
   {
-    return Functions.identity();
+    return GuavaUtils.identity("preCompute");
   }
 
   /**
@@ -156,7 +156,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public Function<ResultType, ResultType> makePostComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
   {
-    return Functions.identity();
+    return GuavaUtils.identity("postCompute");
   }
 
   /**

@@ -19,7 +19,6 @@
 
 package io.druid.query;
 
-import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import org.joda.time.DateTime;
@@ -52,8 +51,7 @@ public class BySegmentQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, Map<String, Object> responseContext)
   {
     if (BaseQuery.isBySegment(query)) {
-      final Sequence<T> baseSequence = base.run(query, responseContext);
-      final List<T> results = Sequences.toList(baseSequence, Lists.<T>newArrayList());
+      final List<T> results = Sequences.toList(base.run(query, responseContext));
       return Sequences.simple(
           Arrays.asList(
               (T) new Result<BySegmentResultValueClass<T>>(

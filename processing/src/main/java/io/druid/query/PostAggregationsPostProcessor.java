@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  */
 public class PostAggregationsPostProcessor
-    extends PostProcessingOperator.Abstract
+    extends PostProcessingOperator.ReturnsRow<Row>
     implements PostProcessingOperator.SchemaResolving
 {
   private final List<PostAggregator> postAggregations;
@@ -63,16 +63,16 @@ public class PostAggregationsPostProcessor
   }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)
   {
     if (postAggregations.isEmpty()) {
       return baseRunner;
     }
-    return new QueryRunner()
+    return new QueryRunner<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Row> run(Query query, Map responseContext)
       {
         final Sequence<Row> sequence = Queries.convertToRow(query, baseRunner.run(query, responseContext));
         return Queries.convertBack(

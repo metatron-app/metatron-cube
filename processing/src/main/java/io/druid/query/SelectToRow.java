@@ -22,21 +22,22 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.query.select.SelectResultValue;
 
 import java.util.Map;
 
 /**
  */
-public class SelectToRow extends PostProcessingOperator.Abstract<Result<SelectResultValue>>
+public class SelectToRow extends PostProcessingOperator.ReturnsRow<Result<SelectResultValue>>
 {
   @JsonCreator
   public SelectToRow() { }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner<Result<SelectResultValue>> baseRunner)
+  public QueryRunner<Row> postProcess(final QueryRunner<Result<SelectResultValue>> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")

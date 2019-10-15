@@ -51,7 +51,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
 import org.joda.time.Interval;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -197,9 +196,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                           @Override
                           public Sequence<SegmentAnalysis> call() throws Exception
                           {
-                            return Sequences.simple(
-                                Sequences.toList(input.run(query, responseContext), new ArrayList<SegmentAnalysis>())
-                            );
+                            return Sequences.simple(Sequences.toList(input.run(query, responseContext)));
                           }
                         }
                     );

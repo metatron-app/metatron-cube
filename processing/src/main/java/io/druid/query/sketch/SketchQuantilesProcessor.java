@@ -40,7 +40,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.quantiles")
-public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
+public class SketchQuantilesProcessor extends PostProcessingOperator.ReturnsArray
 {
   private static final Logger LOG = new Logger(SketchQuantilesProcessor.class);
 
@@ -88,12 +88,12 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Object[]> postProcess(final QueryRunner baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence run(Query query, final Map responseContext)
+      public Sequence<Object[]> run(Query query, final Map responseContext)
       {
         if (!(query instanceof SketchQuery) || ((SketchQuery) query).getSketchOp() != SketchOp.QUANTILE) {
           LOG.info("query should be 'sketch' type with 'quantile' operation");

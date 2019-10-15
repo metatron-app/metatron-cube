@@ -20,7 +20,6 @@
 package io.druid.query.load;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.metamx.common.guava.Sequence;
@@ -69,7 +68,7 @@ public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Stri
         try {
           final Pair<Query, Sequence> pair = loadSpec.readFrom(walker);
           final QueryRunner runner = walker.handle(pair.lhs, QueryRunners.wrap(pair.rhs));
-          return runner.run(pair.lhs, Maps.newHashMap());
+          return QueryRunners.run(pair.lhs, runner);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

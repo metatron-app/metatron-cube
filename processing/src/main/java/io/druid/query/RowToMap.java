@@ -50,12 +50,12 @@ public class RowToMap extends PostProcessingOperator.ReturnsMap<Row>
   }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner<Row> baseRunner)
+  public QueryRunner<Map<String, Object>> postProcess(final QueryRunner<Row> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Map<String, Object>>()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Map<String, Object>> run(Query query, Map responseContext)
       {
         return Sequences.map(baseRunner.run(query, responseContext), Rows.rowToMap(timestampColumn));
       }

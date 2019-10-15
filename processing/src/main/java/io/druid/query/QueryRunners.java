@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.FutureSequence;
@@ -115,6 +116,26 @@ public class QueryRunners
         return sequence;
       }
     };
+  }
+
+  public static <T> Sequence<T> run(Query<T> query, QuerySegmentWalker segmentWalker)
+  {
+    return query.run(segmentWalker, Maps.<String, Object>newHashMap());
+  }
+
+  public static <T> List<T> list(Query<T> query, QuerySegmentWalker segmentWalker)
+  {
+    return Sequences.toList(run(query, segmentWalker));
+  }
+
+  public static <T> T only(Query<T> query, QuerySegmentWalker segmentWalker)
+  {
+    return Sequences.only(run(query, segmentWalker));
+  }
+
+  public static <T> Sequence<T> run(Query<T> query, QueryRunner<T> runner)
+  {
+    return runner.run(query, Maps.<String, Object>newHashMap());
   }
 
   public static <T> QueryRunner<T> executeParallel(

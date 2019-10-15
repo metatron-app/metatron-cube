@@ -22,7 +22,9 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
+import io.druid.data.input.Row;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -76,10 +78,9 @@ public class PostProcessingOperators
     );
   }
 
-  public static <T> boolean isTabularOutput(Query<T> query, ObjectMapper mapper)
+  public static <T> boolean isMapOutput(Query<T> query, ObjectMapper mapper)
   {
-    PostProcessingOperator<T> processor = load(query, mapper);
-    return processor != null && processor.hasTabularOutput();
+    return Map.class == returns(query, mapper);
   }
 
   @SuppressWarnings("unchecked")
@@ -108,5 +109,30 @@ public class PostProcessingOperators
       processor = new ListPostProcessingOperator(Arrays.asList(processor, existing));
     }
     return query.withOverriddenContext(Query.POST_PROCESSING, processor);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Class<?> returns(Query query, ObjectMapper mapper)
+  {
+    return returns(load(query, mapper));
+  }
+
+  public static Class<?> returns(PostProcessingOperator processing)
+  {
+    if (processing instanceof PostProcessingOperator.ReturnsArray) {
+      return Object[].class;
+    } else if (processing instanceof PostProcessingOperator.ReturnsRow) {
+      return Row.class;
+    } else if (processing instanceof PostProcessingOperator.ReturnsMap) {
+      return Map.class;
+    } else if (processing instanceof ListPostProcessingOperator) {
+      for (PostProcessingOperator element : Lists.reverse(((ListPostProcessingOperator<?>) processing).getProcessors())) {
+        Class<?> returns = returns(element);
+        if (returns != null) {
+          return returns;
+        }
+      }
+    }
+    return null;
   }
 }

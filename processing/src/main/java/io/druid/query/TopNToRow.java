@@ -22,25 +22,26 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.query.topn.TopNResultValue;
 
 import java.util.Map;
 
 /**
  */
-public class TopNToRow extends PostProcessingOperator.Abstract<Result<TopNResultValue>>
+public class TopNToRow extends PostProcessingOperator.ReturnsRow<Result<TopNResultValue>>
 {
   @JsonCreator
   public TopNToRow() { }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner<Result<TopNResultValue>> baseRunner)
+  public QueryRunner<Row> postProcess(final QueryRunner<Result<TopNResultValue>> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Row> run(Query query, Map responseContext)
       {
         return Sequences.explode(baseRunner.run(query, responseContext), Queries.TOP_N_TO_ROWS);
       }

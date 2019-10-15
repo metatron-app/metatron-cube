@@ -89,8 +89,7 @@ public class DataSourceQueryQueryToolChest
         return Sequences.simple(
             query.mergeResults(
                 Sequences.toList(
-                    baseRunner.run(query, context),
-                    Lists.<Result<DataSourceMetadataResultValue>>newArrayList()
+                    baseRunner.run(query, context)
                 )
             )
         );

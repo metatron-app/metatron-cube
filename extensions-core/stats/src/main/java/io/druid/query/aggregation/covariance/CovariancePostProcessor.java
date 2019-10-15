@@ -26,15 +26,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.timeseries.TimeseriesQuery;
 
 import java.util.Collections;
@@ -50,19 +50,16 @@ public class CovariancePostProcessor extends PostProcessingOperator.ReturnsMap
   public CovariancePostProcessor() { }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Map<String, Object>> postProcess(final QueryRunner baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Map<String, Object>>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Map<String, Object>> run(Query query, Map responseContext)
       {
         Preconditions.checkArgument(query instanceof TimeseriesQuery);
-        List<Row> rows = Sequences.toList(
-            baseRunner.run(query, Maps.<String, Object>newHashMap()),
-            Lists.<Row>newArrayList()
-        );
+        List<Row> rows = Sequences.toList(QueryRunners.run(query, baseRunner));
         if (rows.isEmpty()) {
           return Sequences.empty();
         }

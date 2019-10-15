@@ -27,11 +27,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.sql.calcite.table.RowSignature;
@@ -496,7 +496,7 @@ public class InformationSchema extends AbstractSchema
           null, null, null, false, ImmutableMap.of(Query.QUERYID, UUID.randomUUID().toString())
       );
       Iterable<Object[]> results = Iterables.concat(Iterables.transform(
-          Sequences.toList(query.run(segmentWalker, Maps.newHashMap())),
+          Sequences.toList(QueryRunners.run(query, segmentWalker)),
           new Function<Map<String, Object>, Iterable<Object[]>>()
           {
             private final List<String> rowOrder = SERVERS_SIGNATURE.getRowOrder();

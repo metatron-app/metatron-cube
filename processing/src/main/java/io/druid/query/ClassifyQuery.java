@@ -121,8 +121,8 @@ public class ClassifyQuery extends BaseQuery<Object[]>
       q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig);
     }
     ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
-    if (estimatedOutputColumns() == null && !PostProcessingOperators.isTabularOutput(q, jsonMapper)) {
-      throw new IllegalArgumentException("cannot classify which is neither array output supported or tabular format");
+    if (estimatedOutputColumns() == null && !PostProcessingOperators.isMapOutput(q, jsonMapper)) {
+      throw new IllegalArgumentException("cannot classify which is neither array output supported or map format");
     }
     Query c = classifier.getId() == null ? classifier.withId(getId()) : classifier;
     if (c instanceof Query.RewritingQuery) {

@@ -52,13 +52,13 @@ public class ToMapPostProcessor extends PostProcessingOperator.ReturnsMap
   }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner baseQueryRunner)
+  public QueryRunner<Map<String, Object>> postProcess(final QueryRunner baseQueryRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Map<String, Object>>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Map<String, Object>> run(Query query, Map responseContext)
       {
         QueryToolChest toolChest = warehouse.getToolChest(query);
         Sequence sequence = baseQueryRunner.run(query, responseContext);

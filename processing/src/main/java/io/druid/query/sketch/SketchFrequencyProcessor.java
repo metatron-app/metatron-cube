@@ -39,7 +39,7 @@ import java.util.Map;
  * useless
  */
 @JsonTypeName("sketch.frequency")
-public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
+public class SketchFrequencyProcessor extends PostProcessingOperator.ReturnsArray
 {
   private static final Logger LOG = new Logger(SketchFrequencyProcessor.class);
 
@@ -48,12 +48,12 @@ public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Object[]> postProcess(final QueryRunner baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Object[]> run(Query query, Map responseContext)
       {
         if (!(query instanceof SketchQuery) || ((SketchQuery) query).getSketchOp() != SketchOp.FREQUENCY) {
           LOG.info("query should be 'frequency' type with 'theta' operation");

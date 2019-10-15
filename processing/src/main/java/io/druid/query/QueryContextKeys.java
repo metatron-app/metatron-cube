@@ -45,6 +45,7 @@ public interface QueryContextKeys
   public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
+  public static final String GBY_CONVERT_FREQUENCY = "groupByConvertFrequency";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
@@ -53,6 +54,9 @@ public interface QueryContextKeys
   public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
+
+  // timeseries
+  public static final String TIMESERIES_MERGE_PARALLELISM = "timeseriesMergeParallelism";
 
   // select.stream.raw
   public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
@@ -89,7 +93,9 @@ public interface QueryContextKeys
       TIMEOUT,
       GBY_USE_PARALLEL_SORT,
       GBY_MERGE_PARALLELISM,
+      TIMESERIES_MERGE_PARALLELISM,
       GBY_CONVERT_TIMESERIES,
+      GBY_CONVERT_FREQUENCY,
       GBY_ESTIMATE_TOPN_FACTOR,
       GBY_PRE_ORDERING,
       GBY_REMOVE_ORDERING,

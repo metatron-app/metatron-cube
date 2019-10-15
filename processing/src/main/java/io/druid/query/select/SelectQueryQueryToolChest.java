@@ -48,6 +48,7 @@ import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryUtils;
@@ -538,11 +539,7 @@ public class SelectQueryQueryToolChest
     List<String> dataSourceNames = query.getDataSource().getNames();
 
     SelectMetaQuery metaQuery = query.toMetaQuery(false);
-    List<Result<SelectMetaResultValue>> results =
-        Sequences.toList(
-            metaQuery.run(walker, Maps.<String, Object>newHashMap()),
-            Lists.<Result<SelectMetaResultValue>>newArrayList()
-        );
+    List<Result<SelectMetaResultValue>> results = Sequences.toList(QueryRunners.run(metaQuery, walker));
 
     Comparator<Interval> comparator = query.isDescending() ? JodaUtils.intervalsByEndThenStart()
                                                            : JodaUtils.intervalsByStartThenEnd();

@@ -52,6 +52,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQueryRunner;
@@ -143,8 +144,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
         Sequence<Pair<Query, Sequence<Result<Object[]>>>> sequences = baseRunner.run(query, responseContext);
-        for (Pair<Query, Sequence<Result<Object[]>>> pair :
-            Sequences.toList(sequences, Lists.<Pair<Query, Sequence<Result<Object[]>>>>newArrayList())) {
+        for (Pair<Query, Sequence<Result<Object[]>>> pair : Sequences.toList(sequences)) {
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
 
           final List<String> columns = sketchQuery.estimatedOutputColumns();
@@ -267,9 +267,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                           {
                             int counter = 0;
                             for (Result<SearchResultValue> result : Sequences.toList(
-                                search.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                                Lists.<Result<SearchResultValue>>newArrayList()
-                            )) {
+                                QueryRunners.run(search, segmentWalker))) {
                               SearchResultValue searchHits = result.getValue();
                               for (SearchHit searchHit : searchHits.getValue()) {
                                 frequentItems.add(
@@ -296,10 +294,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                       @Override
                       public Integer call()
                       {
-                        List<Row> rows = Sequences.toList(
-                            timeseries.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                            Lists.<Row>newArrayList()
-                        );
+                        List<Row> rows = Sequences.toList(QueryRunners.run(timeseries, segmentWalker));
                         if (rows.isEmpty()) {
                           return 0;
                         }
@@ -381,10 +376,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                     @Override
                     public Integer call()
                     {
-                      for (SegmentAnalysis meta : Sequences.toList(
-                          metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                          Lists.<SegmentAnalysis>newArrayList()
-                      )) {
+                      for (SegmentAnalysis meta : Sequences.toList(QueryRunners.run(metaQuery, segmentWalker))) {
                         Map<String, Object> value = Maps.newLinkedHashMap();
                         value.put("interval", Iterables.getOnlyElement(meta.getIntervals()));
                         value.put("rows", meta.getNumRows());
@@ -462,9 +454,4 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
         .withPostAggregatorSpecs(GuavaUtils.concat(query.getPostAggregatorSpecs(), postAggregators));
   }
 
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return false;
-  }
 }

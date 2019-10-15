@@ -801,4 +801,22 @@ public class GuavaUtils
       }
     };
   }
+
+  public static <T> Function<T, T> identity(final String log)
+  {
+    return new Function<T, T>()
+    {
+      @Override
+      public T apply(T o)
+      {
+        return o;
+      }
+
+      @Override
+      public String toString()
+      {
+        return String.format("identity(%s)", log);
+      }
+    };
+  }
 }

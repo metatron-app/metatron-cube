@@ -50,7 +50,6 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
-import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
@@ -102,12 +101,7 @@ public class QueryUtils
         false,
         false
     );
-    @SuppressWarnings("unchecked")
-    final List<SegmentAnalysis> res = Sequences.toList(
-        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()), Lists.<SegmentAnalysis>newArrayList()
-    );
-    Preconditions.checkArgument(res.size() == 1);
-    return res.get(0).getIntervals();
+    return Sequences.only(QueryRunners.run(metaQuery, segmentWalker)).getIntervals();
   }
 
   @SuppressWarnings("unchecked")
@@ -119,7 +113,7 @@ public class QueryUtils
     SchemaQuery metaQuery = SchemaQuery.of(dataSource, query)
                                        .withOverriddenContext(ImmutableMap.<String, Object>of(Query.BY_SEGMENT, true));
 
-    Sequence sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
+    final Sequence sequence = QueryRunners.run(metaQuery, segmentWalker);
     final Map<String, Map<ValueDesc, MutableInt>> results = Maps.newHashMap();
     sequence.accumulate(
         null, new Accumulator<Object, Result<BySegmentResultValue<Schema>>>()
@@ -391,8 +385,7 @@ public class QueryUtils
         Iterables.getOnlyElement(dataSource.getNames()), query
     );
     return Sequences.only(
-        schemaQuery.withOverriddenContext(BaseQuery.copyContextForMeta(query))
-                   .run(segmentWalker, Maps.<String, Object>newHashMap()),
+        QueryRunners.run(schemaQuery.withOverriddenContext(BaseQuery.copyContextForMeta(query)), segmentWalker),
         Schema.EMPTY
     );
   }

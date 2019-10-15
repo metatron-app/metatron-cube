@@ -19,18 +19,22 @@
 
 package io.druid.query.timeseries;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.data.input.Row;
+import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryWatcher;
 import io.druid.segment.Segment;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -54,6 +58,31 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
   public QueryRunner<Row> createRunner(Segment segment, Future<Object> optimizer)
   {
     return new TimeseriesQueryRunner(engine, segment, cache);
+  }
+
+  @Override
+  public QueryRunner<Row> mergeRunners(
+      final ExecutorService queryExecutor,
+      final Iterable<QueryRunner<Row>> querys,
+      final Future<Object> optimizer
+  )
+  {
+    return new QueryRunner<Row>()
+    {
+      @Override
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+      {
+        // need to limit resource usage for some aggregators like CountMinSketch
+        final int parallelism = query.getContextInt(Query.TIMESERIES_MERGE_PARALLELISM, -1);
+        final QueryRunner<Row> runner;
+        if (parallelism > 0) {
+          runner = QueryRunners.executeParallel(queryExecutor, Lists.newArrayList(querys), query.getMergeOrdering());
+        } else {
+          runner = new ChainedExecutionQueryRunner<Row>(queryExecutor, queryWatcher, querys);
+        }
+        return runner.run(query, responseContext);
+      }
+    };
   }
 
   private static class TimeseriesQueryRunner implements QueryRunner<Row>

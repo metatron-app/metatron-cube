@@ -95,7 +95,7 @@ public class TimeBoundaryQueryQueryToolChest
         TimeBoundaryQuery query = (TimeBoundaryQuery) input;
         return Sequences.simple(
             query.mergeResults(
-                Sequences.toList(baseRunner.run(query, context), Lists.<Result<TimeBoundaryResultValue>>newArrayList())
+                Sequences.toList(baseRunner.run(query, context))
             )
         );
       }

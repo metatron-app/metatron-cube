@@ -33,7 +33,7 @@ import java.util.Map;
 
 /**
  */
-public class RowToArray extends PostProcessingOperator.Abstract<Row>
+public class RowToArray extends PostProcessingOperator.ReturnsArray<Row>
 {
   private final List<String> columnNames;
 
@@ -52,12 +52,12 @@ public class RowToArray extends PostProcessingOperator.Abstract<Row>
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner postProcess(final QueryRunner<Row> baseRunner)
+  public QueryRunner<Object[]> postProcess(final QueryRunner<Row> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Object[]> run(Query query, Map responseContext)
       {
         return Sequences.map(
             baseRunner.run(query, responseContext),

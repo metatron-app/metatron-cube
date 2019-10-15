@@ -311,7 +311,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   private static <T> Function<Sequence<T>, Sequence<T>> sequenceLimiter(final int limit)
   {
     if (limit < 0) {
-      return Functions.identity();
+      return GuavaUtils.identity("sequenceLimiter");
     } else {
       return new Function<Sequence<T>, Sequence<T>>()
       {
@@ -374,7 +374,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   private static Function<Object[], Object[]> remap(List<String> source, List<String> target)
   {
     if (GuavaUtils.isNullOrEmpty(target) || source.equals(target)) {
-      return Functions.identity();
+      return GuavaUtils.identity("remap");
     }
     final int[] mapping = new int[target.size()];
     for (int i = 0; i < mapping.length; i++) {

@@ -29,7 +29,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
-import io.druid.query.groupby.orderby.LimitSpec.SortingArrayFn;
+import io.druid.query.groupby.orderby.TopNSorter;
 import io.druid.query.ordering.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -48,6 +48,20 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
       new TypeReference<Object[]>()
       {
       };
+
+  private static final Comparator<Object[]> COUNT_DESCENDING_NF = new Comparator<Object[]>()
+  {
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compare(final Object[] o1, final Object[] o2)
+    {
+      int compare = -Comparators.compareNF((Comparable) o1[0], (Comparable) o2[0]);
+      for (int i = 1; i < o1.length && compare == 0; i++) {
+        compare = Comparators.compareNF((Comparable) o1[i], (Comparable) o2[i]);
+      }
+      return compare;
+    }
+  };
 
   @Override
   public QueryRunner<Object[]> mergeResults(final QueryRunner<Object[]> runner)
@@ -112,25 +126,13 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        final SortingArrayFn limiter = new SortingArrayFn(COUNT_DESCENDING_NF, ((FrequencyQuery) query).getLimit());
-        return limiter.apply(runner.run(query, responseContext));
+        final Sequence<Object[]> sequence = runner.run(query, responseContext);
+        return Sequences.once(
+            TopNSorter.topN(COUNT_DESCENDING_NF, sequence, ((FrequencyQuery) query).getCandidateLimit())
+        );
       }
     };
   }
-
-  private static final Comparator<Object[]> COUNT_DESCENDING_NF = new Comparator<Object[]>()
-  {
-    @Override
-    @SuppressWarnings("unchecked")
-    public int compare(final Object[] o1, final Object[] o2)
-    {
-      int compare = -Comparators.compareNF((Comparable) o1[0], (Comparable) o2[0]);
-      for (int i = 1; i < o1.length && compare == 0; i++) {
-        compare = Comparators.compareNF((Comparable) o1[i], (Comparable) o2[i]);
-      }
-      return compare;
-    }
-  };
 
   @Override
   public Function<Sequence<Object[]>, Sequence<Map<String, Object>>> asMap(

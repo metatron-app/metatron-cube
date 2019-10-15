@@ -725,12 +725,12 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       public void initialize(DruidInputSplit split, Configuration configuration) throws IOException
       {
         super.initialize(split, configuration);
-        Map<String, Object> tabularProcessor = ImmutableMap.<String, Object>of(
+        Map<String, Object> toMapProcessor = ImmutableMap.<String, Object>of(
             BaseQuery.QUERYID, UUID.randomUUID().toString(),
             BaseQuery.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", timeColumn)
         );
         StreamQuery query = builder.intervals(new MultipleSpecificSegmentSpec(split.getSegments()))
-                                   .addContext(tabularProcessor)
+                                   .addContext(toMapProcessor)
                                    .streaming();
         int threshold = configuration.getInt(CONF_DRUID_STREAM_THRESHOLD, DEFAULT_STREAM_THRESHOLD);
         streamHandler = new StreamHandlerFactory(logger, mapper).create(

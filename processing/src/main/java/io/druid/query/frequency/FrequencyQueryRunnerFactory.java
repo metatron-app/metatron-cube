@@ -57,8 +57,6 @@ import java.util.concurrent.Future;
  */
 public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[], FrequencyQuery>
 {
-  private static final int MIN_CANDIDATES = 16;
-
   @Inject
   public FrequencyQueryRunnerFactory(FrequencyQueryToolChest toolChest, QueryWatcher queryWatcher)
   {
@@ -109,7 +107,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {
-      private final int limit = Math.max(MIN_CANDIDATES, query.getLimit() << 2);  // candidates x4
+      private final int limit = query.getCandidateLimit();
       private final String[] columns = query.getColumns().toArray(new String[0]);
 
       private final MutableInt size = new MutableInt();

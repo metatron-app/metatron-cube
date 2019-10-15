@@ -47,6 +47,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.AggregationQueryBinaryFn;
 import io.druid.query.select.Schema;
+import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
@@ -98,7 +99,11 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           );
           return sequence;
         }
-        return runner.run(aggregation, responseContext);
+        Sequence<Row> sequence = runner.run(aggregation, responseContext);
+        if (aggregation instanceof TimeseriesQuery && !BaseQuery.isBySegment(aggregation)) {
+          sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
+        }
+        return sequence;
       }
     };
   }
@@ -144,7 +149,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         query.getAggregatorSpecs()
     );
     if (postAggregators.isEmpty() && granularity.isUTC()) {
-      return Functions.identity();
+      return GuavaUtils.identity("postAggr");
     }
     return new Function<Row, Row>()
     {
@@ -169,7 +174,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   public Function<Row, Row> makePreComputeManipulatorFn(final T query, final MetricManipulationFn fn)
   {
     if (fn == MetricManipulatorFns.identity()) {
-      return Functions.identity();
+      return super.makePreComputeManipulatorFn(query, fn);
     }
     return new Function<Row, Row>()
     {
@@ -236,7 +241,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   public Function<Row, Row> makePostComputeManipulatorFn(final T query, final MetricManipulationFn fn)
   {
     if (fn == MetricManipulatorFns.identity()) {
-      return Functions.identity();
+      return super.makePostComputeManipulatorFn(query, fn);
     }
     return new Function<Row, Row>()
     {
@@ -379,7 +384,11 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        return finalDecoration(query, runner.run(query, responseContext));
+        Sequence<Row> sequence = runner.run(query, responseContext);
+        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+          sequence = finalDecoration(query, sequence);
+        }
+        return sequence;
       }
     };
   }

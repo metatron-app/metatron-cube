@@ -27,8 +27,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
@@ -42,6 +42,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.query.ArrayToRow;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -53,21 +54,25 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SequenceCountingProcessor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
+import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.groupby.having.AlwaysHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -508,6 +513,12 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         return converted;
       }
     }
+    if (query.getContextBoolean(GBY_CONVERT_FREQUENCY, groupByConfig.isConvertFrequency())) {
+      Query converted = query.tryConvertToFrequency(segmentWalker, queryConfig);
+      if (converted != null) {
+        return converted;
+      }
+    }
     int estimationFactor = query.getContextInt(GBY_ESTIMATE_TOPN_FACTOR, groupByConfig.getEstimateTopNFactor());
     if (estimationFactor > 0) {
       return query.tryEstimateTopN(segmentWalker, estimationFactor);
@@ -599,6 +610,70 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return Druids.newTimeseriesQueryBuilder().copy(this).build();
   }
 
+  private Query tryConvertToFrequency(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  {
+    if (!Granularities.ALL.equals(granularity) || lateralView != null || havingSpec != null) {
+      return null;
+    }
+    if (!limitSpec.hasLimit() && limitSpec.getColumns().isEmpty() || !limitSpec.getWindowingSpecs().isEmpty()) {
+      return null;
+    }
+    if (dimensions.isEmpty() || !DimensionSpecs.isAllDefault(dimensions) || !postAggregatorSpecs.isEmpty()) {
+      return null;
+    }
+    if (!(Iterables.getOnlyElement(aggregatorSpecs, null) instanceof CountAggregatorFactory)) {
+      return null;
+    }
+    final String name = aggregatorSpecs.get(0).getName();
+    final OrderByColumnSpec ordering = limitSpec.getColumns().get(0);
+    if (!ordering.isNaturalOrdering() || ordering.getDirection() != Direction.DESCENDING ||
+        !name.equals(ordering.getDimension())) {
+      return null;
+    }
+    List<String> columnNames = DimensionSpecs.toInputNames(dimensions);
+    AggregatorFactory factory = new CardinalityAggregatorFactory(
+        "$v", null, DefaultDimensionSpec.toSpec(columnNames), getGroupingSets(), null, true, true
+    );
+    TimeseriesQuery meta = new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getFilter(),
+        getGranularity(),
+        getVirtualColumns(),
+        Arrays.asList(factory),
+        null,
+        null,
+        null,
+        Arrays.asList("$v"),
+        null,
+        BaseQuery.copyContextForMeta(this)
+    );
+    Row result = QueryRunners.only(meta, segmentWalker);
+    Number cardinality = (Number) result.getRaw("$v");
+    if (cardinality == null || cardinality.longValue() < queryConfig.getGroupBy().getConvertFrequencyCardinality()) {
+      return null;  // group by is faster
+    }
+    FrequencyQuery query = new FrequencyQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getFilter(),
+        getVirtualColumns(),
+        columnNames,
+        (int) (cardinality.intValue() * 1.1),
+        -1,
+        limitSpec.getLimit(),
+        null,
+        getContext()
+    ).rewriteQuery(segmentWalker, queryConfig);
+
+    return PostProcessingOperators.prepend(
+        query,
+        segmentWalker.getObjectMapper(),
+        new ArrayToRow(GuavaUtils.concat(name, DimensionSpecs.toOutputNames(dimensions)))
+    );
+  }
+
   private Query tryEstimateTopN(QuerySegmentWalker segmentWalker, int estimationFactor)
   {
     if (!limitSpec.hasLimit()) {
@@ -634,7 +709,8 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
     final String dimension = dimensionSpec.getOutputName();
     final Set<String> dimensionValues = Sets.newHashSet();
-    new TopNQuery(
+
+    QueryRunners.run(new TopNQuery(
         getDataSource(),
         getVirtualColumns(),
         dimensionSpec,
@@ -647,7 +723,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         condensed.rhs,
         getOutputColumns(),
         BaseQuery.copyContextForMeta(this)
-    ).run(segmentWalker, Maps.<String, Object>newHashMap()).accumulate(
+    ), segmentWalker).accumulate(
         null,
         new Accumulator<Object, Result<TopNResultValue>>()
         {
@@ -910,7 +986,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
                 .withOverriddenContext(FINAL_MERGE, true)
                 .withOverriddenContext(GBY_CONVERT_TIMESERIES, true)
                 .withOverriddenContext(ALL_DIMENSIONS_FOR_EMPTY, false)
-                .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.Abstract<Row>()
+                .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
                 {
                   @Override
                   public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)

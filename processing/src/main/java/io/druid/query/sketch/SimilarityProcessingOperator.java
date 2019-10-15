@@ -133,12 +133,6 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
     };
   }
 
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return false;
-  }
-
   // ds1.dim1 --> ds2.dim3 : 0.66f
   // ds1.dim2 --> ds3.dim4 : 0.66f
   //

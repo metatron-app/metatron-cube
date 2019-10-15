@@ -492,7 +492,7 @@ public class GroupByQueryEngine
   )
   {
     if (limiting == null || !limiting.hasLimit()) {
-      return Functions.identity();
+      return GuavaUtils.identity("takeTopN");
     }
     final int dimension = 1 + query.getDimensions().size();
     final List<String> columnNames = toOutputColumns(query);

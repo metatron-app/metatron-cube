@@ -62,7 +62,7 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner)
+  public QueryRunner postProcess(QueryRunner<T> baseQueryRunner)
   {
     for (PostProcessingOperator processor : processors) {
       baseQueryRunner = processor.postProcess(baseQueryRunner);
@@ -85,12 +85,6 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
       queryRunner = processor.postProcess(queryRunner);
     }
     return queryRunner;
-  }
-
-  @Override
-  public boolean hasTabularOutput()
-  {
-    return getLast().hasTabularOutput();
   }
 
   @Override

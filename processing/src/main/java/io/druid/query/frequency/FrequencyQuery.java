@@ -26,11 +26,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -38,6 +37,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -116,7 +116,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public FrequencyQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     if (width > 0 && sketch != null) {
       return this;
@@ -139,17 +139,21 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     int newWidth = width;
     byte[] newSketch = sketch;
     if (newWidth <= 0) {
-      meta = meta.withAggregatorSpecs(Arrays.<AggregatorFactory>asList(new CardinalityAggregatorFactory(
+      AggregatorFactory factory = new CardinalityAggregatorFactory(
           "$v", null, DefaultDimensionSpec.toSpec(columns), GroupingSetSpec.EMPTY, null, true, true
-      )));
-      Row result = Sequences.only(meta.run(segmentWalker, Maps.<String, Object>newHashMap()));
-      newWidth = Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue();
+      );
+      Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
+      newWidth = (int) (Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue() * 1.1);
     }
     if (newSketch == null) {
-      meta = meta.withAggregatorSpecs(Arrays.<AggregatorFactory>asList(
-          new CountMinAggregatorFactory("$v", columns, null, null, null, true, newWidth, depth, false)
-      ));
-      Row result = Sequences.only(meta.run(segmentWalker, Maps.<String, Object>newHashMap()));
+      AggregatorFactory factory = new CountMinAggregatorFactory(
+          "$v", columns, null, null, null, true, newWidth, depth, false
+      );
+      // disable cache
+      meta = meta.withOverriddenContext(ImmutableMap.<String, Object>of(
+          USE_CACHE, false, POPULATE_CACHE, false, TIMESERIES_MERGE_PARALLELISM, 4)
+      );
+      Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
       newSketch = Preconditions.checkNotNull((CountMinSketch) result.getRaw("$v"), "sketch?")
                                .toCompressedBytes();
     }
@@ -336,6 +340,17 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   public byte[] getSketch()
   {
     return sketch;
+  }
+
+  private static final int MIN_CANDIDATES = 16;
+
+  public int getCandidateLimit()
+  {
+    if (getContextBoolean(FINAL_MERGE, true)) {
+      return limit;
+    } else {
+      return Math.max(MIN_CANDIDATES, limit << 1);
+    }
   }
 
   @Override

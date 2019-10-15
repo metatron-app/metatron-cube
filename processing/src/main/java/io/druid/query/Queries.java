@@ -410,7 +410,7 @@ public class Queries
     ObjectMapper objectMapper = segmentWalker.getObjectMapper();
     query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
     Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
-    Row row = Sequences.only(counter.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    Row row = Sequences.only(QueryRunners.run(counter, segmentWalker));
     return row.getLongMetric("cardinality");
   }
 
@@ -509,9 +509,7 @@ public class Queries
                          .withOutputColumns(Arrays.asList("SPLIT"))
                          .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
 
-    Row result = Sequences.only(
-        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()), null
-    );
+    Row result = Sequences.only(QueryRunners.run(metaQuery, segmentWalker), null);
 
     return result == null ? null : (Object[]) result.getRaw("SPLIT");
   }

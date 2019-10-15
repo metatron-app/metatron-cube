@@ -51,6 +51,12 @@ public class GroupByQueryConfig
   private boolean convertTimeseries = false;
 
   @JsonProperty
+  private boolean convertFrequency = false;
+
+  @JsonProperty
+  private int convertFrequencyCardinality = 1 << 18;
+
+  @JsonProperty
   private int estimateTopNFactor = -1;
 
   @JsonProperty
@@ -136,9 +142,29 @@ public class GroupByQueryConfig
     return convertTimeseries;
   }
 
+  public void setConvertFrequency(boolean convertFrequency)
+  {
+    this.convertFrequency = convertFrequency;
+  }
+
+  public boolean isConvertFrequency()
+  {
+    return convertFrequency;
+  }
+
   public void setConvertTimeseries(boolean convertTimeseries)
   {
     this.convertTimeseries = convertTimeseries;
+  }
+
+  public int getConvertFrequencyCardinality()
+  {
+    return convertFrequencyCardinality;
+  }
+
+  public void setConvertFrequencyCardinality(int convertFrequencyCardinality)
+  {
+    this.convertFrequencyCardinality = convertFrequencyCardinality;
   }
 
   public int getEstimateTopNFactor()

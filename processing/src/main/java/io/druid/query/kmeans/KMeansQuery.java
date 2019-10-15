@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
@@ -38,6 +37,7 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -322,11 +322,7 @@ public class KMeansQuery
         false
     );
 
-    @SuppressWarnings("unchecked")
-    List<SegmentAnalysis> sequence = Sequences.toList(
-        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
-        Lists.<SegmentAnalysis>newArrayList()
-    );
+    List<SegmentAnalysis> sequence = Sequences.toList(QueryRunners.run(metaQuery, segmentWalker));
     if (sequence == null || sequence.isEmpty()) {
       throw new IllegalArgumentException("invalid span " + getDataSource() + ", " + getQuerySegmentSpec());
     }
@@ -400,7 +396,7 @@ public class KMeansQuery
       );
     }
     List<Centroid> prevCentroids = ((FindNearestQuery) prev).getCentroids();
-    List<CentroidDesc> descs = Sequences.toList(sequence, Lists.<CentroidDesc>newArrayList());
+    List<CentroidDesc> descs = Sequences.toList(sequence);
 
     boolean underThreshold = true;
     List<Centroid> newCentroids = Lists.newArrayList();

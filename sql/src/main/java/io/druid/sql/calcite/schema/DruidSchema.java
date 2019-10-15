@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -36,16 +35,15 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.client.ServerView;
+import io.druid.client.TimelineServerView;
 import io.druid.common.DateTimes;
 import io.druid.common.Yielders;
 import io.druid.data.ValueDesc;
-import io.druid.query.Query;
-import io.druid.query.QuerySegmentWalker;
-import org.apache.calcite.schema.Table;
-import org.apache.calcite.schema.impl.AbstractSchema;
-import io.druid.client.ServerView;
-import io.druid.client.TimelineServerView;
 import io.druid.guice.ManageLifecycle;
+import io.druid.query.Query;
+import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.metadata.metadata.AllColumnIncluderator;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -59,6 +57,8 @@ import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.timeline.DataSegment;
+import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.impl.AbstractSchema;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -530,7 +530,7 @@ public class DruidSchema extends AbstractSchema
         false
     ).withId(UUID.randomUUID().toString());
 
-    return segmentMetadataQuery.run(segmentWalker, Maps.newHashMap());
+    return QueryRunners.run(segmentMetadataQuery, segmentWalker);
   }
 
   private static RowSignature analysisToRowSignature(final SegmentAnalysis analysis)

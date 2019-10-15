@@ -29,7 +29,7 @@ import io.druid.data.input.Row;
 import java.util.Arrays;
 import java.util.Map;
 
-public class SequenceCountingProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
+public class SequenceCountingProcessor extends PostProcessingOperator.ReturnsRow implements PostProcessingOperator.Local
 {
   public static SequenceCountingProcessor INSTANCE = new SequenceCountingProcessor();
 

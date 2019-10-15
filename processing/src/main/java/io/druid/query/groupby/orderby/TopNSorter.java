@@ -38,6 +38,11 @@ public class TopNSorter<T>
     return new TopNSorter<>(ordering).toTopN(items, n);
   }
 
+  public static <T> Iterator<T> topN(Comparator<T> ordering, Iterable<T> items, int n)
+  {
+    return new TopNSorter<>(ordering).toTopN(items, n);
+  }
+
   private Comparator<T> ordering;
 
   /**

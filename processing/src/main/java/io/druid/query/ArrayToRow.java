@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.DateTimes;
@@ -36,7 +35,7 @@ import java.util.Map;
 
 /**
  */
-public class ArrayToRow extends PostProcessingOperator.Abstract<Object[]>
+public class ArrayToRow extends PostProcessingOperator.ReturnsRow<Object[]>
 {
   private final List<String> columnNames;
 
@@ -44,7 +43,6 @@ public class ArrayToRow extends PostProcessingOperator.Abstract<Object[]>
   public ArrayToRow(@JsonProperty("columnNames") List<String> columnNames)
   {
     this.columnNames = columnNames;
-    Preconditions.checkArgument(columnNames.contains(Row.TIME_COLUMN_NAME));
   }
 
   @JsonProperty
@@ -54,33 +52,39 @@ public class ArrayToRow extends PostProcessingOperator.Abstract<Object[]>
   }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner<Object[]> baseRunner)
+  public QueryRunner<Row> postProcess(final QueryRunner<Object[]> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Row> run(Query query, Map responseContext)
       {
-        final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
-        return Sequences.map(baseRunner.run(query, responseContext), new Function<Object[], Row>()
-        {
-          @Override
-          public Row apply(Object[] input)
-          {
-            DateTime datetime = null;
-            final int limit = Math.min(input.length, columnNames.size());
-            final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
-            for (int i = 0; i < limit; i++) {
-              if (i == timeIndex) {
-                datetime = DateTimes.utc(((Number) input[i]).longValue());
-              } else {
-                map.put(columnNames.get(i), input[i]);
-              }
-            }
-            return new MapBasedRow(datetime, map);
+        return Sequences.map(baseRunner.run(query, responseContext), arrayToRow(columnNames));
+      }
+    };
+  }
+
+  public static Function<Object[], Row> arrayToRow(final List<String> columnNames)
+  {
+    return new Function<Object[], Row>()
+    {
+      final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
+
+      @Override
+      public Row apply(final Object[] input)
+      {
+        DateTime datetime = null;
+        final int limit = Math.min(input.length, columnNames.size());
+        final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
+        for (int i = 0; i < limit; i++) {
+          if (i == timeIndex && input[i] != null) {
+            datetime = DateTimes.utc(((Number) input[i]).longValue());
+          } else {
+            map.put(columnNames.get(i), input[i]);
           }
-        });
+        }
+        return new MapBasedRow(datetime, map);
       }
     };
   }

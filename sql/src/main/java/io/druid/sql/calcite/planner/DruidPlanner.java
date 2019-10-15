@@ -34,6 +34,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.output.ForwardConstants;
 import io.druid.query.Query;
+import io.druid.query.QueryRunners;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
@@ -339,7 +340,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     Query<Map<String, Object>> query = queryMaker.prepareQuery(
         druidQuery.getQuery().withOverriddenContext(context)
     );
-    Map<String, Object> result = Sequences.only(query.run(queryMaker.getSegmentWalker(), Maps.newHashMap()), null);
+    Map<String, Object> result = Sequences.only(QueryRunners.run(query, queryMaker.getSegmentWalker()), null);
     if (result == null) {
       return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
     }
@@ -405,7 +406,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     Query<Map<String, Object>> query = queryMaker.prepareQuery(
         druidQuery.getQuery().withOverriddenContext(context)
     );
-    Map<String, Object> result = Sequences.only(query.run(queryMaker.getSegmentWalker(), Maps.newHashMap()), null);
+    Map<String, Object> result = Sequences.only(QueryRunners.run(query, queryMaker.getSegmentWalker()), null);
     if (result == null) {
       return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
     }

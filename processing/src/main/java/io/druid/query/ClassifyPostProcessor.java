@@ -47,12 +47,6 @@ public class ClassifyPostProcessor extends PostProcessingOperator.UnionSupport
   }
 
   @Override
-  public boolean hasTabularOutput()
-  {
-    return false;
-  }
-
-  @Override
   public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
   {
     return new QueryRunner()

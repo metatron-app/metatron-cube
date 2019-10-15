@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 public class RowMappingPostProcessor
-    extends PostProcessingOperator.Abstract
+    extends PostProcessingOperator.ReturnsRow<Row>
     implements PostProcessingOperator.SchemaResolving
 {
   private final Map<String, String> mapping;
@@ -54,12 +54,12 @@ public class RowMappingPostProcessor
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner postProcess(final QueryRunner baseRunner)
+  public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Row>()
     {
       @Override
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Row> run(Query query, Map responseContext)
       {
         return Sequences.map(baseRunner.run(query, responseContext), new Function<Row, Row>()
         {

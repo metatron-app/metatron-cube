@@ -48,13 +48,13 @@ public class ArrayToMap extends PostProcessingOperator.ReturnsMap<Object[]>
   }
 
   @Override
-  public QueryRunner postProcess(final QueryRunner<Object[]> baseRunner)
+  public QueryRunner<Map<String, Object>> postProcess(final QueryRunner<Object[]> baseRunner)
   {
-    return new QueryRunner()
+    return new QueryRunner<Map<String, Object>>()
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence<Map<String, Object>> run(Query query, Map responseContext)
       {
         return Sequences.map(baseRunner.run(query, responseContext), new Function<Object[], Map>()
         {

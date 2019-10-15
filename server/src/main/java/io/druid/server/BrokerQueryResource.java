@@ -24,7 +24,6 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -328,7 +327,7 @@ public class BrokerQueryResource extends QueryResource
                       @Override
                       public Sequence call() throws Exception
                       {
-                        return runner.run(query, Maps.newHashMap());
+                        return QueryRunners.run(query, runner);
                       }
                     }
                 ), sequence
@@ -336,7 +335,7 @@ public class BrokerQueryResource extends QueryResource
         );
         return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {
-        List result = Sequences.toList(runner.run(query, Maps.newHashMap()));
+        List result = Sequences.toList(QueryRunners.run(query, runner));
         return context.ok(result.size() == 1 ? result.get(0) : result);
       }
     }

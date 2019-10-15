@@ -35,10 +35,12 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.math.expr.Evals;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
@@ -139,8 +141,9 @@ public class QueryMaker
     if (schema instanceof UnionAllQuery) {
       schema = ((UnionAllQuery) schema).getRepresentative();
     }
-    if (schema instanceof BaseAggregationQuery) {
-      return executeAggregation(druidQuery, prepared);
+    Class<?> clazz = PostProcessingOperators.returns(schema, jsonMapper);
+    if (Row.class == clazz || schema instanceof BaseAggregationQuery) {
+      return executeRow(druidQuery, prepared);
     } else if (schema instanceof TopNQuery) {
       return executeTopN(druidQuery, (TopNQuery) prepared);
     } else if (schema instanceof Query.ArrayOutputSupport) {
@@ -163,10 +166,10 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
-    return query.run(segmentWalker, Maps.newHashMap());
+    return QueryRunners.run(query, segmentWalker);
   }
 
-  private Sequence<Object[]> executeAggregation(final DruidQuery druidQuery, final Query query)
+  private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)
   {
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 

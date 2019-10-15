@@ -21,7 +21,6 @@ package io.druid.cli;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -29,7 +28,6 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.lifecycle.Lifecycle;
@@ -44,6 +42,7 @@ import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.CustomTierSelectorStrategyConfig;
 import io.druid.client.selector.ServerSelectorStrategy;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.common.utils.Sequences;
 import io.druid.guice.CacheModule;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.Jerseys;
@@ -196,7 +195,7 @@ public class EmbeddedBroker extends ServerRunnable
   {
     try (EmbeddedResource e = create()) {
       Sequence seq = e.runQuery(null, Maps.<String, Object>newHashMap());
-      List list = Sequences.toList(seq, Lists.newArrayList());
+      List list = Sequences.toList(seq);
 
       Yielder yielder = seq.toYielder(
           null,

@@ -49,12 +49,6 @@ public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionS
   }
 
   @Override
-  public boolean hasTabularOutput()
-  {
-    return false;
-  }
-
-  @Override
   public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
   {
     return new QueryRunner()

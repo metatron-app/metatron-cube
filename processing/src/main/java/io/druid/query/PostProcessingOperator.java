@@ -22,9 +22,12 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.data.input.Row;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
 import io.druid.query.select.Schema;
+
+import java.util.Map;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = PostAggregationsPostProcessor.class)
 @JsonSubTypes(value = {
@@ -45,12 +48,9 @@ import io.druid.query.select.Schema;
 })
 public interface PostProcessingOperator<T>
 {
-  public QueryRunner postProcess(QueryRunner<T> baseQueryRunner);
+  QueryRunner postProcess(QueryRunner<T> baseQueryRunner);
 
-  public boolean supportsUnionProcessing();
-
-  // means output is Map<String, Object> (replace with Object[] ?)
-  public boolean hasTabularOutput();
+  boolean supportsUnionProcessing();
 
   public abstract class UnionSupport<T> implements PostProcessingOperator<T>
   {
@@ -72,9 +72,6 @@ public interface PostProcessingOperator<T>
     public boolean supportsUnionProcessing() { return false;}
 
     @Override
-    public boolean hasTabularOutput() { return false; }
-
-    @Override
     public String toString()
     {
       return getClass().getSimpleName();
@@ -83,8 +80,17 @@ public interface PostProcessingOperator<T>
 
   public abstract class ReturnsMap<T> extends Abstract<T>
   {
-    @Override
-    public final boolean hasTabularOutput() { return true; }
+    public abstract QueryRunner<Map<String, Object>> postProcess(QueryRunner<T> baseQueryRunner);
+  }
+
+  public abstract class ReturnsRow<T> extends Abstract<T>
+  {
+    public abstract QueryRunner<Row> postProcess(QueryRunner<T> baseQueryRunner);
+  }
+
+  public abstract class ReturnsArray<T> extends Abstract<T>
+  {
+    public abstract QueryRunner<Object[]> postProcess(QueryRunner<T> baseQueryRunner);
   }
 
   // this is needed to be implemented by all post processors, but let's do it step by step
