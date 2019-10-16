@@ -427,6 +427,11 @@ public class Druids
       return this;
     }
 
+    public SearchQueryBuilder virtualColumns(VirtualColumn... vcs)
+    {
+      return virtualColumns(Arrays.asList(vcs));
+    }
+
     public SearchQueryBuilder virtualColumns(List<VirtualColumn> vcs)
     {
       virtualColumns = vcs;

@@ -29,8 +29,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -77,7 +77,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     super(dataSource, querySegmentSpec, false, context);
     this.filter = filter;
     this.sortSpec = sortSpec == null ? new LexicographicSearchSortSpec() : sortSpec;
-    this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
+    this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;

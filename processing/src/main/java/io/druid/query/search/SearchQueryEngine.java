@@ -24,44 +24,26 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
-import io.druid.data.Pair;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.ExtractionFns;
-import io.druid.query.extraction.IdentityExtractionFn;
-import io.druid.query.filter.BitmapIndexSelector;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.search.search.SearchSortSpec;
-import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.column.BitmapIndex;
-import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -91,8 +73,6 @@ public class SearchQueryEngine
       final boolean merge
   )
   {
-    // Closing this will cause segfaults in unit tests.
-    final QueryableIndex index = segment.asQueryableIndex(true);
     final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {
       log.makeAlert("Unable to process search query on segment.")
@@ -102,125 +82,56 @@ public class SearchQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
-
-    final DimFilter filter = query.getFilter();
-    final List<DimensionSpec> dimensions = query.getDimensions();
-    final SearchQuerySpec searchQuerySpec = query.getQuery();
-    final int limit = query.getLimit();
-    final boolean descending = query.isDescending();
-    final boolean valueOnly = query.isValueOnly();
+    final java.util.function.Function<SearchHit, MutableInt> counter =
+        new java.util.function.Function<SearchHit, MutableInt>()
+        {
+          @Override
+          public MutableInt apply(SearchHit objectArray)
+          {
+            return new MutableInt();
+          }
+        };
 
     final SearchSortSpec sort = query.getSort();
-    final Comparator<SearchHit> comparator = sort.getComparator();
-    final Comparator<SearchHit> resultComparator = sort.getResultComparator();
-    final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
 
-    final DateTime timestamp = segment.getDataInterval().getStart();
-    final List<String> columns = DimensionSpecs.toInputNames(dimensions);
-
-    OUT:
-    if (index != null) {
-      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index);
-      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
-      if (extracted.getValue() != null) {
-        break OUT;
-      }
-      final ImmutableBitmap baseFilter = extracted.getKey();
-      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-
-      final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
-      for (DimensionSpec dimension : dimensions) {
-        final Column column = index.getColumn(dimension.getDimension());
-        if (column == null) {
-          continue;
-        }
-
-        final String outputName = dimension.getOutputName();
-        final BitmapIndex bitmapIndex = column.getBitmapIndex();
-        final ExtractionFn extractionFn = ExtractionFns.getExtractionFn(dimension, IdentityExtractionFn.nullToEmpty());
-
-        if (bitmapIndex != null) {
-          for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
-            String dimVal = extractionFn.apply(bitmapIndex.getValue(i));
-            if (!searchQuerySpec.accept(dimVal)) {
-              continue;
-            }
-            if (valueOnly) {
-              retVal.put(new SearchHit(outputName, dimVal), null);
-            } else {
-              ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
-              if (baseFilter != null) {
-                bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
-              }
-              int size = bitmap.size();
-              if (size > 0) {
-                MutableInt counter = new MutableInt(size);
-                MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
-                if (prev != null) {
-                  counter.add(prev.intValue());
-                }
-              }
-            }
-            if (!needsFullScan && retVal.size() >= limit) {
-              return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, limit);
-            }
-          }
-        }
-      }
-
-      return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, limit);
-    }
-
-    final Sequence<Cursor> cursors = adapter.makeCursors(
-        filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, descending, null
-    );
-
-    final Map<SearchHit, MutableInt> retVal = cursors.accumulate(
+    final Map<SearchHit, MutableInt> retVal = adapter.makeCursors(query, cache).accumulate(
         Maps.<SearchHit, MutableInt>newHashMap(),
         new Accumulator<Map<SearchHit, MutableInt>, Cursor>()
         {
+          private final SearchQuerySpec searchQuery = query.getQuery();
+
+          private final int limit = query.getLimit();
+          private final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
+          private final boolean valueOnly = query.isValueOnly();
+
           @Override
           public Map<SearchHit, MutableInt> accumulate(Map<SearchHit, MutableInt> set, Cursor cursor)
           {
-            if (limit > 0 && set.size() >= limit) {
-              return set;
-            }
-
-            Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-            for (DimensionSpec dim : dimensions) {
-              dimSelectors.put(
-                  dim.getOutputName(),
-                  cursor.makeDimensionSelector(dim)
-              );
+            final Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
+            for (DimensionSpec dim : query.getDimensions()) {
+              dimSelectors.put(dim.getOutputName(), cursor.makeDimensionSelector(dim));
             }
 
             while (!cursor.isDone()) {
               for (Map.Entry<String, DimensionSelector> entry : dimSelectors.entrySet()) {
+                final String dimension = entry.getKey();
                 final DimensionSelector selector = entry.getValue();
-
-                if (selector != null) {
-                  final IndexedInts vals = selector.getRow();
-                  for (int i = 0; i < vals.size(); ++i) {
-                    final String dimVal = Objects.toString(selector.lookupName(vals.get(i)), "");
-                    if (searchQuerySpec.accept(dimVal)) {
-                      if (valueOnly) {
-                        set.put(new SearchHit(entry.getKey(), dimVal), null);
-                      } else {
-                        MutableInt counter = new MutableInt(1);
-                        MutableInt prev = set.put(new SearchHit(entry.getKey(), dimVal), counter);
-                        if (prev != null) {
-                          counter.add(prev.intValue());
-                        }
-                      }
-                      if (!needsFullScan && set.size() >= limit) {
-                        return set;
-                      }
-                    }
+                final IndexedInts vals = selector.getRow();
+                for (int i = 0; i < vals.size(); ++i) {
+                  final String dimVal = Objects.toString(selector.lookupName(vals.get(i)), "");
+                  if (!searchQuery.accept(dimVal)) {
+                    continue;
+                  }
+                  if (valueOnly) {
+                    set.putIfAbsent(new SearchHit(dimension, dimVal), null);
+                  } else {
+                    set.computeIfAbsent(new SearchHit(dimension, dimVal), counter).increment();
                   }
                 }
               }
-
+              if (!needsFullScan && set.size() >= limit) {
+                return set;
+              }
               cursor.advance();
             }
 
@@ -228,22 +139,12 @@ public class SearchQueryEngine
           }
         }
     );
+    final Comparator<SearchHit> comparator = sort.getComparator();
+    final Comparator<SearchHit> resultComparator = sort.getResultComparator();
 
-    return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, limit);
-  }
+    final DateTime timestamp = segment.getDataInterval().getStart();
 
-  private Pair<ImmutableBitmap, DimFilter> extractBitmaps(
-      final BitmapIndexSelector selector,
-      final String segmentId,
-      final DimFilter filter
-  )
-  {
-    if (filter == null) {
-      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
-    }
-    try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
-      return DimFilters.extractBitmaps(filter, context);
-    }
+    return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, query.getLimit());
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(

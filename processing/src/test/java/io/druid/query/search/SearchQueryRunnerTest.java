@@ -33,6 +33,7 @@ import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.search.search.FragmentSearchQuerySpec;
@@ -40,6 +41,7 @@ import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.StrlenSearchSortSpec;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
@@ -323,6 +325,34 @@ public class SearchQueryRunnerTest
   }
 
   @Test
+  public void testSearchWithResultOrderingOnVC()
+  {
+    final Druids.SearchQueryBuilder builder =
+        Druids.newSearchQueryBuilder()
+              .dataSource(dataSource)
+              .filters(new MathExprFilter("index > 100 && index < 200"))
+              .virtualColumns(new ExprVirtualColumn("concat(market, '_', quality)", "VC"))
+              .granularity(QueryRunnerTestHelper.allGran)
+              .intervals(QueryRunnerTestHelper.fullOnInterval)
+              .dimensions("VC")
+              .sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$count:desc", "$value:desc")))
+              .limit(-1);
+
+    List<SearchHit> expectedHits = Lists.newLinkedList();
+    expectedHits.add(new SearchHit("VC", "spot_travel", 92));
+    expectedHits.add(new SearchHit("VC", "spot_premium", 91));
+    expectedHits.add(new SearchHit("VC", "spot_news", 83));
+    expectedHits.add(new SearchHit("VC", "spot_entertainment", 80));
+    expectedHits.add(new SearchHit("VC", "spot_business", 77));
+    expectedHits.add(new SearchHit("VC", "spot_automotive", 76));
+    expectedHits.add(new SearchHit("VC", "spot_mezzanine", 69));
+    expectedHits.add(new SearchHit("VC", "spot_health", 68));
+    expectedHits.add(new SearchHit("VC", "spot_technology", 17));
+
+    checkSearchQueryWithOrder(builder.build(), expectedHits);
+  }
+
+  @Test
   public void testSearchWithDimensionsPlacementAndProvider()
   {
     List<SearchHit> expectedHits = Lists.newLinkedList();
@@ -556,12 +586,6 @@ public class SearchQueryRunnerTest
         searchQuery.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SearchResultValue>>newArrayList()
     );
-    for (Object x : expectedResults) {
-      System.out.println("e : " + x);
-    }
-    for (Object x : results) {
-      System.out.println("a : " + x);
-    }
     List<SearchHit> copy = Lists.newLinkedList(expectedResults);
     for (Result<SearchResultValue> result : results) {
       Assert.assertEquals(new DateTime("2011-01-12T00:00:00.000Z"), result.getTimestamp());
@@ -598,7 +622,6 @@ public class SearchQueryRunnerTest
     );
     Assert.assertEquals(1, results.size());
     SearchResultValue result = results.get(0).getValue();
-    System.out.println(result.getValue());
     Assert.assertEquals(expectedResults.size(), result.getValue().size());
     for (int i = 0; i < expectedResults.size(); i++) {
       Assert.assertEquals(expectedResults.get(i), result.getValue().get(i));
