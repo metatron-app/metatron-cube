@@ -316,7 +316,7 @@ public class QueryResource
           }
           catch (Throwable t) {
             // it's not propagated to handlings below. so do it here
-            handleException(prepared, remote, start, t);
+            handleException(prepared, remote, start, counter.intValue(), os.getCount(), t);
             currThread.setName(currThreadName);
             if (t instanceof IOException) {
               throw (IOException) t;
@@ -370,7 +370,7 @@ public class QueryResource
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      handleException(query, remote, start, e);
+      handleException(query, remote, start, 0, 0, e);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }
@@ -390,7 +390,7 @@ public class QueryResource
     return query.withOverriddenContext(adding);
   }
 
-  private void handleException(Query query, String remote, long start, Throwable e)
+  private void handleException(Query query, String remote, long start, int rows, long bytes, Throwable e)
       throws IOException
   {
     boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
@@ -405,27 +405,33 @@ public class QueryResource
          .emit();
     }
 
+    boolean success = queryManager.isCanceled(query);
     long queryTime = System.currentTimeMillis() - start;
+    Map<String, Object> event = Maps.newHashMap();
+    event.put("query/time", queryTime);
+    if (bytes > 0 && rows > 0) {
+      event.put("query/bytes", bytes);
+      event.put("query/rows", rows);
+    }
+    event.put("interrupted", interrupted);
+    event.put("exception", e.toString());
+    event.put("success", success);
+
     requestLogger.log(
         new RequestLogLine(
             DateTimes.utc(start),
             remote,
             toLoggingQuery(query),
-            new QueryStats(
-                ImmutableMap.<String, Object>of(
-                    "query/time", queryTime,
-                    "interrupted", interrupted,
-                    "exception", e.toString(),
-                    "success", false
-                )
-            )
+            new QueryStats(event)
         )
     );
-    emitter.emit(
-        DruidMetrics.makeQueryTimeMetric(jsonMapper, query, remote)
-                    .setDimension("success", "false")
-                    .build("query/time", queryTime)
-    );
+    ServiceMetricEvent.Builder builder = DruidMetrics.makeQueryTimeMetric(jsonMapper, query, remote)
+                                                     .setDimension("success", String.valueOf(success));
+    if (bytes > 0 && rows > 0) {
+      emitter.emit(builder.build("query/bytes", bytes));
+      emitter.emit(builder.build("query/rows", rows));
+    }
+    emitter.emit(builder.build("query/time", queryTime));
   }
 
   // clear previous query name if exists (should not)
