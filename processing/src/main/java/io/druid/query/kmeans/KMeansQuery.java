@@ -33,7 +33,6 @@ import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.Classifier;
 import io.druid.query.DataSource;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
@@ -306,7 +305,7 @@ public class KMeansQuery
   @Override
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    final Map<String, Object> context = Queries.extractContext(this, BaseQuery.QUERYID);
+    final Map<String, Object> context = BaseQuery.copyContextForMeta(this);
     context.put(QueryContextKeys.USE_CACHE, false);
     context.put(QueryContextKeys.POPULATE_CACHE, false);
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(

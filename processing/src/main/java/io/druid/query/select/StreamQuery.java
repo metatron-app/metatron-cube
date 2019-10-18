@@ -43,7 +43,6 @@ import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.JoinElement;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
@@ -512,7 +511,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         null,
         getOutputColumns(),
         null,
-        Queries.extractContext(this, BaseQuery.QUERYID)
+        BaseQuery.copyContextForMeta(this)
     );
   }
 
