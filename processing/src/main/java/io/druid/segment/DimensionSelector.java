@@ -75,6 +75,11 @@ public interface DimensionSelector
    */
   public Comparable lookupName(int id);
 
+  /**
+   * returns without dimension or multivalue prefix
+   *
+   * @return type
+   */
   public ValueDesc type();
 
   /**

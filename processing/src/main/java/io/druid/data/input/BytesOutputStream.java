@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataOutput;
+import io.druid.common.guava.BytesRef;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutput;
@@ -201,5 +202,10 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
       value >>>= 7;
     }
     write(value & 127);
+  }
+
+  public BytesRef asRef()
+  {
+    return new BytesRef(buf, count);
   }
 }

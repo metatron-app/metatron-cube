@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.BytesRef;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
@@ -54,7 +55,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
   }
 
   @Override
-  public void collect(Object[] values, byte[] key)
+  public void collect(Object[] values, BytesRef key)
   {
     // We use the trick mentioned in "Less Hashing, Same Performance: Building a Better Bloom Filter"
     // by Kirsch et.al. From abstract 'only two hash functions are necessary to effectively
@@ -64,7 +65,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
 
     // Lets split up 64-bit hashcode into two 32-bit hashcodes and employ the technique mentioned
     // in the above paper
-    collect(Murmur3.hash64(key));
+    collect(Murmur3.hash64(key.bytes, 0, key.length));
   }
 
   public void collect(long hash64)

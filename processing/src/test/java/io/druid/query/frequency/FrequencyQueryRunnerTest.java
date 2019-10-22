@@ -24,6 +24,8 @@ import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,9 +57,9 @@ public class FrequencyQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testBasic()
   {
-    List<String> columns = Arrays.asList("market", "quality");
+    List<DimensionSpec> columns = DefaultDimensionSpec.toSpec("market", "quality");
     FrequencyQuery query = new FrequencyQuery(
-        TableDataSource.of(dataSource), null, null, null, columns, 65536, 4, 3, null, null);
+        TableDataSource.of(dataSource), null, null, null, null, columns, 65536, 4, 3, null, null);
     String[] columnNames = {"__time", "market", "quality", "index", "indexMin"};
     List<Object[]> expected = createExpected(
         new Object[]{93, "spot", "automotive"},

@@ -73,7 +73,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         final FrequencyQuery frequency = (FrequencyQuery) query;
-        final int columns = frequency.getColumns().size();
+        final int columns = frequency.getDimensions().size();
         final BiFunction<ObjectArray, MutableInt, MutableInt> accumulator =
             new BiFunction<ObjectArray, MutableInt, MutableInt>()
             {

@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import io.druid.common.guava.BytesRef;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
 
@@ -735,8 +736,8 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   }
 
   @Override
-  public void collect(Object[] values, byte[] bytes)
+  public void collect(Object[] values, BytesRef bytes)
   {
-    add(Murmur3.hash128(bytes));
+    add(Murmur3.hash128(bytes.bytes, 0, bytes.length));
   }
 }

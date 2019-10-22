@@ -65,7 +65,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
@@ -88,6 +87,7 @@ import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.VirtualColumn;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -615,10 +615,13 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (!Granularities.ALL.equals(granularity) || lateralView != null || havingSpec != null) {
       return null;
     }
-    if (!limitSpec.hasLimit() && limitSpec.getColumns().isEmpty() || !limitSpec.getWindowingSpecs().isEmpty()) {
+    if (dimensions.isEmpty() || !postAggregatorSpecs.isEmpty()) {
       return null;
     }
-    if (dimensions.isEmpty() || !DimensionSpecs.isAllDefault(dimensions) || !postAggregatorSpecs.isEmpty()) {
+    if (!limitSpec.hasLimit() || limitSpec.getLimit() > FrequencyQuery.MAX_LIMIT || limitSpec.getColumns().isEmpty()) {
+      return null;
+    }
+    if (!limitSpec.getWindowingSpecs().isEmpty()) {
       return null;
     }
     if (!(Iterables.getOnlyElement(aggregatorSpecs, null) instanceof CountAggregatorFactory)) {
@@ -630,9 +633,8 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         !name.equals(ordering.getDimension())) {
       return null;
     }
-    List<String> columnNames = DimensionSpecs.toInputNames(dimensions);
     AggregatorFactory factory = new CardinalityAggregatorFactory(
-        "$v", null, DefaultDimensionSpec.toSpec(columnNames), getGroupingSets(), null, true, true
+        "$v", null, dimensions, getGroupingSets(), null, true, true
     );
     TimeseriesQuery meta = new TimeseriesQuery(
         getDataSource(),
@@ -654,14 +656,19 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (cardinality == null || cardinality.longValue() < queryConfig.getGroupBy().getConvertFrequencyCardinality()) {
       return null;  // group by is faster
     }
+    int value = cardinality.intValue();
+    BigInteger prime = BigInteger.valueOf(value).nextProbablePrime();
+    int width = Math.min(prime.intValue(), (value << 1) - 1);
+
     FrequencyQuery query = new FrequencyQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getFilter(),
         getVirtualColumns(),
-        columnNames,
-        (int) (cardinality.intValue() * 1.1),
-        -1,
+        getGroupingSets(),
+        dimensions,
+        width,
+        FrequencyQuery.DEFAULT_DEPTH,
         limitSpec.getLimit(),
         null,
         getContext()

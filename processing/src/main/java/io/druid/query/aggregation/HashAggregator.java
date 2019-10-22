@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.filter.ValueMatcher;
@@ -42,6 +43,11 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       return new BytesOutputStream();
     }
   };
+  private static final byte NULL_VALUE  = (byte) 0x00;    // HLL seemingly expects this to be zero
+  private static final byte COLUMN_SEPARATOR = (byte) 0x01;
+  private static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
+
+  private static final BytesRef NULL_REF = new BytesRef(new byte[]{NULL_VALUE});
 
   private final ValueMatcher predicate;
   private final List<DimensionSelector> selectorList;
@@ -61,9 +67,9 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
     this.byRow = byRow;
   }
 
-  public HashAggregator(List<DimensionSelector> selectorList, boolean byRow)
+  public HashAggregator(List<DimensionSelector> selectorList, int[][] groupings)
   {
-    this(ValueMatcher.TRUE, selectorList, new int[][]{}, byRow);
+    this(ValueMatcher.TRUE, selectorList, groupings, true);
   }
 
   @Override
@@ -74,10 +80,8 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
         current = newCollector();
       }
       if (selectorList.isEmpty()) {
-        current.collect(new Object[0], new byte[]{NULL_VALUE});
-        return current;
-      }
-      if (byRow) {
+        current.collect(new Object[0], NULL_REF);
+      } else if (byRow) {
         hashRow(selectorList, groupings, current, BUFFERS.get());
       } else {
         hashValues(selectorList, current, BUFFERS.get());
@@ -95,6 +99,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       BytesOutputStream buffer
   )
   {
+    buffer.reset();
     final Object[] values = new Object[selectorList.size()];
     for (int i = 0; i < values.length; i++) {
       final DimensionSelector selector = selectorList.get(i);
@@ -105,17 +110,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       collect(values, collector, buffer);
     } else {
       // explode multi-value
-      if (groupings.length == 0) {
-        populateAndCollect(values, 0, collector, buffer);
-      } else {
-        for (int[] grouping : groupings) {
-          final Object[] copy = new Object[values.length];
-          for (int index : grouping) {
-            copy[index] = values[index];
-          }
-          populateAndCollect(copy, 0, collector, buffer);
-        }
-      }
+      populateAndCollect(values, groupings, collector, buffer);
     }
   }
 
@@ -151,10 +146,6 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
     }
   }
 
-  private static final byte NULL_VALUE  = (byte) 0x00;    // HLL seemingly expects this to be zero
-  private static final byte COLUMN_SEPARATOR = (byte) 0x01;
-  private static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
-
   // concat multi-valued dimension
   private static void collect(
       final Object[] values,
@@ -167,8 +158,27 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       buffer.writeByte(COLUMN_SEPARATOR);
       write(values[i], buffer);
     }
-    collector.collect(values, buffer.toByteArray());
-    buffer.reset();
+    collector.collect(values, buffer.asRef());
+  }
+
+  private static void populateAndCollect(
+      final Object[] values,
+      final int[][] groupings,
+      final HashCollector collector,
+      final BytesOutputStream buffer
+  )
+  {
+    if (groupings.length == 0) {
+      populateAndCollect(values, 0, collector, buffer);
+    } else {
+      for (int[] grouping : groupings) {
+        final Object[] copy = new Object[values.length];
+        for (int index : grouping) {
+          copy[index] = values[index];
+        }
+        populateAndCollect(copy, 0, collector, buffer);
+      }
+    }
   }
 
   // mimics group-by like population of multi-valued dimension
@@ -180,12 +190,13 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
   )
   {
     if (values.length == index) {
-      collector.collect(values, buffer.toByteArray());
+      collector.collect(values, buffer.asRef());
       return;
     }
     if (index > 0) {
       buffer.write(COLUMN_SEPARATOR);
     }
+    final int mark = buffer.size();
     final Object value = values[index];
     if (value == null) {
       buffer.write(NULL_VALUE);
@@ -195,7 +206,6 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       populateAndCollect(values, index + 1, collector, buffer);
     } else {
       final byte[][] array = (byte[][]) value;
-      final int mark = buffer.size();
       for (byte[] element : array) {
         buffer.write(element);
         values[index] = element;
@@ -204,9 +214,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       }
       values[index] = value;
     }
-    if (index == 0) {
-      buffer.reset();
-    }
+    buffer.reset(mark);
   }
 
   private static void write(final Object value, final BytesOutputStream buffer)
@@ -231,6 +239,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       final BytesOutputStream buffer
   )
   {
+    buffer.reset();
     for (final DimensionSelector selector : selectors) {
       final boolean rawAccess = selector instanceof DimensionSelector.WithRawAccess;
       final IndexedInts row = selector.getRow();
@@ -238,7 +247,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       for (int i = 0; i < size; i++) {
         final byte[] value = _toValue(selector, row.get(i), rawAccess);
         write(value, buffer);
-        collector.collect(new Object[] {value}, buffer.toByteArray());
+        collector.collect(new Object[] {value}, buffer.asRef());
         buffer.reset();
       }
     }

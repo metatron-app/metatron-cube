@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -39,7 +40,7 @@ import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
 import io.druid.query.aggregation.countmin.CountMinSketch;
-import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.UTF8Bytes;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -108,7 +109,6 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
     return new Function<Cursor, Sequence<Object[]>>()
     {
       private final int limit = query.getCandidateLimit();
-      private final String[] columns = query.getColumns().toArray(new String[0]);
 
       private final MutableInt size = new MutableInt();
       private final java.util.function.Function<Integer, Map<ObjectArray, MutableInt>> map =
@@ -134,18 +134,13 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)
       {
-        int index = 0;
-        final List<DimensionSelector> selectors = Lists.newArrayList();
-        for (String column : columns) {
-          selectors.add(cursor.makeDimensionSelector(DefaultDimensionSpec.of(column)));
-        }
         final TreeMap<Integer, Map<ObjectArray, MutableInt>> sortedMap = new TreeMap<>();
         final HashCollector collector = new HashCollector()
         {
           @Override
-          public void collect(Object[] values, byte[] bytes)
+          public void collect(Object[] values, BytesRef bytes)
           {
-            final long hashCode = Murmur3.hash64(bytes);
+            final long hashCode = Murmur3.hash64(bytes.bytes, 0, bytes.length);
             final int cardinality = sketch.getEstimatedCount(hashCode);
             if (size.intValue() > limit && cardinality < sortedMap.firstKey()) {
               return;
@@ -161,7 +156,12 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
             }
           }
         };
-        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, true)
+        final List<DimensionSelector> selectors = Lists.newArrayList();
+        for (DimensionSpec dimension : query.getDimensions()) {
+          selectors.add(cursor.makeDimensionSelector(dimension));
+        }
+        final int[][] groupings = query.getGroupings();
+        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings)
         {
           @Override
           protected final HashCollector newCollector()

@@ -19,6 +19,13 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.primitives.Ints;
+
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 // from org.apache.hive.common.util.Murmur3
 public class Murmur3
 {
@@ -199,6 +206,10 @@ public class Murmur3
     return hash128(data, 0, data.length, DEFAULT_SEED);
   }
 
+  public static long[] hash128(byte[] data, int offset, int length) {
+    return hash128(data, offset, length, DEFAULT_SEED);
+  }
+
   /**
    * Murmur3 128-bit variant.
    *
@@ -322,5 +333,45 @@ public class Murmur3
     h *= 0xc4ceb9fe1a85ec53L;
     h ^= (h >>> 33);
     return h;
+  }
+
+  public static String encode(final String query)
+  {
+    char[] chars = query.toCharArray();
+    List<Integer> output = new ArrayList<>();
+    for (int i = 0; i < chars.length; i++) {
+      int c = Character.codePointAt(chars, i);
+      if (c < 0x7F) {
+        output.add(c);
+      } else if (c < 0x7FF) {
+        output.add(0xC0 + (c >> 6));
+        output.add(0x80 + (c & 0x3F));
+      } else if (c < 0xFFFF) {
+        output.add(0xE0 + (c >> 12));
+        output.add(0x80 + ((c >> 6) & 0x3F));
+        output.add(0x80 + (c & 0x3F));
+      } else if (c < 0x10FFFF) {
+        output.add(0xF0 + (c >> 18));
+        output.add(0x80 + ((c >> 6) & 0x3F));
+        output.add(0x80 + ((c >> 12) & 0x3F));
+        output.add(0x80 + (c & 0x3F));
+      }
+    }
+    int[] codePoints = Ints.toArray(output);
+    return new String(codePoints, 0, codePoints.length);
+  }
+
+  public static void main(String[] args) throws UnsupportedEncodingException
+  {
+    System.out.println("한글");
+    System.out.println(Arrays.toString("한글".getBytes("UTF-8")));
+    System.out.println(Arrays.toString("한글".getBytes("ISO-8859-1")));
+    System.out.println(encode("한글"));
+    System.out.println(Arrays.toString(encode("한글").getBytes("UTF-8")));
+    System.out.println(Arrays.toString(encode("한글").getBytes("ISO-8859-1")));
+//    int[] x = new int[] {0xD55C, 0xAE00};
+//    System.out.println(new String(x, 0, 2));
+//    System.out.println(Arrays.toString("한글".getBytes("UTF-8")));
+//    System.out.println(Arrays.toString("한글".getBytes("ASCII")));
   }
 }

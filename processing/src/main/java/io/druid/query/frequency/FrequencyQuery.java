@@ -43,7 +43,8 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinSketch;
-import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -59,18 +60,23 @@ import java.util.Objects;
  */
 @JsonTypeName("frequency")
 public class FrequencyQuery extends BaseQuery<Object[]>
-    implements Query.ColumnsSupport<Object[]>, Query.ArrayOutputSupport<Object[]>, Query.RewritingQuery<Object[]>, Query.LogProvider<Object[]>
+    implements Query.DimensionSupport<Object[]>,
+    Query.ArrayOutputSupport<Object[]>,
+    Query.RewritingQuery<Object[]>,
+    Query.LogProvider<Object[]>
 {
-  private static final int DEFAULT_DEPTH = 4;
-  private static final int MAX_LIMIT = 16384;
+  public static final int DEFAULT_DEPTH = 4;  // 4 for 90%, 7 for 99%, 10 for 99.9%
+  public static final int MAX_LIMIT = 16384;
 
-  private final List<String> columns;
-  private final List<VirtualColumn> virtualColumns;
   private final DimFilter filter;
-  private final byte[] sketch;
+  private final List<VirtualColumn> virtualColumns;
+  private final GroupingSetSpec groupingSets;
+  private final List<DimensionSpec> dimensions;
+
   private final int width;
   private final int depth;
   private final int limit;
+  private final byte[] sketch;
 
   @JsonCreator
   public FrequencyQuery(
@@ -78,7 +84,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
-      @JsonProperty("columns") List<String> columns,
+      @JsonProperty("groupingSets") GroupingSetSpec groupingSets,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("width") int width,
       @JsonProperty("depth") int depth,
       @JsonProperty("limit") int limit,
@@ -88,12 +95,14 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
-    this.columns = columns == null ? ImmutableList.<String>of() : columns;
+    this.groupingSets = groupingSets == null || groupingSets.isEmpty() ? null : groupingSets;
+    this.dimensions = dimensions;
     this.filter = filter;
     this.width = width;
     this.depth = depth <= 0 ? DEFAULT_DEPTH : depth;
     this.limit = limit;
     this.sketch = sketch;
+    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "'dimensions' cannot be null or empty");
     Preconditions.checkArgument(limit > 0 && limit < MAX_LIMIT, "invalid limit %d", limit);
   }
 
@@ -140,14 +149,14 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     byte[] newSketch = sketch;
     if (newWidth <= 0) {
       AggregatorFactory factory = new CardinalityAggregatorFactory(
-          "$v", null, DefaultDimensionSpec.toSpec(columns), GroupingSetSpec.EMPTY, null, true, true
+          "$v", null, dimensions, GroupingSetSpec.EMPTY, null, true, true
       );
       Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
       newWidth = (int) (Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue() * 1.1);
     }
     if (newSketch == null) {
       AggregatorFactory factory = new CountMinAggregatorFactory(
-          "$v", columns, null, null, null, true, newWidth, depth, false
+          "$v", null, dimensions, null, null, true, newWidth, depth, false
       );
       // disable cache
       meta = meta.withOverriddenContext(ImmutableMap.<String, Object>of(
@@ -162,7 +171,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         newWidth,
         depth,
         limit,
@@ -179,7 +189,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         spec,
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -196,7 +207,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -213,7 +225,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -230,7 +243,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -247,7 +261,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -257,14 +272,15 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public FrequencyQuery withColumns(List<String> columns)
+  public FrequencyQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     return new FrequencyQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
@@ -285,13 +301,19 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         filter,
         virtualColumns,
-        columns,
+        groupingSets,
+        dimensions,
         width,
         depth,
         limit,
         null,
         getContext()
     );
+  }
+
+  public int[][] getGroupings()
+  {
+    return groupingSets == null ? new int[][]{} : groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensions));
   }
 
   @Override
@@ -305,9 +327,9 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
-  public List<String> getColumns()
+  public List<DimensionSpec> getDimensions()
   {
-    return columns;
+    return dimensions;
   }
 
   @Override
@@ -316,6 +338,13 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public GroupingSetSpec getGroupingSets()
+  {
+    return groupingSets;
   }
 
   @JsonProperty
@@ -356,7 +385,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return GuavaUtils.concat("count", columns);
+    return GuavaUtils.concat("count", DimensionSpecs.toOutputNames(dimensions));
   }
 
   @Override
@@ -380,10 +409,13 @@ public class FrequencyQuery extends BaseQuery<Object[]>
 
     FrequencyQuery that = (FrequencyQuery) o;
 
-    if (!Objects.equals(columns, that.columns)) {
+    if (!Objects.equals(dimensions, that.dimensions)) {
       return false;
     }
     if (!Objects.equals(virtualColumns, that.virtualColumns)) {
+      return false;
+    }
+    if (!Objects.equals(groupingSets, that.groupingSets)) {
       return false;
     }
     if (!Objects.equals(filter, that.filter)) {
@@ -396,8 +428,9 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + Objects.hashCode(columns);
+    result = 31 * result + Objects.hashCode(dimensions);
     result = 31 * result + Objects.hashCode(virtualColumns);
+    result = 31 * result + Objects.hashCode(groupingSets);
     result = 31 * result + Objects.hashCode(filter);
     result = 31 * result + width;
     result = 31 * result + depth;
@@ -410,7 +443,8 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     return "FrequencyQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", virtualColumns=" + virtualColumns +
-           ", columns=" + columns +
+           ", groupingSets=" + groupingSets +
+           ", dimensions=" + dimensions +
            ", filter=" + filter +
            ", width=" + width +
            ", depth=" + depth +
