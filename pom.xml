@@ -95,6 +95,8 @@
 
         <avatica.version>1.12.0</avatica.version>
         <calcite.version>1.17.0</calcite.version>
+        <!-- HttpClient has not yet been ported to Netty 4.x -->
+        <netty3.version>3.10.6.Final</netty3.version>
         <netty.version>4.1.11.Final</netty.version>
 
         <fmpp.version>0.9.16</fmpp.version>
@@ -115,6 +117,7 @@
         <module>integration-tests</module>
         <module>benchmarks</module>
         <module>aws-common</module>
+        <module>java-util</module>
         <module>sql</module>
         <module>web-console</module>
         <!-- Core extensions -->
@@ -481,6 +484,11 @@
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
+                <artifactId>netty</artifactId>
+                <version>${netty3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
                 <version>${netty.version}</version>
             </dependency>
@@ -656,6 +664,41 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-math3</artifactId>
                 <version>3.6.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.6.4</version>
+            </dependency>
+            <dependency>
+                <groupId>it.unimi.dsi</groupId>
+                <artifactId>fastutil</artifactId>
+                <version>8.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sf.opencsv</groupId>
+                <artifactId>opencsv</artifactId>
+                <version>2.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jayway.jsonpath</groupId>
+                <artifactId>json-path</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>net.thisptr</groupId>
+                <artifactId>jackson-jq</artifactId>
+                <version>0.0.7</version>
+            </dependency>
+            <dependency>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client</artifactId>
+                <version>2.0.37</version>
+            </dependency>
+            <dependency>
+                <groupId>org.gridkit.lab</groupId>
+                <artifactId>jvm-attach-api</artifactId>
+                <version>1.2</version>
             </dependency>
 
             <dependency>
