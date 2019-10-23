@@ -19,7 +19,7 @@
 
 package io.druid.granularity;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;

@@ -22,7 +22,7 @@ package io.druid.indexing.kafka;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.indexing.overlord.BaseDataSourceMetadata;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.metadata.TableDesc;

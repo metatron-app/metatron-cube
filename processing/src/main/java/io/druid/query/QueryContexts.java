@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 
 public class QueryContexts
 {

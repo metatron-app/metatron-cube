@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Supplier;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.concurrent.atomic.AtomicBoolean;

@@ -33,9 +33,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
-import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
-import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.io.File;
 import java.io.IOException;

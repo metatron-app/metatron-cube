@@ -22,7 +22,7 @@ package io.druid.server.initialization.jetty;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.servlets.QoSFilter;
 

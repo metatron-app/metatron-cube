@@ -19,7 +19,7 @@
 
 package io.druid.hive;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.exec.TableScanOperator;
 import org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler;

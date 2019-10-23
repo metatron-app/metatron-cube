@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.metamx.common.MapUtils;
+import io.druid.java.util.common.MapUtils;
 import com.microsoft.azure.storage.StorageException;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.loading.DataSegmentPusherUtil;

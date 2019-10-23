@@ -29,7 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;

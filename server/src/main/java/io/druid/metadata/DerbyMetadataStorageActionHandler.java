@@ -21,7 +21,7 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.common.utils.StringUtils;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.Handle;

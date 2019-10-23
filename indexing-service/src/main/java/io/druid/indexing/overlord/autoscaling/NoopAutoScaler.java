@@ -19,8 +19,8 @@
 
 package io.druid.indexing.overlord.autoscaling;
 
-import com.metamx.common.UOE;
-import com.metamx.emitter.EmittingLogger;
+import io.druid.java.util.common.UOE;
+import io.druid.java.util.emitter.EmittingLogger;
 
 import java.util.List;
 

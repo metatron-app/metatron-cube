@@ -19,8 +19,8 @@
 
 package io.druid.segment;
 
-import com.metamx.common.IAE;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueType;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;

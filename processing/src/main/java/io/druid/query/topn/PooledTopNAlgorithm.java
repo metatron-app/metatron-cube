@@ -19,8 +19,8 @@
 
 package io.druid.query.topn;
 
-import com.metamx.common.Pair;
-import com.metamx.common.guava.CloseQuietly;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.query.aggregation.AggregatorFactory;

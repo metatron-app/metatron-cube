@@ -19,7 +19,7 @@
 
 package io.druid.server.coordinator;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.server.coordinator.cost.SegmentsCostCache;
 import io.druid.timeline.DataSegment;

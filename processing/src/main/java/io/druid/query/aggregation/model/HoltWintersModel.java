@@ -21,7 +21,7 @@ package io.druid.query.aggregation.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 
 import java.util.Arrays;
 import java.util.Collection;

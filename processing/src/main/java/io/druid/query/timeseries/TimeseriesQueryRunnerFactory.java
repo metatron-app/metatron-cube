@@ -21,8 +21,8 @@ package io.druid.query.timeseries;
 
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import com.metamx.common.ISE;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.data.input.Row;
 import io.druid.query.ChainedExecutionQueryRunner;

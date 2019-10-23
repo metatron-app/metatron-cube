@@ -19,11 +19,11 @@
 
 package io.druid.common;
 
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
-import com.metamx.common.guava.YieldingSequenceBase;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.YieldingSequenceBase;
+import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.Future;

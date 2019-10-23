@@ -19,8 +19,8 @@
 
 package io.druid.server.metrics;
 
-import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -55,7 +55,7 @@ druid.discovery.curator.path=/prod/discovery
 druid.request.logging.type=emitter
 druid.request.logging.feed=druid_requests
 
-druid.monitoring.monitors=["com.metamx.metrics.JvmMonitor"]
+druid.monitoring.monitors=["io.druid.java.util.metrics.JvmMonitor"]
 
 druid.emitter=http
 druid.emitter.http.recipientBaseUrl=#{EMITTER_URL}
@@ -190,7 +190,7 @@ druid.indexer.runner.javaOpts=-server -Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=1
 druid.indexer.task.baseTaskDir=/mnt/persistent/task/
 
 # Peon properties
-druid.indexer.fork.property.druid.monitoring.monitors=["com.metamx.metrics.JvmMonitor"]
+druid.indexer.fork.property.druid.monitoring.monitors=["io.druid.java.util.metrics.JvmMonitor"]
 druid.indexer.fork.property.druid.processing.buffer.sizeBytes=536870912
 druid.indexer.fork.property.druid.processing.numThreads=2
 druid.indexer.fork.property.druid.segmentCache.locations=[{"path": "/mnt/persistent/zk_druid", "maxSize": 0}]
@@ -295,7 +295,7 @@ druid.server.maxSize=300000000000
 
 druid.segmentCache.locations=[{"path": "/mnt/persistent/zk_druid", "maxSize": 300000000000}]
 
-druid.monitoring.monitors=["io.druid.server.metrics.HistoricalMetricsMonitor", "com.metamx.metrics.JvmMonitor"]
+druid.monitoring.monitors=["io.druid.server.metrics.HistoricalMetricsMonitor", "io.druid.java.util.metrics.JvmMonitor"]
 ```
 
 ### Broker Node
@@ -400,5 +400,5 @@ druid.processing.numThreads=7
 
 druid.server.http.numThreads=50
 
-druid.monitoring.monitors=["io.druid.segment.realtime.RealtimeMetricsMonitor", "com.metamx.metrics.JvmMonitor"]
+druid.monitoring.monitors=["io.druid.segment.realtime.RealtimeMetricsMonitor", "io.druid.java.util.metrics.JvmMonitor"]
 ```

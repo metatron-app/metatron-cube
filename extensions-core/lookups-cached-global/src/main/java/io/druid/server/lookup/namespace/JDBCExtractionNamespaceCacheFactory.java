@@ -19,8 +19,8 @@
 
 package io.druid.server.lookup.namespace;
 
-import com.metamx.common.Pair;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.lookup.namespace.ExtractionNamespaceCacheFactory;

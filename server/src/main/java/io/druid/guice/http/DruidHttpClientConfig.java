@@ -20,7 +20,7 @@
 package io.druid.guice.http;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import org.joda.time.Duration;
 import org.joda.time.Period;
 

@@ -22,7 +22,7 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.parsers.Parser;
+import io.druid.java.util.common.parsers.Parser;
 import io.druid.TestObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import org.junit.Assert;

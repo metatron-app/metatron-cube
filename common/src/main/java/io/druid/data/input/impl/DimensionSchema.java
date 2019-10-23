@@ -27,7 +27,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 

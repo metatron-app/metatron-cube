@@ -19,7 +19,7 @@
 
 package io.druid.client.cache;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.ByteArray;
 
 import java.util.Collections;

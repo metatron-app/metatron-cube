@@ -19,7 +19,7 @@
 
 package io.druid.math.expr;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr.NumericBinding;

@@ -23,7 +23,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import com.metamx.common.RetryUtils;
+import io.druid.java.util.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;

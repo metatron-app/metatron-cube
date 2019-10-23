@@ -24,7 +24,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Queues;
 import com.google.common.primitives.Longs;
-import com.metamx.common.guava.Comparators;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.query.Result;
 import org.joda.time.DateTime;
 

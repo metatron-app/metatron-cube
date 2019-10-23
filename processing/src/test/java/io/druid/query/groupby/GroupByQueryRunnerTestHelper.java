@@ -26,7 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;

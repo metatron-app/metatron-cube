@@ -19,7 +19,7 @@
 
 package io.druid.indexer;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.timeline.DataSegment;
 
 import java.util.List;

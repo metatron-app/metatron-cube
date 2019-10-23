@@ -29,7 +29,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;

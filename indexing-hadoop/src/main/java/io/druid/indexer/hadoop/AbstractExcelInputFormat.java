@@ -19,7 +19,7 @@
 
 package io.druid.indexer.hadoop;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import com.monitorjbl.xlsx.StreamingReader;
 import io.druid.data.input.ExcelParser;
 import org.apache.hadoop.conf.Configuration;

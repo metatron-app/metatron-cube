@@ -20,7 +20,7 @@
 package io.druid.storage.azure;
 
 import com.google.common.base.Predicate;
-import com.metamx.common.RetryUtils;
+import io.druid.java.util.common.RetryUtils;
 import com.microsoft.azure.storage.StorageException;
 
 import java.io.IOException;

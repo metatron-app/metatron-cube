@@ -26,7 +26,7 @@ import com.esri.core.geometry.ogc.OGCGeometry;
 import com.esri.hadoop.hive.GeometryUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.ExprEval;
 

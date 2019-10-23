@@ -22,7 +22,7 @@ package io.druid.sql.calcite.planner;
 import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;

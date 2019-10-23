@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;

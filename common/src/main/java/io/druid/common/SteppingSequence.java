@@ -20,16 +20,16 @@
 package io.druid.common;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.guava.DelegatingYieldingAccumulator;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
-import com.metamx.common.guava.YieldingSequenceBase;
+import io.druid.java.util.common.guava.DelegatingYieldingAccumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.YieldingSequenceBase;
 
 import java.io.IOException;
 
 /**
- * copied from com.metamx.common.guava.LimitedSequence
+ * copied from io.druid.java.util.common.guava.LimitedSequence
  *
  * Limits the number of inputs from this sequence.  For example, if there are actually 100 things in the sequence
  * but the limit is set to 10, the Sequence will act as if it only had 10 things.

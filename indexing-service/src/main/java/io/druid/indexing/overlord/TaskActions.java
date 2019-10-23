@@ -20,8 +20,8 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.collect.Maps;
-import com.metamx.common.logger.Logger;
-import com.metamx.emitter.core.Event;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.core.Event;
 import io.druid.indexing.common.actions.DataSourceMetadataUpdateAction;
 import io.druid.indexing.common.actions.LockTryAcquireAction;
 import io.druid.indexing.common.actions.SegmentAllocateAction;

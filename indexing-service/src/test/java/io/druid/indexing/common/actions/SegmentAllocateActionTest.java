@@ -25,7 +25,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;

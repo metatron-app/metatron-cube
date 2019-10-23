@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;

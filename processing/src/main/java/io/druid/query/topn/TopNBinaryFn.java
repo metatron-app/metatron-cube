@@ -20,7 +20,7 @@
 package io.druid.query.topn;
 
 import com.google.common.collect.Maps;
-import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
 import io.druid.query.Result;

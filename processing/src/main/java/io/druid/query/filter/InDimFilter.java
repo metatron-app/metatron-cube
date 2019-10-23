@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;

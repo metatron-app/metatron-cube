@@ -19,8 +19,8 @@
 
 package io.druid.indexing.overlord.autoscaling;
 
-import com.metamx.common.concurrent.ScheduledExecutors;
-import com.metamx.emitter.EmittingLogger;
+import io.druid.java.util.common.concurrent.ScheduledExecutors;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.indexing.overlord.WorkerTaskRunner;
 import org.joda.time.Duration;

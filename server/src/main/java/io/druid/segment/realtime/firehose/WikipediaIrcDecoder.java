@@ -26,7 +26,7 @@ import com.google.common.collect.Maps;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.Omni;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.data.Rows;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;

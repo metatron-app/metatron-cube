@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Joiner;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.utils.StringUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;

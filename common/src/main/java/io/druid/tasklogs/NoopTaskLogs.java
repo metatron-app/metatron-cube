@@ -22,7 +22,7 @@ package io.druid.tasklogs;
 import com.google.common.base.Optional;
 import com.google.common.io.ByteSource;
 import com.google.common.io.InputSupplier;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 
 import java.io.File;
 import java.io.IOException;

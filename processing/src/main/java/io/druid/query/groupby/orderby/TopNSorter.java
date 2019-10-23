@@ -21,8 +21,8 @@ package io.druid.query.groupby.orderby;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Comparator;
 import java.util.Iterator;

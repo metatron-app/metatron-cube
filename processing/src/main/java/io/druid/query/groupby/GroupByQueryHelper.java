@@ -19,9 +19,9 @@
 
 package io.druid.query.groupby;
 
-import com.metamx.common.ISE;
-import com.metamx.common.Pair;
-import com.metamx.common.guava.Accumulator;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Accumulator;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
 import io.druid.query.QueryConfig;

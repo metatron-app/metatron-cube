@@ -30,7 +30,7 @@ import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
-import com.metamx.common.lifecycle.Lifecycle;
+import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.guice.DruidBinders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.KeyHolder;

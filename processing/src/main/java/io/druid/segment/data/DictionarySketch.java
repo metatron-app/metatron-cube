@@ -19,7 +19,7 @@
 
 package io.druid.segment.data;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.ValueDesc;

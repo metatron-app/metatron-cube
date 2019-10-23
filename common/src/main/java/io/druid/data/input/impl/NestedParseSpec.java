@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.parsers.Parser;
+import io.druid.java.util.common.parsers.Parser;
 import io.druid.data.input.TimestampSpec;
 
 import java.util.Iterator;

@@ -22,7 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
-import com.metamx.common.guava.Sequences;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;

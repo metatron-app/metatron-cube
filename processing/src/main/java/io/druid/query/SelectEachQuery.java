@@ -21,8 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.metamx.common.Pair;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.joda.time.Interval;

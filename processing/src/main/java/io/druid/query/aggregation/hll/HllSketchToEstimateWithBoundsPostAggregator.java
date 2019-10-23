@@ -21,7 +21,7 @@ package io.druid.query.aggregation.hll;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.yahoo.sketches.hll.HllSketch;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;

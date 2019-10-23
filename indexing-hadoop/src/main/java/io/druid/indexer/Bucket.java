@@ -20,7 +20,7 @@
 package io.druid.indexer;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;

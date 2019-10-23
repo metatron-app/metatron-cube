@@ -30,7 +30,7 @@ import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import com.google.inject.servlet.DelegatedGuiceFilter;
 import com.google.inject.util.Providers;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.audit.AuditManager;
 import io.druid.client.coordinator.CoordinatorClient;

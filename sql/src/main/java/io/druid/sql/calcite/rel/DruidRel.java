@@ -20,8 +20,8 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Throwables;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.interpreter.BindableRel;

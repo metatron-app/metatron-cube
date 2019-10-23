@@ -20,7 +20,7 @@
 package io.druid.query.select;
 
 import com.google.inject.Inject;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;

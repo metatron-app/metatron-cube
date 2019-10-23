@@ -19,7 +19,7 @@
 
 package io.druid.indexing.common;
 
-import com.metamx.emitter.EmittingLogger;
+import io.druid.java.util.emitter.EmittingLogger;
 import org.joda.time.Duration;
 
 /**

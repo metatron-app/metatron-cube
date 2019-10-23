@@ -25,14 +25,14 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.collect.Utils;
-import com.metamx.common.parsers.ParseException;
-import com.metamx.common.parsers.Parser;
-import com.metamx.common.parsers.ParserUtils;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.Parser;
+import io.druid.java.util.common.parsers.ParserUtils;
 
 import java.util.List;
 import java.util.Map;
 
-// copied from com.metamx.common.parsers.CSVParser
+// copied from io.druid.java.util.common.parsers.CSVParser
 public class CSVParser implements Parser<String, Object>
 {
   private static final Function<String, String> EMPTY_TO_NULL = ParserUtils.nullEmptyStringFunction;

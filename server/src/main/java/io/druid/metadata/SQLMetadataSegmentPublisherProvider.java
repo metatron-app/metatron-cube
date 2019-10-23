@@ -21,7 +21,7 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.emitter.core.Emitter;
+import io.druid.java.util.emitter.core.Emitter;
 import io.druid.server.log.Events;
 
 import javax.validation.constraints.NotNull;

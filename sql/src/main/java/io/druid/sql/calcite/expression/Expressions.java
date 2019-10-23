@@ -21,7 +21,7 @@ package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;

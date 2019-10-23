@@ -20,7 +20,7 @@
 package io.druid.query.groupby;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.query.BaseAggregationQuery;

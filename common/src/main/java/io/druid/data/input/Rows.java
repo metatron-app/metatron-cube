@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
-import com.metamx.common.ISE;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.StringUtils;
 import org.joda.time.DateTime;
 
 import java.io.File;

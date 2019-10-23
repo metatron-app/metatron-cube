@@ -25,9 +25,9 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.IAE;
-import com.metamx.common.RE;
-import com.metamx.common.guava.CloseQuietly;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.RE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryInterruptedException;
 

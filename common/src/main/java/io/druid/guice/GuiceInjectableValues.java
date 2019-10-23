@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 
 /**
  */

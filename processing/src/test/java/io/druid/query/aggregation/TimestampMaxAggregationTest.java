@@ -21,8 +21,8 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.AggregatorsModule;

@@ -22,7 +22,7 @@ package io.druid.query.lookup;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.jackson.DefaultObjectMapper;
 import org.easymock.EasyMock;
 import org.junit.After;

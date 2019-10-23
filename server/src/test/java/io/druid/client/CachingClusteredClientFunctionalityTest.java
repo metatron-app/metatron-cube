@@ -29,6 +29,7 @@ import io.druid.client.cache.MapCache;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
@@ -38,6 +39,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
@@ -74,6 +76,7 @@ public class CachingClusteredClientFunctionalityTest {
     serverView = EasyMock.createNiceMock(TimelineServerView.class);
     cache = MapCache.create(100000);
     client = makeClient(MoreExecutors.sameThreadExecutor());
+    EmittingLogger.registerEmitter(new NoopServiceEmitter());
   }
 
   @Test

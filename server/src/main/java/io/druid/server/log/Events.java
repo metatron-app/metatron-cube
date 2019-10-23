@@ -21,7 +21,7 @@ package io.druid.server.log;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.inject.BindingAnnotation;
-import com.metamx.emitter.core.Event;
+import io.druid.java.util.emitter.core.Event;
 import org.joda.time.DateTime;
 
 import java.lang.annotation.Retention;

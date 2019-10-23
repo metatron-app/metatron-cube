@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Supplier;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import com.ning.compress.BufferRecycler;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;

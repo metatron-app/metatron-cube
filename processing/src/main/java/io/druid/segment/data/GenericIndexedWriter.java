@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;

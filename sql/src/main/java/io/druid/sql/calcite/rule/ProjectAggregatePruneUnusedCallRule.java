@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;

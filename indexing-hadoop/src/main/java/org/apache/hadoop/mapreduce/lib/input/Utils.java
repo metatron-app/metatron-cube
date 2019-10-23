@@ -20,7 +20,7 @@
 package org.apache.hadoop.mapreduce.lib.input;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.indexer.path.HadoopCombineInputFormat;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputSplit;

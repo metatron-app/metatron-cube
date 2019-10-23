@@ -22,7 +22,7 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.metamx.common.RE;
+import io.druid.java.util.common.RE;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;

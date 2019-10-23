@@ -28,7 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;

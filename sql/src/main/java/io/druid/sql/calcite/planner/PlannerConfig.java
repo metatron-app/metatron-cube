@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 

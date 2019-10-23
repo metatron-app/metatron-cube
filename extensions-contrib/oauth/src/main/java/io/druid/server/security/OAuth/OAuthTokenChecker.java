@@ -21,12 +21,12 @@ package io.druid.server.security.OAuth;
 import com.amazonaws.util.json.JSONObject;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
-import com.metamx.common.IAE;
-import com.metamx.common.logger.Logger;
-import com.metamx.http.client.HttpClient;
-import com.metamx.http.client.Request;
-import com.metamx.http.client.response.StatusResponseHandler;
-import com.metamx.http.client.response.StatusResponseHolder;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.response.StatusResponseHandler;
+import io.druid.java.util.http.client.response.StatusResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 

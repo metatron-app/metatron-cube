@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import io.druid.data.ValueType;

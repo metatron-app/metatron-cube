@@ -19,7 +19,7 @@
 
 package io.druid.common.guava;
 
-import com.metamx.common.guava.Yielder;
+import io.druid.java.util.common.guava.Yielder;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;

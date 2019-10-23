@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.ircclouds.irc.api.domain.messages.ChannelPrivMsg;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;

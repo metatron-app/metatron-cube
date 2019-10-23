@@ -21,7 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.CaseFilteredAggregatorRule;

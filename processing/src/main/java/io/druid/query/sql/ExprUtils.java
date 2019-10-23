@@ -20,7 +20,7 @@
 package io.druid.query.sql;
 
 import com.google.common.base.Strings;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.Evals;

@@ -21,7 +21,7 @@ package io.druid.server.coordinator.helper;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;

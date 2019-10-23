@@ -19,8 +19,8 @@
 
 package io.druid.query.search;
 
-import com.metamx.common.ISE;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;

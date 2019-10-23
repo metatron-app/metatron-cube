@@ -21,7 +21,7 @@ package io.druid.common.utils;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;

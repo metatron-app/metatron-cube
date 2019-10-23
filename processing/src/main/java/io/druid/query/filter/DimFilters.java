@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;

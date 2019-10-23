@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.common.io.CountingOutputStream;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;

@@ -34,7 +34,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.GuiceInjectors;

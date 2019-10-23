@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.JsonSerializable;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.google.common.base.Preconditions;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import org.joda.time.Chronology;

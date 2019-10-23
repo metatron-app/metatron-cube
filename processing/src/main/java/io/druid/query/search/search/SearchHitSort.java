@@ -22,7 +22,7 @@ package io.druid.query.search.search;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
-import com.metamx.common.guava.Comparators;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.query.ordering.StringComparators;
 
 import java.util.Comparator;

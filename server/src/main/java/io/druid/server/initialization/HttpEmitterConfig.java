@@ -24,7 +24,7 @@ import org.joda.time.Period;
 
 /**
  */
-public class HttpEmitterConfig extends com.metamx.emitter.core.HttpEmitterConfig
+public class HttpEmitterConfig extends io.druid.java.util.emitter.core.HttpEmitterConfig
 {
   @JsonProperty
   private Period timeOut = new Period("PT5M");

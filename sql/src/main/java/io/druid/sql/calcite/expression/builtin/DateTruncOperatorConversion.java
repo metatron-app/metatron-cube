@@ -21,7 +21,7 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Evals;
 import org.apache.calcite.rex.RexNode;

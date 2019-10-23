@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.collect.ImmutableList;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;

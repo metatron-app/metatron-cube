@@ -36,8 +36,8 @@ import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
-import com.metamx.common.guava.FunctionalIterable;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.IntPredicate;
@@ -470,7 +470,7 @@ public class Filters
     if (cache == null || segmentId == null || segmentCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
-    final byte[] namespace = com.metamx.common.StringUtils.toUtf8(segmentId);
+    final byte[] namespace = io.druid.java.util.common.StringUtils.toUtf8(segmentId);
     return new FilterContext(selector)
     {
       @Override

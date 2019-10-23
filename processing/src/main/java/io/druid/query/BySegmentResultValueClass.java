@@ -22,7 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import org.joda.time.Interval;

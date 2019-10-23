@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.hll;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import io.druid.query.aggregation.Aggregator;

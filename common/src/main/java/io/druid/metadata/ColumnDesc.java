@@ -21,7 +21,7 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 
 import java.util.Map;
 

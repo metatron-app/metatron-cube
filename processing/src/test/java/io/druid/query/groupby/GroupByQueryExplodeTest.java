@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
-import com.metamx.common.guava.Sequences;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;

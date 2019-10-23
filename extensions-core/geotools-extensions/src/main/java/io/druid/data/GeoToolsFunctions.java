@@ -21,7 +21,7 @@ package io.druid.data;
 
 import com.google.common.base.Throwables;
 import com.google.common.primitives.Longs;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.operation.buffer.BufferParameters;
 import io.druid.math.expr.BuiltinFunctions;

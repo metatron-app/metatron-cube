@@ -20,7 +20,7 @@
 package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.BufferAggregator;

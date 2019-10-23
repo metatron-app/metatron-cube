@@ -22,7 +22,7 @@ package io.druid.sql.calcite.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
 import org.apache.calcite.runtime.Hook;

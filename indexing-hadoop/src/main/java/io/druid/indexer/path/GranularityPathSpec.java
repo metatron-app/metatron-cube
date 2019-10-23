@@ -22,7 +22,7 @@ package io.druid.indexer.path;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.HadoopDruidIndexerConfig;

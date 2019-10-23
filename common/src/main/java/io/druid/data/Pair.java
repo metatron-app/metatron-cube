@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  */
-public class Pair<K, V> extends com.metamx.common.Pair<K, V> implements Map.Entry<K, V>
+public class Pair<K, V> extends io.druid.java.util.common.Pair<K, V> implements Map.Entry<K, V>
 {
   public static <T1, T2> Pair<T1, T2> of(T1 lhs, T2 rhs)
   {

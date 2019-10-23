@@ -19,7 +19,7 @@
 
 package io.druid.client;
 
-import com.metamx.http.client.response.HttpResponseHandler;
+import io.druid.java.util.http.client.response.HttpResponseHandler;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 
 import java.io.Closeable;

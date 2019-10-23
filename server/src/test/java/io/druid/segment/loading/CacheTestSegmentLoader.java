@@ -19,7 +19,7 @@
 
 package io.druid.segment.loading;
 
-import com.metamx.common.MapUtils;
+import io.druid.java.util.common.MapUtils;
 import io.druid.query.select.Schema;
 import io.druid.segment.AbstractSegment;
 import io.druid.segment.QueryableIndex;

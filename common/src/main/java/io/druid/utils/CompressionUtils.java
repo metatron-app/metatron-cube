@@ -19,7 +19,7 @@
 
 package io.druid.utils;
 
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -36,30 +36,30 @@ public class CompressionUtils
 
   public static long zip(File directory, File outputZipFile) throws IOException
   {
-    if (!com.metamx.common.CompressionUtils.isZip(outputZipFile.getName())) {
+    if (!io.druid.java.util.common.CompressionUtils.isZip(outputZipFile.getName())) {
       log.warn("No .zip suffix[%s], putting files from [%s] into it anyway.", outputZipFile, directory);
     }
     try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(outputZipFile), 0x10000)) {
-      return com.metamx.common.CompressionUtils.zip(directory, out);
+      return io.druid.java.util.common.CompressionUtils.zip(directory, out);
     }
   }
 
-  @Deprecated // Use com.metamx.common.CompressionUtils.unzip
+  @Deprecated // Use io.druid.java.util.common.CompressionUtils.unzip
   public static void unzip(File pulledFile, File outDir) throws IOException
   {
-    com.metamx.common.CompressionUtils.unzip(pulledFile, outDir);
+    io.druid.java.util.common.CompressionUtils.unzip(pulledFile, outDir);
   }
 
-  @Deprecated // Use com.metamx.common.CompressionUtils.unzip
+  @Deprecated // Use io.druid.java.util.common.CompressionUtils.unzip
   public static void unzip(InputStream in, File outDir) throws IOException
   {
-    com.metamx.common.CompressionUtils.unzip(in, outDir);
+    io.druid.java.util.common.CompressionUtils.unzip(in, outDir);
   }
 
   /**
    * Uncompress using a gzip uncompress algorithm from the `pulledFile` to the `outDir`.
-   * Unlike `com.metamx.common.CompressionUtils.gunzip`, this function takes an output *DIRECTORY* and tries to guess the file name.
-   * It is recommended that the caller use `com.metamx.common.CompressionUtils.gunzip` and specify the output file themselves to ensure names are as expected
+   * Unlike `io.druid.java.util.common.CompressionUtils.gunzip`, this function takes an output *DIRECTORY* and tries to guess the file name.
+   * It is recommended that the caller use `io.druid.java.util.common.CompressionUtils.gunzip` and specify the output file themselves to ensure names are as expected
    *
    * @param pulledFile The source file
    * @param outDir     The destination directory to put the resulting file
@@ -69,8 +69,8 @@ public class CompressionUtils
   @Deprecated // See description for alternative
   public static void gunzip(File pulledFile, File outDir) throws IOException
   {
-    final File outFile = new File(outDir, com.metamx.common.CompressionUtils.getGzBaseName(pulledFile.getName()));
-    com.metamx.common.CompressionUtils.gunzip(pulledFile, outFile);
+    final File outFile = new File(outDir, io.druid.java.util.common.CompressionUtils.getGzBaseName(pulledFile.getName()));
+    io.druid.java.util.common.CompressionUtils.gunzip(pulledFile, outFile);
     if (!pulledFile.delete()) {
       log.error("Could not delete tmpFile[%s].", pulledFile);
     }

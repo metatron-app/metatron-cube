@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;

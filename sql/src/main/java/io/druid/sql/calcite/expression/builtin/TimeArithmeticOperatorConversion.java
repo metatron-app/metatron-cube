@@ -20,8 +20,8 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.IAE;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.utils.StringUtils;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;

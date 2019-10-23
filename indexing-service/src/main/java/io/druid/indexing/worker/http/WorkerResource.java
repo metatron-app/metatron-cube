@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.guice.annotations.Self;
 import io.druid.indexing.overlord.TaskRunner;

@@ -19,7 +19,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.sql.calcite.table.RowSignature;
 

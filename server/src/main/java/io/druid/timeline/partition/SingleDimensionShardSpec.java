@@ -20,7 +20,7 @@
 package io.druid.timeline.partition;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.data.input.InputRow;
 
 import java.util.List;

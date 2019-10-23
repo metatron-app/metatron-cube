@@ -19,7 +19,7 @@
 
 package io.druid.metadata;
 
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.client.DruidDataSource;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;

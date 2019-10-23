@@ -24,7 +24,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
-import com.metamx.common.guava.CloseQuietly;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.Schema;

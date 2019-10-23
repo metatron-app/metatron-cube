@@ -22,7 +22,7 @@ package io.druid.server.initialization.jetty;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;

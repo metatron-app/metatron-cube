@@ -21,7 +21,7 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.granularity.PeriodGranularity;

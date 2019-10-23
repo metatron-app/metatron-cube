@@ -22,7 +22,7 @@ package io.druid.query;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
 import com.vividsolutions.jts.geom.Geometry;

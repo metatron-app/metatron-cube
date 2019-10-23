@@ -24,7 +24,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.druid.guice.JsonConfigProvider;

@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.concurrent.ScheduledExecutorFactory;
+import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import io.druid.guice.annotations.Json;
 
 import javax.validation.constraints.NotNull;

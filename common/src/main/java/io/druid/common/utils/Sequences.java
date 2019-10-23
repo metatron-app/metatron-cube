@@ -28,19 +28,19 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Accumulators;
-import com.metamx.common.guava.BaseSequence;
-import com.metamx.common.guava.DelegatingYieldingAccumulator;
-import com.metamx.common.guava.LazySequence;
-import com.metamx.common.guava.MappedSequence;
-import com.metamx.common.guava.MergeSequence;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
-import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.ConcatSequence;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Accumulators;
+import io.druid.java.util.common.guava.BaseSequence;
+import io.druid.java.util.common.guava.DelegatingYieldingAccumulator;
+import io.druid.java.util.common.guava.LazySequence;
+import io.druid.java.util.common.guava.MappedSequence;
+import io.druid.java.util.common.guava.MergeSequence;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
@@ -59,7 +59,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class Sequences extends com.metamx.common.guava.Sequences
+public class Sequences extends io.druid.java.util.common.guava.Sequences
 {
   public static <T> Sequence<T> simple(final Iterable<T> iterable)
   {

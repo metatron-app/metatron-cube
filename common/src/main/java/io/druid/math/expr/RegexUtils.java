@@ -20,7 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Predicate;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

@@ -22,7 +22,7 @@ package io.druid.segment.incremental;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DimensionSchema;

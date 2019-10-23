@@ -26,12 +26,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
-import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.util.concurrent.TimeUnit;
 
 /**
- * Emits all the events instance of {@link com.metamx.emitter.service.ServiceMetricEvent}.
+ * Emits all the events instance of {@link io.druid.java.util.emitter.service.ServiceMetricEvent}.
  * <p>
  * All the dimensions will be retained and lexicographically order using dimensions name.
  * <p>

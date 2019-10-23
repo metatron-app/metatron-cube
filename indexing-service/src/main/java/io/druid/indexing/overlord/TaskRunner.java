@@ -21,7 +21,7 @@ package io.druid.indexing.overlord;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.autoscaling.ScalingStats;

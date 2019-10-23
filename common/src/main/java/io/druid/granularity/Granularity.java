@@ -24,7 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.Cacheable;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;

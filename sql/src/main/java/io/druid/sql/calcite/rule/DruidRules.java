@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.rule;
 
 import com.google.common.collect.ImmutableList;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
 import io.druid.sql.calcite.rel.DruidQueryRel;

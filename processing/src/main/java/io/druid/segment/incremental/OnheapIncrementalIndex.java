@@ -22,7 +22,7 @@ package io.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import com.metamx.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;

@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;

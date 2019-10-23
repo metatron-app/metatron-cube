@@ -20,8 +20,8 @@
 package io.druid.indexing.overlord.helpers;
 
 import com.google.inject.Inject;
-import com.metamx.common.concurrent.ScheduledExecutors;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.concurrent.ScheduledExecutors;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.indexing.overlord.TaskStorage;
 import io.druid.tasklogs.TaskLogKiller;
 import org.joda.time.Duration;

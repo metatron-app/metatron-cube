@@ -20,7 +20,7 @@
 package io.druid.query.sketch;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 
 import java.util.Objects;

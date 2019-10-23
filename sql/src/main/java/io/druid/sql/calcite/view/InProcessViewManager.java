@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.view;
 
 import com.google.inject.Inject;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.calcite.schema.TableMacro;
 

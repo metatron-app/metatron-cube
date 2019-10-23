@@ -24,7 +24,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.ordering.StringComparators;
 import org.joda.time.Interval;

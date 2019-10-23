@@ -21,8 +21,8 @@ package io.druid.query.search;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequences;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Parser;
 import io.druid.query.Druids;
 import io.druid.query.ModuleBuiltinFunctions;

@@ -19,7 +19,7 @@
 
 package io.druid.common.utils;
 
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -26,7 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import hivemall.anomaly.HivemallFunctions;
 import io.druid.common.utils.StringUtils;
 import io.druid.initialization.DruidModule;

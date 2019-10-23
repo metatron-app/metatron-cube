@@ -20,7 +20,7 @@
 package io.druid.indexer.hadoop;
 
 import com.google.common.base.Supplier;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import org.apache.poi.ss.usermodel.Row;
 
 /**

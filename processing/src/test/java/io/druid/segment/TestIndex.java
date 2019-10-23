@@ -34,7 +34,7 @@ import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;

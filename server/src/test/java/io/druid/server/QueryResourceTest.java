@@ -25,9 +25,9 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
-import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.MapQueryToolChestWarehouse;
@@ -131,7 +131,7 @@ public class QueryResourceTest
   @BeforeClass
   public static void staticSetup()
   {
-    com.metamx.emitter.EmittingLogger.registerEmitter(noopServiceEmitter);
+    io.druid.java.util.emitter.EmittingLogger.registerEmitter(noopServiceEmitter);
   }
 
   @Before

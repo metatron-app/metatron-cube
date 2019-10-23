@@ -19,8 +19,8 @@
 
 package io.druid.math.expr;
 
-import com.metamx.common.IAE;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;

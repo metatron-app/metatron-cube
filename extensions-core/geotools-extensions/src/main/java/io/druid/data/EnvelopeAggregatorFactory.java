@@ -21,7 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import io.druid.common.utils.StringUtils;

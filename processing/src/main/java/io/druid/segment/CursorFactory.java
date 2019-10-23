@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.collect.Iterables;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;

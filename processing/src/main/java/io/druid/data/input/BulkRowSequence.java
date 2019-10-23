@@ -21,10 +21,10 @@ package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
-import com.metamx.common.guava.YieldingSequenceBase;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.YieldingSequenceBase;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;

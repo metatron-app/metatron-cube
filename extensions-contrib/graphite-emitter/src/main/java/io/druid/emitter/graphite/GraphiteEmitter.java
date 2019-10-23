@@ -21,12 +21,12 @@ package io.druid.emitter.graphite;
 
 import com.codahale.metrics.graphite.PickledGraphite;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
-import com.metamx.emitter.core.Emitter;
-import com.metamx.emitter.core.Event;
-import com.metamx.emitter.service.AlertEvent;
-import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.core.Emitter;
+import io.druid.java.util.emitter.core.Event;
+import io.druid.java.util.emitter.service.AlertEvent;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.io.IOException;
 import java.net.SocketException;

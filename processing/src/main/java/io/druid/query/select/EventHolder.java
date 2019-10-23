@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import org.joda.time.DateTime;
 
 import java.util.Map;

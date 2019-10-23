@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryCollection;

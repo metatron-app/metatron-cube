@@ -27,7 +27,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import com.metamx.http.client.Request;
+import io.druid.java.util.http.client.Request;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.utils.SocketUtil;
@@ -501,7 +501,7 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
 
     public TestCoordinatorClient(
         DruidNode server,
-        com.metamx.http.client.HttpClient client,
+        io.druid.java.util.http.client.HttpClient client,
         ObjectMapper jsonMapper,
         ServerDiscoverySelector selector
     )
@@ -524,7 +524,7 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
   {
 
     public TestIndexingServiceClient(
-        com.metamx.http.client.HttpClient client,
+        io.druid.java.util.http.client.HttpClient client,
         ObjectMapper jsonMapper,
         ServerDiscoverySelector selector
     )

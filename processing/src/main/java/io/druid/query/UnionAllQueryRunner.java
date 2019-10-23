@@ -19,8 +19,8 @@
 
 package io.druid.query;
 
-import com.metamx.common.Pair;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Map;
 

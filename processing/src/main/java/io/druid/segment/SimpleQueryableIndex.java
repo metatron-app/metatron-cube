@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.common.io.smoosh.SmooshedFileMapper;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;

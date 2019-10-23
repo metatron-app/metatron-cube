@@ -23,8 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser.Feature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.parsers.JSONPathParser;
-import com.metamx.common.parsers.Parser;
+import io.druid.java.util.common.parsers.JSONPathParser;
+import io.druid.java.util.common.parsers.Parser;
 import io.druid.data.input.TimestampSpec;
 
 import java.util.ArrayList;

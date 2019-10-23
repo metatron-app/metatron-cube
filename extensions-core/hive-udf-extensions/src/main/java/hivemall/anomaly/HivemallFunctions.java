@@ -20,7 +20,7 @@
 package hivemall.anomaly;
 
 import com.google.common.base.Throwables;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import hivemall.utils.lang.Preconditions;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;

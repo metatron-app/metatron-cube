@@ -21,8 +21,8 @@ package io.druid.query.topn;
 
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.guice.annotations.Global;

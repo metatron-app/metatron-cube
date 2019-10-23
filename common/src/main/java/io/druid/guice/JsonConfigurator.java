@@ -35,7 +35,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ElementKind;

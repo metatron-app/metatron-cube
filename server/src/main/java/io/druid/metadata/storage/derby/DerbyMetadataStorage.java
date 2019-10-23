@@ -21,9 +21,9 @@ package io.druid.metadata.storage.derby;
 
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
-import com.metamx.common.lifecycle.LifecycleStart;
-import com.metamx.common.lifecycle.LifecycleStop;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.guice.ManageLifecycle;
 import io.druid.metadata.MetadataStorage;
 import io.druid.metadata.MetadataStorageConnectorConfig;

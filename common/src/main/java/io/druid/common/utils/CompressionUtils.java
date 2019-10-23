@@ -20,7 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.io.ByteStreams;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
 
 /**
  */
-public class CompressionUtils extends com.metamx.common.CompressionUtils
+public class CompressionUtils extends io.druid.java.util.common.CompressionUtils
 {
   private static final Logger log = new Logger(CompressionUtils.class);
 

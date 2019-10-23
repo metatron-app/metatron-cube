@@ -18,9 +18,9 @@
  */
 package io.druid.server.coordinator;
 
-import com.metamx.http.client.io.AppendableByteArrayInputStream;
-import com.metamx.http.client.response.ClientResponse;
-import com.metamx.http.client.response.InputStreamResponseHandler;
+import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
+import io.druid.java.util.http.client.response.ClientResponse;
+import io.druid.java.util.http.client.response.InputStreamResponseHandler;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**

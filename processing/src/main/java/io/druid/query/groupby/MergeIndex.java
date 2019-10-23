@@ -19,7 +19,7 @@
 
 package io.druid.query.groupby;
 
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.data.input.Row;
 
 import java.io.Closeable;

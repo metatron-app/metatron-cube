@@ -19,7 +19,7 @@
 
 package io.druid.indexer;
 
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 import org.apache.hadoop.io.WritableComparator;
 import org.junit.Assert;
 import org.junit.Test;

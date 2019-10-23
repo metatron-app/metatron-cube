@@ -21,7 +21,7 @@ package io.druid.query.select;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Result;
 import org.joda.time.DateTime;

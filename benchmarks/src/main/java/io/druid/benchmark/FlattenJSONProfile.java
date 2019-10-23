@@ -19,8 +19,8 @@
 
 package io.druid.benchmark;
 
-import com.metamx.common.parsers.JSONPathParser;
-import com.metamx.common.parsers.Parser;
+import io.druid.java.util.common.parsers.JSONPathParser;
+import io.druid.java.util.common.parsers.Parser;
 //import com.yourkit.api.Controller;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionsSpec;

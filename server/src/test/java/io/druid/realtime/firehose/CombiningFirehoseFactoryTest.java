@@ -19,7 +19,7 @@
 
 package io.druid.realtime.firehose;
 
-import com.metamx.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;

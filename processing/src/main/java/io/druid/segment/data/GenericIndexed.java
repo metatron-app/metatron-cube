@@ -20,8 +20,8 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
-import com.metamx.common.IAE;
-import com.metamx.common.guava.CloseQuietly;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.serde.ColumnPartSerde;
 

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
-import com.metamx.common.StringUtils;
+import io.druid.java.util.common.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;

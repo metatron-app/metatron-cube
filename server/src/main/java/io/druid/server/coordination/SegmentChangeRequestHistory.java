@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
 
 import java.util.ArrayList;

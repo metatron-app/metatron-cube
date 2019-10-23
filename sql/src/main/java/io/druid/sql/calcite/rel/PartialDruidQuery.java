@@ -20,8 +20,8 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.PlannerContext;

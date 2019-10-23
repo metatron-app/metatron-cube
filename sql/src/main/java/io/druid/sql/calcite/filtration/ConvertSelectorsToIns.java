@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.filtration;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.OrDimFilter;

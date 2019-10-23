@@ -19,7 +19,7 @@
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.emitter.statsd.DimensionConverter;
 import io.druid.emitter.statsd.StatsDMetric;
 import org.joda.time.DateTime;

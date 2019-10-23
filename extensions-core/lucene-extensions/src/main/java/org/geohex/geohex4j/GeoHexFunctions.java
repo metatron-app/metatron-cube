@@ -19,7 +19,7 @@
 
 package org.geohex.geohex4j;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;

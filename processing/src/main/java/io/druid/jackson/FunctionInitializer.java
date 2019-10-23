@@ -31,7 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 

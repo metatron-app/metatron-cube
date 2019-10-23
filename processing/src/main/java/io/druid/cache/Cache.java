@@ -21,7 +21,7 @@ package io.druid.cache;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;

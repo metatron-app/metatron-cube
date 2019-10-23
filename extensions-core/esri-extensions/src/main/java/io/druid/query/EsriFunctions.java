@@ -40,7 +40,7 @@ import com.esri.hadoop.hive.GeometryUtils;
 import com.esri.hadoop.hive.GeometryUtils.OGCType;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;

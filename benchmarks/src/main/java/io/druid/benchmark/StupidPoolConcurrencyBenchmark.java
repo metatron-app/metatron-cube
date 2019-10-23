@@ -20,7 +20,7 @@
 package io.druid.benchmark;
 
 import com.google.common.base.Supplier;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import org.openjdk.jmh.annotations.Benchmark;

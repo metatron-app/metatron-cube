@@ -20,7 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;

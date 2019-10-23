@@ -20,7 +20,7 @@
 package io.druid.examples.function;
 
 import com.google.common.math.DoubleMath;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;

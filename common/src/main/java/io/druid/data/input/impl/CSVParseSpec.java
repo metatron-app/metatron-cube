@@ -22,9 +22,9 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.metamx.common.parsers.Parser;
-import com.metamx.common.parsers.ParserUtils;
-import com.metamx.common.parsers.Parsers;
+import io.druid.java.util.common.parsers.Parser;
+import io.druid.java.util.common.parsers.ParserUtils;
+import io.druid.java.util.common.parsers.Parsers;
 import io.druid.data.input.TimestampSpec;
 
 import java.util.List;

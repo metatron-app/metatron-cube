@@ -24,7 +24,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;

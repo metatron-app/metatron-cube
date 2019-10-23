@@ -22,7 +22,7 @@ package io.druid.cli;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.guice.ExtensionsConfig;
 import io.tesla.aether.internal.DefaultTeslaAether;
 import org.eclipse.aether.artifact.Artifact;

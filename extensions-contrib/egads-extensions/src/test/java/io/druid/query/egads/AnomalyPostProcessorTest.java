@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
 import com.yahoo.egads.data.TimeSeries;
 import com.yahoo.egads.utilities.FileUtils;
 import io.druid.common.utils.Sequences;

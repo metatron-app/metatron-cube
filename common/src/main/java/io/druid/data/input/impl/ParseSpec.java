@@ -21,7 +21,7 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.metamx.common.parsers.Parser;
+import io.druid.java.util.common.parsers.Parser;
 import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
@@ -51,7 +51,7 @@ public interface ParseSpec
 
   ParseSpec withDimensionsSpec(DimensionsSpec spec);
 
-  abstract class AbstractParser<K, V> implements com.metamx.common.parsers.Parser<K, V>
+  abstract class AbstractParser<K, V> implements io.druid.java.util.common.parsers.Parser<K, V>
   {
     @Override
     public final void setFieldNames(Iterable<String> fieldNames)

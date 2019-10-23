@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;

@@ -20,7 +20,7 @@ package io.druid.server.initialization.jetty;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.metamx.http.client.HttpClient;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.guice.annotations.Global;
 import io.druid.server.security.OAuth.OAuthConfig;
 import io.druid.server.security.OAuth.OAuthFilter;

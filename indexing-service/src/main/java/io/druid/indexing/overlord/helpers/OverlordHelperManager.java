@@ -20,10 +20,10 @@
 package io.druid.indexing.overlord.helpers;
 
 import com.google.inject.Inject;
-import com.metamx.common.concurrent.ScheduledExecutorFactory;
-import com.metamx.common.lifecycle.LifecycleStart;
-import com.metamx.common.lifecycle.LifecycleStop;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.common.logger.Logger;
 
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;

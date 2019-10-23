@@ -20,7 +20,7 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import com.google.common.primitives.Longs;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;

@@ -20,8 +20,8 @@ package io.druid.data.input.avro;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.Pair;
-import com.metamx.common.parsers.ParseException;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.data.input.schemarepo.SubjectAndIdConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;

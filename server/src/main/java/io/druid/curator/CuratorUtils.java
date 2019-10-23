@@ -19,8 +19,8 @@
 
 package io.druid.curator;
 
-import com.metamx.common.IAE;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;

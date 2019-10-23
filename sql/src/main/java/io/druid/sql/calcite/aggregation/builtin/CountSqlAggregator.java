@@ -21,7 +21,7 @@ package io.druid.sql.calcite.aggregation.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.aggregation.Aggregation;

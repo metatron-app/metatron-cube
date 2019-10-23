@@ -21,11 +21,11 @@ package io.druid.common.guava;
 
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
-import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import org.junit.Assert;
 import org.junit.Test;
 

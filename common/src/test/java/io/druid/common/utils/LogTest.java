@@ -19,8 +19,8 @@
 
 package io.druid.common.utils;
 
-import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;

@@ -29,7 +29,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
 import io.druid.guice.LazySingleton;

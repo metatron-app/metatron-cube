@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.TestUtil;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;

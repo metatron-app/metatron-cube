@@ -20,7 +20,7 @@
 package io.druid.segment.realtime;
 
 import com.google.common.base.Throwables;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;

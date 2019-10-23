@@ -26,7 +26,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.TaskInfo;

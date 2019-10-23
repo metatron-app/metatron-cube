@@ -21,7 +21,7 @@ package io.druid.indexer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.jackson.DefaultObjectMapper;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;

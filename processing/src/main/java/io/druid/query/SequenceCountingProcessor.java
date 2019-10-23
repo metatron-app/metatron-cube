@@ -20,8 +20,8 @@
 package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;

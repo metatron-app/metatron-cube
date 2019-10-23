@@ -23,7 +23,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.HadoopyShardSpec;

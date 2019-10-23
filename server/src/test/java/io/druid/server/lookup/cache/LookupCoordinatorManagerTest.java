@@ -26,15 +26,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.SettableFuture;
-import com.metamx.common.ISE;
-import com.metamx.common.StringUtils;
-import com.metamx.emitter.core.Event;
-import com.metamx.emitter.core.LoggingEmitter;
-import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.http.client.HttpClient;
-import com.metamx.http.client.Request;
-import com.metamx.http.client.response.HttpResponseHandler;
-import com.metamx.http.client.response.SequenceInputStreamResponseHandler;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.emitter.core.Event;
+import io.druid.java.util.emitter.core.LoggingEmitter;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.response.HttpResponseHandler;
+import io.druid.java.util.http.client.response.SequenceInputStreamResponseHandler;
 import io.druid.audit.AuditInfo;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.jackson.DefaultObjectMapper;
@@ -108,7 +108,7 @@ public class LookupCoordinatorManagerTest
         super.emit(event);
       }
     };
-    com.metamx.emitter.EmittingLogger.registerEmitter(SERVICE_EMITTER);
+    io.druid.java.util.emitter.EmittingLogger.registerEmitter(SERVICE_EMITTER);
   }
 
   @Before

@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.expression;
 
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;

@@ -20,7 +20,7 @@
 package io.druid.indexer;
 
 import com.google.common.primitives.Bytes;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import org.hamcrest.number.OrderingComparison;
 import org.joda.time.DateTime;
 import org.junit.After;

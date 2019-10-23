@@ -18,7 +18,7 @@
  */
 package io.druid.server.security.OAuth;
 
-import com.metamx.http.client.HttpClient;
+import io.druid.java.util.http.client.HttpClient;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;

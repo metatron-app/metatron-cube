@@ -20,7 +20,7 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.indexer.TaskState;
 import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TestTasks;

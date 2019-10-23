@@ -20,7 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 
 import java.util.HashSet;
 import java.util.LinkedList;

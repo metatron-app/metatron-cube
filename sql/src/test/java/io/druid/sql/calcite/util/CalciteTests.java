@@ -31,7 +31,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import com.metamx.http.client.HttpClient;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.DruidLeaderClient;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;

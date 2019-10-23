@@ -25,7 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.serde.ColumnPartSerde;

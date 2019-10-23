@@ -20,9 +20,9 @@
 package io.druid.query.select;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.common.SteppingSequence;
-import io.druid.common.utils.Sequences;
 import org.junit.Assert;
 import org.junit.Test;
 

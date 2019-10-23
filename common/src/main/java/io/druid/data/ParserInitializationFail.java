@@ -19,7 +19,7 @@
 
 package io.druid.data;
 
-import com.metamx.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.ParseException;
 
 /**
  */

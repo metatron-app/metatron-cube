@@ -33,7 +33,7 @@ import java.util.Objects;
 
 /**
  */
-public class StringUtils extends com.metamx.common.StringUtils
+public class StringUtils extends io.druid.java.util.common.StringUtils
 {
   public static final Function<String, String> NULL_TO_EMPTY = new Function<String, String>()
   {

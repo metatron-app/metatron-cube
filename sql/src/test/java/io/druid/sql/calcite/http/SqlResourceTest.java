@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryConfig;

@@ -20,7 +20,7 @@
 package io.druid.server.coordinator.helper;
 
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.server.coordinator.CoordinatorStats;

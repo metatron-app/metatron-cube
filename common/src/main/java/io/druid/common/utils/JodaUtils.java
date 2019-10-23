@@ -26,7 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
-import com.metamx.common.guava.Comparators;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.data.TypeUtils;
 import io.druid.granularity.Granularity;
 import org.joda.time.DateTime;

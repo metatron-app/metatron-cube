@@ -21,7 +21,7 @@ package io.druid.indexer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;

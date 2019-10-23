@@ -19,7 +19,7 @@
 
 package io.druid.client.selector;
 
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.query.Query;
 

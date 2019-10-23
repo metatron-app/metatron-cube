@@ -20,7 +20,7 @@
 package io.druid.server.http;
 
 import com.google.common.base.Throwables;
-import com.metamx.common.IAE;
+import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Self;
 import io.druid.query.jmx.JMXQueryRunnerFactory;

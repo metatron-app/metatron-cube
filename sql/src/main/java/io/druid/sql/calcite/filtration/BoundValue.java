@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.filtration;
 
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 
 import java.util.Comparator;
 

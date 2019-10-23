@@ -26,15 +26,15 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.parsers.ParseException;
-import com.metamx.common.parsers.Parser;
-import com.metamx.common.parsers.Parsers;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.Parser;
+import io.druid.java.util.common.parsers.Parsers;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// copied from com.metamx.common.parsers.DelimitedParser
+// copied from io.druid.java.util.common.parsers.DelimitedParser
 public class DelimitedParser implements Parser<String, Object>
 {
   private static final String DEFAULT_DELIMITER = "\t";

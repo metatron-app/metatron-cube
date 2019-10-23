@@ -20,7 +20,7 @@
 package io.druid.cli;
 
 import com.google.inject.Injector;
-import com.metamx.common.logger.Logger;
+import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Cli;
 import io.airlift.airline.Help;
 import io.airlift.airline.ParseException;

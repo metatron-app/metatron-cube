@@ -19,9 +19,9 @@
 
 package io.druid.indexing.common.actions;
 
-import com.metamx.common.ISE;
-import com.metamx.emitter.EmittingLogger;
-import com.metamx.emitter.core.Emitter;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.core.Emitter;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.TaskActions;
 import io.druid.indexing.overlord.TaskStorage;

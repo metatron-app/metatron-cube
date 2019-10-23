@@ -20,7 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.primitives.Ints;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 
 import java.util.Map;
 import java.util.Properties;

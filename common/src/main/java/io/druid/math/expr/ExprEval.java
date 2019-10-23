@@ -20,7 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
-import com.metamx.common.Pair;
+import io.druid.java.util.common.Pair;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;

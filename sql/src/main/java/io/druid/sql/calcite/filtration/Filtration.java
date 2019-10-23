@@ -21,7 +21,7 @@ package io.druid.sql.calcite.filtration;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.metamx.common.ISE;
+import io.druid.java.util.common.ISE;
 import io.druid.common.Intervals;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
