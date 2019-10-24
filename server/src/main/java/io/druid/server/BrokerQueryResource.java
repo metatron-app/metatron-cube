@@ -231,7 +231,7 @@ public class BrokerQueryResource extends QueryResource
     }
 
     if (query != prepared) {
-      log.info("Base query is rewritten to %s", query);
+      log.info("Base query is rewritten to %s", toLoggingQuery(query));
     }
 
     if (BaseQuery.isParallelForwarding(query)) {

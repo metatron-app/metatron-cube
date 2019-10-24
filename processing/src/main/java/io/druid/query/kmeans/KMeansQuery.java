@@ -22,7 +22,9 @@ package io.druid.query.kmeans;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.common.Pair;
@@ -45,6 +47,7 @@ import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +60,9 @@ public class KMeansQuery
     implements Query.RewritingQuery<Centroid>,
     Query.IteratingQuery<CentroidDesc, Centroid>,
     Query.FilterSupport<Centroid>,
-    Query.ClassifierFactory<Centroid>
+    Query.ClassifierFactory<Centroid>,
+    Query.ArrayOutputSupport<Centroid>,
+    Query.LogProvider<Centroid>
 {
   private static final Logger LOG = new Logger(KMeansQuery.class);
 
@@ -283,6 +288,7 @@ public class KMeansQuery
         getContext()
     );
   }
+
   @Override
   public FilterSupport<Centroid> withFilter(DimFilter filter)
   {
@@ -379,6 +385,7 @@ public class KMeansQuery
   @Override
   public Pair<Sequence<Centroid>, Query<CentroidDesc>> next(Sequence<CentroidDesc> sequence, Query<CentroidDesc> prev)
   {
+    Map<String, Object> context = BaseQuery.copyContextForMeta(this);
     if (sequence == null) {
       return Pair.<Sequence<Centroid>, Query<CentroidDesc>>of(
           Sequences.<Centroid>empty(),
@@ -390,7 +397,7 @@ public class KMeansQuery
               getMetrics(),
               getCentroids(),
               getMeasure(),
-              getContext()
+              context
           )
       );
     }
@@ -418,7 +425,7 @@ public class KMeansQuery
             getMetrics(),
             newCentroids,
             getMeasure(),
-            getContext()
+            context
         )
     );
   }
@@ -445,6 +452,49 @@ public class KMeansQuery
   {
     Centroid[] centroids = Sequences.toArray(sequence, Centroid.class);
     return new KMeansClassifier(metrics, centroids, DistanceMeasure.of(measure), tagColumn);
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return Arrays.asList("center");
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Centroid> sequence)
+  {
+    return Sequences.map(sequence, new Function<Centroid, Object[]>()
+    {
+      @Override
+      public Object[] apply(Centroid input)
+      {
+        final double[] point = input.getPoint();
+        final Object[] array = new Object[point.length];
+        for (int i = 0; i < point.length; i++) {
+          array[i] = point[i];
+        }
+        return array;
+      }
+    });
+  }
+
+  @Override
+  public Query<Centroid> forLog()
+  {
+    return new KMeansQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getFilter(),
+        getVirtualColumns(),
+        getMetrics(),
+        getNumK(),
+        getMaxIteration(),
+        getDeltaThreshold(),
+        ranges,
+        ImmutableList.<Centroid>of(),
+        getMeasure(),
+        getContext()
+    );
   }
 
   @Override

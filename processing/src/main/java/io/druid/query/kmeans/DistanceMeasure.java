@@ -32,7 +32,18 @@ public enum DistanceMeasure
       for (int j = 0; j < point1.length; j++) {
         distance += Math.pow(point1[j] - point2[j], 2);
       }
-      return distance;
+      return Math.sqrt(distance);
+    }
+
+    @Override
+    public boolean inDistance(double[] point1, double[] point2, double threshold)
+    {
+      for (int i = 0; i < point1.length; i++) {
+        if (Math.abs(point1[i] - point2[i]) > threshold) {
+          return false;
+        }
+      }
+      return super.inDistance(point1, point2, threshold);
     }
   },
   HAVERSINE {
@@ -51,6 +62,11 @@ public enum DistanceMeasure
   }
 
   public abstract double distance(double[] point1, double[] point2);
+
+  public boolean inDistance(double[] point1, double[] point2, double threshold)
+  {
+    return distance(point1, point2) < threshold;
+  }
 
   public int findNearest(Centroid[] centroids, double[] values)
   {

@@ -52,7 +52,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LimitSpec.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "noop", value = NoopLimitSpec.class),
     @JsonSubTypes.Type(name = "default", value = LimitSpec.class)

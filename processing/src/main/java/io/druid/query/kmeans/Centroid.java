@@ -21,12 +21,14 @@ package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Doubles;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.math3.ml.clustering.Clusterable;
 
 import java.util.Arrays;
 
 /**
  */
-public class Centroid implements Comparable<Centroid>
+public class Centroid implements Comparable<Centroid>, Clusterable
 {
   private final double[] centroid;
 
@@ -51,6 +53,36 @@ public class Centroid implements Comparable<Centroid>
       }
     }
     return 0;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Centroid other = (Centroid) o;
+    return Arrays.equals(centroid, other.centroid);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Arrays.hashCode(centroid);
+  }
+
+  @Override
+  public double[] getPoint()
+  {
+    return centroid;
+  }
+
+  public String toPointString()
+  {
+    return StringUtils.join(Doubles.asList(centroid), ',');
   }
 
   @Override

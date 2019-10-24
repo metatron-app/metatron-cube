@@ -59,7 +59,7 @@ public class FluentQueryRunnerBuilder<T>
 
   public FluentQueryRunnerBuilder<T> applyPreMergeDecoration()
   {
-    return from(new UnionQueryRunner<T>(toolChest.preMergeQueryDecoration(baseRunner)));
+    return toolChest == null ? this : from(new UnionQueryRunner<T>(toolChest.preMergeQueryDecoration(baseRunner)));
   }
 
   public FluentQueryRunnerBuilder<T> applyMergeResults()
@@ -69,17 +69,17 @@ public class FluentQueryRunnerBuilder<T>
 
   public FluentQueryRunnerBuilder<T> applyPostMergeDecoration()
   {
-    return from(toolChest.postMergeQueryDecoration(baseRunner));
+    return toolChest == null ? this : from(toolChest.postMergeQueryDecoration(baseRunner));
   }
 
   public FluentQueryRunnerBuilder<T> applyFinalizeResults()
   {
-    return from(toolChest.finalizeResults(baseRunner));
+    return toolChest == null ? this : from(toolChest.finalizeResults(baseRunner));
   }
 
   public FluentQueryRunnerBuilder<T> applyFinalQueryDecoration()
   {
-    return from(toolChest.finalQueryDecoration(baseRunner));
+    return toolChest == null ? this : from(toolChest.finalQueryDecoration(baseRunner));
   }
 
   public FluentQueryRunnerBuilder<T> applyPostProcessingOperator(ObjectMapper mapper)
@@ -107,7 +107,7 @@ public class FluentQueryRunnerBuilder<T>
 
   public FluentQueryRunnerBuilder<T> emitCPUTimeMetric(ServiceEmitter emitter)
   {
-    return from(
+    return toolChest == null ? this : from(
         CPUTimeMetricQueryRunner.safeBuild(
             baseRunner,
             toolChest.makeMetricBuilder(),

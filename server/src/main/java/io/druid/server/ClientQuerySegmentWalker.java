@@ -110,11 +110,17 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
     }
 
     if (query instanceof UnionAllQuery) {
+      // all things done inside, include post processings, etc.
       return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, exec, this);
     }
 
     if (query instanceof Query.IteratingQuery) {
-      return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
+      QueryRunner runner = Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
+      return FluentQueryRunnerBuilder.create(toolChest, runner)
+                                     .applyFinalizeResults()
+                                     .applyFinalQueryDecoration()
+                                     .applyPostProcessingOperator(objectMapper)
+                                     .build();
     }
 
     return FluentQueryRunnerBuilder.create(toolChest, baseClient)
