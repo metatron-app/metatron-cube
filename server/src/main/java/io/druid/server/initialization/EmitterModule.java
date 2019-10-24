@@ -56,6 +56,7 @@ public class EmitterModule implements Module
 {
   private static final String EMITTER_PROPERTY = "druid.emitter";
   private static final String EVENT_EMITTER_PROPERTY = "druid.event.emitter";
+  private static final String EMITTER_DRUID_NAME = "druid.emitter.druidName";
 
   private final Properties props;
 
@@ -92,7 +93,9 @@ public class EmitterModule implements Module
     String version = getClass().getPackage().getImplementationVersion();
     final ImmutableMap<String, String> otherServiceDimensions = ImmutableMap.of(
         "version",
-        Strings.nullToEmpty(version) // Version is null during `mvn test`.
+        Strings.nullToEmpty(version), // Version is null during `mvn test`.
+        "druid",
+        props.getProperty(EMITTER_DRUID_NAME, "")
     );
     final ServiceEmitter retVal = new ServiceEmitter(
         config.getServiceName(),
