@@ -65,7 +65,7 @@ public enum DistanceMeasure
 
   public boolean inDistance(double[] point1, double[] point2, double threshold)
   {
-    return distance(point1, point2) < threshold;
+    return distance(point1, point2) <= threshold;
   }
 
   public int findNearest(Centroid[] centroids, double[] values)

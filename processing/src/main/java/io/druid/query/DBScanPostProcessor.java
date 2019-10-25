@@ -27,9 +27,8 @@ import com.google.common.collect.Iterables;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.kmeans.Centroid;
+import io.druid.query.kmeans.DBScan;
 import io.druid.query.kmeans.KMeansQuery;
-import org.apache.commons.math3.ml.clustering.Cluster;
-import org.apache.commons.math3.ml.clustering.DBSCANClusterer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -94,8 +93,8 @@ public class DBScanPostProcessor extends PostProcessingOperator.Abstract
         }
         int index = 0;
         Iterable<Object[]> tagged = Arrays.asList();
-        for (Cluster<Centroid> cluster : new DBSCANClusterer<Centroid>(eps, minPts).cluster(sequence)) {
-          tagged = Iterables.concat(tagged, Iterables.transform(cluster.getPoints(), new Tag(index++)));
+        for (List<Centroid> cluster : new DBScan(eps, minPts).cluster(sequence)) {
+          tagged = Iterables.concat(tagged, Iterables.transform(cluster, new Tag(index++)));
         }
         return Sequences.simple(tagged);
       }
