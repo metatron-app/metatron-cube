@@ -87,28 +87,26 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {
+    final boolean queryCacheable = cacheConfig.isQueryCacheable(query);
+    final boolean useCache = BaseQuery.isUseCache(query, true)
+                             && cacheConfig.isUseCache()
+                             && queryCacheable;
+    final boolean populateCache = BaseQuery.isPopulateCache(query, true)
+                                  && cacheConfig.isPopulateCache()
+                                  && queryCacheable;
+
+    if (!useCache && !populateCache) {
+      return base.run(query, responseContext);
+    }
+
     final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategyIfExists(query);
     if (strategy == null) {
       return base.run(query, responseContext);
     }
 
-    final boolean populateCache = BaseQuery.isPopulateCache(query, true)
-                                  && cacheConfig.isPopulateCache()
-                                  && cacheConfig.isQueryCacheable(query);
-
-    final boolean useCache = BaseQuery.isUseCache(query, true)
-                             && cacheConfig.isUseCache()
-                             && cacheConfig.isQueryCacheable(query);
-
-    final Cache.NamedKey key;
-    if (useCache || populateCache) {
-      key = CacheUtil.computeSegmentCacheKey(
-          segmentIdentifier,
-          segmentDescriptor,
-          strategy.computeCacheKey(query)
-      );
-    } else {
-      key = null;
+    final Cache.NamedKey key = createKey(query, strategy);
+    if (key == null) {
+      return base.run(query, responseContext);
     }
 
     if (useCache) {
@@ -194,6 +192,15 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
     } else {
       return base.run(query, responseContext);
     }
+  }
+
+  private Cache.NamedKey createKey(Query<T> query, CacheStrategy<T, Object, Query<T>> strategy)
+  {
+    final byte[] queryKey = strategy.computeCacheKey(query);
+    if (queryKey != null) {
+      return CacheUtil.computeSegmentCacheKey(segmentIdentifier, segmentDescriptor, queryKey);
+    }
+    return null;
   }
 
 }
