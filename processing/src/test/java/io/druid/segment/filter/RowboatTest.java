@@ -50,7 +50,7 @@ public class RowboatTest
     IntList comprisedRows = rb1.getComprisedRows();
     comprisedRows.addAll(rb2.getComprisedRows());
     Assert.assertEquals(3 * 2, comprisedRows.size());
-    Assert.assertArrayEquals(new int[] {0, 10, 0, 11, 1, 5}, comprisedRows.compact());
+    Assert.assertArrayEquals(new int[] {0, 10, 0, 11, 1, 5}, comprisedRows.array());
   }
 
   @Test

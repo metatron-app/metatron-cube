@@ -103,7 +103,18 @@ public class IntList implements Iterable<Integer>
     return baseArray[index];
   }
 
-  public int[] compact()
+  public int compact(int current)
+  {
+    final int remanining = size - current;
+    if (current >= remanining) {
+      System.arraycopy(baseArray, current, baseArray, 0, remanining);
+      size = remanining;
+      current = 0;
+    }
+    return current;
+  }
+
+  public int[] array()
   {
     return Arrays.copyOfRange(baseArray, 0, size);
   }
@@ -130,7 +141,7 @@ public class IntList implements Iterable<Integer>
   @Override
   public Iterator<Integer> iterator()
   {
-    return Ints.asList(compact()).iterator();
+    return Ints.asList(array()).iterator();
   }
 
   public boolean isEmpty()
@@ -146,6 +157,6 @@ public class IntList implements Iterable<Integer>
   @Override
   public String toString()
   {
-    return Arrays.toString(compact());
+    return Arrays.toString(array());
   }
 }

@@ -23,14 +23,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.kmeans.Centroid;
-import io.druid.query.kmeans.DBScan;
 import io.druid.query.kmeans.KMeansQuery;
 
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -91,12 +90,18 @@ public class DBScanPostProcessor extends PostProcessingOperator.Abstract
               }
           ));
         }
-        int index = 0;
-        Iterable<Object[]> tagged = Arrays.asList();
-        for (List<Centroid> cluster : new DBScan(eps, minPts).cluster(sequence)) {
-          tagged = Iterables.concat(tagged, Iterables.transform(cluster, new Tag(index++)));
-        }
-        return Sequences.simple(tagged);
+        return Sequences.once(Iterators.concat(Iterators.transform(
+            new DBScan(eps, minPts).cluster(sequence), new Function<List<Centroid>, Iterator<Object[]>>()
+            {
+              private int index;
+
+              @Override
+              public Iterator<Object[]> apply(List<Centroid> input)
+              {
+                return Iterators.transform(input.iterator(), new Tag(index++));
+              }
+            }
+        )));
       }
     };
   }

@@ -17,11 +17,16 @@
  * under the License.
  */
 
-package io.druid.query.kmeans;
+package io.druid.query;
 
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.collections.IntList;
+import io.druid.query.kmeans.Centroid;
+import io.druid.query.kmeans.DistanceMeasure;
 
+import java.util.Iterator;
 import java.util.List;
 
 // modified version of DBSCANClusterer
@@ -76,38 +81,52 @@ public class DBScan
     }
   }
 
-  // todo : make iterable of iterable
-  public List<List<Centroid>> cluster(final List<Centroid> centroids)
+  public Iterator<List<Centroid>> cluster(final List<Centroid> centroids)
   {
-    final List<List<Centroid>> clusters = Lists.newArrayList();
     final Point[] points = new Point[centroids.size()];
     for (int i = 0; i < points.length; i++) {
       points[i] = new Point(i, centroids.get(i).getPoint());
     }
 
-    for (int i = 0; i < points.length; i++) {
-      if (points[i].status != null) {
-        continue;
-      }
-      IntList neighbors = getNeighbors(i, points);
-      if (neighbors.size() + points[i].count >= minPts) {
-        points[i].status = Status.PART_OF_CLUSTER;
-        final IntList e = expandCluster(i, neighbors, points);
-        final List<Centroid> cluster = Lists.newArrayList();
-        for (int j = 0; j < e.size(); j++) {
-          cluster.add(centroids.get(e.get(j)));
-        }
-        clusters.add(cluster);
-      } else {
-        points[i].status = Status.NOISE;
-      }
-    }
+    return Iterators.filter(new Iterator<List<Centroid>>()
+    {
+      private int index;
 
-    return clusters;
+      @Override
+      public boolean hasNext()
+      {
+        return index < points.length;
+      }
+
+      @Override
+      public List<Centroid> next()
+      {
+        for (; index < points.length; index++) {
+          if (points[index].status != null) {
+            continue;
+          }
+          final IntList neighbors = getNeighbors(index, points);
+          if (neighbors.size() + points[index].count >= minPts) {
+            points[index].status = Status.PART_OF_CLUSTER;
+            final IntList ids = expandCluster(index, neighbors, points);
+            final List<Centroid> cluster = Lists.newArrayList();
+            for (int j = 0; j < ids.size(); j++) {
+              cluster.add(centroids.get(ids.get(j)));
+            }
+            return cluster;
+          } else {
+            points[index].status = Status.NOISE;
+          }
+        }
+        return null;
+      }
+    }, Predicates.notNull());
   }
 
+  // todo : can be an iterator ?
   private IntList expandCluster(final int point, final IntList neighbors, final Point[] points)
   {
+    final IntList worker = new IntList();
     final IntList cluster = new IntList();
     cluster.add(point);
     for (int i = 0; i < neighbors.size(); i++) {
@@ -116,10 +135,12 @@ public class DBScan
         continue;
       }
       if (current.status == null) {
-        final IntList neighborsOfCurrent = getNeighbors(current.index, points);
+        final IntList neighborsOfCurrent = getNeighbors(current.index, points, worker);
         if (neighborsOfCurrent.size() + current.count >= minPts) {
           neighbors.addAll(neighborsOfCurrent);
+          i = neighbors.compact(i);
         }
+        worker.clear();
       }
       if (current.status != Status.PART_OF_CLUSTER) {
         current.status = Status.PART_OF_CLUSTER;
@@ -131,7 +152,11 @@ public class DBScan
 
   private IntList getNeighbors(final int x, final Point[] points)
   {
-    final IntList neighbors = new IntList();
+    return getNeighbors(x, points, new IntList());
+  }
+
+  private IntList getNeighbors(final int x, final Point[] points, final IntList neighbors)
+  {
     for (int i = 0; i < points.length; i++) {
       if (i == x || points[i].status != null) {
         continue;
