@@ -36,6 +36,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
+import io.druid.data.input.ReadConstants;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
@@ -61,7 +62,7 @@ import java.util.UUID;
 
 /**
  */
-public class BrokerLoadSpec implements ForwardConstants
+public class BrokerLoadSpec implements ForwardConstants, ReadConstants
 {
   private static final TypeReference<Map<String, Object>> MAP_REF = new TypeReference<Map<String, Object>>() {};
 
@@ -263,13 +264,13 @@ public class BrokerLoadSpec implements ForwardConstants
 
     // use properties for encoding, extractPartition, etc.
     final Map<String, Object> loadContext = Maps.newHashMap(properties);
-    loadContext.put("skipFirstN", skipFirstN);
-    loadContext.put("ignoreInvalidRows", tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+    loadContext.put(SKIP_FIRST_N, skipFirstN);
+    loadContext.put(IGNORE_INVALID_ROWS, tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
 
     if (inputFormat != null && extension != null) {
-      loadContext.put("inputFormat", loadClass(inputFormat, extension));
+      loadContext.put(INPUT_FORMAT, loadClass(inputFormat, extension));
     } else {
-      loadContext.put("inputFormat", inputFormat);
+      loadContext.put(INPUT_FORMAT, inputFormat);
     }
     // progressing sequence
     try {

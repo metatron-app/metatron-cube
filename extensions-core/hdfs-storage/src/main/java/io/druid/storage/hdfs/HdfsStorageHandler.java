@@ -51,7 +51,6 @@ import io.druid.data.output.Formatters;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.hadoop.HadoopInputUtils;
-import io.druid.indexer.path.PathSpec;
 import io.druid.query.QueryResult;
 import io.druid.query.StorageHandler;
 import io.druid.segment.BaseProgressIndicator;
@@ -94,8 +93,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static io.druid.indexer.HadoopDruidIndexerConfig.JSON_MAPPER;
-
 public class HdfsStorageHandler implements StorageHandler
 {
   private static final Logger LOG = new Logger(HdfsStorageHandler.class);
@@ -122,16 +119,18 @@ public class HdfsStorageHandler implements StorageHandler
   public Sequence<Row> read(final List<URI> locations, final InputRowParser parser, final Map<String, Object> context)
       throws IOException, InterruptedException
   {
-    final Object inputFormat = context.get("inputFormat");
+    final Object inputFormat = context.get(INPUT_FORMAT);
     final Class<?> inputFormatClass;
     if (inputFormat instanceof Class) {
       inputFormatClass = (Class) inputFormat;
+    } else if (inputFormat instanceof String) {
+      inputFormatClass = hadoopConfig.getClassByNameOrNull((String) inputFormat);
     } else {
-      inputFormatClass = hadoopConfig.getClassByNameOrNull(Objects.toString(inputFormat, null));
+      inputFormatClass = null;
     }
     if (inputFormatClass != null &&
-        InputFormat.class.isAssignableFrom(inputFormatClass) ||
-        org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
+        (InputFormat.class.isAssignableFrom(inputFormatClass) ||
+        org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass))) {
       final InputFormat format;
       if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
         format = new InputFormatWrapper(
@@ -147,6 +146,7 @@ public class HdfsStorageHandler implements StorageHandler
       final RecordReader<Object, InputRow> reader = HadoopInputUtils.toRecordReader(format, parser, job);
       return Sequences.once(HadoopInputUtils.<Row>toIterator(reader));
     }
+
     long total = 0;
     final float[] thresholds = new float[locations.size() + 1];
     for (int i = 0; i < locations.size(); i++) {
@@ -172,14 +172,14 @@ public class HdfsStorageHandler implements StorageHandler
           if (parser instanceof InputRowParser.Streaming && ((InputRowParser.Streaming) parser).accept(stream)) {
             iterator = ((InputRowParser.Streaming) parser).parseStream(stream);
           } else {
-            final String encoding = Objects.toString(context.get("encoding"), null);
-            final boolean ignoreInvalidRows = PropUtils.parseBoolean(context, "ignoreInvalidRows");
+            final String encoding = Objects.toString(context.get(ENCODING), null);
+            final boolean ignoreInvalidRows = PropUtils.parseBoolean(context, IGNORE_INVALID_ROWS);
             iterator = Iterators.transform(
                 IOUtils.lineIterator(new InputStreamReader(stream, Charsets.toCharset(encoding))),
                 InputRowParsers.asFunction(parser, ignoreInvalidRows)
             );
           }
-          if (PropUtils.parseBoolean(context, "extractPartition")) {
+          if (PropUtils.parseBoolean(context, EXTRACT_PARTITION)) {
             Rows.setPartition(new File(input));
           }
           return new GuavaUtils.DelegatedProgressing<Row>(GuavaUtils.withResource(iterator, stream))

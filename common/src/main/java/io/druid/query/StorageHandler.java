@@ -22,9 +22,12 @@ package io.druid.query;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.ReadConstants;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.io.IOException;
 import java.net.URI;
@@ -33,7 +36,7 @@ import java.util.Map;
 
 /**
  */
-public interface StorageHandler extends ForwardConstants
+public interface StorageHandler extends ForwardConstants, ReadConstants
 {
   String FILE_SCHEME = "file";
   String LOCAL_SCHEME = "local";
@@ -47,27 +50,25 @@ public interface StorageHandler extends ForwardConstants
   {
     @Override
     public Sequence<Row> read(List<URI> locations, InputRowParser parser, Map<String, Object> context)
-        throws IOException
     {
-      throw new UnsupportedOperationException("read");
+      return Sequences.empty();
     }
 
     @Override
-    public Map<String, Object> write(
-        URI location, QueryResult result, Map<String, Object> context
-    ) throws IOException
+    public Map<String, Object> write(URI location, QueryResult result, Map<String, Object> context)
     {
       return ImmutableMap.<String, Object>of(
           "rowCount", result.getSequence().accumulate(
-              0L, new Accumulator<Long, Map<String, Object>>()
+              new MutableLong(), new Accumulator<MutableLong, Map<String, Object>>()
               {
                 @Override
-                public Long accumulate(Long accumulated, Map<String, Object> in)
+                public MutableLong accumulate(MutableLong accumulated, Map<String, Object> in)
                 {
-                  return accumulated + 1;
+                  accumulated.increment();
+                  return accumulated;
                 }
               }
-          )
+          ).longValue()
       );
     }
   };
