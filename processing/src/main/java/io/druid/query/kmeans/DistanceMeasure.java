@@ -70,6 +70,11 @@ public enum DistanceMeasure
 
   public int findNearest(Centroid[] centroids, double[] values)
   {
+    return findNearest(centroids, values, -1);
+  }
+
+  public int findNearest(Centroid[] centroids, double[] values, double maxDistance)
+  {
     int nearest = -1;
     double minDistance = Double.MAX_VALUE;
     for (int i = 0; i < centroids.length; i++) {
@@ -78,6 +83,9 @@ public enum DistanceMeasure
         minDistance = distance;
         nearest = i;
       }
+    }
+    if (maxDistance > 0 && minDistance > maxDistance) {
+      return -1;
     }
     return nearest;
   }

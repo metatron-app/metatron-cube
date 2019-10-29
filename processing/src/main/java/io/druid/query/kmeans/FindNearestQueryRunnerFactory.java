@@ -92,6 +92,7 @@ public class FindNearestQueryRunnerFactory
 
         final double[] values = new double[dimension];
         final DistanceMeasure measure = DistanceMeasure.of(nearestQuery.getMeasure());
+        final double maxDistance = nearestQuery.getMaxDistance();
 
         result.accumulate(
             null, new Accumulator<CentroidDesc, Object[]>()
@@ -102,8 +103,10 @@ public class FindNearestQueryRunnerFactory
                 for (int i = 0; i < dimension; i++) {
                   values[i] = ((Number) input[i]).doubleValue();
                 }
-                int nearest = measure.findNearest(centroids, values);
-                descs[nearest].add(values);
+                final int nearest = measure.findNearest(centroids, values, maxDistance);
+                if (nearest >= 0) {
+                  descs[nearest].add(values);
+                }
                 return null;
               }
             }

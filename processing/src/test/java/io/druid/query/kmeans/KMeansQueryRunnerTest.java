@@ -88,10 +88,10 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
       private final DateTime start = new DateTime("2018-07-09");
       private final int limit = 8000;
       private final Random x = new Random(0);
-      private final Random x1 = new Random(0);
-      private final Random x2 = new Random(0);
-      private final Random y1 = new Random(0);
-      private final Random y2 = new Random(0);
+      private final Random x1 = new Random(10);
+      private final Random x2 = new Random(20);
+      private final Random y1 = new Random(30);
+      private final Random y2 = new Random(40);
       private final StringBuilder b = new StringBuilder();
 
       private int index = 0;
@@ -109,7 +109,7 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
         DateTime time = start.withFieldAdded(DurationFieldType.seconds(), index);
         b.append(time.getMillis()).append('\t').append(index++).append('\t');
         if (x.nextDouble() < 0.66) {
-          b.append(x1.nextGaussian() * 600 + 1000).append('\t').append(y1.nextGaussian() * 300 + 500);
+          b.append(x1.nextGaussian() * 400 + 1000).append('\t').append(y1.nextGaussian() * 200 + 500);
         } else {
           b.append(x2.nextGaussian() * 200 - 500).append('\t').append(y2.nextGaussian() * 100 - 300);
         }
@@ -176,15 +176,17 @@ public class KMeansQueryRunnerTest extends QueryRunnerTestHelper
         1000,
         0.0000001,
         null,
+        null,
+        null,
         ImmutableMap.<String, Object>of("$seed", 1)
     );
     List<Centroid> centroids = runQuery(kMeans);
     Collections.sort(centroids);
 
-    double[] coord1 = centroids.get(1).getCentroid();
-    double[] coord2 = centroids.get(0).getCentroid();
+    double[] coord1 = centroids.get(1).getCentroid();   // 1000, 500
+    double[] coord2 = centroids.get(0).getCentroid();   // -500, -300
 
-    Assert.assertArrayEquals(new double[]{1164.6461196729006, 582.3230598364503}, coord1, 1);
-    Assert.assertArrayEquals(new double[]{-369.6083816855103, -223.72472630273845}, coord2, 1);
+    Assert.assertArrayEquals(new double[]{1022.4685921121348, 497.58888478007265}, coord1, 1);
+    Assert.assertArrayEquals(new double[]{-488.94013116691474, -281.4017316759393}, coord2, 1);
   }
 }

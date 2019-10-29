@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.common.Pair;
@@ -75,6 +77,8 @@ public class KMeansQuery
   private final int numK;
   private final int maxIteration;
   private final double deltaThreshold;
+  private final double maxDistance;
+  private final int minCount;
 
   private final List<Range<Double>> ranges;
   private final List<Centroid> centroids;
@@ -90,6 +94,8 @@ public class KMeansQuery
       @JsonProperty("maxIteration") Integer maxIteration,
       @JsonProperty("deltaThreshold") Double deltaThreshold,
       @JsonProperty("measure") String measure,
+      @JsonProperty("maxDistance") Double maxDistance,
+      @JsonProperty("minCount") Integer minCount,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -102,9 +108,11 @@ public class KMeansQuery
         numK,
         maxIteration,
         deltaThreshold,
-        null,
-        null,
+        minCount,
         measure,
+        maxDistance,
+        null,
+        null,
         context
     );
   }
@@ -118,9 +126,11 @@ public class KMeansQuery
       int numK,
       Integer maxIteration,
       Double deltaThreshold,
+      Integer minCount,
+      String measure,
+      Double maxDistance,
       List<Range<Double>> ranges,
       List<Centroid> centroids,
-      String measure,
       Map<String, Object> context
   )
   {
@@ -132,6 +142,8 @@ public class KMeansQuery
     this.maxIteration = maxIteration == null ? DEFAULT_MAX_ITERATION : maxIteration;
     Preconditions.checkArgument(deltaThreshold == null || (deltaThreshold > 0 && deltaThreshold < 1));
     this.deltaThreshold = deltaThreshold == null ? DEFAULT_DELTA_THRESHOLD : deltaThreshold;
+    this.maxDistance = maxDistance == null ? -1 : maxDistance;
+    this.minCount = minCount == null ? -1 : minCount;
     this.ranges = ranges;
     this.centroids = centroids;
     this.virtualColumns = virtualColumns;
@@ -193,6 +205,18 @@ public class KMeansQuery
   }
 
   @JsonProperty
+  public int getMinCount()
+  {
+    return minCount;
+  }
+
+  @JsonProperty
+  public double getMaxDistance()
+  {
+    return maxDistance;
+  }
+
+  @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<Range<Double>> getRanges()
   {
@@ -225,9 +249,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         getRanges(),
         getCentroids(),
-        getMeasure(),
         getContext()
     );
   }
@@ -244,9 +270,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         getRanges(),
         getCentroids(),
-        getMeasure(),
         getContext()
     );
   }
@@ -263,9 +291,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         getRanges(),
         getCentroids(),
-        getMeasure(),
         computeOverriddenContext(contextOverride)
     );
   }
@@ -282,9 +312,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         getRanges(),
         getCentroids(),
-        getMeasure(),
         getContext()
     );
   }
@@ -301,9 +333,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         getRanges(),
         getCentroids(),
-        getMeasure(),
         getContext()
     );
   }
@@ -341,7 +375,7 @@ public class KMeansQuery
       double max = ((Number) analysis.getMaxValue()).doubleValue();
       ranges.add(Range.closed(min, max));
     }
-    Random random = getContextValue("$seed") != null ? new Random(getContextInt("$seed", 1)) : new Random();
+    Random random = getContextValue("$seed") != null ? new Random(getContextInt("$seed", 1)) : new Random(0);
     List<Centroid> centroids = Lists.newArrayList();
     for (int i = 0; i < numK; i++) {
       double[] centroid = new double[metrics.size()];
@@ -359,9 +393,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         ranges,
         centroids,
-        getMeasure(),
         getContext()
     );
   }
@@ -397,24 +433,36 @@ public class KMeansQuery
               getMetrics(),
               getCentroids(),
               getMeasure(),
-              context
+              getMaxDistance(),
+              getContext()
           )
       );
     }
     List<Centroid> prevCentroids = ((FindNearestQuery) prev).getCentroids();
+
     List<CentroidDesc> descs = Sequences.toList(sequence);
+    List<Centroid> newCentroids = Lists.newArrayList();
 
     boolean underThreshold = true;
-    List<Centroid> newCentroids = Lists.newArrayList();
+    double[] thresholds = toThresholds(ranges, deltaThreshold);
     for (int i = 0; i < descs.size(); i++) {
       Centroid newCentroid = descs.get(i).newCenter();
-      underThreshold &= isUnderThreshold(prevCentroids.get(i), newCentroid);
+      underThreshold &= isUnderThreshold(prevCentroids.get(i), newCentroid, thresholds);
       newCentroids.add(newCentroid);
     }
     if (underThreshold || ++iteration >= maxIteration) {
       LOG.info("Centroid decided in %d iteration", iteration);
+      if (minCount > 0) {
+        for (int i = 0; i < descs.size(); i++) {
+          if (descs.get(i).getCount() < minCount) {
+            newCentroids.set(i, null);
+          }
+        }
+        return Pair.of(Sequences.simple(Iterables.filter(newCentroids, Predicates.notNull())), null);
+      }
       return Pair.of(Sequences.simple(newCentroids), null);
     }
+
     return Pair.<Sequence<Centroid>, Query<CentroidDesc>>of(
         Sequences.<Centroid>empty(),
         new FindNearestQuery(
@@ -425,26 +473,35 @@ public class KMeansQuery
             getMetrics(),
             newCentroids,
             getMeasure(),
-            context
+            getMaxDistance(),
+            getContext()
         )
     );
   }
 
-  private boolean isUnderThreshold(Centroid prev, Centroid current)
+  private boolean isUnderThreshold(Centroid prev, Centroid current, double[] thresholds)
   {
-    for (int i = 0; i < ranges.size(); i++) {
-      Range<Double> range = ranges.get(i);
+    for (int i = 0; i < thresholds.length; i++) {
       double[] prevCoords = prev.getCentroid();
       double[] currCoords = current.getCentroid();
-      double d = range.upperEndpoint() - range.lowerEndpoint();
-      if (d == 0 || prevCoords[i] == currCoords[i]) {
+      if (thresholds[i] == 0 || prevCoords[i] == currCoords[i]) {
         continue;
       }
-      if (Math.abs(prevCoords[i] - currCoords[i]) / d > deltaThreshold) {
+      if (Math.abs(prevCoords[i] - currCoords[i]) > thresholds[i]) {
         return false;
       }
     }
     return true;
+  }
+
+  private double[] toThresholds(List<Range<Double>> ranges, double deltaThreshold)
+  {
+    double[] thresholds = new double[ranges.size()];
+    for (int i = 0; i < thresholds.length; i++) {
+      Range<Double> range = ranges.get(i);
+      thresholds[i] = (range.upperEndpoint() - range.lowerEndpoint()) * deltaThreshold;
+    }
+    return thresholds;
   }
 
   @Override
@@ -490,9 +547,11 @@ public class KMeansQuery
         getNumK(),
         getMaxIteration(),
         getDeltaThreshold(),
+        getMinCount(),
+        getMeasure(),
+        getMaxDistance(),
         ranges,
         ImmutableList.<Centroid>of(),
-        getMeasure(),
         getContext()
     );
   }

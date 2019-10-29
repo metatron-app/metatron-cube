@@ -44,6 +44,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
   private final List<String> metrics;
   private final List<Centroid> centroids;
   private final String measure;
+  private final double maxDistance;
 
   @JsonCreator
   public FindNearestQuery(
@@ -54,6 +55,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("centroids") List<Centroid> centroids,
       @JsonProperty("measure") String measure,
+      @JsonProperty("maxDistance") double maxDistance,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -63,6 +65,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
     this.metrics = metrics;
     this.measure = measure;
     this.centroids = centroids;
+    this.maxDistance = maxDistance;
   }
 
   @Override
@@ -108,6 +111,12 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
     return measure;
   }
 
+  @JsonProperty
+  public double getMaxDistance()
+  {
+    return maxDistance;
+  }
+
   @Override
   public Query<CentroidDesc> withDataSource(DataSource dataSource)
   {
@@ -119,6 +128,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
         getMetrics(),
         getCentroids(),
         getMeasure(),
+        getMaxDistance(),
         getContext()
     );
   }
@@ -134,6 +144,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
         getMetrics(),
         getCentroids(),
         getMeasure(),
+        getMaxDistance(),
         getContext()
     );
   }
@@ -149,6 +160,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
         getMetrics(),
         getCentroids(),
         getMeasure(),
+        getMaxDistance(),
         computeOverriddenContext(contextOverride)
     );
   }
@@ -164,6 +176,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
         getMetrics(),
         getCentroids(),
         getMeasure(),
+        getMaxDistance(),
         getContext()
     );
   }
@@ -179,6 +192,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
         getMetrics(),
         getCentroids(),
         getMeasure(),
+        getMaxDistance(),
         getContext()
     );
   }

@@ -48,6 +48,8 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   private final int numK;
   private final int maxIteration;
   private final double deltaThreshold;
+  private final double maxDistance;
+  private final int minCount;
 
   private final List<Range<Double>> ranges;
   private final List<Centroid> centroids;
@@ -62,12 +64,14 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       @JsonProperty("numK") int numK,
       @JsonProperty("maxIteration") Integer maxIteration,
       @JsonProperty("deltaThreshold") Double deltaThreshold,
+      @JsonProperty("maxIteration") Integer minCount,
       @JsonProperty("measure") String measure,
+      @JsonProperty("maxDistance") Double maxDistance,
       @JsonProperty("tagColumn") String tagColumn,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    this(query, metrics, numK, maxIteration, deltaThreshold, null, null, measure, tagColumn, context);
+    this(query, metrics, numK, maxIteration, deltaThreshold, minCount, measure, maxDistance, tagColumn, null, null, context);
   }
 
   public KMeansTaggingQuery(
@@ -76,10 +80,12 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       int numK,
       Integer maxIteration,
       Double deltaThreshold,
+      Integer minCount,
+      String measure,
+      Double maxDistance,
+      String tagColumn,
       List<Range<Double>> ranges,
       List<Centroid> centroids,
-      String measure,
-      String tagColumn,
       Map<String, Object> context
   )
   {
@@ -92,6 +98,8 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     this.maxIteration = maxIteration == null ? KMeansQuery.DEFAULT_MAX_ITERATION : maxIteration;
     Preconditions.checkArgument(deltaThreshold == null || (deltaThreshold > 0 && deltaThreshold < 1));
     this.deltaThreshold = deltaThreshold == null ? KMeansQuery.DEFAULT_DELTA_THRESHOLD : deltaThreshold;
+    this.minCount = minCount == null ? -1 : minCount;
+    this.maxDistance = maxDistance == null ? -1 : maxDistance;
     this.ranges = ranges;
     this.centroids = centroids;
     Preconditions.checkArgument(numK > 0, "K should be greater than zero");
@@ -143,6 +151,18 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
+  public int getMinCount()
+  {
+    return minCount;
+  }
+
+  @JsonProperty
+  public double getMaxDistance()
+  {
+    return maxDistance;
+  }
+
+  @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<Range<Double>> getRanges()
   {
@@ -179,10 +199,12 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         numK,
         maxIteration,
         deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
+        tagColumn,
         ranges,
         centroids,
-        measure,
-        tagColumn,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -196,10 +218,12 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         numK,
         maxIteration,
         deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
+        tagColumn,
         ranges,
         centroids,
-        measure,
-        tagColumn,
         getContext()
     );
   }
@@ -213,10 +237,12 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         numK,
         maxIteration,
         deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
+        tagColumn,
         ranges,
         centroids,
-        measure,
-        tagColumn,
         getContext()
     );
   }
@@ -235,9 +261,11 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         numK,
         maxIteration,
         deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
         ranges,
         centroids,
-        measure,
         context
     ).rewriteQuery(segmentWalker, queryConfig);
 
