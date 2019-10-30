@@ -89,6 +89,7 @@ public class CalciteTests
 {
   public static final String DATASOURCE1 = "foo";
   public static final String DATASOURCE2 = "foo2";
+  public static final String DATASOURCE3 = "foo3";
   public static final String FORBIDDEN_DATASOURCE = "forbiddenDatasource";
 
   public static final String TEST_SUPERUSER_NAME = "testSuperuser";
@@ -175,6 +176,18 @@ public class CalciteTests
       createRow("2000-01-01", "друид", "ru", 1.0)
   );
 
+  public static final List<InputRow> ROWS3 = ImmutableList.of(
+      createRow(
+          ImmutableMap.of("t", "2000-01-01", "m1", "1.0", "m2", "1.0", "dim1", "", "dim2", ImmutableList.of("a", "b"))
+      ),
+      createRow(
+          ImmutableMap.of("t", "2000-01-02", "m1", "2.0", "m2", "2.0", "dim1", "10.1", "dim2", ImmutableList.of())
+      ),
+      createRow(
+          ImmutableMap.of("t", "2000-01-03", "m1", "3.0", "m2", "3.0", "dim1", "2", "dim2", ImmutableList.of("b"))
+      )
+  );
+
   public static final List<InputRow> FORBIDDEN_ROWS = ImmutableList.of(
       createRow("2000-01-01", "forbidden", "abcd", 9999.0)
   );
@@ -223,6 +236,13 @@ public class CalciteTests
                                               .rows(ROWS2)
                                               .buildMMappedIndex();
 
+    final QueryableIndex index3 = IndexBuilder.create()
+                                              .tmpDir(new File(tmpDir, "3"))
+                                              .indexMerger(TestHelper.getTestIndexMergerV9())
+                                              .schema(INDEX_SCHEMA)
+                                              .rows(ROWS3)
+                                              .buildMMappedIndex();
+
     final QueryableIndex forbiddenIndex = IndexBuilder.create()
                                                       .tmpDir(new File(tmpDir, "forbidden"))
                                                       .indexMerger(TestHelper.getTestIndexMergerV9())
@@ -246,6 +266,14 @@ public class CalciteTests
                    .shardSpec(new LinearShardSpec(0))
                    .build(),
         index2
+    ).add(
+        DataSegment.builder()
+                   .dataSource(DATASOURCE3)
+                   .interval(index3.getDataInterval())
+                   .version("1")
+                   .shardSpec(new LinearShardSpec(0))
+                   .build(),
+        index3
     ).add(
         DataSegment.builder()
                    .dataSource(FORBIDDEN_DATASOURCE)

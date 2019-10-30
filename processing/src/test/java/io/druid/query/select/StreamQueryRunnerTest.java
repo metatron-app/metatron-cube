@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
@@ -134,6 +135,40 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
         Lists.<Object[]>newArrayList()
     );
     validate(expected, results);
+  }
+
+  @Test
+  public void testMutiValue()
+  {
+    Druids.SelectQueryBuilder builder = testEq(newTestQuery());
+    testEq(builder.columns(Arrays.asList("placementish", "partial_null_column")));
+    testEq(builder.intervals(I_0112_0114));
+    testEq(builder.limit(15));
+
+    StreamQuery query = builder.streaming();
+    List<Object[]> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
+        Lists.<Object[]>newArrayList()
+    );
+    String[] expected;
+    if (descending) {
+      expected = new String[]{
+          "[[p, preferred], value]", "[[m, preferred], value]", "[[p, preferred], null]", "[[m, preferred], null]",
+          "[[t, preferred], null]", "[[t, preferred], null]", "[[p, preferred], null]", "[[n, preferred], null]",
+          "[[m, preferred], null]", "[[h, preferred], null]", "[[e, preferred], null]", "[[b, preferred], null]",
+          "[[a, preferred], null]", "[[p, preferred], value]", "[[m, preferred], value]"
+      };
+    } else {
+      expected = new String[]{
+          "[[a, preferred], null]", "[[b, preferred], null]", "[[e, preferred], null]", "[[h, preferred], null]",
+          "[[m, preferred], null]", "[[n, preferred], null]", "[[p, preferred], null]", "[[t, preferred], null]",
+          "[[t, preferred], null]", "[[m, preferred], null]", "[[p, preferred], null]", "[[m, preferred], value]",
+          "[[p, preferred], value]", "[[a, preferred], null]", "[[b, preferred], null]"
+      };
+    }
+    for (int i = 0; i < expected.length; i++) {
+      Assert.assertEquals(i + 1 + " th", expected[i], GuavaUtils.arrayToString(results.get(i)));
+    }
   }
 
   @Test

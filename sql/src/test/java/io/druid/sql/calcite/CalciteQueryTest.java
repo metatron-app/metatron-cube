@@ -266,6 +266,7 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{"foo"},
             new Object[]{"foo2"},
+            new Object[]{"foo3"},
             new Object[]{"forbiddenDatasource"},
             new Object[]{"mmapped"},
             new Object[]{"mmapped-split"},
@@ -282,7 +283,8 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{"foo"},
-            new Object[]{"foo2"}
+            new Object[]{"foo2"},
+            new Object[]{"foo3"}
         )
     );
   }
@@ -456,6 +458,7 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{"druid", "foo", "TABLE"},
             new Object[]{"druid", "foo2", "TABLE"},
+            new Object[]{"druid", "foo3", "TABLE"},
             new Object[]{"druid", "forbiddenDatasource", "TABLE"},
             new Object[]{"druid", "mmapped", "TABLE"},
             new Object[]{"druid", "mmapped-split", "TABLE"},
@@ -485,6 +488,7 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{"druid", CalciteTests.DATASOURCE1, "TABLE"},
             new Object[]{"druid", CalciteTests.DATASOURCE2, "TABLE"},
+            new Object[]{"druid", CalciteTests.DATASOURCE3, "TABLE"},
             new Object[]{"druid", CalciteTests.FORBIDDEN_DATASOURCE, "TABLE"},
             new Object[]{"druid", "mmapped", "TABLE"},
             new Object[]{"druid", "mmapped-split", "TABLE"},
@@ -681,6 +685,26 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, HLLCV1.class.getName()},
             new Object[]{T("2000-01-02"), 1L, "10.1", "", 2.0d, 2.0, HLLCV1.class.getName()}
+        )
+    );
+  }
+
+  @Test
+  public void testSelectOnMultiValue() throws Exception
+  {
+    testQuery(
+        "SELECT dim1,dim2 FROM druid.foo3 LIMIT 3",
+        ImmutableList.of(
+            newScanQueryBuilder()
+                .dataSource(CalciteTests.DATASOURCE3)
+                .columns(Arrays.asList("dim1", "dim2"))
+                .limit(3)
+                .streaming()
+        ),
+        ImmutableList.of(
+            new Object[]{"", "[a, b]"},
+            new Object[]{"10.1", ""},
+            new Object[]{"2", "b"}
         )
     );
   }

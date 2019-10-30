@@ -532,6 +532,22 @@ public class GuavaUtils
     return b.toString();
   }
 
+  public static String arrayToString(Object[] array)
+  {
+    StringBuilder b = new StringBuilder().append('[');
+    for (Object x : array) {
+      if (b.length() > 1) {
+        b.append(", ");
+      }
+      if (x instanceof Object[]) {
+        b.append(arrayToString((Object[]) x));
+      } else {
+        b.append(x);
+      }
+    }
+    return b.append(']').toString();
+  }
+
   public static boolean containsNull(List list)
   {
     return Lists.newArrayList(list).contains(null);

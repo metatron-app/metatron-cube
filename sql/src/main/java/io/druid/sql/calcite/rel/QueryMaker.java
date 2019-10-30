@@ -28,6 +28,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -57,13 +58,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.joda.time.DateTime;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 public class QueryMaker
 {
@@ -305,17 +304,9 @@ public class QueryMaker
       } else if (value instanceof Number) {
         coercedValue = String.valueOf(value);
       } else if (value instanceof Collection) {
-        // Iterate through the collection, coercing each value. Useful for handling selects of multi-value dimensions.
-        final List<String> valueStrings = ((Collection<?>) value).stream()
-                                                                 .map(v -> (String) coerce(v, sqlType))
-                                                                 .collect(Collectors.toList());
-
-        try {
-          coercedValue = jsonMapper.writeValueAsString(valueStrings);
-        }
-        catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+        coercedValue = GuavaUtils.arrayToString(((Collection) value).toArray());
+      } else if (value instanceof Object[]) {
+        coercedValue = GuavaUtils.arrayToString((Object[]) value);
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
