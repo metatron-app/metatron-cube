@@ -14,12 +14,12 @@
 
 package io.druid.java.util.common.parsers;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Class that can parse Strings into Maps.
+ * Class that can parseToMap Strings into Maps.
  */
 public interface Parser<K, V>
 {
@@ -28,7 +28,8 @@ public interface Parser<K, V>
    *
    * @throws ParseException if the String cannot be parsed
    */
-  public Map<K, V> parse(String input);
+  @Nullable
+  Map<K, V> parseToMap(String input);
 
   /**
    * Set the fieldNames that you expect to see in parsed Maps. Deprecated; Parsers should not, in general, be

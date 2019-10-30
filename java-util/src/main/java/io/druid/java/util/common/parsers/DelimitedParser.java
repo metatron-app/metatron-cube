@@ -122,12 +122,12 @@ public class DelimitedParser implements Parser<String, Object>
       setFieldNames(splitter.split(header));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse header [%s]", header);
+      throw new ParseException(e, "Unable to parseToMap header [%s]", header);
     }
   }
 
   @Override
-  public Map<String, Object> parse(final String input)
+  public Map<String, Object> parseToMap(final String input)
   {
     try {
       Iterable<String> values = splitter.split(input);
@@ -139,7 +139,7 @@ public class DelimitedParser implements Parser<String, Object>
       return Utils.zipMapPartial(fieldNames, Iterables.transform(values, valueFunction));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse row [%s]", input);
+      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
     }
   }
 }

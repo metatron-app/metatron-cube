@@ -197,7 +197,7 @@ public class KafkaEmitter implements Emitter
             return context;
           }
           catch (IOException e) {
-            log.warn("Failed to parse context");
+            log.warn("Failed to parseToMap context");
             return contextStr;
           }
         }

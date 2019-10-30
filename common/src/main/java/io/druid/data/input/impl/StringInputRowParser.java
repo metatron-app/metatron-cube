@@ -153,7 +153,7 @@ public class StringInputRowParser implements InputRowParser
   private Map<String, Object> parseString(String inputString)
   {
     try {
-      return parser.parse(inputString);
+      return parser.parseToMap(inputString);
     }
     catch (Exception e) {
       throw ParsingFail.propagate(inputString, e);

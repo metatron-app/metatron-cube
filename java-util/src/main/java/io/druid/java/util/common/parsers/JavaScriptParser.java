@@ -73,7 +73,7 @@ public class JavaScriptParser implements Parser<String, Object>
   }
 
   @Override
-  public Map<String, Object> parse(String input)
+  public Map<String, Object> parseToMap(String input)
   {
     try {
       final Object compiled = fn.apply(input);
@@ -84,7 +84,7 @@ public class JavaScriptParser implements Parser<String, Object>
       return (Map) compiled;
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse row [%s]", input);
+      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
     }
   }
 

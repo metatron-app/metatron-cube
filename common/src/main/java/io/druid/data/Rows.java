@@ -36,7 +36,7 @@ public class Rows
     if (parsed == null || parsed instanceof Boolean) {
       return (Boolean) parsed;
     }
-    throw new ParseException("Unable to parse boolean from value[%s]", value);
+    throw new ParseException("Unable to parseToMap boolean from value[%s]", value);
   }
 
   public static Boolean parseBoolean(Object value, Boolean defaultValue)
@@ -71,7 +71,7 @@ public class Rows
     if (parsed == null || parsed instanceof Float) {
       return (Float) parsed;
     }
-    throw new ParseException("Unable to parse float from value[%s]", value);
+    throw new ParseException("Unable to parseToMap float from value[%s]", value);
   }
 
   public static Float parseFloat(Object value, Float defaultValue)
@@ -108,7 +108,7 @@ public class Rows
     if (parsed == null || parsed instanceof Double) {
       return (Double) parsed;
     }
-    throw new ParseException("Unable to parse double from value[%s]", value);
+    throw new ParseException("Unable to parseToMap double from value[%s]", value);
   }
 
   public static Double parseDouble(Object value, Double defaultValue)
@@ -159,7 +159,7 @@ public class Rows
     if (parsed == null || parsed instanceof Long) {
       return (Long) parsed;
     }
-    throw new ParseException("Unable to parse long from value[%s]", value);
+    throw new ParseException("Unable to parseToMap long from value[%s]", value);
   }
 
   public static Long parseLong(Object value, Long defaultValue)

@@ -92,14 +92,14 @@ public class CSVParser implements Parser<String, Object>
   }
 
   @Override
-  public Map<String, Object> parse(final String input)
+  public Map<String, Object> parseToMap(final String input)
   {
     try {
       String[] values = parser.parseLine(input);
       return Utils.zipMapPartial(fieldNames, Iterables.transform(Lists.newArrayList(values), valueFunction));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse row [%s]", input);
+      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
     }
   }
 }

@@ -75,7 +75,7 @@ public class FlattenJSONBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public Map<String, Object> baseline()
   {
-    Map<String, Object> parsed = flatParser.parse(flatInputs.get(flatCounter));
+    Map<String, Object> parsed = flatParser.parseToMap(flatInputs.get(flatCounter));
     flatCounter = (flatCounter + 1) % numEvents;
     return parsed;
   }
@@ -85,7 +85,7 @@ public class FlattenJSONBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public Map<String, Object> flatten()
   {
-    Map<String, Object> parsed = nestedParser.parse(nestedInputs.get(nestedCounter));
+    Map<String, Object> parsed = nestedParser.parseToMap(nestedInputs.get(nestedCounter));
     nestedCounter = (nestedCounter + 1) % numEvents;
     return parsed;
   }
@@ -95,7 +95,7 @@ public class FlattenJSONBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public Map<String, Object> preflattenNestedParser()
   {
-    Map<String, Object> parsed = fieldDiscoveryParser.parse(flatInputs.get(nestedCounter));
+    Map<String, Object> parsed = fieldDiscoveryParser.parseToMap(flatInputs.get(nestedCounter));
     nestedCounter = (nestedCounter + 1) % numEvents;
     return parsed;
   }
@@ -105,7 +105,7 @@ public class FlattenJSONBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public Map<String, Object> forcedRootPaths()
   {
-    Map<String, Object> parsed = forcedPathParser.parse(flatInputs.get(nestedCounter));
+    Map<String, Object> parsed = forcedPathParser.parseToMap(flatInputs.get(nestedCounter));
     nestedCounter = (nestedCounter + 1) % numEvents;
     return parsed;
   }

@@ -108,7 +108,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
             catch (IOException e) {
               CharBuffer.wrap(StringUtils.fromUtf8(bytes).toCharArray());
               CharBuffer charBuffer = Charsets.UTF_8.decode(ByteBuffer.wrap(bytes));
-              log.error(e, "Could not parse json: %s", charBuffer.toString());
+              log.error(e, "Could not parseToMap json: %s", charBuffer.toString());
               throw Throwables.propagate(e);
             }
           }

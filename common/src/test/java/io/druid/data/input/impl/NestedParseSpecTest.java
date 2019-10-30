@@ -75,7 +75,7 @@ public class NestedParseSpecTest
                + "}";
     Assert.assertEquals(
         ImmutableMap.<String, Object>of("timestamp", 10000000L, "foo", "val1", "x", "val2", "y", "val3"),
-        nestedSpec.makeParser().parse(x)
+        nestedSpec.makeParser().parseToMap(x)
     );
   }
 }

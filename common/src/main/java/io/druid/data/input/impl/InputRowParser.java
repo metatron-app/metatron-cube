@@ -24,8 +24,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
+import io.druid.java.util.common.collect.Utils;
 
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = StringInputRowParser.class)
@@ -38,7 +42,27 @@ import java.util.Set;
 // not for serialization
 public interface InputRowParser<T>
 {
-  InputRow parse(T input);
+  /**
+   * Parse an input into list of {@link InputRow}. List can contains null for rows that should be thrown away,
+   * or throws {@code ParseException} if the input is unparseable. This method should never return null otherwise
+   * lots of things will break.
+   */
+  @NotNull
+  default List<InputRow> parseBatch(T input)
+  {
+    return Utils.nullableListOf(parse(input));
+  }
+
+  /**
+   * Parse an input into an {@link InputRow}. Return null if this input should be thrown away, or throws
+   * {@code ParseException} if the input is unparseable.
+   */
+  @Deprecated
+  @Nullable
+  default InputRow parse(T input)
+  {
+    return null;
+  }
 
   @JsonIgnore
   TimestampSpec getTimestampSpec();

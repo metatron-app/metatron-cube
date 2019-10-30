@@ -64,7 +64,7 @@ public class MapPopulator<K, V>
           @Override
           public boolean processLine(String line) throws IOException
           {
-            map.putAll(parser.parse(line));
+            map.putAll(parser.parseToMap(line));
             ++count;
             return true;
           }

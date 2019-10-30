@@ -106,7 +106,7 @@ public class JSONParser implements Parser<String, Object>
   }
 
   @Override
-  public Map<String, Object> parse(String input)
+  public Map<String, Object> parseToMap(String input)
   {
     try {
       Map<String, Object> map = new LinkedHashMap<>();
@@ -142,7 +142,7 @@ public class JSONParser implements Parser<String, Object>
       return map;
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse row [%s]", input);
+      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
     }
   }
 }

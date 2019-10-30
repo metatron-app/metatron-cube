@@ -87,9 +87,9 @@ public class NestedParseSpec implements ParseSpec
     return new AbstractParser<String, Object>()
     {
       @Override
-      public Map<String, Object> parse(String input)
+      public Map<String, Object> parseToMap(String input)
       {
-        final Map<String, Object> parsed = parser.parse(input);
+        final Map<String, Object> parsed = parser.parseToMap(input);
         final List<Map<String, Object>> columnParsedList = Lists.newArrayList();
         final Iterator<Map.Entry<String, Object>> iter = parsed.entrySet().iterator();
         while (iter.hasNext()) {
@@ -98,7 +98,7 @@ public class NestedParseSpec implements ParseSpec
           if (parser == null) {
             continue;
           }
-          columnParsedList.add(parser.parse(Objects.toString(entry.getValue(), null)));
+          columnParsedList.add(parser.parseToMap(Objects.toString(entry.getValue(), null)));
           iter.remove();
         }
         for (Map<String, Object> columnParsed : columnParsedList) {

@@ -68,7 +68,7 @@ public class JSONToLowerParser extends JSONParser
   }
 
   @Override
-  public Map<String, Object> parse(String input)
+  public Map<String, Object> parseToMap(String input)
   {
     try {
       Map<String, Object> map = new LinkedHashMap<>();
@@ -93,18 +93,18 @@ public class JSONToLowerParser extends JSONParser
               nodeValue.add(subnodeValue);
             }
           }
-          map.put(key.toLowerCase(), nodeValue); // difference from JSONParser parse()
+          map.put(key.toLowerCase(), nodeValue); // difference from JSONParser parseToMap()
         } else {
           final Object nodeValue = valueFunction.apply(node);
           if (nodeValue != null) {
-            map.put(key.toLowerCase(), nodeValue); // difference from JSONParser parse()
+            map.put(key.toLowerCase(), nodeValue); // difference from JSONParser parseToMap()
           }
         }
       }
       return map;
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parse row [%s]", input);
+      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
     }
   }
 }

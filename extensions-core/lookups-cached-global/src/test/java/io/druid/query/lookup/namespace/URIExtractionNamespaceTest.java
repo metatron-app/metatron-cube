@@ -88,7 +88,7 @@ public class URIExtractionNamespaceTest
             "col3"
         ), "col2", "col3"
     );
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A,B,C"));
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A,B,C"));
   }
 
   @Test
@@ -106,7 +106,7 @@ public class URIExtractionNamespaceTest
         ),
         "col3"
     );
-    Assert.assertEquals(ImmutableMap.of(new MultiKey("A", "B"), "C"), parser.getParser().parse("A,B,C"));
+    Assert.assertEquals(ImmutableMap.of(new MultiKey("A", "B"), "C"), parser.getParser().parseToMap("A,B,C"));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -119,7 +119,7 @@ public class URIExtractionNamespaceTest
             "col3"
         ), "col2", "col3ADFSDF"
     );
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A,B,C"));
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A,B,C"));
   }
 
   @Test(expected = NullPointerException.class)
@@ -132,7 +132,7 @@ public class URIExtractionNamespaceTest
             "col3"
         ), "col2", "col3"
     );
-    Map<Object, String> map = parser.getParser().parse("A");
+    Map<Object, String> map = parser.getParser().parseToMap("A");
   }
 
   @Test
@@ -144,7 +144,7 @@ public class URIExtractionNamespaceTest
         null, "col2",
         "col3"
     );
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A|B|C"));
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A|B|C"));
   }
 
   @Test
@@ -159,7 +159,7 @@ public class URIExtractionNamespaceTest
         ),
         "col3"
     );
-    Assert.assertEquals(ImmutableMap.of(new MultiKey("A", "B"), "C"), parser.getParser().parse("A|B|C"));
+    Assert.assertEquals(ImmutableMap.of(new MultiKey("A", "B"), "C"), parser.getParser().parseToMap("A|B|C"));
   }
 
   @Test
@@ -171,7 +171,7 @@ public class URIExtractionNamespaceTest
         "\\u0002", "col2",
         "col3"
     );
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A\\u0001B\\u0001C"));
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A\\u0001B\\u0001C"));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -183,8 +183,8 @@ public class URIExtractionNamespaceTest
         null, "col2",
         "col3"
     );
-    Map<Object, String> map = parser.getParser().parse("A,B,C");
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A,B,C"));
+    Map<Object, String> map = parser.getParser().parseToMap("A,B,C");
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A,B,C"));
   }
 
 
@@ -197,8 +197,8 @@ public class URIExtractionNamespaceTest
         null, "col2",
         "col3"
     );
-    Map<Object, String> map = parser.getParser().parse("A");
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("A,B,C"));
+    Map<Object, String> map = parser.getParser().parseToMap("A");
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("A,B,C"));
   }
 
   @Test
@@ -214,7 +214,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of("B", "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%s\":\"B\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -237,7 +237,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of(new MultiKey("A", "B"), "C"),
         parser.getParser()
-            .parse(
+            .parseToMap(
                 String.format(
                     "{\"%s\":\"B\", \"%s\":\"C\", \"%s\":\"A\",\"FOO\":\"BAR\"}",
                     keyFields.get(1),
@@ -261,7 +261,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of("B", "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%sDFSDFDS\":\"B\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -285,7 +285,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of("B", "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%sDFSDFDS\":\"B\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -308,7 +308,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of("B", "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%sDFSDFDS\":\"B\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -331,7 +331,7 @@ public class URIExtractionNamespaceTest
     Assert.assertEquals(
         ImmutableMap.of("B", "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%sDFSDFDS\":\"B\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -347,7 +347,7 @@ public class URIExtractionNamespaceTest
     URIExtractionNamespace.ObjectMapperFlatDataParser parser = new URIExtractionNamespace.ObjectMapperFlatDataParser(
         registerTypes(new ObjectMapper())
     );
-    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parse("{\"B\":\"C\"}"));
+    Assert.assertEquals(ImmutableMap.of("B", "C"), parser.getParser().parseToMap("{\"B\":\"C\"}"));
   }
 
   @Test
@@ -493,7 +493,7 @@ public class URIExtractionNamespaceTest
         "num string value",
         ImmutableMap.of("B", nString),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%s\":\"B\", \"%s\":\"%d\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -506,7 +506,7 @@ public class URIExtractionNamespaceTest
         "num string key",
         ImmutableMap.of(nString, "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%s\":\"%d\", \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -519,7 +519,7 @@ public class URIExtractionNamespaceTest
         "num value",
         ImmutableMap.of("B", nString),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%s\":\"B\", \"%s\":%d, \"FOO\":\"BAR\"}",
                       keyField,
@@ -532,7 +532,7 @@ public class URIExtractionNamespaceTest
         "num key",
         ImmutableMap.of(nString, "C"),
         parser.getParser()
-              .parse(
+              .parseToMap(
                   String.format(
                       "{\"%s\":%d, \"%s\":\"C\", \"FOO\":\"BAR\"}",
                       keyField,
@@ -553,7 +553,7 @@ public class URIExtractionNamespaceTest
     final String nString = String.format("%d", n);
     Assert.assertEquals(
         ImmutableMap.of("key", nString),
-        parser.getParser().parse(String.format("{\"key\":%d}", n))
+        parser.getParser().parseToMap(String.format("{\"key\":%d}", n))
     );
   }
 }

@@ -100,7 +100,7 @@ public class RequestLogParseSpec implements ParseSpec
       private final Map<String, String> managerLog = Maps.newHashMap();
 
       @Override
-      public Map<String, Object> parse(String input)
+      public Map<String, Object> parseToMap(String input)
       {
         int index = input.indexOf(MANAGER_PREFIX);
         if (index > 0) {

@@ -96,7 +96,7 @@ public class TimestampParser
         };
       }
       catch (Exception e) {
-        throw new IAE(e, "Unable to parse timestamps with format [%s]", format);
+        throw new IAE(e, "Unable to parseToMap timestamps with format [%s]", format);
       }
     }
   }

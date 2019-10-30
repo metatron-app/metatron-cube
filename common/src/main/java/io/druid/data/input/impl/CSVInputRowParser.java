@@ -107,7 +107,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   @Override
   public InputRow parse(Object input)
   {
-    throw new UnsupportedOperationException("parse");
+    throw new UnsupportedOperationException("parseToMap");
   }
 
   @Override

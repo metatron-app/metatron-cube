@@ -34,7 +34,7 @@ public class DelimitedParserTest
         Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello", "y", "world", "z", "foo"),
@@ -51,7 +51,7 @@ public class DelimitedParserTest
         Arrays.asList("x", "y", "z", "w")
     );
     String body = "hello\tworld\tfoo";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello", "y", "world", "z", "foo"),
@@ -68,7 +68,7 @@ public class DelimitedParserTest
         Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo\txxx";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello", "y", "world", "z", "foo"),
@@ -88,7 +88,7 @@ public class DelimitedParserTest
         false
     );
     String body = "\"hello, world\",\"foo,xxx";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello, world", "y", "\"foo", "z", "xxx"),
@@ -108,7 +108,7 @@ public class DelimitedParserTest
         true
     );
     String body = "hello\t  world\t      10000  ";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello", "y", "world", "z", "10000"),
@@ -125,7 +125,7 @@ public class DelimitedParserTest
         Arrays.asList("x", "y")
     );
     String body = "hello:world\tfoo:xxx";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", Arrays.asList("hello", "world"), "y", Arrays.asList("foo", "xxx")),
@@ -145,7 +145,7 @@ public class DelimitedParserTest
         false
     );
     String body = "hello:world\tfoo:xxx";
-    Map jsonMap = delimitedParser.parse(body);
+    Map jsonMap = delimitedParser.parseToMap(body);
     Assert.assertEquals(
         "jsonMap",
         ImmutableMap.of("x", "hello:world", "y", Arrays.asList("foo", "xxx")),

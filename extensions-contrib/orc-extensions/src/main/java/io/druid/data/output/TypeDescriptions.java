@@ -186,7 +186,7 @@ public class TypeDescriptions
         }
       }
     }
-    throw new IllegalArgumentException("Can't parse category at " + source);
+    throw new IllegalArgumentException("Can't parseToMap category at " + source);
   }
 
   static int parseInt(StringPosition source)

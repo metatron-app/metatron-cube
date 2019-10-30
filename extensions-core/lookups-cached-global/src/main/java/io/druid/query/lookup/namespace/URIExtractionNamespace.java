@@ -111,7 +111,7 @@ public class URIExtractionNamespace implements ExtractionNamespace
         Pattern.compile(this.fileRegex);
       }
       catch (PatternSyntaxException ex) {
-        throw new IAE(ex, "Could not parse `fileRegex` [%s]", this.fileRegex);
+        throw new IAE(ex, "Could not parseToMap `fileRegex` [%s]", this.fileRegex);
       }
     }
   }
@@ -211,9 +211,9 @@ public class URIExtractionNamespace implements ExtractionNamespace
     }
 
     @Override
-    public Map<Object, String> parse(String input)
+    public Map<Object, String> parseToMap(String input)
     {
-      final Map<String, Object> inner = delegate.parse(input);
+      final Map<String, Object> inner = delegate.parseToMap(input);
       Object keyObject;
       if (keys.size() > 1) {
         final String[] keyArray = new String[keys.size()];
@@ -618,7 +618,7 @@ public class URIExtractionNamespace implements ExtractionNamespace
       parser = new Parser<Object, String>()
       {
         @Override
-        public Map<Object, String> parse(String input)
+        public Map<Object, String> parseToMap(String input)
         {
           try {
             return jsonMapper.readValue(

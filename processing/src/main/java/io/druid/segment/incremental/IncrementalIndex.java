@@ -103,7 +103,7 @@ public abstract class IncrementalIndex implements Closeable
           return s.isEmpty() ? null : Long.valueOf(s);
         }
         catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as long in column: ", o);
+          throw new ParseException(nfe, "Unable to parseToMap value[%s] as long in column: ", o);
         }
       }
       if (o instanceof Number) {
@@ -127,7 +127,7 @@ public abstract class IncrementalIndex implements Closeable
           return s.isEmpty() ? null : Float.valueOf(s);
         }
         catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as float in column: ", o);
+          throw new ParseException(nfe, "Unable to parseToMap value[%s] as float in column: ", o);
         }
       }
       if (o instanceof Number) {
@@ -151,7 +151,7 @@ public abstract class IncrementalIndex implements Closeable
           return s.isEmpty() ? null : Double.valueOf(s);
         }
         catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as float in column: ", o);
+          throw new ParseException(nfe, "Unable to parseToMap value[%s] as float in column: ", o);
         }
       }
       if (o instanceof Number) {

@@ -33,6 +33,7 @@ import com.alibaba.rocketmq.common.protocol.heartbeat.MessageModel;
 import com.alibaba.rocketmq.remoting.exception.RemotingException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
@@ -54,6 +55,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Function;
 
 public class RocketMQFirehoseFactory implements FirehoseFactory
 {
@@ -183,10 +185,14 @@ public class RocketMQFirehoseFactory implements FirehoseFactory
 
     return new Firehose()
     {
+      private Iterator<InputRow> nextIterator = Iterators.emptyIterator();
 
       @Override
       public boolean hasMore()
       {
+        if (nextIterator.hasNext()) {
+          return true;
+        }
         boolean hasMore = false;
         DruidPullRequest earliestPullRequest = null;
 
@@ -236,18 +242,26 @@ public class RocketMQFirehoseFactory implements FirehoseFactory
       @Override
       public InputRow nextRow()
       {
+        if (nextIterator.hasNext()) {
+          return nextIterator.next();
+        }
+
         for (Map.Entry<MessageQueue, ConcurrentSkipListSet<MessageExt>> entry : messageQueueTreeSetMap.entrySet()) {
           if (!entry.getValue().isEmpty()) {
             MessageExt message = entry.getValue().pollFirst();
-            InputRow inputRow = theParser.parse(ByteBuffer.wrap(message.getBody()));
-            if (inputRow == null) {
-              continue;
-            }
-            if (!windows.keySet().contains(entry.getKey())) {
-              windows.put(entry.getKey(), new ConcurrentSkipListSet<Long>());
-            }
-            windows.get(entry.getKey()).add(message.getQueueOffset());
-            return inputRow;
+            nextIterator = theParser.parseBatch(ByteBuffer.wrap(message.getBody())).iterator();
+
+            windows
+                .computeIfAbsent(entry.getKey(), new Function<MessageQueue, ConcurrentSkipListSet<Long>>()
+                {
+                  @Override
+                  public ConcurrentSkipListSet<Long> apply(MessageQueue k)
+                  {
+                    return new ConcurrentSkipListSet<>();
+                  }
+                })
+                .add(message.getQueueOffset());
+            return nextIterator.next();
           }
         }
 

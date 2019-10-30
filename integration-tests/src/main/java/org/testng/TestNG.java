@@ -318,7 +318,7 @@ public class TestNG
 
     m_isInitialized = true;
     if (m_suites.size() > 0) {
-      //to parse the suite files (<suite-file>), if any
+      //to parseToMap the suite files (<suite-file>), if any
       for (XmlSuite s : m_suites) {
 
         for (String suiteFile : s.getSuiteFiles()) {
@@ -680,7 +680,7 @@ public class TestNG
 
   /**
    * Set the suites file names to be run by this TestNG object. This method tries to load and
-   * parse the specified TestNG suite xml files. If a file is missing, it is ignored.
+   * parseToMap the specified TestNG suite xml files. If a file is missing, it is ignored.
    *
    * @param suites A list of paths to one more XML files defining the tests.  For example:
    *               <p/>

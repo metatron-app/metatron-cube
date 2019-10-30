@@ -77,14 +77,14 @@ public class FlattenJSONProfile
 
   public Map<String, Object> parseNested(Parser parser)
   {
-    Map<String, Object> parsed = parser.parse(nestedInputs.get(nestedCounter));
+    Map<String, Object> parsed = parser.parseToMap(nestedInputs.get(nestedCounter));
     nestedCounter = (nestedCounter + 1) % numEvents;
     return parsed;
   }
 
   public Map<String, Object> parseFlat(Parser parser)
   {
-    Map<String, Object> parsed = parser.parse(flatInputs.get(flatCounter));
+    Map<String, Object> parsed = parser.parseToMap(flatInputs.get(flatCounter));
     flatCounter = (flatCounter + 1) % numEvents;
     return parsed;
   }
@@ -113,7 +113,7 @@ public class FlattenJSONProfile
     Thread.sleep(5000);
     control.startCPUSampling(null);
     for(int i = 0; i < numEvents; i++) {
-      //parsedMap = parser.parse(fjp.nestedInputs.get(i));
+      //parsedMap = parser.parseToMap(fjp.nestedInputs.get(i));
       parsedMap = fjp.parseFlat(forcedParser);
       //parsedMap = fjp.parseFlat(parser);
       //parsedMap = fjp.parseNested(nestedPar);

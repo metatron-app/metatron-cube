@@ -188,7 +188,7 @@ public class QueryContexts
     } else if (val instanceof Boolean) {
       return (boolean) val;
     } else {
-      throw new ISE("Unknown type [%s]. Cannot parse!", val.getClass());
+      throw new ISE("Unknown type [%s]. Cannot parseToMap!", val.getClass());
     }
   }
 }

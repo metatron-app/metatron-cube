@@ -42,6 +42,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.parsers.ParseException;
 import com.google.common.primitives.Longs;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -64,6 +65,7 @@ import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.task.AbstractTask;
 import io.druid.indexing.common.task.TaskResource;
 import io.druid.indexing.kafka.supervisor.KafkaSupervisor;
+import io.druid.java.util.common.collect.Utils;
 import io.druid.query.DruidMetrics;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -77,6 +79,7 @@ import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.AppenderatorDriver;
 import io.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
 import io.druid.segment.realtime.appenderator.Appenderators;
+import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.appenderator.TransactionalSegmentPublisher;
 import io.druid.segment.realtime.firehose.ChatHandler;
@@ -90,6 +93,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -106,6 +110,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +123,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -646,57 +652,87 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                   throw new ParseException("null value");
                 }
 
-                final InputRow row = Preconditions.checkNotNull(parser.parse(ByteBuffer.wrap(valueBytes)), "row");
+                final List<InputRow> rows = valueBytes == null
+                                            ? Utils.nullableListOf((InputRow) null)
+                                            : parser.parseBatch(ByteBuffer.wrap(valueBytes));
+                boolean isPersistRequired = false;
 
-                if (row != null && withinMinMaxRecordTime(row)) {
-                  SequenceMetadata sequenceToUse = null;
-                  for (SequenceMetadata sequence : sequences) {
-                    if (sequence.canHandle(record)) {
-                      sequenceToUse = sequence;
-                    }
-                  }
-
-                  if (sequenceToUse == null) {
-                    throw new ISE(
-                        "cannot find any valid sequence for record with partition [%d] and offset [%d]. Current sequences: %s",
-                        record.partition(),
-                        record.offset(),
-                        sequences
-                    );
-                  }
-
-                  final AppenderatorDriverAddResult addResult = driver.add(
-                      row,
-                      sequenceToUse.getSequenceName(),
-                      committerSupplier,
-                      true
-                      // skip segment lineage check as there will always be one segment
-                      // for combination of sequence and segment granularity.
-                      // It is necessary to skip it as the task puts messages polled from all the
-                      // assigned Kafka partitions into a single Druid segment, thus ordering of
-                      // messages among replica tasks across assigned partitions is not guaranteed
-                      // which may cause replica tasks to ask for segments with different interval
-                      // in different order which might cause SegmentAllocateAction to fail.
-                  );
-
-                  if (addResult.isOk()) {
-                    // If the number of rows in the segment exceeds the threshold after adding a row,
-                    // move the segment out from the active segments of AppenderatorDriver to make a new segment.
-                    if (addResult.getNumRowsInSegment() > tuningConfig.getMaxRowsPerSegment()) {
-                      if (!sequenceToUse.isCheckpointed()) {
-                        sequenceToCheckpoint = sequenceToUse;
+                for (InputRow row : rows) {
+                  if (row != null && withinMinMaxRecordTime(row)) {
+                    SequenceMetadata sequenceToUse = null;
+                    for (SequenceMetadata sequence : sequences) {
+                      if (sequence.canHandle(record)) {
+                        sequenceToUse = sequence;
                       }
                     }
-                  } else {
-                    // Failure to allocate segment puts determinism at risk, bail out to be safe.
-                    // May want configurable behavior here at some point.
-                    // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
-                    throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
-                  }
 
-                  fireDepartmentMetrics.incrementProcessed();
-                } else {
-                  fireDepartmentMetrics.incrementThrownAway();
+                    if (sequenceToUse == null) {
+                      throw new ISE(
+                          "cannot find any valid sequence for record with partition [%d] and offset [%d]. Current sequences: %s",
+                          record.partition(),
+                          record.offset(),
+                          sequences
+                      );
+                    }
+
+                    final AppenderatorDriverAddResult addResult = driver.add(
+                        row,
+                        sequenceToUse.getSequenceName(),
+                        committerSupplier,
+                        // skip segment lineage check as there will always be one segment
+                        // for combination of sequence and segment granularity.
+                        // It is necessary to skip it as the task puts messages polled from all the
+                        // assigned Kafka partitions into a single Druid segment, thus ordering of
+                        // messages among replica tasks across assigned partitions is not guaranteed
+                        // which may cause replica tasks to ask for segments with different interval
+                        // in different order which might cause SegmentAllocateAction to fail.
+                        true,
+                        // do not allow incremental persists to happen until all the rows from this batch
+                        // of rows are indexed
+                        false
+                    );
+
+                    if (addResult.isOk()) {
+                      // If the number of rows in the segment exceeds the threshold after adding a row,
+                      // move the segment out from the active segments of AppenderatorDriver to make a new segment.
+                      if (addResult.getNumRowsInSegment() > tuningConfig.getMaxRowsPerSegment()) {
+                        if (!sequenceToUse.isCheckpointed()) {
+                          sequenceToCheckpoint = sequenceToUse;
+                        }
+                      }
+                      isPersistRequired |= addResult.isPersistRequired();
+                    } else {
+                      // Failure to allocate segment puts determinism at risk, bail out to be safe.
+                      // May want configurable behavior here at some point.
+                      // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
+                      throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
+                    }
+
+                    fireDepartmentMetrics.incrementProcessed();
+                  } else {
+                    fireDepartmentMetrics.incrementThrownAway();
+                  }
+                }
+                if (isPersistRequired) {
+                  Futures.addCallback(
+                      driver.persistAsync(committerSupplier.get()),
+                      new FutureCallback<Object>()
+                      {
+                        @Override
+                        public void onSuccess(@Nullable Object result)
+                        {
+                          log.info("Persist completed with metadata [%s]", result);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t)
+                        {
+                          log.error("Persist failed, dying");
+                          throwableAtomicReference.set(t);
+                        }
+                      }
+                  );
+
                 }
               }
               catch (ParseException e) {
@@ -1024,53 +1060,50 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                   throw new ParseException("null value");
                 }
 
-                final InputRow row = Preconditions.checkNotNull(parser.parse(ByteBuffer.wrap(valueBytes)), "row");
+                final List<InputRow> rows = valueBytes == null
+                                            ? Utils.nullableListOf((InputRow) null)
+                                            : parser.parseBatch(ByteBuffer.wrap(valueBytes));
+                boolean isPersistRequired = false;
+                final Map<String, Set<SegmentIdentifier>> segmentsToMoveOut = new HashMap<>();
 
-                final boolean beforeMinimumMessageTime = ioConfig.getMinimumMessageTime().isPresent() && ioConfig.getMinimumMessageTime().get().isAfter(row.getTimestamp());
-                final boolean afterMaximumMessageTime = ioConfig.getMaximumMessageTime().isPresent() && ioConfig.getMaximumMessageTime().get().isBefore(row.getTimestamp());
+                for (InputRow row: rows) {
+                  if (row != null && withinMinMaxRecordTime(row)) {
+                    final String sequenceName = sequenceNames.get(record.partition());
+                    final AppenderatorDriverAddResult addResult = driver.add(
+                        row,
+                        sequenceName,
+                        committerSupplier,
+                        false,
+                        false
+                    );
 
-                //if (!beforeMinimumMessageTime && !afterMaximumMessageTime) {
-                if (row != null && withinMinMaxRecordTime(row)) {
-
-                  final String sequenceName = sequenceNames.get(record.partition());
-                  final AppenderatorDriverAddResult addResult = driver.add(
-                      row,
-                      sequenceName,
-                      committerSupplier
-                  );
-
-                  if (addResult.isOk()) {
-                    // If the number of rows in the segment exceeds the threshold after adding a row,
-                    // move the segment out from the active segments of AppenderatorDriver to make a new segment.
-                    if (addResult.getNumRowsInSegment() > tuningConfig.getMaxRowsPerSegment()) {
-                      driver.moveSegmentOut(sequenceName, ImmutableList.of(addResult.getSegmentIdentifier()));
+                    if (addResult.isOk()) {
+                      // If the number of rows in the segment exceeds the threshold after adding a row,
+                      // move the segment out from the active segments of AppenderatorDriver to make a new segment.
+                      if (addResult.getNumRowsInSegment() > tuningConfig.getMaxRowsPerSegment()) {
+                        segmentsToMoveOut.computeIfAbsent(sequenceName, k -> new HashSet<>())
+                                         .add(addResult.getSegmentIdentifier());
+                      }
+                      isPersistRequired |= addResult.isPersistRequired();
+                    } else {
+                      // Failure to allocate segment puts determinism at risk, bail out to be safe.
+                      // May want configurable behavior here at some point.
+                      // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
+                      throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
                     }
+
+                    fireDepartmentMetrics.incrementProcessed();
                   } else {
-                    // Failure to allocate segment puts determinism at risk, bail out to be safe.
-                    // May want configurable behavior here at some point.
-                    // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
-                    throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
+                    fireDepartmentMetrics.incrementThrownAway();
                   }
-
-                  fireDepartmentMetrics.incrementProcessed();
-                } else {
-                  if (log.isDebugEnabled()) {
-                    if (beforeMinimumMessageTime) {
-                      log.debug(
-                          "CurrentTimeStamp[%s] is before MinimumMessageTime[%s]",
-                          row.getTimestamp(),
-                          ioConfig.getMinimumMessageTime().get()
-                      );
-                    } else if (afterMaximumMessageTime) {
-                      log.debug(
-                          "CurrentTimeStamp[%s] is after MaximumMessageTime[%s]",
-                          row.getTimestamp(),
-                          ioConfig.getMaximumMessageTime().get()
-                      );
-                    }
-                  }
-                  fireDepartmentMetrics.incrementThrownAway();
                 }
+                if (isPersistRequired) {
+                  driver.persist(committerSupplier.get());
+                }
+                segmentsToMoveOut.entrySet().forEach(sequenceSegments -> driver.moveSegmentOut(
+                    sequenceSegments.getKey(),
+                    sequenceSegments.getValue().stream().collect(Collectors.toList())
+                ));
               }
               catch (ParseException e) {
                 if (tuningConfig.isReportParseExceptions()) {
