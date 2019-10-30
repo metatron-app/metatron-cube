@@ -19,6 +19,7 @@
 
 package io.druid.hive;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
@@ -41,6 +42,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ObjectInspectors;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Set;
 
@@ -48,8 +50,27 @@ public class HiveFunctions implements Function.Provider
 {
   private static final Logger LOG = new Logger(HiveFunctions.class);
 
-  private static final Registry REGISTRY = new Registry();
+  private static final Registry REGISTRY;
   private static final SessionState DUMMY = new SessionState(new HiveConf());
+
+  static {
+    Registry registry = null;
+    try {
+      Constructor constructor = Registry.class.getConstructor();
+      registry = (Registry) constructor.newInstance();
+    } catch (Exception ex) {
+      // ignore
+    }
+    try {
+      if (registry == null) {
+        Constructor constructor = Registry.class.getConstructor(boolean.class);
+        registry = (Registry) constructor.newInstance(false);
+      }
+    } catch (Exception ex) {
+      // ignore
+    }
+    REGISTRY = Preconditions.checkNotNull(registry, "cannot instantiate registry");
+  }
 
   public static Set<String> getFunctionNames()
   {
