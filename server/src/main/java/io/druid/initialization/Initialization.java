@@ -256,8 +256,12 @@ public class Initialization
       "druid-geotools-extensions", "druid-lucene-extensions"
   );
 
+  private static final String INTERNAL_HADOOP_CLIENT = "$HADOOP_CILENT$";
+
   // -_-;;;
   private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
+      "druid-hdfs-storage",
+      "druid-hadoop-firehose",
       "druid-hive-udf-extensions",
       "druid-orc-extensions",
       "druid-parquet-extensions"
@@ -323,7 +327,7 @@ public class Initialization
       return null;
     }
     Arrays.sort(versions, StringComparators.ALPHANUMERIC);
-    return new File(hadoopDependencyDir, versions[0]);
+    return new File(hadoopDependencyDir, versions[versions.length - 1]);  // use latest version
   }
 
   /**
@@ -339,15 +343,17 @@ public class Initialization
     String extensionName = extension.getName();
     URLClassLoader loader = getClassLoaderForExtension(extensionName);
     if (loader == null) {
-      final String parentModuleName = PARENT_MODULES.get(extensionName);
-      ClassLoader parentLoader = parentModuleName == null
-                                       ? Initialization.class.getClassLoader()
-                                       : getClassLoaderForExtension(parentModuleName);
-      Preconditions.checkNotNull(parentLoader, "Cannot find parent module [%s]", parentModuleName);
+      ClassLoader parent;
       if (HADOOP_DEPENDENT.contains(extensionName)) {
-        parentLoader = appendHadoopLoader(config, parentLoader);
+        parent = getHadoopLoader(config);
+      } else {
+        String parentModule = PARENT_MODULES.get(extensionName);
+        parent = parentModule == null
+                 ? Initialization.class.getClassLoader()
+                 : getClassLoaderForExtension(parentModule);
+        Preconditions.checkNotNull(parent, "Cannot find parent module [%s]", parentModule);
       }
-      loader = new URLClassLoader(toURLs(extension, true), parentLoader);
+      loader = new URLClassLoader(toURLs(extension, true), parent);
       loadersMap.put(extensionName, loader);
     }
     return loader;
@@ -371,31 +377,15 @@ public class Initialization
     return loadersMap.get(extensionName);
   }
 
-  private static ClassLoader appendHadoopLoader(ExtensionsConfig config, ClassLoader loader)
-      throws MalformedURLException
+  private static ClassLoader getHadoopLoader(ExtensionsConfig config) throws MalformedURLException
   {
-    if (!hasHadoopLoader(loader)) {
-      loader = new HadoopClassLoader(toURLs(getHadoopDependencyFilesToLoad(config), false), loader);
+    ClassLoader parent = Initialization.class.getClassLoader();
+    URLClassLoader hadoop = getClassLoaderForExtension(INTERNAL_HADOOP_CLIENT);
+    if (hadoop == null) {
+      hadoop = new URLClassLoader(toURLs(getHadoopDependencyFilesToLoad(config), false), parent);
+      loadersMap.put(INTERNAL_HADOOP_CLIENT, hadoop);
     }
-    return loader;
-  }
-
-  private static boolean hasHadoopLoader(ClassLoader loader)
-  {
-    for (ClassLoader current = loader; current != null; current = current.getParent()) {
-      if (current instanceof HadoopClassLoader) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static class HadoopClassLoader extends URLClassLoader
-  {
-    public HadoopClassLoader(URL[] urls, ClassLoader parent)
-    {
-      super(urls, parent);
-    }
+    return hadoop;
   }
 
   public static List<URL> getURLsForClasspath(String cp)
