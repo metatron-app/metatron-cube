@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
@@ -114,11 +115,16 @@ public class LocalFirehoseFactory implements FirehoseFactory
     }
     log.info("Searching for all [%s] in and beneath [%s]", filter, baseDir.getAbsoluteFile());
 
-    final Collection<File> files = FileUtils.listFiles(
-        baseDir.getAbsoluteFile(),
-        new WildcardFileFilter(filter),
-        TrueFileFilter.INSTANCE
-    );
+    final Collection<File> files;
+    if (baseDir.isFile()) {
+      files = ImmutableList.of(baseDir);
+    } else {
+      files = FileUtils.listFiles(
+          baseDir.getAbsoluteFile(),
+          new WildcardFileFilter(filter),
+          TrueFileFilter.INSTANCE
+      );
+    }
     if (files.isEmpty()) {
       throw new ISE("Found no files to ingest! Check your schema.");
     }
