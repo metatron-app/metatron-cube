@@ -26,6 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.Row;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -56,6 +58,17 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   public static List<String> getColumns(List<OrderByColumnSpec> orderByColumnSpecs)
   {
     return orderByColumnSpecs == null ? null : Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+  }
+
+  public static boolean needsExplicitOrdering(List<OrderByColumnSpec> orderByColumnSpecs)
+  {
+    if (GuavaUtils.isNullOrEmpty(orderByColumnSpecs)) {
+      return false;
+    }
+    if (orderByColumnSpecs.size() > 1) {
+      return true;
+    }
+    return !orderByColumnSpecs.get(0).isSimpleTimeOrdering();
   }
 
   @JsonCreator
@@ -167,6 +180,11 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   public String getDimension()
   {
     return dimension;
+  }
+
+  public boolean isSimpleTimeOrdering()
+  {
+    return Row.TIME_COLUMN_NAME.equals(dimension) && isNaturalOrdering();
   }
 
   public OrderByColumnSpec withComparator(String comparatorName)

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
@@ -30,6 +31,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -53,10 +55,16 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
+        StreamQuery stream = (StreamQuery) query;
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          return ((StreamQuery) query).applyLimit(queryRunner.run(query.toLocalQuery(), responseContext));
+          return stream.applyLimit(queryRunner.run(query.toLocalQuery(), responseContext));
         }
-        return queryRunner.run(query, responseContext);
+        Sequence<Object[]> sequence = queryRunner.run(query, responseContext);
+        LimitSpec limitSpec = stream.getLimitSpec();
+        if (limitSpec.hasLimit()) {
+          sequence = Sequences.limit(sequence, limitSpec.getLimit());
+        }
+        return sequence;
       }
     };
   }

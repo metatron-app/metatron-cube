@@ -40,6 +40,7 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.common.parsers.CloseableIterator;
+import io.druid.common.ConcatSequence;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
@@ -173,6 +174,16 @@ public class Sequences extends com.metamx.common.guava.Sequences
   public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
   {
     return concat(map(sequence, fn));
+  }
+
+  public static <T> Sequence<T> concat(Iterable<Sequence<T>> sequences)
+  {
+    return concat(Sequences.simple(sequences));
+  }
+
+  public static <T> Sequence<T> concat(Sequence<Sequence<T>> sequences)
+  {
+    return new ConcatSequence<>(sequences);
   }
 
   public static <From, M, To> Sequence<To> map(Sequence<From> sequence, Function<From, M> fn1, Function<M, To> fn2)

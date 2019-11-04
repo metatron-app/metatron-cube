@@ -396,6 +396,12 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     };
   }
 
+  public boolean isSimpleLimiter()
+  {
+    return GuavaUtils.isNullOrEmpty(columns) &&
+           segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);
+  }
+
   public boolean isNoop()
   {
     return super.isNoop() && segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);

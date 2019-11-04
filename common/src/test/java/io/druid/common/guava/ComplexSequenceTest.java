@@ -22,10 +22,10 @@ package io.druid.common.guava;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.common.utils.Sequences;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -48,7 +48,7 @@ public class ComplexSequenceTest
 
   private void check(String expected, Sequence<Integer> complex)
   {
-    List<Integer> combined = Sequences.toList(complex, new ArrayList<Integer>());
+    List<Integer> combined = Sequences.toList(complex);
     Assert.assertEquals(expected, combined.toString());
 
     Yielder<Integer> yielder = complex.toYielder(

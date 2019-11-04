@@ -54,7 +54,6 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -114,7 +113,7 @@ public class StreamQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    if (GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
+    if (!OrderByColumnSpec.needsExplicitOrdering(query.getOrderingSpecs())) {
       return null;
     }
     int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1);
@@ -241,16 +240,10 @@ public class StreamQueryRunnerFactory
       public Sequence<Object[]> run(final Query<Object[]> query, final Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
-        Iterable<Sequence<Object[]>> iterable;
-        if (GuavaUtils.isNullOrEmpty(stream.getOrderingSpecs())) {
-          iterable = Iterables.transform(
-              QueryRunnerHelper.asCallable(runners, query, responseContext),
-              Sequences.<Object[]>callableToLazy()
-          );
-        } else {
+        if (OrderByColumnSpec.needsExplicitOrdering(stream.getOrderingSpecs())) {
           int priority = BaseQuery.getContextPriority(query, 0);
           Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
-          iterable = Iterables.transform(
+          return QueryUtils.mergeSort(query, Lists.newArrayList(Iterables.transform(
               Execs.execute(
                   executor,
                   QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext),
@@ -258,14 +251,13 @@ public class StreamQueryRunnerFactory
                   priority
               ),
               FutureSequence.<Object[]>toSequence()
-          );
-        }
-        List<Sequence<Object[]>> sequences = Lists.newArrayList(iterable);
-        if (stream.isDescending()) {
-          Collections.reverse(sequences);
+          )));
         }
         // no need to sort on time in here (not like CCC)
-        return QueryUtils.mergeSort(query, sequences);
+        return Sequences.concat(Iterables.transform(
+            QueryRunnerHelper.asCallable(runners, query, responseContext),
+            Sequences.<Object[]>callableToLazy()
+        ));
       }
     };
   }

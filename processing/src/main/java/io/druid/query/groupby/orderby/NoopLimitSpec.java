@@ -102,6 +102,12 @@ public class NoopLimitSpec extends LimitSpec
   }
 
   @Override
+  public boolean isSimpleLimiter()
+  {
+    return true;
+  }
+
+  @Override
   public boolean isNoop()
   {
     return true;

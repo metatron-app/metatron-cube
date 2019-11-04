@@ -187,7 +187,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public int getSimpleLimit()
   {
-    return limitSpec.withLimit(-1).isNoop() ? limitSpec.getLimit() : -1;
+    return limitSpec.isSimpleLimiter() ? limitSpec.getLimit() : -1;
   }
 
   @Override
@@ -248,7 +248,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   boolean isSimpleProjection()
   {
     return GuavaUtils.isNullOrEmpty(virtualColumns) &&
-           limitSpec.isNoop() &&
+           limitSpec.isSimpleLimiter() &&
            filter == null &&
            getQuerySegmentSpec() == null;
   }
@@ -304,6 +304,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery toLocalQuery()
   {
+    LimitSpec limitSpec = getLimitSpec();
+    if (OrderByColumnSpec.needsExplicitOrdering(orderingSpecs) || !limitSpec.isSimpleLimiter()) {
+      limitSpec = limitSpec.withNoLocalProcessing();
+    }
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
@@ -313,7 +317,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getVirtualColumns(),
         getOrderingSpecs(),
         getConcatString(),
-        getLimitSpec().withNoLocalProcessing(),
+        limitSpec,
         null,
         computeOverriddenContext(defaultPostActionContext())
     );
