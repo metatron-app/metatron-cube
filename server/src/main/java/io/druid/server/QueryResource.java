@@ -393,8 +393,9 @@ public class QueryResource
   private void handleException(Query query, String remote, long start, int rows, long bytes, Throwable e)
       throws IOException
   {
+    boolean success = queryManager.isCanceled(query);
     boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
-    if (interrupted) {
+    if (success || interrupted) {
       log.info("%s [%s]", e.toString(), query.getId());
     } else {
       log.warn(e, "Exception occurred on request [%s]", query);
@@ -405,7 +406,6 @@ public class QueryResource
          .emit();
     }
 
-    boolean success = queryManager.isCanceled(query);
     long queryTime = System.currentTimeMillis() - start;
     Map<String, Object> event = Maps.newHashMap();
     event.put("query/time", queryTime);

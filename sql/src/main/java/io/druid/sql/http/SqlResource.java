@@ -19,7 +19,6 @@
 
 package io.druid.sql.http;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -31,7 +30,6 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.logger.Logger;
 import io.druid.client.BrokerServerView;
 import io.druid.common.Yielders;
-import io.druid.common.utils.JodaUtils;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
 import io.druid.server.QueryStats;
@@ -44,6 +42,7 @@ import io.druid.sql.calcite.planner.PlannerResult;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
@@ -151,8 +150,7 @@ public class SqlResource
               {
                 Yielder<Object[]> yielder = yielder0;
 
-                final StringBuilder builder = new StringBuilder();
-                Exception e = null;
+                final MutableInt counter = new MutableInt();
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
                 try (final ResultFormat.Writer writer = sqlQuery.getResultFormat()
                                                                 .createFormatter(os, jsonMapper)) {
@@ -184,6 +182,7 @@ public class SqlResource
                     }
                     writer.writeRowEnd();
                     yielder = yielder.next(null);
+                    counter.increment();
                   }
 
                   writer.writeResponseEnd();
@@ -201,6 +200,7 @@ public class SqlResource
                             ImmutableMap.<String, Object>of(
                                 "query/time", queryTime,
                                 "query/bytes", os.getCount(),
+                                "query/rows", counter.intValue(),
                                 "success", true
                             )
                         )
