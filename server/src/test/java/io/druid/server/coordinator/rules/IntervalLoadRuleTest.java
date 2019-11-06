@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,6 +33,10 @@ import org.junit.Test;
   */
  public class IntervalLoadRuleTest
  {
+   private final static DataSegment.Builder builder = DataSegment.builder()
+                                                                 .dataSource("test")
+                                                                 .version(new DateTime().toString());
+
    @Test
    public void testSerde() throws Exception
    {
@@ -77,4 +83,47 @@ import org.junit.Test;
      IntervalLoadRule expectedIntervalLoadRule = jsonMapper.readValue(expectedJson, IntervalLoadRule.class);
      Assert.assertEquals(expectedIntervalLoadRule, inputIntervalLoadRule);
    }
+
+   @Test
+   public void testAppliesTo()
+   {
+     DateTime now = new DateTime("2019-11-01T07:05:58");
+     IntervalLoadRule rule = new IntervalLoadRule(
+         new Interval("2019-11-01T05:00:00.000Z/2019-11-01T07:00:00.000Z"), null
+     );
+
+     Assert.assertFalse(
+         rule.appliesTo(
+             builder.interval(
+                 new Interval("2019-11-01T04:00:00.000Z/2019-11-01T05:00:00.000Z")
+             ).build(),
+             now
+         )
+     );
+     Assert.assertTrue(
+         rule.appliesTo(
+             builder.interval(
+                 new Interval("2019-11-01T05:00:00.000Z/2019-11-01T06:00:00.000Z")
+             ).build(),
+             now
+         )
+     );
+     Assert.assertTrue(
+         rule.appliesTo(
+             builder.interval(
+                 new Interval("2019-11-01T06:00:00.000Z/2019-11-01T07:00:00.000Z")
+             ).build(),
+             now
+         )
+     );
+     Assert.assertFalse(
+         rule.appliesTo(
+             builder.interval(
+                 new Interval("2019-11-01T07:00:00.000Z/2019-11-01T08:00:00.000Z")
+             ).build(),
+             now
+         )
+     );
+   }
+
  }

@@ -112,4 +112,49 @@ public class PeriodLoadRuleTest
     Assert.assertEquals(expectedPeriodLoadRule.getTieredReplicants(), inputPeriodLoadRule.getTieredReplicants());
     Assert.assertEquals(expectedPeriodLoadRule.getPeriod(), inputPeriodLoadRule.getPeriod());
   }
+
+  @Test
+  public void testAppliesTo()
+  {
+    DateTime now = new DateTime("2019-11-01T07:05:58");
+    PeriodLoadRule rule = new PeriodLoadRule(
+        new Period("PT2H"),
+        ImmutableMap.<String, Integer>of("", 0)
+    );
+
+    Assert.assertFalse(
+        rule.appliesTo(
+            builder.interval(
+                new Interval("2019-11-01T04:00:00.000Z/2019-11-01T05:00:00.000Z")
+            ).build(),
+            now
+        )
+    );
+    Assert.assertFalse(
+        rule.appliesTo(
+            builder.interval(
+                new Interval("2019-11-01T05:00:00.000Z/2019-11-01T06:00:00.000Z")
+            ).build(),
+            now
+        )
+    );
+    Assert.assertTrue(
+        rule.appliesTo(
+            builder.interval(
+                new Interval("2019-11-01T06:00:00.000Z/2019-11-01T07:00:00.000Z")
+            ).build(),
+            now
+        )
+    );
+
+    Assert.assertTrue(
+        rule.appliesTo(
+            builder.interval(
+                new Interval("2019-11-01T07:00:00.000Z/2019-11-01T08:00:00.000Z")
+            ).build(),
+            now
+        )
+    );
+
+  }
 }
