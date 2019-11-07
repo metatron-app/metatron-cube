@@ -31,7 +31,6 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedDoubles;
 import io.druid.segment.data.IndexedFloats;
 import io.druid.segment.data.IndexedLongs;
-import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -41,16 +40,12 @@ import java.nio.ByteOrder;
 
 /**
  */
+@Deprecated
 public class MetricHolder
 {
   public static final byte[] version = new byte[]{0x0};
 
   public static MetricHolder fromByteBuffer(ByteBuffer buf) throws IOException
-  {
-    return fromByteBuffer(buf, null);
-  }
-
-  public static MetricHolder fromByteBuffer(ByteBuffer buf, ObjectStrategy strategy) throws IOException
   {
     final byte ver = buf.get();
     if (version[0] != ver) {

@@ -80,6 +80,7 @@ public class IndexSpecTest
                 new TextIndexingStrategy("text")
             )
         ),
+        null,
         false
     );
     IndexSpec actual = objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class);

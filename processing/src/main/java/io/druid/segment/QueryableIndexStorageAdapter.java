@@ -898,7 +898,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                         };
                       } else {
                         final GenericColumn columnVals = holder.getGenericColumn();
-                        final ValueType type = columnVals.getType();
+                        final ValueType type = columnVals.getType().type();
 
                         if (type == ValueType.FLOAT) {
                           cachedColumnVals = new ObjectColumnSelector.WithBaggage<Float>()

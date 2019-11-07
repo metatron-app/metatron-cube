@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -110,11 +111,11 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
         idMap.put(strategy.getId(), strategy);
       }
     }
+  }
 
-    public static CompressionStrategy forId(byte id)
-    {
-      return idMap.get(id);
-    }
+  public static CompressionStrategy forId(byte id)
+  {
+    return CompressionStrategy.idMap.get(id);
   }
 
   public static interface Decompressor
@@ -141,6 +142,8 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
      * @return
      */
     public byte[] compress(byte[] bytes);
+
+    public byte[] compress(byte[] bytes, int offset, int length);
   }
 
   public static class UncompressedCompressor implements Compressor
@@ -151,6 +154,18 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     public byte[] compress(byte[] bytes)
     {
       return bytes;
+    }
+
+    @Override
+    public byte[] compress(byte[] bytes, int offset, int length)
+    {
+      if (offset == 0) {
+        return Arrays.copyOf(bytes, length);
+      } else {
+        final byte[] copy = new byte[length];
+        System.arraycopy(bytes, offset, copy, 0, length);
+        return copy;
+      }
     }
   }
 
@@ -209,11 +224,16 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     @Override
     public byte[] compress(byte[] bytes)
     {
+      return compress(bytes, 0, bytes.length);
+    }
 
+    @Override
+    public byte[] compress(byte[] bytes, int offset, int length)
+    {
       try (final ResourceHolder<BufferRecycler> bufferRecycler = CompressedPools.getBufferRecycler()) {
-        return LZFEncoder.encode(bytes, 0, bytes.length, bufferRecycler.get());
+        return LZFEncoder.encode(bytes, offset, length, bufferRecycler.get());
       }
-      catch (IOException e) {
+      catch (Exception e) {
         log.error(e, "Error compressing data");
         throw Throwables.propagate(e);
       }
@@ -254,12 +274,18 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     {
       return lz4High.compress(bytes);
     }
+
+    @Override
+    public byte[] compress(byte[] bytes, int offset, int length)
+    {
+      return lz4High.compress(bytes, offset, length);
+    }
   }
 
   protected final ByteOrder order;
   protected final BufferConverter<T> converter;
   protected final Decompressor decompressor;
-  private final Compressor compressor;
+  protected final Compressor compressor;
 
   protected CompressedObjectStrategy(
       final ByteOrder order,
@@ -296,20 +322,16 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       }
 
       @Override
-      public void close() throws IOException
+      public void close()
       {
         bufHolder.close();
       }
     };
   }
 
-  protected void decompress(
-      ByteBuffer buffer,
-      int numBytes,
-      ByteBuffer buf
-  )
+  protected void decompress(ByteBuffer in, int numBytes, ByteBuffer out)
   {
-    decompressor.decompress(buffer, numBytes, buf);
+    decompressor.decompress(in, numBytes, out);
   }
 
   @Override
@@ -341,5 +363,41 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     public int sizeOf(int count);
 
     public T combine(ByteBuffer into, T from);
+
+    public static abstract class Abstract<T> implements BufferConverter<T>
+    {
+      @Override
+      public T convert(ByteBuffer buf)
+      {
+        throw new UnsupportedOperationException("convert");
+      }
+
+      @Override
+      public int compare(T lhs, T rhs)
+      {
+        throw new UnsupportedOperationException("compare");
+      }
+
+      @Override
+      public int sizeOf(int count)
+      {
+        throw new UnsupportedOperationException("sizeOf");
+      }
+
+      @Override
+      public T combine(ByteBuffer into, T from)
+      {
+        throw new UnsupportedOperationException("combine");
+      }
+    }
+
+    public static BufferConverter<ByteBuffer> IDENTITY = new BufferConverter.Abstract<ByteBuffer>()
+    {
+      @Override
+      public ByteBuffer convert(ByteBuffer buf)
+      {
+        return buf;
+      }
+    };
   }
 }

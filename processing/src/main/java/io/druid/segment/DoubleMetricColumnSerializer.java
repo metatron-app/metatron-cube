@@ -32,6 +32,7 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
+@Deprecated
 public class DoubleMetricColumnSerializer implements MetricColumnSerializer
 {
   private final String metricName;

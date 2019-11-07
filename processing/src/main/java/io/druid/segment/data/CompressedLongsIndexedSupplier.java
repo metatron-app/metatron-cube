@@ -40,9 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static io.druid.segment.data.CompressedFloatsIndexedSupplier.LZF_FIXED;
-import static io.druid.segment.data.CompressedFloatsIndexedSupplier.WITH_COMPRESSION_ID;
-
 /**
  */
 public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, ColumnPartSerde.Serializer
@@ -143,9 +140,9 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     final int sizePer = buffer.getInt();
 
     final CompressedObjectStrategy.CompressionStrategy compression;
-    if (versionFromBuffer == WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == LZF_FIXED) {
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
       compression = CompressedObjectStrategy.CompressionStrategy.LZF;
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);

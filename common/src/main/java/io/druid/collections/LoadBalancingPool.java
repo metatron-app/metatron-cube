@@ -108,7 +108,7 @@ public class LoadBalancingPool<T> implements Supplier<ResourceHolder<T>>
      * @throws IOException
      */
     @Override
-    public void close() throws IOException
+    public void close()
     {
       // ensures count always gets adjusted while item is removed from the queue
       synchronized (this) {

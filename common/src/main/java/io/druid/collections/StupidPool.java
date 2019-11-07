@@ -23,7 +23,6 @@ import com.google.common.base.Supplier;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 
-import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,18 +42,12 @@ public class StupidPool<T>
 
   private int createdObjects;
 
-  public StupidPool(
-      Supplier<T> generator
-  )
+  public StupidPool(Supplier<T> generator)
   {
-    this.generator = generator;
-    this.objectsCacheMaxCount = Integer.MAX_VALUE;
+    this(generator, Integer.MAX_VALUE);
   }
 
-  public StupidPool(
-      Supplier<T> generator,
-      int objectsCacheMaxCount
-  )
+  public StupidPool(Supplier<T> generator, int objectsCacheMaxCount)
   {
     this.generator = generator;
     this.objectsCacheMaxCount = objectsCacheMaxCount;
@@ -74,7 +67,7 @@ public class StupidPool<T>
 
   private class ObjectResourceHolder implements ResourceHolder<T>
   {
-    private AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
     private final T object;
 
     public ObjectResourceHolder(final T object)
@@ -95,7 +88,7 @@ public class StupidPool<T>
     }
 
     @Override
-    public void close() throws IOException
+    public void close()
     {
       if (!closed.compareAndSet(false, true)) {
         log.warn(new ISE("Already Closed!"), "Already closed");

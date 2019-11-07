@@ -20,14 +20,14 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 
 /**
  */
 public interface GenericColumn extends ColumnAccess
 {
+  ValueDesc getType();
   int getNumRows();
-  ValueType getType();
 
   String getString(int rowNum);
   Float getFloat(int rowNum);

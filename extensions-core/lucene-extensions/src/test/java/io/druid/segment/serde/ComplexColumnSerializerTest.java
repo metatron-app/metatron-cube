@@ -68,7 +68,8 @@ public class ComplexColumnSerializerTest
         ioPeon,
         "test-lucene",
         StringMetricSerde.INSTANCE,
-        LuceneIndexingSpec.of(null, new TextIndexingStrategy("test-lucene"))
+        LuceneIndexingSpec.of(null, new TextIndexingStrategy("test-lucene")),
+        null
     );
     serializer.open();
 
@@ -147,7 +148,8 @@ public class ComplexColumnSerializerTest
         LuceneIndexingSpec.of(
             null,
             new ShapeIndexingStrategy("geom", ShapeFormat.WKT, null, -1)
-        )
+        ),
+        null
     );
     serializer.open();
 

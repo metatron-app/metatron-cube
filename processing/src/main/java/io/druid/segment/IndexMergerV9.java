@@ -57,6 +57,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.CompressedVSizeIndexedV3Writer;
 import io.druid.segment.data.CompressedVSizeIntsIndexedWriter;
 import io.druid.segment.data.GenericIndexed;
@@ -357,7 +358,7 @@ public class IndexMergerV9 extends IndexMerger
 
     long startTime = System.currentTimeMillis();
     final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
-    final CompressedObjectStrategy.CompressionStrategy compressionStrategy = indexSpec.getDimensionCompressionStrategy();
+    final CompressionStrategy compressionStrategy = indexSpec.getDimensionCompressionStrategy();
     for (int i = 0; i < mergedDimensions.size(); ++i) {
       long dimStartTime = System.currentTimeMillis();
       final String dim = mergedDimensions.get(i);
@@ -699,44 +700,47 @@ public class IndexMergerV9 extends IndexMerger
       final IndexSpec indexSpec
   ) throws IOException
   {
-    ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
+    final ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
-    final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
+    final CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
     for (String metric : mergedMetrics) {
-      ValueDesc type = metricTypeNames.get(metric);
+      final ValueDesc type = metricTypeNames.get(metric);
       final SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
-      GenericColumnSerializer writer;
+      final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric, metCompression);
+      final LuceneIndexingSpec luceneSpec = indexSpec.getLuceneIndexingSpec(metric);
+      final GenericColumnSerializer writer;
       switch (type.type()) {
         case BOOLEAN:
           writer = BooleanColumnSerializer.create(serdeFactory);
           break;
         case LONG:
           writer = LongColumnSerializer.create(
-              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+              ioPeon, metric, compression, serdeFactory, provider, allowNullForNumbers
           );
           break;
         case FLOAT:
           writer = FloatColumnSerializer.create(
-              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+              ioPeon, metric, compression, serdeFactory, provider, allowNullForNumbers
           );
           break;
         case DOUBLE:
           writer = DoubleColumnSerializer.create(
-              ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+              ioPeon, metric, compression, serdeFactory, provider, allowNullForNumbers
           );
           break;
         case STRING:
-          LuceneIndexingSpec indexingSpec = indexSpec.getLuceneIndexingSpec(metric);
-          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, indexingSpec);
+          CompressionStrategy strategy = indexSpec.getCompressionStrategy(metric, null);
+          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, luceneSpec, strategy);
           break;
         case COMPLEX:
-          final String typeName = type.typeName();
+          String typeName = type.typeName();
           ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
           if (serde == null) {
             throw new ISE("Unknown type[%s]", typeName);
           }
-          writer = ComplexColumnSerializer.create(ioPeon, metric, serde, indexSpec.getLuceneIndexingSpec(metric));
+          // todo : compression (ComplexMetricSerde is not implementing this except StringMetricSerde)
+          writer = ComplexColumnSerializer.create(ioPeon, metric, serde, luceneSpec, null);
           break;
         default:
           throw new ISE("Unknown type[%s]", type);
@@ -756,8 +760,8 @@ public class IndexMergerV9 extends IndexMerger
       final IndexSpec indexSpec
   ) throws IOException
   {
-    ArrayList<ColumnPartWriter> dimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
-    final CompressedObjectStrategy.CompressionStrategy dimCompression = indexSpec.getDimensionCompressionStrategy();
+    final ArrayList<ColumnPartWriter> dimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
+    final CompressionStrategy dimCompression = indexSpec.getDimensionCompressionStrategy();
     for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
       String dim = mergedDimensions.get(dimIndex);
       int cardinality = dimCardinalities.get(dim);

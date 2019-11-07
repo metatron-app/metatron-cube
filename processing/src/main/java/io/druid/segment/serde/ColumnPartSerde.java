@@ -40,7 +40,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "float", value = FloatGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "double", value = DoubleGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "long", value = LongGenericColumnPartSerde.class),
-    @JsonSubTypes.Type(name = "string", value = StringGenericColumnPartSerde.class),
+    @JsonSubTypes.Type(name = "string", value = StringColumnPartSerde.class),
     @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class),
     @JsonSubTypes.Type(name = "lucene", value = ComplexColumnSerializer.LuceneIndexPartSerDe.class),
     @JsonSubTypes.Type(name = "histogram", value = HistogramBitmaps.SerDe.class),
@@ -49,6 +49,9 @@ import java.util.Map;
 })
 public interface ColumnPartSerde
 {
+  byte LZF_FIXED = 0x1;     // DO NOT USE ON GenericIndexed (this fuck conflicts with GenericIndexed.version)
+  byte WITH_COMPRESSION_ID = 0x2;
+
   Serializer getSerializer();
 
   Deserializer getDeserializer();

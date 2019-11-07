@@ -38,19 +38,15 @@ public abstract class FixedSizeCompressedObjectStrategy<T extends Buffer> extend
     this.sizePer = sizePer;
   }
 
-  public int getSize() {
-    return sizePer;
-  }
-
   @Override
   protected ByteBuffer bufferFor(T val)
   {
-    return ByteBuffer.allocate(converter.sizeOf(getSize())).order(order);
+    return ByteBuffer.allocate(converter.sizeOf(sizePer)).order(order);
   }
 
   @Override
-  protected void decompress(ByteBuffer buffer, int numBytes, ByteBuffer buf)
+  protected void decompress(ByteBuffer in, int numBytes, ByteBuffer out)
   {
-    decompressor.decompress(buffer, numBytes, buf, converter.sizeOf(getSize()));
+    decompressor.decompress(in, numBytes, out, converter.sizeOf(sizePer));
   }
 }

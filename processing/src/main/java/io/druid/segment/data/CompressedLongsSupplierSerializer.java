@@ -22,6 +22,7 @@ package io.druid.segment.data;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -125,7 +126,7 @@ public class CompressedLongsSupplierSerializer implements ColumnPartWriter<Long>
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{CompressedFloatsIndexedSupplier.WITH_COMPRESSION_ID}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));

@@ -49,7 +49,7 @@ import java.util.Map;
  */
 public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, ColumnPartSerde.Serializer
 {
-  static final byte version = 0x1;
+  public static final byte version = 0x1;
 
   enum Feature
   {
@@ -438,6 +438,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     if (version != versionFromBuffer) {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
+    return readIndex(buffer, strategy);
+  }
+
+  public static <T> GenericIndexed<T> readIndex(ByteBuffer buffer, ObjectStrategy<T> strategy)
+  {
     byte flag = buffer.get();
     boolean sorted = Feature.SORTED.isSet(flag);
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);

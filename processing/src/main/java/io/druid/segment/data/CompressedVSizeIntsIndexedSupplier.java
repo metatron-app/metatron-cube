@@ -158,9 +158,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
       final int sizePer = buffer.getInt();
       final int chunkBytes = sizePer * numBytes + bufferPadding(numBytes);
 
-      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.CompressionStrategy.forId(
-          buffer.get()
-      );
+      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
 
       return new CompressedVSizeIntsIndexedSupplier(
           totalSize,

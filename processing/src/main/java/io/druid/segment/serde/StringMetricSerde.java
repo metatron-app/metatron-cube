@@ -19,11 +19,16 @@
 
 package io.druid.segment.serde;
 
+import com.metamx.common.IAE;
+import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
+import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -62,9 +67,27 @@ public class StringMetricSerde extends ComplexMetricSerde
   @Override
   public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
-    builder.setGenericColumn(
-        new StringColumnPartSupplier(GenericIndexed.read(buffer, getObjectStrategy()))
-    );
+    final byte versionFromBuffer = buffer.get();
+    if (versionFromBuffer == GenericIndexed.version) {
+      GenericIndexed<String> indexed = GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY);
+      builder.setType(ValueDesc.STRING)
+             .setHasMultipleValues(false)
+             .setGenericColumn(new StringColumnPartSupplier(indexed));
+    } else if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
+      ByteBuffer compressMeta = ByteBufferSerializer.prepareForRead(buffer);
+      int[] mapping = new int[compressMeta.getInt()];
+      for (int i = 0; i < mapping.length; i++) {
+        mapping[i] = compressMeta.getInt();
+      }
+      SizePrefixedCompressedObjectStrategy strategy = new SizePrefixedCompressedObjectStrategy(compression);
+      GenericIndexed<ResourceHolder<ByteBuffer>> compressed = GenericIndexed.read(buffer, strategy);
+      builder.setType(ValueDesc.STRING)
+             .setHasMultipleValues(false)
+             .setGenericColumn(new CompressedComplexColumnPartSupplier(compressMeta, mapping, compressed, this));
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
+    }
   }
 
   @Override

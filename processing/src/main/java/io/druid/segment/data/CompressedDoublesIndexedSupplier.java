@@ -39,15 +39,10 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 import java.util.Map;
 
-import static io.druid.segment.data.CompressedFloatsIndexedSupplier.LZF_FIXED;
-import static io.druid.segment.data.CompressedFloatsIndexedSupplier.WITH_COMPRESSION_ID;
-
 /**
  */
 public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles>, ColumnPartSerde.Serializer
 {
-  public static final byte LZF_VERSION = 0x1;
-  public static final byte version = 0x2;
   public static final int MAX_DOUBLES_IN_BUFFER = CompressedPools.BUFFER_SIZE / Doubles.BYTES;
 
   private final int numRows;
@@ -109,7 +104,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
@@ -147,9 +142,9 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     final int sizePer = buffer.getInt();
 
     final CompressedObjectStrategy.CompressionStrategy compression;
-    if (versionFromBuffer == WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == LZF_FIXED) {
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
       compression = CompressedObjectStrategy.CompressionStrategy.LZF;
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);

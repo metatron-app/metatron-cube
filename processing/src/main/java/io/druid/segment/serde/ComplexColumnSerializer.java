@@ -37,6 +37,8 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
+import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.lucene.LuceneIndexingSpec;
@@ -61,16 +63,18 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       ComplexMetricSerde serde,
-      LuceneIndexingSpec indexingSpec
+      LuceneIndexingSpec indexingSpec,
+      CompressedObjectStrategy.CompressionStrategy compression
   )
   {
-    return new ComplexColumnSerializer(ioPeon, filenameBase, serde, indexingSpec);
+    return new ComplexColumnSerializer(ioPeon, filenameBase, serde, indexingSpec, compression);
   }
 
   private final IOPeon ioPeon;
   private final String columnName;
   private final ComplexMetricSerde serde;
   private final LuceneIndexingSpec indexingSpec;
+  private final CompressedObjectStrategy.CompressionStrategy compression;
 
   private String minValue;
   private String maxValue;
@@ -79,19 +83,21 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   private final List<Function<Object, Field[]>> fieldGenerators;
   private final IndexWriter luceneIndexer;
 
-  private ColumnPartWriter<Object> writer;
+  private ColumnPartWriter writer;
 
   public ComplexColumnSerializer(
       IOPeon ioPeon,
       String columnName,
       ComplexMetricSerde serde,
-      LuceneIndexingSpec indexingSpec
+      LuceneIndexingSpec indexingSpec,
+      CompressedObjectStrategy.CompressionStrategy compression
   )
   {
     this.ioPeon = ioPeon;
     this.columnName = columnName;
     this.serde = serde;
     this.indexingSpec = indexingSpec;
+    this.compression = compression;
 
     ValueDesc type = ValueDesc.of(serde.getTypeName());
     if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies(columnName, type))) {
@@ -109,9 +115,12 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   @Override
   public void open() throws IOException
   {
-    writer = new GenericIndexedWriter(
-        ioPeon, String.format("%s.complex_column", columnName), serde.getObjectStrategy()
-    );
+    final String filenameBase = String.format("%s.complex_column", columnName);
+    if (compression == null || compression == CompressedObjectStrategy.CompressionStrategy.UNCOMPRESSED) {
+      writer = new GenericIndexedWriter(ioPeon, filenameBase, serde.getObjectStrategy());
+    } else {
+      writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde.getObjectStrategy());
+    }
     writer.open();
   }
 
@@ -146,7 +155,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   {
     if (ValueDesc.isString(desc)) {
       builder.setValueType(ValueDesc.STRING);
-      builder.addSerde(new StringGenericColumnPartSerde(this));
+      builder.addSerde(new StringColumnPartSerde(this));
     } else {
       builder.setValueType(ValueDesc.of(desc.typeName()));
       builder.addSerde(new ComplexColumnPartSerde(desc.typeName(), this));

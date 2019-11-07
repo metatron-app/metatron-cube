@@ -26,4 +26,6 @@ import java.io.Closeable;
 public interface ResourceHolder<T> extends Closeable
 {
   T get();
+
+  void close();
 }

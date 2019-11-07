@@ -30,6 +30,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 
@@ -48,17 +49,17 @@ import java.util.Set;
 public class IndexSpec
 {
   public static final String UNCOMPRESSED = "uncompressed";
-  public static final String DEFAULT_METRIC_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY.name().toLowerCase();
+  public static final CompressionStrategy DEFAULT_METRIC_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY;
   public static final String DEFAULT_DIMENSION_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY.name().toLowerCase();
 
   private static final Set<String> COMPRESSION_NAMES = Sets.newHashSet(
       Iterables.transform(
-          Arrays.asList(CompressedObjectStrategy.CompressionStrategy.values()),
-          new Function<CompressedObjectStrategy.CompressionStrategy, String>()
+          Arrays.asList(CompressionStrategy.values()),
+          new Function<CompressionStrategy, String>()
           {
             @Nullable
             @Override
-            public String apply(CompressedObjectStrategy.CompressionStrategy input)
+            public String apply(CompressionStrategy input)
             {
               return input.name().toLowerCase();
             }
@@ -70,6 +71,7 @@ public class IndexSpec
   private final String dimensionCompression;
   private final String metricCompression;
   private final Map<String, SecondaryIndexingSpec> secondaryIndexing;
+  private final Map<String, String> columnCompression;
   private final ColumnIncluderator dimensionSketches;
   private final boolean allowNullForNumbers;
 
@@ -78,7 +80,7 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, false);
+    this(null, null, null, null, null, null, false);
   }
 
   /**
@@ -102,6 +104,7 @@ public class IndexSpec
       @JsonProperty("dimensionSketches") ColumnIncluderator dimensionSketches,
       @JsonProperty("metricCompression") String metricCompression,
       @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
+      @JsonProperty("columnCompression") Map<String, String> columnCompression,
       @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers
   )
   {
@@ -116,6 +119,7 @@ public class IndexSpec
     this.dimensionSketches = dimensionSketches == null ? ColumnIncluderator.NONE : dimensionSketches;
     this.metricCompression = metricCompression;
     this.secondaryIndexing = secondaryIndexing;
+    this.columnCompression = columnCompression;
     this.allowNullForNumbers = allowNullForNumbers;
   }
 
@@ -125,7 +129,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, false);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, false);
   }
 
   @JsonProperty("bitmap")
@@ -161,6 +165,13 @@ public class IndexSpec
     return secondaryIndexing;
   }
 
+  @JsonProperty("columnCompression")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> getColumnCompression()
+  {
+    return columnCompression;
+  }
+
   @JsonProperty("allowNullForNumbers")
   public boolean isAllowNullForNumbers()
   {
@@ -172,6 +183,12 @@ public class IndexSpec
     return secondaryIndexing == null ? null : secondaryIndexing.get(column);
   }
 
+  public CompressionStrategy getCompressionStrategy(String column, CompressionStrategy defaultStrategy)
+  {
+    String strategy = columnCompression == null ? null : columnCompression.get(column);
+    return strategy == null ? defaultStrategy : CompressionStrategy.valueOf(strategy.toUpperCase());
+  }
+
   public LuceneIndexingSpec getLuceneIndexingSpec(String column)
   {
     SecondaryIndexingSpec indexing = secondaryIndexing == null ? null : secondaryIndexing.get(column);
@@ -181,24 +198,23 @@ public class IndexSpec
     return null;
   }
 
-  public CompressedObjectStrategy.CompressionStrategy getMetricCompressionStrategy()
+  public CompressionStrategy getMetricCompressionStrategy()
   {
-    return CompressedObjectStrategy.CompressionStrategy.valueOf(
-        (metricCompression == null ? DEFAULT_METRIC_COMPRESSION : metricCompression).toUpperCase()
-    );
+    return metricCompression == null ? DEFAULT_METRIC_COMPRESSION :
+           CompressionStrategy.valueOf(metricCompression.toUpperCase());
   }
 
-  public CompressedObjectStrategy.CompressionStrategy getDimensionCompressionStrategy()
+  // todo : it's compression on row ids, not on dictionary
+  public CompressionStrategy getDimensionCompressionStrategy()
   {
     return dimensionCompression == null ?
            dimensionCompressionStrategyForName(DEFAULT_DIMENSION_COMPRESSION) :
            dimensionCompressionStrategyForName(dimensionCompression);
   }
 
-  private static CompressedObjectStrategy.CompressionStrategy dimensionCompressionStrategyForName(String compression)
+  private static CompressionStrategy dimensionCompressionStrategyForName(String compression)
   {
-    return compression.equals(UNCOMPRESSED) ? null :
-           CompressedObjectStrategy.CompressionStrategy.valueOf(compression.toUpperCase());
+    return compression.equals(UNCOMPRESSED) ? null : CompressionStrategy.valueOf(compression.toUpperCase());
   }
 
   public IndexSpec withSecondaryIndexing(Map<String, SecondaryIndexingSpec> secondaryIndexing)
@@ -209,6 +225,7 @@ public class IndexSpec
         dimensionSketches,
         metricCompression,
         secondaryIndexing,
+        columnCompression,
         allowNullForNumbers
     );
   }
@@ -224,6 +241,7 @@ public class IndexSpec
         dimensionSketches,
         metricCompression,
         null,
+        columnCompression,
         allowNullForNumbers
     );
   }
@@ -255,6 +273,9 @@ public class IndexSpec
     if (!Objects.equals(secondaryIndexing, indexSpec.secondaryIndexing)) {
       return false;
     }
+    if (!Objects.equals(columnCompression, indexSpec.columnCompression)) {
+      return false;
+    }
     if (allowNullForNumbers != indexSpec.allowNullForNumbers) {
       return false;
     }
@@ -270,6 +291,7 @@ public class IndexSpec
         dimensionSketches,
         metricCompression,
         secondaryIndexing,
+        columnCompression,
         allowNullForNumbers
     );
   }

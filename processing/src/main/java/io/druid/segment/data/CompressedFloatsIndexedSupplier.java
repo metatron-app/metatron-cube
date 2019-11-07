@@ -43,8 +43,6 @@ import java.util.Map;
  */
 public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>, ColumnPartSerde.Serializer
 {
-  public static final byte LZF_FIXED = 0x1;
-  public static final byte WITH_COMPRESSION_ID = 0x2;
   public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Floats.BYTES;
 
   private final int totalSize;
@@ -106,7 +104,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{WITH_COMPRESSION_ID}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
@@ -144,9 +142,9 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     final int sizePer = buffer.getInt();
 
     final CompressedObjectStrategy.CompressionStrategy compression;
-    if (versionFromBuffer == WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.CompressionStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == LZF_FIXED) {
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
       compression = CompressedObjectStrategy.CompressionStrategy.LZF;
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);

@@ -20,7 +20,7 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 
 /**
  */
@@ -38,15 +38,15 @@ public class BooleanGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public int getNumRows()
+  public ValueDesc getType()
   {
-    return numRows;
+    return ValueDesc.BOOLEAN;
   }
 
   @Override
-  public ValueType getType()
+  public int getNumRows()
   {
-    return ValueType.BOOLEAN;
+    return numRows;
   }
 
   @Override

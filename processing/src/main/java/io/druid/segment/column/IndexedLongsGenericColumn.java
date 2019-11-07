@@ -20,7 +20,7 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.IndexedLongs;
 
 import java.io.IOException;
@@ -44,15 +44,15 @@ public class IndexedLongsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public int getNumRows()
+  public ValueDesc getType()
   {
-    return column.size();
+    return ValueDesc.LONG;
   }
 
   @Override
-  public ValueType getType()
+  public int getNumRows()
   {
-    return ValueType.LONG;
+    return column.size();
   }
 
   @Override

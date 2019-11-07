@@ -19,7 +19,7 @@
 
 package io.druid.segment.column;
 
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.GenericIndexed;
 
 /**
@@ -34,15 +34,15 @@ public class IndexedStringsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public int getNumRows()
+  public ValueDesc getType()
   {
-    return indexed.size();
+    return ValueDesc.STRING;
   }
 
   @Override
-  public ValueType getType()
+  public int getNumRows()
   {
-    return ValueType.STRING;
+    return indexed.size();
   }
 
   @Override

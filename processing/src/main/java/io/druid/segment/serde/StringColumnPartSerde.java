@@ -20,28 +20,25 @@
 package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.ObjectStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  */
-public class StringGenericColumnPartSerde implements ColumnPartSerde
+public class StringColumnPartSerde implements ColumnPartSerde
 {
   private final Serializer serializer;
 
   @JsonCreator
-  public StringGenericColumnPartSerde()
+  public StringColumnPartSerde()
   {
     this(null);
   }
 
-  public StringGenericColumnPartSerde(final ComplexColumnSerializer delegate)
+  public StringColumnPartSerde(final ComplexColumnSerializer delegate)
   {
     this.serializer = delegate;
   }
@@ -58,16 +55,9 @@ public class StringGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(
-          ByteBuffer buffer,
-          ColumnBuilder builder,
-          BitmapSerdeFactory serdeFactory
-      ) throws IOException
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
       {
-        final GenericIndexed<String> indexed = GenericIndexed.read(buffer, ObjectStrategy.STRING_STRATEGY);
-        builder.setType(ValueDesc.STRING)
-               .setHasMultipleValues(false)
-               .setGenericColumn(new StringColumnPartSupplier(indexed));
+        StringMetricSerde.INSTANCE.deserializeColumn(buffer, builder);
       }
     };
   }
