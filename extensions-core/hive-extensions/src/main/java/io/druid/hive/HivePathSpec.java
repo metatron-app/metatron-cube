@@ -206,8 +206,8 @@ public class HivePathSpec implements PathSpec.Resolving
         }
       } else {
         if (partialPartitionList != null && !partialPartitionList.isEmpty()) {
-          logger.warn(
-              "table '%s.%s' is not partitioned table.. ignoring partition values %s",
+          throw new IAE(
+              "table '%s.%s' is not partitioned table.. cannot apply partition values %s",
               table.getDbName(),
               table.getTableName(),
               partialPartitionList
