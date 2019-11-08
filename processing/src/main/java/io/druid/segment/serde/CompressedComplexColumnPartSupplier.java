@@ -25,6 +25,7 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.AbstractGenericColumn;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 
@@ -36,6 +37,7 @@ import java.util.Objects;
 
 public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<GenericColumn>
 {
+  private final CompressionStrategy compressionType;
   private final GenericIndexed<ResourceHolder<ByteBuffer>> indexed;
   private final int[] mapping;
   private final ShortBuffer offsets;
@@ -43,12 +45,14 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
   private final ValueDesc type;
 
   public CompressedComplexColumnPartSupplier(
+      CompressionStrategy compressionType,
       ByteBuffer offsets,
       int[] mapping,
       GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
       ComplexMetricSerde serde
   )
   {
+    this.compressionType = compressionType;
     this.indexed = indexed;
     this.mapping = mapping;
     this.offsets = offsets.slice().asShortBuffer();
@@ -88,6 +92,12 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
       public ValueDesc getType()
       {
         return type;
+      }
+
+      @Override
+      public CompressionStrategy compressionType()
+      {
+        return compressionType;
       }
 
       @Override

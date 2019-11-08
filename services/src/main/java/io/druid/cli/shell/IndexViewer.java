@@ -51,7 +51,9 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.StorageLocationConfig;
@@ -395,8 +397,9 @@ public class IndexViewer extends CommonShell.WithUtils
       ColumnCapabilities capabilities = column.getCapabilities();
 
       long columnSize = column.getSerializedSize();
+      boolean dimensionsType = dimensions.contains(columnName);
 
-      String columnType = dimensions.contains(columnName) ? "dimension" : "metric";
+      String columnType = dimensionsType ? "dimension" : "metric";
       writer.println(
           format(
               "> %s '%s' (%s, %,d ~ %,d : %3.1f%% of total)",
@@ -412,9 +415,18 @@ public class IndexViewer extends CommonShell.WithUtils
       } else {
         desc = ValueDesc.of(type);
       }
-      writer.print(
-          format("  type : %s, hasMultiValue = %s, (%,d bytes)", desc, capabilities.hasMultipleValues(), columnSize)
-      );
+      if (dimensionsType) {
+        boolean multipleValued = capabilities.hasMultipleValues();
+        writer.print(format("  type : %s (hasMultiValue = %s, size = %,d bytes)", desc, multipleValued, columnSize));
+      } else {
+        CompressionStrategy compressionType = CompressionStrategy.UNCOMPRESSED;
+        GenericColumn genericColumn = column.getGenericColumn();
+        if (genericColumn != null) {
+          compressionType = genericColumn.compressionType();
+          CloseQuietly.close(genericColumn);
+        }
+        writer.print(format("  type : %s (compression = %s, size = %,d bytes)", desc, compressionType, columnSize));
+      }
       Map<String, Object> columnStats = column.getColumnStats();
       if (!GuavaUtils.isNullOrEmpty(columnStats)) {
         for (Map.Entry<String, Object> entry : columnStats.entrySet()) {
@@ -432,14 +444,14 @@ public class IndexViewer extends CommonShell.WithUtils
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
-        boolean sketch = dictionaryEncoded.hasSketch();
+        boolean hasSketch = dictionaryEncoded.hasSketch();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
         builder.append(
             format(
-                "dictionary encoded (cardinality = %d, null = %s, sketch = %s, dictionary = %,d bytes, rows = %,d bytes)",
-                dictionary.size(), hasNull, sketch, dictionarySize, encodedSize - dictionarySize
+                "dictionary (cardinality = %d, hasNull = %s, hasSketch = %s, size = %,d bytes), rows (%,d bytes)",
+                dictionary.size(), hasNull, hasSketch, dictionarySize, encodedSize - dictionarySize
             )
         );
         CloseQuietly.close(dictionaryEncoded);

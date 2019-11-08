@@ -224,7 +224,7 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
     return "PeriodGranularity{" +
            "period=" + getPeriod() +
            ", timeZone=" + getTimeZone() +
-           ", origin=" + getOrigin() +
+           (hasOrigin ? ", origin=" + getOrigin() : "") +
            '}';
   }
 

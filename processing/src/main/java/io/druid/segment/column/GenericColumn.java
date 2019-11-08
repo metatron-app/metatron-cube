@@ -21,12 +21,14 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 /**
  */
 public interface GenericColumn extends ColumnAccess
 {
   ValueDesc getType();
+  CompressionStrategy compressionType();
   int getNumRows();
 
   String getString(int rowNum);

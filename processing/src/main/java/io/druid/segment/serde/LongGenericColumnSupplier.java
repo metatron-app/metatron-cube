@@ -42,7 +42,7 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
   @Override
   public GenericColumn get()
   {
-    return new IndexedLongsGenericColumn(column.get(), nulls.get());
+    return new IndexedLongsGenericColumn(column.get(), column.compressionType(), nulls.get());
   }
 
   @Override

@@ -178,9 +178,9 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return "LongMaxAggregatorFactory{" +
-           "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", name='" + name + '\'' +
+           "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 

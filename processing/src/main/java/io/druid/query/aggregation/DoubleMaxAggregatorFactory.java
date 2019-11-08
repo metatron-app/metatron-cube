@@ -183,9 +183,9 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return "DoubleMaxAggregatorFactory{" +
-           "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", name='" + name + '\'' +
+           "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 

@@ -313,7 +313,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
            (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
            (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
            (predicate == null ? "": ", predicate='" + predicate + '\'') +
-           ", inputType='" + inputType + '\'' +
+           (inputType == null ? "": ", inputType='" + inputType + '\'') +
            '}';
   }
 

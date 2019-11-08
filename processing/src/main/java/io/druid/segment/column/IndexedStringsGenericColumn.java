@@ -20,6 +20,8 @@
 package io.druid.segment.column;
 
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 /**
@@ -27,16 +29,24 @@ import io.druid.segment.data.GenericIndexed;
 public class IndexedStringsGenericColumn extends AbstractGenericColumn
 {
   private final GenericIndexed<String> indexed;
+  private final CompressionStrategy compressionType;
 
-  public IndexedStringsGenericColumn(GenericIndexed<String> indexed)
+  public IndexedStringsGenericColumn(GenericIndexed<String> indexed, CompressionStrategy compressionType)
   {
     this.indexed = indexed;
+    this.compressionType = compressionType;
   }
 
   @Override
   public ValueDesc getType()
   {
     return ValueDesc.STRING;
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    return compressionType;
   }
 
   @Override

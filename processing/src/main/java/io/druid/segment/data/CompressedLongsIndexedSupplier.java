@@ -29,6 +29,7 @@ import com.metamx.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -52,13 +53,13 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   private final int totalSize;
   private final int sizePer;
   private final GenericIndexed<ResourceHolder<LongBuffer>> baseLongBuffers;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
   CompressedLongsIndexedSupplier(
       int totalSize,
       int sizePer,
       GenericIndexed<ResourceHolder<LongBuffer>> baseLongBuffers,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressionStrategy compression
   )
   {
     this.totalSize = totalSize;
@@ -70,6 +71,11 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   public int size()
   {
     return totalSize;
+  }
+
+  public CompressionStrategy compressionType()
+  {
+    return compression;
   }
 
   @Override
@@ -139,11 +145,11 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     final int totalSize = buffer.getInt();
     final int sizePer = buffer.getInt();
 
-    final CompressedObjectStrategy.CompressionStrategy compression;
+    final CompressionStrategy compression;
     if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
       compression = CompressedObjectStrategy.forId(buffer.get());
     } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
-      compression = CompressedObjectStrategy.CompressionStrategy.LZF;
+      compression = CompressionStrategy.LZF;
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
@@ -159,13 +165,13 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     );
   }
 
-  public static CompressedLongsIndexedSupplier fromLongBuffer(LongBuffer buffer, final ByteOrder byteOrder, CompressedObjectStrategy.CompressionStrategy compression)
+  public static CompressedLongsIndexedSupplier fromLongBuffer(LongBuffer buffer, final ByteOrder byteOrder, CompressionStrategy compression)
   {
     return fromLongBuffer(buffer, MAX_LONGS_IN_BUFFER, byteOrder, compression);
   }
 
   public static CompressedLongsIndexedSupplier fromLongBuffer(
-      final LongBuffer buffer, final int chunkFactor, final ByteOrder byteOrder, CompressedObjectStrategy.CompressionStrategy compression
+      final LongBuffer buffer, final int chunkFactor, final ByteOrder byteOrder, CompressionStrategy compression
   )
   {
     Preconditions.checkArgument(
@@ -219,7 +225,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   }
 
   public static CompressedLongsIndexedSupplier fromList(
-      final List<Long> list , final int chunkFactor, final ByteOrder byteOrder, CompressedObjectStrategy.CompressionStrategy compression
+      final List<Long> list , final int chunkFactor, final ByteOrder byteOrder, CompressionStrategy compression
   )
   {
     Preconditions.checkArgument(

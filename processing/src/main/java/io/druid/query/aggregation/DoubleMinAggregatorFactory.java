@@ -183,9 +183,9 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return "DoubleMinAggregatorFactory{" +
-           "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", name='" + name + '\'' +
+           "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 

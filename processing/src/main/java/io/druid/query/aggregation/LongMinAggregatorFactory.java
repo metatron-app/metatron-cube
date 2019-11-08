@@ -178,9 +178,9 @@ public class LongMinAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return "LongMinAggregatorFactory{" +
-           "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", name='" + name + '\'' +
+           "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 

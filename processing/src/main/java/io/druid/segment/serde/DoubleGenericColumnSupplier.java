@@ -42,7 +42,7 @@ public class DoubleGenericColumnSupplier implements ColumnPartProvider<GenericCo
   @Override
   public GenericColumn get()
   {
-    return new IndexedDoublesGenericColumn(column.get(), nulls.get());
+    return new IndexedDoublesGenericColumn(column.get(), column.compressionType(), nulls.get());
   }
 
   @Override

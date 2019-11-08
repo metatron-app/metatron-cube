@@ -29,6 +29,7 @@ import com.metamx.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -48,13 +49,13 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   private final int numRows;
   private final int sizePer;
   private final GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
   CompressedDoublesIndexedSupplier(
       int numRows,
       int sizePer,
       GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressionStrategy compression
   )
   {
     this.numRows = numRows;
@@ -66,6 +67,11 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   public int numRows()
   {
     return numRows;
+  }
+
+  public CompressionStrategy compressionType()
+  {
+    return compression;
   }
 
   @Override
@@ -141,11 +147,11 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     final int totalSize = buffer.getInt();
     final int sizePer = buffer.getInt();
 
-    final CompressedObjectStrategy.CompressionStrategy compression;
+    final CompressionStrategy compression;
     if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
       compression = CompressedObjectStrategy.forId(buffer.get());
     } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
-      compression = CompressedObjectStrategy.CompressionStrategy.LZF;
+      compression = CompressionStrategy.LZF;
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
@@ -161,13 +167,13 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     );
   }
 
-  public static CompressedDoublesIndexedSupplier fromDoubleBuffer(DoubleBuffer buffer, final ByteOrder order, CompressedObjectStrategy.CompressionStrategy compression)
+  public static CompressedDoublesIndexedSupplier fromDoubleBuffer(DoubleBuffer buffer, final ByteOrder order, CompressionStrategy compression)
   {
     return fromDoubleBuffer(buffer, MAX_DOUBLES_IN_BUFFER, order, compression);
   }
 
   public static CompressedDoublesIndexedSupplier fromDoubleBuffer(
-      final DoubleBuffer buffer, final int chunkFactor, final ByteOrder order, final CompressedObjectStrategy.CompressionStrategy compression
+      final DoubleBuffer buffer, final int chunkFactor, final ByteOrder order, final CompressionStrategy compression
   )
   {
     Preconditions.checkArgument(

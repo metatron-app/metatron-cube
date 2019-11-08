@@ -176,10 +176,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   @Override
   public String toString()
   {
-    return "TimestampMaxAggregatorFactory{" +
-        "fieldName='" + fieldName + '\'' +
-        ", name='" + name + '\'' +
-        '}';
+    return "TimestampMaxAggregatorFactory{name='" + name + '\'' + ", fieldName='" + fieldName + '\'' + '}';
   }
 
   @Override

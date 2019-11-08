@@ -247,6 +247,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     return "DistinctCountAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            '}';
   }
 }

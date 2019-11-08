@@ -22,6 +22,8 @@ package io.druid.segment.serde;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedStringsGenericColumn;
+import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 /**
@@ -29,10 +31,12 @@ import io.druid.segment.data.GenericIndexed;
 public class StringColumnPartSupplier implements ColumnPartProvider<GenericColumn>
 {
   private final GenericIndexed<String> indexed;
+  private final CompressionStrategy compressionType;
 
-  public StringColumnPartSupplier(GenericIndexed<String> indexed)
+  public StringColumnPartSupplier(GenericIndexed<String> indexed, CompressionStrategy compressionType)
   {
     this.indexed = indexed;
+    this.compressionType = compressionType;
   }
 
   @Override
@@ -50,6 +54,6 @@ public class StringColumnPartSupplier implements ColumnPartProvider<GenericColum
   @Override
   public GenericColumn get()
   {
-    return new IndexedStringsGenericColumn(indexed);
+    return new IndexedStringsGenericColumn(indexed, compressionType);
   }
 }

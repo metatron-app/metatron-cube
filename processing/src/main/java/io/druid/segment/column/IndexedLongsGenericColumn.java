@@ -21,6 +21,7 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedLongs;
 
 import java.io.IOException;
@@ -30,15 +31,17 @@ import java.io.IOException;
 public class IndexedLongsGenericColumn extends AbstractGenericColumn
 {
   private final IndexedLongs column;
+  private final CompressionStrategy compressionType;
   private final ImmutableBitmap nulls;
 
   private int from = -1;
   private int to = -1;
   private final long[] buffered;
 
-  public IndexedLongsGenericColumn(IndexedLongs column, ImmutableBitmap nulls)
+  public IndexedLongsGenericColumn(IndexedLongs column, CompressionStrategy compressionType, ImmutableBitmap nulls)
   {
     this.column = column;
+    this.compressionType = compressionType;
     this.nulls = nulls;
     this.buffered = new long[DEFAULT_PREFETCH];
   }
@@ -47,6 +50,12 @@ public class IndexedLongsGenericColumn extends AbstractGenericColumn
   public ValueDesc getType()
   {
     return ValueDesc.LONG;
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    return compressionType;
   }
 
   @Override
