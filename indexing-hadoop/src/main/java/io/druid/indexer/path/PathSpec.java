@@ -22,7 +22,6 @@ package io.druid.indexer.path;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.indexer.HadoopDruidIndexerConfig;
-import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
@@ -46,10 +45,5 @@ public interface PathSpec
   interface Resolving extends PathSpec
   {
     PathSpec resolve();
-  }
-
-  interface SchemaRewriting extends PathSpec
-  {
-    DataSchema rewrite(DataSchema schema);
   }
 }

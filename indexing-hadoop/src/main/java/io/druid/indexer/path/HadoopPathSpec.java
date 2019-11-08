@@ -26,14 +26,12 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.SkippingTextInputFormat;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -48,7 +46,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("hadoop")
-public class HadoopPathSpec implements PathSpec.SchemaRewriting
+public class HadoopPathSpec implements PathSpec
 {
   public static final int DEFAULT_SPLIT_SIZE = HadoopCombineInputFormat.COMBINE_PER_ELEMENT;
 
@@ -70,7 +68,6 @@ public class HadoopPathSpec implements PathSpec.SchemaRewriting
   private final boolean findRecursive;
   private final boolean extractPartition;
   private final String extractPartitionRegex;
-  private final String typeString;
   private final Map<String, Object> properties;
 
   @JsonCreator
@@ -83,7 +80,6 @@ public class HadoopPathSpec implements PathSpec.SchemaRewriting
       @JsonProperty("findRecursive") boolean findRecursive,
       @JsonProperty("extractPartition") boolean extractPartition,
       @JsonProperty("extractPartitionRegex") String extractPartitionRegex,
-      @JsonProperty("typeString") String typeString,
       @JsonProperty("properties") Map<String, Object> properties
   )
   {
@@ -99,7 +95,6 @@ public class HadoopPathSpec implements PathSpec.SchemaRewriting
     this.findRecursive = findRecursive;
     this.extractPartition = extractPartition;
     this.extractPartitionRegex = extractPartition ? extractPartitionRegex : null;
-    this.typeString = typeString;
     this.properties = properties;
     Preconditions.checkArgument(!elements.isEmpty());
     Preconditions.checkArgument(basePath == null || new Path(basePath).isAbsolute());
@@ -150,13 +145,6 @@ public class HadoopPathSpec implements PathSpec.SchemaRewriting
   public String getExtractPartitionRegex()
   {
     return extractPartitionRegex;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getTypeString()
-  {
-    return typeString;
   }
 
   @JsonProperty
@@ -309,20 +297,5 @@ public class HadoopPathSpec implements PathSpec.SchemaRewriting
            ", extractPartition=" + extractPartition +
            ", properties=" + properties +
            '}';
-  }
-
-  @Override
-  public DataSchema rewrite(DataSchema schema)
-  {
-    if (StringUtils.isNullOrEmpty(typeString)) {
-      return schema;
-    }
-    Map<String, Object> parser = schema.getParserMap();
-    if (!"orc".equals(parser.get("type")) || parser.containsKey("typeString") || parser.containsKey("schema")) {
-      return schema;
-    }
-    parser = Maps.newHashMap(parser);
-    parser.put("typeString", typeString);
-    return schema.withParser(parser);
   }
 }

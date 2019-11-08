@@ -161,15 +161,6 @@ public class HivePathSpec implements PathSpec.Resolving
         schema = Lists.newArrayList(schema);
         schema.removeAll(table.getPartitionKeys());
       }
-      StringBuilder builder = new StringBuilder("struct<");
-      for (FieldSchema field : schema) {
-        if (builder.length() > 7) {
-          builder.append(',');
-        }
-        builder.append(field.getName()).append(':').append(field.getType());
-      }
-      String tableTypeString = builder.append('>').toString();
-      // todo rewrite parser spec with serde
 
       Class inputFormat = table.getInputFormatClass();
       Set<String> pathSpecs = Sets.newTreeSet();
@@ -232,7 +223,6 @@ public class HivePathSpec implements PathSpec.Resolving
           false,
           table.isPartitioned(),
           extractPartitionRegex,
-          tableTypeString,
           properties
       );
     }
