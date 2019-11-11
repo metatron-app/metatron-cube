@@ -46,6 +46,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "postAggregations", value = PostAggregationsPostProcessor.class),
     @JsonSubTypes.Type(name = "rowMapping", value = RowMappingPostProcessor.class),
     @JsonSubTypes.Type(name = "dbScan", value = DBScanPostProcessor.class),
+    @JsonSubTypes.Type(name = "fft", value = FFTPostProcessor.class),
 })
 public interface PostProcessingOperator<T>
 {
