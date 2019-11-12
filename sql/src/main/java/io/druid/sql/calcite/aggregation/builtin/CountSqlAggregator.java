@@ -96,7 +96,6 @@ public class CountSqlAggregator implements SqlAggregator
       }
     } else {
       // Not COUNT(*), not distinct
-
       // COUNT(x) should count all non-null values of x.
       final RexNode rexNode = Expressions.fromFieldAccess(
           rowSignature,
@@ -105,6 +104,10 @@ public class CountSqlAggregator implements SqlAggregator
       );
 
       if (rexNode.getType().isNullable()) {
+        if (args.size() == 1 && args.get(0).isDirectColumnAccess()) {
+          // it's fieldName.. fieldExpression later if really needed
+          return Aggregation.create(new CountAggregatorFactory(name, null, args.get(0).getDirectColumn()));
+        }
         final DimFilter nonNullFilter = Expressions.toFilter(
             plannerContext,
             rowSignature,

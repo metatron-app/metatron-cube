@@ -1976,12 +1976,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .aggregators(
-                      new FilteredAggregatorFactory(
-                          CountAggregatorFactory.of("a0"),
-                          NOT(SELECTOR("dim2", "", null))
-                      )
-                  )
+                  .aggregators(CountAggregatorFactory.of("a0", "dim2"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
         ),
@@ -2284,10 +2279,7 @@ public class CalciteQueryTest extends CalciteTestBase
                   .granularity(Granularities.ALL)
                   .aggregators(
                       CountAggregatorFactory.of("a0"),
-                      new FilteredAggregatorFactory(
-                          CountAggregatorFactory.of("a1"),
-                          NOT(SELECTOR("dim1", "", null))
-                      ),
+                      CountAggregatorFactory.of("a1", "dim1"),
                       GenericSumAggregatorFactory.ofLong("a2:sum", "cnt"),
                       CountAggregatorFactory.of("a2:count"),
                       GenericSumAggregatorFactory.ofLong("a3", "cnt"),
@@ -2441,11 +2433,8 @@ public class CalciteQueryTest extends CalciteTestBase
                           SELECTOR("dim1", "a", new SubstringDimExtractionFn(0, 1))
                       ),
                       new FilteredAggregatorFactory(
-                          CountAggregatorFactory.of("a3"),
-                          AND(
-                              NOT(SELECTOR("dim2", "", null)),
-                              NOT(SELECTOR("dim1", "1", null))
-                          )
+                          CountAggregatorFactory.of("a3", "dim2"),
+                          NOT(SELECTOR("dim1", "1", null))
                       ),
                       new FilteredAggregatorFactory(
                           CountAggregatorFactory.of("a4"),
@@ -3610,11 +3599,7 @@ public class CalciteQueryTest extends CalciteTestBase
                                   .build()
                   )
                   .granularity(Granularities.ALL)
-                  .aggregators(
-                      new FilteredAggregatorFactory(
-                          CountAggregatorFactory.of("a0"), NOT(SELECTOR("d0", "", null))
-                      )
-                  )
+                  .aggregators(CountAggregatorFactory.of("a0", "d0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
         ),
@@ -3682,10 +3667,7 @@ public class CalciteQueryTest extends CalciteTestBase
                         .setDimensions(DefaultDimensionSpec.of("d0", "_d0"))
                         .setAggregatorSpecs(
                             GenericSumAggregatorFactory.ofLong("_a0", "a0"),
-                            new FilteredAggregatorFactory(
-                                CountAggregatorFactory.of("_a1"),
-                                NOT(SELECTOR("d1", "", null))
-                            )
+                            CountAggregatorFactory.of("_a1", "d1")
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()

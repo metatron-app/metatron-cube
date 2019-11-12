@@ -26,6 +26,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
+import io.druid.query.filter.ValueMatcher;
+import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 
@@ -42,37 +44,62 @@ public class CountAggregatorFactory extends AggregatorFactory
     return new CountAggregatorFactory(name);
   }
 
+  public static CountAggregatorFactory of(String name, String fieldName)
+  {
+    return new CountAggregatorFactory(name, null, fieldName);
+  }
+
   private static final byte[] CACHE_KEY = new byte[]{0x0};
+
   private final String name;
+  private final String fieldName;
   private final String predicate;
 
   @JsonCreator
   public CountAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("predicate") String predicate
+      @JsonProperty("predicate") String predicate,
+      @JsonProperty("fieldName") String fieldName
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-
-    this.name = name;
+    this.name = name == null ? fieldName : name;
     this.predicate = predicate;
+    this.fieldName = fieldName;
+    Preconditions.checkNotNull(this.name, "Must have a valid, non-null aggregator name");
   }
 
   public CountAggregatorFactory(String name)
   {
-    this(name, null);
+    this(name, null, null);
+  }
+
+  public CountAggregatorFactory(String name, String predicate)
+  {
+    this(name, predicate, null);
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(ColumnSelectors.toMatcher(predicate, metricFactory));
+    return new CountAggregator(toValueMatcher(metricFactory));
+  }
+
+  private ValueMatcher toValueMatcher(ColumnSelectorFactory metricFactory)
+  {
+    ValueMatcher matcher = null;
+    if (fieldName != null) {
+      matcher = ColumnSelectors.toMatcher(String.format("!isNull(\"%s\")", fieldName), metricFactory);
+    }
+    if (predicate != null) {
+      matcher = ValueMatchers.and(ColumnSelectors.toMatcher(predicate, metricFactory));
+    }
+    return matcher == null ? ValueMatcher.TRUE : matcher;
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new CountBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory));
+    return new CountBufferAggregator(toValueMatcher(metricFactory));
   }
 
   @Override
@@ -116,6 +143,13 @@ public class CountAggregatorFactory extends AggregatorFactory
 
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getFieldName()
+  {
+    return fieldName;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
   {
     return predicate;
@@ -150,6 +184,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   {
     return "CountAggregatorFactory{" +
            "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
            (predicate == null ? "": ", predicate='" + predicate + '\'') +
            '}';
   }
@@ -169,6 +204,9 @@ public class CountAggregatorFactory extends AggregatorFactory
     if (!(Objects.equals(name, that.name))) {
       return false;
     }
+    if (!(Objects.equals(fieldName, that.fieldName))) {
+      return false;
+    }
     if (!(Objects.equals(predicate, that.predicate))) {
       return false;
     }
@@ -179,6 +217,6 @@ public class CountAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, predicate);
+    return Objects.hash(name, fieldName, predicate);
   }
 }

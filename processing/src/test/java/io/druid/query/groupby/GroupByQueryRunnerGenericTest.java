@@ -327,6 +327,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void testCountWithField()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(firstToThird)
+        .setAggregatorSpecs(
+            new CountAggregatorFactory("rows"),
+            new CountAggregatorFactory("rows_nc", null, "partial_null_column")
+        )
+        .setGranularity(dayGran)
+        .build();
+
+    String[] columnNames = {"__time", "rows", "rows_nc"};
+    Object[][] objects = {
+        array("2011-04-01", 13L, 2L),
+        array("2011-04-02", 13L, 2L)
+    };
+    Iterable<Row> results = runQuery(query, true);
+    List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testGroupByRelay()
   {
     GroupByQuery query = GroupByQuery

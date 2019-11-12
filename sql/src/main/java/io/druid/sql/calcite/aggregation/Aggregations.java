@@ -27,6 +27,7 @@ import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -48,21 +49,24 @@ public class Aggregations
       final Project project
   )
   {
+    // todo : need to systemize this
+    boolean numericArgs = !SqlStdOperatorTable.COUNT.equals(call.getAggregation());
     return call.getArgList().stream()
                .map(i -> Expressions.fromFieldAccess(rowSignature, project, i))
-               .map(rexNode -> toDruidExpressionForSimpleAggregator(plannerContext, rowSignature, rexNode))
+               .map(rexNode -> toDruidExpressionForSimpleAggregator(plannerContext, rowSignature, rexNode, numericArgs))
                .collect(Collectors.toList());
   }
 
   private static DruidExpression toDruidExpressionForSimpleAggregator(
       final PlannerContext plannerContext,
       final RowSignature rowSignature,
-      final RexNode rexNode
+      final RexNode rexNode,
+      final boolean numericArgs
   )
   {
     final DruidExpression druidExpression = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
-    if (druidExpression == null) {
-      return null;
+    if (druidExpression == null || !numericArgs) {
+      return druidExpression;
     }
 
     if (druidExpression.isSimpleExtraction() &&
