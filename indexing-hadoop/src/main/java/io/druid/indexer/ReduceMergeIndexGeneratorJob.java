@@ -22,7 +22,6 @@ package io.druid.indexer;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
@@ -48,7 +47,6 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -67,8 +65,8 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -157,7 +155,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private Counter flushedIndex;
 
     private int scatterParam;
-    private Map<IndexKey, MutableInt> scatter;
+    private Random random = new Random(System.nanoTime());
 
     private long maxOccupation;
     private int maxRowCount;
@@ -216,9 +214,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       maxRowCount = tuningConfig.getMaxRowsInMemory();
 
       scatterParam = Math.min(tuningConfig.getScatterParam(), context.getNumReduceTasks());
-      if (scatterParam > 1) {
-        scatter = Maps.<IndexKey, MutableInt>newHashMap();
-      }
 
       merger = config.isBuildV9Directly()
                ? HadoopDruidIndexerConfig.INDEX_MERGER_V9
@@ -446,13 +441,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       log.info("Persisted [%,d] bytes.. elapsed %,d msec", size, System.currentTimeMillis() - prev);
       int scatterKey = 0;
       if (scatterParam > 1) {
-        IndexKey indexKey = entry.toKey();
-        MutableInt counter = scatter.get(indexKey);
-        if (counter == null) {
-          scatter.put(indexKey, counter = new MutableInt(0));
-        }
-        scatterKey = counter.intValue();
-        counter.setValue((scatterKey + 1) % scatterParam);
+        scatterKey = random.nextInt(scatterParam);
       }
       Text key = new Text(dataSource + ":" + interval.getStartMillis() + ":" + scatterKey);
 
