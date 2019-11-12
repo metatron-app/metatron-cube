@@ -19,11 +19,9 @@
 
 package io.druid.segment.column;
 
-import com.google.common.collect.Range;
-
 /**
  */
-public interface HistogramBitmap<T extends Comparable> extends SecondaryIndex<Range<T>>
+public interface HistogramBitmap<T extends Comparable> extends SecondaryIndex.WithRange<T>
 {
   T getMin();
 

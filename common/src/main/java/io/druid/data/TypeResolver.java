@@ -121,4 +121,13 @@ public interface TypeResolver
       return ValueDesc.UNKNOWN;
     }
   };
+
+  TypeResolver STRING = new Abstract()
+  {
+    @Override
+    public ValueDesc resolve(String column)
+    {
+      return ValueDesc.STRING;
+    }
+  };
 }

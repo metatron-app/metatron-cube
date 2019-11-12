@@ -335,15 +335,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setQuerySegmentSpec(firstToThird)
         .setAggregatorSpecs(
             new CountAggregatorFactory("rows"),
-            new CountAggregatorFactory("rows_nc", null, "partial_null_column")
+            new CountAggregatorFactory("rows_nc1", null, "partial_null_column"),
+            new CountAggregatorFactory("rows_nc2", "partial_null_column == 'value'"),
+            new CountAggregatorFactory("rows_nc3", "partial_null_column >= 'value'")
         )
         .setGranularity(dayGran)
         .build();
 
-    String[] columnNames = {"__time", "rows", "rows_nc"};
+    String[] columnNames = {"__time", "rows", "rows_nc1", "rows_nc2", "rows_nc3"};
     Object[][] objects = {
-        array("2011-04-01", 13L, 2L),
-        array("2011-04-02", 13L, 2L)
+        array("2011-04-01", 13L, 2L, 2L, 2L),
+        array("2011-04-02", 13L, 2L, 2L, 2L)
     };
     Iterable<Row> results = runQuery(query, true);
     List<Row> expectedResults = createExpectedRows(columnNames, objects);

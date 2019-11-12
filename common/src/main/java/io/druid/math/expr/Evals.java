@@ -303,6 +303,19 @@ public class Evals
     return true;
   }
 
+  public static boolean isLeafFunction(Expr expr, String column)
+  {
+    if (!(expr instanceof FunctionExpr)) {
+      return false;
+    }
+    for (Expr param : ((FunctionExpr) expr).getChildren()) {
+      if (!isConstant(param) && !(isIdentifier(param) && column.equals(param.toString()))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {

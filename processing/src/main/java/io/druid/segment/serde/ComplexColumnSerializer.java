@@ -321,7 +321,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
                     }
 
                     @Override
-                    public int rows()
+                    public int numRows()
                     {
                       return numRows;
                     }

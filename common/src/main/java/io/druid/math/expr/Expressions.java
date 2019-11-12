@@ -271,7 +271,7 @@ public class Expressions
     return expression;
   }
 
-  private static final Set<String> COMPARES = ImmutableSet.of("==", ">", "<", "=>", "<=");
+  private static final Set<String> COMPARES = ImmutableSet.of("==", ">", "<", ">=", "<=");
 
   public static boolean isCompare(String op)
   {

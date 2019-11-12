@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 
@@ -34,5 +35,18 @@ public interface SecondaryIndex<T> extends Closeable
 
   boolean isExact();
 
-  int rows();
+  int numRows();
+
+  interface WithRange<T extends Comparable> extends SecondaryIndex<Range<T>>
+  {
+  }
+
+  interface SupportNull<T> extends SecondaryIndex<T>
+  {
+    ImmutableBitmap getNulls(ImmutableBitmap baseBitmap);
+  }
+
+  interface WithRangeAndNull<T extends Comparable> extends WithRange<T>, SupportNull<Range<T>>
+  {
+  }
 }

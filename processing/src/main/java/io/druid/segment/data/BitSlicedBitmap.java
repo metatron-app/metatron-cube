@@ -21,7 +21,6 @@ package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -40,7 +39,7 @@ import java.util.List;
 
 /**
  */
-public abstract class BitSlicedBitmap<T extends Comparable> implements SecondaryIndex<Range<T>>
+public abstract class BitSlicedBitmap<T extends Comparable> implements SecondaryIndex.WithRange<T>
 {
   protected final ValueDesc type;
   protected final BitmapFactory factory;
@@ -92,7 +91,7 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
   }
 
   @Override
-  public int rows()
+  public int numRows()
   {
     return rowCount;
   }
