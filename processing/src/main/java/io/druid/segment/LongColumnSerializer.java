@@ -55,8 +55,8 @@ public class LongColumnSerializer implements GenericColumnSerializer
   {
     final ByteOrder ordering = IndexIO.BYTE_ORDER;
     if (allowNullForNumbers) {
-      return new LongColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing) {
-
+      return new LongColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing)
+      {
         private final MutableBitmap nulls = serdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
 
         @Override
@@ -67,6 +67,9 @@ public class LongColumnSerializer implements GenericColumnSerializer
           } else {
             writer.add(0L);
             nulls.add(rowNum);
+            if (slicer != null) {
+              slicer.add((Long) obj);
+            }
           }
         }
 
@@ -74,10 +77,8 @@ public class LongColumnSerializer implements GenericColumnSerializer
         public long getSerializedSize()
         {
           long serialized = super.getSerializedSize();
-          if (!nulls.isEmpty()) {
-            serialized += Integer.BYTES;
-            serialized += serdeFactory.getObjectStrategy().toBytes(nulls).length;
-          }
+          serialized += Integer.BYTES;
+          serialized += serdeFactory.getObjectStrategy().toBytes(nulls).length;
           return serialized;
         }
 
@@ -85,11 +86,9 @@ public class LongColumnSerializer implements GenericColumnSerializer
         public void writeToChannel(WritableByteChannel channel) throws IOException
         {
           super.writeToChannel(channel);
-          if (!nulls.isEmpty()) {
-            byte[] serialized = serdeFactory.getObjectStrategy().toBytes(nulls);
-            channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
-            channel.write(ByteBuffer.wrap(serialized));
-          }
+          byte[] serialized = serdeFactory.getObjectStrategy().toBytes(nulls);
+          channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
+          channel.write(ByteBuffer.wrap(serialized));
         }
 
         @Override

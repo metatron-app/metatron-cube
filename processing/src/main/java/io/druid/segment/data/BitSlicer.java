@@ -89,7 +89,9 @@ public abstract class BitSlicer<T extends Comparable>
     @Override
     public void add(T value)
     {
-      if (isNan(value)) {
+      if (value == null) {
+        rowCount++;
+      } else if (isNan(value)) {
         nans.add(rowCount++);
       } else {
         int val = normalize(value);
@@ -129,7 +131,9 @@ public abstract class BitSlicer<T extends Comparable>
     @Override
     public void add(T value)
     {
-      if (isNan(value)) {
+      if (value == null) {
+        rowCount++;
+      } else if (isNan(value)) {
         nans.add(rowCount++);
       } else {
         long val = normalize(value);

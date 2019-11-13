@@ -21,7 +21,6 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedFloats;
 
