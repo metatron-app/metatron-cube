@@ -36,6 +36,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
@@ -174,6 +175,12 @@ public class ExtractionDimFilterTest
 
     @Override
     public ColumnCapabilities getCapabilities(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public Column getColumn(String dimension)
     {
       return null;
     }

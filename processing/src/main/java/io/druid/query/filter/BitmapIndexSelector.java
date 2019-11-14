@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
@@ -48,6 +49,7 @@ public interface BitmapIndexSelector extends Closeable
   public HistogramBitmap getMetricBitmap(String dimension);
   public BitSlicedBitmap getBitSlicedBitmap(String dimension);
   public ColumnCapabilities getCapabilities(String dimension);
+  public Column getColumn(String dimension);
   public void close();
 
   class Abstract implements BitmapIndexSelector {
@@ -120,6 +122,12 @@ public interface BitmapIndexSelector extends Closeable
 
     @Override
     public ColumnCapabilities getCapabilities(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public Column getColumn(String dimension)
     {
       return null;
     }

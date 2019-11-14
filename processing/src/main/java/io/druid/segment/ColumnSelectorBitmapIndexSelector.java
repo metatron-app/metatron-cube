@@ -236,6 +236,12 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   }
 
   @Override
+  public Column getColumn(String dimension)
+  {
+    return index.getColumn(dimension);
+  }
+
+  @Override
   public void close()
   {
     for (SecondaryIndex bitmap : luceneIndices.values()) {

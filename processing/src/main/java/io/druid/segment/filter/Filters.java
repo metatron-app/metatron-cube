@@ -77,6 +77,7 @@ import io.druid.segment.bitmap.BitSetBitmapFactory;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Indexed;
@@ -707,25 +708,33 @@ public class Filters
       if (required.size() != 1) {
         return null;
       }
-      String column = required.get(0);
+      String columnName = required.get(0);
       BitmapIndexSelector selector = context.selector;
-      ColumnCapabilities capabilities = selector.getCapabilities(column);
+      ColumnCapabilities capabilities = selector.getCapabilities(columnName);
       if (capabilities == null) {
         return null;
       }
-      if (Evals.isLeafFunction((Expr) expr, column)) {
+      if (Evals.isLeafFunction((Expr) expr, columnName)) {
         FuncExpression funcExpr = (FuncExpression) expr;
         if (capabilities.hasBitmapIndexes()) {
-          SecondaryIndex index = asSecondaryIndex(selector, column);
-          ImmutableBitmap bitmap = leafToRanges(column, funcExpr, context, index, withNot);
+          SecondaryIndex index = asSecondaryIndex(selector, columnName);
+          ImmutableBitmap bitmap = leafToRanges(columnName, funcExpr, context, index, withNot);
           if (bitmap != null) {
             return bitmap;
           }
         }
-        SecondaryIndex index = getWhatever(selector, column);
+        // can be null for complex column
+        GenericColumn column = selector.getColumn(columnName).getGenericColumn();
+        if (column != null) {
+          ImmutableBitmap bitmap = leafToRanges(columnName, funcExpr, context, asSecondaryIndex(column), withNot);
+          if (bitmap != null) {
+            return bitmap;
+          }
+        }
+        SecondaryIndex index = getWhatever(selector, columnName);
         if (index != null) {
           long start = System.currentTimeMillis();
-          ImmutableBitmap bitmap = leafToRanges(column, funcExpr, context, index, withNot);
+          ImmutableBitmap bitmap = leafToRanges(columnName, funcExpr, context, index, withNot);
           if (bitmap != null) {
             if (logger.isDebugEnabled()) {
               long elapsed = System.currentTimeMillis() - start;
@@ -890,16 +899,22 @@ public class Filters
                 Arrays.asList(
                     metric instanceof SecondaryIndex.WithRange ?
                     metric.filterFor(Range.lessThan(constant), baseBitmap) :
-                    metric.filterFor(Lucenes.lessThan(column, constant), baseBitmap),
+                    metric instanceof LuceneIndex ?
+                    metric.filterFor(Lucenes.lessThan(column, constant), baseBitmap) :
+                    null,
                     metric instanceof SecondaryIndex.WithRange ?
                     metric.filterFor(Range.greaterThan(constant), baseBitmap) :
-                    metric.filterFor(Lucenes.greaterThan(column, constant), baseBitmap)
+                    metric instanceof LuceneIndex ?
+                    metric.filterFor(Lucenes.greaterThan(column, constant), baseBitmap) :
+                    null
                 )
             );
           }
           return metric instanceof SecondaryIndex.WithRange ?
                  metric.filterFor(Range.closed(constant, constant), baseBitmap) :
-                 metric.filterFor(Lucenes.point(column, constant), baseBitmap);
+                 metric instanceof LuceneIndex ?
+                 metric.filterFor(Lucenes.point(column, constant), baseBitmap) :
+                 null;
       }
     }
 
@@ -924,16 +939,21 @@ public class Filters
               Arrays.asList(
                   metric instanceof SecondaryIndex.WithRange ?
                   metric.filterFor(Range.lessThan(value1), baseBitmap) :
-                  metric.filterFor(Lucenes.lessThan(column, value1), baseBitmap),
+                  metric instanceof LuceneIndex ?
+                  metric.filterFor(Lucenes.lessThan(column, value1), baseBitmap) :
+                  null,
                   metric instanceof SecondaryIndex.WithRange ?
                   metric.filterFor(Range.greaterThan(value2), baseBitmap) :
-                  metric.filterFor(Lucenes.greaterThan(column, value2), baseBitmap)
+                  metric instanceof LuceneIndex ? metric.filterFor(Lucenes.greaterThan(column, value2), baseBitmap) :
+                  null
               )
           );
         }
         return metric instanceof SecondaryIndex.WithRange ?
                metric.filterFor(Range.closed(value1, value2), baseBitmap) :
-               metric.filterFor(Lucenes.closed(column, value1, value2), baseBitmap);
+               metric instanceof LuceneIndex ?
+               metric.filterFor(Lucenes.closed(column, value1, value2), baseBitmap) :
+               null;
       case "in":
         if (withNot) {
           return null;  // hard to be expressed with bitmap
@@ -943,7 +963,9 @@ public class Filters
           bitmaps.add(
               metric instanceof SecondaryIndex.WithRange ?
               metric.filterFor(Range.closed(value, value), baseBitmap) :
-              metric.filterFor(Lucenes.point(column, value), baseBitmap)
+              metric instanceof LuceneIndex ?
+              metric.filterFor(Lucenes.point(column, value), baseBitmap) :
+              null
           );
         }
         return bitmaps.isEmpty() ? null : factory.union(bitmaps);
@@ -1142,15 +1164,15 @@ public class Filters
     return new SecondaryIndex.WithRangeAndNull<String>()
     {
       @Override
-      public ImmutableBitmap getNulls(ImmutableBitmap baseBitmap)
-      {
-        return selector.getBitmapIndex(dimension, (String) null);
-      }
-
-      @Override
       public ValueDesc type()
       {
         return ValueDesc.STRING;
+      }
+
+      @Override
+      public ImmutableBitmap getNulls(ImmutableBitmap baseBitmap)
+      {
+        return selector.getBitmapIndex(dimension, (String) null);
       }
 
       @Override
@@ -1169,6 +1191,47 @@ public class Filters
       public int numRows()
       {
         return selector.getNumRows();
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+      }
+    };
+  }
+
+  public static SecondaryIndex asSecondaryIndex(final GenericColumn column)
+  {
+    return new SecondaryIndex.SupportNull()
+    {
+      @Override
+      public ImmutableBitmap getNulls(ImmutableBitmap baseBitmap)
+      {
+        return column.getNulls();
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        return column.getType();
+      }
+
+      @Override
+      public ImmutableBitmap filterFor(Object query, ImmutableBitmap baseBitmap)
+      {
+        return null;
+      }
+
+      @Override
+      public boolean isExact()
+      {
+        return true;
+      }
+
+      @Override
+      public int numRows()
+      {
+        return column.getNumRows();
       }
 
       @Override
