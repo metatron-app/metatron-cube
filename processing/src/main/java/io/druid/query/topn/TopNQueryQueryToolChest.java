@@ -122,7 +122,8 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
         if (topN.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
           Sequence<Result<TopNResultValue>> sequence = runner.run(topN.toLocalQuery(), responseContext);
           if (BaseQuery.isBySegment(topN)) {
-            return Sequences.map((Sequence) sequence, BySegmentResultValueClass.applyAll(toPostAggregator(topN)));
+            Function function = BySegmentResultValueClass.applyAll(toPostAggregator(topN));
+            return Sequences.map((Sequence) sequence, function);
           }
           TopNBinaryFn topNBinaryFn = new TopNBinaryFn(
               TopNResultMerger.identity,
