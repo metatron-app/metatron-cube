@@ -19,10 +19,10 @@
 
 package io.druid.segment.serde;
 
-import com.metamx.common.IAE;
 import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;

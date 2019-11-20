@@ -19,7 +19,7 @@
 
 package io.druid.server.coordinator;
 
-import com.metamx.common.config.Config;
+import io.druid.java.util.common.config.Config;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;

@@ -24,7 +24,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.metamx.common.collect.Utils;
+import io.druid.java.util.common.collect.Utils;
 import io.druid.java.util.common.parsers.ParseException;
 import io.druid.java.util.common.parsers.Parser;
 import io.druid.java.util.common.parsers.ParserUtils;

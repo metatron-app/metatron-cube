@@ -41,7 +41,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import com.metamx.common.StreamUtils;
+import io.druid.java.util.common.StreamUtils;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
