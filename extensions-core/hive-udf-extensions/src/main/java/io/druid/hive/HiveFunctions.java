@@ -22,10 +22,10 @@ package io.druid.hive;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -58,7 +58,8 @@ public class HiveFunctions implements Function.Provider
     try {
       Constructor constructor = Registry.class.getConstructor();
       registry = (Registry) constructor.newInstance();
-    } catch (Exception ex) {
+    }
+    catch (Exception ex) {
       // ignore
     }
     try {
@@ -66,10 +67,12 @@ public class HiveFunctions implements Function.Provider
         Constructor constructor = Registry.class.getConstructor(boolean.class);
         registry = (Registry) constructor.newInstance(false);
       }
-    } catch (Exception ex) {
+    }
+    catch (Exception ex) {
       // ignore
     }
     REGISTRY = Preconditions.checkNotNull(registry, "cannot instantiate registry");
+    DUMMY.getConf().setClassLoader(HiveFunctions.class.getClassLoader());
   }
 
   public static Set<String> getFunctionNames()
@@ -118,7 +121,8 @@ public class HiveFunctions implements Function.Provider
         }
         if (function != null && function.isGenericUDF() &&
             !FunctionRegistry.HIVE_OPERATORS.contains(function.getDisplayName())) {
-          factories.add(new HiveAdapter("hive_" + name, function));
+          String functionName = function.isBuiltIn() ? "hive_" + name : name;
+          factories.add(new HiveAdapter(functionName, function));
         }
       }
     }
@@ -150,13 +154,7 @@ public class HiveFunctions implements Function.Provider
     {
       final GenericUDF genericUDF = functionInfo.getGenericUDF();
       final ObjectInspector[] arguments = toObjectInspectors(args, resolver);
-      final ObjectInspector output;
-      try {
-        output = genericUDF.initializeAndFoldConstants(arguments);
-      }
-      catch (UDFArgumentException e) {
-        throw new IAE(e, "failed to initialize UDF [%s]", genericUDF.getUdfName());
-      }
+      final ObjectInspector output = initializeUDF(genericUDF, arguments);
       final ValueDesc outputType = ObjectInspectors.typeOf(output, ValueDesc.UNKNOWN);
       final GenericUDF.DeferredObject[] params = new GenericUDF.DeferredObject[args.size()];
       return new Function()
@@ -196,6 +194,20 @@ public class HiveFunctions implements Function.Provider
       }
 
       return inspectors.toArray(new ObjectInspector[0]);
+    }
+
+    private ObjectInspector initializeUDF(GenericUDF genericUDF, ObjectInspector[] arguments)
+    {
+      SessionState.setCurrentSessionState(DUMMY);
+      try {
+        return genericUDF.initializeAndFoldConstants(arguments);
+      }
+      catch (UDFArgumentException e) {
+        throw new IAE(e, "failed to initialize UDF [%s]", genericUDF.getUdfName());
+      }
+      finally {
+        SessionState.detachSession();
+      }
     }
   }
 }
