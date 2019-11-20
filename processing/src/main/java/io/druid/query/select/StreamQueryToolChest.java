@@ -21,13 +21,16 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -46,6 +49,16 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       new TypeReference<Object[]>()
       {
       };
+
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public StreamQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
 
   @Override
   public QueryRunner<Object[]> mergeResults(final QueryRunner<Object[]> queryRunner)
@@ -67,6 +80,12 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
         return sequence;
       }
     };
+  }
+
+  @Override
+  public QueryMetrics<? super StreamQuery> makeMetrics(StreamQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

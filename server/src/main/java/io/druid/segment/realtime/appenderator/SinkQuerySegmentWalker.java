@@ -22,24 +22,23 @@ package io.druid.segment.realtime.appenderator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.client.CachingQueryRunner;
+import io.druid.client.cache.CacheConfig;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.cache.Cache;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.cache.Cache;
-import io.druid.client.CachingQueryRunner;
-import io.druid.client.cache.CacheConfig;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -61,6 +60,7 @@ import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -263,7 +263,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                                             null
                                         )
                                     ),
-                                    toolChest.makeMetricBuilder(),
+                                    toolChest,
                                     sinkSegmentIdentifier,
                                     cpuTimeAccumulator
                                 ),
@@ -275,7 +275,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                 null
             )
         ),
-        toolChest.makeMetricBuilder(),
+        toolChest,
         emitter,
         cpuTimeAccumulator,
         true
@@ -288,14 +288,13 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
    */
   private <T> QueryRunner<T> withPerSinkMetrics(
       final QueryRunner<T> sinkRunner,
-      final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      final QueryToolChest<?, ? super Query<T>> queryToolChest,
       final String sinkSegmentIdentifier,
       final AtomicLong cpuTimeAccumulator
   )
   {
-    final ImmutableMap<String, String> dims = ImmutableMap.of("segment", sinkSegmentIdentifier);
 
-    // Note: query/segmentAndCache/time and query/segment/time are effectively the same here. They don't split apart
+    // Note: reportSegmentAndCacheTime and reportSegmentTime are effectively the same here. They don't split apart
     // cache vs. non-cache due to the fact that Sinks may be partially cached and partially uncached. Making this
     // better would need to involve another accumulator like the cpuTimeAccumulator that we could share with the
     // sinkRunner.
@@ -303,18 +302,18 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
     return CPUTimeMetricQueryRunner.safeBuild(
         new MetricsEmittingQueryRunner<>(
             emitter,
-            builderFn,
+            queryToolChest,
             new MetricsEmittingQueryRunner<>(
                 emitter,
-                builderFn,
+                queryToolChest,
                 sinkRunner,
-                "query/segment/time",
-                dims
+                QueryMetrics::reportSegmentTime,
+                queryMetrics -> queryMetrics.segment(sinkSegmentIdentifier)
             ),
-            "query/segmentAndCache/time",
-            dims
+            QueryMetrics::reportSegmentAndCacheTime,
+            queryMetrics -> queryMetrics.segment(sinkSegmentIdentifier)
         ).withWaitMeasuredFromNow(),
-        builderFn,
+        queryToolChest,
         emitter,
         cpuTimeAccumulator,
         false

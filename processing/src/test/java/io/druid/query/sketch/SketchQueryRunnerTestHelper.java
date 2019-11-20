@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import io.druid.query.CacheStrategy;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.Query;
@@ -80,7 +81,8 @@ public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
   }
 
   static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
-      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator(),
+      DefaultGenericQueryMetricsFactory.instance()
   );
 
   static {

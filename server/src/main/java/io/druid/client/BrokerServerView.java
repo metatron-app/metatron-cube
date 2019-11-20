@@ -57,6 +57,7 @@ import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -615,7 +616,7 @@ public class BrokerServerView implements TimelineServerView
     final Query<T> resolved = query.resolveQuery(resolver, jsonMapper);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
-    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest.makeMetricBuilder(), emitter);
+    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);
 
     final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(
         segments,
@@ -661,27 +662,28 @@ public class BrokerServerView implements TimelineServerView
       final CPUTimeMetricBuilder<T> reporter
   )
   {
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
     SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(segmentDescriptor);
     return reporter.accumulate(
         new SpecificSegmentQueryRunner<T>(
             new MetricsEmittingQueryRunner<T>(
                 emitter,
-                reporter,
+                toolChest,
                 new BySegmentQueryRunner<T>(
                     adapter.getIdentifier(),
                     adapter.getDataInterval().getStart(),
                         new MetricsEmittingQueryRunner<T>(
                             emitter,
-                            reporter,
+                            toolChest,
                             new ReferenceCountingSegmentQueryRunner<T>(
                                 factory, adapter, segmentDescriptor, optimizer
                             ),
-                            "query/segment/time",
-                            ImmutableMap.of("segment", adapter.getIdentifier())
+                            QueryMetrics::reportSegmentTime,
+                            queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
                         )
                 ),
-                "query/segmentAndCache/time",
-                ImmutableMap.of("segment", adapter.getIdentifier())
+                QueryMetrics::reportSegmentAndCacheTime,
+                queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
             ).withWaitMeasuredFromNow(),
             segmentSpec
         )

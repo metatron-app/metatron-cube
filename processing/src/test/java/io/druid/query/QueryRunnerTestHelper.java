@@ -169,7 +169,7 @@ public class QueryRunnerTestHelper
                   .put(
                       StreamQuery.class,
                       new StreamQueryRunnerFactory(
-                          new StreamQueryToolChest(),
+                          new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           new StreamQueryEngine()
                       )
                   )
@@ -244,7 +244,7 @@ public class QueryRunnerTestHelper
                   .put(
                       SelectMetaQuery.class,
                       new SelectMetaQueryRunnerFactory(
-                          new SelectMetaQueryToolChest(),
+                          new SelectMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           new SelectMetaQueryEngine(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
@@ -252,7 +252,7 @@ public class QueryRunnerTestHelper
                   .put(
                       SchemaQuery.class,
                       new SchemaQueryRunnerFactory(
-                          new SchemaQueryToolChest(),
+                          new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )
@@ -269,7 +269,7 @@ public class QueryRunnerTestHelper
                   .put(
                       FindNearestQuery.class,
                       new FindNearestQueryRunnerFactory(
-                          new FindNearestQueryToolChest(),
+                          new FindNearestQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           new StreamQueryEngine(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
@@ -277,7 +277,7 @@ public class QueryRunnerTestHelper
                   .put(
                       FrequencyQuery.class,
                       new FrequencyQueryRunnerFactory(
-                          new FrequencyQueryToolChest(),
+                          new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )

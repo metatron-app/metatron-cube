@@ -19,6 +19,8 @@
 
 package io.druid.query.timeseries;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
@@ -40,16 +42,28 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
 
 import java.util.Comparator;
-import java.util.List;
 
 /**
  */
 public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest<TimeseriesQuery>
 {
-  @Inject
+  private final TimeseriesQueryMetricsFactory queryMetricsFactory;
+
+  @VisibleForTesting
   public TimeseriesQueryQueryToolChest(IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator)
   {
+    this(intervalChunkingQueryRunnerDecorator, DefaultTimeseriesQueryMetricsFactory.instance());
+
+  }
+
+  @Inject
+  public TimeseriesQueryQueryToolChest(
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      TimeseriesQueryMetricsFactory queryMetricsFactory
+  )
+  {
     super(intervalChunkingQueryRunnerDecorator);
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @Override
@@ -79,20 +93,11 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   }
 
   @Override
-  public Function<TimeseriesQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
+  public TimeseriesQueryMetrics makeMetrics(TimeseriesQuery query)
   {
-    return new Function<TimeseriesQuery, ServiceMetricEvent.Builder>()
-    {
-      @Override
-      public ServiceMetricEvent.Builder apply(TimeseriesQuery query)
-      {
-        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-        final int numComplexAggs = DruidMetrics.findNumComplexAggs(aggregators);
-        return DruidMetrics.makePartialQueryTimeMetric(query)
-                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                           .setDimension("numComplexMetrics", String.valueOf(numComplexAggs));
-      }
-    };
+    TimeseriesQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    queryMetrics.query(query);
+    return queryMetrics;
   }
 
   @Override

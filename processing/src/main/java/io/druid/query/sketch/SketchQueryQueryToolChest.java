@@ -28,10 +28,12 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.DateTimes;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -41,6 +43,7 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.select.SchemaQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
@@ -61,14 +64,17 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
   {
   };
 
+  private final GenericQueryMetricsFactory queryMetricsFactory;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public SketchQueryQueryToolChest(
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      GenericQueryMetricsFactory queryMetricsFactory
   )
   {
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @Override
@@ -92,6 +98,12 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
         return new SketchBinaryFn(sketch.getSketchParamWithDefault(), sketch.getSketchOp().handler());
       }
     };
+  }
+
+  @Override
+  public QueryMetrics<? super SketchQuery> makeMetrics(SketchQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

@@ -21,6 +21,7 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -39,7 +40,11 @@ import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.DruidHttpClientConfig;
 import io.druid.initialization.Initialization;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
+import io.druid.query.QueryToolChest;
 import io.druid.server.initialization.BaseJettyTest;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
@@ -211,9 +216,11 @@ public class AsyncQueryForwardingServletTest extends BaseJettyTest
         }
       };
 
+      ObjectMapper jsonMapper = injector.getInstance(ObjectMapper.class);
       ServletHolder holder = new ServletHolder(
           new AsyncQueryForwardingServlet(
-              injector.getInstance(ObjectMapper.class),
+              new MapQueryToolChestWarehouse(new QueryConfig(), ImmutableMap.<Class<? extends Query>, QueryToolChest>of()),
+              jsonMapper,
               injector.getInstance(Key.get(ObjectMapper.class, Smile.class)),
               hostFinder,
               injector.getProvider(org.eclipse.jetty.client.HttpClient.class),
@@ -226,7 +233,8 @@ public class AsyncQueryForwardingServletTest extends BaseJettyTest
                 {
                   // noop
                 }
-              }
+              },
+              new DefaultGenericQueryMetricsFactory(jsonMapper)
           )
           {
             @Override

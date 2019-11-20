@@ -23,14 +23,18 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.groupby.orderby.TopNSorter;
 import io.druid.query.ordering.Comparators;
+import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -48,6 +52,16 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
       new TypeReference<Object[]>()
       {
       };
+
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public FrequencyQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
 
   private static final Comparator<Object[]> COUNT_DESCENDING_NF = new Comparator<Object[]>()
   {
@@ -116,6 +130,12 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
         ));
       }
     };
+  }
+
+  @Override
+  public QueryMetrics<? super FrequencyQuery> makeMetrics(FrequencyQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

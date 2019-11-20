@@ -19,19 +19,15 @@
 
 package io.druid.query;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.common.utils.VMUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.Sequences;
-import io.druid.common.utils.VMUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -40,14 +36,14 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
 {
   private final QueryRunner<T> delegate;
-  private final Function<Query<T>, ServiceMetricEvent.Builder> builderFn;
+  private final QueryToolChest<?, ? super Query<T>> queryToolChest;
   private final ServiceEmitter emitter;
   private final AtomicLong cpuTimeAccumulator;
   private final boolean report;
 
   private CPUTimeMetricQueryRunner(
       QueryRunner<T> delegate,
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      QueryToolChest<?, ? super Query<T>> queryToolChest,
       ServiceEmitter emitter,
       AtomicLong cpuTimeAccumulator,
       boolean report
@@ -57,7 +53,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
       throw new ISE("Cpu time must enabled");
     }
     this.delegate = delegate;
-    this.builderFn = builderFn;
+    this.queryToolChest = queryToolChest;
     this.emitter = emitter;
     this.cpuTimeAccumulator = cpuTimeAccumulator == null ? new AtomicLong(0L) : cpuTimeAccumulator;
     this.report = report;
@@ -141,11 +137,9 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
           public void run()
           {
             if (report) {
-              final long cpuTime = cpuTimeAccumulator.get();
-              if (cpuTime > 0) {
-                final ServiceMetricEvent.Builder builder = Preconditions.checkNotNull(builderFn.apply(query));
-                builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
-                emitter.emit(builder.build("query/cpu/time", cpuTimeAccumulator.get() / 1000));
+              final long cpuTimeNs = cpuTimeAccumulator.get();
+              if (cpuTimeNs > 0) {
+                queryToolChest.makeMetrics(query).reportCpuTime(cpuTimeNs).emit(emitter);
               }
             }
           }
@@ -156,7 +150,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
 
   public static <T> QueryRunner<T> safeBuild(
       QueryRunner<T> delegate,
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      QueryToolChest<?, ? super Query<T>> queryToolChest,
       ServiceEmitter emitter,
       AtomicLong accumulator,
       boolean report
@@ -165,7 +159,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
     if (!VMUtils.isThreadCpuTimeEnabled()) {
       return delegate;
     } else {
-      return new CPUTimeMetricQueryRunner<>(delegate, builderFn, emitter, accumulator, report);
+      return new CPUTimeMetricQueryRunner<>(delegate, queryToolChest, emitter, accumulator, report);
     }
   }
 }

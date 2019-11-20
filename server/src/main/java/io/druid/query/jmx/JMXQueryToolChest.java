@@ -22,8 +22,11 @@ package io.druid.query.jmx;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import org.joda.time.DateTime;
@@ -39,10 +42,26 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
       {
       };
 
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public JMXQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
+
   @Override
   public QueryRunner<Map<String, Object>> mergeResults(QueryRunner<Map<String, Object>> queryRunner)
   {
     return queryRunner;
+  }
+
+  @Override
+  public QueryMetrics<? super JMXQuery> makeMetrics(JMXQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

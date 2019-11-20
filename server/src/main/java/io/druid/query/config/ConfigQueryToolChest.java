@@ -20,6 +20,9 @@
 package io.druid.query.config;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.inject.Inject;
+import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 
@@ -34,10 +37,26 @@ public class ConfigQueryToolChest extends QueryToolChest<Map<String, Object>, Co
       {
       };
 
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public ConfigQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
+
   @Override
   public QueryRunner<Map<String, Object>> mergeResults(QueryRunner<Map<String, Object>> queryRunner)
   {
     return queryRunner;
+  }
+
+  @Override
+  public QueryMetrics<? super ConfigQuery> makeMetrics(ConfigQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

@@ -41,11 +41,14 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
@@ -101,17 +104,29 @@ public class SelectQueryQueryToolChest
   private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
+  private final GenericQueryMetricsFactory queryMetricsFactory;
 
-  @Inject
   public SelectQueryQueryToolChest(
       ObjectMapper jsonMapper,
       SelectQueryEngine engine,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
+    this(jsonMapper, engine, intervalChunkingQueryRunnerDecorator, new DefaultGenericQueryMetricsFactory(jsonMapper));
+  }
+
+  @Inject
+  public SelectQueryQueryToolChest(
+      ObjectMapper jsonMapper,
+      SelectQueryEngine engine,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      GenericQueryMetricsFactory genericQueryMetricsFactory
+  )
+  {
     this.jsonMapper = jsonMapper;
     this.engine = engine;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+    this.queryMetricsFactory = genericQueryMetricsFactory;
   }
 
   public SelectQueryQueryToolChest(
@@ -264,6 +279,11 @@ public class SelectQueryQueryToolChest
         };
       }
     };
+  }
+
+  public QueryMetrics<Query<?>> makeMetrics(SelectQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

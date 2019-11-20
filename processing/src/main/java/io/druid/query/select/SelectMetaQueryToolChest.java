@@ -22,11 +22,14 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
@@ -50,6 +53,15 @@ public class SelectMetaQueryToolChest
       {
       };
 
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public SelectMetaQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
   @Override
   public QueryRunner<Result<SelectMetaResultValue>> mergeResults(QueryRunner<Result<SelectMetaResultValue>> runner)
   {
@@ -102,6 +114,12 @@ public class SelectMetaQueryToolChest
         };
       }
     };
+  }
+
+  @Override
+  public QueryMetrics<? super SelectMetaQuery> makeMetrics(SelectMetaQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

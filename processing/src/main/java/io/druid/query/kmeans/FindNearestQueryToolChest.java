@@ -21,11 +21,15 @@ package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Ordering;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.select.SchemaQuery;
 
 /**
  */
@@ -35,6 +39,16 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
       new TypeReference<CentroidDesc>()
       {
       };
+
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public FindNearestQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
 
   @Override
   public QueryRunner<CentroidDesc> mergeResults(
@@ -70,6 +84,12 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
         };
       }
     };
+  }
+
+  @Override
+  public QueryMetrics<? super FindNearestQuery> makeMetrics(FindNearestQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

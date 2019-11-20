@@ -25,11 +25,11 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.java.util.http.client.response.ClientResponse;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryMetrics;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.handler.codec.http.HttpChunk;
@@ -47,6 +47,7 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -78,8 +79,8 @@ public class StreamHandlerFactory
     private final boolean disableLog;
     private final URL url;
 
-    private final long requestStartTime = System.currentTimeMillis();
-    private long responseStartTime;
+    private final long requestStartTimeNs = System.nanoTime();
+    private long responseStartTimeNs;
 
     private final BlockingDeque<InputStream> queue;
     private final AtomicLong byteCount = new AtomicLong(0);
@@ -94,10 +95,10 @@ public class StreamHandlerFactory
     }
 
     @Override
-    public void response(long requestStartTime, long responseStartTime) { }
+    public void response(long requestStartTimeNs, long responseStartTimeNs) { }
 
     @Override
-    public void finished(long requestStartTime, long stopTime, long byteCount) { }
+    public void finished(long requestStartTimeNs, long stopTimeNs, long byteCount) { }
 
     @Override
     public void handleHeader(HttpHeaders headers) throws IOException { }
@@ -105,13 +106,13 @@ public class StreamHandlerFactory
     @Override
     public ClientResponse<InputStream> handleResponse(HttpResponse response)
     {
-      response(requestStartTime, responseStartTime = System.currentTimeMillis());
+      response(requestStartTimeNs, responseStartTimeNs = System.nanoTime());
 
       HttpResponseStatus status = response.getStatus();
       if (!disableLog) {
         log.debug(
             "Initial response from url[%s] for queryId[%s] with status[%s] in %,d msec",
-            url, queryId, status, responseStartTime - requestStartTime
+            url, queryId, status, TimeUnit.NANOSECONDS.toMillis(responseStartTimeNs - requestStartTimeNs)
         );
       }
 
@@ -231,18 +232,19 @@ public class StreamHandlerFactory
     @Override
     public ClientResponse<InputStream> done(ClientResponse<InputStream> clientResponse)
     {
-      long stopTime = System.currentTimeMillis();
+      long stopTimeNs = System.nanoTime();
+      long nodeTimeNs = stopTimeNs - requestStartTimeNs;
       if (!disableLog) {
         log.debug(
             "Completed queryId[%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
             queryId,
             url,
             byteCount.get(),
-            stopTime - responseStartTime,
-            StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, stopTime - responseStartTime))
+            TimeUnit.NANOSECONDS.toMillis(nodeTimeNs),
+            StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, TimeUnit.NANOSECONDS.toMillis(nodeTimeNs)))
         );
       }
-      finished(responseStartTime, stopTime, byteCount.get());
+      finished(responseStartTimeNs, stopTimeNs, byteCount.get());
       synchronized (done) {
         done.set(true);
         // An empty byte array is put at the end to give the SequenceInputStream.close() as something to close out
@@ -291,7 +293,7 @@ public class StreamHandlerFactory
         final Query query,
         final URL url,
         final int queueSize,
-        final ServiceMetricEvent.Builder builder,
+        final QueryMetrics queryMetrics,
         final Map<String, Object> context
     )
     {
@@ -308,16 +310,17 @@ public class StreamHandlerFactory
         }
 
         @Override
-        public void response(long requestStartTime, long responseStartTime)
+        public void response(long requestStartTimeNs, long responseStartTimeNs)
         {
-          emitter.emit(builder.build("query/node/ttfb", responseStartTime - requestStartTime));
+          queryMetrics.reportNodeTimeToFirstByte(responseStartTimeNs - requestStartTimeNs);
         }
 
         @Override
-        public void finished(long requestStartTime, long stopTime, long byteCount)
+        public void finished(long requestStartTimeNs, long stopTimeNs, long byteCount)
         {
-          emitter.emit(builder.build("query/node/time", stopTime - requestStartTime));
-          emitter.emit(builder.build("query/node/bytes", byteCount));
+          queryMetrics.reportNodeTime(stopTimeNs - requestStartTimeNs);
+          queryMetrics.reportNodeBytes(byteCount);
+          queryMetrics.emit(emitter);
         }
       };
     }

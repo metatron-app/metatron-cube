@@ -30,6 +30,7 @@ import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.DruidHttpClientConfig;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.AsyncManagementForwardingServlet;
 import io.druid.server.AsyncQueryForwardingServlet;
 import io.druid.server.GuiceServletConfig;
@@ -53,7 +54,8 @@ import javax.servlet.Servlet;
  */
 public class RouterJettyServerInitializer implements JettyServerInitializer
 {
-  private static final EmittingLogger log = new EmittingLogger(AsyncQueryForwardingServlet.class);
+  private static final EmittingLogger log = new EmittingLogger(RouterJettyServerInitializer.class);
+  private final QueryToolChestWarehouse warehouse;
   private final ObjectMapper jsonMapper;
   private final ObjectMapper smileMapper;
   private final QueryHostFinder hostFinder;
@@ -68,6 +70,7 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
 
   @Inject
   public RouterJettyServerInitializer(
+      QueryToolChestWarehouse warehouse,
       @Router DruidHttpClientConfig routerHttpClientConfig,
       @Global DruidHttpClientConfig globalHttpClientConfig,
       @Json ObjectMapper jsonMapper,
@@ -80,6 +83,7 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
       AsyncManagementForwardingServlet asyncManagementForwardingServlet
   )
   {
+    this.warehouse = warehouse;
     this.routerHttpClientConfig = routerHttpClientConfig;
     this.globalHttpClientConfig = globalHttpClientConfig;
     this.jsonMapper = jsonMapper;

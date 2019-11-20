@@ -22,11 +22,11 @@ package io.druid.server.coordination;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.guava.Sequence;
@@ -50,6 +50,7 @@ import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -88,6 +89,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -309,6 +311,15 @@ public class ServerManager implements ForwardingSegmentWalker
     if (query instanceof Query.ManagementQuery) {
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, exec, objectMapper);
     }
+
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    if (factory == null) {
+      throw new ISE("Unknown query type[%s].", query.getClass());
+    }
+
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
+
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
       throw new UnsupportedOperationException("data source type '" + dataSource.getClass().getName() + "' unsupported");
@@ -454,7 +465,7 @@ public class ServerManager implements ForwardingSegmentWalker
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest.makeMetricBuilder(), emitter);
+    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest, emitter);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
     {
@@ -541,7 +552,7 @@ public class ServerManager implements ForwardingSegmentWalker
             new SpecificSegmentQueryRunner<T>(
                 new MetricsEmittingQueryRunner<T>(
                     emitter,
-                    reporter,
+                    toolChest,
                     new BySegmentQueryRunner<T>(
                         adapter.getIdentifier(),
                         adapter.getDataInterval().getStart(),
@@ -553,22 +564,22 @@ public class ServerManager implements ForwardingSegmentWalker
                             toolChest,
                             new MetricsEmittingQueryRunner<T>(
                                 emitter,
-                                toolChest.makeMetricBuilder(),
+                                toolChest,
                                 new ReferenceCountingSegmentQueryRunner<T>(
                                     factory,
                                     (ReferenceCountingSegment) adapter,
                                     descriptor,
                                     optimizer
                                 ),
-                                "query/segment/time",
-                                ImmutableMap.of("segment", adapter.getIdentifier())
+                                QueryMetrics::reportSegmentTime,
+                                queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
                             ),
                             cachingExec,
                             cacheConfig
                         )
                     ),
-                    "query/segmentAndCache/time",
-                    ImmutableMap.of("segment", adapter.getIdentifier())
+                    QueryMetrics::reportSegmentAndCacheTime,
+                    queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
                 ).withWaitMeasuredFromNow(),
                 segmentSpec
             )

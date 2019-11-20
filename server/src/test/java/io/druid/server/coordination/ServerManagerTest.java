@@ -20,13 +20,15 @@
 package io.druid.server.coordination;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.client.cache.CacheConfig;
+import io.druid.client.cache.LocalCacheProvider;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
@@ -34,17 +36,15 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.client.cache.CacheConfig;
-import io.druid.client.cache.LocalCacheProvider;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.ConcatQueryRunner;
+import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.Druids;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -586,17 +586,9 @@ public class ServerManagerTest
       return runner;
     }
 
-    @Override
-    public Function<QueryType, ServiceMetricEvent.Builder> makeMetricBuilder()
+    public QueryMetrics<Query<?>> makeMetrics(QueryType query)
     {
-      return new Function<QueryType, ServiceMetricEvent.Builder>()
-      {
-        @Override
-        public ServiceMetricEvent.Builder apply(QueryType query)
-        {
-          return new ServiceMetricEvent.Builder();
-        }
-      };
+      return new DefaultQueryMetrics<>(new DefaultObjectMapper());
     }
 
     @Override

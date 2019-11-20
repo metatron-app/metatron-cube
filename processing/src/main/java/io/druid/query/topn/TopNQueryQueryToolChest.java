@@ -20,6 +20,7 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
@@ -39,7 +40,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
@@ -85,17 +85,30 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
   private final TopNQueryConfig config;
   private final TopNQueryEngine engine;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
+  private final TopNQueryMetricsFactory queryMetricsFactory;
 
-  @Inject
+  @VisibleForTesting
   public TopNQueryQueryToolChest(
       TopNQueryConfig config,
       TopNQueryEngine engine,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
+    this(config, engine, intervalChunkingQueryRunnerDecorator, DefaultTopNQueryMetricsFactory.instance());
+  }
+
+  @Inject
+  public TopNQueryQueryToolChest(
+      TopNQueryConfig config,
+      TopNQueryEngine engine,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      TopNQueryMetricsFactory queryMetricsFactory
+  )
+  {
     this.config = config;
     this.engine = engine;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   private static List<PostAggregator> prunePostAggregators(TopNQuery query)
@@ -184,24 +197,12 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
   }
 
   @Override
-  public Function<TopNQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
+  public TopNQueryMetrics makeMetrics(TopNQuery query)
   {
-    return new Function<TopNQuery, ServiceMetricEvent.Builder>()
-    {
-      @Override
-      public ServiceMetricEvent.Builder apply(TopNQuery query)
-      {
-        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-        final int numComplexAggs = DruidMetrics.findNumComplexAggs(aggregators);
-        return DruidMetrics.makePartialQueryTimeMetric(query)
-                           .setDimension("threshold", String.valueOf(query.getThreshold()))
-                           .setDimension("dimension", query.getDimensionSpec().getDimension())
-                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                           .setDimension("numComplexMetrics", String.valueOf(numComplexAggs));
-      }
-    };
+    TopNQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    queryMetrics.query(query);
+    return queryMetrics;
   }
-
   @Override
   public Function<Result<TopNResultValue>, Result<TopNResultValue>> makePreComputeManipulatorFn(
       final TopNQuery query, final MetricManipulationFn fn

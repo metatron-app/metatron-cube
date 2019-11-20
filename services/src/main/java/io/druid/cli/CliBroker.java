@@ -93,7 +93,6 @@ public class CliBroker extends ServerRunnable
             binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.BROKER);
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8082);
 
-            binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
             binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
             binder.bind(CachingClusteredClient.class).in(LazySingleton.class);

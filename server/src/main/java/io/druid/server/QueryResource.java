@@ -35,7 +35,6 @@ import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
@@ -44,9 +43,11 @@ import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
 import io.druid.query.DruidMetrics;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -90,6 +91,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
+import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -116,6 +118,7 @@ public class QueryResource
   protected final ServiceEmitter emitter;
   protected final RequestLogger requestLogger;
   protected final AuthConfig authConfig;
+  private final GenericQueryMetricsFactory queryMetricsFactory;
 
   @Inject
   public QueryResource(
@@ -128,7 +131,8 @@ public class QueryResource
       QueryToolChestWarehouse warehouse,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      GenericQueryMetricsFactory queryMetricsFactory
   )
   {
     this.node = node;
@@ -143,6 +147,7 @@ public class QueryResource
     this.authConfig = authConfig;
     this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
     this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @DELETE
@@ -236,8 +241,9 @@ public class QueryResource
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
 
-    final long start = System.currentTimeMillis();
+    final long startNs = System.nanoTime();
     final Query query = readQuery(in, context);
+    QueryToolChest theToolChest = null;
     try {
       if (log.isDebugEnabled()) {
         log.info("Got query [%s]", query);
@@ -269,6 +275,7 @@ public class QueryResource
       queryManager.registerQuery(query, future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
+      theToolChest = toolChest;
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
       Sequence sequence = prepared.run(segmentWalker, responseContext);
@@ -316,7 +323,7 @@ public class QueryResource
           }
           catch (Throwable t) {
             // it's not propagated to handlings below. so do it here
-            handleException(prepared, remote, start, counter.intValue(), os.getCount(), t);
+            handleException(toolChest, prepared, remote, startNs, counter.intValue(), os.getCount(), t);
             currThread.setName(currThreadName);
             if (t instanceof IOException) {
               throw (IOException) t;
@@ -329,21 +336,27 @@ public class QueryResource
             writer.set(null);
           }
 
-          long queryTime = System.currentTimeMillis() - start;
-          ServiceMetricEvent.Builder metric = DruidMetrics.makeQueryTimeMetric(jsonMapper, prepared, remote)
-                                                          .setDimension("success", "true");
-          emitter.emit(metric.build("query/time", queryTime));
-          emitter.emit(metric.build("query/bytes", os.getCount()));
-          emitter.emit(metric.build("query/rows", counter.intValue()));
+          long queryTimeNs = System.nanoTime() - startNs;
+          QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
+              queryMetricsFactory,
+              toolChest,
+              prepared,
+              req.getRemoteAddr()
+          );
+          queryMetrics.success(true);
+          queryMetrics.reportQueryTime(queryTimeNs);
+          queryMetrics.reportQueryBytes(os.getCount());
+          queryMetrics.reportQueryRows(counter.intValue());
+          queryMetrics.emit(emitter);
 
           requestLogger.log(
               new RequestLogLine(
-                  DateTimes.utc(start),
+                  DateTimes.utc(TimeUnit.NANOSECONDS.toMillis(startNs)),
                   remote,
                   toLoggingQuery(query),
                   new QueryStats(
                       ImmutableMap.<String, Object>of(
-                          "query/time", queryTime,
+                          "query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs),
                           "query/bytes", os.getCount(),
                           "query/rows", counter.intValue(),
                           "success", true
@@ -370,7 +383,7 @@ public class QueryResource
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      handleException(query, remote, start, 0, 0, e);
+      handleException(theToolChest, query, remote, startNs, 0, 0, e);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }
@@ -390,7 +403,7 @@ public class QueryResource
     return query.withOverriddenContext(adding);
   }
 
-  private void handleException(Query query, String remote, long start, int rows, long bytes, Throwable e)
+  private void handleException(QueryToolChest toolChest, Query query, String remote, long startNs, int rows, long bytes, Throwable e)
       throws IOException
   {
     boolean success = queryManager.isCanceled(query);
@@ -406,9 +419,9 @@ public class QueryResource
          .emit();
     }
 
-    long queryTime = System.currentTimeMillis() - start;
+    long queryTimeNs = System.nanoTime() - startNs;
     Map<String, Object> event = Maps.newHashMap();
-    event.put("query/time", queryTime);
+    event.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
     if (bytes > 0 && rows > 0) {
       event.put("query/bytes", bytes);
       event.put("query/rows", rows);
@@ -419,19 +432,26 @@ public class QueryResource
 
     requestLogger.log(
         new RequestLogLine(
-            DateTimes.utc(start),
+            DateTimes.utc(TimeUnit.NANOSECONDS.toMillis(queryTimeNs)),
             remote,
             toLoggingQuery(query),
             new QueryStats(event)
         )
     );
-    ServiceMetricEvent.Builder builder = DruidMetrics.makeQueryTimeMetric(jsonMapper, query, remote)
-                                                     .setDimension("success", String.valueOf(success));
+
+    QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
+        queryMetricsFactory,
+        toolChest,
+        query,
+        remote
+    );
+    queryMetrics.success(success);
+    queryMetrics.reportQueryTime(queryTimeNs);
     if (bytes > 0 && rows > 0) {
-      emitter.emit(builder.build("query/bytes", bytes));
-      emitter.emit(builder.build("query/rows", rows));
+      queryMetrics.reportQueryBytes(bytes);
+      queryMetrics.reportQueryRows(rows);
     }
-    emitter.emit(builder.build("query/time", queryTime));
+    queryMetrics.emit(emitter);
   }
 
   // clear previous query name if exists (should not)

@@ -110,7 +110,7 @@ public class FluentQueryRunnerBuilder<T>
     return toolChest == null ? this : from(
         CPUTimeMetricQueryRunner.safeBuild(
             baseRunner,
-            toolChest.makeMetricBuilder(),
+            toolChest,
             emitter,
             new AtomicLong(0L),
             true

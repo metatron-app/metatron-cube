@@ -24,12 +24,15 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.Sequences;
 import io.druid.query.BySegmentSkippingQueryRunner;
 import io.druid.query.DataSourceUtil;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
@@ -46,6 +49,14 @@ public class DataSourceQueryQueryToolChest
   private static final TypeReference<Result<DataSourceMetadataResultValue>> TYPE_REFERENCE = new TypeReference<Result<DataSourceMetadataResultValue>>()
   {
   };
+
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public DataSourceQueryQueryToolChest(GenericQueryMetricsFactory queryMetricsFactory)
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
 
   @Override
   public <T extends LogicalSegment> List<T> filterSegments(DataSourceMetadataQuery query, List<T> segments)
@@ -98,18 +109,9 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public Function<DataSourceMetadataQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
+  public QueryMetrics<Query<?>> makeMetrics(DataSourceMetadataQuery query)
   {
-    return new Function<DataSourceMetadataQuery, ServiceMetricEvent.Builder>()
-    {
-      @Override
-      public ServiceMetricEvent.Builder apply(DataSourceMetadataQuery query)
-      {
-        return new ServiceMetricEvent.Builder()
-            .setDimension("dataSource", DataSourceUtil.getMetricName(query.getDataSource()))
-            .setDimension("type", query.getType());
-      }
-    };
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override

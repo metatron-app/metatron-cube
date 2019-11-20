@@ -19,67 +19,54 @@
 
 package io.druid.query;
 
-import com.google.common.base.Function;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.ObjLongConsumer;
 
 /**
  */
 public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
 {
-  private static final String DEFAULT_METRIC_NAME = "query/partial/time";
-
   private final ServiceEmitter emitter;
-  private final Function<Query<T>, ServiceMetricEvent.Builder> builderFn;
+  private final QueryToolChest<?, ? super Query<T>> queryToolChest;
   private final QueryRunner<T> queryRunner;
-  private final long creationTime;
-  private final String metricName;
-  private final Map<String, String> userDimensions;
+  private final long creationTimeNs;
+  private final ObjLongConsumer<? super QueryMetrics<? super Query<T>>> reportMetric;
+  private final Consumer<QueryMetrics<? super Query<T>>> applyCustomDimensions;
 
   public MetricsEmittingQueryRunner(
       ServiceEmitter emitter,
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
-      QueryRunner<T> queryRunner
-  )
-  {
-    this(emitter, builderFn, queryRunner, DEFAULT_METRIC_NAME, Maps.<String, String>newHashMap());
-  }
-
-  public MetricsEmittingQueryRunner(
-      ServiceEmitter emitter,
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      QueryToolChest<?, ? super Query<T>> queryToolChest,
       QueryRunner<T> queryRunner,
-      long creationTime,
-      String metricName,
-      Map<String, String> userDimensions
+      long creationTimeNs,
+      ObjLongConsumer<? super QueryMetrics<? super Query<T>>> reportMetric,
+      Consumer<QueryMetrics<? super Query<T>>> applyCustomDimensions
   )
   {
     this.emitter = emitter;
-    this.builderFn = builderFn;
+    this.queryToolChest = queryToolChest;
     this.queryRunner = queryRunner;
-    this.creationTime = creationTime;
-    this.metricName = metricName;
-    this.userDimensions = userDimensions;
+    this.creationTimeNs = creationTimeNs;
+    this.reportMetric = reportMetric;
+    this.applyCustomDimensions = applyCustomDimensions;
   }
 
   public MetricsEmittingQueryRunner(
       ServiceEmitter emitter,
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      QueryToolChest<?, ? super Query<T>> queryToolChest,
       QueryRunner<T> queryRunner,
-      String metricName,
-      Map<String, String> userDimensions
+      ObjLongConsumer<? super QueryMetrics<? super Query<T>>> reportMetric,
+      Consumer<QueryMetrics<? super Query<T>>> applyCustomDimensions
   )
   {
-    this(emitter, builderFn, queryRunner, -1, metricName, userDimensions);
+    this(emitter, queryToolChest, queryRunner, -1, reportMetric, applyCustomDimensions);
   }
 
 
@@ -87,28 +74,24 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
   {
     return new MetricsEmittingQueryRunner<T>(
         emitter,
-        builderFn,
+        queryToolChest,
         queryRunner,
-        System.currentTimeMillis(),
-        metricName,
-        userDimensions
+        System.nanoTime(),
+        reportMetric,
+        applyCustomDimensions
     );
   }
 
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
-    final ServiceMetricEvent.Builder builder = builderFn.apply(query);
+    final QueryMetrics<? super Query<T>> queryMetrics = queryToolChest.makeMetrics(query);
+    applyCustomDimensions.accept(queryMetrics);
 
-    for (Map.Entry<String, String> userDimension : userDimensions.entrySet()) {
-      builder.setDimension(userDimension.getKey(), userDimension.getValue());
-    }
 
-    builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
-
-    long startTime = System.currentTimeMillis();
+    long startTimeNs = System.nanoTime();
     final Sequence<T> sequence = queryRunner.run(query, responseContext);
-    final long elapsed = System.currentTimeMillis() - startTime;
+    final long elapsed = System.nanoTime() - startTimeNs;
 
     return new Sequence<T>()
     {
@@ -117,26 +100,28 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
       {
         OutType retVal;
 
-        final long startTime = System.currentTimeMillis();
+        final long startTimeNs = System.nanoTime();
         try {
           retVal = sequence.accumulate(outType, accumulator);
         }
         catch (RuntimeException e) {
-          builder.setDimension(DruidMetrics.STATUS, "failed");
+          queryMetrics.status("failed");
           throw e;
         }
         catch (Error e) {
-          builder.setDimension(DruidMetrics.STATUS, "failed");
+          queryMetrics.status("failed");
           throw e;
         }
         finally {
-          long timeTaken = elapsed + System.currentTimeMillis() - startTime;
+          long timeTaken = elapsed + System.nanoTime() - startTimeNs;
 
-          emitter.emit(builder.build(metricName, timeTaken));
+          reportMetric.accept(queryMetrics, timeTaken);
 
-          if (creationTime > 0) {
-            emitter.emit(builder.build("query/wait/time", startTime - creationTime));
+          if (creationTimeNs > 0) {
+            queryMetrics.reportWaitTime(startTimeNs - creationTimeNs);
+
           }
+          queryMetrics.emit(emitter);
         }
 
         return retVal;
@@ -147,27 +132,26 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
       {
         Yielder<OutType> retVal;
 
-        final long startTime = System.currentTimeMillis();
+        final long startTimeNs = System.nanoTime();
         try {
           retVal = sequence.toYielder(initValue, accumulator);
         }
         catch (RuntimeException e) {
-          builder.setDimension(DruidMetrics.STATUS, "failed");
+          queryMetrics.status("failed");
           throw e;
         }
         catch (Error e) {
-          builder.setDimension(DruidMetrics.STATUS, "failed");
+          queryMetrics.status("failed");
           throw e;
         }
 
-        return makeYielder(startTime, retVal, builder);
+        return makeYielder(startTimeNs, retVal, queryMetrics);
       }
 
       private <OutType> Yielder<OutType> makeYielder(
-          final long startTime,
+          final long startTimeNs,
           final Yielder<OutType> yielder,
-          final ServiceMetricEvent.Builder builder
-      )
+          final QueryMetrics<? super Query<T>> queryMetrics)
       {
         return new Yielder<OutType>()
         {
@@ -181,14 +165,14 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
           public Yielder<OutType> next(OutType initValue)
           {
             try {
-              return makeYielder(startTime, yielder.next(initValue), builder);
+              return makeYielder(startTimeNs, yielder.next(initValue), queryMetrics);
             }
             catch (RuntimeException e) {
-              builder.setDimension(DruidMetrics.STATUS, "failed");
+              queryMetrics.status("failed");
               throw e;
             }
             catch (Error e) {
-              builder.setDimension(DruidMetrics.STATUS, "failed");
+              queryMetrics.status("failed");
               throw e;
             }
           }
@@ -203,19 +187,17 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
           public void close() throws IOException
           {
             try {
-              if (!isDone() && builder.getDimension(DruidMetrics.STATUS) == null) {
-                builder.setDimension(DruidMetrics.STATUS, "short");
-              }
+              long timeTaken = elapsed + System.nanoTime() - startTimeNs;
+              reportMetric.accept(queryMetrics, timeTaken);
 
-              long timeTaken = elapsed + System.currentTimeMillis() - startTime;
-              emitter.emit(builder.build(metricName, timeTaken));
 
-              if (creationTime > 0) {
-                emitter.emit(builder.build("query/wait/time", startTime - creationTime));
+              if (creationTimeNs > 0) {
+                queryMetrics.reportWaitTime(startTimeNs - creationTimeNs);
               }
             }
             finally {
               yielder.close();
+              queryMetrics.emit(emitter);
             }
           }
         };

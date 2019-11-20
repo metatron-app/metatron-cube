@@ -31,6 +31,7 @@ import io.druid.data.ValueType;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -271,7 +272,7 @@ public class SelectMetaQueryRunnerTest
     Assert.assertTrue(Iterables.elementsEqual(expected2, schema2.columnAndTypes()));
 
     ObjectMapper mapper = TestIndex.segmentWalker.getObjectMapper();
-    CacheStrategy cacheStrategy = new SchemaQueryToolChest().getCacheStrategy(schemaQuery);
+    CacheStrategy cacheStrategy = new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()).getCacheStrategy(schemaQuery);
     Schema cached = (Schema) cacheStrategy.pullFromCache().apply(
         mapper.readValue(
             mapper.writeValueAsBytes(cacheStrategy.prepareForCache().apply(schema2)), cacheStrategy.getCacheObjectClazz()

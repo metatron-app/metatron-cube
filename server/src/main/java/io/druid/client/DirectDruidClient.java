@@ -49,6 +49,8 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -64,6 +66,10 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -131,7 +137,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
-    final long start = System.currentTimeMillis();
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     Pair<JavaType, JavaType> types = typesMap.get(query.getClass());
@@ -157,19 +162,22 @@ public class DirectDruidClient<T> implements QueryRunner<T>
         log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
       }
 
-      final ServiceMetricEvent.Builder builder = toolChest.makeMetricBuilder().apply(query);
-      builder.setDimension("server", host);
-      builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
+      final long requestStartTimeNs = System.nanoTime();
+
+      final QueryMetrics<? super Query<T>> queryMetrics = toolChest.makeMetrics(query);
+      queryMetrics.server(host);
+      //FIXME seoeun queryID set.
 
       future = httpClient.go(
           new Request(HttpMethod.POST, url)
               .setContent(objectMapper.writeValueAsBytes(query))
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
-          handlerFactory.create(query, url, ioConfig.getQueueSize(), builder, context)
+          handlerFactory.create(query, url, ioConfig.getQueueSize(), queryMetrics, context)
       );
-      final long elapsed = System.currentTimeMillis() - start;
-      if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
-        log.info("Took %,d msec to write query[%s] to url[%s]", elapsed, query.getId(), url);
+      final long elapsedNs = System.nanoTime() - requestStartTimeNs;
+      if (elapsedNs > WRITE_DELAY_LOG_THRESHOLD) {
+        log.info("Took %,d msec to write query[%s] to url[%s]", TimeUnit.NANOSECONDS.toMillis(elapsedNs),
+                 query.getId(), url);
       }
 
       queryWatcher.registerQuery(query, Execs.tag(future, host));

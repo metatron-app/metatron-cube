@@ -28,6 +28,7 @@ import io.druid.guice.annotations.Smile;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.ThreadPoolTaskRunner;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.initialization.ServerConfig;
@@ -61,7 +62,8 @@ public class PeonResource extends QueryResource
       RequestLogger requestLogger,
       AuthConfig authConfig,
       QueryToolChestWarehouse warehouse,
-      TaskRunner taskRunner
+      TaskRunner taskRunner,
+      GenericQueryMetricsFactory queryMetricsFactory
   )
   {
     super(node,
@@ -73,7 +75,8 @@ public class PeonResource extends QueryResource
         warehouse,
         emitter,
         requestLogger,
-        authConfig
+        authConfig,
+        queryMetricsFactory
     );
     this.taskRunner = taskRunner;
   }

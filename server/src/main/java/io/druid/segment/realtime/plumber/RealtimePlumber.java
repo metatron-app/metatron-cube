@@ -55,6 +55,7 @@ import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -357,7 +358,7 @@ public class RealtimePlumber implements Plumber
                         return new SpecificSegmentQueryRunner<T>(
                             new MetricsEmittingQueryRunner<T>(
                                 emitter,
-                                toolchest.makeMetricBuilder(),
+                                toolchest,
                                 factory.mergeRunners(
                                     MoreExecutors.sameThreadExecutor(),
                                     Iterables.transform(
@@ -412,8 +413,8 @@ public class RealtimePlumber implements Plumber
                                     ),
                                     null
                                 ),
-                                "query/segmentAndCache/time",
-                                ImmutableMap.of("segment", theSink.getSegment().getIdentifier())
+                                QueryMetrics::reportSegmentAndCacheTime,
+                                queryMetrics -> queryMetrics.segment(theSink.getSegment().getIdentifier())
                             ).withWaitMeasuredFromNow(),
                             new SpecificSegmentSpec(
                                 descriptor

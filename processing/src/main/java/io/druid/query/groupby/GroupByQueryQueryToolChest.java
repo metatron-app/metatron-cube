@@ -19,6 +19,7 @@
 
 package io.druid.query.groupby;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
@@ -27,18 +28,16 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.CompactRow;
-import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseAggregationQueryToolChest;
-import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -46,7 +45,6 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -75,8 +73,9 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
 
   private final StupidPool<ByteBuffer> bufferPool;
   private final GroupByQueryEngine engine; // For running the outer query around a subquery
+  private final GroupByQueryMetricsFactory queryMetricsFactory;
 
-  @Inject
+  @VisibleForTesting
   public GroupByQueryQueryToolChest(
       QueryConfig config,
       GroupByQueryEngine engine,
@@ -84,10 +83,23 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
+    this(config, engine, bufferPool, intervalChunkingQueryRunnerDecorator, DefaultGroupByQueryMetricsFactory.instance());
+  }
+
+  @Inject
+  public GroupByQueryQueryToolChest(
+      QueryConfig config,
+      GroupByQueryEngine engine,
+      @Global StupidPool<ByteBuffer> bufferPool,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      GroupByQueryMetricsFactory queryMetricsFactory
+  )
+  {
     super(intervalChunkingQueryRunnerDecorator);
     this.config = config;
     this.engine = engine;
     this.bufferPool = bufferPool;
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @Override
@@ -210,22 +222,11 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   }
 
   @Override
-  public Function<GroupByQuery, ServiceMetricEvent.Builder> makeMetricBuilder()
+  public GroupByQueryMetrics makeMetrics(GroupByQuery query)
   {
-    return new Function<GroupByQuery, ServiceMetricEvent.Builder>()
-    {
-      @Override
-      public ServiceMetricEvent.Builder apply(GroupByQuery query)
-      {
-        final List<DimensionSpec> dimensions = query.getDimensions();
-        final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
-        final int complexAggs = DruidMetrics.findNumComplexAggs(aggregators);
-        return DruidMetrics.makePartialQueryTimeMetric(query)
-                           .setDimension("numDimensions", String.valueOf(dimensions.size()))
-                           .setDimension("numMetrics", String.valueOf(aggregators.size()))
-                           .setDimension("numComplexMetrics", String.valueOf(complexAggs));
-      }
-    };
+    GroupByQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    queryMetrics.query(query);
+    return queryMetrics;
   }
 
   @Override

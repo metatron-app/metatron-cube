@@ -39,6 +39,9 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
@@ -73,13 +76,19 @@ public class SegmentMetadataQueryQueryToolChest
   };
 
   private final SegmentMetadataQueryConfig config;
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @VisibleForTesting
+  public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config)
+  {
+    this(config, DefaultGenericQueryMetricsFactory.instance());
+  }
 
   @Inject
-  public SegmentMetadataQueryQueryToolChest(
-      SegmentMetadataQueryConfig config
-  )
+  public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config, GenericQueryMetricsFactory queryMetricsFactory)
   {
     this.config = config;
+    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @Override
@@ -133,6 +142,11 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Override
+  public QueryMetrics<Query<?>> makeMetrics(SegmentMetadataQuery query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
+  }
+
   public TypeReference<SegmentAnalysis> getResultTypeReference()
   {
     return TYPE_REFERENCE;

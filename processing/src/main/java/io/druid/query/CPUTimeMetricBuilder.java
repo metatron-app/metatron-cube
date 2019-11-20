@@ -25,36 +25,37 @@ import io.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class CPUTimeMetricBuilder<T> implements Function<Query<T>, ServiceMetricEvent.Builder>
+public class CPUTimeMetricBuilder<T>
 {
-  private final Function<Query<T>, ServiceMetricEvent.Builder> builderFn;
+  private final QueryToolChest<T, Query<T>> toolChest;
   private final ServiceEmitter emitter;
   private final AtomicLong accumulator;
 
+  //FIXME seoeun. This class needed?
   public CPUTimeMetricBuilder(
-      Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
+      QueryToolChest<T, Query<T>> toolChest,
       ServiceEmitter emitter
   )
   {
-    this.builderFn = builderFn;
+    this.toolChest = toolChest;
     this.emitter = emitter;
     this.accumulator = new AtomicLong();
   }
 
-  @Override
-  public ServiceMetricEvent.Builder apply(Query<T> input)
-  {
-    return builderFn.apply(input);
-  }
+//  @Override
+//  public ServiceMetricEvent.Builder apply(Query<T> input)
+//  {
+//    return builderFn.apply(input);
+//  }
 
   public QueryRunner<T> accumulate(QueryRunner<T> runner)
   {
-    return CPUTimeMetricQueryRunner.safeBuild(runner, builderFn, emitter, accumulator, false);
+    return CPUTimeMetricQueryRunner.safeBuild(runner, toolChest, emitter, accumulator, false);
   }
 
   public QueryRunner<T> report(QueryRunner<T> runner)
   {
-    return CPUTimeMetricQueryRunner.safeBuild(runner, builderFn, emitter, accumulator, true);
+    return CPUTimeMetricQueryRunner.safeBuild(runner, toolChest, emitter, accumulator, true);
   }
 
   public ServiceEmitter getEmitter()

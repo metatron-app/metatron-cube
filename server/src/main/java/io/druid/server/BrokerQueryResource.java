@@ -52,6 +52,7 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -112,6 +113,7 @@ public class BrokerQueryResource extends QueryResource
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       AuthConfig authConfig,
+      GenericQueryMetricsFactory queryMetricsFactory,
       CoordinatorClient coordinator,
       TimelineServerView brokerServerView,
       @Processing ExecutorService exec
@@ -127,7 +129,8 @@ public class BrokerQueryResource extends QueryResource
         warehouse,
         emitter,
         requestLogger,
-        authConfig
+        authConfig,
+        queryMetricsFactory
     );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;

@@ -58,6 +58,7 @@ import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -498,10 +499,11 @@ public class AppenderatorImpl implements Appenderator
                           return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
                         }
 
+                        String segmentId = theSink.getSegment().getIdentifier();
                         return new SpecificSegmentQueryRunner<>(
                             new MetricsEmittingQueryRunner<>(
                                 emitter,
-                                toolchest.makeMetricBuilder(),
+                                toolchest,
                                 new BySegmentQueryRunner<T>(
                                     theSink.getSegment().getIdentifier(),
                                     descriptor.getInterval().getStart(),
@@ -556,7 +558,9 @@ public class AppenderatorImpl implements Appenderator
                                         ),
                                         null
                                     )
-                                )
+                                ),
+                                QueryMetrics::reportSegmentAndCacheTime,
+                                queryMetrics -> queryMetrics.segment(segmentId)
                             ).withWaitMeasuredFromNow(),
                             new SpecificSegmentSpec(descriptor)
                         );

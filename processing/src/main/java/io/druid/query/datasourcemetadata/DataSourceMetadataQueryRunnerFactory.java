@@ -41,9 +41,12 @@ public class DataSourceMetadataQueryRunnerFactory
     extends QueryRunnerFactory.Abstract<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery>
 {
   @Inject
-  public DataSourceMetadataQueryRunnerFactory(QueryWatcher queryWatcher)
+  public DataSourceMetadataQueryRunnerFactory(
+      DataSourceQueryQueryToolChest toolChest,
+      QueryWatcher queryWatcher
+  )
   {
-    super(new DataSourceQueryQueryToolChest(), queryWatcher);
+    super(toolChest, queryWatcher);
   }
 
   @Override

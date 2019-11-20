@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.guava.Sequence;
@@ -103,10 +102,10 @@ public class IntervalChunkingQueryRunner<T> implements QueryRunner<T>
                         toolChest.mergeResults(
                             new MetricsEmittingQueryRunner<T>(
                                 emitter,
-                                toolChest.makeMetricBuilder(),
+                                toolChest,
                                 baseRunner,
-                                "query/intervalChunk/time",
-                                ImmutableMap.of("chunkInterval", singleInterval.toString())
+                                QueryMetrics::reportIntervalChunkTime,
+                                queryMetrics -> queryMetrics.chunkInterval(singleInterval)
                             ).withWaitMeasuredFromNow()
                         ),
                         executor, queryWatcher

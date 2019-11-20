@@ -20,6 +20,10 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.inject.Inject;
+import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
+import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 
@@ -34,10 +38,26 @@ public class SelectForwardQueryToolChest extends QueryToolChest
       {
       };
 
+  private final GenericQueryMetricsFactory queryMetricsFactory;
+
+  @Inject
+  public SelectForwardQueryToolChest(
+      GenericQueryMetricsFactory queryMetricsFactory
+  )
+  {
+    this.queryMetricsFactory = queryMetricsFactory;
+  }
+
   @Override
   public QueryRunner mergeResults(QueryRunner runner)
   {
     return runner;  // concat sequence (see SelectQueryRunnerFactory.mergeRunners)
+  }
+
+  @Override
+  public QueryMetrics makeMetrics(Query query)
+  {
+    return queryMetricsFactory.makeMetrics(query);
   }
 
   @Override
