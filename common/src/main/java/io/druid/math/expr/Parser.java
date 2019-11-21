@@ -26,13 +26,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.BuiltinFunctions.WindowFunctionFactory;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
@@ -86,6 +86,15 @@ public class Parser
         log.info("> '%s' is registered with class %s", name, factory.getClass().getSimpleName());
       }
     }
+  }
+
+  public static boolean isBuiltIn(Function.Factory factory)
+  {
+    final Class parent = factory.getClass().getEnclosingClass();
+    return parent == BuiltinFunctions.class ||
+           parent == PredicateFunctions.class ||
+           parent == DateTimeFunctions.class ||
+           parent == ExcelFunctions.class;
   }
 
   private static Iterable<Function.Factory> getFunctions(Class parent)

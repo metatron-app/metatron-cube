@@ -24,11 +24,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.http.client.HttpClient;
-import io.druid.java.util.http.client.Request;
-import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
-import io.druid.java.util.http.client.response.FullResponseHolder;
 import io.druid.client.BrokerIOConfig;
 import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
@@ -41,6 +36,11 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
+import io.druid.java.util.http.client.response.FullResponseHolder;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.ReflectionQueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -201,6 +201,7 @@ public class SystemSchemaTest extends CalciteTestBase
         serverView,
         coordinatorClient,
         indexingServiceClient,
+        CalciteTests.createOperatorTable(),
         mapper
     );
   }
@@ -304,10 +305,10 @@ public class SystemSchemaTest extends CalciteTestBase
   @Test
   public void testGetTableMap()
   {
-    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks"), schema.getTableNames());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks", "functions"), schema.getTableNames());
 
     final Map<String, Table> tableMap = schema.getTableMap();
-    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks"), tableMap.keySet());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks", "functions"), tableMap.keySet());
     final SystemSchema.SegmentsTable segmentsTable = (SystemSchema.SegmentsTable) schema.getTableMap().get("segments");
     final RelDataType rowType = segmentsTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> fields = rowType.getFieldList();

@@ -380,6 +380,7 @@ public class CalciteTests
         new TestServerInventoryView(walker.getSegments()),
         coordinatorClient,
         indexingServiceClient,
+        createOperatorTable(),
         getJsonMapper()
     );
     return schema;

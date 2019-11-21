@@ -20,17 +20,16 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -105,7 +104,6 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -221,7 +219,7 @@ public class DruidOperatorTable implements SqlOperatorTable
     this.operatorConversions = new HashMap<>();
 
     for (SqlAggregator aggregator : userAggregators) {
-      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
+      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
       if (aggregators.put(operatorKey, aggregator) != null) {
         throw new ISE("Cannot have two operators with key[%s]", operatorKey);
       }
@@ -243,12 +241,12 @@ public class DruidOperatorTable implements SqlOperatorTable
       final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(clazz));
       final SqlAggFunction function = new DummyAggregatorFunction(named.getKey(), retType);
       final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
-      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
+      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
       aggregators.putIfAbsent(operatorKey, aggregator);
     }
 
     for (SqlOperatorConversion operatorConversion : userOperatorConversions) {
-      final OperatorKey operatorKey = OperatorKey.of(operatorConversion.calciteOperator());
+      final OperatorKey operatorKey = OperatorKey.of(operatorConversion.calciteOperator(), true);
       if (aggregators.containsKey(operatorKey) || operatorConversions.put(operatorKey, operatorConversion) != null) {
         throw new ISE("Cannot have two operators with key[%s]", operatorKey);
       }
@@ -314,7 +312,7 @@ public class DruidOperatorTable implements SqlOperatorTable
         operator = new DummySqlFunction(name, retType);
       }
 
-      OperatorKey operatorKey = OperatorKey.of(operator);
+      OperatorKey operatorKey = OperatorKey.of(operator, !Parser.isBuiltIn(factory));
       if (!aggregators.containsKey(operatorKey)) {
         operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
       }
@@ -409,75 +407,14 @@ public class DruidOperatorTable implements SqlOperatorTable
     return Lists.newArrayList(operators);
   }
 
-  private static SqlSyntax normalizeSyntax(final SqlSyntax syntax)
+  public Map<OperatorKey, SqlAggregator> getAggregators()
   {
-    // Treat anything other than prefix/suffix/binary syntax as function syntax.
-    if (syntax == SqlSyntax.PREFIX || syntax == SqlSyntax.BINARY || syntax == SqlSyntax.POSTFIX) {
-      return syntax;
-    } else {
-      return SqlSyntax.FUNCTION;
-    }
+    return ImmutableMap.copyOf(aggregators);
   }
 
-  private static class OperatorKey
+  public Map<OperatorKey, SqlOperatorConversion> getOperatorConversions()
   {
-    private final String name;
-    private final SqlSyntax syntax;
-
-    public OperatorKey(final String name, final SqlSyntax syntax)
-    {
-      this.name = StringUtils.toLowerCase(Preconditions.checkNotNull(name, "name"));
-      this.syntax = normalizeSyntax(Preconditions.checkNotNull(syntax, "syntax"));
-    }
-
-    public static OperatorKey of(final String name, final SqlSyntax syntax)
-    {
-      return new OperatorKey(name, syntax);
-    }
-
-    public static OperatorKey of(final SqlOperator operator)
-    {
-      return new OperatorKey(operator.getName(), operator.getSyntax());
-    }
-
-    public String getName()
-    {
-      return name;
-    }
-
-    public SqlSyntax getSyntax()
-    {
-      return syntax;
-    }
-
-    @Override
-    public boolean equals(final Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final OperatorKey that = (OperatorKey) o;
-      return Objects.equals(name, that.name) &&
-             syntax == that.syntax;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(name, syntax);
-    }
-
-    @Override
-    public String toString()
-    {
-      return "OperatorKey{" +
-             "name='" + name + '\'' +
-             ", syntax=" + syntax +
-             '}';
-    }
+    return ImmutableMap.copyOf(operatorConversions);
   }
 
   private static class DummySqlAggregator implements SqlAggregator

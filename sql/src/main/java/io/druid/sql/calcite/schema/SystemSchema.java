@@ -30,9 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.common.parsers.CloseableIterator;
-import io.druid.java.util.http.client.Request;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.JsonParserIterator;
 import io.druid.client.TimelineServerView;
@@ -41,7 +38,12 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.CloseableIterator;
+import io.druid.java.util.http.client.Request;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
+import io.druid.sql.calcite.planner.DruidOperatorTable;
+import io.druid.sql.calcite.planner.OperatorKey;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.timeline.DataSegment;
 import org.apache.calcite.DataContext;
@@ -61,6 +63,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -78,6 +82,7 @@ public class SystemSchema extends AbstractSchema
   private static final String SERVER_SEGMENTS_TABLE = "server_segments";
   private static final String TASKS_TABLE = "tasks";
   private static final String LOCKS_TABLE = "locks";
+  private static final String FUNCTIONS_TABLE = "functions";
 
   static final RowSignature SEGMENTS_SIGNATURE = RowSignature
       .builder()
@@ -139,6 +144,13 @@ public class SystemSchema extends AbstractSchema
       .add("tasks", ValueDesc.ofList(ValueDesc.STRING))
       .build();
 
+  static final RowSignature FUNCTIONS_SIGNATURE = RowSignature
+      .builder()
+      .add("name", ValueDesc.STRING)
+      .add("type", ValueDesc.STRING)
+      .add("external", ValueDesc.BOOLEAN)
+      .build();
+
   private final Map<String, Table> tableMap;
 
   @Inject
@@ -147,6 +159,7 @@ public class SystemSchema extends AbstractSchema
       final TimelineServerView serverView,
       final CoordinatorClient coordinatorDruidLeaderClient,
       final IndexingServiceClient overlordDruidLeaderClient,
+      final DruidOperatorTable operatorTable,
       final ObjectMapper jsonMapper
   )
   {
@@ -172,6 +185,10 @@ public class SystemSchema extends AbstractSchema
       .put(
           LOCKS_TABLE,
           new LocksTable(overlordDruidLeaderClient, jsonMapper)
+      )
+      .put(
+          FUNCTIONS_TABLE,
+          new FunctionsTable(operatorTable, jsonMapper)
       )
       .build();
   }
@@ -615,7 +632,6 @@ public class SystemSchema extends AbstractSchema
   {
   };
 
-
   static class LocksTable extends AbstractTable implements ScannableTable
   {
     private final IndexingServiceClient druidLeaderClient;
@@ -651,6 +667,52 @@ public class SystemSchema extends AbstractSchema
         }
         rows.add(array);
       }
+      return Linq4j.asEnumerable(rows);
+    }
+  }
+
+  static class FunctionsTable extends AbstractTable implements ScannableTable
+  {
+    private final DruidOperatorTable operatorTable;
+    private final ObjectMapper jsonMapper;
+
+    public FunctionsTable(DruidOperatorTable operatorTable, ObjectMapper jsonMapper)
+    {
+      this.operatorTable = operatorTable;
+      this.jsonMapper = jsonMapper;
+    }
+
+    @Override
+    public RelDataType getRowType(RelDataTypeFactory typeFactory)
+    {
+      return FUNCTIONS_SIGNATURE.getRelDataType(typeFactory);
+    }
+
+    @Override
+    public TableType getJdbcTableType()
+    {
+      return TableType.SYSTEM_TABLE;
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root)
+    {
+      List<String> columns = FUNCTIONS_SIGNATURE.getRowOrder();
+      List<Object[]> rows = Lists.newArrayList();
+      for (OperatorKey key : operatorTable.getAggregators().keySet()) {
+        rows.add(new Object[] {key.getName(), "UDAF", key.isExternal()});
+      }
+      for (OperatorKey key : operatorTable.getOperatorConversions().keySet()) {
+        rows.add(new Object[] {key.getName(), "UDF", key.isExternal()});
+      }
+      Collections.sort(rows, new Comparator<Object[]>()
+      {
+        @Override
+        public int compare(Object[] o1, Object[] o2)
+        {
+          return ((String) o1[0]).compareTo((String) o2[0]);
+        }
+      });
       return Linq4j.asEnumerable(rows);
     }
   }
