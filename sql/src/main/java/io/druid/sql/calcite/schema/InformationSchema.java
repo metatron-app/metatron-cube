@@ -184,7 +184,7 @@ public class InformationSchema extends AbstractSchema
       .add(HOST, ValueDesc.STRING)
       .add(TYPE, ValueDesc.STRING)
       .add(SERVICE, ValueDesc.STRING)
-      .add(START_TIME, ValueDesc.LIST)
+      .add(START_TIME, ValueDesc.STRING)
       .add(INPUT_ARGUMENTS, ValueDesc.STRING)
       .add(AVAILABLE_PROCESSOR, ValueDesc.LONG)
       .add(SYSTEM_LOAD_AVERAGE, ValueDesc.DOUBLE)

@@ -19,7 +19,6 @@
 
 package io.druid.common.guava;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -31,25 +30,19 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
-import com.google.common.io.CharStreams;
-import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.common.Progressing;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
-import io.druid.common.Progressing;
-import io.druid.concurrent.PrioritizedCallable;
 import org.apache.commons.io.IOUtils;
 
 import javax.annotation.Nullable;
-import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,7 +54,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.zip.GZIPInputStream;
 
 /**
  */
@@ -70,11 +62,11 @@ public class GuavaUtils
   private static final Logger LOG = new Logger(GuavaUtils.class);
 
   // null check in Ordering.natural() prevents unrolling in some cases
+  @SuppressWarnings("unchecked")
   public static final Ordering NO_NULLABLE_NATURAL = Ordering.from(
       new Comparator()
       {
         @Override
-        @SuppressWarnings("unchecked")
         public int compare(Object o1, Object o2)
         {
           return ((Comparable) o1).compareTo(o2);
@@ -104,6 +96,7 @@ public class GuavaUtils
     };
   }
 
+  @SuppressWarnings("unchecked")
   public static Comparator nullFirst(Comparator comparator)
   {
     return Ordering.from(comparator).nullsFirst();
@@ -123,50 +116,6 @@ public class GuavaUtils
       public String apply(@Nullable String input)
       {
         return String.format(formatString, input);
-      }
-    };
-  }
-
-  public static InputSupplier<BufferedReader> joinFiles(final File... files)
-  {
-    return joinFiles(Arrays.asList(files));
-  }
-
-  public static InputSupplier<BufferedReader> joinFiles(final List<File> files)
-  {
-
-    return new InputSupplier<BufferedReader>()
-    {
-      @Override
-      public BufferedReader getInput() throws IOException
-      {
-        return new BufferedReader(
-            CharStreams.join(
-                Iterables.transform(
-                    files,
-                    new Function<File, InputSupplier<InputStreamReader>>()
-                    {
-                      @Override
-                      public InputSupplier<InputStreamReader> apply(final File input)
-                      {
-                        return new InputSupplier<InputStreamReader>()
-                        {
-                          @Override
-                          public InputStreamReader getInput() throws IOException
-                          {
-                            InputStream baseStream = new FileInputStream(input);
-                            if (input.getName().endsWith(".gz")) {
-                              baseStream = new GZIPInputStream(baseStream);
-                            }
-
-                            return new InputStreamReader(baseStream, Charsets.UTF_8);
-                          }
-                        };
-                      }
-                    }
-                )
-            ).getInput()
-        );
       }
     };
   }

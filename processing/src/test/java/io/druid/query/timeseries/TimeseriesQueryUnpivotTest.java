@@ -30,7 +30,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
-import io.druid.query.LateralViewSpec;
+import io.druid.query.UnpivotSpec;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
@@ -60,7 +60,7 @@ import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder
 /**
  */
 @RunWith(Parameterized.class)
-public class TimeseriesQueryExplodeTest
+public class TimeseriesQueryUnpivotTest
 {
   private static final String[] V_0401 = {
       "2011-04-01T00:00:00.000Z	x1	10	50	90	130	170	210	250",
@@ -85,15 +85,13 @@ public class TimeseriesQueryExplodeTest
         .withMinTimestamp(new DateTime("2011-04-01T00:00:00.000Z").getMillis())
         .withQueryGranularity(QueryGranularities.NONE)
         .withMetrics(
-            new AggregatorFactory[]{
-                new LongSumAggregatorFactory("spot$automotive", "a"),
-                new LongSumAggregatorFactory("spot$mezzanine", "b"),
-                new LongSumAggregatorFactory("spot$premium", "c"),
-                new LongSumAggregatorFactory("total_market$mezzanine", "d"),
-                new LongSumAggregatorFactory("total_market$premium", "e"),
-                new LongSumAggregatorFactory("upfront$mezzanine", "f"),
-                new LongSumAggregatorFactory("upfront$premium", "g")
-            }
+            new LongSumAggregatorFactory("spot$automotive", "a"),
+            new LongSumAggregatorFactory("spot$mezzanine", "b"),
+            new LongSumAggregatorFactory("spot$premium", "c"),
+            new LongSumAggregatorFactory("total_market$mezzanine", "d"),
+            new LongSumAggregatorFactory("total_market$premium", "e"),
+            new LongSumAggregatorFactory("upfront$mezzanine", "f"),
+            new LongSumAggregatorFactory("upfront$premium", "g")
         )
         .build();
     final IncrementalIndex index = new OnheapIncrementalIndex(schema, true, 10000);
@@ -124,7 +122,7 @@ public class TimeseriesQueryExplodeTest
 
   private final QueryRunner<Row> runner;
 
-  public TimeseriesQueryExplodeTest(QueryRunner<Row> runner)
+  public TimeseriesQueryUnpivotTest(QueryRunner<Row> runner)
   {
     this.runner = runner;
   }
@@ -149,10 +147,10 @@ public class TimeseriesQueryExplodeTest
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .granularity(QueryGranularities.HOUR)
               .lateralViewSpec(
-                  new LateralViewSpec(
-                      Arrays.<LateralViewSpec.LateralViewElement>asList(
-                          new LateralViewSpec.LateralViewElement("market", null),
-                          new LateralViewSpec.LateralViewElement("quality", null)
+                  new UnpivotSpec(
+                      Arrays.<UnpivotSpec.ColumnElement>asList(
+                          new UnpivotSpec.ColumnElement("market", null),
+                          new UnpivotSpec.ColumnElement("quality", null)
                       ),
                       null,
                       null,
@@ -203,9 +201,9 @@ public class TimeseriesQueryExplodeTest
 
     // single element
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement("market", null)
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement("market", null)
             ),
             null,
             null,
@@ -235,9 +233,9 @@ public class TimeseriesQueryExplodeTest
 
     // single element, selective
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement("market", Arrays.asList("total_market", "upfront", "xxx"))
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement("market", Arrays.asList("total_market", "upfront", "xxx"))
             ),
             null,
             null,
@@ -263,10 +261,10 @@ public class TimeseriesQueryExplodeTest
 
     // single element, 2nd
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
                 null,
-                new LateralViewSpec.LateralViewElement("quality", null)
+                new UnpivotSpec.ColumnElement("quality", null)
             ),
             null,
             null,
@@ -296,10 +294,10 @@ public class TimeseriesQueryExplodeTest
 
     // single element, 2nd, selective
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement(null, Arrays.asList("spot", "total_market")),
-                new LateralViewSpec.LateralViewElement("quality", Arrays.asList("mezzanine", "premium"))
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement(null, Arrays.asList("spot", "total_market")),
+                new UnpivotSpec.ColumnElement("quality", Arrays.asList("mezzanine", "premium"))
             ),
             null,
             Arrays.asList("x", "timestamp"),
@@ -344,10 +342,10 @@ public class TimeseriesQueryExplodeTest
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .granularity(QueryGranularities.DAY)
               .lateralViewSpec(
-                  new LateralViewSpec(
-                      Arrays.<LateralViewSpec.LateralViewElement>asList(
-                          new LateralViewSpec.LateralViewElement("market", null),
-                          new LateralViewSpec.LateralViewElement("quality", null)
+                  new UnpivotSpec(
+                      Arrays.<UnpivotSpec.ColumnElement>asList(
+                          new UnpivotSpec.ColumnElement("market", null),
+                          new UnpivotSpec.ColumnElement("quality", null)
                       ),
                       null,
                       null,
@@ -377,9 +375,9 @@ public class TimeseriesQueryExplodeTest
 
     // single element
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement("market", null)
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement("market", null)
             ),
             null,
             null,
@@ -400,9 +398,9 @@ public class TimeseriesQueryExplodeTest
 
     // single element, selective
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement("market", Arrays.asList("total_market", "upfront", "xxx"))
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement("market", Arrays.asList("total_market", "upfront", "xxx"))
             ),
             null,
             null,
@@ -422,10 +420,10 @@ public class TimeseriesQueryExplodeTest
 
     // single element, 2nd
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
                 null,
-                new LateralViewSpec.LateralViewElement("quality", null)
+                new UnpivotSpec.ColumnElement("quality", null)
             ),
             null,
             null,
@@ -446,10 +444,10 @@ public class TimeseriesQueryExplodeTest
 
     // single element, 2nd, selective
     builder.lateralViewSpec(
-        new LateralViewSpec(
-            Arrays.<LateralViewSpec.LateralViewElement>asList(
-                new LateralViewSpec.LateralViewElement(null, Arrays.asList("spot", "total_market")),
-                new LateralViewSpec.LateralViewElement("quality", Arrays.asList("mezzanine", "premium"))
+        new UnpivotSpec(
+            Arrays.<UnpivotSpec.ColumnElement>asList(
+                new UnpivotSpec.ColumnElement(null, Arrays.asList("spot", "total_market")),
+                new UnpivotSpec.ColumnElement("quality", Arrays.asList("mezzanine", "premium"))
             ),
             null,
             null,

@@ -26,13 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.select.Schema;
 
@@ -41,9 +41,8 @@ import java.util.Map;
 
 /**
  */
-public class PostAggregationsPostProcessor
-    extends PostProcessingOperator.ReturnsRow<Row>
-    implements PostProcessingOperator.SchemaResolving
+public class PostAggregationsPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
+    implements Schema.SchemaResolving
 {
   private final List<PostAggregator> postAggregations;
 
@@ -93,6 +92,21 @@ public class PostAggregationsPostProcessor
         );
       }
     };
+  }
+
+  @Override
+  public List<String> resolve(List<String> schema)
+  {
+    if (GuavaUtils.isNullOrEmpty(postAggregations)) {
+      return schema;
+    }
+    for (PostAggregator postAggregator : postAggregations) {
+      String outputName = postAggregator.getName();
+      if (!schema.contains(outputName)) {
+        schema.add(outputName);
+      }
+    }
+    return schema;
   }
 
   @Override

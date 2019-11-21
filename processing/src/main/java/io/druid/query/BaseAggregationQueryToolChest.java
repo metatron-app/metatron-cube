@@ -26,8 +26,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -39,6 +37,8 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -91,7 +91,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           if (BaseQuery.isBySegment(aggregation)) {
             Function function = BySegmentResultValueClass.applyAll(
                 Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation)));
-            return Sequences.map((Sequence) sequence, function);
+            return Sequences.map(sequence, function);
           }
           sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
           sequence = Sequences.map(
@@ -423,6 +423,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
   private Sequence<Row> toLateralView(final Sequence<Row> result, final LateralViewSpec lateralViewSpec)
   {
+    final Function<Map<String, Object>, Iterable<Map<String, Object>>> function = lateralViewSpec.prepare();
     return Sequences.concat(
         Sequences.map(
             result, new Function<Row, Sequence<Row>>()
@@ -435,7 +436,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
                 final Map<String, Object> event = ((MapBasedRow) input).getEvent();
                 return Sequences.simple(
                     Iterables.transform(
-                        lateralViewSpec.apply(event),
+                        function.apply(event),
                         new Function<Map<String, Object>, Row>()
                         {
                           @Override

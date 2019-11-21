@@ -31,7 +31,7 @@ import java.util.List;
 /**
  */
 public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionSupport<T>
-    implements PostProcessingOperator.SchemaResolving
+    implements Schema.SchemaResolving
 {
   private final List<PostProcessingOperator> processors;
   private final boolean supportsUnion;
@@ -88,11 +88,22 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   }
 
   @Override
+  public List<String> resolve(List<String> schema)
+  {
+    for (PostProcessingOperator child : processors) {
+      if (child instanceof Schema.SchemaResolving) {
+        schema = ((Schema.SchemaResolving) child).resolve(schema);
+      }
+    }
+    return schema;
+  }
+
+  @Override
   public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
   {
     for (PostProcessingOperator child : processors) {
-      if (child instanceof PostProcessingOperator.SchemaResolving) {
-        schema = ((PostProcessingOperator.SchemaResolving) child).resolve(query, schema, mapper);
+      if (child instanceof Schema.SchemaResolving) {
+        schema = ((Schema.SchemaResolving) child).resolve(query, schema, mapper);
       }
     }
     return schema;

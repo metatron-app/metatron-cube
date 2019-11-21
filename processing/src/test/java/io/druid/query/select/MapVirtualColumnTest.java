@@ -23,14 +23,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
+import io.druid.query.ExplodeSpec;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -141,6 +142,28 @@ public class MapVirtualColumnTest
                  .granularity(allGran)
                  .intervals(fullOnInterval)
                  .pagingSpec(new PagingSpec(null, 3));
+  }
+
+  @Test
+  public void testExplode() throws Exception
+  {
+    List<Map> expectedResults = Arrays.<Map>asList(
+        mapOf("dim", "a", "value", 100L),
+        mapOf("dim", "a", "value", 200L),
+        mapOf("dim", "a", "value", 300L),
+        mapOf("dim", null, "value", 100L),
+        mapOf("dim", null, "value", 500L),
+        mapOf("dim", null, "value", 900L),
+        mapOf("dim", "c", "value", 400L),
+        mapOf("dim", "c", "value", 500L),
+        mapOf("dim", "c", "value", 600L)
+    );
+    Druids.SelectQueryBuilder builder = testBuilder();
+    SelectQuery selectQuery = builder.dimensions("dim")
+                                     .metrics("array")
+                                     .lateralViewSpec(ExplodeSpec.of("array", "value"))
+                                     .build();
+    checkSelectQuery(selectQuery, expectedResults);
   }
 
   @Test
@@ -336,6 +359,9 @@ public class MapVirtualColumnTest
     Assert.assertEquals(1, results.size());
 
     List<EventHolder> events = results.get(0).getValue().getEvents();
+    for (EventHolder x : events) {
+      System.out.println(x.getEvent());
+    }
 
     Assert.assertEquals(expected.size(), events.size());
     for (int i = 0; i < events.size(); i++) {

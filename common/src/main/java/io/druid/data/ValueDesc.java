@@ -319,7 +319,12 @@ public class ValueDesc implements Serializable, Cacheable
     if (type1.isDecimal() && type2.isDecimal()) {
       return commonDecimal(type1, type2);
     }
-    // todo : decimal + double = decimal
+    if (type1.isDecimal() && type2.isNumeric()) {
+      return type1;
+    }
+    if (type1.isNumeric() && type2.isDecimal()) {
+      return type2;
+    }
     if (type1.isNumeric() && type2.isNumeric()) {
       return ValueDesc.DOUBLE;
     }

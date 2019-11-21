@@ -211,6 +211,13 @@ public interface Query<T> extends QueryContextKeys
     OrderingSupport<T> withResultOrdering(List<OrderByColumnSpec> orderingSpecs);
   }
 
+  interface LateralViewSupport<T> extends Query<T>
+  {
+    LateralViewSpec getLateralView();
+
+    LateralViewSupport<T> withLateralView(LateralViewSpec lateralViewSpec);
+  }
+
   interface RewritingQuery<T> extends Query<T>
   {
     Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig);

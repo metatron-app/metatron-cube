@@ -41,7 +41,7 @@ public class PostProcessingOperators
       @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        PostProcessingOperator<T> processor = load(query, mapper);
+        PostProcessingOperator processor = load(query, mapper);
         if (processor != null) {
           return processor.postProcess(baseRunner).run(query, responseContext);
         }
@@ -64,17 +64,15 @@ public class PostProcessingOperators
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> PostProcessingOperator<T> load(Query<T> query, ObjectMapper mapper)
+  public static PostProcessingOperator load(Query query, ObjectMapper mapper)
   {
     Object value = query.getContextValue(QueryContextKeys.POST_PROCESSING);
     if (value instanceof PostProcessingOperator) {
-      return (PostProcessingOperator<T>) value;
+      return (PostProcessingOperator) value;
     }
     return mapper.convertValue(
         value,
-        new TypeReference<PostProcessingOperator<T>>()
-        {
-        }
+        new TypeReference<PostProcessingOperator>() {}
     );
   }
 
@@ -86,7 +84,7 @@ public class PostProcessingOperators
   @SuppressWarnings("unchecked")
   public static <T> Query<T> append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
   {
-    PostProcessingOperator<T> existing = load(query, mapper);
+    PostProcessingOperator existing = load(query, mapper);
     if (existing != null) {
       if (existing instanceof ListPostProcessingOperator) {
         ((ListPostProcessingOperator) existing).getProcessors().add(processor);
@@ -100,7 +98,7 @@ public class PostProcessingOperators
   @SuppressWarnings("unchecked")
   public static <T> Query prepend(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
   {
-    PostProcessingOperator<T> existing = load(query, mapper);
+    PostProcessingOperator existing = load(query, mapper);
     if (existing != null) {
       if (existing instanceof ListPostProcessingOperator) {
         ((ListPostProcessingOperator) existing).getProcessors().add(0, processor);

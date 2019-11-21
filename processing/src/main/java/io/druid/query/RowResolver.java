@@ -148,12 +148,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     } else if (Map.class.isAssignableFrom(clazz)) {
       return ValueDesc.MAP;
     } else if (List.class.isAssignableFrom(clazz)) {
-      return ValueDesc.LIST;
+      return ValueDesc.STRUCT;
     } else if (IndexedID.class.isAssignableFrom(clazz)) {
       IndexedID lookup = (IndexedID)object;
       return lookup == null ? ValueDesc.INDEXED_ID : ValueDesc.ofIndexedId(lookup.elementType());
     } else if (clazz.isArray()) {
-      return ValueDesc.ofArray(toValueType(clazz.getComponentType(), null));
+      return ValueDesc.ofArray(toValueType(clazz.getComponentType(), ValueDesc.UNKNOWN));
     }
     // cannot make multi-valued type from class
 

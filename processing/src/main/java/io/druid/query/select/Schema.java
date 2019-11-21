@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
@@ -29,7 +30,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -37,6 +37,7 @@ import io.druid.data.ValueType;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.Pair;
 import io.druid.math.expr.ExprType;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -62,6 +63,14 @@ import java.util.Objects;
  */
 public class Schema implements TypeResolver, RowSignature
 {
+  // this is needed to be implemented by all post processors, but let's do it step by step
+  public static interface SchemaResolving
+  {
+    List<String> resolve(List<String> schema);
+
+    Schema resolve(Query query, Schema schema, ObjectMapper mapper);
+  }
+
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),
       Collections.<String>emptyList(),
@@ -149,17 +158,6 @@ public class Schema implements TypeResolver, RowSignature
   public List<ValueDesc> getMetricTypes()
   {
     return columnTypes.subList(dimensionNames.size(), columnTypes.size());
-  }
-
-  public List<ValueDesc> getColumnTypes(List<String> columns)
-  {
-    List<ValueDesc> types = Lists.newArrayList();
-    List<String> columnNames = getColumnNames();
-    for (String column : columns) {
-      final int index = columnNames.indexOf(column);
-      types.add(index >= 0 ? columnTypes.get(index) : ValueDesc.UNKNOWN);
-    }
-    return types;
   }
 
   @Override

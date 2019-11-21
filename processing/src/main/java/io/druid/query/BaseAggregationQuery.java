@@ -31,13 +31,13 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -67,7 +67,10 @@ import java.util.Objects;
 /**
  */
 public abstract class BaseAggregationQuery extends BaseQuery<Row>
-    implements Query.AggregationsSupport<Row>, Query.ArrayOutputSupport<Row>, Query.OrderingSupport<Row>
+    implements Query.AggregationsSupport<Row>,
+    Query.ArrayOutputSupport<Row>,
+    Query.OrderingSupport<Row>,
+    Query.LateralViewSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -222,22 +225,25 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       return outputColumns;
     }
-    if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) && lateralView == null) {
-      outputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
-      outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
-      for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
-        if (!outputColumns.contains(aggregator)) {
-          outputColumns.add(aggregator);
-        }
-      }
-      for (String postAggregator : PostAggregators.toNames(getPostAggregatorSpecs())) {
-        if (!outputColumns.contains(postAggregator)) {
-          outputColumns.add(postAggregator);
-        }
-      }
-      return outputColumns;
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      return null;
     }
-    return null;
+    outputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
+    outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
+    for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
+      if (!outputColumns.contains(aggregator)) {
+        outputColumns.add(aggregator);
+      }
+    }
+    for (String postAggregator : PostAggregators.toNames(getPostAggregatorSpecs())) {
+      if (!outputColumns.contains(postAggregator)) {
+        outputColumns.add(postAggregator);
+      }
+    }
+    if (lateralView != null) {
+      outputColumns = lateralView.resolve(outputColumns);
+    }
+    return outputColumns;
   }
 
   @Override

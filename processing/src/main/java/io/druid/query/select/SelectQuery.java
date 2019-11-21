@@ -56,7 +56,8 @@ import java.util.Objects;
 public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     implements Query.MetricSupport<Result<SelectResultValue>>,
     Query.ArrayOutputSupport<Result<SelectResultValue>>,
-    Query.RewritingQuery<Result<SelectResultValue>>
+    Query.RewritingQuery<Result<SelectResultValue>>,
+    Query.LateralViewSupport<Result<SelectResultValue>>
 {
   private final DimFilter filter;
   private final Granularity granularity;
@@ -204,6 +205,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return outputColumns;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public LateralViewSpec getLateralView()
@@ -375,6 +377,27 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     );
   }
 
+
+  @Override
+  public LateralViewSupport<Result<SelectResultValue>> withLateralView(LateralViewSpec lateralView)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        filter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        pagingSpec,
+        concatString,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
   public SelectQuery withConcatString(String concatString)
   {
     return new SelectQuery(
@@ -499,7 +522,11 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     if (dimensions.isEmpty() && allDimensionsForEmpty() || metrics.isEmpty() && allMetricsForEmpty()) {
       return null;
     }
-    return GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
+    List<String> columns = GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
+    if (lateralView != null) {
+      columns = lateralView.resolve(outputColumns);
+    }
+    return columns;
   }
 
   @Override

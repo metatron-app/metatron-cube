@@ -34,9 +34,8 @@ import io.druid.query.select.Schema;
 import java.util.List;
 import java.util.Map;
 
-public class RowMappingPostProcessor
-    extends PostProcessingOperator.ReturnsRow<Row>
-    implements PostProcessingOperator.SchemaResolving
+public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
+    implements Schema.SchemaResolving
 {
   private final Map<String, String> mapping;
 
@@ -75,6 +74,23 @@ public class RowMappingPostProcessor
         });
       }
     };
+  }
+
+  @Override
+  public List<String> resolve(List<String> schema)
+  {
+    if (GuavaUtils.isNullOrEmpty(mapping)) {
+      return schema;
+    }
+    for (Map.Entry<String, String> entry : mapping.entrySet()) {
+      final String from = entry.getValue();
+      final String to = entry.getKey();
+      int findex = schema.indexOf(from);
+      if (findex >= 0) {
+        schema.set(findex, to);
+      }
+    }
+    return schema;
   }
 
   @Override

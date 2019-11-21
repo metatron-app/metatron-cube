@@ -883,7 +883,7 @@ public class Druids
           .metrics(builder.metrics)
           .virtualColumns(builder.virtualColumns)
           .pagingSpec(builder.pagingSpec)
-          .explodeSpec(builder.lateralViewSpec)
+          .lateralViewSpec(builder.lateralViewSpec)
           .outputColumns(builder.outputColumns)
           .context(builder.context);
     }
@@ -900,7 +900,7 @@ public class Druids
           .metrics(query.getMetrics())
           .virtualColumns(query.getVirtualColumns())
           .pagingSpec(query.getPagingSpec())
-          .explodeSpec(query.getLateralView())
+          .lateralViewSpec(query.getLateralView())
           .outputColumns(query.getOutputColumns())
           .context(query.getContext());
     }
@@ -1081,7 +1081,7 @@ public class Druids
       return this;
     }
 
-    public SelectQueryBuilder explodeSpec(LateralViewSpec e)
+    public SelectQueryBuilder lateralViewSpec(LateralViewSpec e)
     {
       lateralViewSpec = e;
       return this;

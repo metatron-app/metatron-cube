@@ -21,11 +21,9 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
-import io.druid.query.select.Schema;
 
 import java.util.Map;
 
@@ -93,12 +91,6 @@ public interface PostProcessingOperator<T>
   public abstract class ReturnsArray<T> extends Abstract<T>
   {
     public abstract QueryRunner<Object[]> postProcess(QueryRunner<T> baseQueryRunner);
-  }
-
-  // this is needed to be implemented by all post processors, but let's do it step by step
-  interface SchemaResolving
-  {
-    Schema resolve(Query query, Schema input, ObjectMapper mapper);
   }
 
   // marker for not-serializable post processors

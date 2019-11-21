@@ -29,22 +29,21 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -357,8 +356,6 @@ public class SelectQueryQueryToolChest
           virtualColumnsBytesSize += virtualColumnsBytes[index].length;
           ++index;
         }
-        final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
-        final byte[] explodeSpecBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
 
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
@@ -369,15 +366,11 @@ public class SelectQueryQueryToolChest
                 + dimensionsBytesSize
                 + metricBytesSize
                 + virtualColumnsBytesSize
-                + outputColumnsBytes.length
-                + explodeSpecBytes.length
             )
             .put(SELECT_QUERY)
             .put(granularityBytes)
             .put(filterBytes)
-            .put(query.getPagingSpec().getCacheKey())
-            .put(outputColumnsBytes)
-            .put(explodeSpecBytes);
+            .put(query.getPagingSpec().getCacheKey());
 
         for (byte[] dimensionsByte : dimensionsBytes) {
           queryCacheKey.put(dimensionsByte);
@@ -702,6 +695,7 @@ public class SelectQueryQueryToolChest
       Sequence<Result<SelectResultValue>> result, final LateralViewSpec lateralViewSpec
   )
   {
+    final Function<Map<String, Object>, Iterable<Map<String, Object>>> function = lateralViewSpec.prepare();
     return Sequences.map(
         result, new Function<Result<SelectResultValue>, Result<SelectResultValue>>()
         {
@@ -722,7 +716,7 @@ public class SelectQueryQueryToolChest
                         final String segmentId = input.getSegmentId();
                         final int offset = input.getOffset();
                         return Iterables.transform(
-                            lateralViewSpec.apply(input.getEvent()),
+                            function.apply(input.getEvent()),
                             new Function<Map<String, Object>, EventHolder>()
                             {
                               @Override

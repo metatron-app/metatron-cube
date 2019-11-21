@@ -386,7 +386,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       };
     }
 
-    final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(this, mapper);
+    final PostProcessingOperator postProcessing = PostProcessingOperators.load(this, mapper);
 
     final QueryRunner<T> runner;
     if (postProcessing != null && postProcessing.supportsUnionProcessing()) {

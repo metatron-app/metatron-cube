@@ -29,9 +29,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
@@ -42,6 +39,9 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -144,13 +144,20 @@ public class Queries
     return convert(object, jsonMapper, Query.class);
   }
 
-  public static Schema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  public static Schema relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
     ObjectMapper mapper = segmentWalker.getObjectMapper();
-    Schema schema = _relaySchema(subQuery, segmentWalker);
-    PostProcessingOperator postProcessor = PostProcessingOperators.load(subQuery, mapper);
-    if (postProcessor instanceof PostProcessingOperator.SchemaResolving) {
-      schema = ((PostProcessingOperator.SchemaResolving) postProcessor).resolve(subQuery, schema, mapper);
+    Schema schema = _relaySchema(query, segmentWalker);
+    if (query instanceof Query.LateralViewSupport) {
+      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
+      if (lateralView instanceof Schema.SchemaResolving) {
+        // todo : handle schema change by lateral view
+        schema = ((Schema.SchemaResolving) lateralView).resolve(query, schema, mapper);
+      }
+    }
+    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
+    if (postProcessor instanceof Schema.SchemaResolving) {
+      schema = ((Schema.SchemaResolving) postProcessor).resolve(query, schema, mapper);
     }
     return Preconditions.checkNotNull(schema);
   }
