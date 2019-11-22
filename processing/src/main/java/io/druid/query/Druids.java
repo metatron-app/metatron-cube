@@ -669,10 +669,10 @@ public class Druids
           toInclude,
           columns,
           merge,
-          context,
           analysisTypes,
           false,
-          lenientAggregatorMerge
+          lenientAggregatorMerge,
+          context
       );
     }
 

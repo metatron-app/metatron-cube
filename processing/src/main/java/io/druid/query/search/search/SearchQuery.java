@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -47,6 +48,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("search")
 public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     implements Query.DimensionSupport<Result<SearchResultValue>>, Query.ArrayOutputSupport<Result<SearchResultValue>>
 {

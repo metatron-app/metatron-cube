@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@JsonTypeName("classify")
 public class ClassifyQuery extends BaseQuery<Object[]>
     implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
 {

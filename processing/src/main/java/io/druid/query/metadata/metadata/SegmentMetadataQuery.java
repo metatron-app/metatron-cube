@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+@JsonTypeName("segmentMetadata")
 public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements Query.VCSupport<SegmentAnalysis>
 {
   /* The SegmentMetadataQuery cache key may contain UTF-8 column name strings.
@@ -120,10 +122,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
       @JsonProperty("toInclude") ColumnIncluderator toInclude,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("merge") Boolean merge,
-      @JsonProperty("context") Map<String, Object> context,
       @JsonProperty("analysisTypes") EnumSet<AnalysisType> analysisTypes,
       @JsonProperty("usingDefaultInterval") Boolean useDefaultInterval,
-      @JsonProperty("lenientAggregatorMerge") Boolean lenientAggregatorMerge
+      @JsonProperty("lenientAggregatorMerge") Boolean lenientAggregatorMerge,
+      @JsonProperty("context") Map<String, Object> context
   )
   {
     super(
@@ -277,10 +279,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         toInclude,
         columns,
         merge,
-        computeOverriddenContext(contextOverride),
         analysisTypes,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        computeOverriddenContext(contextOverride)
     );
   }
 
@@ -294,10 +296,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         toInclude,
         columns,
         merge,
-        getContext(),
         analysisTypes,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        getContext()
     );
   }
 
@@ -311,10 +313,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         toInclude,
         columns,
         merge,
-        getContext(),
         analysisTypes,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        getContext()
     );
   }
 
@@ -327,10 +329,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         includerator,
         columns,
         merge,
-        getContext(),
         analysisTypes,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        getContext()
     );
   }
 
@@ -344,10 +346,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         toInclude,
         columns,
         merge,
-        getContext(),
         analysisTypes,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        getContext()
     );
   }
 
@@ -363,10 +365,10 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         toInclude,
         columns,
         merge,
-        getContext(),
         added,
         usingDefaultInterval,
-        lenientAggregatorMerge
+        lenientAggregatorMerge,
+        getContext()
     );
   }
 

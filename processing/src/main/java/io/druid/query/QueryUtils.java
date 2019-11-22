@@ -96,10 +96,10 @@ public class QueryUtils
         new NoneColumnIncluderator(),
         null,
         false,
-        Queries.extractContext(query, BaseQuery.QUERYID),
         EnumSet.of(SegmentMetadataQuery.AnalysisType.INTERVAL),
         false,
-        false
+        false,
+        Queries.extractContext(query, BaseQuery.QUERYID)
     );
     return Sequences.only(QueryRunners.run(metaQuery, segmentWalker)).getIntervals();
   }

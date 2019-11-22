@@ -361,10 +361,10 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               new NoneColumnIncluderator(),
               null,
               false,
-              BaseQuery.copyContextForMeta(query),
               SegmentMetadataQuery.DEFAULT_NON_COLUMN_STATS,
               false,
-              false
+              false,
+              BaseQuery.copyContextForMeta(query)
           );
           final Map<String, Object> stats = Maps.newLinkedHashMap();
           final List<Map<String, Object>> segments = Lists.newArrayList();

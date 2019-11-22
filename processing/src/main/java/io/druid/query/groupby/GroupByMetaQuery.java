@@ -21,6 +21,7 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -35,6 +36,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
 
+@JsonTypeName("groupBy.meta")
 public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQuery<Row>, Query.WrappingQuery<Row>
 {
   private final GroupByQuery query;

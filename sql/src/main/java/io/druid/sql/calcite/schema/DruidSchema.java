@@ -524,10 +524,10 @@ public class DruidSchema extends AbstractSchema
         new AllColumnIncluderator(),
         null,
         false,
-        ImmutableMap.of(Query.DISABLE_LOG, true),
         EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
         false,
-        false
+        false,
+        ImmutableMap.of(Query.DISABLE_LOG, true)
     ).withId(UUID.randomUUID().toString());
 
     return QueryRunners.run(segmentMetadataQuery, segmentWalker);

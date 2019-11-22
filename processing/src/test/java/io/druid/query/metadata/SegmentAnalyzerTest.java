@@ -19,7 +19,6 @@
 
 package io.druid.query.metadata;
 
-import com.google.common.collect.Lists;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.LegacyDataSource;
@@ -189,10 +188,7 @@ public class SegmentAnalyzerTest
         null,
         null,
         null,
-        null,
-        analyses,
-        false,
-        false
+        analyses, false, false, null
     );
     return Sequences.toList(runner.run(query, new HashMap<String, Object>()));
   }

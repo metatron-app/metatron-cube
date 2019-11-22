@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
 import io.druid.query.BaseQuery;
@@ -33,6 +34,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("schema")
 public class SchemaQuery extends BaseQuery<Schema>
 {
   public static SchemaQuery of(String dataSource)

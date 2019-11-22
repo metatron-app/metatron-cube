@@ -408,6 +408,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
            Objects.equals(shapeColumn, that.shapeColumn) &&
            Objects.equals(boundary, that.boundary) &&
            Objects.equals(boundaryColumn, that.boundaryColumn) &&
+           Objects.equals(boundaryUnion, that.boundaryUnion) &&
            Objects.equals(boundaryJoin, that.boundaryJoin) &&
            Objects.equals(operation, that.operation) &&
            Objects.equals(parallelism, that.parallelism);
@@ -418,11 +419,14 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   {
     return "GeoBoundaryFilterQuery{" +
            "query=" + query +
+           (pointColumn == null ? "" : ", pointColumn=" + pointColumn) +
+           (shapeColumn == null ? "" : ", shapeColumn=" + shapeColumn) +
            ", boundary=" + boundary +
-           ", boundaryColumn='" + boundaryColumn + '\'' +
+           (boundaryColumn == null ? "" : ", boundaryColumn=" + boundaryColumn) +
            ", boundaryUnion='" + boundaryUnion + '\'' +
            ", boundaryJoin=" + boundaryJoin +
            ", operation=" + (operation == null ? SpatialOperations.COVERS : operation) +
+           (parallelism == null ? "" : ", parallelism=" + parallelism) +
            '}';
   }
 }

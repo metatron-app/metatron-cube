@@ -27,11 +27,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
@@ -44,7 +44,8 @@ import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("choropleth")
-public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
+public class ChoroplethMapQuery extends BaseQuery<Object[]>
+    implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
 {
   private final GroupByQuery query;
   private final String pointColumn;
@@ -220,9 +221,9 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]> implements Query.Rew
   {
     return "ChoroplethMapQuery{" +
            "query=" + query +
-           ", pointColumn='" + pointColumn + '\'' +
+           (pointColumn == null ? "" : ", pointColumn=" + pointColumn) +
            ", boundary=" + boundary +
-           ", boundaryColumn='" + boundaryColumn + '\'' +
+           (boundaryColumn == null ? "" : ", boundaryColumn=" + boundaryColumn) +
            ", boundaryJoin=" + boundaryJoin +
            '}';
   }

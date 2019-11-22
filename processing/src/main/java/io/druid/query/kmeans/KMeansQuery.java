@@ -22,6 +22,7 @@ package io.druid.query.kmeans;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
@@ -57,6 +58,7 @@ import java.util.Random;
 
 /**
  */
+@JsonTypeName("kmeans")
 public class KMeansQuery
     extends BaseQuery<Centroid>
     implements Query.RewritingQuery<Centroid>,
@@ -355,10 +357,10 @@ public class KMeansQuery
         null,
         getMetrics(),
         true,
-        context,
         EnumSet.of(SegmentMetadataQuery.AnalysisType.MINMAX),
         false,
-        false
+        false,
+        context
     );
 
     List<SegmentAnalysis> sequence = Sequences.toList(QueryRunners.run(metaQuery, segmentWalker));

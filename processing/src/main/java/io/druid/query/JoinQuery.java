@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -50,6 +51,7 @@ import static io.druid.query.JoinType.RO;
 
 /**
  */
+@JsonTypeName("join")
 public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
 {
   private static final Logger LOG = new Logger(JoinQuery.class);

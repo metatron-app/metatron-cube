@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Maps;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -29,6 +30,7 @@ import java.util.Map;
 /**
  */
 @SuppressWarnings("unchecked")
+@JsonTypeName("dummy")
 public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
 {
   private final Sequence<T> sequence;

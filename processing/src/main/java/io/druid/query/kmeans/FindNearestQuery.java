@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -37,6 +38,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("kmeans.nearest")
 public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.FilterSupport<CentroidDesc>
 {
   private final List<VirtualColumn> virtualColumns;

@@ -55,10 +55,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         null,
         null,
         null,
-        null,
-        null,
-        false,
-        false
+        null, false, false, null
     );
 
     CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> strategy =
