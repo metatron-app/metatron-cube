@@ -20,21 +20,21 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.druid.extensions.contrib</groupId>
+    <groupId>app.metatron.extensions.contrib</groupId>
     <artifactId>druid-rabbitmq</artifactId>
     <name>druid-rabbitmq</name>
     <description>druid-rabbitmq</description>
 
     <parent>
-        <groupId>io.druid</groupId>
+        <groupId>app.metatron</groupId>
         <artifactId>druid</artifactId>
-        <version>0.9.1-SNAPSHOT</version>
+        <version>3.4.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <dependencies>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-common</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>
@@ -68,7 +68,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-processing</artifactId>
             <version>${project.parent.version}</version>
             <scope>test</scope>

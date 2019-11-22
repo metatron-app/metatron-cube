@@ -30,13 +30,13 @@
 
     <parent>
         <artifactId>druid</artifactId>
-        <groupId>io.druid</groupId>
-        <version>0.9.1-SNAPSHOT</version>
+        <groupId>app.metatron</groupId>
+        <version>3.4.0-SNAPSHOT</version>
     </parent>
 
     <dependencies>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-services</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
@@ -76,59 +76,59 @@
                                 <argument>-h</argument>
                                 <argument>org.apache.hadoop:hadoop-client:${hadoop.dist.version}</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-avro-extensions</argument>
+                                <argument>app.metatron.extensions:druid-avro-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-esri-extensions</argument>
+                                <argument>app.metatron.extensions:druid-esri-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-examples</argument>
+                                <argument>app.metatron.extensions:druid-examples</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-datasketches</argument>
+                                <argument>app.metatron.extensions:druid-datasketches</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-geotools-extensions</argument>
+                                <argument>app.metatron.extensions:druid-geotools-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-hdfs-storage</argument>
+                                <argument>app.metatron.extensions:druid-hdfs-storage</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-histogram</argument>
+                                <argument>app.metatron.extensions:druid-histogram</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-hive-extensions</argument>
+                                <argument>app.metatron.extensions:druid-hive-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-hive-udf-extensions</argument>
+                                <argument>app.metatron.extensions:druid-hive-udf-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-kafka-eight</argument>
+                                <argument>app.metatron.extensions:druid-kafka-eight</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-kafka-extraction-namespace</argument>
+                                <argument>app.metatron.extensions:druid-kafka-extraction-namespace</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-kafka-indexing-service</argument>
+                                <argument>app.metatron.extensions:druid-kafka-indexing-service</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-lucene-extensions</argument>
+                                <argument>app.metatron.extensions:druid-lucene-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-median</argument>
+                                <argument>app.metatron.extensions:druid-median</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-jdbc-firehose</argument>
+                                <argument>app.metatron.extensions:druid-jdbc-firehose</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-uri-firehose</argument>
+                                <argument>app.metatron.extensions:druid-uri-firehose</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-range</argument>
+                                <argument>app.metatron.extensions:druid-range</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-area</argument>
+                                <argument>app.metatron.extensions:druid-area</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-lookups-cached-global</argument>
+                                <argument>app.metatron.extensions:druid-lookups-cached-global</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-s3-extensions</argument>
+                                <argument>app.metatron.extensions:druid-s3-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:druid-stats</argument>
+                                <argument>app.metatron.extensions:druid-stats</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:mysql-metadata-storage</argument>
+                                <argument>app.metatron.extensions:mysql-metadata-storage</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:postgresql-metadata-storage</argument>
+                                <argument>app.metatron.extensions:postgresql-metadata-storage</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions.contrib:druid-orc-extensions</argument>
+                                <argument>app.metatron.extensions.contrib:druid-orc-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions.contrib:druid-parquet-extensions</argument>
+                                <argument>app.metatron.extensions.contrib:druid-parquet-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
+                                <argument>app.metatron.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions.contrib:kafka-emitter</argument>
+                                <argument>app.metatron.extensions.contrib:kafka-emitter</argument>
                             </arguments>
                         </configuration>
                     </execution>

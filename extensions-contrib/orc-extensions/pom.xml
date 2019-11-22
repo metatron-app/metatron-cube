@@ -20,22 +20,22 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <groupId>io.druid.extensions.contrib</groupId>
+    <groupId>app.metatron.extensions.contrib</groupId>
     <artifactId>druid-orc-extensions</artifactId>
     <name>druid-orc-extensions</name>
     <description>druid-orc-extensions</description>
 
     <parent>
         <artifactId>druid</artifactId>
-        <groupId>io.druid</groupId>
-        <version>0.9.1-SNAPSHOT</version>
+        <groupId>app.metatron</groupId>
+        <version>3.4.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <dependencies>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-indexing-hadoop</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>

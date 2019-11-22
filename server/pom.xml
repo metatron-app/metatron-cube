@@ -25,24 +25,24 @@
     <description>Druid Server</description>
 
     <parent>
-        <groupId>io.druid</groupId>
+        <groupId>app.metatron</groupId>
         <artifactId>druid</artifactId>
-        <version>0.9.1-SNAPSHOT</version>
+        <version>3.4.0-SNAPSHOT</version>
     </parent>
 
     <dependencies>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-processing</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-aws-common</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-console</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
@@ -51,7 +51,7 @@
             <artifactId>java-util</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>java-util</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
@@ -203,7 +203,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.druid</groupId>
+            <groupId>app.metatron</groupId>
             <artifactId>druid-processing</artifactId>
             <version>${project.parent.version}</version>
             <type>test-jar</type>
