@@ -64,7 +64,7 @@ public class PivotContext
     final Map<String, Object> event = GuavaUtils.zipAsMap(context.partitionColumns(), context.partitionValues());
 
     final Comparator<StringArray> comparator = pivotSpec.makeColumnOrdering();
-    final List<Map.Entry<StringArray, ExprEval>> entries = IncrementalIndex.sortOn(mapping, comparator, false);
+    final List<Map.Entry<StringArray, ExprEval>> entries = IncrementalIndex.sortOn(mapping, comparator);
     for (Map.Entry<StringArray, ExprEval> entry : entries) {
       String newKey = StringUtils.concat(separator, entry.getKey().array());
       ExprEval newValue = entry.getValue();

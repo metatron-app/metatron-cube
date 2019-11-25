@@ -249,6 +249,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(theBucket.time.getMillis())
         .withDimensionsSpec(schema.getParser())
+        .withDimensionFixed(schema.isDimensionFixed())
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withMetrics(aggs)
@@ -701,7 +702,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         for (final BytesWritable bw : values) {
           context.progress();
 
-          final InputRow inputRow = index.formatRow(serde.deserialize(bw.getBytes()));
+          final InputRow inputRow = serde.deserialize(bw.getBytes());
 
           byte[] bytes = key.getBytes();
           boolean flush = !index.canAppendRow();

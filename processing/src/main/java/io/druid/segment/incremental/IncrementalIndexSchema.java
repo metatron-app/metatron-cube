@@ -47,7 +47,7 @@ public class IncrementalIndexSchema
   private final DimensionsSpec dimensionsSpec;
   private final AggregatorFactory[] metrics;
   private final boolean rollup;
-  private final boolean fixedSchema;
+  private final boolean dimensionFixed;
   private final boolean noQuery;
 
   @JsonCreator
@@ -58,7 +58,7 @@ public class IncrementalIndexSchema
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
-      @JsonProperty("fixedSchema") boolean fixedSchema,
+      @JsonProperty("fixedSchema") boolean dimensionFixed,
       @JsonProperty("noQuery") boolean noQuery
   )
   {
@@ -68,7 +68,7 @@ public class IncrementalIndexSchema
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
-    this.fixedSchema = fixedSchema;
+    this.dimensionFixed = dimensionFixed;
     this.noQuery = noQuery;
   }
 
@@ -109,9 +109,9 @@ public class IncrementalIndexSchema
   }
 
   @JsonProperty
-  public boolean isFixedSchema()
+  public boolean isDimensionFixed()
   {
-    return fixedSchema;
+    return dimensionFixed;
   }
 
   @JsonProperty
@@ -166,7 +166,7 @@ public class IncrementalIndexSchema
         dimensionsSpec,
         metrics,
         rollup,
-        fixedSchema,
+        dimensionFixed,
         noQuery
     );
   }
@@ -180,7 +180,7 @@ public class IncrementalIndexSchema
         dimensionsSpec,
         metrics,
         rollup,
-        fixedSchema,
+        dimensionFixed,
         noQuery
     );
   }
@@ -194,7 +194,7 @@ public class IncrementalIndexSchema
         dimensionsSpec,
         metrics,
         rollup,
-        fixedSchema,
+        dimensionFixed,
         noQuery
     );
   }
@@ -208,7 +208,7 @@ public class IncrementalIndexSchema
         dimensionsSpec,
         metrics,
         rollup,
-        fixedSchema,
+        dimensionFixed,
         noQuery
     );
   }
@@ -223,7 +223,7 @@ public class IncrementalIndexSchema
            ", dimensionsSpec=" + dimensionsSpec +
            ", metrics=" + Arrays.toString(metrics) +
            ", rollup=" + rollup +
-           ", fixedSchema=" + fixedSchema +
+           ", dimensionFixed=" + dimensionFixed +
            '}';
   }
 
@@ -234,7 +234,7 @@ public class IncrementalIndexSchema
     private Granularity segmentGran;
     private DimensionsSpec dimensionsSpec;
     private AggregatorFactory[] metrics;
-    private boolean fixedSchema;
+    private boolean dimensionFixed;
     private boolean rollup;
     private boolean noQuery;
 
@@ -322,9 +322,9 @@ public class IncrementalIndexSchema
       return this;
     }
 
-    public Builder withFixedSchema(boolean fixedSchema)
+    public Builder withDimensionFixed(boolean dimensionFixed)
     {
-      this.fixedSchema = fixedSchema;
+      this.dimensionFixed = dimensionFixed;
       return this;
     }
 
@@ -343,7 +343,7 @@ public class IncrementalIndexSchema
           dimensionsSpec,
           metrics,
           rollup,
-          fixedSchema,
+          dimensionFixed,
           noQuery
       );
     }

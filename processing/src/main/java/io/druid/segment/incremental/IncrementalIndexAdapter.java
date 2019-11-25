@@ -112,7 +112,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
     }
 
     int rowNum = 0;
-    for (Map.Entry<IncrementalIndex.TimeAndDims, Object[]> fact : index.getAll(false)) {
+    for (Map.Entry<IncrementalIndex.TimeAndDims, Object[]> fact : index.getAll()) {
       final int[][] dims = fact.getKey().getDims();
 
       for (int i = 0; i < dimensions.length; i++) {
@@ -227,7 +227,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
          * iterator() call to ensure the counter starts at 0.
          */
         return Iterators.transform(
-            index.getAll(false).iterator(),
+            index.getAll().iterator(),
             new Function<Map.Entry<IncrementalIndex.TimeAndDims, Object[]>, Rowboat>()
             {
               int count = 0;
@@ -237,9 +237,8 @@ public class IncrementalIndexAdapter implements IndexableAdapter
               {
                 final IncrementalIndex.TimeAndDims timeAndDims = input.getKey();
                 final int[][] dimValues = timeAndDims.getDims();
-                final Object[] values = input.getValue();
 
-                int[][] dims = new int[dimValues.length][];
+                final int[][] dims = new int[dimValues.length][];
                 for (DimensionDesc dimension : dimensions) {
                   final int dimIndex = dimension.getIndex();
 
@@ -255,11 +254,10 @@ public class IncrementalIndexAdapter implements IndexableAdapter
 
                   for (int i = 0; i < dimValues[dimIndex].length; ++i) {
                     dims[dimIndex][i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValues[dimIndex][i]);
-                    //TODO: in later PR, Rowboat will use Comparable[][] instead of int[][]
-                    // Can remove dictionary encoding for numeric dims then.
                   }
                 }
 
+                final Object[] values = input.getValue();
                 final Object[] metrics = new Object[aggregators.length];
                 for (int i = 0; i < aggregators.length; i++) {
                   metrics[i] = aggregators[i].get(values[i]);

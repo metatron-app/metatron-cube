@@ -240,7 +240,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withRollup(granularitySpec.isRollup())
-        .withFixedSchema(true)
+        .withDimensionFixed(true)
         .withNoQuery(true)
         .build();
 

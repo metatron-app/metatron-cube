@@ -66,5 +66,10 @@ public abstract class IngestionSpec<IOConfigType extends IOConfig, TuningConfigT
     return dataSchema.getParser(tuningConfig.isIgnoreInvalidRows());
   }
 
+  public boolean isDimensionFixed()
+  {
+    return dataSchema.isDimensionFixed();
+  }
+
   public abstract IngestionSpec<IOConfigType, TuningConfigType> withDataSchema(DataSchema dataSchema);
 }

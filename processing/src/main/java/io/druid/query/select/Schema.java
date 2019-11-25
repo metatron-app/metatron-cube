@@ -530,7 +530,7 @@ public class Schema implements TypeResolver, RowSignature
         .withQueryGranularity(Granularities.ALL)
         .withDimensions(getDimensionNames(), getDimensionTypes())
         .withMetrics(AggregatorFactory.toRelay(getMetricNames(), getMetricTypes()))
-        .withFixedSchema(true)
+        .withDimensionFixed(true)
         .withRollup(false)
         .build();
   }
@@ -556,7 +556,7 @@ public class Schema implements TypeResolver, RowSignature
         .withQueryGranularity(Granularities.ALL)
         .withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
         .withMetrics(merics)
-        .withFixedSchema(true)
+        .withDimensionFixed(true)
         .withRollup(false)
         .build();
   }

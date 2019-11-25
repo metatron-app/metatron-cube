@@ -31,10 +31,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
@@ -50,10 +46,12 @@ import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
@@ -234,7 +232,7 @@ public abstract class IncrementalIndex implements Closeable
     this.reportParseExceptions = reportParseExceptions;
     this.estimate = estimate;
     this.rollup = indexSchema.isRollup();
-    this.fixedSchema = indexSchema.isFixedSchema();
+    this.fixedSchema = indexSchema.isDimensionFixed();
     this.maxRowCount = maxRowCount;
 
     this.aggregators = new Aggregator[metrics.length];
@@ -339,7 +337,7 @@ public abstract class IncrementalIndex implements Closeable
     dimValues.clear();
   }
 
-  public InputRow formatRow(InputRow row)
+  private InputRow formatRow(InputRow row)
   {
     for (Function<InputRow, InputRow> rowTransformer : rowTransformers) {
       row = rowTransformer.apply(row);
@@ -388,10 +386,13 @@ public abstract class IncrementalIndex implements Closeable
    *
    * @return the number of rows in the data set after adding the InputRow
    */
-  public int add(InputRow row) throws IndexSizeExceededException
+  public int add(Row row) throws IndexSizeExceededException
   {
-    Preconditions.checkArgument(!fixedSchema, "this is only for variable-schema");
-    return addTimeAndDims(toTimeAndDims(row), row);
+    if (fixedSchema) {
+      return addTimeAndDims(toTimeAndDims(row), row);
+    } else {
+      return addTimeAndDims(toTimeAndDims((InputRow) row), row);
+    }
   }
 
   private int addTimeAndDims(TimeAndDims key, Row row) throws IndexSizeExceededException
@@ -524,17 +525,6 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  public void add(Row row)
-  {
-    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
-    try {
-      addTimeAndDims(toTimeAndDims(row), row);
-    }
-    catch (IndexSizeExceededException e) {
-      throw new ISE(e, e.getMessage());
-    }
-  }
-
   @SuppressWarnings("unchecked")
   private TimeAndDims toTimeAndDims(Row row)
   {
@@ -595,35 +585,19 @@ public abstract class IncrementalIndex implements Closeable
     }
 
     if (dimValues.size() == 1) {
-      final Comparable dimVal = dimValues.get(0);
-      // For Strings, return an array of dictionary-encoded IDs
-      // For numerics, return the numeric values directly
-      return new int[]{dimDesc.addValue(dimVal)};
+      return new int[]{dimDesc.addValue(dimValues.get(0))};
     }
-
-    final MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
 
     final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
-    if (multiValueHandling != MultiValueHandling.ARRAY) {
+    final MultiValueHandling handler = dimDesc.getMultiValueHandling();
+    if (handler.sortFirst()) {
       Arrays.sort(dimArray, GuavaUtils.NULL_FIRST_NATURAL);
     }
-
-    final int[] retVal = new int[dimArray.length];
-
-    int prevId = -1;
-    int pos = 0;
-    for (int i = 0; i < dimArray.length; i++) {
-      if (multiValueHandling != MultiValueHandling.SET) {
-        retVal[pos++] = dimDesc.addValue(dimArray[i]);
-        continue;
-      }
-      final int index = dimDesc.addValue(dimArray[i]);
-      if (index != prevId) {
-        prevId = retVal[pos++] = index;
-      }
+    final int[] indices = new int[dimValues.size()];
+    for (int i = 0; i < indices.length; i++) {
+      indices[i] = dimDesc.addValue(dimArray[i]);
     }
-
-    return pos == retVal.length ? retVal : Arrays.copyOf(retVal, pos);
+    return handler.rewrite(indices);
   }
 
   public AggregatorFactory[] getMetricAggs()
@@ -761,9 +735,9 @@ public abstract class IncrementalIndex implements Closeable
     return columnCapabilities.get(column);
   }
 
-  public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll(Boolean timeDescending)
+  public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll()
   {
-    return getRangeOf(Long.MIN_VALUE, Long.MAX_VALUE, timeDescending);
+    return getRangeOf(Long.MIN_VALUE, Long.MAX_VALUE, null);
   }
 
   public abstract Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending);
@@ -797,40 +771,15 @@ public abstract class IncrementalIndex implements Closeable
   @VisibleForTesting
   public Iterator<Row> iterator()
   {
-    final Iterable<Map.Entry<TimeAndDims, Object[]>> facts = getAll(null);
-    return Iterators.transform(facts.iterator(), rowFunction(ImmutableList.<PostAggregator>of()));
+    return Iterators.transform(getAll().iterator(), rowFunction());
   }
 
   @SuppressWarnings("unchecked")
-  public static <K, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, Comparator<K> comparator, boolean timeLog)
+  public static <K, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, Comparator<K> keyComp)
   {
-    return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(comparator), facts.size(), timeLog);
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <K, V> List<Map.Entry<K, V>> sortOn(
-      Iterable<Map.Entry<K, V>> facts,
-      Comparator<K> comparator,
-      int size,
-      boolean timeLog
-  )
-  {
-    return sort(facts, Pair.<K, V>KEY_COMP(comparator), size, timeLog);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <K, V> List<Map.Entry<K, V>> sort(
-      Iterable<Map.Entry<K, V>> facts,
-      Comparator<Map.Entry<K, V>> comparator,
-      int size,
-      boolean timeLog
-  )
-  {
-    final long start = System.currentTimeMillis();
-    List<Map.Entry<K, V>> sorted = size < 0
-                                   ? Lists.<Map.Entry<K, V>>newArrayList()
-                                   : Lists.<Map.Entry<K, V>>newArrayListWithCapacity(size);
-    Iterators.addAll(sorted, facts.iterator());
+    Comparator<Map.Entry<K, V>> comparator = Pair.<K, V>KEY_COMP(keyComp);
+    List<Map.Entry<K, V>> sorted = Lists.<Map.Entry<K, V>>newArrayListWithCapacity(facts.size());
+    Iterators.addAll(sorted, facts.entrySet().iterator());
     if (sorted.size() > 1 << 13) {  // Arrays.MIN_ARRAY_SORT_GRAN
       Map.Entry<K, V>[] array = sorted.toArray(new Map.Entry[0]);
       Arrays.parallelSort(array, comparator);
@@ -838,77 +787,47 @@ public abstract class IncrementalIndex implements Closeable
     } else {
       Collections.sort(sorted, comparator);
     }
-    if (timeLog) {
-      LOG.info("Sorted %,d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
-    }
     return sorted;
   }
 
-  public Iterable<Row> iterableWithPostAggregations(final List<PostAggregator> postAggs, final boolean descending)
+  protected final Function<Map.Entry<TimeAndDims, Object[]>, Row> rowFunction()
   {
-    return new Iterable<Row>()
-    {
-      @Override
-      public Iterator<Row> iterator()
-      {
-        return Iterators.transform(
-            getAll(descending).iterator(),
-            rowFunction(PostAggregators.decorate(postAggs, metrics))
-        );
-      }
-    };
-  }
-
-  protected final Function<Map.Entry<TimeAndDims, Object[]>, Row> rowFunction(
-      final List<PostAggregator> postAggregators
-  )
-  {
-    final List<DimensionDesc> dimensions = getDimensions();
     return new Function<Map.Entry<TimeAndDims, Object[]>, Row>()
     {
+      private final DimensionDesc[] dimensions = getDimensions().toArray(new DimensionDesc[0]);
+
       @Override
+      @SuppressWarnings("unchecked")
       public Row apply(final Map.Entry<TimeAndDims, Object[]> input)
       {
         final TimeAndDims timeAndDims = input.getKey();
-        final Object[] values = input.getValue();
+        final int[][] theDims = timeAndDims.getDims();
 
-        final int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
-
-        Map<String, Object> theVals = Maps.newLinkedHashMap();
-        for (int i = 0; i < theDims.length; ++i) {
-          int[] dim = theDims[i];
-          DimensionDesc dimensionDesc = dimensions.get(i);
-          if (dimensionDesc == null) {
-            continue;
-          }
-          String dimensionName = dimensionDesc.getName();
+        final Map<String, Object> theVals = Maps.newLinkedHashMap();
+        final int length = Math.min(theDims.length, dimensions.length);
+        for (int i = 0; i < length; ++i) {
+          final int[] dim = theDims[i];
+          final String dimensionName = dimensions[i].getName();
           if (dim == null || dim.length == 0) {
             theVals.put(dimensionName, null);
-            continue;
-          }
-          if (dim.length == 1) {
-            theVals.put(dimensionName, dimensionDesc.getValues().getValue(dim[0]));
+          } else if (dim.length == 1) {
+            theVals.put(dimensionName, dimensions[i].getValues().getValue(dim[0]));
           } else {
-            Comparable[] dimVals = new Comparable[dim.length];
+            final Comparable[] dimVals = new Comparable[dim.length];
             for (int j = 0; j < dimVals.length; j++) {
-              dimVals[j] = dimensionDesc.getValues().getValue(dim[j]);
+              dimVals[j] = dimensions[i].getValues().getValue(dim[j]);
             }
             theVals.put(dimensionName, dimVals);
           }
         }
 
+        final Object[] values = input.getValue();
         for (int i = 0; i < metrics.length; ++i) {
           theVals.put(metrics[i].getName(), aggregators[i].get(values[i]));
         }
 
-        if (!postAggregators.isEmpty()) {
-          DateTime current = DateTimes.utc(timeAndDims.getTimestamp());
-          for (PostAggregator postAgg : postAggregators) {
-            theVals.put(postAgg.getName(), postAgg.compute(current, theVals));
-          }
-        }
-
-        return new MapBasedRow(timeAndDims.getTimestamp(), theVals);
+        final long timestamp = timeAndDims.getTimestamp();
+        return new MapBasedRow(timestamp, theVals);
       }
     };
   }
@@ -1256,10 +1175,7 @@ public abstract class IncrementalIndex implements Closeable
     final long timestamp;
     final int[][] dims;
 
-    TimeAndDims(
-        long timestamp,
-        int[][] dims
-    )
+    TimeAndDims(long timestamp, int[][] dims)
     {
       this.timestamp = timestamp;
       this.dims = dims;
@@ -1302,42 +1218,6 @@ public abstract class IncrementalIndex implements Closeable
           }
       ) + '}';
     }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TimeAndDims that = (TimeAndDims) o;
-
-      if (timestamp != that.timestamp) {
-        return false;
-      }
-      if (dims.length != that.dims.length) {
-        return false;
-      }
-      for (int i = 0; i < dims.length; i++) {
-        if (!Arrays.equals(dims[i], that.dims[i])) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      int hash = (int) timestamp;
-      for (int[] dim : dims) {
-        hash = 31 * hash + Arrays.hashCode(dim);
-      }
-      return hash;
-    }
   }
 
   public static final class NoRollup extends TimeAndDims {
@@ -1357,83 +1237,10 @@ public abstract class IncrementalIndex implements Closeable
              "timestamp=" + new DateTime(timestamp) +
              ", indexer=" + indexer + "}";
     }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      NoRollup that = (NoRollup) o;
-
-      if (timestamp != that.timestamp) {
-        return false;
-      }
-      if (indexer != that.indexer) {
-        return false;
-      }
-      return true;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Longs.hashCode(timestamp) * 31 + Longs.hashCode(indexer);
-    }
-  }
-
-  protected final Comparator<TimeAndDims> timeComparator(boolean descending)
-  {
-    if (descending) {
-      return new Comparator<TimeAndDims>()
-      {
-        @Override
-        public int compare(TimeAndDims o1, TimeAndDims o2)
-        {
-          return Longs.compare(o2.timestamp, o1.timestamp);
-        }
-      };
-    } else {
-      return new Comparator<TimeAndDims>()
-      {
-        @Override
-        public int compare(TimeAndDims o1, TimeAndDims o2)
-        {
-          return Longs.compare(o1.timestamp, o2.timestamp);
-        }
-      };
-    }
   }
 
   protected final Comparator<TimeAndDims> dimsComparator()
   {
-    if (fixedSchema && !dimensionDescs.isEmpty() && isAllReadOnly()) {
-      final int length = dimensionDescs.size();
-      return new Comparator<TimeAndDims>()
-      {
-        @Override
-        public int compare(TimeAndDims o1, TimeAndDims o2)
-        {
-          int compare = Longs.compare(o1.timestamp, o2.timestamp);
-          if (compare != 0) {
-            return compare;
-          }
-          final int[][] lhsIdxs = o1.dims;
-          final int[][] rhsIdxs = o2.dims;
-          for (int i = 0; i < length; i++) {
-            compare = Ints.compare(lhsIdxs[i][0], rhsIdxs[i][0]);
-            if (compare != 0) {
-              return compare;
-            }
-          }
-          return 0;
-        }
-      };
-    }
     if (rollup) {
       return new TimeAndDimsComp(dimValues);
     }
@@ -1444,21 +1251,11 @@ public abstract class IncrementalIndex implements Closeable
       {
         int compare = super.compare(o1, o2);
         if (compare == 0) {
-          compare = Longs.compare(((NoRollup)o1).indexer, ((NoRollup)o2).indexer);
+          compare = Longs.compare(((NoRollup) o1).indexer, ((NoRollup) o2).indexer);
         }
         return compare;
       }
     };
-  }
-
-  private boolean isAllReadOnly()
-  {
-    for (DimensionDesc dimensionDesc : dimensionDescs.values()) {
-      if (!(dimensionDesc.getValues() instanceof ReadOnlyDimDim)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   @VisibleForTesting
@@ -1676,85 +1473,6 @@ public abstract class IncrementalIndex implements Closeable
     public int getSortedIdFromUnsortedId(int id)
     {
       return idToIndex[id];
-    }
-  }
-
-  static final class ReadOnlyDimDim implements DimDim<String>
-  {
-    private final Map<String, Integer> valueToId;
-    private final String[] idToValue;
-
-    public ReadOnlyDimDim(String[] dictionary)
-    {
-      idToValue = dictionary;
-      valueToId = Maps.newHashMapWithExpectedSize(dictionary.length);
-      for (int i = 0; i < dictionary.length; i++) {
-        valueToId.put(dictionary[i], i);
-      }
-    }
-
-    @Override
-    public int getId(String value)
-    {
-      return valueToId.get(value);
-    }
-
-    @Override
-    public String getValue(int id)
-    {
-      return idToValue[id];
-    }
-
-    @Override
-    public boolean contains(String value)
-    {
-      return valueToId.containsKey(value);
-    }
-
-    @Override
-    public int size()
-    {
-      return valueToId.size();
-    }
-
-    @Override
-    public int add(String value)
-    {
-      Integer prev = valueToId.get(value);
-      if (prev != null) {
-        return prev;
-      }
-      throw new IllegalStateException("not existing value " + value);
-    }
-
-    @Override
-    public String getMinValue()
-    {
-      throw new UnsupportedOperationException("getMinValue");
-    }
-
-    @Override
-    public String getMaxValue()
-    {
-      throw new UnsupportedOperationException("getMaxValue");
-    }
-
-    @Override
-    public long estimatedSize()
-    {
-      throw new UnsupportedOperationException("estimatedSize");
-    }
-
-    @Override
-    public final int compare(int lhsIdx, int rhsIdx)
-    {
-      return Ints.compare(lhsIdx, rhsIdx);
-    }
-
-    @Override
-    public SortedDimLookup<String> sort()
-    {
-      throw new UnsupportedOperationException("sort");
     }
   }
 }

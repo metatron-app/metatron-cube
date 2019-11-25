@@ -27,9 +27,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.ISE;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.ISE;
+
+import java.util.Arrays;
 
 /**
  */
@@ -80,9 +82,28 @@ public abstract class DimensionSchema
 
   public static enum MultiValueHandling
   {
-    SORTED_ARRAY,
     ARRAY,
-    SET;
+    SORTED_ARRAY {
+      @Override
+      public boolean sortFirst() { return true;}
+    },
+    SET {
+      @Override
+      public boolean sortFirst() { return true;}
+
+      @Override
+      public int[] rewrite(int[] indices)
+      {
+        int pos = 1;
+        int prev = indices[0];
+        for (int i = 1; i < indices.length; i++) {
+          if (prev != indices[i]) {
+            indices[pos++] = prev = indices[i];
+          }
+        }
+        return pos == indices.length ? indices : Arrays.copyOf(indices, pos);
+      }
+    };
 
     @Override
     @JsonValue
@@ -95,6 +116,17 @@ public abstract class DimensionSchema
     public static MultiValueHandling fromString(String name)
     {
       return valueOf(name.toUpperCase());
+    }
+
+    public boolean sortFirst()
+    {
+      return false;
+    }
+
+    // indices.length > 1
+    public int[] rewrite(final int[] indices)
+    {
+      return indices;
     }
   }
 

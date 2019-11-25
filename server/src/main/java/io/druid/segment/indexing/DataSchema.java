@@ -59,6 +59,8 @@ public class DataSchema
 
   private final List<Evaluation> evaluations;
   private final List<Validation> validations;
+  private final boolean dimensionFixed;
+
   private final ObjectMapper jsonMapper;
 
   @JsonCreator
@@ -70,6 +72,7 @@ public class DataSchema
       @JsonProperty("granularitySpec") GranularitySpec granularitySpec,
       @JsonProperty("evaluations") List<Evaluation> evaluations,
       @JsonProperty("validations") List<Validation> validations,
+      @JsonProperty("dimensionFixed") boolean dimensionFixed,
       @JacksonInject ObjectMapper jsonMapper
   )
   {
@@ -91,6 +94,7 @@ public class DataSchema
     }
     this.evaluations = evaluations == null ? ImmutableList.<Evaluation>of() : evaluations;
     this.validations = validations == null ? ImmutableList.<Validation>of() : validations;
+    this.dimensionFixed = dimensionFixed;
   }
 
   @VisibleForTesting
@@ -102,7 +106,7 @@ public class DataSchema
       ObjectMapper jsonMapper
   )
   {
-    this(dataSource, parser, aggregators, false, granularitySpec, null, null, jsonMapper);
+    this(dataSource, parser, aggregators, false, granularitySpec, null, null, false, jsonMapper);
   }
 
   @JsonProperty
@@ -207,6 +211,12 @@ public class DataSchema
     return granularitySpec;
   }
 
+  @JsonProperty
+  public boolean isDimensionFixed()
+  {
+    return dimensionFixed;
+  }
+
   public DataSchema withDataSource(String dataSource)
   {
     return new DataSchema(dataSource,
@@ -216,6 +226,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
+                          dimensionFixed,
                           jsonMapper);
   }
 
@@ -228,6 +239,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
+                          dimensionFixed,
                           jsonMapper);
   }
 
@@ -240,6 +252,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
+                          dimensionFixed,
                           jsonMapper);
   }
 
@@ -251,9 +264,10 @@ public class DataSchema
            ", parser=" + parser +
            ", aggregators=" + Arrays.toString(aggregators) +
            ", enforceType=" + enforceType +
+           ", granularitySpec=" + granularitySpec +
            ", evaluations=" + evaluations +
            ", validations=" + validations +
-           ", granularitySpec=" + granularitySpec +
+           ", dimensionFixed=" + dimensionFixed +
            '}';
   }
 }

@@ -226,8 +226,6 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       } else if (!interval.contains(row.getTimestampFromEpoch())) {
         outOfRangeRows.increment(1);
       }
-      final InputRow inputRow = index.formatRow(row);
-
       boolean flush = !index.canAppendRow();
 
       if (lineCount > 0 && lineCount % occupationCheckInterval == 0) {
@@ -257,7 +255,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         index = makeIncrementalIndex();
         startTime = System.currentTimeMillis();
       }
-      numRows = index.add(inputRow);
+      numRows = index.add(row);
       if (++lineCount % nextLogging == 0) {
         log.info("processing %,d lines..", lineCount);
         nextLogging = Math.min(nextLogging * 10, 1000000);
@@ -418,6 +416,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
           .withDimensionsSpec(schema.getParser())
+          .withDimensionFixed(schema.isDimensionFixed())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
