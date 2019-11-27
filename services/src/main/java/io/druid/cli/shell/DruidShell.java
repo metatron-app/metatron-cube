@@ -32,9 +32,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.http.client.HttpClient;
@@ -44,9 +48,6 @@ import io.druid.java.util.http.client.response.ClientResponse;
 import io.druid.java.util.http.client.response.InputStreamResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
-import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.jmx.JMXQuery;
@@ -77,6 +78,7 @@ import org.jline.terminal.TerminalBuilder;
 
 import javax.ws.rs.core.MediaType;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -167,6 +169,8 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
+  private static final String HISTORY_FILE = ".druid_shell";
+
   private static final String DEFAULT_PROMPT = "> ";
   private static final String SQL_PROMPT = "sql> ";
   private static final String INDEX_PROMPT = "index> ";
@@ -176,7 +180,7 @@ public class DruidShell extends CommonShell.WithUtils
       final Supplier<URL> overlordURL,
       final Supplier<List<URL>> brokerURLs,
       final Terminal terminal,
-      List<String> arguments
+      final List<String> arguments
   )
       throws Exception
   {
@@ -395,17 +399,6 @@ public class DruidShell extends CommonShell.WithUtils
       }
     };
 
-    AggregateCompleter completer = new AggregateCompleter(
-        commandCompleter,
-        dsCompleter,
-        serverCompleter,
-        tierCompleter,
-        descTypeCompleter,
-        lookupCompleter,
-        taskCompleter,
-        optionCompleter
-    );
-
     final StringBuilder builder = new StringBuilder();
     final AtomicBoolean inSQL = new AtomicBoolean();
     final History history = new DefaultHistory()
@@ -419,6 +412,9 @@ public class DruidShell extends CommonShell.WithUtils
           }
           if (line.endsWith(";") || (builder.length() == 0 && line.startsWith("?"))) {
             line = builder.append(line).toString();
+            if (line.length() == 1) {
+              return;   // skip quit
+            }
           } else {
             builder.append(line);
             return;
@@ -427,12 +423,42 @@ public class DruidShell extends CommonShell.WithUtils
         super.add(time, line);
       }
     };
+    Completer fromCompleter = new Completer()
+    {
+      @Override
+      public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates)
+      {
+        if (inSQL.get() && line.wordIndex() > 1) {
+          final List<String> words = line.words();
+          String command = words.get(words.size() - 2);
+          if ("from".equalsIgnoreCase(command)) {
+            for (Map<String, Object> row : runSQL("show tables", brokerURLs.get())) {
+              candidates.add(new Candidate(String.valueOf(Iterables.getOnlyElement(row.values()))));
+            }
+          }
+        }
+      }
+    };
+    AggregateCompleter completer = new AggregateCompleter(
+        commandCompleter,
+        dsCompleter,
+        serverCompleter,
+        tierCompleter,
+        descTypeCompleter,
+        lookupCompleter,
+        taskCompleter,
+        optionCompleter,
+        fromCompleter
+    );
+
+    final File historyFile = new File(System.getProperty("user.home"), HISTORY_FILE);
     final LineReader reader = LineReaderBuilder.builder()
-                                         .history(history)
-                                         .terminal(terminal)
-                                         .completer(completer)
-                                         .parser(parser)
-                                         .build();
+                                               .variable(LineReader.HISTORY_FILE, historyFile)
+                                               .history(history)
+                                               .terminal(terminal)
+                                               .completer(completer)
+                                               .parser(parser)
+                                               .build();
 
     while (true) {
       String line = readLine(reader, DEFAULT_PROMPT);
@@ -490,7 +516,7 @@ public class DruidShell extends CommonShell.WithUtils
                   if (sql.endsWith(";")) {
                     sql = sql.substring(0, sql.length() - 1);
                   }
-                  runSQL(brokerURLs, writer, sql, properties);
+                  runSQLAndDump(brokerURLs, writer, sql, properties);
                 }
               }
             }
@@ -503,7 +529,7 @@ public class DruidShell extends CommonShell.WithUtils
               break;
             }
             String sqlString = SQL.substring(0, SQL.length() - 1).trim();
-            runSQL(brokerURLs, writer, sqlString, properties);
+            runSQLAndDump(brokerURLs, writer, sqlString, properties);
             builder.setLength(0);
           }
         }
@@ -1100,7 +1126,7 @@ public class DruidShell extends CommonShell.WithUtils
           writer.println("needs sql string");
           return;
         }
-        runSQL(brokerURLs, writer, cursor.next(), null);
+        runSQLAndDump(brokerURLs, writer, cursor.next(), null);
         break;
       }
       default:
@@ -1125,7 +1151,7 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
-  private void runSQL(Supplier<List<URL>> brokers, PrintWriter writer, String sql, Map<String, String> context)
+  private void runSQLAndDump(Supplier<List<URL>> brokers, PrintWriter writer, String sql, Map<String, String> context)
   {
     String mediaType = MediaType.TEXT_PLAIN;
     try {
@@ -1162,6 +1188,11 @@ public class DruidShell extends CommonShell.WithUtils
   private <T> T runQuery(String query, List<URL> brokerURLs, TypeReference<T> reference)
   {
     return runQuery("/druid/v2", query, MediaType.APPLICATION_JSON, brokerURLs, reference);
+  }
+
+  private List<Map<String, Object>> runSQL(String query, List<URL> brokerURLs)
+  {
+    return runQuery(null, query, null, brokerURLs, LIST_MAP);
   }
 
   private <T> T runQuery(
