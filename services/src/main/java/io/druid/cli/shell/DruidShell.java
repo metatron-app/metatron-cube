@@ -134,6 +134,7 @@ public class DruidShell extends CommonShell.WithUtils
     this.viewer = new IndexViewer(new IndexIO(jsonMapper));
   }
 
+  @Override
   public void run(List<String> arguments) throws Exception
   {
     Supplier<List<URL>> brokerURLs = new Supplier<List<URL>>()

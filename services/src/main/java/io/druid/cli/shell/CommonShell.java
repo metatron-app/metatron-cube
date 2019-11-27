@@ -24,6 +24,8 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.curator.discovery.CuratorServiceUtils;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.x.discovery.ServiceDiscovery;
@@ -46,6 +48,8 @@ public interface CommonShell
 
   abstract class WithUtils implements CommonShell
   {
+    protected static Logger LOG = new Logger(CommonShell.class);
+
     protected Properties loadNodeProperties(String nodeType) throws IOException
     {
       ClassLoader loader = getClass().getClassLoader();
@@ -74,7 +78,7 @@ public interface CommonShell
       try {
         Properties properties = loadNodeProperties(nodeType);
         String serviceName = Optional.ofNullable(properties.getProperty("druid.service")).orElse(nodeType);
-        return discover(discovery, serviceName);
+        return discover(discovery, CuratorServiceUtils.makeCanonicalServiceName(serviceName));
       }
       catch (Exception e) {
         return null;
@@ -107,6 +111,9 @@ public interface CommonShell
               }
             }))
         );
+        if (services.isEmpty()) {
+          LOG.info("Failed to find service [%s] from discovery", service);
+        }
       }
       return Lists.newArrayList(
           Iterables.transform(

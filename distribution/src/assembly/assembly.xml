@@ -179,6 +179,13 @@
             <outputDirectory>conf/tranquility</outputDirectory>
         </fileSet>
         <fileSet>
+            <directory>../examples/conf/druid/tools</directory>
+            <includes>
+                <include>*</include>
+            </includes>
+            <outputDirectory>conf/druid/tools</outputDirectory>
+        </fileSet>
+        <fileSet>
             <directory>../examples/bin</directory>
             <includes>
                 <include>*</include>
