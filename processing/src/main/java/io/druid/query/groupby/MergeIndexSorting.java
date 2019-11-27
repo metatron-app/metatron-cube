@@ -69,7 +69,7 @@ public final class MergeIndexSorting implements MergeIndex
     final Comparator<Object[]> comparator =
         Comparators.toArrayComparator(
             DimensionSpecs.toComparator(groupBy.getDimensions(), true),
-            groupBy.getGranularity() == Granularities.ALL ? 1 : 0
+            Granularities.ALL.equals(groupBy.getGranularity()) ? 1 : 0
         );
     this.mapping = parallelism == 1 ?
                    new TreeMap<Object[], Object[]>(comparator) :

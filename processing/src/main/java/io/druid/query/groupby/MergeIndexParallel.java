@@ -143,7 +143,7 @@ public final class MergeIndexParallel implements MergeIndex
     final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
     long start = System.currentTimeMillis();
     Arrays.parallelSort(
-        array, Comparators.toArrayComparator(comparators, groupBy.getGranularity() == Granularities.ALL ? 1 : 0)
+        array, Comparators.toArrayComparator(comparators, Granularities.ALL.equals(groupBy.getGranularity()) ? 1 : 0)
     );
     LOG.info("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
 

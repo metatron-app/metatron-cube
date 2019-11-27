@@ -99,7 +99,7 @@ public class TimeseriesQueryEngine
         final Granularity granularity = query.getGranularity();
         final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
         final Object[] values = new Object[aggregators.length];
-        if (granularity == Granularities.ALL) {
+        if (Granularities.ALL.equals(granularity)) {
           return Sequences.simple(new Iterable<Row>()
           {
             @Override
