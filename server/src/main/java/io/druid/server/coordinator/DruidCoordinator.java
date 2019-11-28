@@ -370,11 +370,6 @@ public class DruidCoordinator
     metadataSegmentManager.disableSegment(segment.getDataSource(), segment.getIdentifier());
   }
 
-  public void enableDatasource(String ds)
-  {
-    metadataSegmentManager.enableDatasource(ds);
-  }
-
   public String getCurrentLeader()
   {
     try {

@@ -130,7 +130,6 @@ public class MetadataSegmentManagerTest
     Assert.assertNull(manager.getInventoryValue("wikipedia2"));
 
     manager.registerToView(segment3);
-    Assert.assertEquals(Arrays.asList("wikipedia", "wikipedia2"), manager.getAllDatasourceNames());
     Assert.assertEquals(Arrays.asList(segment2, segment1), manager.getInventoryValue("wikipedia").getSegmentsSorted());
     Assert.assertEquals(Arrays.asList(segment3), manager.getInventoryValue("wikipedia2").getSegmentsSorted());
 

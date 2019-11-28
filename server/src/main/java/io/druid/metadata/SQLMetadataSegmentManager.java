@@ -20,6 +20,7 @@
 package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -27,19 +28,19 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.lifecycle.LifecycleStart;
-import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.java.util.emitter.EmittingLogger;
+import com.metamx.common.MapUtils;
 import io.druid.client.DruidDataSource;
 import io.druid.common.DateTimes;
 import io.druid.concurrent.Execs;
 import io.druid.guice.ManageLifecycle;
 import io.druid.indexing.overlord.DataSourceMetadata;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -69,13 +70,11 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -85,7 +84,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private static final EmittingLogger log = new EmittingLogger(SQLMetadataSegmentManager.class);
 
 
-  private final Object lock = new Object();
+  private final State lock = new State();
 
   private final ObjectMapper jsonMapper;
   private final Supplier<MetadataSegmentManagerConfig> config;
@@ -95,10 +94,55 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private final SQLMetadataConnector connector;
 
   private volatile ListeningScheduledExecutorService exec = null;
-  private volatile ListenableFuture<?> future = null;
 
-  private volatile boolean started = false;
-  private volatile DateTime lastUpdatedTime;
+  private static class State
+  {
+    private boolean started;
+    private DateTime lastUpdatedTime;
+
+    private boolean kicked;
+
+    private synchronized void kick()
+    {
+      kicked = true;
+      notifyAll();
+    }
+
+    private synchronized boolean next(long msec)
+    {
+      long remaining = msec;
+      while (started && remaining > 0 && !kicked) {
+        long start = System.currentTimeMillis();
+        try {
+          wait(remaining);
+        }
+        catch (InterruptedException e) {
+          // ignore
+        }
+        remaining -= System.currentTimeMillis() - start;
+      }
+      kicked = false;
+      return started;
+    }
+
+    private synchronized boolean stop()
+    {
+      final boolean running = started;
+      started = false;
+      lastUpdatedTime = null;
+      return running;
+    }
+
+    private synchronized boolean isStarted()
+    {
+      return started;
+    }
+
+    private synchronized DateTime lastUpdatedTime()
+    {
+      return lastUpdatedTime;
+    }
+  }
 
   @Inject
   public SQLMetadataSegmentManager(
@@ -121,51 +165,42 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   public void start()
   {
     synchronized (lock) {
-      if (started) {
+      if (lock.started) {
         return;
       }
 
-      exec = MoreExecutors.listeningDecorator(Execs.scheduledSingleThreaded("DatabaseSegmentManager-Exec--%d"));
-
       final Duration delay = config.get().getPollDuration().toStandardDuration();
-      future = exec.scheduleWithFixedDelay(
+      Preconditions.checkArgument(delay.getMillis() > 0);
+
+      exec = MoreExecutors.listeningDecorator(Execs.scheduledSingleThreaded("MetadataSegmentManager--%d"));
+      exec.execute(
           new Runnable()
           {
             @Override
             public void run()
             {
-              try {
-                poll();
-              }
-              catch (Exception e) {
-                log.makeAlert(e, "uncaught exception in segment manager polling thread").emit();
-
+              while (lock.next(delay.getMillis())) {
+                try {
+                  poll();
+                }
+                catch (Exception e) {
+                  log.makeAlert(e, "uncaught exception in segment manager polling thread").emit();
+                }
               }
             }
-          },
-          0,
-          delay.getMillis(),
-          TimeUnit.MILLISECONDS
+          }
       );
-      started = true;
+      lock.started = true;
     }
   }
 
   @LifecycleStop
   public void stop()
   {
-    synchronized (lock) {
-      if (!started) {
-        return;
-      }
-
-      started = false;
+    if (lock.stop()) {
       dataSources.clear();
-      future.cancel(false);
-      future = null;
       exec.shutdownNow();
       exec = null;
-      lastUpdatedTime = null;
     }
   }
 
@@ -196,7 +231,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean enableDatasource(final String ds)
+  public boolean enableDatasource(final String ds, final boolean now)
   {
     try {
       final IDBI dbi = connector.getDBI();
@@ -296,6 +331,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       log.error(e, "Exception enabling datasource %s", ds);
       return false;
     }
+    if (now) {
+      lock.kick();
+    }
 
     return true;
   }
@@ -314,7 +352,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean enableSegment(final String segmentId)
+  public boolean enableSegment(final String segmentId, final boolean now)
   {
     try {
       connector.getDBI().withHandle(
@@ -336,6 +374,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     catch (Exception e) {
       log.error(e, "Exception enabling segment %s", segmentId);
       return false;
+    }
+    if (now) {
+      lock.kick();
     }
 
     return true;
@@ -414,7 +455,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public DateTime lastUpdatedTime()
   {
-    return lastUpdatedTime;
+    return lock.lastUpdatedTime();
   }
 
   @Override
@@ -518,7 +559,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public boolean isStarted()
   {
-    return started;
+    return lock.isStarted();
   }
 
   @Override
@@ -543,24 +584,45 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public Collection<String> getAllDatasourceNames()
   {
-    List<String> names = Lists.newArrayList();
-    for (Map.Entry<String, DruidDataSource> entry : dataSources.entrySet()) {
-      if (!entry.getValue().isEmpty()) {
-        names.add(entry.getKey());
-      }
-    }
-    Collections.sort(names);
-    return names;
+    return connector.getDBI().withHandle(
+        new HandleCallback<List<String>>()
+        {
+          @Override
+          public List<String> withHandle(Handle handle) throws Exception
+          {
+            return handle.createQuery(String.format("SELECT DISTINCT(datasource) FROM %s", getSegmentsTable()))
+                         .fold(
+                             Lists.<String>newArrayList(),
+                             new Folder3<List<String>, Map<String, Object>>()
+                             {
+                               @Override
+                               public List<String> fold(
+                                   List<String> druidDataSources,
+                                   Map<String, Object> stringObjectMap,
+                                   FoldController foldController,
+                                   StatementContext statementContext
+                               ) throws SQLException
+                               {
+                                 druidDataSources.add(
+                                     MapUtils.getString(stringObjectMap, "datasource")
+                                 );
+                                 return druidDataSources;
+                               }
+                             }
+                         );
+
+          }
+        }
+    );
   }
 
   @Override
   public void poll()
   {
+    if (!lock.isStarted()) {
+      return;
+    }
     try {
-      if (!started) {
-        return;
-      }
-
       log.debug("Starting polling of segment table");
 
       // some databases such as PostgreSQL require auto-commit turned off
@@ -691,7 +753,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
 
   private void done()
   {
-    lastUpdatedTime = DateTimes.nowUtc();
+    synchronized (lock) {
+      lock.lastUpdatedTime = DateTimes.nowUtc();
+    }
     log.info("Heap memory usage from mbean %s", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
   }
 

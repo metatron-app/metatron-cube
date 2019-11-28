@@ -42,11 +42,11 @@ public interface MetadataSegmentManager
 
   boolean unregisterFromView(DataSegment segment);
 
-  boolean enableDatasource(final String ds);
+  boolean enableDatasource(String ds, boolean now);
 
-  boolean enableSegment(final String segmentId);
+  boolean enableSegment(String segmentId, boolean now);
 
-  boolean disableDatasource(final String ds);
+  boolean disableDatasource(String ds);
 
   boolean disableSegment(String ds, String segmentID);
 

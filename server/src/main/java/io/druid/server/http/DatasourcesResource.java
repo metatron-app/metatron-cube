@@ -269,10 +269,11 @@ public class DatasourcesResource
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(DatasourceResourceFilter.class)
   public Response enableDataSource(
-      @PathParam("dataSourceName") final String dataSourceName
+      @PathParam("dataSourceName") final String dataSourceName,
+      @QueryParam("now") final String now
   )
   {
-    return databaseSegmentManager.enableDatasource(dataSourceName)
+    return databaseSegmentManager.enableDatasource(dataSourceName, Boolean.valueOf(now))
            ? Response.ok().build()
            : Response.noContent().build();
 
@@ -639,10 +640,11 @@ public class DatasourcesResource
   @ResourceFilters(DatasourceResourceFilter.class)
   public Response enableDatasourceSegment(
       @PathParam("dataSourceName") String dataSourceName,
-      @PathParam("segmentId") String segmentId
+      @PathParam("segmentId") String segmentId,
+      @QueryParam("now") String now
   )
   {
-    if (!databaseSegmentManager.enableSegment(segmentId)) {
+    if (!databaseSegmentManager.enableSegment(segmentId, Boolean.valueOf(now))) {
       return Response.noContent().build();
     }
 
