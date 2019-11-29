@@ -23,7 +23,6 @@ import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.handler.ssl.ImmediateExecutor;
 import org.jboss.netty.handler.ssl.SslHandler;
 import org.jboss.netty.util.Timer;
 
@@ -67,8 +66,8 @@ public class ChannelResourceFactory implements ResourceFactory<String, ChannelFu
   @Override
   public ChannelFuture generate(final String hostname)
   {
-    log.info("Generating: %s", hostname);
-    URL url = null;
+    log.debug("Generating: %s", hostname);
+    URL url;
     try {
       url = new URL(hostname);
     }

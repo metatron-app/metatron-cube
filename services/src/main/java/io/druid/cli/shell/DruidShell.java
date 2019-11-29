@@ -366,10 +366,10 @@ public class DruidShell extends CommonShell.WithUtils
         if (line.wordIndex() > 1 && command.equals("datasource")) {
           if (!commands.contains("-intervals") && !commands.contains("-segments") &&
               !hasOption(commands, "-interval=") && !hasOption(commands, "-segment=") &&
-              !hasOption(commands, "-tiers") && !hasOption(commands, "-disable")) {
+              !hasOption(commands, "-tiers") && !hasOption(commands, "-disable") && !hasOption(commands, "-enable")) {
             candidates.addAll(
                 Lists.transform(
-                    Arrays.asList("-intervals", "-interval=", "-segments", "-segment=", "-tiers", "-disable"),
+                    Arrays.asList("-intervals", "-interval=", "-segments", "-segment=", "-tiers", "-disable", "-enable"),
                     toCandidate
                 )
             );
@@ -708,13 +708,12 @@ public class DruidShell extends CommonShell.WithUtils
         }
         break;
       case "segment":
-        resource.append("/druid/coordinator/v1/servers");
+        resource.append("/druid/coordinator/v1/datasources");
         if (!cursor.hasMore(2)) {
-          writer.println("!! needs server name & segment name");
+          writer.println("!! needs dataSource name & segment name");
           return;
         }
-
-        resource.append(cursor.next()).append(cursor.next());
+        resource.append(cursor.next()).append("segments").append(cursor.next());
         writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), MAP));
         break;
       case "datasources":
@@ -758,6 +757,7 @@ public class DruidShell extends CommonShell.WithUtils
         boolean segments = false;
         boolean tiers = false;
         boolean disable = false;
+        boolean enable = false;
         String interval = null;
         String segment = null;
         while (cursor.hasMore()) {
@@ -780,23 +780,41 @@ public class DruidShell extends CommonShell.WithUtils
             segment = current.substring(9).trim();
           } else if (current.startsWith("-disable")) {
             disable = true;
+          } else if (current.startsWith("-enable")) {
+            enable = true;
           }
+        }
+        if (enable && disable) {
+          writer.println("!! enable or disable, just pick one");
+          return;
         }
         if ((intervals || interval != null) && (segments || segment != null)) {
           writer.println("!! interval(s) or segment(s), just pick one");
           return;
         }
-        if (disable) {
+        if (enable) {
+          if (intervals || segments || interval != null) {
+            writer.println("!! enable does not take -intervals, -interval or -segments");
+            return;
+          }
+          if (segment != null) {
+            resource.append("segments").append(segment);
+          }
+          resource.appendOption("now=true");
+          writer.println(PREFIX[0] + execute(HttpMethod.POST, coordinatorURL, resource.get(), HTTP_RESPONSE));
+        } else if (disable) {
           if (intervals || segments) {
             writer.println("!! disable does not take -intervals or -segments");
             return;
           }
           if (interval != null) {
-            resource.append("interval/disable/").append(interval.replace("/", "_"));
+            resource.append("interval/disable").append(interval.replace("/", "_"));
+          } else if (segment != null) {
+            resource.append("segment/disable").append(segment);
           } else {
-            resource.append("segment/disable/").append(segment);
+            resource.append("disable");   // ds disable
           }
-          writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), INT));
+          writer.println(PREFIX[0] + execute(HttpMethod.POST, coordinatorURL, resource.get(), HTTP_RESPONSE));
         } else if (tiers) {
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.append("tiers").get(), LIST));
         } else if (!intervals && interval == null && !segments && segment == null) {
@@ -1323,7 +1341,7 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
-  private static final TypeReference<Integer> INT = new TypeReference<Integer>()
+  private static final TypeReference<HttpResponseStatus> HTTP_RESPONSE = new TypeReference<HttpResponseStatus>()
   {
   };
 
@@ -1366,9 +1384,15 @@ public class DruidShell extends CommonShell.WithUtils
 
   private <T> T execute(Supplier<URL> baseURL, String resource, TypeReference<T> resultType)
   {
-    return execute(HttpMethod.GET, Preconditions.checkNotNull(baseURL.get()), resource, null, null, resultType);
+    return execute(HttpMethod.GET, baseURL, resource, resultType);
   }
 
+  private <T> T execute(HttpMethod method, Supplier<URL> baseURL, String resource, TypeReference<T> resultType)
+  {
+    return execute(method, Preconditions.checkNotNull(baseURL.get()), resource, null, null, resultType);
+  }
+
+  @SuppressWarnings("unchecked")
   private <T> T execute(
       HttpMethod method,
       URL baseURL,
@@ -1385,6 +1409,9 @@ public class DruidShell extends CommonShell.WithUtils
         request.setContent(contentType, content);
       }
       StatusResponseHolder response = httpClient.go(request, RESPONSE_HANDLER).get();
+      if (resultType == HTTP_RESPONSE) {
+        return (T) response.getStatus();
+      }
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
         throw new ISE(
             "Error while fetching from [%s], status[%s] content[%s]",
