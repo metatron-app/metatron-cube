@@ -27,6 +27,8 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
+import java.util.List;
+
 /**
  */
 public class RowboatFilteringIndexAdapter implements IndexableAdapter
@@ -74,6 +76,12 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   public Iterable<Rowboat> getRows(int indexNum)
   {
     return Iterables.filter(baseAdapter.getRows(indexNum), filter);
+  }
+
+  @Override
+  public Iterable<Rowboat> getRows(int indexNum, List<String> mergedDimensions, List<String> mergedMetrics)
+  {
+    return Iterables.filter(baseAdapter.getRows(indexNum, mergedDimensions, mergedMetrics), filter);
   }
 
   @Override

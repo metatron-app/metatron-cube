@@ -47,6 +47,13 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
+import io.druid.collections.CombiningIterable;
+import io.druid.common.guava.FileOutputSupplier;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.SerializerUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
@@ -56,13 +63,6 @@ import io.druid.java.util.common.guava.MergeIterable;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.collections.CombiningIterable;
-import io.druid.common.guava.FileOutputSupplier;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.SerializerUtils;
-import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -729,15 +729,16 @@ public class IndexMerger
       final ArrayList<FileOutputSupplier> dimOuts = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final Map<String, Integer> dimensionCardinalities = Maps.newHashMap();
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(indexes.size());
-      final ArrayList<Boolean> convertMissingDimsFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
       final ArrayList<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      final ArrayList<Boolean> dimHasNullFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
 
       for (int i = 0; i < indexes.size(); ++i) {
         dimConversions.add(Maps.<String, IntBuffer>newHashMap());
       }
 
-      for (String dimension : mergedDimensions) {
+      for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
+        final String dimension = mergedDimensions.get(dimIndex);
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
         ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionary(ioPeon, dimension);
@@ -763,7 +764,7 @@ public class IndexMerger
         }
 
         boolean convertMissingDims = dimHasValues && dimAbsentFromSomeIndex;
-        convertMissingDimsFlags.add(convertMissingDims);
+        convertMissingDimsFlags[dimIndex] = convertMissingDims;
 
       /*
        * Ensure the empty str is always in the dictionary if the dimension was missing from one index but
@@ -802,7 +803,7 @@ public class IndexMerger
         dimensionCardinalities.put(dimension, cardinality);
 
         // Mark if this dim has the null/empty str value in its dictionary, used for determining nullRowsList later.
-        dimHasNullFlags.add(dimHasNull);
+        dimHasNullFlags[dimIndex] = dimHasNull;
 
         FileOutputSupplier dimOut = new FileOutputSupplier(IndexIO.makeDimFile(v8OutDir, dimension), true);
         dimOuts.add(dimOut);
@@ -901,7 +902,7 @@ public class IndexMerger
           if (listToWrite == null || listToWrite.isEmpty()) {
             // empty row; add to the nullRows bitmap
             nullRowsList.get(i).add(rowCount);
-          } else if (dimHasNullFlags.get(i) && listToWrite.size() == 1 && listToWrite.get(0) == 0) {
+          } else if (dimHasNullFlags[i] && listToWrite.size() == 1 && listToWrite.get(0) == 0) {
             // If this dimension has the null/empty str in its dictionary, a row with a single-valued dimension
             // that matches the null/empty str's dictionary ID should also be added to nullRowsList.
             nullRowsList.get(i).add(rowCount);
@@ -1116,87 +1117,47 @@ public class IndexMerger
       final List<IndexableAdapter> indexes,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
-      ArrayList<Map<String, IntBuffer>> dimConversions,
-      ArrayList<Boolean> convertMissingDimsFlags,
-      Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn
+      final ArrayList<Map<String, IntBuffer>> dimConversions,
+      final boolean[] convertMissingDimsFlags,
+      final Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn
   )
   {
-    ArrayList<Iterable<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
+    final ArrayList<Iterable<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
 
     for (int i = 0; i < indexes.size(); ++i) {
-      final IndexableAdapter adapter = indexes.get(i);
-
-      final int[] dimLookup = toLookupMap(adapter.getDimensionNames(), mergedDimensions);
-      final int[] metricLookup = toLookupMap(adapter.getMetricNames(), mergedMetrics);
-
-      Iterable<Rowboat> target = indexes.get(i).getRows(i);
-      if (dimLookup != null || metricLookup != null) {
-        // resize/reorder index table if needed
-        target = Iterables.transform(
-            target,
-            new Function<Rowboat, Rowboat>()
-            {
-              @Override
-              public Rowboat apply(Rowboat input)
+      final Map<String, IntBuffer> conversionMap = dimConversions.get(i);
+      final IntBuffer[] conversions = FluentIterable
+          .from(mergedDimensions)
+          .transform(
+              new Function<String, IntBuffer>()
               {
-                int[][] newDims = input.getDims();
-                if (dimLookup != null) {
-                  newDims = new int[mergedDimensions.size()][];
-                  int j = 0;
-                  for (int[] dim : input.getDims()) {
-                    newDims[dimLookup[j]] = dim;
-                    j++;
-                  }
+                @Override
+                public IntBuffer apply(String input)
+                {
+                  return conversionMap.get(input);
                 }
-
-                Object[] newMetrics = input.getMetrics();
-                if (metricLookup != null) {
-                  newMetrics = new Object[mergedMetrics.size()];
-                  int j = 0;
-                  for (Object met : input.getMetrics()) {
-                    newMetrics[metricLookup[j]] = met;
-                    j++;
-                  }
-                }
-
-                return input.withDimsAndMetrics(newDims, newMetrics);
               }
-            }
-        );
+          ).toArray(IntBuffer.class);
+
+      Iterable<Rowboat> target = indexes.get(i).getRows(i, mergedDimensions, mergedMetrics);
+      if (!Arrays.equals(convertMissingDimsFlags, new boolean[mergedDimensions.size()]) ||
+          !Arrays.equals(conversions, new IntBuffer[mergedDimensions.size()])) {
+        target = new MMappedIndexRowIterable(target, conversions, convertMissingDimsFlags);
       }
-      boats.add(
-          new MMappedIndexRowIterable(
-              target, mergedDimensions, dimConversions.get(i), convertMissingDimsFlags
-          )
-      );
+      boats.add(target);
     }
 
     return rowMergerFn.apply(boats);
   }
 
-  private int[] toLookupMap(Indexed<String> indexed, List<String> values)
+  // `values` is super set of `indexed`
+  public static int[] toLookupMap(Indexed<String> indexed, List<String> values)
   {
-    if (isSame(indexed, values)) {
-      return null;  // no need to convert
-    }
-    int[] dimLookup = new int[values.size()];
+    final int[] dimLookup = new int[values.size()];
     for (int i = 0; i < indexed.size(); i++) {
       dimLookup[i] = values.indexOf(indexed.get(i));
     }
     return dimLookup;
-  }
-
-  private boolean isSame(Indexed<String> indexed, List<String> values)
-  {
-    if (indexed.size() != values.size()) {
-      return false;
-    }
-    for (int i = 0; i < indexed.size(); i++) {
-      if (!indexed.get(i).equals(values.get(i))) {
-        return false;
-      }
-    }
-    return true;
   }
 
   public static <T extends Comparable> ArrayList<T> mergeIndexed(final List<Iterable<T>> indexedLists)
@@ -1376,39 +1337,24 @@ public class IndexMerger
   public static class MMappedIndexRowIterable implements Iterable<Rowboat>
   {
     private final Iterable<Rowboat> index;
-    private final List<String> convertedDims;
-    private final Map<String, IntBuffer> converters;
-    private final ArrayList<Boolean> convertMissingDimsFlags;
+    private final IntBuffer[] conversions;
+    private final boolean[] convertMissingDimsFlags;
     private static final int[] EMPTY_STR_DIM = new int[]{0};
 
     MMappedIndexRowIterable(
         Iterable<Rowboat> index,
-        List<String> convertedDims,
-        Map<String, IntBuffer> converters,
-        ArrayList<Boolean> convertMissingDimsFlags
+        IntBuffer[] conversions,
+        boolean[] convertMissingDimsFlags
     )
     {
       this.index = index;
-      this.convertedDims = convertedDims;
-      this.converters = converters;
+      this.conversions = conversions;
       this.convertMissingDimsFlags = convertMissingDimsFlags;
     }
 
     @Override
     public Iterator<Rowboat> iterator()
     {
-      final IntBuffer[] converterArray = FluentIterable
-          .from(convertedDims)
-          .transform(
-              new Function<String, IntBuffer>()
-              {
-                @Override
-                public IntBuffer apply(String input)
-                {
-                  return converters.get(input);
-                }
-              }
-          ).toArray(IntBuffer.class);
       return Iterators.transform(
           index.iterator(),
           new Function<Rowboat, Rowboat>()
@@ -1416,32 +1362,22 @@ public class IndexMerger
             @Override
             public Rowboat apply(Rowboat input)
             {
-              int[][] dims = input.getDims();
-              int[][] newDims = new int[convertedDims.size()][];
-              for (int i = 0; i < convertedDims.size(); ++i) {
-                IntBuffer converter = converterArray[i];
-                if (i >= dims.length) {
+              final int[][] dims = input.getDims();
+              for (int i = 0; i < conversions.length; ++i) {
+                if (dims[i] == null && convertMissingDimsFlags[i]) {
+                  dims[i] = EMPTY_STR_DIM;
                   continue;
                 }
-
-                if (dims[i] == null && convertMissingDimsFlags.get(i)) {
-                  newDims[i] = EMPTY_STR_DIM;
-                  continue;
-                }
-
+                final IntBuffer converter = conversions[i];
                 if (converter == null) {
-                  newDims[i] = dims[i];
-                  continue;
+                  continue;     // no need conversion
                 }
-
-                newDims[i] = new int[dims[i].length];
-
                 for (int j = 0; j < dims[i].length; ++j) {
-                  newDims[i][j] = converter.get(dims[i][j]);
+                  dims[i][j] = converter.get(dims[i][j]);
                 }
               }
 
-              return input.withDims(newDims);
+              return input;
             }
           }
       );

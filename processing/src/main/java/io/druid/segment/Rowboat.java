@@ -133,16 +133,6 @@ public class Rowboat implements Comparable<Rowboat>
     return retVal;
   }
 
-  public Rowboat withDims(int[][] newDims)
-  {
-    return new Rowboat(timestamp, newDims, metrics, comprisedRows);
-  }
-
-  public Rowboat withDimsAndMetrics(int[][] newDims, Object[] newMetrics)
-  {
-    return new Rowboat(timestamp, newDims, newMetrics, comprisedRows);
-  }
-
   @Override
   public String toString()
   {

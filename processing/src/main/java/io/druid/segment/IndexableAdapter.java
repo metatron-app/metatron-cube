@@ -26,6 +26,7 @@ import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * An adapter to an index
@@ -43,6 +44,8 @@ public interface IndexableAdapter
   Indexed<String> getDimValueLookup(String dimension);
 
   Iterable<Rowboat> getRows(int indexNum);
+
+  Iterable<Rowboat> getRows(int indexNum, List<String> mergedDimensions, List<String> mergedMetrics);
 
   @Nullable
   ImmutableBitmap getBitmap(String dimension, int dictId);

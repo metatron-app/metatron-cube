@@ -182,9 +182,9 @@ public class IndexMergerV9 extends IndexMerger
           indexSpec, ioPeon, mergedDimensions
       );
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(adapters.size());
-      final ArrayList<Boolean> dimensionSkipFlag = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      final ArrayList<Boolean> dimHasNullFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      final ArrayList<Boolean> convertMissingDimsFlags = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final boolean[] dimensionSkipFlag = new boolean[mergedDimensions.size()];
+      final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
+      final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
        writeDimValueAndSetupDimConversion(
           adapters, progress, mergedDimensions, dimCardinalities, dimValueWriters, dimensionSkipFlag, dimConversions,
           convertMissingDimsFlags, dimHasNullFlags
@@ -282,7 +282,7 @@ public class IndexMergerV9 extends IndexMerger
       final List<IndexableAdapter> adapters,
       final File outDir,
       final List<String> mergedDimensions,
-      final ArrayList<Boolean> dimensionSkipFlag,
+      final boolean[] dimensionSkipFlag,
       final List<String> mergedMetrics,
       final ProgressIndicator progress,
       final IndexSpec indexSpec
@@ -296,7 +296,7 @@ public class IndexMergerV9 extends IndexMerger
     final Set<String> finalColumns = Sets.newLinkedHashSet();
     finalColumns.addAll(mergedMetrics);
     for (int i = 0; i < mergedDimensions.size(); ++i) {
-      if (dimensionSkipFlag.get(i)) {
+      if (dimensionSkipFlag[i]) {
         continue;
       }
       finalColumns.add(mergedDimensions.get(i));
@@ -344,7 +344,7 @@ public class IndexMergerV9 extends IndexMerger
       final ProgressIndicator progress,
       final IndexSpec indexSpec,
       final List<String> mergedDimensions,
-      final ArrayList<Boolean> dimensionSkipFlag,
+      final boolean[] dimensionSkipFlag,
       final List<ColumnCapabilities> dimCapabilities,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
       final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters,
@@ -375,7 +375,7 @@ public class IndexMergerV9 extends IndexMerger
       if (spatialIndexWriter != null) {
         spatialIndexWriter.close();
       }
-      if (dimensionSkipFlag.get(i)) {
+      if (dimensionSkipFlag[i]) {
         continue;
       }
 
@@ -629,10 +629,10 @@ public class IndexMergerV9 extends IndexMerger
       final LongColumnSerializer timeWriter,
       final ArrayList<ColumnPartWriter> dimWriters,
       final ArrayList<GenericColumnSerializer> metWriters,
-      final ArrayList<Boolean> dimensionSkipFlag,
+      final boolean[] dimensionSkipFlag,
       final int[][] rowNumConversions,
       final ArrayList<MutableBitmap> nullRowsList,
-      final ArrayList<Boolean> dimHasNullFlags
+      final boolean[] dimHasNullFlags
   ) throws IOException
   {
     final String section = "walk through and merge rows";
@@ -657,12 +657,12 @@ public class IndexMergerV9 extends IndexMerger
 
       int[][] dims = theRow.getDims();
       for (int i = 0; i < dims.length; ++i) {
-        if (dimensionSkipFlag.get(i)) {
+        if (dimensionSkipFlag[i]) {
           continue;
         }
         if (dims[i] == null || dims[i].length == 0) {
           nullRowsList.get(i).add(rowNum);
-        } else if (dimHasNullFlags.get(i) && dims[i].length == 1 && dims[i][0] == 0) {
+        } else if (dimHasNullFlags[i] && dims[i].length == 1 && dims[i][0] == 0) {
           // If this dimension has the null/empty str in its dictionary, a row with a single-valued dimension
           // that matches the null/empty str's dictionary ID should also be added to nullRowsList.
           nullRowsList.get(i).add(rowNum);
@@ -832,10 +832,10 @@ public class IndexMergerV9 extends IndexMerger
       final List<String> mergedDimensions,
       final Map<String, Integer> dimensionCardinalities,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
-      final ArrayList<Boolean> dimensionSkipFlag,
+      final boolean[] dimensionSkipFlag,
       final List<Map<String, IntBuffer>> dimConversions,
-      final ArrayList<Boolean> convertMissingDimsFlags,
-      final ArrayList<Boolean> dimHasNullFlags
+      final boolean[] convertMissingDimsFlags,
+      final boolean[] dimHasNullFlags
   ) throws IOException
   {
     final String section = "setup dimension conversions";
@@ -868,7 +868,7 @@ public class IndexMergerV9 extends IndexMerger
       }
 
       boolean convertMissingDims = dimHasValues && dimAbsentFromSomeIndex;
-      convertMissingDimsFlags.add(convertMissingDims);
+      convertMissingDimsFlags[dimIndex] = convertMissingDims;
 
       /*
        * Ensure the empty str is always in the dictionary if the dimension was missing from one index but
@@ -907,7 +907,7 @@ public class IndexMergerV9 extends IndexMerger
       }
 
       // Mark if this dim has the null/empty str value in its dictionary, used for determining nullRowsList later.
-      dimHasNullFlags.add(dimHasNull);
+      dimHasNullFlags[dimIndex] = dimHasNull;
 
       log.info(
           "Completed dim[%s] conversions with cardinality[%,d] in %,d millis.",
@@ -920,10 +920,8 @@ public class IndexMergerV9 extends IndexMerger
 
       if (cardinality == 0) {
         log.info(String.format("Skipping [%s], it is empty!", dimension));
-        dimensionSkipFlag.add(true);
-        continue;
+        dimensionSkipFlag[dimIndex] = true;
       }
-      dimensionSkipFlag.add(false);
     }
     progress.stopSection(section);
   }

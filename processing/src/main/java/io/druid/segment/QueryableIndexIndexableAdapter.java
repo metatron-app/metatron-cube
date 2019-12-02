@@ -162,7 +162,17 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows(final int indexNum)
+  public Iterable<Rowboat> getRows(int indexNum)
+  {
+    return getRows(indexNum, Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
+  }
+
+  @Override
+  public Iterable<Rowboat> getRows(
+      final int indexNum,
+      final List<String> mergedDimensions,
+      final List<String> mergedMetrics
+  )
   {
     return new Iterable<Rowboat>()
     {
@@ -207,6 +217,9 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             }
           }
 
+          final int[] dimLookup = IndexMerger.toLookupMap(getDimensionNames(), mergedDimensions);
+          final int[] metricLookup = IndexMerger.toLookupMap(getMetricNames(), mergedMetrics);
+
           @Override
           public boolean hasNext()
           {
@@ -231,33 +244,29 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
               throw new NoSuchElementException();
             }
 
-            final int[][] dims = new int[dictionaryEncodedColumns.length][];
-            int dimIndex = 0;
-            for (final DictionaryEncodedColumn dict : dictionaryEncodedColumns) {
+            final int[][] dims = new int[dimLookup.length][];
+            for (int i = 0; i < dictionaryEncodedColumns.length; i++) {
+              DictionaryEncodedColumn dict = dictionaryEncodedColumns[i];
               int[] theVals;
               if (dict.hasMultipleValues()) {
                 IndexedInts dimVals = dict.getMultiValueRow(currRow);
                 theVals = new int[dimVals.size()];
-                for (int i = 0; i < theVals.length; ++i) {
-                  theVals[i] = dimVals.get(i);
+                for (int j = 0; j < theVals.length; ++j) {
+                  theVals[j] = dimVals.get(j);
                 }
               } else {
                 theVals = new int[] { dict.getSingleValueRow(currRow) };
               }
-              dims[dimIndex++] = theVals;
+              dims[dimLookup[i]] = theVals;
             }
 
-            final Object[] metricArray = new Object[metrics.length];
+            final Object[] metricArray = new Object[metricLookup.length];
             for (int i = 0; i < metricArray.length; ++i) {
-              metricArray[i] = metrics[i].getValue(currRow);
+              metricArray[metricLookup[i]] = metrics[i].getValue(currRow);
             }
 
             final long timestamp = timestamps.getLong(currRow);
-            final Rowboat retVal = new Rowboat(timestamp, dims, metricArray, indexNum, currRow);
-
-            ++currRow;
-
-            return retVal;
+            return new Rowboat(timestamp, dims, metricArray, indexNum, currRow++);
           }
 
           @Override
