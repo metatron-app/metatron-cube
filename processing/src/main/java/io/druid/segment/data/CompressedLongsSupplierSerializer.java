@@ -114,7 +114,7 @@ public class CompressedLongsSupplierSerializer implements ColumnPartWriter<Long>
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +              // version
            Ints.BYTES +     // elements num

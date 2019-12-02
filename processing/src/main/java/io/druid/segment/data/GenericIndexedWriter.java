@@ -23,12 +23,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
+import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -145,17 +147,25 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     if (dictionary) {
       flag |= GenericIndexed.Feature.SORTED.getMask();
     }
-    channel.write(ByteBuffer.wrap(new byte[] {GenericIndexed.version, flag}));
+    channel.write(ByteBuffer.wrap(new byte[]{GenericIndexed.version, flag}));
 
     // size + count + header + values
     int length = Ints.checkedCast(headerOut.getCount() + valuesOut.getCount() + Integer.BYTES);
     channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numWritten)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("header")))) {
-      ByteStreams.copy(input, channel);
+      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+      } else {
+        ByteStreams.copy(input, channel);
+      }
     }
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("values")))) {
-      ByteStreams.copy(input, channel);
+      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+      } else {
+        ByteStreams.copy(input, channel);
+      }
     }
   }
 }

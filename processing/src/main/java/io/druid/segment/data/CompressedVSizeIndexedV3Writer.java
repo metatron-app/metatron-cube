@@ -110,7 +110,7 @@ public class CompressedVSizeIndexedV3Writer extends MultiValueIndexedIntsWriter
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +   // version
            offsetWriter.getSerializedSize() +

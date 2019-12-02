@@ -186,7 +186,7 @@ public class ResourcePool<K, V> implements Closeable
           deficit--;
           poolVal = null;
         } else {
-          throw new IllegalStateException("WTF?! No objects left, and no object deficit. This is probably a bug.");
+          throw new IllegalStateException("No objects left, and no object deficit. This is probably a bug.");
         }
       }
 

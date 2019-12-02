@@ -124,7 +124,7 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +             // version
            1 +             // numBytes

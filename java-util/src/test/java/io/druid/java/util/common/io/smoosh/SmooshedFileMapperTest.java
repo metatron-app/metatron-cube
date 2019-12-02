@@ -225,7 +225,6 @@ public class SmooshedFileMapperTest
 
         }
       } catch (ISE var33) {
-        Assert.assertTrue(var33.getMessage().contains("Liar!!!"));
         exceptionThrown = true;
       }
 

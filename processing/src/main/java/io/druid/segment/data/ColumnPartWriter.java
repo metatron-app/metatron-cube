@@ -31,7 +31,7 @@ public interface ColumnPartWriter<T> extends Closeable
 
   void close() throws IOException;
 
-  long getSerializedSize();
+  long getSerializedSize() throws IOException;
 
   void writeToChannel(WritableByteChannel channel) throws IOException;
 }

@@ -55,28 +55,11 @@ public class TmpFileIOPeon implements IOPeon
       retFile = File.createTempFile("filePeon", filename);
       retFile.deleteOnExit();
       createdFiles.put(filename, retFile);
-      return new BufferedFileOutput(retFile.getAbsolutePath(), new FileOutputStream(retFile));
+      return new BufferedOutputStream(new FileOutputStream(retFile));
     } else if (allowOverwrite) {
-      return new BufferedFileOutput(retFile.getAbsolutePath(), new FileOutputStream(retFile));
+      return new BufferedOutputStream(new FileOutputStream(retFile));
     } else {
       throw new IOException("tmp file conflicts, file[" + filename + "] already exist!");
-    }
-  }
-
-  private static class BufferedFileOutput extends BufferedOutputStream implements FileOutput
-  {
-    private final String file;
-
-    public BufferedFileOutput(String file, OutputStream out)
-    {
-      super(out);
-      this.file = file;
-    }
-
-    @Override
-    public String getFile()
-    {
-      return file;
     }
   }
 

@@ -25,10 +25,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
@@ -221,7 +221,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           new Serializer()
           {
             @Override
-            public long getSerializedSize()
+            public long getSerializedSize() throws IOException
             {
               long size = 1 + // version
                           (version.compareTo(VERSION.COMPRESSED) >= 0

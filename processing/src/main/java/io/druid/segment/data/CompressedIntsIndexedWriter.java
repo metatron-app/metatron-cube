@@ -110,7 +110,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +             // version
            Ints.BYTES +    // numInserted

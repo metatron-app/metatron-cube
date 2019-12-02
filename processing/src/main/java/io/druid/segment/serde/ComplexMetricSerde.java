@@ -19,7 +19,6 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.base.Function;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.ObjectStrategy;
@@ -31,6 +30,7 @@ import java.nio.ByteBuffer;
 public abstract class ComplexMetricSerde
 {
   public abstract String getTypeName();
+
   public abstract ComplexMetricExtractor getExtractor();
 
   /**
@@ -53,37 +53,6 @@ public abstract class ComplexMetricSerde
    * @return an ObjectStrategy as used by GenericIndexed
    */
   public abstract ObjectStrategy getObjectStrategy();
-
-  /**
-   * Returns a function that can convert the Object provided by the ComplexColumn created through deserializeColumn
-   * into a number of expected input bytes to produce that object.
-   *
-   * This is used to approximate the size of the input data via the SegmentMetadataQuery and does not need to be
-   * overridden if you do not care about the query.
-   *
-   * @return A function that can compute the size of the complex object or null if you cannot/do not want to compute it
-   */
-  public Function<Object, Long> inputSizeFn()
-  {
-    return null;
-  }
-
-  /**
-   * Converts byte[] to intermediate representation of the aggregate.
-   *
-   * @param data array
-   * @param start offset in the byte array where to start reading
-   * @param numBytes number of bytes to read in given array
-   * @return intermediate representation of the aggregate
-   */
-  public Object fromBytes(byte[] data, int start, int numBytes)
-  {
-    ByteBuffer bb = ByteBuffer.wrap(data);
-    if(start > 0) {
-      bb.position(start);
-    }
-    return getObjectStrategy().fromByteBuffer(bb, numBytes);
-  }
 
   public static class Dummy extends ComplexMetricSerde {
 

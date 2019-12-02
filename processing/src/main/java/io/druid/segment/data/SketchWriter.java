@@ -24,6 +24,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
@@ -37,6 +38,7 @@ import io.druid.query.sketch.TypedSketch;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -129,13 +131,21 @@ public class SketchWriter implements ColumnPartWriter<Pair<String, Integer>>
     final int quantileLen = Ints.checkedCast(quantileOut.getCount());
     channel.write(ByteBuffer.wrap(Ints.toByteArray(quantileLen)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("quantile")))) {
-      ByteStreams.copy(input, channel);
+      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+      } else {
+        ByteStreams.copy(input, channel);
+      }
     }
     // size + theta
     final int thetaLen = Ints.checkedCast(thetaOut.getCount());
     channel.write(ByteBuffer.wrap(Ints.toByteArray(thetaLen)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("theta")))) {
-      ByteStreams.copy(input, channel);
+      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+      } else {
+        ByteStreams.copy(input, channel);
+      }
     }
   }
 }

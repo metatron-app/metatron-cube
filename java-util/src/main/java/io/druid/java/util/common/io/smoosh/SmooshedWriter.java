@@ -16,12 +16,12 @@ package io.druid.java.util.common.io.smoosh;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.channels.GatheringByteChannel;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public interface SmooshedWriter extends Closeable, GatheringByteChannel
+public interface SmooshedWriter extends Closeable, WritableByteChannel
 {
-  public int write(InputStream in) throws IOException;
+  long transferFrom(FileChannel src) throws IOException;
 }

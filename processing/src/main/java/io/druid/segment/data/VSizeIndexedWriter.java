@@ -19,20 +19,18 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
-import com.google.common.io.ByteSource;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
+import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -142,32 +140,14 @@ public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements C
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    try (ReadableByteChannel from = Channels.newChannel(combineStreams().openStream())) {
-      ByteStreams.copy(from, channel);
+    for (String fileName : Arrays.asList(metaFileName, headerFileName, valuesFileName)) {
+      try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(fileName))) {
+        if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+          ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+        } else {
+          ByteStreams.copy(input, channel);
+        }
+      }
     }
-  }
-
-  private ByteSource combineStreams()
-  {
-    return ByteSource.concat(
-        Iterables.transform(
-            Arrays.asList(metaFileName, headerFileName, valuesFileName),
-            new Function<String,ByteSource>() {
-
-              @Override
-              public ByteSource apply(final String input)
-              {
-                return new ByteSource()
-                {
-                  @Override
-                  public InputStream openStream() throws IOException
-                  {
-                    return ioPeon.makeInputStream(input);
-                  }
-                };
-              }
-            }
-        )
-    );
   }
 }

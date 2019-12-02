@@ -119,16 +119,6 @@ public class Logger
     log.error(StringUtils.safeFormat(message, formatArgs), t);
   }
 
-  public void wtf(String message, Object... formatArgs)
-  {
-    log.error(StringUtils.safeFormat("WTF?!: " + message, formatArgs), new Exception());
-  }
-
-  public void wtf(Throwable t, String message, Object... formatArgs)
-  {
-    log.error(StringUtils.safeFormat("WTF?!: " + message, formatArgs), t);
-  }
-
   public boolean isTraceEnabled()
   {
     return log.isTraceEnabled();

@@ -114,7 +114,7 @@ public class CompressedFloatsSupplierSerializer implements ColumnPartWriter<Floa
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +              // version
            Ints.BYTES +     // elements num

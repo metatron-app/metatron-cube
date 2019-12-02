@@ -37,8 +37,8 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedComplexColumnSerializer;
+import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.lucene.LuceneIndexingSpec;
@@ -177,7 +177,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return writer.getSerializedSize();
   }

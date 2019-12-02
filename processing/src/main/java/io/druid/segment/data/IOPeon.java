@@ -27,12 +27,9 @@ import java.io.OutputStream;
  */
 public interface IOPeon
 {
-  public OutputStream makeOutputStream(String filename) throws IOException;
-  public InputStream makeInputStream(String filename) throws IOException;
-  public void cleanup() throws IOException;
+  OutputStream makeOutputStream(String filename) throws IOException;
 
-  interface FileOutput
-  {
-    String getFile();
-  }
+  InputStream makeInputStream(String filename) throws IOException;
+
+  void cleanup() throws IOException;
 }

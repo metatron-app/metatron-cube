@@ -74,7 +74,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
         }
 
         @Override
-        public long getSerializedSize()
+        public long getSerializedSize() throws IOException
         {
           long serialized = super.getSerializedSize();
           serialized += Integer.BYTES;
@@ -197,7 +197,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return writer.getSerializedSize();
   }

@@ -116,7 +116,7 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
     return 1 +              // version
            1 +              // compression id
