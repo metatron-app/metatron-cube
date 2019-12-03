@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import org.joda.time.DateTime;
 
+import java.util.Comparator;
+
 /**
  */
 public class Result<T> implements Comparable<Result<T>>
@@ -39,6 +41,15 @@ public class Result<T> implements Comparable<Result<T>>
       }
     };
   }
+
+  public static final Comparator<Result> COMPARATOR = new Comparator<Result>()
+  {
+    @Override
+    public int compare(Result o1, Result o2)
+    {
+      return o1.timestamp.compareTo(o2.timestamp);
+    }
+  };
 
   public static String MISSING_SEGMENTS_KEY = "missingSegments";
 

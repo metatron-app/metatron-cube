@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -65,12 +64,10 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 public class SystemSchema extends AbstractSchema
 {
@@ -234,55 +231,12 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      //get available segments from druidSchema
-      final Map<DataSegment, SegmentMetadataHolder> availableSegmentMetadata = druidSchema.getSegmentMetadata();
-      final Iterator<Entry<DataSegment, SegmentMetadataHolder>> availableSegmentEntries = availableSegmentMetadata.entrySet()
-                                                                                                                  .iterator();
-
       //get published segments from coordinator
       final JsonParserIterator<DataSegment> metadataSegments = getMetadataSegments(
           druidLeaderClient,
           jsonMapper,
           responseHandler
       );
-
-      Set<String> availableSegmentIds = new HashSet<>();
-      //auth check for available segments
-      final Iterator<Entry<DataSegment, SegmentMetadataHolder>> authorizedAvailableSegments = getAuthorizedAvailableSegments(
-          availableSegmentEntries,
-          root
-      );
-
-      final FluentIterable<Object[]> availableSegments = FluentIterable
-          .from(() -> authorizedAvailableSegments)
-          .transform(val -> {
-            try {
-              if (!availableSegmentIds.contains(val.getKey().getIdentifier())) {
-                availableSegmentIds.add(val.getKey().getIdentifier());
-              }
-              return new Object[]{
-                  val.getKey().getIdentifier(),
-                  val.getKey().getDataSource(),
-                  val.getKey().getInterval().getStart().toString(),
-                  val.getKey().getInterval().getEnd().toString(),
-                  val.getKey().getSize(),
-                  val.getKey().getVersion(),
-                  Long.valueOf(val.getKey().getShardSpecWithDefault().getPartitionNum()),
-                  val.getValue().getNumReplicas(),
-                  val.getValue().getNumRows(),
-                  val.getValue().isPublished(), // 1L, //is_published is true for published segments
-                  val.getValue().isAvailable(),
-                  val.getValue().isRealtime(),
-                  jsonMapper.writeValueAsString(val.getKey())
-              };
-            }
-            catch (JsonProcessingException e) {
-              throw new RuntimeException(StringUtils.format(
-                  "Error getting segment payload for segment %s",
-                  val.getKey().getIdentifier()
-              ), e);
-            }
-          });
 
       //auth check for published segments
       final CloseableIterator<DataSegment> authorizedPublishedSegments = getAuthorizedPublishedSegments(
@@ -293,9 +247,6 @@ public class SystemSchema extends AbstractSchema
           .from(() -> authorizedPublishedSegments)
           .transform(val -> {
             try {
-              if (availableSegmentIds.contains(val.getIdentifier())) {
-                return null;
-              }
               return new Object[]{
                   val.getIdentifier(),
                   val.getDataSource(),
@@ -320,10 +271,7 @@ public class SystemSchema extends AbstractSchema
             }
           });
 
-      final Iterable<Object[]> allSegments = Iterables.unmodifiableIterable(
-          Iterables.concat(availableSegments, publishedSegments));
-
-      return Linq4j.asEnumerable(allSegments).where(t -> t != null);
+      return Linq4j.asEnumerable(publishedSegments).where(t -> t != null);
 
     }
 

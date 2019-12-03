@@ -28,10 +28,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
@@ -39,6 +35,10 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -51,6 +51,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
@@ -96,7 +97,7 @@ public class QueryUtils
         new NoneColumnIncluderator(),
         null,
         false,
-        EnumSet.of(SegmentMetadataQuery.AnalysisType.INTERVAL),
+        EnumSet.of(AnalysisType.INTERVAL),
         false,
         false,
         Queries.extractContext(query, BaseQuery.QUERYID)

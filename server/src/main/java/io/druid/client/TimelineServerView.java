@@ -35,6 +35,8 @@ import java.util.concurrent.Executor;
  */
 public interface TimelineServerView extends ServerView
 {
+  Iterable<String> getDataSources();
+
   TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource);
 
   /**

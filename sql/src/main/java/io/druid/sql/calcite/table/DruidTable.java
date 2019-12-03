@@ -20,7 +20,11 @@
 package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import io.druid.java.util.common.Pair;
+import io.druid.query.DataSource;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -33,23 +37,24 @@ import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
-import io.druid.query.DataSource;
+
+import java.util.Objects;
 
 public class DruidTable implements TranslatableTable
 {
   private final DataSource dataSource;
-  private final RowSignature rowSignature;
-  private final long numRows;
+  private final Supplier<Pair<RowSignature, Long>> supplier;
 
-  public DruidTable(
-      final DataSource dataSource,
-      final RowSignature rowSignature,
-      final long numRows
-  )
+  public DruidTable(DataSource dataSource, Supplier<Pair<RowSignature, Long>> supplier)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
-    this.rowSignature = Preconditions.checkNotNull(rowSignature, "rowSignature");
-    this.numRows = numRows;
+    this.supplier = Preconditions.checkNotNull(supplier, "supplier");
+  }
+
+  public DruidTable(DataSource dataSource, RowSignature rowSignature, long numRows)
+  {
+    this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
+    this.supplier = Suppliers.ofInstance(Pair.of(Preconditions.checkNotNull(rowSignature, "rowSignature"), numRows));
   }
 
   public DataSource getDataSource()
@@ -59,7 +64,7 @@ public class DruidTable implements TranslatableTable
 
   public RowSignature getRowSignature()
   {
-    return rowSignature;
+    return supplier.get().lhs;
   }
 
   @Override
@@ -71,13 +76,13 @@ public class DruidTable implements TranslatableTable
   @Override
   public Statistic getStatistic()
   {
-    return Statistics.of(numRows, ImmutableList.of());
+    return Statistics.of(supplier.get().rhs, ImmutableList.of());
   }
 
   @Override
   public RelDataType getRowType(final RelDataTypeFactory typeFactory)
   {
-    return rowSignature.getRelDataType(typeFactory);
+    return getRowSignature().getRelDataType(typeFactory);
   }
 
   @Override
@@ -113,20 +118,13 @@ public class DruidTable implements TranslatableTable
       return false;
     }
 
-    DruidTable that = (DruidTable) o;
-
-    if (dataSource != null ? !dataSource.equals(that.dataSource) : that.dataSource != null) {
-      return false;
-    }
-    return rowSignature != null ? rowSignature.equals(that.rowSignature) : that.rowSignature == null;
+    return Objects.equals(dataSource, ((DruidTable) o).dataSource);
   }
 
   @Override
   public int hashCode()
   {
-    int result = dataSource != null ? dataSource.hashCode() : 0;
-    result = 31 * result + (rowSignature != null ? rowSignature.hashCode() : 0);
-    return result;
+    return Objects.hashCode(dataSource);
   }
 
   @Override
@@ -134,7 +132,7 @@ public class DruidTable implements TranslatableTable
   {
     return "DruidTable{" +
            "dataSource=" + dataSource +
-           ", rowSignature=" + rowSignature +
+           ", rowSignature=" + getRowSignature() +
            '}';
   }
 }

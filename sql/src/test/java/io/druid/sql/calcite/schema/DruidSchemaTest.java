@@ -46,7 +46,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -141,18 +140,8 @@ public class DruidSchemaTest extends CalciteTestBase
     schema = new DruidSchema(
         walker,
         new TestServerInventoryView(walker.getSegments()),
-        PLANNER_CONFIG_DEFAULT,
         new NoopViewManager()
     );
-
-    schema.start();
-    schema.awaitInitialization();
-  }
-
-  @After
-  public void tearDown() throws Exception
-  {
-    schema.stop();
   }
 
   @Test

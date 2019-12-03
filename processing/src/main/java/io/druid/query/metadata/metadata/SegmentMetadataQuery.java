@@ -25,10 +25,13 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -55,6 +58,30 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
    * any potential confusion with string values.
    */
   public static final byte[] ANALYSIS_TYPES_CACHE_PREFIX = new byte[]{(byte) 0xFF};
+
+  public static SegmentMetadataQuery of(String dataSource, AnalysisType... analysisTypes)
+  {
+    return new SegmentMetadataQuery(
+        TableDataSource.of(dataSource),
+        QuerySegmentSpec.ETERNITY,
+        null,
+        null,
+        null,
+        null,
+        of(analysisTypes),
+        null,
+        null,
+        null
+    );
+  }
+
+  public static EnumSet<AnalysisType> of(AnalysisType... analysisTypes)
+  {
+    if (analysisTypes.length == 0) {
+      return EnumSet.noneOf(AnalysisType.class);
+    }
+    return EnumSet.of(analysisTypes[0], Arrays.copyOfRange(analysisTypes, 1, analysisTypes.length));
+  }
 
   public enum AnalysisType
   {
@@ -205,9 +232,28 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return lenientAggregatorMerge;
   }
 
+  @Override
+  public Ordering<SegmentAnalysis> getMergeOrdering()
+  {
+    Ordering<SegmentAnalysis> ordering = GuavaUtils.<SegmentAnalysis>noNullableNatural();
+    if (!merge && analyzingInterval()) {
+      ordering = Ordering.from(JodaUtils.intervalsByStartThenEnd()).onResultOf(new Function<SegmentAnalysis, Interval>()
+      {
+        @Override
+        public Interval apply(SegmentAnalysis input)
+        {
+          return JodaUtils.umbrellaInterval(input.getIntervals());
+        }
+      });
+    }
+    return isDescending() ? ordering.reverse() : ordering;
+  }
+
   public boolean analyzingOnlyInterval()
   {
-    return analysisTypes.size() == 1 && analysisTypes.contains(AnalysisType.INTERVAL);
+    return analysisTypes.size() == 1
+           && analysisTypes.contains(AnalysisType.INTERVAL)
+           && toInclude instanceof NoneColumnIncluderator;
   }
 
   public boolean analyzingInterval()

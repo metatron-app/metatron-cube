@@ -46,7 +46,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.ViewSupportHelper;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
@@ -283,7 +282,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {
-    QuerySegmentSpec spec = querySegmentSpec == null ? MultipleIntervalSegmentSpec.ETERNITY : querySegmentSpec;
+    QuerySegmentSpec spec = querySegmentSpec == null ? QuerySegmentSpec.ETERNITY : querySegmentSpec;
     QueryRunner<T> runner = spec.lookup(this, walker);
     if (walker instanceof ForwardingSegmentWalker) {
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);

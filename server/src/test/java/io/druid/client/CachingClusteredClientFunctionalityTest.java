@@ -214,6 +214,12 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
+          public Iterable<String> getDataSources()
+          {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
           public VersionedIntervalTimeline<String, ServerSelector> getTimeline(DataSource dataSource)
           {
             return timeline;

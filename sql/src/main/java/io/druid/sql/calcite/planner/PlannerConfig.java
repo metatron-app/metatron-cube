@@ -22,7 +22,6 @@ package io.druid.sql.calcite.planner;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.java.util.common.IAE;
 import org.joda.time.DateTimeZone;
-import org.joda.time.Period;
 
 import java.util.Map;
 import java.util.Objects;
@@ -38,9 +37,6 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
   public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
-
-  @JsonProperty
-  private Period metadataRefreshPeriod = new Period("PT1M");
 
   @JsonProperty
   private int maxSemiJoinRowsInMemory = 100000;
@@ -86,11 +82,6 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean dumpPlan = false;
-
-  public Period getMetadataRefreshPeriod()
-  {
-    return metadataRefreshPeriod;
-  }
 
   public int getMaxSemiJoinRowsInMemory()
   {
@@ -174,7 +165,6 @@ public class PlannerConfig
     }
 
     final PlannerConfig newConfig = new PlannerConfig();
-    newConfig.metadataRefreshPeriod = getMetadataRefreshPeriod();
     newConfig.maxSemiJoinRowsInMemory = getMaxSemiJoinRowsInMemory();
     newConfig.maxTopNLimit = getMaxTopNLimit();
     newConfig.maxQueryCount = getMaxQueryCount();
@@ -267,7 +257,6 @@ public class PlannerConfig
            joinReorderingBush == that.joinReorderingBush &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
-           Objects.equals(metadataRefreshPeriod, that.metadataRefreshPeriod) &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
   }
 
@@ -276,7 +265,6 @@ public class PlannerConfig
   {
 
     return Objects.hash(
-        metadataRefreshPeriod,
         maxSemiJoinRowsInMemory,
         maxTopNLimit,
         maxQueryCount,
@@ -299,8 +287,7 @@ public class PlannerConfig
   public String toString()
   {
     return "PlannerConfig{" +
-           "metadataRefreshPeriod=" + metadataRefreshPeriod +
-           ", maxSemiJoinRowsInMemory=" + maxSemiJoinRowsInMemory +
+           "maxSemiJoinRowsInMemory=" + maxSemiJoinRowsInMemory +
            ", maxTopNLimit=" + maxTopNLimit +
            ", maxQueryCount=" + maxQueryCount +
            ", selectThreshold=" + selectThreshold +

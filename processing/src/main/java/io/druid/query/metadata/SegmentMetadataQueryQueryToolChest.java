@@ -34,6 +34,7 @@ import io.druid.java.util.common.guava.MappedSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.CombiningSequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.Query;
@@ -50,7 +51,6 @@ import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -109,16 +109,7 @@ public class SegmentMetadataQueryQueryToolChest
       {
         if (((SegmentMetadataQuery) query).isMerge()) {
           // Merge everything always
-          return new Ordering<SegmentAnalysis>()
-          {
-            @Override
-            public int compare(
-                @Nullable SegmentAnalysis left, @Nullable SegmentAnalysis right
-            )
-            {
-              return 0;
-            }
-          };
+          return GuavaUtils.<SegmentAnalysis>allEquals();
         }
 
         return query.getMergeOrdering(); // No two elements should be equal, so it should never merge

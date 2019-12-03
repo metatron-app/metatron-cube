@@ -452,6 +452,12 @@ public class BrokerServerView implements TimelineServerView
 
 
   @Override
+  public Iterable<String> getDataSources()
+  {
+    return timelines.keySet();
+  }
+
+  @Override
   public VersionedIntervalTimeline<String, ServerSelector> getTimeline(DataSource dataSource)
   {
     String table = Iterables.getOnlyElement(dataSource.getNames());

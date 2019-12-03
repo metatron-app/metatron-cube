@@ -41,8 +41,6 @@ public class MultipleIntervalSegmentSpec implements QuerySegmentSpec
     return new MultipleIntervalSegmentSpec(Arrays.asList(intervals));
   }
 
-  public static QuerySegmentSpec ETERNITY = MultipleIntervalSegmentSpec.of(Intervals.ETERNITY);
-
   private final List<Interval> intervals;
 
   @JsonCreator

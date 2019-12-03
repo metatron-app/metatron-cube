@@ -314,19 +314,9 @@ public class CalciteTests
     final DruidSchema schema = new DruidSchema(
         walker,
         new TestServerInventoryView(walker.getSegments()),
-        plannerConfig,
         viewManager
     );
 
-    schema.start();
-    try {
-      schema.awaitInitialization();
-    }
-    catch (InterruptedException e) {
-      throw Throwables.propagate(e);
-    }
-
-    schema.stop();
     return schema;
   }
 

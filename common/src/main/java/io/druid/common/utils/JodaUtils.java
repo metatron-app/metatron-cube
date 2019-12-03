@@ -134,6 +134,11 @@ public class JodaUtils
     return retVal;
   }
 
+  public static Interval umbrellaInterval(List<Interval> intervals)
+  {
+    return intervals.size() == 1 ? intervals.get(0) : umbrellaInterval((Iterable<Interval>) intervals);
+  }
+
   public static Interval umbrellaInterval(Iterable<Interval> intervals)
   {
     DateTime startDate = null;

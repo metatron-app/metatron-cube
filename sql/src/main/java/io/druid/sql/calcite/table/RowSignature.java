@@ -23,13 +23,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
 import io.druid.math.expr.ExprType;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
@@ -43,6 +43,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -349,6 +351,19 @@ public class RowSignature implements TypeResolver
       Preconditions.checkNotNull(columnType, "columnType");
 
       columnTypeList.add(Pair.of(columnName, columnType));
+      return this;
+    }
+
+    public Builder sort()
+    {
+      Collections.sort(columnTypeList, new Comparator<Pair<String, ValueDesc>>()
+      {
+        @Override
+        public int compare(Pair<String, ValueDesc> o1, Pair<String, ValueDesc> o2)
+        {
+          return o1.lhs.compareTo(o2.lhs);
+        }
+      });
       return this;
     }
 

@@ -20,6 +20,8 @@
 package io.druid.sql.calcite.util;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.TimelineServerView;
@@ -34,6 +36,7 @@ import io.druid.timeline.TimelineLookup;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 public class TestServerInventoryView implements TimelineServerView
@@ -46,17 +49,29 @@ public class TestServerInventoryView implements TimelineServerView
       "dummy",
       0
   );
+  private final Set<String> dataSources;
   private final List<DataSegment> segments;
 
   public TestServerInventoryView(List<DataSegment> segments)
   {
     this.segments = ImmutableList.copyOf(segments);
+    this.dataSources = Sets.newHashSet();
+    for (DataSegment segment : segments) {
+      dataSources.add(segment.getDataSource());
+    }
+  }
+
+  @Override
+  public Iterable<String> getDataSources()
+  {
+    return ImmutableList.copyOf(dataSources);
   }
 
   @Override
   public TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource)
   {
-    throw new UnsupportedOperationException();
+    String tableName = Iterables.getOnlyElement(dataSource.getNames());
+    return dataSources.contains(tableName) ? new TimelineLookup.NotSupport<>() : null;
   }
 
   @Nullable
