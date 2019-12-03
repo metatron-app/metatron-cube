@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Evals;
@@ -42,11 +44,14 @@ import java.util.Objects;
  */
 public class ValueDesc implements Serializable, Cacheable
 {
+  private static final Interner<String> INTERNER = Interners.newStrongInterner();
+
   // primitives (should be conform with JsonValue of ValueType)
   public static final String STRING_TYPE = "string";
   public static final String FLOAT_TYPE = "float";
   public static final String DOUBLE_TYPE = "double";
   public static final String LONG_TYPE = "long";
+  public static final String BOOLEAN_TYPE = "boolean";
   public static final String DATETIME_TYPE = "datetime";
 
   // non primitives
@@ -70,6 +75,21 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String DECIMAL_TYPE = "decimal";
   public static final String STRUCT_TYPE = "struct";
 
+  static {
+    INTERNER.intern(STRING_TYPE);
+    INTERNER.intern(FLOAT_TYPE);
+    INTERNER.intern(DOUBLE_TYPE);
+    INTERNER.intern(LONG_TYPE);
+    INTERNER.intern(BOOLEAN_TYPE);
+    INTERNER.intern(DATETIME_TYPE);
+    INTERNER.intern(MAP_TYPE);
+    INTERNER.intern(LIST_TYPE);
+    INTERNER.intern(INDEXED_ID_TYPE);
+    INTERNER.intern(UNKNOWN_TYPE);
+    INTERNER.intern(DECIMAL_TYPE);
+    INTERNER.intern(STRUCT_TYPE);
+  }
+
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
   public static ValueDesc BOOLEAN = new ValueDesc(ValueType.BOOLEAN);
@@ -79,26 +99,26 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
 
   // dimension
-  public static ValueDesc DIM_STRING = ValueDesc.of(DIMENSION_PREFIX + STRING_TYPE);
+  public static ValueDesc DIM_STRING = new ValueDesc(DIMENSION_PREFIX + STRING_TYPE);
 
   // internal types
-  public static ValueDesc MAP = ValueDesc.of(MAP_TYPE);
-  public static ValueDesc LIST = ValueDesc.of(LIST_TYPE);
-  public static ValueDesc INDEXED_ID = ValueDesc.of(INDEXED_ID_TYPE);
+  public static ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
+  public static ValueDesc LIST = new ValueDesc(LIST_TYPE);
+  public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
 
   // from expression
-  public static ValueDesc DECIMAL = ValueDesc.of(DECIMAL_TYPE);
-  public static ValueDesc STRUCT = ValueDesc.of(STRUCT_TYPE);
-  public static ValueDesc UNKNOWN = ValueDesc.of(UNKNOWN_TYPE);
+  public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
+  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, Object[].class);
+  public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
-  public static ValueDesc STRING_ARRAY = ValueDesc.of(ARRAY_PREFIX + STRING_TYPE);
-  public static ValueDesc LONG_ARRAY = ValueDesc.of(ARRAY_PREFIX + LONG_TYPE);
-  public static ValueDesc FLOAT_ARRAY = ValueDesc.of(ARRAY_PREFIX + FLOAT_TYPE);
-  public static ValueDesc DOUBLE_ARRAY = ValueDesc.of(ARRAY_PREFIX + DOUBLE_TYPE);
+  public static ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
+  public static ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
+  public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
+  public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
-  public static ValueDesc SHAPE = ValueDesc.of("SHAPE");
-  public static ValueDesc INTERVAL = ValueDesc.of("INTERVAL", Interval.class);
-  public static ValueDesc OGC_GEOMETRY = ValueDesc.of("OGC_GEOMETRY");
+  public static ValueDesc SHAPE = new ValueDesc("SHAPE");
+  public static ValueDesc INTERVAL = new ValueDesc("INTERVAL", Interval.class);
+  public static ValueDesc OGC_GEOMETRY = new ValueDesc("OGC_GEOMETRY");
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -391,10 +411,15 @@ public class ValueDesc implements Serializable, Cacheable
     this.clazz = null;
   }
 
+  private ValueDesc(String typeName)
+  {
+    this(typeName, null);
+  }
+
   private ValueDesc(String typeName, Class clazz)
   {
     this.type = ValueType.of(Preconditions.checkNotNull(typeName, "typeName cannot be null"));
-    this.typeName = type.isPrimitive() ? type.getName() : normalize(typeName);
+    this.typeName = type.isPrimitive() ? type.getName() : INTERNER.intern(normalize(typeName));
     this.clazz = clazz;
   }
 
@@ -481,17 +506,43 @@ public class ValueDesc implements Serializable, Cacheable
   @JsonCreator
   public static ValueDesc of(String typeName)
   {
-    return typeName == null ? null : new ValueDesc(typeName, null);
+    return of(typeName, null);
   }
 
   public static ValueDesc of(ValueType valueType)
   {
-    return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType);
+    if (valueType == null) {
+      return ValueDesc.UNKNOWN;
+    }
+    switch (valueType) {
+      case STRING: return STRING;
+      case FLOAT: return FLOAT;
+      case DOUBLE: return DOUBLE;
+      case LONG: return LONG;
+      case BOOLEAN: return BOOLEAN;
+      case DATETIME: return DATETIME;
+    }
+    return new ValueDesc(valueType);
   }
 
   public static ValueDesc of(String typeName, Class clazz)
   {
-    return typeName == null ? null : new ValueDesc(typeName, clazz);
+    if (typeName == null) {
+      return null;
+    }
+    switch (typeName) {
+      case STRING_TYPE: return STRING;
+      case FLOAT_TYPE: return FLOAT;
+      case DOUBLE_TYPE: return DOUBLE;
+      case LONG_TYPE: return LONG;
+      case BOOLEAN_TYPE: return BOOLEAN;
+      case DATETIME_TYPE: return DATETIME;
+      case DECIMAL_TYPE: return DECIMAL;
+      case STRUCT_TYPE: return STRUCT;
+      case MAP_TYPE: return MAP;
+      case LIST_TYPE: return LIST;
+    }
+    return new ValueDesc(typeName, clazz);
   }
 
   public static boolean isMap(ValueDesc type)
@@ -546,12 +597,12 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isDecimal()
   {
-    return typeName.startsWith(DECIMAL_TYPE);
+    return typeName == DECIMAL_TYPE || typeName.startsWith(DECIMAL_TYPE);
   }
 
   public boolean isMap()
   {
-    return typeName.startsWith(MAP_TYPE);
+    return typeName == MAP_TYPE || typeName.startsWith(MAP_TYPE);
   }
 
   public boolean isString()
@@ -596,17 +647,17 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isStruct()
   {
-    return typeName.toLowerCase().startsWith(STRUCT_TYPE);
+    return typeName == STRUCT_TYPE || typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 
   public boolean isList()
   {
-    return typeName.toLowerCase().startsWith(LIST_TYPE);
+    return typeName == LIST_TYPE || typeName.toLowerCase().startsWith(LIST_TYPE);
   }
 
   public boolean isUnknown()
   {
-    return typeName.equals(UNKNOWN_TYPE);
+    return typeName == UNKNOWN_TYPE || typeName.equals(UNKNOWN_TYPE);
   }
 
   public boolean hasDescription()

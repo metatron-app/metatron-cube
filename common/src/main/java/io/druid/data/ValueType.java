@@ -38,6 +38,12 @@ public enum ValueType
 {
   BOOLEAN {
     @Override
+    public String getName()
+    {
+      return ValueDesc.BOOLEAN_TYPE;
+    }
+
+    @Override
     public Class classOfObject()
     {
       return Boolean.class;
@@ -69,6 +75,12 @@ public enum ValueType
   },
   FLOAT {
     @Override
+    public String getName()
+    {
+      return ValueDesc.FLOAT_TYPE;
+    }
+
+    @Override
     public Class classOfObject()
     {
       return Float.class;
@@ -93,6 +105,12 @@ public enum ValueType
     }
   },
   LONG {
+    @Override
+    public String getName()
+    {
+      return ValueDesc.LONG_TYPE;
+    }
+
     @Override
     public Class classOfObject()
     {
@@ -119,6 +137,12 @@ public enum ValueType
   },
   DOUBLE {
     @Override
+    public String getName()
+    {
+      return ValueDesc.DOUBLE_TYPE;
+    }
+
+    @Override
     public Class classOfObject()
     {
       return Double.class;
@@ -144,6 +168,12 @@ public enum ValueType
   },
   STRING {
     @Override
+    public String getName()
+    {
+      return ValueDesc.STRING_TYPE;
+    }
+
+    @Override
     public Class classOfObject()
     {
       return String.class;
@@ -163,6 +193,12 @@ public enum ValueType
   },
   DATETIME {
     @Override
+    public String getName()
+    {
+      return ValueDesc.DATETIME_TYPE;
+    }
+
+    @Override
     public Class classOfObject()
     {
       return DateTime.class;
@@ -180,7 +216,7 @@ public enum ValueType
       if (value instanceof DateTime) {
         return (DateTime) value;
       } else if (value instanceof Number) {
-        return new DateTime(((Number)value).longValue(), ISOChronology.getInstanceUTC());
+        return new DateTime(((Number) value).longValue(), ISOChronology.getInstanceUTC());
       }
       return super.cast(value);
     }
