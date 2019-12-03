@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.server.QueryManager;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -43,6 +44,7 @@ public class PlannerContext
   public static final String CTX_SQL_CURRENT_TIMESTAMP = "sqlCurrentTimestamp";
   public static final String CTX_SQL_TIME_ZONE = "sqlTimeZone";
 
+  private final QueryManager queryManager;
   private final DruidOperatorTable operatorTable;
   private final PlannerConfig plannerConfig;
   private final DateTime localNow;
@@ -50,12 +52,14 @@ public class PlannerContext
   private final Map<String, Object> queryContext;
 
   private PlannerContext(
+      final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
       final DateTime localNow,
       final Map<String, Object> queryContext
   )
   {
+    this.queryManager = queryManager;
     this.operatorTable = operatorTable;
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
@@ -65,6 +69,7 @@ public class PlannerContext
   }
 
   public static PlannerContext create(
+      final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
       final Map<String, Object> queryContext
@@ -94,11 +99,17 @@ public class PlannerContext
     }
 
     return new PlannerContext(
+        queryManager,
         operatorTable,
         plannerConfig.withOverrides(queryContext),
         utcNow.withZone(timeZone),
         queryContext
     );
+  }
+
+  public QueryManager getQueryManager()
+  {
+    return queryManager;
   }
 
   public DruidOperatorTable getOperatorTable()

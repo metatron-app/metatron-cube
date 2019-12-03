@@ -106,34 +106,47 @@ public class QueryMaker
     return queryConfig;
   }
 
-  public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
+  public Sequence<Object[]> prepareAndRun(final DruidQuery druidQuery)
   {
     final Query query = druidQuery.getQuery();
+    final Query prepared = prepareQuery(query);
+    return runQuery(druidQuery, prepared);
+  }
+
+  // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
+  public Query prepareQuery(Query<?> query)
+  {
+    String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
+    Query prepared = QueryUtils.setQueryId(query, queryId);
+    prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
+    prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
+    if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
+      Queries.iterate(prepared, new IdentityFunction<Query>()
+      {
+        @Override
+        public Query apply(Query query)
+        {
+          if (!(query.getDataSource() instanceof QueryDataSource) && query.getQuerySegmentSpec() == null) {
+            throw new CannotBuildQueryException(
+                "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
+            );
+          }
+          return query;
+        }
+      });
+    }
+    return prepared;
+  }
+
+  public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
+  {
+    Query query = druidQuery.getQuery();
     try {
       LOG.info("Running.. %s", jsonMapper.writeValueAsString(query));
     }
     catch (JsonProcessingException e) {
       LOG.info("Running.. %s", query);
     }
-
-    final Query prepared = prepareQuery(query);
-    if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
-      Queries.iterate(prepared, new IdentityFunction<Query>()
-      {
-        @Override
-        public Query apply(Query input)
-        {
-          if (!(prepared.getDataSource() instanceof QueryDataSource) &&
-              prepared.getQuerySegmentSpec() == null) {
-            throw new CannotBuildQueryException(
-                "requireTimeCondition is enabled, all queries must include a filter condition on the __time column"
-            );
-          }
-          return input;
-        }
-      });
-    }
-
     Hook.QUERY_PLAN.run(query);   // original query
 
     Query schema = prepared;
@@ -150,16 +163,6 @@ public class QueryMaker
     } else {
       throw new ISE("Cannot run query of class[%s]", prepared.getClass().getName());
     }
-  }
-
-  // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
-  public Query prepareQuery(Query<?> query)
-  {
-    String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-    query = QueryUtils.setQueryId(query, queryId);
-    query = QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig);
-    query = QueryUtils.resolveRecursively(query, segmentWalker);
-    return query;
   }
 
   @SuppressWarnings("unchecked")

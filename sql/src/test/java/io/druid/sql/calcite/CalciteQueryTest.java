@@ -88,6 +88,7 @@ import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
+import io.druid.server.QueryManager;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.DruidPlanner;
@@ -6903,6 +6904,7 @@ public class CalciteQueryTest extends CalciteTestBase
         druidSchema,
         systemSchema,
         walker,
+        new QueryManager(),
         operatorTable,
         plannerConfig,
         new QueryConfig(),

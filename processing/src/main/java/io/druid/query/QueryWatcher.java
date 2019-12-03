@@ -47,6 +47,8 @@ public interface QueryWatcher
 
   long remainingTime(String queryId);
 
+  boolean cancelQuery(String id);
+
   class Abstract implements QueryWatcher
   {
     @Override
@@ -54,5 +56,11 @@ public interface QueryWatcher
 
     @Override
     public long remainingTime(String queryId) { return 0;}
+
+    @Override
+    public boolean cancelQuery(String id)
+    {
+      return false;
+    }
   }
 }

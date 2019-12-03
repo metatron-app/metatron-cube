@@ -27,6 +27,7 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.sql.SQLFunctions;
+import io.druid.server.QueryManager;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RegexpExtractOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.StrposOperatorConversion;
@@ -73,6 +74,7 @@ public class ExpressionsTest extends CalciteTestBase
   private static final DateTimeZone LOS_ANGELES = DateTimeZone.forID("America/Los_Angeles");
 
   private final PlannerContext plannerContext = PlannerContext.create(
+      new QueryManager(),
       CalciteTests.createOperatorTable(),
       new PlannerConfig(),
       ImmutableMap.of()

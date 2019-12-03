@@ -161,6 +161,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
       throw new RE(ex, "Failure getting results from[%s] because of [%s]", url, ex.getMessage());
     }
 
+    @Override
     protected JsonParser createParser(JsonFactory factory) throws Exception
     {
       return factory.createParser(timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS));

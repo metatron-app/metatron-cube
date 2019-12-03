@@ -30,6 +30,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
+import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -103,6 +104,7 @@ public class SqlResourceTest extends CalciteTestBase
             druidSchema,
             systemSchema,
             walker,
+            new QueryManager(),
             operatorTable,
             plannerConfig,
             queryConfig,

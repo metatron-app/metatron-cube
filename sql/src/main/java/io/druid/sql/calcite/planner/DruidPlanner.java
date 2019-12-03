@@ -26,13 +26,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.BaseSequence;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.BrokerServerView;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.data.output.ForwardConstants;
+import io.druid.java.util.common.guava.BaseSequence;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -73,11 +74,16 @@ import org.apache.calcite.util.Pair;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class DruidPlanner implements Closeable, ForwardConstants
 {
@@ -170,32 +176,36 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
     final QueryMaker queryMaker = druidRel.getQueryMaker();
     final DruidQuery druidQuery = druidRel.toDruidQuery(false);
+    final Query query = queryMaker.prepareQuery(druidQuery.getQuery());
     final Supplier<Sequence<Object[]>> resultsSupplier = new Supplier<Sequence<Object[]>>()
     {
       @Override
       public Sequence<Object[]> get()
       {
-        Sequence<Object[]> sequence = queryMaker.runQuery(druidQuery);
-        if (root.isRefTrivial()) {
-          return sequence;
-        }
-        final int[] indices = Utils.getFieldIndices(root);
-        // Add a mapping on top to accommodate root.fields.
-        return Sequences.map(
-            sequence,
-            new Function<Object[], Object[]>()
-            {
-              @Override
-              public Object[] apply(final Object[] input)
+        Execs.SettableFuture future = new Execs.SettableFuture<Object>();
+        plannerContext.getQueryManager().registerQuery(query, future);
+        Sequence<Object[]> sequence = queryMaker.runQuery(druidQuery, query);
+        if (!root.isRefTrivial()) {
+          // Add a mapping on top to accommodate root.fields.
+          sequence = Sequences.map(
+              sequence,
+              new Function<Object[], Object[]>()
               {
-                final Object[] retVal = new Object[root.fields.size()];
-                for (int i = 0; i < indices.length; i++) {
-                  retVal[i] = input[indices[i]];
+                private final int[] indices = Utils.getFieldIndices(root);
+
+                @Override
+                public Object[] apply(final Object[] input)
+                {
+                  final Object[] retVal = new Object[root.fields.size()];
+                  for (int i = 0; i < indices.length; i++) {
+                    retVal[i] = input[indices[i]];
+                  }
+                  return retVal;
                 }
-                return retVal;
               }
-            }
-        );
+          );
+        }
+        return Sequences.withBaggage(sequence, future);
       }
     };
     return new PlannerResult(resultsSupplier, root.validatedRowType);
@@ -446,5 +456,26 @@ public class DruidPlanner implements Closeable, ForwardConstants
     }
     RelDataType dataType = typeFactory.createStructType(relTypes, names);
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(values.toArray())), dataType);
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
+
+    // Set any connection context parameters you need here (see "Connection context" below).
+    // Or leave empty for default behavior.
+    Properties connectionProperties = new Properties();
+
+    try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
+      try (
+          final Statement statement = connection.createStatement();
+          final ResultSet resultSet = statement.executeQuery("select * from lineitem")
+      ) {
+        int x = 0;
+        while (resultSet.next() && x++ < 10000) {
+          // Do something
+        }
+      }
+    }
   }
 }

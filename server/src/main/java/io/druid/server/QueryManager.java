@@ -62,6 +62,7 @@ public class QueryManager implements QueryWatcher, Runnable
     this.queries = Maps.newConcurrentMap();
   }
 
+  @Override
   public boolean cancelQuery(String id)
   {
     QueryStatus status = queries.get(id);

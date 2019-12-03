@@ -41,6 +41,7 @@ import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import io.druid.query.QueryConfig;
 import io.druid.server.DruidNode;
+import io.druid.server.QueryManager;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -152,6 +153,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
             druidSchema,
             systemSchema,
             walker,
+            new QueryManager(),
             operatorTable,
             plannerConfig,
             queryConfig,
@@ -718,6 +720,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
             druidSchema,
             systemSchema,
             walker,
+            new QueryManager(),
             operatorTable,
             plannerConfig,
             queryConfig,

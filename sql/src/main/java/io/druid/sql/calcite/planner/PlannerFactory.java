@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.server.QueryManager;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
@@ -61,6 +62,7 @@ public class PlannerFactory
   private final DruidSchema druidSchema;
   private final SystemSchema systemSchema;
   private final QuerySegmentWalker segmentWalker;
+  private final QueryManager queryManager;
   private final DruidOperatorTable operatorTable;
   private final PlannerConfig plannerConfig;
   private final QueryConfig queryConfig;
@@ -71,6 +73,7 @@ public class PlannerFactory
       final DruidSchema druidSchema,
       final SystemSchema systemSchema,
       final QuerySegmentWalker segmentWalker,
+      final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
       final QueryConfig queryConfig,
@@ -80,6 +83,7 @@ public class PlannerFactory
     this.druidSchema = druidSchema;
     this.systemSchema = systemSchema;
     this.segmentWalker = segmentWalker;
+    this.queryManager = queryManager;
     this.operatorTable = operatorTable;
     this.plannerConfig = plannerConfig;
     this.queryConfig = queryConfig;
@@ -90,6 +94,7 @@ public class PlannerFactory
   {
     final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker, systemSchema);
     final PlannerContext plannerContext = PlannerContext.create(
+        queryManager,
         operatorTable,
         plannerConfig,
         queryContext

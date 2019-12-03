@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
 import io.druid.query.QueryConfig;
+import io.druid.server.QueryManager;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
@@ -70,6 +71,7 @@ public class DruidStatementTest extends CalciteTestBase
         druidSchema,
         systemSchema,
         walker,
+        new QueryManager(),
         operatorTable,
         plannerConfig,
         queryConfig,
