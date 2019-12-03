@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,22 +17,31 @@
  * under the License.
  */
 
-package io.druid.segment.data;
+package io.druid.common;
 
-public interface Indexed<T> extends SizedIterable<T>
+public class IntTagged<T>
 {
-  Class<? extends T> getClazz();
+  private final int tag;
+  private final T value;
 
-  T get(int index);
+  private IntTagged(int tag, T value)
+  {
+    this.tag = tag;
+    this.value = value;
+  }
 
-  /**
-   * Returns the index of "value" in this Indexed object, or a negative number if the value is not present.
-   * The negative number is not guaranteed to be any particular number. Subclasses may tighten this contract
-   * (GenericIndexed does this).
-   *
-   * @param value value to search for
-   *
-   * @return index of value, or a negative number
-   */
-  int indexOf(T value);
+  public int tag()
+  {
+    return tag;
+  }
+
+  public T value()
+  {
+    return value;
+  }
+
+  public static <T> IntTagged<T> of(int tag, T value)
+  {
+    return new IntTagged<>(tag, value);
+  }
 }

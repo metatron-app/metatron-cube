@@ -73,15 +73,15 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows(int indexNum)
+  public Iterable<Rowboat> getRows()
   {
-    return Iterables.filter(baseAdapter.getRows(indexNum), filter);
+    return Iterables.filter(baseAdapter.getRows(), filter);
   }
 
   @Override
-  public Iterable<Rowboat> getRows(int indexNum, List<String> mergedDimensions, List<String> mergedMetrics)
+  public Iterable<Rowboat> getRows(List<String> mergedDimensions, List<String> mergedMetrics)
   {
-    return Iterables.filter(baseAdapter.getRows(indexNum, mergedDimensions, mergedMetrics), filter);
+    return Iterables.filter(baseAdapter.getRows(mergedDimensions, mergedMetrics), filter);
   }
 
   @Override

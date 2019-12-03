@@ -79,7 +79,7 @@ public class IncrementalIndexAdapterTest
                   .getBitmapFactory()
     );
 
-    Iterable<Rowboat> boats = incrementalAdapter.getRows(1);
+    Iterable<Rowboat> boats = incrementalAdapter.getRows();
     List<Rowboat> boatList = new ArrayList<>();
     for (Rowboat boat : boats) {
       boatList.add(boat);
@@ -134,7 +134,7 @@ public class IncrementalIndexAdapterTest
                   .getBitmapFactory()
     );
 
-    Iterable<Rowboat> boats = incrementalAdapter.getRows(1);
+    Iterable<Rowboat> boats = incrementalAdapter.getRows();
     Assert.assertEquals(5, Iterables.size(boats));
     File tempFile = File.createTempFile("asd", "asd");
     tempFile.delete();

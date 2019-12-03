@@ -14,7 +14,11 @@
 
 package io.druid.java.util.common.guava;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import io.druid.java.util.common.Pair;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -45,5 +49,38 @@ public class MergeIterable<T> implements Iterable<T>
     }
 
     return new MergeIterator<>(comparator, iterators);
+  }
+
+  public static class Tagged<T> extends MergeIterable<Pair<T, Integer>>
+  {
+    public Tagged(Comparator<T> comparator, List<Iterable<T>> baseIterables)
+    {
+      super(Ordering.from(comparator).onResultOf(Pair.lhsFn()), withIndex(baseIterables));
+    }
+  }
+
+  private static <T> List<Iterable<Pair<T, Integer>>> withIndex(List<Iterable<T>> iterables)
+  {
+    List<Iterable<Pair<T, Integer>>> withIndex = Lists.newArrayList();
+    for (int i = 0; i < iterables.size(); i++) {
+      final int index = i;
+      final Iterable<T> iterable = iterables.get(i);
+      withIndex.add(new Iterable<Pair<T, Integer>>()
+      {
+        @Override
+        public Iterator<Pair<T, Integer>> iterator()
+        {
+          return Iterators.transform(iterable.iterator(), new Function<T, Pair<T, Integer>>()
+          {
+            @Override
+            public Pair<T, Integer> apply(T input)
+            {
+              return Pair.of(input, index);
+            }
+          });
+        }
+      });
+    }
+    return withIndex;
   }
 }

@@ -182,8 +182,8 @@ public class IndexIO
         throw new SegmentValidationException("Metric names differ. Expected [%s] found [%s]", metNames1, metNames2);
       }
     }
-    final Iterator<Rowboat> it1 = adapter1.getRows(0).iterator();
-    final Iterator<Rowboat> it2 = adapter2.getRows(1).iterator();
+    final Iterator<Rowboat> it1 = adapter1.getRows().iterator();
+    final Iterator<Rowboat> it2 = adapter2.getRows().iterator();
     long row = 0L;
     while (it1.hasNext()) {
       if (!it2.hasNext()) {

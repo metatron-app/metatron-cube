@@ -39,7 +39,6 @@ import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -59,7 +58,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.guava.MergeIterable;
+import io.druid.java.util.common.guava.MergeIterator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
@@ -195,8 +194,8 @@ public class IndexMerger
       );
     }
 
-    if (!outDir.exists()) {
-      outDir.mkdirs();
+    if (!outDir.exists() && !outDir.mkdirs()) {
+      throw new ISE("Cannot create directory [%s]", outDir);
     }
     if (!outDir.isDirectory()) {
       throw new ISE("Can only persist to directories, [%s] wasn't a directory", outDir);
@@ -217,16 +216,6 @@ public class IndexMerger
         indexSpec,
         progress
     );
-  }
-
-  public File mergeQueryableIndex(
-      List<QueryableIndex> indexes,
-      final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec
-  ) throws IOException
-  {
-    return mergeQueryableIndex(indexes, true, metricAggs, outDir, indexSpec);
   }
 
   public File mergeQueryableIndex(
@@ -292,16 +281,6 @@ public class IndexMerger
         Closeables.close(index, true);
       }
     }
-  }
-
-  public File merge(
-      List<IndexableAdapter> indexes,
-      final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec
-  ) throws IOException
-  {
-    return merge(indexes, true, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
   }
 
   public File merge(
@@ -381,7 +360,7 @@ public class IndexMerger
     }
   }
 
-  public File merge(
+  private File merge(
       List<IndexableAdapter> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
@@ -457,38 +436,42 @@ public class IndexMerger
         );
       }
     }
-
-    Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn = new Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>>()
-    {
-      @Override
-      public Iterable<Rowboat> apply(
-          @Nullable ArrayList<Iterable<Rowboat>> boats
-      )
+    final int[][] rowNumConversions;
+    final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn;
+    if (indexes.size() == 1) {
+      rowNumConversions = null;
+      rowMergerFn = new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
       {
-        if (rollup) {
-          return CombiningIterable.create(
-              new MergeIterable<Rowboat>(
-                  GuavaUtils.<Rowboat>nullFirstNatural(),
-                  boats
-              ),
-              GuavaUtils.<Rowboat>nullFirstNatural(),
-              new RowboatMergeFunction(AggregatorFactory.toCombiner(sortedMetricAggs))
-          );
-        } else {
-          return new MergeIterable<Rowboat>(
-              new Ordering<Rowboat>()
-              {
-                @Override
-                public int compare(Rowboat left, Rowboat right)
-                {
-                  return Longs.compare(left.getTimestamp(), right.getTimestamp());
-                }
-              }.nullsFirst(),
-              boats
-          );
+        @Override
+        public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> input)
+        {
+          return input.get(0);
         }
+      };
+    } else {
+      rowNumConversions = new int[indexes.size()][];
+      for (int i = 0; i < rowNumConversions.length; i++) {
+        rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
+        Arrays.fill(rowNumConversions[i], INVALID_ROW);
       }
-    };
+      final Ordering<Rowboat> ordering;
+      final BinaryFn.Identical<Rowboat> merger;
+      if (rollup) {
+        ordering = Ordering.<Rowboat>natural();
+        merger = new RowboatMergeFunction(AggregatorFactory.toCombiner(sortedMetricAggs));
+      } else {
+        ordering = Rowboat.TIME_ONLY_COMPARATOR;
+        merger = null;
+      }
+      rowMergerFn = new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
+      {
+        @Override
+        public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
+        {
+          return new RowNumIterator(boats, rowNumConversions, merger, ordering);
+        }
+      };
+    }
 
     return makeIndexFiles(
         indexes,
@@ -498,6 +481,7 @@ public class IndexMerger
         mergedDimensions,
         mergedMetrics,
         rowMergerFn,
+        rowNumConversions,
         indexSpec
     );
   }
@@ -508,9 +492,8 @@ public class IndexMerger
     return convert(inDir, outDir, indexSpec, new BaseProgressIndicator());
   }
 
-  public File convert(
-      final File inDir, final File outDir, final IndexSpec indexSpec, final ProgressIndicator progress
-  ) throws IOException
+  public File convert(final File inDir, final File outDir, final IndexSpec indexSpec, final ProgressIndicator progress)
+      throws IOException
   {
     try (QueryableIndex index = indexIO.loadIndex(inDir)) {
       final IndexableAdapter adapter = new QueryableIndexIndexableAdapter(index);
@@ -521,24 +504,23 @@ public class IndexMerger
           progress,
           Lists.newArrayList(adapter.getDimensionNames()),
           Lists.newArrayList(adapter.getMetricNames()),
-          new Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>>()
+          new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
           {
-            @Nullable
             @Override
-            public Iterable<Rowboat> apply(ArrayList<Iterable<Rowboat>> input)
+            public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> input)
             {
               return input.get(0);
             }
           },
+          null,
           indexSpec
       );
     }
   }
 
 
-  public File append(
-      List<IndexableAdapter> indexes, AggregatorFactory[] aggregators, File outDir, IndexSpec indexSpec
-  ) throws IOException
+  public File append(List<IndexableAdapter> indexes, AggregatorFactory[] aggregators, File outDir, IndexSpec indexSpec)
+      throws IOException
   {
     return append(indexes, aggregators, outDir, indexSpec, new BaseProgressIndicator());
   }
@@ -564,14 +546,14 @@ public class IndexMerger
             new Function<IndexableAdapter, Iterable<String>>()
             {
               @Override
-              public Iterable<String> apply(@Nullable IndexableAdapter input)
+              public Iterable<String> apply(IndexableAdapter input)
               {
                 return Iterables.transform(
                     input.getMetricNames(),
                     new Function<String, String>()
                     {
                       @Override
-                      public String apply(@Nullable String input)
+                      public String apply(String input)
                       {
                         return input;
                       }
@@ -582,17 +564,19 @@ public class IndexMerger
         )
     );
 
-    Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn = new Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>>()
+    final int[][] rowNumConversions = new int[indexes.size()][];
+    for (int i = 0; i < rowNumConversions.length; i++) {
+      rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
+      Arrays.fill(rowNumConversions[i], INVALID_ROW);
+    }
+
+    Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn =
+        new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
     {
       @Override
-      public Iterable<Rowboat> apply(
-          @Nullable final ArrayList<Iterable<Rowboat>> boats
-      )
+      public Iterator<Rowboat> apply(final ArrayList<Iterator<Rowboat>> boats)
       {
-        return new MergeIterable<Rowboat>(
-            GuavaUtils.<Rowboat>nullFirstNatural(),
-            boats
-        );
+        return new MergeIterator<Rowboat>(GuavaUtils.<Rowboat>nullFirstNatural(), boats);
       }
     };
 
@@ -604,6 +588,7 @@ public class IndexMerger
         mergedDimensions,
         mergedMetrics,
         rowMergerFn,
+        rowNumConversions,
         indexSpec
     );
   }
@@ -615,7 +600,8 @@ public class IndexMerger
       final ProgressIndicator progress,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
-      final Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn,
+      final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
+      final int[][] rowNumConversions,
       final IndexSpec indexSpec
   ) throws IOException
   {
@@ -632,22 +618,14 @@ public class IndexMerger
         }
     );
 
-    Metadata segmentMetadata = null;
+    AggregatorFactory[] combiningMetricAggs = null;
     if (metricAggs != null) {
-      AggregatorFactory[] combiningMetricAggs = new AggregatorFactory[metricAggs.length];
+      combiningMetricAggs = new AggregatorFactory[metricAggs.length];
       for (int i = 0; i < metricAggs.length; i++) {
         combiningMetricAggs[i] = metricAggs[i].getCombiningFactory();
       }
-      segmentMetadata = Metadata.merge(
-          metadataList,
-          combiningMetricAggs
-      );
-    } else {
-      segmentMetadata = Metadata.merge(
-          metadataList,
-          null
-      );
     }
+    Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 
     final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
     final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
@@ -822,7 +800,7 @@ public class IndexMerger
       progress.progress();
       startTime = System.currentTimeMillis();
 
-      Iterable<Rowboat> theRows = makeRowIterable(
+      Iterator<Rowboat> theRows = makeRowIterable(
           indexes,
           mergedDimensions,
           mergedMetrics,
@@ -877,14 +855,10 @@ public class IndexMerger
       }
 
       long time = System.currentTimeMillis();
-      int[][] rowNumConversions = new int[indexes.size()][];
-      for (int i = 0; i < rowNumConversions.length; i++) {
-        rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
-        Arrays.fill(rowNumConversions[i], INVALID_ROW);
-      }
 
       int rowCount = 0;
-      for (Rowboat theRow : theRows) {
+      while (theRows.hasNext()) {
+        Rowboat theRow = theRows.next();
         progress.progress();
         timeWriter.add(theRow.getTimestamp());
 
@@ -909,9 +883,7 @@ public class IndexMerger
           }
         }
 
-        theRow.applyRowMapping(rowNumConversions, rowCount);
-
-        if ((++rowCount % 500000) == 0) {
+        if (++rowCount % 500000 == 0) {
           log.info(
               "outDir[%s] walked 500,000/%,d rows in %,d millis.", v8OutDir, rowCount, System.currentTimeMillis() - time
           );
@@ -1000,8 +972,9 @@ public class IndexMerger
           for (int j = 0; j < indexes.size(); ++j) {
             final int seekedDictId = dictIdSeeker[j].seek(dictId);
             if (seekedDictId != IndexSeeker.NOT_EXIST) {
+              ImmutableBitmap bitmap = indexes.get(j).getBitmap(dimension, seekedDictId);
               convertedInverteds.add(
-                  new ConvertingIndexedInts(indexes.get(j).getBitmap(dimension, seekedDictId), rowNumConversions[j])
+                  new ConvertingIndexedInts(bitmap, rowNumConversions == null ? null : rowNumConversions[j])
               );
             }
           }
@@ -1113,16 +1086,16 @@ public class IndexMerger
     }
   }
 
-  protected Iterable<Rowboat> makeRowIterable(
+  protected Iterator<Rowboat> makeRowIterable(
       final List<IndexableAdapter> indexes,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
       final ArrayList<Map<String, IntBuffer>> dimConversions,
       final boolean[] convertMissingDimsFlags,
-      final Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn
+      final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn
   )
   {
-    final ArrayList<Iterable<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
+    final ArrayList<Iterator<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
 
     for (int i = 0; i < indexes.size(); ++i) {
       final Map<String, IntBuffer> conversionMap = dimConversions.get(i);
@@ -1139,10 +1112,10 @@ public class IndexMerger
               }
           ).toArray(IntBuffer.class);
 
-      Iterable<Rowboat> target = indexes.get(i).getRows(i, mergedDimensions, mergedMetrics);
+      Iterator<Rowboat> target = indexes.get(i).getRows(mergedDimensions, mergedMetrics).iterator();
       if (!Arrays.equals(convertMissingDimsFlags, new boolean[mergedDimensions.size()]) ||
           !Arrays.equals(conversions, new IntBuffer[mergedDimensions.size()])) {
-        target = new MMappedIndexRowIterable(target, conversions, convertMissingDimsFlags);
+        target = new DimConversionIterator(target, conversions, convertMissingDimsFlags);
       }
       boats.add(target);
     }
@@ -1328,35 +1301,21 @@ public class IndexMerger
         @Override
         public Integer next()
         {
-          return conversion[iterator.next()];
+          return conversion == null ? iterator.next() : conversion[iterator.next()];
         }
       };
     }
   }
 
-  public static class MMappedIndexRowIterable implements Iterable<Rowboat>
+  public static class DimConversionIterator implements Iterator<Rowboat>
   {
-    private final Iterable<Rowboat> index;
-    private final IntBuffer[] conversions;
-    private final boolean[] convertMissingDimsFlags;
     private static final int[] EMPTY_STR_DIM = new int[]{0};
+    private final Iterator<Rowboat> iterator;
 
-    MMappedIndexRowIterable(
-        Iterable<Rowboat> index,
-        IntBuffer[] conversions,
-        boolean[] convertMissingDimsFlags
-    )
+    DimConversionIterator(Iterator<Rowboat> rows, IntBuffer[] conversions, boolean[] convertMissingDimsFlags)
     {
-      this.index = index;
-      this.conversions = conversions;
-      this.convertMissingDimsFlags = convertMissingDimsFlags;
-    }
-
-    @Override
-    public Iterator<Rowboat> iterator()
-    {
-      return Iterators.transform(
-          index.iterator(),
+      iterator = Iterators.transform(
+          rows,
           new Function<Rowboat, Rowboat>()
           {
             @Override
@@ -1381,6 +1340,18 @@ public class IndexMerger
             }
           }
       );
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return iterator.hasNext();
+    }
+
+    @Override
+    public Rowboat next()
+    {
+      return iterator.next();
     }
   }
 
@@ -1421,7 +1392,7 @@ public class IndexMerger
     }
   }
 
-  public static class RowboatMergeFunction implements BinaryFn<Rowboat, Rowboat, Rowboat>
+  public static class RowboatMergeFunction implements BinaryFn.Identical<Rowboat>
   {
     private final AggregatorFactory.Combiner[] metricAggs;
 
@@ -1453,7 +1424,6 @@ public class IndexMerger
           lhsMetrics[i] = metricAggs[i].combine(lhsMetric, rhsMetric);
         }
       }
-      lhs.comprised(rhs.getComprisedRows());
       return lhs;
     }
   }
@@ -1576,6 +1546,85 @@ public class IndexMerger
       final String value = smallest.rhs.next();
 
       conversions[index].put(counter);
+      if (smallest.rhs.hasNext()) {
+        pQueue.add(smallest);
+      }
+      return value;
+    }
+
+    @Override
+    public void remove()
+    {
+      throw new UnsupportedOperationException("remove");
+    }
+  }
+
+  static class RowNumIterator implements Iterator<Rowboat>
+  {
+    private final PriorityQueue<Pair<Integer, PeekingIterator<Rowboat>>> pQueue;
+
+    private final int[][] conversions;
+    private final BinaryFn.Identical<Rowboat> merger;
+    private final Ordering<Rowboat> ordering;
+
+    private int rowNum;
+
+    RowNumIterator(List<Iterator<Rowboat>> rowboats, int[][] conversions, BinaryFn.Identical<Rowboat> merger, Ordering<Rowboat> ordering)
+    {
+      Preconditions.checkArgument(rowboats.size() == conversions.length);
+      pQueue = new PriorityQueue<>(
+          rowboats.size(),
+          new Comparator<Pair<Integer, PeekingIterator<Rowboat>>>()
+          {
+            @Override
+            public int compare(Pair<Integer, PeekingIterator<Rowboat>> lhs, Pair<Integer, PeekingIterator<Rowboat>> rhs)
+            {
+              return ordering.compare(lhs.rhs.peek(), rhs.rhs.peek());
+            }
+          }
+      );
+      this.conversions = conversions;
+      for (int i = 0; i < conversions.length; i++) {
+        final PeekingIterator<Rowboat> iter = Iterators.peekingIterator(rowboats.get(i));
+        if (iter.hasNext()) {
+          pQueue.add(Pair.of(i, iter));
+        }
+      }
+      this.merger = merger;
+      this.ordering = ordering;
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return !pQueue.isEmpty();
+    }
+
+    @Override
+    public Rowboat next()
+    {
+      Pair<Integer, PeekingIterator<Rowboat>> smallest = pQueue.remove();
+      if (smallest == null) {
+        throw new NoSuchElementException();
+      }
+      Rowboat value = writeTranslate(smallest, rowNum);
+
+      if (merger != null) {
+        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.peek().rhs.peek()) == 0) {
+          value = merger.apply(value, writeTranslate(pQueue.remove(), rowNum));
+        }
+      }
+      rowNum++;
+
+      return value;
+    }
+
+    private Rowboat writeTranslate(Pair<Integer, PeekingIterator<Rowboat>> smallest, int rowNum)
+    {
+      final int index = smallest.lhs;
+      final Rowboat value = smallest.rhs.next();
+
+      conversions[index][value.getRowNum()] = rowNum;
       if (smallest.rhs.hasNext()) {
         pQueue.add(smallest);
       }

@@ -319,7 +319,7 @@ public class IndexGeneratorJobPartitionDirTest
         List<String> test1Expected = ImmutableList.of("a", "b");
         List<String> test2Expected = ImmutableList.of("1", "2");
 
-        for(Rowboat row: adapter.getRows(1))
+        for(Rowboat row: adapter.getRows())
         {
           Object[] metrics = row.getMetrics();
           int[][] dimInts = row.getDims();

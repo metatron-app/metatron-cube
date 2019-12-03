@@ -19,37 +19,35 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.collections.IntList;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
 
 public class Rowboat implements Comparable<Rowboat>
 {
+  public static final Ordering<Rowboat> TIME_ONLY_COMPARATOR = new Ordering<Rowboat>()
+  {
+    @Override
+    public int compare(Rowboat left, Rowboat right)
+    {
+      return Longs.compare(left.getTimestamp(), right.getTimestamp());
+    }
+  };
+
   private final long timestamp;
   private final int[][] dims;
   private final Object[] metrics;
-  private final IntList comprisedRows;
+  private final int rowNum;
 
-  public Rowboat(
-      long timestamp,
-      int[][] dims,
-      Object[] metrics,
-      int indexNum,
-      int rowNum
-  )
-  {
-    this(timestamp, dims, metrics, new IntList(indexNum, rowNum));
-  }
-
-  private Rowboat(long timestamp, int[][] dims, Object[] metrics, IntList comprisedRows)
+  public Rowboat(long timestamp, int[][] dims, Object[] metrics, int rowNum)
   {
     this.timestamp = timestamp;
     this.dims = dims;
     this.metrics = metrics;
-    this.comprisedRows = comprisedRows;
+    this.rowNum = rowNum;
   }
 
   public long getTimestamp()
@@ -67,36 +65,15 @@ public class Rowboat implements Comparable<Rowboat>
     return metrics;
   }
 
-  public void comprised(IntList comprising)
-  {
-    comprisedRows.addAll(comprising);
-  }
-
-  public IntList getComprisedRows()
-  {
-    return comprisedRows;
-  }
-
-  public void applyRowMapping(int[][] conversions, int rowNum)
-  {
-    for (int i = 0; i < comprisedRows.size(); i += 2) {
-      conversions[comprisedRows.get(i)][comprisedRows.get(i + 1)] = rowNum;
-    }
-  }
-
-  public int getIndexNum()
-  {
-    return comprisedRows.get(0);
-  }
-
   public int getRowNum()
   {
-    return comprisedRows.get(1);
+    return rowNum;
   }
 
   @Override
   public int compareTo(Rowboat rhs)
   {
+    // should be called after dim-conversion is completed
     int retVal = Longs.compare(timestamp, rhs.timestamp);
 
     if (retVal == 0) {
@@ -140,7 +117,7 @@ public class Rowboat implements Comparable<Rowboat>
            "timestamp=" + new DateTime(timestamp).toString() +
            ", dims=" + Arrays.deepToString(dims) +
            ", metrics=" + Arrays.toString(metrics) +
-           ", comprisedRows=" + comprisedRows +
+           ", rowNum=" + rowNum +
            '}';
   }
 }

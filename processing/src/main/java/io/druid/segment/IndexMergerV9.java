@@ -91,6 +91,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,7 +117,8 @@ public class IndexMergerV9 extends IndexMerger
       final ProgressIndicator progress,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
-      final Function<ArrayList<Iterable<Rowboat>>, Iterable<Rowboat>> rowMergerFn,
+      final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
+      final int[][] rowNumConversions,
       final IndexSpec indexSpec
   ) throws IOException
   {
@@ -193,7 +195,7 @@ public class IndexMergerV9 extends IndexMerger
 
       /************* Walk through data sets, merge them, and write merged columns *************/
       progress.progress();
-      final Iterable<Rowboat> theRows = makeRowIterable(
+      final Iterator<Rowboat> theRows = makeRowIterable(
           adapters,
           mergedDimensions,
           mergedMetrics,
@@ -208,14 +210,13 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<GenericColumnSerializer> metWriters = setupMetricsWriters(
           ioPeon, mergedMetrics, metricTypeNames, indexSpec
       );
-      final int[][] rowNumConversions = new int[adapters.size()][];
       final ArrayList<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
       for (int i = 0; i < mergedDimensions.size(); ++i) {
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
       }
       mergeIndexesAndWriteColumns(
           adapters, progress, theRows, timeWriter, dimWriters, metWriters,
-          dimensionSkipFlag, rowNumConversions, nullRowsList, dimHasNullFlags
+          dimensionSkipFlag, nullRowsList, dimHasNullFlags
       );
 
       /************ Create Inverted Indexes *************/
@@ -528,8 +529,9 @@ public class IndexMergerV9 extends IndexMerger
         for (int j = 0; j < adapters.size(); ++j) {
           final int seekedDictId = dictIdSeeker[j].seek(dictId);
           if (seekedDictId != IndexSeeker.NOT_EXIST) {
+            ImmutableBitmap bitmap = adapters.get(j).getBitmap(dimension, seekedDictId);
             convertedInverteds.add(
-                new ConvertingIndexedInts(adapters.get(j).getBitmap(dimension, seekedDictId), rowNumConversions[j])
+                new ConvertingIndexedInts(bitmap, rowNumConversions == null ? null : rowNumConversions[j])
             );
           }
         }
@@ -625,12 +627,11 @@ public class IndexMergerV9 extends IndexMerger
   private void mergeIndexesAndWriteColumns(
       final List<IndexableAdapter> adapters,
       final ProgressIndicator progress,
-      final Iterable<Rowboat> theRows,
+      final Iterator<Rowboat> theRows,
       final LongColumnSerializer timeWriter,
       final ArrayList<ColumnPartWriter> dimWriters,
       final ArrayList<GenericColumnSerializer> metWriters,
       final boolean[] dimensionSkipFlag,
-      final int[][] rowNumConversions,
       final ArrayList<MutableBitmap> nullRowsList,
       final boolean[] dimHasNullFlags
   ) throws IOException
@@ -639,14 +640,10 @@ public class IndexMergerV9 extends IndexMerger
     progress.startSection(section);
     long startTime = System.currentTimeMillis();
 
-    for (int i = 0; i < adapters.size(); i++) {
-      rowNumConversions[i] = new int[adapters.get(i).getNumRows()];
-      Arrays.fill(rowNumConversions[i], INVALID_ROW);
-    }
-
     int rowNum = 0;
     long time = System.currentTimeMillis();
-    for (Rowboat theRow : theRows) {
+    while (theRows.hasNext()) {
+      Rowboat theRow = theRows.next();
       progress.progress();
       timeWriter.serialize(rowNum, theRow.getTimestamp());
 
@@ -669,8 +666,6 @@ public class IndexMergerV9 extends IndexMerger
         }
         dimWriters.get(i).add(dims[i]);
       }
-
-      theRow.applyRowMapping(rowNumConversions, rowNum);
 
       if ((++rowNum % 500_000) == 0) {
         log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - time);

@@ -43,9 +43,9 @@ public interface IndexableAdapter
 
   Indexed<String> getDimValueLookup(String dimension);
 
-  Iterable<Rowboat> getRows(int indexNum);
+  Iterable<Rowboat> getRows();
 
-  Iterable<Rowboat> getRows(int indexNum, List<String> mergedDimensions, List<String> mergedMetrics);
+  Iterable<Rowboat> getRows(List<String> mergedDimensions, List<String> mergedMetrics);
 
   @Nullable
   ImmutableBitmap getBitmap(String dimension, int dictId);

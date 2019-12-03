@@ -19,20 +19,7 @@
 
 package io.druid.segment.data;
 
-public interface Indexed<T> extends SizedIterable<T>
+public interface SizedIterable<T> extends Iterable<T>
 {
-  Class<? extends T> getClazz();
-
-  T get(int index);
-
-  /**
-   * Returns the index of "value" in this Indexed object, or a negative number if the value is not present.
-   * The negative number is not guaranteed to be any particular number. Subclasses may tighten this contract
-   * (GenericIndexed does this).
-   *
-   * @param value value to search for
-   *
-   * @return index of value, or a negative number
-   */
-  int indexOf(T value);
+  int size();
 }

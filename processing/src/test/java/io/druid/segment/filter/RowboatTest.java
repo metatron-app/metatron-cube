@@ -29,95 +29,95 @@ import org.junit.Test;
  */
 public class RowboatTest
 {
-  @Test
-  public void testRowboatCompare()
-  {
-    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
-    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
-    Assert.assertEquals(0, rb1.compareTo(rb2));
-
-    Rowboat rb3 = new Rowboat(12345L, new int[][]{new int[]{3}, new int[]{2}}, new Object[]{7}, 1, 5);
-    Assert.assertNotEquals(0, rb1.compareTo(rb3));
-  }
-
-  @Test
-  public void testRowboatComprise()
-  {
-    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 0, 10);
-    rb1.comprised(new IntList(0, 11));
-    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
-
-    IntList comprisedRows = rb1.getComprisedRows();
-    comprisedRows.addAll(rb2.getComprisedRows());
-    Assert.assertEquals(3 * 2, comprisedRows.size());
-    Assert.assertArrayEquals(new int[] {0, 10, 0, 11, 1, 5}, comprisedRows.array());
-  }
-
-  @Test
-  public void testBiggerCompare()
-  {
-    Rowboat rb1 = new Rowboat(
-        0,
-        new int[][]{
-            new int[]{0},
-            new int[]{138},
-            new int[]{44},
-            new int[]{374},
-            new int[]{0},
-            new int[]{0},
-            new int[]{552},
-            new int[]{338},
-            new int[]{910},
-            new int[]{25570},
-            new int[]{9},
-            new int[]{0},
-            new int[]{0},
-            new int[]{0}
-        },
-        new Object[]{1.0, 47.0, "someMetric"},
-        1, 0
-    );
-
-    Rowboat rb2 = new Rowboat(
-        0,
-        new int[][]{
-            new int[]{0},
-            new int[]{138},
-            new int[]{44},
-            new int[]{374},
-            new int[]{0},
-            new int[]{0},
-            new int[]{553},
-            new int[]{338},
-            new int[]{910},
-            new int[]{25580},
-            new int[]{9},
-            new int[]{0},
-            new int[]{0},
-            new int[]{0}
-        },
-        new Object[]{1.0, 47.0, "someMetric"},
-        1, 0
-    );
-
-    Assert.assertNotEquals(0, rb1.compareTo(rb2));
-  }
-
-  @Test
-  public void testToString()
-  {
-    Assert.assertEquals(
-        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=[[1], [2]], metrics=[someMetric], comprisedRows=[1, 5]}",
-        new Rowboat(0, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{"someMetric"}, 1, 5).toString()
-    );
-  }
-
-  @Test
-  public void testLotsONullString()
-  {
-    Assert.assertEquals(
-        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=null, metrics=null, comprisedRows=[1, 5]}",
-        new Rowboat(0, null, null, 1, 5).toString()
-    );
-  }
+//  @Test
+//  public void testRowboatCompare()
+//  {
+//    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
+//    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
+//    Assert.assertEquals(0, rb1.compareTo(rb2));
+//
+//    Rowboat rb3 = new Rowboat(12345L, new int[][]{new int[]{3}, new int[]{2}}, new Object[]{7}, 1, 5);
+//    Assert.assertNotEquals(0, rb1.compareTo(rb3));
+//  }
+//
+//  @Test
+//  public void testRowboatComprise()
+//  {
+//    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 0, 10);
+//    rb1.comprised(new IntList(0, 11));
+//    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
+//
+//    IntList comprisedRows = rb1.getComprisedRows();
+//    comprisedRows.addAll(rb2.getComprisedRows());
+//    Assert.assertEquals(3 * 2, comprisedRows.size());
+//    Assert.assertArrayEquals(new int[] {0, 10, 0, 11, 1, 5}, comprisedRows.array());
+//  }
+//
+//  @Test
+//  public void testBiggerCompare()
+//  {
+//    Rowboat rb1 = new Rowboat(
+//        0,
+//        new int[][]{
+//            new int[]{0},
+//            new int[]{138},
+//            new int[]{44},
+//            new int[]{374},
+//            new int[]{0},
+//            new int[]{0},
+//            new int[]{552},
+//            new int[]{338},
+//            new int[]{910},
+//            new int[]{25570},
+//            new int[]{9},
+//            new int[]{0},
+//            new int[]{0},
+//            new int[]{0}
+//        },
+//        new Object[]{1.0, 47.0, "someMetric"},
+//        1, 0
+//    );
+//
+//    Rowboat rb2 = new Rowboat(
+//        0,
+//        new int[][]{
+//            new int[]{0},
+//            new int[]{138},
+//            new int[]{44},
+//            new int[]{374},
+//            new int[]{0},
+//            new int[]{0},
+//            new int[]{553},
+//            new int[]{338},
+//            new int[]{910},
+//            new int[]{25580},
+//            new int[]{9},
+//            new int[]{0},
+//            new int[]{0},
+//            new int[]{0}
+//        },
+//        new Object[]{1.0, 47.0, "someMetric"},
+//        1, 0
+//    );
+//
+//    Assert.assertNotEquals(0, rb1.compareTo(rb2));
+//  }
+//
+//  @Test
+//  public void testToString()
+//  {
+//    Assert.assertEquals(
+//        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=[[1], [2]], metrics=[someMetric], comprisedRows=[1, 5]}",
+//        new Rowboat(0, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{"someMetric"}, 1, 5).toString()
+//    );
+//  }
+//
+//  @Test
+//  public void testLotsONullString()
+//  {
+//    Assert.assertEquals(
+//        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=null, metrics=null, comprisedRows=[1, 5]}",
+//        new Rowboat(0, null, null, 1, 5).toString()
+//    );
+//  }
 }

@@ -44,6 +44,11 @@ import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.sql.http.SqlResource;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.Properties;
 
 public class SqlModule implements Module
@@ -109,5 +114,39 @@ public class SqlModule implements Module
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(PROPERTY_SQL_ENABLE_AVATICA, "false"));
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
+
+    // Set any connection context parameters you need here (see "Connection context" below).
+    // Or leave empty for default behavior.
+    Properties connectionProperties = new Properties();
+
+    try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
+      try (
+          final Statement statement = connection.createStatement();
+          final ResultSet resultSet = statement.executeQuery("select * from lineitem")
+      ) {
+        ResultSetMetaData metaData = resultSet.getMetaData();
+        int count = metaData.getColumnCount();
+        StringBuilder b = new StringBuilder();
+        int x = 0;
+        while (resultSet.next() && x++ < 100) {
+          b.setLength(0);
+          for (int i = 1; i <= count; i++) {
+            if (i > 1) {
+              b.append(',');
+            }
+            b.append(resultSet.getObject(i));
+          }
+//          System.out.println(b.toString());
+          // Do something
+        }
+        resultSet.close();
+        statement.close();
+      }
+    }
   }
 }

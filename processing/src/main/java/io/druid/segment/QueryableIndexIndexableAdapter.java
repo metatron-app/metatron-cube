@@ -162,17 +162,13 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows(int indexNum)
+  public Iterable<Rowboat> getRows()
   {
-    return getRows(indexNum, Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
+    return getRows(Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
   }
 
   @Override
-  public Iterable<Rowboat> getRows(
-      final int indexNum,
-      final List<String> mergedDimensions,
-      final List<String> mergedMetrics
-  )
+  public Iterable<Rowboat> getRows(final List<String> mergedDimensions, final List<String> mergedMetrics)
   {
     return new Iterable<Rowboat>()
     {
@@ -266,7 +262,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             }
 
             final long timestamp = timestamps.getLong(currRow);
-            return new Rowboat(timestamp, dims, metricArray, indexNum, currRow++);
+            return new Rowboat(timestamp, dims, metricArray, currRow++);
           }
 
           @Override
