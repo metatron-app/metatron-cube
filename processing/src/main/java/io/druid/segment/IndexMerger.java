@@ -46,7 +46,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
-import io.druid.collections.CombiningIterable;
 import io.druid.common.guava.FileOutputSupplier;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -58,11 +57,11 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.guava.MergeIterator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
@@ -84,6 +83,8 @@ import io.druid.segment.incremental.IncrementalIndexAdapter;
 import io.druid.segment.serde.ComplexMetricColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
+import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -108,7 +109,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
@@ -118,7 +118,6 @@ public class IndexMerger
   private static final Logger log = new Logger(IndexMerger.class);
 
   protected static final ListIndexed<String> EMPTY_STR_DIM_VAL = new ListIndexed<>(Arrays.asList(""), String.class);
-  protected static final int INVALID_ROW = -1;
   protected static final Splitter SPLITTER = Splitter.on(",");
 
   protected final ObjectMapper mapper;
@@ -452,7 +451,6 @@ public class IndexMerger
       rowNumConversions = new int[indexes.size()][];
       for (int i = 0; i < rowNumConversions.length; i++) {
         rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
-        Arrays.fill(rowNumConversions[i], INVALID_ROW);
       }
       final Ordering<Rowboat> ordering;
       final BinaryFn.Identical<Rowboat> merger;
@@ -567,18 +565,18 @@ public class IndexMerger
     final int[][] rowNumConversions = new int[indexes.size()][];
     for (int i = 0; i < rowNumConversions.length; i++) {
       rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
-      Arrays.fill(rowNumConversions[i], INVALID_ROW);
     }
 
-    Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn =
+    // no rollup
+    final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn =
         new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
-    {
-      @Override
-      public Iterator<Rowboat> apply(final ArrayList<Iterator<Rowboat>> boats)
-      {
-        return new MergeIterator<Rowboat>(GuavaUtils.<Rowboat>nullFirstNatural(), boats);
-      }
-    };
+        {
+          @Override
+          public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
+          {
+            return new RowNumIterator(boats, rowNumConversions, null, Ordering.natural());
+          }
+        };
 
     return makeIndexFiles(
         indexes,
@@ -968,23 +966,23 @@ public class IndexMerger
         //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
         for (int dictId = 0; dictId < dimVals.size(); dictId++) {
           progress.progress();
-          final List<Iterable<Integer>> convertedInverteds = Lists.newArrayListWithCapacity(indexes.size());
+          final List<IntIterator> convertedInverteds = Lists.newArrayListWithCapacity(indexes.size());
           for (int j = 0; j < indexes.size(); ++j) {
             final int seekedDictId = dictIdSeeker[j].seek(dictId);
             if (seekedDictId != IndexSeeker.NOT_EXIST) {
               ImmutableBitmap bitmap = indexes.get(j).getBitmap(dimension, seekedDictId);
-              convertedInverteds.add(
-                  new ConvertingIndexedInts(bitmap, rowNumConversions == null ? null : rowNumConversions[j])
-              );
+              if (bitmap == null) {
+                continue;
+              }
+              if (rowNumConversions != null) {
+                convertedInverteds.add(new IntIterators.Mapped(bitmap.iterator(), rowNumConversions[j]));
+              } else {
+                convertedInverteds.add(bitmap.iterator());
+              }
             }
           }
 
-          final MutableBitmap bitset = bitmapSerdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
-          for (int row : CombiningIterable.createSplatted(convertedInverteds, GuavaUtils.<Integer>nullFirstNatural())) {
-            if (row != INVALID_ROW) {
-              bitset.add(row);
-            }
-          }
+          final MutableBitmap bitset = toBitmap(convertedInverteds, bitmapFactory.makeEmptyMutableBitmap());
 
           if (dictId == 0 && (Iterables.getFirst(dimVals, "") == null)) {
             bitset.or(nullRowsList.get(i));
@@ -1463,7 +1461,7 @@ public class IndexMerger
 
     DictionaryMergeIterator(Indexed<String>[] dimValueLookups, boolean useDirect)
     {
-      pQueue = new PriorityQueue<>(
+      pQueue = new ObjectHeapPriorityQueue<>(
           dimValueLookups.length,
           new Comparator<Pair<Integer, PeekingIterator<String>>>()
           {
@@ -1500,7 +1498,7 @@ public class IndexMerger
             )
         );
         if (iter.hasNext()) {
-          pQueue.add(Pair.of(i, iter));
+          pQueue.enqueue(Pair.of(i, iter));
         }
       }
     }
@@ -1514,14 +1512,9 @@ public class IndexMerger
     @Override
     public String next()
     {
-      Pair<Integer, PeekingIterator<String>> smallest = pQueue.remove();
-      if (smallest == null) {
-        throw new NoSuchElementException();
-      }
-      final String value = writeTranslate(smallest, counter);
-
-      while (!pQueue.isEmpty() && value.equals(pQueue.peek().rhs.peek())) {
-        writeTranslate(pQueue.remove(), counter);
+      final String value = writeTranslate(pQueue.first(), counter);
+      while (!pQueue.isEmpty() && value.equals(pQueue.first().rhs.peek())) {
+        writeTranslate(pQueue.first(), counter);
       }
       counter++;
 
@@ -1547,7 +1540,9 @@ public class IndexMerger
 
       conversions[index].put(counter);
       if (smallest.rhs.hasNext()) {
-        pQueue.add(smallest);
+        pQueue.changed();
+      } else {
+        pQueue.dequeue();
       }
       return value;
     }
@@ -1569,10 +1564,15 @@ public class IndexMerger
 
     private int rowNum;
 
-    RowNumIterator(List<Iterator<Rowboat>> rowboats, int[][] conversions, BinaryFn.Identical<Rowboat> merger, Ordering<Rowboat> ordering)
+    RowNumIterator(
+        List<Iterator<Rowboat>> rowboats,
+        int[][] conversions,
+        BinaryFn.Identical<Rowboat> merger,
+        Ordering<Rowboat> ordering
+    )
     {
       Preconditions.checkArgument(rowboats.size() == conversions.length);
-      pQueue = new PriorityQueue<>(
+      pQueue = new ObjectHeapPriorityQueue<>(
           rowboats.size(),
           new Comparator<Pair<Integer, PeekingIterator<Rowboat>>>()
           {
@@ -1587,7 +1587,7 @@ public class IndexMerger
       for (int i = 0; i < conversions.length; i++) {
         final PeekingIterator<Rowboat> iter = Iterators.peekingIterator(rowboats.get(i));
         if (iter.hasNext()) {
-          pQueue.add(Pair.of(i, iter));
+          pQueue.enqueue(Pair.of(i, iter));
         }
       }
       this.merger = merger;
@@ -1603,15 +1603,10 @@ public class IndexMerger
     @Override
     public Rowboat next()
     {
-      Pair<Integer, PeekingIterator<Rowboat>> smallest = pQueue.remove();
-      if (smallest == null) {
-        throw new NoSuchElementException();
-      }
-      Rowboat value = writeTranslate(smallest, rowNum);
-
+      Rowboat value = writeTranslate(pQueue.first(), rowNum);
       if (merger != null) {
-        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.peek().rhs.peek()) == 0) {
-          value = merger.apply(value, writeTranslate(pQueue.remove(), rowNum));
+        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.first().rhs.peek()) == 0) {
+          value = merger.apply(value, writeTranslate(pQueue.first(), rowNum));
         }
       }
       rowNum++;
@@ -1626,7 +1621,9 @@ public class IndexMerger
 
       conversions[index][value.getRowNum()] = rowNum;
       if (smallest.rhs.hasNext()) {
-        pQueue.add(smallest);
+        pQueue.changed();
+      } else {
+        pQueue.dequeue();
       }
       return value;
     }
@@ -1636,5 +1633,28 @@ public class IndexMerger
     {
       throw new UnsupportedOperationException("remove");
     }
+  }
+
+  MutableBitmap toBitmap(final List<IntIterator> intIterators, final MutableBitmap bitmap)
+  {
+    if (intIterators.isEmpty()) {
+      return bitmap;
+    }
+    if (intIterators.size() == 1) {
+      final IntIterator iterator = intIterators.get(0);
+      while (iterator.hasNext()) {
+        bitmap.add(iterator.next());
+      }
+      return bitmap;
+    }
+    final IntIterator sorted = new IntIterators.Sorted(intIterators);
+    int prev = -1;
+    while (sorted.hasNext()) {
+      final int next = sorted.next();
+      if (next != prev) {
+        bitmap.add(prev = next);
+      }
+    }
+    return bitmap;
   }
 }

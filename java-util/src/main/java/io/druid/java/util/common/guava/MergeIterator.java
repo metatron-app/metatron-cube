@@ -16,25 +16,22 @@ package io.druid.java.util.common.guava;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 
 /**
-*/
+ */
 public class MergeIterator<T> implements Iterator<T>
 {
   private final PriorityQueue<PeekingIterator<T>> pQueue;
 
-  public MergeIterator(
-      final Comparator<T> comparator,
-      List<Iterator<T>> iterators
-  )
+  public MergeIterator(final Comparator<T> comparator, final List<Iterator<T>> iterators)
   {
-    pQueue = new PriorityQueue<>(
+    pQueue = new ObjectHeapPriorityQueue<>(
         16,
         new Comparator<PeekingIterator<T>>()
         {
@@ -45,35 +42,30 @@ public class MergeIterator<T> implements Iterator<T>
           }
         }
     );
-
     for (Iterator<T> iterator : iterators) {
       final PeekingIterator<T> iter = Iterators.peekingIterator(iterator);
-
       if (iter != null && iter.hasNext()) {
-        pQueue.add(iter);
+        pQueue.enqueue(iter);
       }
     }
-
   }
 
   @Override
   public boolean hasNext()
   {
-    return ! pQueue.isEmpty();
+    return !pQueue.isEmpty();
   }
 
   @Override
   public T next()
   {
-    if (! hasNext()) {
-      throw new NoSuchElementException();
-    }
-
-    PeekingIterator<T> retIt = pQueue.remove();
+    final PeekingIterator<T> retIt = pQueue.first();
     T retVal = retIt.next();
 
     if (retIt.hasNext()) {
-      pQueue.add(retIt);
+      pQueue.changed();
+    } else {
+      pQueue.dequeue();
     }
 
     return retVal;

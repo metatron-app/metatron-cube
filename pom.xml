@@ -104,6 +104,7 @@
         <freemarker.version>2.3.28</freemarker.version>
         <drill-fmpp-maven-plugin.version>1.14.0</drill-fmpp-maven-plugin.version>
         <javacc-maven-plugin.version>2.4</javacc-maven-plugin.version>
+        <fastutil.version>8.1.0</fastutil.version>
     </properties>
 
     <modules>
@@ -674,7 +675,7 @@
             <dependency>
                 <groupId>it.unimi.dsi</groupId>
                 <artifactId>fastutil</artifactId>
-                <version>8.1.0</version>
+                <version>${fastutil.version}</version>
             </dependency>
             <dependency>
                 <groupId>net.sf.opencsv</groupId>

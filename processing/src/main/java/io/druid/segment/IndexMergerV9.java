@@ -37,8 +37,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
-import io.druid.collections.CombiningIterable;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
@@ -50,6 +48,7 @@ import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnDescriptor;
@@ -79,6 +78,7 @@ import io.druid.segment.serde.StringMetricSerde;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.roaringbitmap.IntIterator;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -90,7 +90,6 @@ import java.nio.IntBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -525,23 +524,23 @@ public class IndexMergerV9 extends IndexMerger
       //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
       for (int dictId = 0; dictId < dimVals.size(); dictId++) {
         progress.progress();
-        final List<Iterable<Integer>> convertedInverteds = Lists.newArrayListWithCapacity(adapters.size());
+        final List<IntIterator> convertedInverteds = Lists.newArrayListWithCapacity(adapters.size());
         for (int j = 0; j < adapters.size(); ++j) {
           final int seekedDictId = dictIdSeeker[j].seek(dictId);
           if (seekedDictId != IndexSeeker.NOT_EXIST) {
             ImmutableBitmap bitmap = adapters.get(j).getBitmap(dimension, seekedDictId);
-            convertedInverteds.add(
-                new ConvertingIndexedInts(bitmap, rowNumConversions == null ? null : rowNumConversions[j])
-            );
+            if (bitmap == null) {
+              continue;
+            }
+            if (rowNumConversions != null) {
+              convertedInverteds.add(new IntIterators.Mapped(bitmap.iterator(), rowNumConversions[j]));
+            } else {
+              convertedInverteds.add(bitmap.iterator());
+            }
           }
         }
 
-        final MutableBitmap bitset = bitmapFactory.makeEmptyMutableBitmap();
-        for (int row : CombiningIterable.createSplatted(convertedInverteds, GuavaUtils.<Integer>nullFirstNatural())) {
-          if (row != INVALID_ROW) {
-            bitset.add(row);
-          }
-        }
+        final MutableBitmap bitset = toBitmap(convertedInverteds, bitmapFactory.makeEmptyMutableBitmap());
 
         if (sketchWriter != null) {
           sketchWriter.add(Pair.of(dimVals.get(dictId), bitset.size()));
@@ -578,7 +577,6 @@ public class IndexMergerV9 extends IndexMerger
     log.info("Completed inverted index in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
-
 
   private ArrayList<ColumnPartWriter<ImmutableBitmap>> setupBitmapIndexWriters(
       final IOPeon ioPeon,
