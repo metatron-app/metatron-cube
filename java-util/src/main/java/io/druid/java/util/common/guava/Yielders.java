@@ -14,6 +14,7 @@
 
 package io.druid.java.util.common.guava;
 
+import com.google.common.base.Throwables;
 import com.google.common.io.Closeables;
 
 import java.io.Closeable;
@@ -23,6 +24,18 @@ import java.io.IOException;
  */
 public class Yielders
 {
+  public static <T> T close(Yielder<T> yielder)
+  {
+    try {
+      T value = yielder.get();
+      yielder.close();
+      return value;
+    }
+    catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
   public static <T> Yielder<T> done(final T finalVal, final Closeable closeable)
   {
     return new Yielder<T>()
@@ -36,7 +49,7 @@ public class Yielders
       @Override
       public Yielder<T> next(T initValue)
       {
-        return null;
+        return this;
       }
 
       @Override

@@ -28,7 +28,10 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.common.ConcatSequence;
+import io.druid.common.InterruptibleSequence;
+import io.druid.common.Progressing;
+import io.druid.common.Yielders;
+import io.druid.common.guava.ExecuteWhenDoneYielder;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Accumulators;
 import io.druid.java.util.common.guava.BaseSequence;
@@ -41,10 +44,6 @@ import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.parsers.CloseableIterator;
-import io.druid.common.InterruptibleSequence;
-import io.druid.common.Progressing;
-import io.druid.common.Yielders;
-import io.druid.common.guava.ExecuteWhenDoneYielder;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -174,16 +173,6 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
   public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
   {
     return concat(map(sequence, fn));
-  }
-
-  public static <T> Sequence<T> concat(Iterable<Sequence<T>> sequences)
-  {
-    return concat(Sequences.simple(sequences));
-  }
-
-  public static <T> Sequence<T> concat(Sequence<Sequence<T>> sequences)
-  {
-    return new ConcatSequence<>(sequences);
   }
 
   public static <From, M, To> Sequence<To> map(Sequence<From> sequence, Function<From, M> fn1, Function<M, To> fn2)
