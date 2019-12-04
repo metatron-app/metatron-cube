@@ -32,15 +32,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.http.client.HttpClient;
-import io.druid.java.util.http.client.Request;
-import io.druid.java.util.http.client.response.StatusResponseHandler;
-import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.Sequences;
@@ -50,6 +41,15 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.response.StatusResponseHandler;
+import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
@@ -463,6 +463,18 @@ public class BrokerServerView implements TimelineServerView
     String table = Iterables.getOnlyElement(dataSource.getNames());
     synchronized (lock) {
       return timelines.get(table);
+    }
+  }
+
+  @Override
+  public Iterable<ServerSelector> getSelectors(String dataSource)
+  {
+    synchronized (lock) {
+      VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(dataSource);
+      if (timeline == null) {
+        return ImmutableList.of();
+      }
+      return timeline.getAll();
     }
   }
 

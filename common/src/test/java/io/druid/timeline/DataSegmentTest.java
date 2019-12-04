@@ -91,7 +91,8 @@ public class DataSegmentTest
         Arrays.asList("met1", "met2"),
         NoneShardSpec.instance(),
         TEST_VERSION,
-        1
+        1,
+        2
     );
 
     final Map<String, Object> objectMap = mapper.readValue(
@@ -101,7 +102,7 @@ public class DataSegmentTest
         }
     );
 
-    Assert.assertEquals(10, objectMap.size());
+    Assert.assertEquals(11, objectMap.size());
     Assert.assertEquals("something", objectMap.get("dataSource"));
     Assert.assertEquals(interval.toString(), objectMap.get("interval"));
     Assert.assertEquals("1", objectMap.get("version"));
@@ -111,6 +112,7 @@ public class DataSegmentTest
     Assert.assertEquals(ImmutableMap.of("type", "none"), objectMap.get("shardSpec"));
     Assert.assertEquals(TEST_VERSION, objectMap.get("binaryVersion"));
     Assert.assertEquals(1, objectMap.get("size"));
+    Assert.assertEquals(2, objectMap.get("numRows"));
 
     DataSegment deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
 
@@ -122,6 +124,7 @@ public class DataSegmentTest
     Assert.assertEquals(segment.getMetrics(), deserializedSegment.getMetrics());
     Assert.assertEquals(segment.getShardSpecWithDefault(), deserializedSegment.getShardSpecWithDefault());
     Assert.assertEquals(segment.getSize(), deserializedSegment.getSize());
+    Assert.assertEquals(segment.getNumRows(), deserializedSegment.getNumRows());
     Assert.assertEquals(segment.getIdentifier(), deserializedSegment.getIdentifier());
 
     deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);

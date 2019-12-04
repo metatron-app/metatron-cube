@@ -146,6 +146,8 @@ public class DataSegment implements Comparable<DataSegment>
   private final List<String> metrics;
   private final ShardSpec shardSpec;
   private final long size;
+  private final int numRows;
+
   private final String identifier;
 
   @JsonCreator
@@ -159,7 +161,8 @@ public class DataSegment implements Comparable<DataSegment>
       @JsonProperty("metrics") @JsonDeserialize(using = CommaListJoinDeserializer.class) List<String> metrics,
       @JsonProperty("shardSpec") ShardSpec shardSpec,
       @JsonProperty("binaryVersion") Integer binaryVersion,
-      @JsonProperty("size") long size
+      @JsonProperty("size") long size,
+      @JsonProperty("numRows") int numRows
   )
   {
     // dataSource, dimensions & metrics are stored as canonical string values to decrease memory required for storing large numbers of segments.
@@ -176,6 +179,7 @@ public class DataSegment implements Comparable<DataSegment>
     this.shardSpec = shardSpec;
     this.binaryVersion = binaryVersion;
     this.size = size;
+    this.numRows = numRows;
 
     this.identifier = makeDataSegmentIdentifier(
         this.dataSource,
@@ -184,6 +188,21 @@ public class DataSegment implements Comparable<DataSegment>
         this.version,
         this.shardSpec
     );
+  }
+
+  public DataSegment(
+      String dataSource,
+      Interval interval,
+      String version,
+      Map<String, Object> loadSpec,
+      List<String> dimensions,
+      List<String> metrics,
+      ShardSpec shardSpec,
+      Integer binaryVersion,
+      long size
+  )
+  {
+    this(dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, -1);
   }
 
   /**
@@ -259,6 +278,12 @@ public class DataSegment implements Comparable<DataSegment>
   }
 
   @JsonProperty
+  public int getNumRows()
+  {
+    return numRows;
+  }
+
+  @JsonProperty
   public String getIdentifier()
   {
     return identifier;
@@ -299,6 +324,11 @@ public class DataSegment implements Comparable<DataSegment>
     return builder(this).size(size).build();
   }
 
+  public DataSegment withNumRows(int numRows)
+  {
+    return builder(this).numRows(numRows).build();
+  }
+
   public DataSegment withVersion(String version)
   {
     return builder(this).version(version).build();
@@ -316,7 +346,7 @@ public class DataSegment implements Comparable<DataSegment>
 
   public DataSegment withMinimum()
   {
-    return new DataSegment(dataSource, interval, version, null, null, null, shardSpec, binaryVersion, size);
+    return new DataSegment(dataSource, interval, version, null, null, null, shardSpec, binaryVersion, size, numRows);
   }
 
   @Override
@@ -377,6 +407,7 @@ public class DataSegment implements Comparable<DataSegment>
     private ShardSpec shardSpec;
     private Integer binaryVersion;
     private long size;
+    private int numRows;
 
     public Builder()
     {
@@ -385,6 +416,7 @@ public class DataSegment implements Comparable<DataSegment>
       this.metrics = ImmutableList.of();
       this.shardSpec = NoneShardSpec.instance();
       this.size = -1;
+      this.numRows = -1;
     }
 
     public Builder(DataSegment segment)
@@ -398,6 +430,7 @@ public class DataSegment implements Comparable<DataSegment>
       this.shardSpec = segment.getShardSpecWithDefault();
       this.binaryVersion = segment.getBinaryVersion();
       this.size = segment.getSize();
+      this.numRows = segment.getNumRows();
     }
 
     public Builder dataSource(String dataSource)
@@ -454,6 +487,12 @@ public class DataSegment implements Comparable<DataSegment>
       return this;
     }
 
+    public Builder numRows(int numRows)
+    {
+      this.numRows = numRows;
+      return this;
+    }
+
     public DataSegment build()
     {
       // Check stuff that goes into the identifier, at least.
@@ -471,7 +510,8 @@ public class DataSegment implements Comparable<DataSegment>
           metrics,
           shardSpec,
           binaryVersion,
-          size
+          size,
+          numRows
       );
     }
   }

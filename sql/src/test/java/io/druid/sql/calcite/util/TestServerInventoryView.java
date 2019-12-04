@@ -74,6 +74,12 @@ public class TestServerInventoryView implements TimelineServerView
     return dataSources.contains(tableName) ? new TimelineLookup.NotSupport<>() : null;
   }
 
+  @Override
+  public Iterable<ServerSelector> getSelectors(String dataSource)
+  {
+    return ImmutableList.of();
+  }
+
   @Nullable
   @Override
   public List<ImmutableDruidServer> getDruidServers()

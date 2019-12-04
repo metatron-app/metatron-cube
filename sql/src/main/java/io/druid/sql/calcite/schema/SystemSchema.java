@@ -22,9 +22,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -34,12 +36,14 @@ import io.druid.client.JsonParserIterator;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.java.util.http.client.Request;
+import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.OperatorKey;
@@ -165,7 +169,7 @@ public class SystemSchema extends AbstractSchema
     this.tableMap = ImmutableMap.<String, Table>builder()
       .put(
           SEGMENTS_TABLE,
-          new SegmentsTable(druidSchema, coordinatorDruidLeaderClient, jsonMapper, responseHandler)
+          new SegmentsTable(serverView, jsonMapper)
       )
       .put(
           SERVERS_TABLE,
@@ -198,22 +202,13 @@ public class SystemSchema extends AbstractSchema
 
   static class SegmentsTable extends AbstractTable implements ScannableTable
   {
-    private final DruidSchema druidSchema;
-    private final CoordinatorClient druidLeaderClient;
+    private final TimelineServerView serverView;
     private final ObjectMapper jsonMapper;
-    private final BytesAccumulatingResponseHandler responseHandler;
 
-    public SegmentsTable(
-        DruidSchema druidSchemna,
-        CoordinatorClient druidLeaderClient,
-        ObjectMapper jsonMapper,
-        BytesAccumulatingResponseHandler responseHandler
-    )
+    public SegmentsTable(TimelineServerView serverView, ObjectMapper jsonMapper)
     {
-      this.druidSchema = druidSchemna;
-      this.druidLeaderClient = druidLeaderClient;
+      this.serverView = serverView;
       this.jsonMapper = jsonMapper;
-      this.responseHandler = responseHandler;
     }
 
     @Override
@@ -231,47 +226,59 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      //get published segments from coordinator
-      final JsonParserIterator<DataSegment> metadataSegments = getMetadataSegments(
-          druidLeaderClient,
-          jsonMapper,
-          responseHandler
-      );
-
-      //auth check for published segments
-      final CloseableIterator<DataSegment> authorizedPublishedSegments = getAuthorizedPublishedSegments(
-          metadataSegments,
-          root
-      );
-      final FluentIterable<Object[]> publishedSegments = FluentIterable
-          .from(() -> authorizedPublishedSegments)
-          .transform(val -> {
-            try {
-              return new Object[]{
-                  val.getIdentifier(),
-                  val.getDataSource(),
-                  val.getInterval().getStart().toString(),
-                  val.getInterval().getEnd().toString(),
-                  val.getSize(),
-                  val.getVersion(),
-                  Long.valueOf(val.getShardSpecWithDefault().getPartitionNum()),
-                  0L,
-                  -1L,
-                  1L,
-                  0L,
-                  0L, // TODO numReplicas
-                  jsonMapper.writeValueAsString(val)
-              };
+      Iterable<ServerSelector> selectors = Iterables.concat(Iterables.transform(
+          serverView.getDataSources(),
+          new Function<String, Iterable<ServerSelector>>()
+          {
+            @Override
+            public Iterable<ServerSelector> apply(String dataSource)
+            {
+              return serverView.getSelectors(dataSource);
             }
-            catch (JsonProcessingException e) {
-              throw new RuntimeException(StringUtils.format(
-                  "Error getting segment payload for segment %s",
-                  val.getIdentifier()
-              ), e);
-            }
-          });
-
-      return Linq4j.asEnumerable(publishedSegments).where(t -> t != null);
+          }
+      ));
+      Iterable<Object[]> segments = Iterables.transform(selectors, new Function<ServerSelector, Object[]>()
+      {
+        @Override
+        public Object[] apply(ServerSelector input)
+        {
+          final DataSegment segment = input.getSegment();
+          if (segment == null) {
+            return null;
+          }
+          final List<DruidServerMetadata> candidates = input.getCandidates();
+          long isRealtime = 0;
+          long isPublished = 0;
+          for (DruidServerMetadata server : candidates) {
+            isRealtime += server.isAssignable() ? 0 : 1;
+            isPublished += server.isHistorical() ? 1 : 0;
+          }
+          try {
+            return new Object[]{
+                segment.getIdentifier(),
+                segment.getDataSource(),
+                segment.getInterval().getStart().toString(),
+                segment.getInterval().getEnd().toString(),
+                segment.getSize(),
+                segment.getVersion(),
+                Long.valueOf(segment.getShardSpecWithDefault().getPartitionNum()),
+                candidates.size(),
+                segment.getNumRows(),
+                isPublished,
+                1,
+                isRealtime,
+                jsonMapper.writeValueAsString(segment)
+            };
+          }
+          catch (JsonProcessingException e) {
+            throw new RuntimeException(StringUtils.format(
+                "Error getting segment payload for segment %s",
+                segment.getIdentifier()
+            ), e);
+          }
+        }
+      });
+      return Linq4j.asEnumerable(segments).where(t -> t != null);
 
     }
 
@@ -289,31 +296,6 @@ public class SystemSchema extends AbstractSchema
     {
       return wrap(it, it);
     }
-  }
-
-  // Note that coordinator must be up to get segments
-  private static JsonParserIterator<DataSegment> getMetadataSegments(
-      CoordinatorClient coordinatorClient,
-      ObjectMapper jsonMapper,
-      BytesAccumulatingResponseHandler responseHandler
-  )
-  {
-    Request request = coordinatorClient.makeRequest(HttpMethod.GET, "/metadata/segments");
-    ListenableFuture<InputStream> future = coordinatorClient.goAsync(
-        request,
-        responseHandler
-    );
-    final JavaType typeRef = jsonMapper.getTypeFactory().constructType(new TypeReference<DataSegment>()
-    {
-    });
-    return new JsonParserIterator.FromFutureStream<>(
-        jsonMapper,
-        typeRef,
-        request.getUrl(),
-        "",
-        future,
-        -1
-    );
   }
 
   static class ServersTable extends AbstractTable implements ScannableTable

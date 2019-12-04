@@ -122,6 +122,17 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     return chunks;
   }
 
+  public List<ObjectType> getAll()
+  {
+    List<ObjectType> objects = Lists.newArrayList();
+    for (TreeMap<VersionType, TimelineEntry> map : allTimelineEntries.values()) {
+      for (TimelineEntry entry : map.values()) {
+        Iterables.addAll(objects, entry.getPartitionHolder().payloads());
+      }
+    }
+    return objects;
+  }
+
   public boolean isEmpty()
   {
     return allTimelineEntries.isEmpty();

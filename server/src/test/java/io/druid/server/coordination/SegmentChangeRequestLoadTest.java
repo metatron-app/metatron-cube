@@ -54,7 +54,8 @@ public class SegmentChangeRequestLoadTest
         Arrays.asList("met1", "met2"),
         NoneShardSpec.instance(),
         IndexIO.CURRENT_VERSION_ID,
-        1
+        1,
+        2
     );
 
     final SegmentChangeRequestLoad segmentDrop = new SegmentChangeRequestLoad(segment);
@@ -63,7 +64,7 @@ public class SegmentChangeRequestLoadTest
         mapper.writeValueAsString(segmentDrop), new TypeReference<Map<String, Object>>(){}
     );
 
-    Assert.assertEquals(11, objectMap.size());
+    Assert.assertEquals(12, objectMap.size());
     Assert.assertEquals("load", objectMap.get("action"));
     Assert.assertEquals("something", objectMap.get("dataSource"));
     Assert.assertEquals(interval.toString(), objectMap.get("interval"));
@@ -74,5 +75,6 @@ public class SegmentChangeRequestLoadTest
     Assert.assertEquals(ImmutableMap.of("type", "none"), objectMap.get("shardSpec"));
     Assert.assertEquals(IndexIO.CURRENT_VERSION_ID, objectMap.get("binaryVersion"));
     Assert.assertEquals(1, objectMap.get("size"));
+    Assert.assertEquals(2, objectMap.get("numRows"));
   }
 }

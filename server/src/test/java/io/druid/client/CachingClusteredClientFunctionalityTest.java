@@ -225,6 +225,12 @@ public class CachingClusteredClientFunctionalityTest {
             return timeline;
           }
 
+          @Override
+          public Iterable<ServerSelector> getSelectors(String dataSource)
+          {
+            return timeline.getAll();
+          }
+
           @Nullable
           @Override
           public List<ImmutableDruidServer> getDruidServers()

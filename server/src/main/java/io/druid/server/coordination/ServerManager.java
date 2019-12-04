@@ -64,6 +64,7 @@ import io.druid.query.StorageHandler;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.loading.SegmentLoader;
@@ -187,7 +188,7 @@ public class ServerManager implements ForwardingSegmentWalker
    *
    * @throws SegmentLoadingException if the segment cannot be loaded
    */
-  public boolean loadSegment(final DataSegment segment) throws SegmentLoadingException
+  public DataSegment loadSegment(final DataSegment segment) throws SegmentLoadingException
   {
     final String dataSource = segment.getDataSource();
 
@@ -221,9 +222,9 @@ public class ServerManager implements ForwardingSegmentWalker
           segment.getInterval(),
           segment.getVersion()
       );
-      if ((entry != null) && (entry.getChunk(segment.getShardSpecWithDefault().getPartitionNum()) != null)) {
+      if (entry != null && entry.getChunk(segment.getShardSpecWithDefault().getPartitionNum()) != null) {
         log.warn("Told to load a adapter for a segment[%s] that already exists", segment.getIdentifier());
-        return false;
+        return null;
       }
 
       loadedIntervals.add(
@@ -237,7 +238,11 @@ public class ServerManager implements ForwardingSegmentWalker
       synchronized (dataSourceCounts) {
         dataSourceCounts.add(dataSource, 1L);
       }
-      return true;
+      final QueryableIndex index = adapter.asQueryableIndex(false);
+      if (index != null) {
+        return segment.withNumRows(index.getNumRows());
+      }
+      return segment;
     }
   }
 

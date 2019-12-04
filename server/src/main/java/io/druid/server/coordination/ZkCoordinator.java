@@ -25,13 +25,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
+import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.client.coordinator.CoordinatorClient;
-import io.druid.concurrent.Execs;
 import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.initialization.ZkPathsConfig;
@@ -337,9 +337,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
    *
    * @throws SegmentLoadingException
    */
-  private void loadSegment(DataSegment segment, DataSegmentChangeCallback callback) throws SegmentLoadingException
+  private DataSegment loadSegment(DataSegment segment, DataSegmentChangeCallback callback) throws SegmentLoadingException
   {
-    final boolean loaded;
+    final DataSegment loaded;
     try {
       loaded = serverManager.loadSegment(segment);
     }
@@ -349,7 +349,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       throw new SegmentLoadingException(e, "Exception loading segment[%s]", segment.getIdentifier());
     }
 
-    if (loaded) {
+    if (loaded != null) {
       File segmentInfoCacheFile = new File(config.getInfoDir(), segment.getIdentifier());
       if (!segmentInfoCacheFile.exists()) {
         try {
@@ -363,6 +363,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
         }
       }
     }
+    return loaded;
   }
 
   // someone removed segment in deep storage..
@@ -424,9 +425,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
           segmentsToDelete.remove(segment);
         }
       }
-      loadSegment(segment, callback);
+      DataSegment loaded = loadSegment(segment, callback);
       try {
-        announcer.announceSegment(segment);
+        announcer.announceSegment(loaded == null ? segment : loaded); // should announce even it's not loaded
       }
       catch (IOException e) {
         throw new SegmentLoadingException(e, "Failed to announce segment[%s]", segment.getIdentifier());
@@ -470,9 +471,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
                       numSegments,
                       segment.getIdentifier()
                   );
-                  loadSegment(segment, callback);
+                  DataSegment loaded = loadSegment(segment, callback);
                   try {
-                    backgroundSegmentAnnouncer.announceSegment(segment);
+                    backgroundSegmentAnnouncer.announceSegment(loaded == null ? segment : loaded);
                   }
                   catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

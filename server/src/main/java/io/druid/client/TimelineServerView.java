@@ -39,6 +39,8 @@ public interface TimelineServerView extends ServerView
 
   TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource);
 
+  Iterable<ServerSelector> getSelectors(String dataSource);
+
   /**
    * Returns a list of {@link ImmutableDruidServer}
    */

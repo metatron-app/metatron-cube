@@ -2125,6 +2125,12 @@ public class CachingClusteredClientTest
           }
 
           @Override
+          public Iterable<ServerSelector> getSelectors(String dataSource)
+          {
+            return timeline.getAll();
+          }
+
+          @Override
           public List<ImmutableDruidServer> getDruidServers()
           {
             throw new UnsupportedOperationException();
@@ -2309,6 +2315,13 @@ public class CachingClusteredClientTest
       public long getSize()
       {
         return baseSegment.getSize();
+      }
+
+      @Override
+      @JsonProperty
+      public int getNumRows()
+      {
+        return baseSegment.getNumRows();
       }
 
       @Override
