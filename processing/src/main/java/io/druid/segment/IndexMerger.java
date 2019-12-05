@@ -108,7 +108,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -865,7 +864,7 @@ public class IndexMerger
           metWriters.get(i).serialize(rowCount, metrics[i]);
         }
 
-        int[][] dims = theRow.getDims();
+        final int[][] dims = theRow.getDims();
         for (int i = 0; i < dims.length; ++i) {
           List<Integer> listToWrite = (i >= dims.length || dims[i] == null)
                                       ? null

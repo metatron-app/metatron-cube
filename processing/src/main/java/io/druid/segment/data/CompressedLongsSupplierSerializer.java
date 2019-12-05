@@ -92,6 +92,11 @@ public class CompressedLongsSupplierSerializer implements ColumnPartWriter<Long>
   @Override
   public void add(Long value) throws IOException
   {
+    add(value == null ? 0L : value.longValue());
+  }
+
+  public void add(long value) throws IOException
+  {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
       flattener.add(StupidResourceHolder.create(endBuffer));

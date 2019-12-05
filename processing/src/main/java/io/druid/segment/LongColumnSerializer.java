@@ -167,7 +167,11 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public void serialize(int rowNum, Object obj) throws IOException
   {
-    long val = (obj == null) ? 0 : ((Number) obj).longValue();
+    serialize(rowNum, obj == null ? 0 : ((Number) obj).longValue());
+  }
+
+  public void serialize(int rowNum, long val) throws IOException
+  {
     histogram.offer(val);
     if (slicer != null) {
       slicer.add(val);

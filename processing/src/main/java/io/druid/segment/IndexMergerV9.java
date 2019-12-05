@@ -650,7 +650,7 @@ public class IndexMergerV9 extends IndexMerger
         metWriters.get(i).serialize(rowNum, metrics[i]);
       }
 
-      int[][] dims = theRow.getDims();
+      final int[][] dims = theRow.getDims();
       for (int i = 0; i < dims.length; ++i) {
         if (dimensionSkipFlag[i]) {
           continue;
