@@ -58,7 +58,7 @@ public class IncrementalIndexSchema
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
-      @JsonProperty("fixedSchema") boolean dimensionFixed,
+      @JsonProperty("dimensionFixed") boolean dimensionFixed,
       @JsonProperty("noQuery") boolean noQuery
   )
   {
