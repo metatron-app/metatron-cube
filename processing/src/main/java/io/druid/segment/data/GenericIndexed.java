@@ -20,13 +20,12 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.common.utils.StringUtils;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -47,7 +46,7 @@ import java.util.Map;
  * bytes 10-((numElements * 4) + 10): integers representing *end* offsets of byte serialized values
  * bytes ((numElements * 4) + 10)-(numBytesUsed + 2): 4-byte integer representing length of value, followed by bytes for value
  */
-public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, ColumnPartSerde.Serializer
+public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Serializer
 {
   public static final byte version = 0x1;
 
@@ -119,24 +118,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   }
 
   @Override
-  public Class<? extends T> getClazz()
-  {
-    return bufferIndexed.getClazz();
-  }
-
-  @Override
   public int size()
   {
     return bufferIndexed.size();
-  }
-
-  @Override
-  public void collect(Collector<T> collector)
-  {
-    final ByteBuffer buffer = bufferAsReadOnly();
-    for (int i = 0; i < size; i++) {
-      collector.collect(i, loadValue(buffer, i));
-    }
   }
 
   @Override
@@ -145,6 +129,16 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return bufferIndexed.get(index);
   }
 
+  @Override
+  public Boolean containsNull()
+  {
+    if (allowReverseLookup) {
+      return getAsRaw(0).length == 0;
+    }
+    return null;
+  }
+
+  @Override
   public byte[] getAsRaw(int index)
   {
     return bufferIndexed.getAsRaw(index);
@@ -171,7 +165,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return bufferIndexed.iterator();
   }
 
-  public int totalLengthOfWords()
+  @Override
+  public int sizeOfWords()
   {
     return theBuffer.getInt(indexOffset + (size - 1) * 4) - size * 4;
   }
@@ -198,7 +193,13 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     size = theBuffer.getInt();
     indexOffset = theBuffer.position();
     valuesOffset = theBuffer.position() + (size << 2);
-    bufferIndexed = new BufferIndexed();
+    bufferIndexed = new BufferIndexed() {
+      @Override
+      protected ByteBuffer bufferForRead()
+      {
+        return theBuffer.asReadOnlyBuffer();
+      }
+    };
   }
 
   GenericIndexed(
@@ -223,14 +224,15 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   public GenericIndexed<T> asSingleThreaded()
   {
     final ByteBuffer copyBuffer = theBuffer.asReadOnlyBuffer();
-    BufferIndexed bufferIndexed = new BufferIndexed()
+    final BufferIndexed bufferIndexed = new BufferIndexed()
     {
       @Override
-      protected ByteBuffer reader()
+      protected ByteBuffer bufferForRead()
       {
         return copyBuffer;
       }
     };
+
     return new GenericIndexed<T>(
         copyBuffer,
         strategy,
@@ -255,39 +257,20 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     };
   }
 
-  protected final ByteBuffer bufferAsReadOnly()
+  abstract class BufferIndexed implements Indexed<T>
   {
-    return theBuffer.asReadOnlyBuffer();
-  }
-
-  protected final T loadValue(ByteBuffer buffer, int i)
-  {
-    return bufferIndexed.loadValue(buffer, i);
-  }
-
-  class BufferIndexed implements Indexed<T>
-  {
-    @Override
-    public Class<? extends T> getClazz()
-    {
-      return strategy.getClazz();
-    }
-
     @Override
     public int size()
     {
       return size;
     }
 
-    protected ByteBuffer reader()
-    {
-      return bufferAsReadOnly();
-    }
+    protected abstract ByteBuffer bufferForRead();
 
     @Override
     public final T get(final int index)
     {
-      final ByteBuffer copyBuffer = reader();
+      final ByteBuffer copyBuffer = bufferForRead();
       if (index < 0) {
         throw new IAE("Index[%s] < 0", index);
       }
@@ -300,7 +283,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
     public final byte[] getAsRaw(final int index)
     {
-      final ByteBuffer copyBuffer = reader();
+      final ByteBuffer copyBuffer = bufferForRead();
       final int startOffset;
       final int endOffset;
 
@@ -409,11 +392,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return null;
   }
 
-  public boolean isSorted()
-  {
-    return allowReverseLookup;
-  }
-
   /**
    * Create a non-thread-safe Indexed, which may perform better than the underlying Indexed.
    *
@@ -425,7 +403,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     return new BufferIndexed()
     {
       @Override
-      protected ByteBuffer reader()
+      protected ByteBuffer bufferForRead()
       {
         return copyBuffer;
       }

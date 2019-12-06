@@ -21,7 +21,7 @@ package io.druid.segment.column;
 
 import io.druid.data.input.Row;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 
 import java.util.Map;
 
@@ -49,7 +49,7 @@ public interface Column
   public long getSerializedSize();
   public long getSerializedSize(EncodeType encodeType);
   public float getAverageSize();
-  public GenericIndexed<String> getDictionary();
+  public Dictionary<String> getDictionary();
   public DictionaryEncodedColumn getDictionaryEncoding();
   public RunLengthColumn getRunLengthColumn();
   public GenericColumn getGenericColumn();

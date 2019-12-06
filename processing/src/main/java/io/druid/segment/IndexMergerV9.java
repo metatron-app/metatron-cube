@@ -500,16 +500,7 @@ public class IndexMergerV9 extends IndexMerger
       String dimension = mergedDimensions.get(dimIndex);
       long dimStartTime = System.currentTimeMillis();
 
-      // write dim values to one single file because we need to read it
-      File dimValueFile = IndexIO.makeDimFile(v9OutDir, dimension);
-      try (WritableByteChannel channel = new FileOutputStream(dimValueFile).getChannel()) {
-        dimValueWriters.get(dimIndex).writeToChannel(channel);
-      }
-
       final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory(true);
-
-      final MappedByteBuffer dimValsMapped = Files.map(dimValueFile);
-      Indexed<String> dimVals = GenericIndexed.read(dimValsMapped, ObjectStrategy.STRING_STRATEGY);
 
       ColumnPartWriter<ImmutableRTree> spatialIndexWriter = spatialIndexWriters.get(dimIndex);
       RTree tree = null;
@@ -522,6 +513,7 @@ public class IndexMergerV9 extends IndexMerger
       ImmutableBitmap nullRowBitmap = bitmapFactory.makeImmutableBitmap(nullRowsList.get(dimIndex));
 
       //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
+      final Indexed.Closeable<String> dimVals = dimValueWriters.get(dimIndex).asIndexed(ObjectStrategy.STRING_STRATEGY);
       for (int dictId = 0; dictId < dimVals.size(); dictId++) {
         progress.progress();
         final List<IntIterator> convertedInverteds = Lists.newArrayListWithCapacity(adapters.size());
@@ -546,7 +538,7 @@ public class IndexMergerV9 extends IndexMerger
           sketchWriter.add(Pair.of(dimVals.get(dictId), bitset.size()));
         }
         ImmutableBitmap bitmapToWrite = bitmapFactory.makeImmutableBitmap(bitset);
-        if ((dictId == 0) && (Iterables.getFirst(dimVals, "") == null)) {
+        if (dictId == 0 && dimVals.get(dictId) == null) {
           bitmapToWrite = nullRowBitmap.union(bitmapToWrite);
         }
         bitmapIndexWriters.get(dimIndex).add(bitmapToWrite);
@@ -566,7 +558,8 @@ public class IndexMergerV9 extends IndexMerger
       if (spatialIndexWriter != null) {
         spatialIndexWriter.add(ImmutableRTree.newImmutableFromMutable(tree));
       }
-      ByteBufferUtils.unmap(dimValsMapped);
+      dimVals.close();
+
       log.info(
           "Completed dim[%s] inverted with cardinality[%,d] in %,d millis.",
           dimension,

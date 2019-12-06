@@ -39,12 +39,6 @@ public class ListIndexed<T> implements Indexed<T>
   }
 
   @Override
-  public Class<? extends T> getClazz()
-  {
-    return clazz;
-  }
-
-  @Override
   public int size()
   {
     return baseList.size();

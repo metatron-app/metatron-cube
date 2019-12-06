@@ -19,16 +19,16 @@
 
 package io.druid.segment.data;
 
-/**
- */
-public interface DictionaryLoader<T>
+// common interface of non-compressed(GenericIndexed) and compressed dictionary
+public interface Dictionary<T> extends Indexed<T>
 {
-  int size();
+  Boolean containsNull();     // null for unknown
 
-  void collect(Collector<T> collector);
+  Dictionary<T> asSingleThreaded();
 
-  interface Collector<T>
-  {
-    void collect(int id, T value);
-  }
+  byte[] getAsRaw(int index);
+
+  int sizeOfWords();
+
+  long getSerializedSize();
 }

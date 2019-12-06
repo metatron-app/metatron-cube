@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 
 /**
  */
@@ -33,6 +33,6 @@ public interface ColumnPartProvider<T> extends Supplier<T>
 
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
-    GenericIndexed<String> getDictionary();
+    Dictionary<String> getDictionary();
   }
 }

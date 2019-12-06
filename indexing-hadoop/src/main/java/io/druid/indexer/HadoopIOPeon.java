@@ -23,6 +23,7 @@ import io.druid.segment.data.IOPeon;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -40,6 +41,12 @@ class HadoopIOPeon implements IOPeon
     this.job = job;
     this.baseDir = baseDir;
     this.overwriteFiles = overwriteFiles;
+  }
+
+  @Override
+  public File getFile(String filename)
+  {
+    return new File(new File(baseDir.toUri()), filename);
   }
 
   @Override

@@ -22,8 +22,8 @@ package io.druid.segment.serde;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionarySketch;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 
@@ -31,13 +31,13 @@ import io.druid.segment.data.IndexedMultivalue;
 */
 public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport
 {
-  private final GenericIndexed<String> dictionary;
+  private final Dictionary<String> dictionary;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
   private final DictionarySketch sketch;
 
   public DictionaryEncodedColumnSupplier(
-      GenericIndexed<String> dictionary,
+      Dictionary<String> dictionary,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn,
       DictionarySketch sketch
@@ -74,7 +74,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   @Override
-  public GenericIndexed<String> getDictionary()
+  public Dictionary<String> getDictionary()
   {
     return dictionary;
   }

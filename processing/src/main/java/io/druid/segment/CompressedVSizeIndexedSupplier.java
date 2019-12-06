@@ -165,12 +165,6 @@ public class CompressedVSizeIndexedSupplier implements WritableSupplier<IndexedM
     }
 
     @Override
-    public Class<? extends IndexedInts> getClazz()
-    {
-      return IndexedInts.class;
-    }
-
-    @Override
     public int size()
     {
       return offsets.size() - 1;

@@ -34,15 +34,15 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.JodaUtils;
-import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.Metadata;
@@ -54,7 +54,7 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.StorageLocationConfig;
 import io.druid.timeline.DataSegment;
@@ -443,11 +443,11 @@ public class IndexViewer extends CommonShell.WithUtils
       StringBuilder builder = new StringBuilder().append("  ");
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
-        GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
+        Dictionary<String> dictionary = dictionaryEncoded.dictionary();
         boolean hasSketch = dictionaryEncoded.hasSketch();
         long dictionarySize = dictionary.getSerializedSize();
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
-        String hasNull = dictionary.isSorted() ? String.valueOf(dictionary.indexOf(null) >= 0) : "unknown";
+        String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
         builder.append(
             format(
                 "dictionary (cardinality = %d, hasNull = %s, hasSketch = %s, size = %,d bytes), rows (%,d bytes)",

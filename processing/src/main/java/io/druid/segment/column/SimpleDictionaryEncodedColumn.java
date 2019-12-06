@@ -23,8 +23,8 @@ import com.google.common.base.Strings;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionarySketch;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 
@@ -37,13 +37,13 @@ public class SimpleDictionaryEncodedColumn
 {
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
-  private final GenericIndexed<String> delegate;
+  private final Dictionary<String> delegate;
   private final DictionarySketch sketch;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
-      GenericIndexed<String> delegate,
+      Dictionary<String> delegate,
       DictionarySketch sketch
   )
   {
@@ -97,7 +97,7 @@ public class SimpleDictionaryEncodedColumn
   }
 
   @Override
-  public GenericIndexed<String> dictionary()
+  public Dictionary<String> dictionary()
   {
     return delegate;
   }

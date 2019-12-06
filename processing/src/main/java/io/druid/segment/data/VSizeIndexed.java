@@ -106,12 +106,6 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
   }
 
   @Override
-  public Class<? extends VSizeIndexedInts> getClazz()
-  {
-    return VSizeIndexedInts.class;
-  }
-
-  @Override
   public int size()
   {
     return size;

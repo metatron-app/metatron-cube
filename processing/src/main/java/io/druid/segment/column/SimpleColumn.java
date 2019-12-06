@@ -22,7 +22,7 @@ package io.druid.segment.column;
 import com.google.common.base.Preconditions;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 
 import java.io.IOException;
 import java.util.Map;
@@ -164,8 +164,8 @@ class SimpleColumn implements Column
   public float getAverageSize()
   {
     if (dictionaryEncodedColumn != null) {
-      final GenericIndexed<String> dictionary = dictionaryEncodedColumn.getDictionary();
-      return dictionary.totalLengthOfWords() / dictionary.size();
+      final Dictionary<String> dictionary = dictionaryEncodedColumn.getDictionary();
+      return dictionary.sizeOfWords() / dictionary.size();
     }
     if (runLengthColumn != null) {
       return runLengthColumn.getSerializedSize() / runLengthColumn.numRows();
@@ -195,7 +195,7 @@ class SimpleColumn implements Column
   }
 
   @Override
-  public GenericIndexed<String> getDictionary()
+  public Dictionary<String> getDictionary()
   {
     return dictionaryEncodedColumn == null ? null : dictionaryEncodedColumn.getDictionary();
   }

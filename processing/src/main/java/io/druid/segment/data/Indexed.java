@@ -21,8 +21,6 @@ package io.druid.segment.data;
 
 public interface Indexed<T> extends SizedIterable<T>
 {
-  Class<? extends T> getClazz();
-
   T get(int index);
 
   /**
@@ -35,4 +33,6 @@ public interface Indexed<T> extends SizedIterable<T>
    * @return index of value, or a negative number
    */
   int indexOf(T value);
+
+  interface Closeable<T> extends Indexed<T>, java.io.Closeable { }
 }

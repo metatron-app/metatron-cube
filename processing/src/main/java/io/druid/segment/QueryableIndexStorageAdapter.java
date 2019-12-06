@@ -27,9 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.IntPredicate;
@@ -38,6 +35,9 @@ import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
@@ -53,7 +53,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
@@ -547,7 +547,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             }
                           };
                         } else {
-                          final GenericIndexed<String> dictionary = column.dictionary();
+                          final Dictionary<String> dictionary = column.dictionary();
                           return new DimensionSelector.WithRawAccess()
                           {
                             @Override
@@ -563,7 +563,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             }
 
                             @Override
-                            public Comparable lookupName(int id)
+                            public String lookupName(int id)
                             {
                               return column.lookupName(id);
                             }
@@ -633,7 +633,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             }
                           };
                         } else {
-                          final GenericIndexed<String> dictionary = column.dictionary();
+                          final Dictionary<String> dictionary = column.dictionary();
                           return new DimensionSelector.WithRawAccess()
                           {
                             @Override
@@ -649,7 +649,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             }
 
                             @Override
-                            public Comparable lookupName(int id)
+                            public String lookupName(int id)
                             {
                               return column.lookupName(id);
                             }

@@ -129,11 +129,6 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
 
     return new Indexed<String>()
     {
-      @Override
-      public Class<? extends String> getClazz()
-      {
-        return String.class;
-      }
 
       @Override
       public int size()

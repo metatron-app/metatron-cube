@@ -37,7 +37,7 @@ import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
 
@@ -76,14 +76,9 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     if (columnDesc == null || !columnDesc.getCapabilities().isDictionaryEncoded()) {
       return null;
     }
-    final GenericIndexed<String> column = columnDesc.getDictionary();
+    final Dictionary<String> column = columnDesc.getDictionary();
     return new Indexed<String>()
     {
-      @Override
-      public Class<? extends String> getClazz()
-      {
-        return String.class;
-      }
 
       @Override
       public int size()

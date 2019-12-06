@@ -1359,12 +1359,6 @@ public class IndexMerger
     public AggFactoryStringIndexed(AggregatorFactory[] metricAggs) {this.metricAggs = metricAggs;}
 
     @Override
-    public Class<? extends String> getClazz()
-    {
-      return String.class;
-    }
-
-    @Override
     public int size()
     {
       return metricAggs.length;

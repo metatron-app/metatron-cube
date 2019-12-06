@@ -22,17 +22,21 @@ package io.druid.segment.data;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
+import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
+import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Iterator;
 
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
@@ -167,5 +171,79 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
         ByteStreams.copy(input, channel);
       }
     }
+  }
+
+  // this is just for index merger.. which only uses size() and get()
+  public Indexed.Closeable<T> asIndexed(final ObjectStrategy<T> strategy) throws IOException
+  {
+    final int size = numWritten;
+    final MappedByteBuffer header = Files.map(ioPeon.getFile(makeFilename("header")));
+    final MappedByteBuffer values = Files.map(ioPeon.getFile(makeFilename("values")));
+    return new Indexed.Closeable<T>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        ByteBufferUtils.unmap(header);
+        ByteBufferUtils.unmap(values);
+      }
+
+      @Override
+      public T get(int index)
+      {
+        final int startOffset;
+        final int endOffset;
+
+        if (index == 0) {
+          startOffset = Integer.BYTES;
+          endOffset = header.getInt(0);
+        } else {
+          startOffset = header.getInt((index - 1) << 2) + Integer.BYTES;
+          endOffset = header.getInt(index << 2);
+        }
+
+        if (startOffset == endOffset) {
+          return null;
+        }
+
+        values.position(startOffset);
+
+        // fromByteBuffer must not modify the buffer limit
+        return strategy.fromByteBuffer(values, endOffset - startOffset);
+      }
+
+      @Override
+      public int indexOf(T value)
+      {
+        throw new UnsupportedOperationException("indexOf");
+      }
+
+      @Override
+      public int size()
+      {
+        return size;
+      }
+
+      @Override
+      public Iterator<T> iterator()
+      {
+        return new Iterator<T>()
+        {
+          private int index;
+
+          @Override
+          public boolean hasNext()
+          {
+            return index < size;
+          }
+
+          @Override
+          public T next()
+          {
+            return get(index++);
+          }
+        };
+      }
+    };
   }
 }

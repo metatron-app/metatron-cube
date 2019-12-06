@@ -28,6 +28,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -45,6 +46,12 @@ public class TmpFileIOPeon implements IOPeon
   public TmpFileIOPeon(boolean allowOverwrite)
   {
     this.allowOverwrite = allowOverwrite;
+  }
+
+  @Override
+  public File getFile(String filename)
+  {
+    return createdFiles.get(filename);
   }
 
   @Override
