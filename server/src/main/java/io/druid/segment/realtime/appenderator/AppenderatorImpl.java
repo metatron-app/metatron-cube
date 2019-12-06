@@ -55,6 +55,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.query.BySegmentQueryRunner;
+import io.druid.query.CPUTimeMetricQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -114,6 +115,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -477,102 +479,149 @@ public class AppenderatorImpl implements Appenderator
     final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
 
     final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run( Query<T> query, Map<String, Object> responseContext)
-      {
-        QueryRunner<T> baseRunner = toolchest.mergeResults(
+
+    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
+
+    return CPUTimeMetricQueryRunner.safeBuild(
+        toolchest.mergeResults(
             factory.mergeRunners(
                 queryExecutorService,
-                Iterables.transform(
-                    targets,
-                    new Function<Pair<SegmentDescriptor, Sink>, QueryRunner<T>>()
-                    {
-                      @Override
-                      public QueryRunner<T> apply(final Pair<SegmentDescriptor, Sink> pair)
-                      {
-                        final Sink theSink = pair.rhs;
-                        final SegmentDescriptor descriptor = pair.lhs;
+                FunctionalIterable
+                    .create(specs)
+                    .transform(
+                        new Function<SegmentDescriptor, QueryRunner<T>>()
+                        {
+                          @Override
+                          public QueryRunner<T> apply(final SegmentDescriptor descriptor)
+                          {
+                            final PartitionHolder<Sink> holder = sinkTimeline.findEntry(
+                                descriptor.getInterval(),
+                                descriptor.getVersion()
+                            );
+                            if (holder == null) {
+                              return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
+                            }
 
-                        if (theSink == null) {
-                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                        }
+                            final PartitionChunk<Sink> chunk = holder.getChunk(descriptor.getPartitionNumber());
+                            if (chunk == null) {
+                              return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
+                            }
 
-                        String segmentId = theSink.getSegment().getIdentifier();
-                        return new SpecificSegmentQueryRunner<>(
-                            new MetricsEmittingQueryRunner<>(
-                                emitter,
-                                toolchest,
-                                new BySegmentQueryRunner<T>(
-                                    theSink.getSegment().getIdentifier(),
-                                    descriptor.getInterval().getStart(),
-                                    factory.mergeRunners(
-                                        MoreExecutors.sameThreadExecutor(),
-                                        Iterables.transform(
-                                            theSink,
-                                            new Function<FireHydrant, QueryRunner<T>>()
-                                            {
-                                              @Override
-                                              public QueryRunner<T> apply(final FireHydrant hydrant)
-                                              {
-                                                // Hydrant might swap at any point, but if it's swapped at the start
-                                                // then we know it's *definitely* swapped.
-                                                final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
+                            final Sink theSink = chunk.getObject();
+                            final String sinkSegmentIdentifier = theSink.getSegment().getIdentifier();
 
-                                                if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
-                                                  return new NoopQueryRunner<>();
-                                                }
+                            return new SpecificSegmentQueryRunner<>(
+                                withPerSinkMetrics(
+                                    new BySegmentQueryRunner<>(
+                                        sinkSegmentIdentifier,
+                                        descriptor.getInterval().getStart(),
+                                        factory.mergeRunners(
+                                            MoreExecutors.sameThreadExecutor(),
+                                            Iterables.transform(
+                                                theSink,
+                                                new Function<FireHydrant, QueryRunner<T>>()
+                                                {
+                                                  @Override
+                                                  public QueryRunner<T> apply(final FireHydrant hydrant)
+                                                  {
+                                                    // Hydrant might swap at any point, but if it's swapped at the start
+                                                    // then we know it's *definitely* swapped.
+                                                    final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
 
-                                                // Prevent the underlying segment from swapping when its being iterated
-                                                final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
-                                                try {
-                                                  QueryRunner<T> baseRunner = QueryRunners.withResource(
-                                                      factory.createRunner(segment.lhs, optimizer),
-                                                      segment.rhs
-                                                  );
+                                                    if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
+                                                      return new NoopQueryRunner<>();
+                                                    }
 
-                                                  if (hydrantDefinitelySwapped // only use caching if data is immutable
-                                                      && cache.isLocal() // hydrants may not be in sync between replicas, make sure cache is local
-                                                      ) {
-                                                    return new CachingQueryRunner<>(
-                                                        makeHydrantCacheIdentifier(hydrant, segment.lhs),
-                                                        descriptor,
-                                                        objectMapper,
-                                                        cache,
-                                                        toolchest,
-                                                        baseRunner,
-                                                        MoreExecutors.sameThreadExecutor(),
-                                                        cacheConfig
-                                                    );
-                                                  } else {
-                                                    return baseRunner;
+                                                    // Prevent the underlying segment from swapping when its being iterated
+                                                    final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
+                                                    try {
+                                                      QueryRunner<T> baseRunner = QueryRunners.withResource(
+                                                          factory.createRunner(segment.lhs, optimizer),
+                                                          segment.rhs
+                                                      );
+
+                                                      // 1) Only use caching if data is immutable
+                                                      // 2) Hydrants are not the same between replicas, make sure cache is local
+                                                      if (hydrantDefinitelySwapped && cache.isLocal()) {
+                                                        return new CachingQueryRunner<>(
+                                                            makeHydrantCacheIdentifier(hydrant, segment.lhs),
+                                                            descriptor,
+                                                            objectMapper,
+                                                            cache,
+                                                            toolchest,
+                                                            baseRunner,
+                                                            MoreExecutors.sameThreadExecutor(),
+                                                            cacheConfig
+                                                        );
+                                                      } else {
+                                                        return baseRunner;
+                                                      }
+                                                    }
+                                                    catch (RuntimeException e) {
+                                                      CloseQuietly.close(segment.rhs);
+                                                      throw e;
+                                                    }
                                                   }
                                                 }
-                                                catch (RuntimeException e) {
-                                                  CloseQuietly.close(segment.rhs);
-                                                  throw e;
-                                                }
-                                              }
-                                            }
-                                        ),
-                                        null
-                                    )
+                                            ),
+                                            null
+                                        )
+                                    ),
+                                    toolchest,
+                                    sinkSegmentIdentifier,
+                                    cpuTimeAccumulator
                                 ),
-                                QueryMetrics::reportSegmentAndCacheTime,
-                                queryMetrics -> queryMetrics.segment(segmentId)
-                            ).withWaitMeasuredFromNow(),
-                            new SpecificSegmentSpec(descriptor)
-                        );
-                      }
-                    }
-                ),
+                                new SpecificSegmentSpec(descriptor)
+                            );
+                          }
+                        }
+                    ),
                 null
             )
-        );
-        return baseRunner.run(resolved, responseContext);
-      }
-    };
+        ),
+        toolchest,
+        emitter,
+        cpuTimeAccumulator,
+        true
+    );
+  }
+
+  /**
+   * Decorates a Sink's query runner to emit query/segmentAndCache/time, query/segment/time, query/wait/time once
+   * each for the whole Sink. Also adds CPU time to cpuTimeAccumulator.
+   */
+  private <T> QueryRunner<T> withPerSinkMetrics(
+      final QueryRunner<T> sinkRunner,
+      final QueryToolChest<T, ? extends Query<T>> queryToolChest,
+      final String sinkSegmentIdentifier,
+      final AtomicLong cpuTimeAccumulator
+  )
+  {
+
+    // Note: reportSegmentAndCacheTime and reportSegmentTime are effectively the same here. They don't split apart
+    // cache vs. non-cache due to the fact that Sinks may be partially cached and partially uncached. Making this
+    // better would need to involve another accumulator like the cpuTimeAccumulator that we could share with the
+    // sinkRunner.
+
+    return CPUTimeMetricQueryRunner.safeBuild(
+        new MetricsEmittingQueryRunner<>(
+            emitter,
+            queryToolChest,
+            new MetricsEmittingQueryRunner<>(
+                emitter,
+                queryToolChest,
+                sinkRunner,
+                QueryMetrics::reportSegmentTime,
+                queryMetrics -> queryMetrics.segment(sinkSegmentIdentifier)
+            ),
+            QueryMetrics::reportSegmentAndCacheTime,
+            queryMetrics -> queryMetrics.segment(sinkSegmentIdentifier)
+        ).withWaitMeasuredFromNow(),
+        queryToolChest,
+        emitter,
+        cpuTimeAccumulator,
+        false
+    );
   }
 
   @Override

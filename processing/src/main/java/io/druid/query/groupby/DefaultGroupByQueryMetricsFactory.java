@@ -30,9 +30,6 @@ public class DefaultGroupByQueryMetricsFactory implements GroupByQueryMetricsFac
       new DefaultGroupByQueryMetricsFactory(new DefaultObjectMapper());
 
   /**
-   * Should be used only in tests, directly or indirectly (via {@link
-   * GroupByQueryQueryToolChest#GroupByQueryQueryToolChest(io.druid.query.groupby.strategy.GroupByStrategySelector,
-   * io.druid.query.IntervalChunkingQueryRunnerDecorator)}).
    */
   @VisibleForTesting
   public static GroupByQueryMetricsFactory instance()

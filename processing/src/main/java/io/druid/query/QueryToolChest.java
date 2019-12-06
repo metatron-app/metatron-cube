@@ -169,6 +169,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public abstract TypeReference<ResultType> getResultTypeReference();
 
+  public static QueryMetrics getQueryMetrics(Query query, QueryToolChest toolChest) {
+    return toolChest.makeMetrics(query);
+  }
+
   private static final ToIntFunction COUNTER = new ToIntFunction()
   {
     @Override
@@ -203,7 +207,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
      * This is optional.  If it returns null, caching is effectively disabled for the query.
      *
      * @param query The query whose results might be cached
-     * @param <T>   The type of object that will be stored in the cache
      *
      * @return A CacheStrategy that can be used to populate and read from the Cache
      */

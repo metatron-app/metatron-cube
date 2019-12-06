@@ -166,7 +166,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
       final QueryMetrics<? super Query<T>> queryMetrics = toolChest.makeMetrics(query);
       queryMetrics.server(host);
-      //FIXME seoeun queryID set.
 
       future = httpClient.go(
           new Request(HttpMethod.POST, url)

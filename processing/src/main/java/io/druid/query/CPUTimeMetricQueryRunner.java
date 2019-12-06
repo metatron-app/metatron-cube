@@ -36,14 +36,14 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
 {
   private final QueryRunner<T> delegate;
-  private final QueryToolChest<?, ? super Query<T>> queryToolChest;
+  private final QueryToolChest<T, ? extends Query<T>> queryToolChest;
   private final ServiceEmitter emitter;
   private final AtomicLong cpuTimeAccumulator;
   private final boolean report;
 
   private CPUTimeMetricQueryRunner(
       QueryRunner<T> delegate,
-      QueryToolChest<?, ? super Query<T>> queryToolChest,
+      QueryToolChest<T, ? extends Query<T>> queryToolChest,
       ServiceEmitter emitter,
       AtomicLong cpuTimeAccumulator,
       boolean report
@@ -139,7 +139,8 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
             if (report) {
               final long cpuTimeNs = cpuTimeAccumulator.get();
               if (cpuTimeNs > 0) {
-                queryToolChest.makeMetrics(query).reportCpuTime(cpuTimeNs).emit(emitter);
+                QueryMetrics<?> queryMetrics = QueryToolChest.getQueryMetrics(query, queryToolChest);
+                queryMetrics.reportCpuTime(cpuTimeNs).emit(emitter);
               }
             }
           }
@@ -150,7 +151,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
 
   public static <T> QueryRunner<T> safeBuild(
       QueryRunner<T> delegate,
-      QueryToolChest<?, ? super Query<T>> queryToolChest,
+      QueryToolChest<T, ? extends Query<T>> queryToolChest,
       ServiceEmitter emitter,
       AtomicLong accumulator,
       boolean report
