@@ -63,7 +63,7 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
   @Override
   public int numRows()
   {
-    return mapping[mapping.length - 1];
+    return mapping.length == 0 ? 0 : mapping[mapping.length - 1];
   }
 
   @Override

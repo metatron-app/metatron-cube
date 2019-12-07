@@ -33,8 +33,8 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
@@ -190,7 +190,7 @@ public class BoundFilterBenchmark
                           ),
             serdeFactory.getObjectStrategy()
         ),
-        dictionary
+        dictionary.asColumnPartProvider()
     ).get();
     selector = new BitmapIndexSelector()
     {

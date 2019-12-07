@@ -145,7 +145,7 @@ public class ExtractionDimFilterTest
       return new BitmapIndexColumnPartSupplier(
           factory,
           GenericIndexed.fromIterable(Arrays.asList(foo1BitMap), serdeFactory.getObjectStrategy()),
-          GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY)
+          GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider()
       ).get();
     }
 

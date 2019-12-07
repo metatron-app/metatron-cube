@@ -39,9 +39,9 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
@@ -153,7 +153,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     private ColumnPartWriter<ImmutableRTree> spatialIndexWriter = null;
     private ByteOrder byteOrder = null;
 
-    public SerializerBuilder withDictionary(GenericIndexedWriter<String> dictionaryWriter)
+    public SerializerBuilder withDictionary(ColumnPartWriter<String> dictionaryWriter)
     {
       this.dictionaryWriter = dictionaryWriter;
       return this;
@@ -474,7 +474,9 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
         final boolean hasMultipleValues = Feature.MULTI_VALUE.isSet(rFlags) || Feature.MULTI_VALUE_V3.isSet(rFlags);
 
-        final GenericIndexed<String> rDictionary = GenericIndexed.read(buffer, ObjectStrategy.STRING_STRATEGY);
+        final ColumnPartProvider<Dictionary<String>> rDictionary = StringMetricSerde.deserializeDictionary(
+            buffer, ObjectStrategy.STRING_STRATEGY
+        );
         builder.setType(ValueDesc.STRING);
 
         DictionarySketch sketch = null;

@@ -25,6 +25,7 @@ import com.google.common.primitives.Shorts;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -34,12 +35,12 @@ import java.util.List;
 
 /**
  */
-public class CompressedComplexColumnSerializer implements ColumnPartWriter
+public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
 {
   public static CompressedComplexColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
-      CompressedObjectStrategy.CompressionStrategy compression,
+      CompressionStrategy compression,
       ObjectStrategy strategy
   ) throws IOException
   {
@@ -55,7 +56,7 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
   }
 
   private final ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
   private final ObjectStrategy strategy;
 
   private int rowNum;
@@ -65,9 +66,9 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
   private final List<Integer> mappings;   // thresholds for blocks
   private final List<Integer> offsets;    // offsets in each block
 
-  public CompressedComplexColumnSerializer(
+  private CompressedComplexColumnSerializer(
       ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener,
-      CompressedObjectStrategy.CompressionStrategy compression,
+      CompressionStrategy compression,
       ObjectStrategy strategy
   )
   {
@@ -111,6 +112,7 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
     endBuffer.flip();
     if (endBuffer.hasRemaining()) {
       flattener.add(StupidResourceHolder.create(endBuffer));
+      mappings.add(rowNum);
     }
     flattener.close();
   }
@@ -121,8 +123,8 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
     return 1 +              // version
            1 +              // compression id
            Ints.BYTES +     // meta header length
-           Ints.BYTES * (mappings.size() + 1) +     // mappings
-           Short.BYTES * offsets.size() +           // offsets (unsigned short)
+           Ints.BYTES + Ints.BYTES * mappings.size() +    // length + mappings
+           Short.BYTES * offsets.size() +                 // offsets (unsigned short)
            flattener.getSerializedSize();
   }
 
@@ -133,7 +135,7 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
     channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     // compression meta block
-    int length = Ints.BYTES * (mappings.size() + 1) + Short.BYTES * offsets.size();
+    int length = Ints.BYTES + Ints.BYTES * mappings.size() + Short.BYTES * offsets.size();
     channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.size())));
     for (int i = 0; i < mappings.size(); i++) {

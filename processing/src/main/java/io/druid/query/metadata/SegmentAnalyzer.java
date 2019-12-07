@@ -250,7 +250,7 @@ public class SegmentAnalyzer
           maxValue = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
         }
         if (analyzingNullCount && cardinality > 0) {
-          int index = bitmapIndex.getIndex(null);
+          int index = bitmapIndex.getValue(0) == null ? 0 : -1;
           if (index >= 0) {
             nullCount = bitmapIndex.getBitmap(index).size();
           }

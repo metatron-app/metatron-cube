@@ -23,6 +23,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 
 /**
@@ -31,22 +32,23 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
-  private final GenericIndexed<String> dictionary;
+  private final ColumnPartProvider<Dictionary<String>> provider;
 
   public BitmapIndexColumnPartSupplier(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
-      GenericIndexed<String> dictionary
+      ColumnPartProvider<Dictionary<String>> provider
   )
   {
     this.bitmapFactory = bitmapFactory;
     this.bitmaps = bitmaps;
-    this.dictionary = dictionary;
+    this.provider = provider;
   }
 
   @Override
   public BitmapIndex get()
   {
+    final Dictionary<String> dictionary = provider.get();
     return new BitmapIndex()
     {
       @Override

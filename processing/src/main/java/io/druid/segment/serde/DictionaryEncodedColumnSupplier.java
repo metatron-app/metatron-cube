@@ -31,13 +31,13 @@ import io.druid.segment.data.IndexedMultivalue;
 */
 public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport
 {
-  private final Dictionary<String> dictionary;
+  private final ColumnPartProvider<Dictionary<String>> dictionary;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
   private final DictionarySketch sketch;
 
   public DictionaryEncodedColumnSupplier(
-      Dictionary<String> dictionary,
+      ColumnPartProvider<Dictionary<String>> dictionary,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn,
       DictionarySketch sketch
@@ -55,7 +55,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary.asSingleThreaded(),
+        dictionary.get(),
         sketch
     );
   }
@@ -76,6 +76,6 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   @Override
   public Dictionary<String> getDictionary()
   {
-    return dictionary;
+    return dictionary.get();
   }
 }

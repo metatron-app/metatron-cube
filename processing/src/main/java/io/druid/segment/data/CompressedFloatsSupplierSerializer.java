@@ -32,7 +32,7 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedFloatsSupplierSerializer implements ColumnPartWriter<Float>
+public class CompressedFloatsSupplierSerializer extends ColumnPartWriter.Abstract<Float>
 {
   public static CompressedFloatsSupplierSerializer create(
       IOPeon ioPeon,

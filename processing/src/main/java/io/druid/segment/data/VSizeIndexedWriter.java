@@ -114,15 +114,10 @@ public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements C
         numBytesWritten < Integer.MAX_VALUE, "Wrote[%s] bytes, which is too many.", numBytesWritten
     );
 
-    OutputStream metaOut = ioPeon.makeOutputStream(metaFileName);
-
-    try {
+    try (OutputStream metaOut = ioPeon.makeOutputStream(metaFileName)) {
       metaOut.write(new byte[]{VERSION, numBytesForMax});
       metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
       metaOut.write(Ints.toByteArray(numWritten));
-    }
-    finally {
-      metaOut.close();
     }
   }
 

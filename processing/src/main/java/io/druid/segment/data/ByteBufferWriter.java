@@ -34,7 +34,7 @@ import java.util.Arrays;
 
 /**
  */
-public class ByteBufferWriter<T> implements ColumnPartWriter<T>
+public class ByteBufferWriter<T> extends ColumnPartWriter.Abstract<T>
 {
   private final IOPeon ioPeon;
   private final String filenameBase;

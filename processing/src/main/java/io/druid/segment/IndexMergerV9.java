@@ -22,11 +22,11 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
@@ -40,7 +40,6 @@ import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
@@ -55,6 +54,7 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
+import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.CompressedVSizeIndexedV3Writer;
@@ -83,12 +83,9 @@ import org.roaringbitmap.IntIterator;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -236,7 +233,7 @@ public class IndexMergerV9 extends IndexMerger
       makeTimeColumn(v9Smoosher, progress, timeWriter);
       makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters);
       makeDimensionColumns(
-          v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
+          ioPeon, v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
           dimValueWriters, dimSketchWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters
       );
 
@@ -340,6 +337,7 @@ public class IndexMergerV9 extends IndexMerger
   }
 
   private void makeDimensionColumns(
+      final IOPeon ioPeon,
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
       final IndexSpec indexSpec,
@@ -358,8 +356,11 @@ public class IndexMergerV9 extends IndexMerger
 
     long startTime = System.currentTimeMillis();
     final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
-    final CompressionStrategy compressionStrategy = indexSpec.getDimensionCompressionStrategy();
+    final CompressionStrategy dimensionCompression = indexSpec.getDimensionCompressionStrategy();
     for (int i = 0; i < mergedDimensions.size(); ++i) {
+      if (dimensionSkipFlag[i]) {
+        continue;
+      }
       long dimStartTime = System.currentTimeMillis();
       final String dim = mergedDimensions.get(i);
       final ColumnPartWriter dimWriter = dimWriters.get(i);
@@ -369,17 +370,10 @@ public class IndexMergerV9 extends IndexMerger
 
       dimWriter.close();
       bitmapIndexWriter.close();
-      if (dimSketchWriter != null) {
-        dimSketchWriter.close();
-      }
-      if (spatialIndexWriter != null) {
-        spatialIndexWriter.close();
-      }
-      if (dimensionSkipFlag[i]) {
-        continue;
-      }
+      Closeables.close(dimSketchWriter, false);
+      Closeables.close(spatialIndexWriter, false);
 
-      boolean hasMultiValue = dimCapabilities.get(i).hasMultipleValues();
+      final boolean hasMultiValue = dimCapabilities.get(i).hasMultipleValues();
 
       final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
       builder.setValueType(ValueDesc.STRING);
@@ -388,7 +382,7 @@ public class IndexMergerV9 extends IndexMerger
           .serializerBuilder()
           .withDictionary(dimValueWriters.get(i))
           .withDictionarySketch(dimSketchWriter)
-          .withValue(dimWriters.get(i), hasMultiValue, compressionStrategy != null)
+          .withValue(dimWriter, hasMultiValue, dimensionCompression != null)
           .withBitmapSerdeFactory(bitmapSerdeFactory)
           .withBitmapIndex(bitmapIndexWriter)
           .withSpatialIndex(spatialIndexWriter)

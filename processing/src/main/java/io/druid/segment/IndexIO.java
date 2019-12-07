@@ -62,6 +62,7 @@ import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -900,12 +901,13 @@ public class IndexIO
 
       for (String dimension : index.getAvailableDimensions()) {
         VSizeIndexed column = index.getDimColumn(dimension);
+        ColumnPartProvider<Dictionary<String>> dictionary = index.getDimValueLookup(dimension).asColumnPartProvider();
         ColumnBuilder builder = new ColumnBuilder()
             .setType(ValueDesc.STRING)
             .setHasMultipleValues(true)
             .setDictionaryEncodedColumn(
                 new DictionaryEncodedColumnSupplier(
-                    index.getDimValueLookup(dimension),
+                    dictionary,
                     null,
                     ColumnPartProviders.<IndexedMultivalue<IndexedInts>>ofInstance(
                         column, column.getSerializedSize(), column.size()
@@ -917,7 +919,7 @@ public class IndexIO
                 new BitmapIndexColumnPartSupplier(
                     CONCISE_FACTORY,
                     index.getBitmapIndexes().get(dimension),
-                    index.getDimValueLookup(dimension)
+                    dictionary
                 )
             );
         if (index.getSpatialIndexes().get(dimension) != null) {

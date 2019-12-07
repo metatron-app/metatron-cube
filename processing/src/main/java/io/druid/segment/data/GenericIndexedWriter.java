@@ -41,7 +41,7 @@ import java.util.Iterator;
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
  */
-public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
+public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
 {
   static Logger LOG = new Logger(GenericIndexedWriter.class);
 
@@ -141,7 +141,7 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
            Ints.BYTES +           // numBytesWritten
            Ints.BYTES +           // numElements
            headerOut.getCount() + // header length
-           valuesOut.getCount();  // value length
+           valuesOut.getCount();  // values length
   }
 
   @Override
@@ -227,20 +227,24 @@ public class GenericIndexedWriter<T> implements ColumnPartWriter<T>
       @Override
       public Iterator<T> iterator()
       {
+        final ByteBuffer readOnly = values.asReadOnlyBuffer();
         return new Iterator<T>()
         {
-          private int index;
+          private int position = 0;
 
           @Override
           public boolean hasNext()
           {
-            return index < size;
+            return position < readOnly.limit();
           }
 
           @Override
           public T next()
           {
-            return get(index++);
+            readOnly.position(position);
+            final int length = readOnly.getInt();
+            position += length;
+            return strategy.fromByteBuffer(readOnly, length);
           }
         };
       }

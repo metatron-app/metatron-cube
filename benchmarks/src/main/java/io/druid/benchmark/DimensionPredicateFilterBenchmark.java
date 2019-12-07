@@ -130,7 +130,7 @@ public class DimensionPredicateFilterBenchmark
                           ),
             serdeFactory.getObjectStrategy()
         ),
-        dictionary
+        dictionary.asColumnPartProvider()
     ).get();
     selector = new BitmapIndexSelector()
     {

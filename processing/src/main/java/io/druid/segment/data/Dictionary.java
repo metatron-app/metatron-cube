@@ -20,11 +20,9 @@
 package io.druid.segment.data;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
-public interface Dictionary<T> extends Indexed<T>
+public interface Dictionary<T> extends Indexed.Closeable<T>
 {
   Boolean containsNull();     // null for unknown
-
-  Dictionary<T> asSingleThreaded();
 
   byte[] getAsRaw(int index);
 

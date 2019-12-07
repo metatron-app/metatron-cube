@@ -19,11 +19,12 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.serde.ColumnPartSerde;
+
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.channels.WritableByteChannel;
 
-public interface ColumnPartWriter<T> extends Closeable
+public interface ColumnPartWriter<T> extends ColumnPartSerde.Serializer, Closeable
 {
   void open() throws IOException;
 
@@ -31,7 +32,9 @@ public interface ColumnPartWriter<T> extends Closeable
 
   void close() throws IOException;
 
-  long getSerializedSize() throws IOException;
-
-  void writeToChannel(WritableByteChannel channel) throws IOException;
+  abstract class Abstract<T> extends ColumnPartSerde.Serializer.Abstract implements ColumnPartWriter<T>
+  {
+    @Override
+    public void close() throws IOException {}
+  }
 }

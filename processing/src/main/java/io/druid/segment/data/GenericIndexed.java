@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
@@ -392,6 +393,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     return null;
   }
 
+  @Override
+  public void close() throws IOException
+  {
+  }
+
   /**
    * Create a non-thread-safe Indexed, which may perform better than the underlying Indexed.
    *
@@ -425,5 +431,29 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     boolean sorted = Feature.SORTED.isSet(flag);
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
     return new GenericIndexed<T>(dictionary, strategy, sorted);
+  }
+
+  public ColumnPartProvider<Dictionary<T>> asColumnPartProvider()
+  {
+    return new ColumnPartProvider<Dictionary<T>>()
+    {
+      @Override
+      public int numRows()
+      {
+        return size();
+      }
+
+      @Override
+      public long getSerializedSize()
+      {
+        return GenericIndexed.this.getSerializedSize();
+      }
+
+      @Override
+      public Dictionary<T> get()
+      {
+        return asSingleThreaded();
+      }
+    };
   }
 }

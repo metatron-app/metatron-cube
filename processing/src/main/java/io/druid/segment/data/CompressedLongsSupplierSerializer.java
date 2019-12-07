@@ -32,7 +32,7 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedLongsSupplierSerializer implements ColumnPartWriter<Long>
+public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract<Long>
 {
   public static CompressedLongsSupplierSerializer create(
       final IOPeon ioPeon,

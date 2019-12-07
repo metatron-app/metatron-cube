@@ -98,7 +98,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
     );
   }
 
-  private static class BooleanWriter implements ColumnPartWriter<Boolean>
+  private static class BooleanWriter extends ColumnPartWriter.Abstract<Boolean>
   {
     private final BitmapFactory factory;
 
@@ -128,11 +128,6 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
         values.add(index);
       }
       index++;
-    }
-
-    @Override
-    public void close() throws IOException
-    {
     }
 
     @Override

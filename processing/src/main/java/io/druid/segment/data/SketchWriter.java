@@ -45,7 +45,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
  */
-public class SketchWriter implements ColumnPartWriter<Pair<String, Integer>>
+public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer>>
 {
   static Logger LOG = new Logger(SketchWriter.class);
 

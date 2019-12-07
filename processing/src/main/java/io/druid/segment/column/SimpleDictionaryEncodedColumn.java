@@ -130,5 +130,8 @@ public class SimpleDictionaryEncodedColumn
     if (multiValueColumn != null) {
       multiValueColumn.close();
     }
+    if (delegate != null) {
+      delegate.close();
+    }
   }
 }
