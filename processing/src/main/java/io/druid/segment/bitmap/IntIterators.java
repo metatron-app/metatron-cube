@@ -19,7 +19,9 @@
 
 package io.druid.segment.bitmap;
 
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
@@ -53,6 +55,58 @@ public class IntIterators
       throw new NoSuchElementException();
     }
   };
+
+  public static class UpTo extends Abstract
+  {
+    private final int limit;
+    private int index;
+
+    public UpTo(int limit) {this.limit = limit;}
+
+    @Override
+    public boolean hasNext()
+    {
+      return index < limit;
+    }
+
+    @Override
+    public int next()
+    {
+      if (index >= limit) {
+        throw new NoSuchElementException();
+      }
+      return index++;
+    }
+  }
+
+  public static class FromArray extends Abstract
+  {
+    private int index;
+    private final int[] array;
+
+    public FromArray(int[] array) {this.array = array;}
+
+    @Override
+    public boolean hasNext()
+    {
+      return index < array.length;
+    }
+
+    @Override
+    public int next()
+    {
+      return array[index++];
+    }
+  }
+
+  public static int[] toArray(final IntIterator iterator)
+  {
+    final IntList list = new IntList();
+    while (iterator.hasNext()) {
+      list.add(iterator.next());
+    }
+    return list.array();
+  }
 
   public static class Peekable extends Abstract
   {
@@ -88,9 +142,10 @@ public class IntIterators
     }
   }
 
+  // values should be sorted
   public static class Sorted extends IntIterators.Abstract
   {
-    private final PriorityQueue<Peekable> pQueue;
+    final PriorityQueue<Peekable> pQueue;
 
     public Sorted(List<IntIterator> iterators)
     {
@@ -133,6 +188,115 @@ public class IntIterators
     }
   }
 
+  // values should be >= 0 and sorted (for bitmap)
+  public static class OR extends NextFirst
+  {
+    private final Peekable iterator;
+
+    public OR(List<IntIterator> iterators)
+    {
+      this.iterator = new Peekable(new Sorted(iterators));
+      this.next = findNext(-1);
+    }
+
+    @Override
+    public int findNext(int current)
+    {
+      for (; iterator.hasNext() && current == iterator.peek(); iterator.next()) {
+      }
+      return iterator.hasNext() ? iterator.next() : -1;
+    }
+  }
+
+  // values should be >= 0 and sorted (for bitmap)
+  public static class AND extends NextFirst
+  {
+    private static final int EOF = Integer.MIN_VALUE;
+
+    private final Peekable[] iterators;
+
+    public AND(List<IntIterator> iterators)
+    {
+      List<Peekable> peekables = Lists.newArrayList();
+      for (IntIterator iterator : iterators) {
+        Peekable peekable = new Peekable(iterator);
+        if (peekable.hasNext()) {
+          peekables.add(peekable);
+        }
+      }
+      this.iterators = peekables.toArray(new Peekable[0]);
+      this.next = findNext(-1);
+    }
+
+    @Override
+    protected int findNext(int current)
+    {
+      int start = 0;
+      for (int next = _findNext(start); start != next; next = _findNext(start = -next - 1)) {
+        if (next == EOF) {
+          return EOF;
+        }
+      }
+      int ret = iterators[start].peek();
+      iterators[start].next();
+      return ret;
+    }
+
+    private int _findNext(int start)
+    {
+      if (!iterators[start].hasNext()) {
+        return EOF;
+      }
+      final int current = iterators[start].peek();
+      final int end = start + iterators.length;
+
+      for (int i = start + 1; i < end; i++) {
+        final int index = i % iterators.length;
+        final Peekable peekable = iterators[index];
+        if (!peekable.hasNext()) {
+          return EOF;
+        }
+        while (peekable.peek() < current) {
+          peekable.next();
+          if (!peekable.hasNext()) {
+            return EOF;    // end
+          }
+        }
+        if (peekable.peek() > current) {
+          return -index - 1;
+        }
+      }
+      return start;
+    }
+  }
+
+  // values should be >= 0 and sorted (for bitmap)
+  public static class NOT extends NextFirst
+  {
+    private final IntIterator iterator;
+    private final int limit;
+    private int avoid;
+
+    public NOT(IntIterator iterator, int limit)
+    {
+      this.iterator = iterator;
+      this.limit = limit;
+      this.avoid = iterator.hasNext() ? iterator.next() : limit;
+      this.next = findNext(-1);
+    }
+
+    @Override
+    protected int findNext(int current)
+    {
+      int next = current + 1;
+      while (next == avoid && next < limit) {
+        avoid = iterator.hasNext() ? iterator.next() : limit;
+        next++;
+      }
+      return next < limit ? next : -1;
+    }
+  }
+
   public static class Delegated implements IntIterator
   {
     final IntIterator delegate;
@@ -156,6 +320,30 @@ public class IntIterators
     {
       return new Delegated(delegate.clone());
     }
+  }
+
+  protected abstract static class NextFirst extends Abstract
+  {
+    int next;
+
+    @Override
+    public boolean hasNext()
+    {
+      return next >= 0;
+    }
+
+    @Override
+    public int next()
+    {
+      if (next < 0) {
+        throw new NoSuchElementException();
+      }
+      final int ret = next;
+      next = findNext(ret);
+      return ret;
+    }
+
+    protected abstract int findNext(int current);
   }
 
   public static class Mapped extends Delegated

@@ -1633,20 +1633,14 @@ public class IndexMerger
     if (intIterators.isEmpty()) {
       return bitmap;
     }
+    final IntIterator iterator;
     if (intIterators.size() == 1) {
-      final IntIterator iterator = intIterators.get(0);
-      while (iterator.hasNext()) {
-        bitmap.add(iterator.next());
-      }
-      return bitmap;
+      iterator = intIterators.get(0);
+    } else {
+      iterator = new IntIterators.OR(intIterators);
     }
-    final IntIterator sorted = new IntIterators.Sorted(intIterators);
-    int prev = -1;
-    while (sorted.hasNext()) {
-      final int next = sorted.next();
-      if (next != prev) {
-        bitmap.add(prev = next);
-      }
+    while (iterator.hasNext()) {
+      bitmap.add(iterator.next());
     }
     return bitmap;
   }
