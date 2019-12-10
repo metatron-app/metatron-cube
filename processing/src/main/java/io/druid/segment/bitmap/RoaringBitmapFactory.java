@@ -17,13 +17,18 @@
 package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.roaringbitmap.IntIterator;
+import org.roaringbitmap.buffer.MutableRoaringArray;
+import org.roaringbitmap.buffer.MutableRoaringBitmap;
+import org.roaringbitmap.buffer.RoaringUtils;
 
 import java.util.BitSet;
 import java.util.Iterator;
 
+// default implementation of union/intersection makes a lot of copy, which is not necessary for our use case
+// simply using bitset and return back to roaring bitmap out-performs in the most of real use-cases (it's worse in single threaded micro test)
 public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.RoaringBitmapFactory
 {
   public RoaringBitmapFactory()
@@ -52,9 +57,17 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   @Override
   public ImmutableBitmap union(Iterable<ImmutableBitmap> bitmaps)
   {
-    final BitSet bitSet = new BitSet();
-    for (ImmutableBitmap bitmap : bitmaps) {
-      copyTo(bitmap, bitSet);
+    final Iterator<ImmutableBitmap> iterator = bitmaps.iterator();
+    if (!iterator.hasNext()) {
+      return makeEmptyImmutableBitmap();
+    }
+    final ImmutableBitmap first = iterator.next();
+    if (!iterator.hasNext()) {
+      return first;
+    }
+    final BitSet bitSet = copyTo(first, new BitSet());
+    while (iterator.hasNext()) {
+      copyTo(iterator.next(), bitSet);
     }
     return finalize(bitSet);
   }
@@ -66,7 +79,11 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (!iterator.hasNext()) {
       return makeEmptyImmutableBitmap();
     }
-    final BitSet bitSet = copyTo(iterator.next(), new BitSet());
+    final ImmutableBitmap first = iterator.next();
+    if (!iterator.hasNext()) {
+      return first;
+    }
+    final BitSet bitSet = copyTo(first, new BitSet());
     while (iterator.hasNext() && !bitSet.isEmpty()) {
       final ImmutableBitmap bitmap = iterator.next();
       if (bitmap.isEmpty()) {
@@ -109,10 +126,25 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (bitSet == null || bitSet.isEmpty()) {
       return makeEmptyImmutableBitmap();
     }
-    final MutableBitmap mutable = makeEmptyMutableBitmap();
+    final MutableRoaringBitmap mutable = new MutableRoaringBitmap();
+    final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
+
+    int containerNum = 0;
+    short current_hb = 0;
+    final IntArrayList values = new IntArrayList();
     for (int x = bitSet.nextSetBit(0); x >= 0; x = bitSet.nextSetBit(x + 1)) {
-      mutable.add(x);
+      final short hb = RoaringUtils.highbits(x);
+      if (hb != current_hb && !values.isEmpty()) {
+        RoaringUtils.addContainer(roaringArray, containerNum++, current_hb, values);
+        values.clear();
+      }
+      current_hb = hb;
+      values.add(x);
     }
-    return makeImmutableBitmap(mutable);
+    if (!values.isEmpty()) {
+      RoaringUtils.addContainer(roaringArray, containerNum, current_hb, values);
+    }
+    values.clear();
+    return new WrappedImmutableRoaringBitmap(mutable);
   }
 }

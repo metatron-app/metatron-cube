@@ -466,8 +466,8 @@ public class Filters
       final String segmentId
   )
   {
-    final byte segmentCode = codeOfFactory(selector.getBitmapFactory());
-    if (cache == null || segmentId == null || segmentCode >= BITMAP_FACTORIES.length) {
+    final byte bitmapCode = codeOfFactory(selector.getBitmapFactory());
+    if (cache == null || segmentId == null || bitmapCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
     final byte[] namespace = io.druid.java.util.common.StringUtils.toUtf8(segmentId);
@@ -476,13 +476,13 @@ public class Filters
       @Override
       public BitmapHolder createBitmap(DimFilter filter)
       {
-        Cache.NamedKey key = new Cache.NamedKey(namespace, filter.getCacheKey());
-        byte[] cached = cache.get(key);
+        final Cache.NamedKey key = new Cache.NamedKey(namespace, filter.getCacheKey());
+        final byte[] cached = cache.get(key);
         if (cached != null) {
           ByteBuffer wrapped = ByteBuffer.wrap(cached);
           byte code = wrapped.get();
           boolean exact = wrapped.get() != 0;
-          if (code == segmentCode) {
+          if (code == bitmapCode) {
             return BitmapHolder.of(exact, factory.mapImmutableBitmap(wrapped));
           }
           MutableBitmap mutable = factory.makeEmptyMutableBitmap();
@@ -492,10 +492,10 @@ public class Filters
           }
           return BitmapHolder.of(exact, factory.makeImmutableBitmap(mutable));
         }
-        BitmapHolder holder = super.createBitmap(filter);
+        final BitmapHolder holder = super.createBitmap(filter);
         if (holder != null) {
           byte exact = holder.exact() ? (byte) 0x01 : 0x00;
-          cache.put(key, StringUtils.concat(new byte[]{segmentCode, exact}, holder.bitmap().toBytes()));
+          cache.put(key, StringUtils.concat(new byte[]{bitmapCode, exact}, holder.bitmap().toBytes()));
         }
         return holder;
       }
