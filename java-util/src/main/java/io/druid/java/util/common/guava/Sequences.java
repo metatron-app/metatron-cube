@@ -15,6 +15,7 @@
 package io.druid.java.util.common.guava;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 
@@ -76,6 +77,17 @@ public class Sequences
   public static <T> Sequence<T> withBaggage(final Sequence<T> seq, Closeable baggage)
   {
     return new ResourceClosingSequence<>(seq, baggage);
+  }
+
+  /**
+   * Allows to execute something before, after or around the processing of the given sequence. See documentation to
+   * {@link SequenceWrapper} methods for some details.
+   */
+  public static <T> Sequence<T> wrap(Sequence<T> seq, SequenceWrapper wrapper)
+  {
+    Preconditions.checkNotNull(seq, "seq");
+    Preconditions.checkNotNull(wrapper, "wrapper");
+    return new WrappingSequence<>(seq, wrapper);
   }
 
   public static <T> Sequence<T> withEffect(final Sequence <T> seq, final Runnable effect, final Executor exec)

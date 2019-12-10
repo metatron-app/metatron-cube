@@ -19,13 +19,13 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.guava.Accumulator;
+import com.google.common.base.Supplier;
+import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.LazySequence;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.java.util.common.guava.SequenceWrapper;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.ObjLongConsumer;
@@ -88,120 +88,41 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
     final QueryMetrics<? super Query<T>> queryMetrics = QueryToolChest.getQueryMetrics(query, queryToolChest);
     applyCustomDimensions.accept(queryMetrics);
 
-
-    long startTimeNs = System.nanoTime();
-    final Sequence<T> sequence = queryRunner.run(query, responseContext);
-    final long elapsed = System.nanoTime() - startTimeNs;
-
-    return new Sequence<T>()
-    {
-      @Override
-      public <OutType> OutType accumulate(OutType outType, Accumulator<OutType, T> accumulator)
-      {
-        OutType retVal;
-
-        final long startTimeNs = System.nanoTime();
-        try {
-          retVal = sequence.accumulate(outType, accumulator);
-        }
-        catch (RuntimeException e) {
-          queryMetrics.status("failed");
-          throw e;
-        }
-        catch (Error e) {
-          queryMetrics.status("failed");
-          throw e;
-        }
-        finally {
-          long timeTaken = elapsed + System.nanoTime() - startTimeNs;
-
-          reportMetric.accept(queryMetrics, timeTaken);
-
-          if (creationTimeNs > 0) {
-            queryMetrics.reportWaitTime(startTimeNs - creationTimeNs);
-
-          }
-          queryMetrics.emit(emitter);
-        }
-
-        return retVal;
-      }
-
-      @Override
-      public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
-      {
-        Yielder<OutType> retVal;
-
-        final long startTimeNs = System.nanoTime();
-        try {
-          retVal = sequence.toYielder(initValue, accumulator);
-        }
-        catch (RuntimeException e) {
-          queryMetrics.status("failed");
-          throw e;
-        }
-        catch (Error e) {
-          queryMetrics.status("failed");
-          throw e;
-        }
-
-        return makeYielder(startTimeNs, retVal, queryMetrics);
-      }
-
-      private <OutType> Yielder<OutType> makeYielder(
-          final long startTimeNs,
-          final Yielder<OutType> yielder,
-          final QueryMetrics<? super Query<T>> queryMetrics)
-      {
-        return new Yielder<OutType>()
+    return Sequences.wrap(
+        new LazySequence<>(new Supplier<Sequence<T>>()
         {
           @Override
-          public OutType get()
+          public Sequence<T> get()
           {
-            return yielder.get();
+            return queryRunner.run(query, responseContext);
+          }
+        }),
+        new SequenceWrapper()
+        {
+          private long startTimeNs;
+          @Override
+          public void before()
+          {
+            startTimeNs = System.nanoTime();
           }
 
           @Override
-          public Yielder<OutType> next(OutType initValue)
+          public void after(boolean isDone, Throwable thrown) throws Exception
           {
-            try {
-              return makeYielder(startTimeNs, yielder.next(initValue), queryMetrics);
-            }
-            catch (RuntimeException e) {
+            if (thrown != null) {
               queryMetrics.status("failed");
-              throw e;
+            } else if (!isDone) {
+              queryMetrics.status("short");
             }
-            catch (Error e) {
-              queryMetrics.status("failed");
-              throw e;
+            long timeTaken = System.nanoTime() - startTimeNs;
+            reportMetric.accept(queryMetrics, timeTaken);
+
+            if (creationTimeNs > 0) {
+              queryMetrics.reportWaitTime(startTimeNs - creationTimeNs);
             }
+            queryMetrics.emit(emitter);
           }
-
-          @Override
-          public boolean isDone()
-          {
-            return yielder.isDone();
-          }
-
-          @Override
-          public void close() throws IOException
-          {
-            try {
-              long timeTaken = elapsed + System.nanoTime() - startTimeNs;
-              reportMetric.accept(queryMetrics, timeTaken);
-
-
-              if (creationTimeNs > 0) {
-                queryMetrics.reportWaitTime(startTimeNs - creationTimeNs);
-              }
-            }
-            finally {
-              yielder.close();
-              queryMetrics.emit(emitter);
-            }
-          }
-        };
-      }
-    };
+        }
+    );
   }
 }

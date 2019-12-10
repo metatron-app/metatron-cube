@@ -19,17 +19,15 @@
 
 package io.druid.query;
 
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.base.Supplier;
 import io.druid.common.utils.VMUtils;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.common.utils.Sequences;
 
-import java.io.IOException;
+import io.druid.java.util.common.guava.SequenceWrapper;
+
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -66,15 +64,17 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
   )
   {
     final Sequence<T> baseSequence = delegate.run(query, responseContext);
-    return Sequences.withEffect(
-        new Sequence<T>()
+    return Sequences.wrap(
+        baseSequence,
+        new SequenceWrapper()
         {
+
           @Override
-          public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+          public <RetType> RetType wrap(Supplier<RetType> sequenceProcessing) throws Exception
           {
             final long start = VMUtils.getCurrentThreadCpuTime();
             try {
-              return baseSequence.accumulate(initValue, accumulator);
+              return sequenceProcessing.get();
             }
             finally {
               cpuTimeAccumulator.addAndGet(VMUtils.getCurrentThreadCpuTime() - start);
@@ -82,59 +82,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
           }
 
           @Override
-          public <OutType> Yielder<OutType> toYielder(
-              OutType initValue, YieldingAccumulator<OutType, T> accumulator
-          )
-          {
-            final Yielder<OutType> delegateYielder = baseSequence.toYielder(initValue, accumulator);
-            return new Yielder<OutType>()
-            {
-              @Override
-              public OutType get()
-              {
-                final long start = VMUtils.getCurrentThreadCpuTime();
-                try {
-                  return delegateYielder.get();
-                }
-                finally {
-                  cpuTimeAccumulator.addAndGet(
-                      VMUtils.getCurrentThreadCpuTime() - start
-                  );
-                }
-              }
-
-              @Override
-              public Yielder<OutType> next(OutType initValue)
-              {
-                final long start = VMUtils.getCurrentThreadCpuTime();
-                try {
-                  return delegateYielder.next(initValue);
-                }
-                finally {
-                  cpuTimeAccumulator.addAndGet(
-                      VMUtils.getCurrentThreadCpuTime() - start
-                  );
-                }
-              }
-
-              @Override
-              public boolean isDone()
-              {
-                return delegateYielder.isDone();
-              }
-
-              @Override
-              public void close() throws IOException
-              {
-                delegateYielder.close();
-              }
-            };
-          }
-        },
-        new Runnable()
-        {
-          @Override
-          public void run()
+          public void after(boolean isDone, Throwable thrown) throws Exception
           {
             if (report) {
               final long cpuTimeNs = cpuTimeAccumulator.get();
@@ -144,8 +92,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
               }
             }
           }
-        },
-        MoreExecutors.sameThreadExecutor()
+        }
     );
   }
 
