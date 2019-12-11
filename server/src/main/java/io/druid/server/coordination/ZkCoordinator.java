@@ -287,9 +287,13 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     long total = 0;
     final List<DataSegment> cachedSegments = Lists.newArrayList();
     final File[] segmentsToLoad = baseDir.listFiles();
+    final int logInterval = (int) Math.pow(10, (int) Math.log10(segmentsToLoad.length / 100) + 1);
     for (int i = 0; i < segmentsToLoad.length; i++) {
-      File file = segmentsToLoad[i];
-      log.info("Loading segment cache file [%d/%d][%s].", i, segmentsToLoad.length, file);
+      final int id = i + 1;
+      final File file = segmentsToLoad[i];
+      if (id == segmentsToLoad.length || id % logInterval == 0) {
+        log.info("Loading segment desc [%d/%d][%s]", id, segmentsToLoad.length, file);
+      }
       try {
         DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
         if (serverManager.isSegmentCached(segment)) {
@@ -305,7 +309,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
         }
       }
       catch (Exception e) {
-        log.makeAlert(e, "Failed to load segment from segmentInfo file")
+        log.makeAlert(e, "Failed to load segment desc from [%s]", file)
            .addData("file", file)
            .emit();
       }
@@ -454,6 +458,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       loadingExecutor = Execs.multiThreaded(config.getNumBootstrapThreads(), "ZkCoordinator-loading-%s");
 
       final int numSegments = segments.size();
+      final int logInterval = (int) Math.pow(10, (int) Math.log10(numSegments / 100) + 1);
       final CountDownLatch latch = new CountDownLatch(numSegments);
       final AtomicInteger counter = new AtomicInteger(0);
       final CopyOnWriteArrayList<DataSegment> failedSegments = new CopyOnWriteArrayList<>();
@@ -464,13 +469,11 @@ public class ZkCoordinator implements DataSegmentChangeHandler
               @Override
               public void run()
               {
+                final int id = counter.incrementAndGet();
                 try {
-                  log.info(
-                      "Loading segment[%d/%d][%s]",
-                      counter.getAndIncrement(),
-                      numSegments,
-                      segment.getIdentifier()
-                  );
+                  if (id == numSegments || id % logInterval == 0) {
+                    log.info("Loading segment [%d/%d][%s]", id, numSegments, segment.getIdentifier());
+                  }
                   DataSegment loaded = loadSegment(segment, callback);
                   try {
                     backgroundSegmentAnnouncer.announceSegment(loaded == null ? segment : loaded);

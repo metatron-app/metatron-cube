@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.server.coordination.coordination;
+package io.druid.server.coordination;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,10 +31,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.announcement.Announcer;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.server.coordination.BatchDataSegmentAnnouncer;
-import io.druid.server.coordination.DruidServerMetadata;
-import io.druid.server.coordination.SegmentChangeRequestHistory;
-import io.druid.server.coordination.SegmentChangeRequestsSnapshot;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
@@ -110,6 +106,7 @@ public class BatchDataSegmentAnnouncerTest
             "tier",
             0
         ),
+        new DummyDataSegmentServerAnnouncer(),
         new BatchDataSegmentAnnouncerConfig()
         {
           @Override

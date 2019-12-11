@@ -24,7 +24,10 @@ package io.druid.server.coordination;
 public interface DataSegmentServerAnnouncer
 {
   void announce();
+
   void unannounce();
+
+  boolean isAnnounced();
 
   interface Decommissionable extends DataSegmentServerAnnouncer
   {

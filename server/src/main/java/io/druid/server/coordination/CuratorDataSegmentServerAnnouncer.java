@@ -126,6 +126,14 @@ public class CuratorDataSegmentServerAnnouncer implements DataSegmentServerAnnou
     }
   }
 
+  @Override
+  public boolean isAnnounced()
+  {
+    synchronized (lock) {
+      return announced;
+    }
+  }
+
   private String makeAnnouncementPath()
   {
     return ZKPaths.makePath(config.getAnnouncementsPath(), server.getName());

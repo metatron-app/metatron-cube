@@ -30,10 +30,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
-import io.druid.java.util.common.concurrent.ScheduledExecutors;
-import io.druid.java.util.common.lifecycle.Lifecycle;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.LocalCacheProvider;
 import io.druid.concurrent.Execs;
@@ -47,6 +43,10 @@ import io.druid.guice.LifecycleModule;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.http.HttpClientModule;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
+import io.druid.java.util.common.concurrent.ScheduledExecutors;
+import io.druid.java.util.common.lifecycle.Lifecycle;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.NoopQueryRunnerFactoryConglomerate;
 import io.druid.segment.IndexIO;
 import io.druid.segment.loading.CacheTestSegmentLoader;
@@ -152,10 +152,13 @@ public class ZkCoordinatorTest extends CuratorTestBase
     segmentsAnnouncedByMe = new ConcurrentSkipListSet<>();
     announceCount = new AtomicInteger(0);
 
+    final DataSegmentServerAnnouncer serverAnnouncer = new DummyDataSegmentServerAnnouncer();
+
     announcer = new DataSegmentAnnouncer()
     {
       private final DataSegmentAnnouncer delegate = new BatchDataSegmentAnnouncer(
           me,
+          serverAnnouncer,
           new BatchDataSegmentAnnouncerConfig(),
           zkPaths,
           new Announcer(curator, Execs.singleThreaded("blah")),
@@ -230,7 +233,7 @@ public class ZkCoordinatorTest extends CuratorTestBase
         zkPaths,
         me,
         announcer,
-        EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
+        serverAnnouncer,
         curator,
         serverManager,
         new ScheduledExecutorFactory()

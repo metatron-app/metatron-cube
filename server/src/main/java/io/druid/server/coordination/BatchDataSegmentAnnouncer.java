@@ -30,10 +30,10 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.UUIDUtils;
 import io.druid.curator.announcement.Announcer;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
@@ -61,6 +61,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
   private final ObjectMapper jsonMapper;
   private final String liveSegmentLocation;
   private final DruidServerMetadata server;
+  private final DataSegmentServerAnnouncer serverAnnouncer;
 
   private final Object lock = new Object();
   private final AtomicLong counter = new AtomicLong(0);
@@ -75,6 +76,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
   @Inject
   public BatchDataSegmentAnnouncer(
       DruidServerMetadata server,
+      DataSegmentServerAnnouncer serverAnnouncer,
       final BatchDataSegmentAnnouncerConfig config,
       ZkPathsConfig zkPaths,
       Announcer announcer,
@@ -85,6 +87,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
     this.announcer = announcer;
     this.jsonMapper = jsonMapper;
     this.server = server;
+    this.serverAnnouncer = serverAnnouncer;
 
     this.liveSegmentLocation = ZKPaths.makePath(zkPaths.getLiveSegmentsPath(), server.getName());
     segmentTransformer = new Function<DataSegment, DataSegment>()
@@ -114,7 +117,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
   public void announceSegment(DataSegment segment) throws IOException
   {
     if (segmentLookup.containsKey(segment)) {
-      log.info("Skipping announcement of segment [%s]. Announcement exists already.");
+      log.info("Skipping announcement of segment [%s]. Announcement exists already.", segment);
       return;
     }
 
@@ -222,7 +225,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
       for (DataSegment ds : segments) {
 
         if (segmentLookup.containsKey(ds)) {
-          log.info("Skipping announcement of segment [%s]. Announcement exists already.");
+          log.info("Skipping announcement of segment [%s]. Announcement exists already.", ds);
           return;
         }
 
@@ -251,7 +254,10 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
           byteSize = 0;
         }
 
-        log.info("Announcing segment[%s] at path[%s]", segment.getIdentifier(), segmentZNode.getPath());
+        // skip logging before server announce
+        if (serverAnnouncer.isAnnounced()) {
+          log.info("Announcing segment[%s] at path[%s]", segment.getIdentifier(), segmentZNode.getPath());
+        }
         segmentLookup.put(segment, segmentZNode);
         batch.add(segment);
         count++;
