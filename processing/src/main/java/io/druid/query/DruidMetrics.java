@@ -47,7 +47,7 @@ public class DruidMetrics
     int retVal = 0;
     for (AggregatorFactory agg : aggs) {
       // This needs to change when we have support column types better
-      if (!agg.getOutputType().isPrimitive()) {
+      if (agg.getOutputType() !=null && !agg.getOutputType().isPrimitive()) {
         retVal++;
       }
     }
