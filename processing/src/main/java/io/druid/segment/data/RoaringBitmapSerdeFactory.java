@@ -92,7 +92,7 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
       }
       final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
       readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
-      return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(readOnlyBuffer));
+      return bitmapFactory.mapImmutableBitmap(readOnlyBuffer);
     }
 
     @Override

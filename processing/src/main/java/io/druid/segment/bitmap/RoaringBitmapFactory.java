@@ -17,13 +17,20 @@
 package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
+import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
+import io.druid.data.input.BytesInputStream;
+import io.druid.data.input.BytesOutputStream;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.roaringbitmap.IntIterator;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringArray;
 import org.roaringbitmap.buffer.MutableRoaringBitmap;
 import org.roaringbitmap.buffer.RoaringUtils;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.BitSet;
 import java.util.Iterator;
 
@@ -50,6 +57,41 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       public boolean get(int value)
       {
         return false;
+      }
+    };
+  }
+
+  private static final short SERIAL_COOKIE_NO_RUNCONTAINER = 12346;
+  private static final short SERIAL_COOKIE = 12347;
+
+  private static final short SMALL_COOKIE = 12345;
+
+  private static final int CARDINALITY_THRESHOLD = 8;
+  private static final int EXPECTED_MAX_LENGTH = 32;
+
+  @Override
+  public ImmutableBitmap makeImmutableBitmap(MutableBitmap mutableBitmap)
+  {
+    return new WrappedImmutableRoaringBitmap(((WrappedImmutableRoaringBitmap) super.makeImmutableBitmap(mutableBitmap)).getBitmap())
+    {
+      @Override
+      public byte[] toBytes()
+      {
+        final ImmutableRoaringBitmap bitmap = getBitmap();
+        final int cardinality = bitmap.getCardinality();
+        if (cardinality < CARDINALITY_THRESHOLD) {
+          final BytesOutputStream out = new BytesOutputStream(EXPECTED_MAX_LENGTH);
+          out.writeInt(Integer.reverseBytes(SMALL_COOKIE | cardinality << 16));
+          final IntIterator iterator = bitmap.getIntIterator();
+          int prev = 0;
+          while (iterator.hasNext()) {
+            final int value = iterator.next();
+            out.writeUnsignedVarInt(value - prev);    // write delta
+            prev = value;
+          }
+          return out.toByteArray();
+        }
+        return super.toBytes();
       }
     };
   }
@@ -126,13 +168,19 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (bitSet == null || bitSet.isEmpty()) {
       return makeEmptyImmutableBitmap();
     }
+    return copyToBitmap(new WrappedImmutableBitSetBitmap(bitSet).iterator());
+  }
+
+  // should return -1 instead of NoSuchElementException
+  private ImmutableBitmap copyToBitmap(final IntIterator iterator)
+  {
     final MutableRoaringBitmap mutable = new MutableRoaringBitmap();
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
 
     int containerNum = 0;
     short current_hb = 0;
     final IntArrayList values = new IntArrayList();
-    for (int x = bitSet.nextSetBit(0); x >= 0; x = bitSet.nextSetBit(x + 1)) {
+    for (int x = iterator.next(); x >= 0; x = iterator.next()) {
       final short hb = RoaringUtils.highbits(x);
       if (hb != current_hb && !values.isEmpty()) {
         RoaringUtils.addContainer(roaringArray, containerNum++, current_hb, values);
@@ -146,5 +194,38 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     }
     values.clear();
     return new WrappedImmutableRoaringBitmap(mutable);
+  }
+
+  @Override
+  public ImmutableBitmap mapImmutableBitmap(ByteBuffer bbf)
+  {
+    final ByteBuffer buffer = bbf.order(ByteOrder.LITTLE_ENDIAN);
+    final int cookie = buffer.getInt(buffer.position()) & 0xFFFF;
+    if (cookie == SMALL_COOKIE) {
+      final ByteBuffer readOnly = buffer.asReadOnlyBuffer().order(ByteOrder.LITTLE_ENDIAN); // order is not propagated
+      final int size = readOnly.getInt() >>> 16;
+      if (size == 0) {
+        return makeEmptyImmutableBitmap();
+      }
+      return copyToBitmap(new IntIterators.Abstract()
+      {
+        private final ByteBuffer bigEndian = readOnly.order(ByteOrder.BIG_ENDIAN);
+        private int index = 0;
+        private int prev = 0;
+
+        @Override
+        public boolean hasNext()
+        {
+          return index < size;
+        }
+
+        @Override
+        public int next()
+        {
+          return index++ < size ? (prev += BytesInputStream.readUnsignedVarInt(bigEndian)) : -1;
+        }
+      });
+    }
+    return super.mapImmutableBitmap(bbf);
   }
 }
