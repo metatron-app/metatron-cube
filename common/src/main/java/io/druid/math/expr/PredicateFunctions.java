@@ -20,15 +20,17 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Function.NamedFactory;
 
 import java.util.List;
@@ -162,21 +164,99 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
+      final int size = args.size();
+      if (size < 2) {
         throw new IAE("function 'in' needs at least 2 arguments");
       }
       final Set<Object> set = Sets.newHashSet();
-      for (int i = 1; i < args.size(); i++) {
+      for (int i = 1; i < size; i++) {
         set.add(Evals.getConstant(args.get(i)));
+      }
+      if (Evals.isConstant(args.get(0))) {
+        // regard const in [const, const, const]
+        final ExprEval result = ExprEval.of(set.contains(Evals.getConstant(args.get(0))));
+        return new BooleanChild()
+        {
+          @Override
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return result;
+          }
+        };
+      } else {
+        // column in [const, const, const]
+        return new BooleanChild()
+        {
+          @Override
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return ExprEval.of(set.contains(Evals.evalValue(args.get(0), bindings)));
+          }
+        };
+      }
+    }
+  }
+
+  abstract class InColumnFunc extends NamedFactory.BooleanType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      final int size = args.size();
+      if (size < 2) {
+        throw new IAE("function 'in' needs at least 2 arguments");
+      }
+      final Expr last = GuavaUtils.lastOf(args);
+      final ValueDesc valueDesc = last.returns();
+      if (!valueDesc.isArray()) {
+        throw new IAE("last column should be array type");
+      }
+      final ValueDesc elementType = ValueDesc.subElementOf(valueDesc, ValueDesc.UNKNOWN);
+      final List<Object> targets = Lists.newArrayList();
+      for (int i = 0; i < size - 1; i++) {
+        targets.add(elementType.cast(Evals.getConstant(args.get(i))));
       }
       return new BooleanChild()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
+          final List array = (List) Evals.evalValue(GuavaUtils.lastOf(args), bindings);
+          return InColumnFunc.this.evaluate(targets, array);
         }
       };
+    }
+
+    protected abstract ExprEval evaluate(List<Object> targets, List array);
+  }
+
+  @Function.Named("anyInColumn")
+  final class AnyInColumnFunc extends InColumnFunc
+  {
+    @Override
+    protected ExprEval evaluate(List<Object> targets, List array)
+    {
+      for (Object target : targets) {
+        if (array.contains(target)) {
+          return ExprEval.TRUE;
+        }
+      }
+      return ExprEval.FALSE;
+    }
+  }
+
+  @Function.Named("allInColumn")
+  final class AllInColumnFunc extends InColumnFunc
+  {
+    @Override
+    protected ExprEval evaluate(List<Object> targets, List array)
+    {
+      for (Object target : targets) {
+        if (!array.contains(target)) {
+          return ExprEval.FALSE;
+        }
+      }
+      return ExprEval.TRUE;
     }
   }
 

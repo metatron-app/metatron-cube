@@ -35,8 +35,8 @@ import java.util.Objects;
  */
 public class ExprEval extends Pair<Object, ValueDesc>
 {
-  public static final ExprEval TRUE = ExprEval.of(true);
-  public static final ExprEval FALSE = ExprEval.of(false);
+  public static final ExprEval TRUE = ExprEval.of(true, ValueDesc.BOOLEAN);
+  public static final ExprEval FALSE = ExprEval.of(false, ValueDesc.BOOLEAN);
   public static final ExprEval NULL_BOOL = ExprEval.of(null, ValueDesc.BOOLEAN);
 
   public static final ExprEval UNKNOWN = ExprEval.of(null, ValueDesc.UNKNOWN);
@@ -124,6 +124,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public static ExprEval of(Boolean bool)
   {
     return of(bool, ValueDesc.BOOLEAN);
+  }
+
+  public static ExprEval of(boolean bool)
+  {
+    return bool ? TRUE : FALSE;
   }
 
   public ExprEval(Object lhs, ValueDesc rhs)

@@ -128,6 +128,11 @@ public class Evals
     return arg.eval(binding);
   }
 
+  public static Object evalValue(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg.eval(binding).value();
+  }
+
   public static String evalString(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asString();

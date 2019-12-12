@@ -25,10 +25,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Doubles;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import org.joda.time.DateTime;
@@ -199,6 +201,7 @@ public class EvalTest
       }
     }
   }
+
   @Test
   public void testDummyEq()
   {
@@ -290,7 +293,10 @@ public class EvalTest
     Assert.assertEquals(100L, evalLong("switch (x + 10, 0, 2, 1, 3, 100)", bindings));
 
     // exists
-    Assert.assertEquals(3L, evalLong("case (x - 1 == 9223372036854775807, 2, x - 1 == 9223372036854775806, 3)", bindings));
+    Assert.assertEquals(
+        3L,
+        evalLong("case (x - 1 == 9223372036854775807, 2, x - 1 == 9223372036854775806, 3)", bindings)
+    );
     // not-exists (implicit 0)
     Assert.assertEquals(0L, evalLong("case (x + 10 == 0, 2, x + 10 == 1, 3)", bindings));
     // not-exists (explicit)
@@ -494,6 +500,7 @@ public class EvalTest
         )
     );
   }
+
   @Test
   public void testStandard() throws ParseException
   {
@@ -685,14 +692,14 @@ public class EvalTest
 
     Expr.NumericBinding bindings = Parser.withMap(
         ImmutableMap.<String, Object>builder()
-                    .put("t1", time1.getMillis())
-                    .put("t2", time2.getMillis())
-                    .put("t3", time3.getMillis())
-                    .put("t4", time4.getMillis())
-                    .put("t5", time5.getMillis())
-                    .put("t6", time6.getMillis())
-                    .put("t7", time7.getMillis())
-                    .put("t8", time8.getMillis()).build()
+            .put("t1", time1.getMillis())
+            .put("t2", time2.getMillis())
+            .put("t3", time3.getMillis())
+            .put("t4", time4.getMillis())
+            .put("t5", time5.getMillis())
+            .put("t6", time6.getMillis())
+            .put("t7", time7.getMillis())
+            .put("t8", time8.getMillis()).build()
     );
 
     Assert.assertEquals(70, evalLong("difftime('MINUTE', t1, t2)", bindings));
@@ -734,10 +741,10 @@ public class EvalTest
     Assert.assertEquals(11, evalLong("datetime_extract('MINUTE', t2)", bindings));
 
     Assert.assertEquals(16, evalLong("datetime_extract('HOUR', t1, 'Asia/Seoul')", bindings));
-    Assert.assertEquals( 7, evalLong("datetime_extract('HOUR', t1, 'UTC')", bindings));
+    Assert.assertEquals(7, evalLong("datetime_extract('HOUR', t1, 'UTC')", bindings));
     Assert.assertEquals(23, evalLong("datetime_extract('HOUR', t1, 'PST')", bindings));
 
-    Assert.assertEquals( 7, evalLong("datetime_extract('HOUR', t2, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(7, evalLong("datetime_extract('HOUR', t2, 'Asia/Seoul')", bindings));
     Assert.assertEquals(22, evalLong("datetime_extract('HOUR', t2, 'UTC')", bindings));
     Assert.assertEquals(15, evalLong("datetime_extract('HOUR', t2, 'PST')", bindings));
 
@@ -746,19 +753,19 @@ public class EvalTest
     Assert.assertEquals(3, evalLong("datetime_extract('DAY', t1, 'PST')", bindings));
 
     Assert.assertEquals(10, evalLong("datetime_extract('DAY', t2, 'Asia/Seoul')", bindings));
-    Assert.assertEquals( 9, evalLong("datetime_extract('DAY', t2, 'UTC')", bindings));
-    Assert.assertEquals( 9, evalLong("datetime_extract('DAY', t2, 'PST')", bindings));
+    Assert.assertEquals(9, evalLong("datetime_extract('DAY', t2, 'UTC')", bindings));
+    Assert.assertEquals(9, evalLong("datetime_extract('DAY', t2, 'PST')", bindings));
 
     Assert.assertEquals(5, evalLong("datetime_extract('DOW', t1, 'UTC')", bindings));
     Assert.assertEquals(4, evalLong("datetime_extract('DOW', t2, 'UTC')", bindings));
 
-    Assert.assertEquals( 64, evalLong("datetime_extract('DOY', t1, 'UTC')", bindings));
+    Assert.assertEquals(64, evalLong("datetime_extract('DOY', t1, 'UTC')", bindings));
     Assert.assertEquals(253, evalLong("datetime_extract('DOY', t2, 'UTC')", bindings));
 
     Assert.assertEquals(10, evalLong("datetime_extract('WEEK', t1, 'UTC')", bindings));
     Assert.assertEquals(37, evalLong("datetime_extract('WEEK', t2, 'UTC')", bindings));
 
-    Assert.assertEquals( 9, evalLong("datetime_extract('WEEKOFWEEKYEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(9, evalLong("datetime_extract('WEEKOFWEEKYEAR', t1, 'UTC')", bindings));
     Assert.assertEquals(37, evalLong("datetime_extract('WEEKOFWEEKYEAR', t2, 'UTC')", bindings));
 
     Assert.assertEquals(3, evalLong("datetime_extract('MONTH', t1, 'UTC')", bindings));
@@ -854,7 +861,9 @@ public class EvalTest
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("Y", "2008", "M", "1", "D", "3", "HM", "754"));
     Assert.assertEquals(
         DateTimes.of("2008-01-03T07:54:00.000Z"),
-        Parser.parse("datetime(format('%s/%s/%s %s',Y,M,D,lpad(HM,4,'0')), format='yyyy/MM/dd HHmm')").eval(bindings).value()
+        Parser.parse("datetime(format('%s/%s/%s %s',Y,M,D,lpad(HM,4,'0')), format='yyyy/MM/dd HHmm')")
+              .eval(bindings)
+              .value()
     );
   }
 
@@ -948,27 +957,41 @@ public class EvalTest
   {
     Set<String> strings = Sets.newHashSet("a", "c", "f");
     Map<String, Object> mapping = new HashMap<>();
+    Expr.NumericBinding bindings = Parser.withMap(mapping);
+    for (String x : new String[]{"a", "b", "c", ""}) {
+      boolean eval = Parser.parse("in('" + x + "', 'a', 'c', 'f')").eval(null).asBoolean();
+      Assert.assertEquals(strings.contains(x), eval);
+    }
     for (int i = 0; i < 5; i++) {
       String value = String.valueOf((char) ('a' + i));
       mapping.put("x", value);
-      Expr.NumericBinding bindings = Parser.withMap(mapping);
       boolean eval = Parser.parse("in(x, 'a', 'c', 'f')").eval(bindings).asBoolean();
       Assert.assertEquals(strings.contains(value), eval);
     }
     Set<Long> longs = Sets.newHashSet(1L, 3L, 5L);
     for (int i = 0; i < 5; i++) {
       mapping.put("x", (long) i);
-      Expr.NumericBinding bindings = Parser.withMap(mapping);
       boolean eval = Parser.parse("in(x, 1, 3, 5)").eval(bindings).asBoolean();
       Assert.assertEquals(longs.contains((long) i), eval);
     }
     Set<Double> doubles = Sets.newHashSet(1D, 3D, 5D);
     for (int i = 0; i < 5; i++) {
       mapping.put("x", (double) i);
-      Expr.NumericBinding bindings = Parser.withMap(mapping);
       boolean eval = Parser.parse("in(x, 1.0, 3.0, 5.0)").eval(bindings).asBoolean();
       Assert.assertEquals(doubles.contains((double) i), eval);
     }
+    mapping.put("x", Doubles.asList(1, 2, 3));
+    TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("x", ValueDesc.ofArray(ValueType.DOUBLE)));
+    Assert.assertFalse(Evals.evalBoolean(Parser.parse("anyInColumn(0, x)", resolver), bindings));
+    Assert.assertTrue(Evals.evalBoolean(Parser.parse("anyInColumn(1, x)", resolver), bindings));
+    Assert.assertTrue(Evals.evalBoolean(Parser.parse("anyInColumn(1, 5, x)", resolver), bindings));
+    Assert.assertFalse(Evals.evalBoolean(Parser.parse("anyInColumn(5, x)", resolver), bindings));
+    Assert.assertFalse(Evals.evalBoolean(Parser.parse("anyInColumn(5, 6, x)", resolver), bindings));
+
+    Assert.assertFalse(Evals.evalBoolean(Parser.parse("allInColumn(0, x)", resolver), bindings));
+    Assert.assertTrue(Evals.evalBoolean(Parser.parse("allInColumn(1, 2, x)", resolver), bindings));
+    Assert.assertTrue(Evals.evalBoolean(Parser.parse("allInColumn(1, 2, 3, x)", resolver), bindings));
+    Assert.assertFalse(Evals.evalBoolean(Parser.parse("allInColumn(1, 2, 3, 4, x)", resolver), bindings));
   }
 
   @Test
@@ -1183,7 +1206,7 @@ public class EvalTest
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
     Assert.assertEquals(90, evalLong("pyEval('a * b')", bindings));
 
-    bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", new double[] {10, 20}, "b", new double[] {30, 40}));
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", new double[]{10, 20}, "b", new double[]{30, 40}));
     Assert.assertArrayEquals(new double[]{10, 20, 30, 40}, (double[]) eval("pyEval('a + b')", bindings), 0.001);
 
     Map<String, Object> param = ImmutableMap.<String, Object>of(
@@ -1248,21 +1271,48 @@ public class EvalTest
     Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')", bindings).returns());
 
     Assert.assertEquals(ValueDesc.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns()
+    );
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)", bindings).returns()
+    );
 
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10d)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0d, CAST(C, 'INT') / 10 * 10d)", bindings).returns());
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10d)", bindings).returns()
+    );
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("if(C == '', 0d, CAST(C, 'INT') / 10 * 10d)", bindings).returns()
+    );
 
     Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', b, 'x')", bindings).returns());
     Assert.assertEquals(ValueDesc.STRING, Parser.parse("if(C == '', d, 'x')", bindings).returns());
 
-    Assert.assertEquals(ValueDesc.LONG, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0.0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns());
+    Assert.assertEquals(
+        ValueDesc.LONG,
+        Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10)", bindings).returns()
+    );
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns()
+    );
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("switch(C, '', 0.0, '', CAST(C, 'INT') / 10 * 10.0)", bindings).returns()
+    );
 
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns());
-    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("switch(C, '', 0d, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns());
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("switch(C, '', 0, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns()
+    );
+    Assert.assertEquals(
+        ValueDesc.DOUBLE,
+        Parser.parse("switch(C, '', 0d, '', CAST(C, 'INT') / 10 * 10d)", bindings).returns()
+    );
 
     Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', b, '', 'x')", bindings).returns());
     Assert.assertEquals(ValueDesc.STRING, Parser.parse("switch(C, '', d, '', 'x')", bindings).returns());

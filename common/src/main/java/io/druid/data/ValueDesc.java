@@ -125,6 +125,11 @@ public class ValueDesc implements Serializable, Cacheable
     return ofArray(valueType.typeName);
   }
 
+  public static ValueDesc ofArray(ValueType valueType)
+  {
+    return ofArray(valueType.getName());
+  }
+
   public static ValueDesc ofList(ValueDesc valueType)
   {
     return ofList(valueType.typeName);
@@ -269,6 +274,17 @@ public class ValueDesc implements Serializable, Cacheable
   {
     int index = typeName.indexOf('.');
     return index < 0 ? null : typeName.substring(index + 1);
+  }
+
+  public static ValueDesc subElementOf(ValueDesc valueType)
+  {
+    if (valueType != null) {
+      String elementType = subElementOf(valueType.typeName);
+      if (elementType != null) {
+        return ValueDesc.of(elementType);
+      }
+    }
+    return null;
   }
 
   public static ValueType typeOfDimension(ValueDesc valueType)
