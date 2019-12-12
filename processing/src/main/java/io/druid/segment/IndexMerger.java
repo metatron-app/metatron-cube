@@ -77,7 +77,7 @@ import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
-import io.druid.segment.data.VSizeIndexedWriter;
+import io.druid.segment.data.VSizeIntsWriter;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexAdapter;
 import io.druid.segment.serde.ComplexMetricColumnSerializer;
@@ -812,9 +812,9 @@ public class IndexMerger
 
       timeWriter.open();
 
-      ArrayList<VSizeIndexedWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      ArrayList<VSizeIntsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
       for (String dimension : mergedDimensions) {
-        VSizeIndexedWriter writer = new VSizeIndexedWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
+        VSizeIntsWriter writer = new VSizeIntsWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
         writer.open();
         forwardDimWriters.add(writer);
       }
@@ -897,7 +897,7 @@ public class IndexMerger
       IndexIO.checkFileSize(timeFile);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
-        VSizeIndexedWriter writer = forwardDimWriters.get(i);
+        VSizeIntsWriter writer = forwardDimWriters.get(i);
         writer.close();
         try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).getOutput())) {
           writer.writeToChannel(channel);

@@ -39,7 +39,7 @@ import java.util.List;
 /**
  * Streams arrays of objects out in the binary format described by VSizeIndexed
  */
-public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements Closeable
+public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Closeable
 {
   private static final byte VERSION = 0x1;
   private static final byte[] EMPTY_ARRAY = new byte[]{};
@@ -54,7 +54,7 @@ public class VSizeIndexedWriter extends MultiValueIndexedIntsWriter implements C
   private final String headerFileName;
   private final String valuesFileName;
 
-  public VSizeIndexedWriter(
+  public VSizeIntsWriter(
       IOPeon ioPeon,
       String filenameBase,
       int maxId

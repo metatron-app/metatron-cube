@@ -24,6 +24,7 @@ package io.druid.segment.data;
 
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
 import io.druid.segment.IndexIO;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,20 +32,21 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CompressedVSizeIndexedV3Writer extends MultiValueIndexedIntsWriter
+public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
   private static final byte VERSION = CompressedVSizeIndexedV3Supplier.VERSION;
 
   private static final List<Integer> EMPTY_LIST = new ArrayList<>();
 
-  public static CompressedVSizeIndexedV3Writer create(
+  public static CompressedVSizeIntsV3Writer create(
       final IOPeon ioPeon,
       final String filenameBase,
       final int maxValue,
-      final CompressedObjectStrategy.CompressionStrategy compression
+      final CompressionStrategy compression
   )
   {
-    return new CompressedVSizeIndexedV3Writer(
+    return new CompressedVSizeIntsV3Writer(
+        compression,
         new CompressedIntsIndexedWriter(
             ioPeon,
             String.format("%s.offsets", filenameBase),
@@ -52,7 +54,7 @@ public class CompressedVSizeIndexedV3Writer extends MultiValueIndexedIntsWriter
             IndexIO.BYTE_ORDER,
             compression
         ),
-        new CompressedVSizeIntsIndexedWriter(
+        new CompressedVSizeIntWriter(
             ioPeon,
             String.format("%s.values", filenameBase),
             maxValue,
@@ -63,18 +65,27 @@ public class CompressedVSizeIndexedV3Writer extends MultiValueIndexedIntsWriter
     );
   }
 
+  private final CompressionStrategy compression;
   private final CompressedIntsIndexedWriter offsetWriter;
-  private final CompressedVSizeIntsIndexedWriter valueWriter;
+  private final CompressedVSizeIntWriter valueWriter;
   private int offset;
 
-  public CompressedVSizeIndexedV3Writer(
+  public CompressedVSizeIntsV3Writer(
+      CompressionStrategy compression,
       CompressedIntsIndexedWriter offsetWriter,
-      CompressedVSizeIntsIndexedWriter valueWriter
+      CompressedVSizeIntWriter valueWriter
   )
   {
+    this.compression = compression;
     this.offsetWriter = offsetWriter;
     this.valueWriter = valueWriter;
     this.offset = 0;
+  }
+
+  @Override
+  public CompressionStrategy appliedCompression()
+  {
+    return compression;
   }
 
   @Override

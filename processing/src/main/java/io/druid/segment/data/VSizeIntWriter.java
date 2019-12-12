@@ -34,7 +34,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams integers out in the binary format described by VSizeIndexedInts
  */
-public class VSizeIndexedIntsWriter extends SingleValueIndexedIntsWriter
+public class VSizeIntWriter extends SingleValueIndexedIntsWriter
 {
   private static final byte VERSION = VSizeIndexedInts.VERSION;
 
@@ -44,7 +44,7 @@ public class VSizeIndexedIntsWriter extends SingleValueIndexedIntsWriter
 
   private CountingOutputStream valuesOut = null;
 
-  public VSizeIndexedIntsWriter(
+  public VSizeIntWriter(
       final IOPeon ioPeon,
       final String filenameBase,
       final int maxValue

@@ -33,7 +33,7 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 
-public class VSizeIndexedIntsWriterTest
+public class VSizeIntWriterTest
 {
   private static final int[] MAX_VALUES = new int[]{0xFF, 0xFFFF, 0xFFFFFF, 0x0FFFFFFF};
 
@@ -64,7 +64,7 @@ public class VSizeIndexedIntsWriterTest
   private void checkSerializedSizeAndData() throws Exception
   {
     int maxValue = vals.length == 0 ? 0 : Ints.max(vals);
-    VSizeIndexedIntsWriter writer = new VSizeIndexedIntsWriter(
+    VSizeIntWriter writer = new VSizeIntWriter(
         ioPeon, "test", maxValue
     );
 

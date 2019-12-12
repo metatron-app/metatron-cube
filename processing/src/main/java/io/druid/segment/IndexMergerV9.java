@@ -54,11 +54,11 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedComplexColumnSerializer;
+import io.druid.segment.data.ColumnPartWriter.Compressed;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.CompressedVSizeIndexedV3Writer;
-import io.druid.segment.data.CompressedVSizeIntsIndexedWriter;
+import io.druid.segment.data.CompressedVSizeIntWriter;
+import io.druid.segment.data.CompressedVSizeIntsV3Writer;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
@@ -67,8 +67,8 @@ import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.SketchWriter;
 import io.druid.segment.data.TmpFileIOPeon;
-import io.druid.segment.data.VSizeIndexedIntsWriter;
-import io.druid.segment.data.VSizeIndexedWriter;
+import io.druid.segment.data.VSizeIntWriter;
+import io.druid.segment.data.VSizeIntsWriter;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -356,7 +356,6 @@ public class IndexMergerV9 extends IndexMerger
 
     long startTime = System.currentTimeMillis();
     final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
-    final CompressionStrategy dimensionCompression = indexSpec.getDimensionCompressionStrategy();
     for (int i = 0; i < mergedDimensions.size(); ++i) {
       if (dimensionSkipFlag[i]) {
         continue;
@@ -367,6 +366,8 @@ public class IndexMergerV9 extends IndexMerger
       final ColumnPartWriter dimSketchWriter = dimSketchWriters.get(i);
       final ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter = bitmapIndexWriters.get(i);
       final ColumnPartWriter<ImmutableRTree> spatialIndexWriter = spatialIndexWriters.get(i);
+      final CompressionStrategy compression =
+          dimWriter instanceof Compressed ? ((Compressed) dimWriter).appliedCompression() : null;
 
       dimWriter.close();
       bitmapIndexWriter.close();
@@ -382,7 +383,7 @@ public class IndexMergerV9 extends IndexMerger
           .serializerBuilder()
           .withDictionary(dimValueWriters.get(i))
           .withDictionarySketch(dimSketchWriter)
-          .withValue(dimWriter, hasMultiValue, dimensionCompression != null)
+          .withValue(dimWriter, hasMultiValue, compression != null)
           .withBitmapSerdeFactory(bitmapSerdeFactory)
           .withBitmapIndex(bitmapIndexWriter)
           .withSpatialIndex(spatialIndexWriter)
@@ -732,6 +733,9 @@ public class IndexMergerV9 extends IndexMerger
     return metWriters;
   }
 
+  // heuristic
+  private static final int SKIP_COMPRESSION_THRESHOLD = Short.MAX_VALUE << 2;
+
   private ArrayList<ColumnPartWriter> setupDimensionWriters(
       final IOPeon ioPeon,
       final List<String> mergedDimensions,
@@ -747,15 +751,16 @@ public class IndexMergerV9 extends IndexMerger
       int cardinality = dimCardinalities.get(dim);
       ColumnCapabilities capabilities = dimCapabilities.get(dimIndex);
       String filenameBase = String.format("%s.forward_dim", dim);
+      CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : null;
       ColumnPartWriter writer;
       if (capabilities.hasMultipleValues()) {
-        writer = (dimCompression != null)
-                 ? CompressedVSizeIndexedV3Writer.create(ioPeon, filenameBase, cardinality, dimCompression)
-                 : new VSizeIndexedWriter(ioPeon, filenameBase, cardinality);
+        writer = compression != null
+                 ? CompressedVSizeIntsV3Writer.create(ioPeon, filenameBase, cardinality, compression)
+                 : new VSizeIntsWriter(ioPeon, filenameBase, cardinality);
       } else {
-        writer = (dimCompression != null)
-                 ? CompressedVSizeIntsIndexedWriter.create(ioPeon, filenameBase, cardinality, dimCompression)
-                 : new VSizeIndexedIntsWriter(ioPeon, filenameBase, cardinality);
+        writer = compression != null
+                 ? CompressedVSizeIntWriter.create(ioPeon, filenameBase, cardinality, compression)
+                 : new VSizeIntWriter(ioPeon, filenameBase, cardinality);
       }
       writer.open();
       // we will close these writers in another method after we added all the values

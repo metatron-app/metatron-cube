@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.Closeable;
@@ -36,5 +37,10 @@ public interface ColumnPartWriter<T> extends ColumnPartSerde.Serializer, Closeab
   {
     @Override
     public void close() throws IOException {}
+  }
+
+  interface Compressed<T> extends ColumnPartWriter<T>
+  {
+    CompressionStrategy appliedCompression();
   }
 }

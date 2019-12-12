@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -47,13 +48,13 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class CompressedVSizeIndexedV3WriterTest
+public class CompressedVSizeIntsV3WriterTest
 {
   @Parameterized.Parameters(name = "{index}: compression={0}, byteOrder={1}")
   public static Iterable<Object[]> compressionStrategiesAndByteOrders()
   {
     Set<List<Object>> combinations = Sets.cartesianProduct(
-        Sets.newHashSet(CompressedObjectStrategy.CompressionStrategy.values()),
+        Sets.newHashSet(CompressionStrategy.values()),
         Sets.newHashSet(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
     );
 
@@ -78,17 +79,14 @@ public class CompressedVSizeIndexedV3WriterTest
   private static final int[] MAX_VALUES = new int[]{0xFF, 0xFFFF, 0xFFFFFF, 0x0FFFFFFF};
 
   private final IOPeon ioPeon = new TmpFileIOPeon();
-  private final CompressedObjectStrategy.CompressionStrategy compressionStrategy;
+  private final CompressionStrategy compression;
   private final ByteOrder byteOrder;
   private final Random rand = new Random(0);
   private List<int[]> vals;
 
-  public CompressedVSizeIndexedV3WriterTest(
-      CompressedObjectStrategy.CompressionStrategy compressionStrategy,
-      ByteOrder byteOrder
-  )
+  public CompressedVSizeIntsV3WriterTest(CompressionStrategy compression, ByteOrder byteOrder)
   {
-    this.compressionStrategy = compressionStrategy;
+    this.compression = compression;
     this.byteOrder = byteOrder;
   }
 
@@ -109,12 +107,12 @@ public class CompressedVSizeIndexedV3WriterTest
   {
     int maxValue = vals.size() > 0 ? getMaxValue(vals) : 0;
     CompressedIntsIndexedWriter offsetWriter = new CompressedIntsIndexedWriter(
-        ioPeon, "offset", offsetChunkFactor, byteOrder, compressionStrategy
+        ioPeon, "offset", offsetChunkFactor, byteOrder, compression
     );
-    CompressedVSizeIntsIndexedWriter valueWriter = new CompressedVSizeIntsIndexedWriter(
-        ioPeon, "value", maxValue, valueChunkFactor, byteOrder, compressionStrategy
+    CompressedVSizeIntWriter valueWriter = new CompressedVSizeIntWriter(
+        ioPeon, "value", maxValue, valueChunkFactor, byteOrder, compression
     );
-    CompressedVSizeIndexedV3Writer writer = new CompressedVSizeIndexedV3Writer(offsetWriter, valueWriter);
+    CompressedVSizeIntsV3Writer writer = new CompressedVSizeIntsV3Writer(compression, offsetWriter, valueWriter);
     CompressedVSizeIndexedV3Supplier supplierFromIterable = CompressedVSizeIndexedV3Supplier.fromIterable(
         Iterables.transform(
             vals, new Function<int[], IndexedInts>()
@@ -126,7 +124,7 @@ public class CompressedVSizeIndexedV3WriterTest
                 return new ArrayBasedIndexedInts(input);
               }
             }
-        ), offsetChunkFactor, maxValue, byteOrder, compressionStrategy
+        ), offsetChunkFactor, maxValue, byteOrder, compression
     );
     writer.open();
     for (int[] val : vals) {

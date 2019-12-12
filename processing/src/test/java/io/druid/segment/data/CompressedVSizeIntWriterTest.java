@@ -43,7 +43,7 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class CompressedVSizeIntsIndexedWriterTest
+public class CompressedVSizeIntWriterTest
 {
   @Parameterized.Parameters(name = "{index}: compression={0}, byteOrder={1}")
   public static Iterable<Object[]> compressionStrategiesAndByteOrders()
@@ -73,7 +73,7 @@ public class CompressedVSizeIntsIndexedWriterTest
   private final Random rand = new Random(0);
   private int[] vals;
 
-  public CompressedVSizeIntsIndexedWriterTest(
+  public CompressedVSizeIntWriterTest(
       CompressedObjectStrategy.CompressionStrategy compressionStrategy,
       ByteOrder byteOrder
   )
@@ -104,7 +104,7 @@ public class CompressedVSizeIntsIndexedWriterTest
 
   private void checkSerializedSizeAndData(int chunkSize) throws Exception
   {
-    CompressedVSizeIntsIndexedWriter writer = new CompressedVSizeIntsIndexedWriter(
+    CompressedVSizeIntWriter writer = new CompressedVSizeIntWriter(
         ioPeon, "test", vals.length > 0 ? Ints.max(vals) : 0, chunkSize, byteOrder, compressionStrategy
     );
     CompressedVSizeIntsIndexedSupplier supplierFromList = CompressedVSizeIntsIndexedSupplier.fromList(

@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.IndexIO;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,18 +33,18 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams array of integers out in the binary format described by CompressedVSizeIntsIndexedSupplier
  */
-public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWriter
+public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
   private static final byte VERSION = CompressedVSizeIntsIndexedSupplier.VERSION;
 
-  public static CompressedVSizeIntsIndexedWriter create(
+  public static CompressedVSizeIntWriter create(
       final IOPeon ioPeon,
       final String filenameBase,
       final int maxValue,
-      final CompressedObjectStrategy.CompressionStrategy compression
+      final CompressionStrategy compression
   )
   {
-    return new CompressedVSizeIntsIndexedWriter(
+    return new CompressedVSizeIntWriter(
         ioPeon, filenameBase, maxValue,
         CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue),
         IndexIO.BYTE_ORDER, compression
@@ -54,19 +55,19 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
   private final int chunkFactor;
   private final int chunkBytes;
   private final ByteOrder byteOrder;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
   private final ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener;
   private final ByteBuffer intBuffer;
   private ByteBuffer endBuffer;
   private int numInserted;
 
-  public CompressedVSizeIntsIndexedWriter(
+  public CompressedVSizeIntWriter(
       final IOPeon ioPeon,
       final String filenameBase,
       final int maxValue,
       final int chunkFactor,
       final ByteOrder byteOrder,
-      final CompressedObjectStrategy.CompressionStrategy compression
+      final CompressionStrategy compression
   )
   {
     this.numBytes = VSizeIndexedInts.getNumBytesForMax(maxValue);
@@ -81,6 +82,12 @@ public class CompressedVSizeIntsIndexedWriter extends SingleValueIndexedIntsWrit
     this.endBuffer = ByteBuffer.allocate(chunkBytes).order(byteOrder);
     this.endBuffer.limit(numBytes * chunkFactor);
     this.numInserted = 0;
+  }
+
+  @Override
+  public CompressionStrategy appliedCompression()
+  {
+    return compression;
   }
 
   @Override
