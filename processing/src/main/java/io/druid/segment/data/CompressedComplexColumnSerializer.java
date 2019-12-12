@@ -19,9 +19,9 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Shorts;
+import io.druid.collections.IntList;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
@@ -31,7 +31,6 @@ import io.druid.segment.serde.ColumnPartSerde;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.List;
 
 /**
  */
@@ -63,8 +62,8 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   private int offsetInBlock;
 
   private final ByteBuffer endBuffer;
-  private final List<Integer> mappings;   // thresholds for blocks
-  private final List<Integer> offsets;    // offsets in each block
+  private final IntList mappings;   // thresholds for blocks
+  private final IntList offsets;    // offsets in each block
 
   private CompressedComplexColumnSerializer(
       ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener,
@@ -76,8 +75,8 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
     this.compression = compression;
     this.strategy = strategy;
     this.endBuffer = ByteBuffer.allocate(CompressedPools.BUFFER_SIZE);  // offset : unsigned short
-    this.mappings = Lists.newArrayList();
-    this.offsets = Lists.newArrayList();
+    this.mappings = new IntList();
+    this.offsets = new IntList();
   }
 
   @Override
@@ -92,7 +91,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   {
     final byte[] bytes = strategy.toBytes(value);
 
-    if (endBuffer.remaining() < bytes.length) {
+    if (endBuffer.remaining() <= bytes.length) {
       endBuffer.flip();
       flattener.add(StupidResourceHolder.create(endBuffer));
       mappings.add(rowNum);
@@ -142,7 +141,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
       channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.get(i))));
     }
     for (int i = 0; i < offsets.size(); i++) {
-      channel.write(ByteBuffer.wrap(Shorts.toByteArray(offsets.get(i).shortValue())));
+      channel.write(ByteBuffer.wrap(Shorts.toByteArray((short) offsets.get(i))));
     }
     // data block
     flattener.writeToChannel(channel);

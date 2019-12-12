@@ -22,6 +22,7 @@ package io.druid.segment.serde;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.AbstractGenericColumn;
 import io.druid.segment.column.GenericColumn;
@@ -128,8 +129,14 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
           cacheId = index;
         }
         final ByteBuffer buffer = cached.get();
-        buffer.position(startOffset);
-        buffer.limit(endOffset);
+        try {
+          buffer.limit(endOffset);
+          buffer.position(startOffset);
+        }
+        catch (RuntimeException e) {
+          new Logger(CompressedComplexColumnPartSupplier.class).warn("-----> %d (%d) = %d ~ %d", rowNum, index, startOffset, endOffset);
+          throw e;
+        }
 
         return strategy.fromByteBuffer(buffer, buffer.remaining());
       }
