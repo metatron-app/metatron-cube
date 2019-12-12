@@ -36,8 +36,6 @@ import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.IntPredicate;
@@ -46,6 +44,8 @@ import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Expression;
@@ -666,7 +666,7 @@ public class Filters
       }
     }
     if (filter instanceof DimFilter.RangeFilter) {
-      SecondaryIndex index = getWhatever(selector, column);
+      SecondaryIndex.WithRange index = getWhatever(selector, column, SecondaryIndex.WithRange.class);
       if (index == null) {
         return null;
       }
@@ -731,7 +731,7 @@ public class Filters
             return bitmap;
           }
         }
-        SecondaryIndex index = getWhatever(selector, columnName);
+        SecondaryIndex index = getWhatever(selector, columnName, SecondaryIndex.class);
         if (index != null) {
           long start = System.currentTimeMillis();
           ImmutableBitmap bitmap = leafToRanges(columnName, funcExpr, context, index, withNot);
@@ -833,16 +833,17 @@ public class Filters
     };
   }
 
-  private static SecondaryIndex getWhatever(BitmapIndexSelector bitmaps, String column)
+  @SuppressWarnings("unchecked")
+  private static <T extends SecondaryIndex> T getWhatever(BitmapIndexSelector bitmaps, String column, Class<T> type)
   {
     SecondaryIndex bitmap = bitmaps.getBitSlicedBitmap(column);
-    if (bitmap == null) {
+    if (!type.isInstance(bitmap)) {
       bitmap = bitmaps.getLuceneIndex(column);
     }
-    if (bitmap == null) {
+    if (!type.isInstance(bitmap)) {
       bitmap = bitmaps.getMetricBitmap(column);
     }
-    return bitmap;
+    return type.isInstance(bitmap) ? (T) bitmap : null;
   }
 
   // constants need to be calculated apriori

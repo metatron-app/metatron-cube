@@ -25,31 +25,27 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.concurrent.Execs;
+import io.druid.concurrent.PrioritizedCallable;
+import io.druid.jackson.JodaStuff;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
-import io.druid.concurrent.Execs;
-import io.druid.concurrent.PrioritizedCallable;
-import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -66,10 +62,6 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -162,21 +154,19 @@ public class DirectDruidClient<T> implements QueryRunner<T>
         log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
       }
 
-      final long requestStartTimeNs = System.nanoTime();
-
       final QueryMetrics<? super Query<T>> queryMetrics = toolChest.makeMetrics(query);
       queryMetrics.server(host);
 
+      final long start = System.currentTimeMillis();
       future = httpClient.go(
           new Request(HttpMethod.POST, url)
               .setContent(objectMapper.writeValueAsBytes(query))
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
           handlerFactory.create(query, url, ioConfig.getQueueSize(), queryMetrics, context)
       );
-      final long elapsedNs = System.nanoTime() - requestStartTimeNs;
-      if (elapsedNs > WRITE_DELAY_LOG_THRESHOLD) {
-        log.info("Took %,d msec to write query[%s] to url[%s]", TimeUnit.NANOSECONDS.toMillis(elapsedNs),
-                 query.getId(), url);
+      final long elapsed = System.currentTimeMillis() - start;
+      if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
+        log.info("Took %,d msec to write query[%s:%s] to url[%s]", elapsed, query.getType(), query.getId(), url);
       }
 
       queryWatcher.registerQuery(query, Execs.tag(future, host));
