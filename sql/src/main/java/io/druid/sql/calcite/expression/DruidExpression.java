@@ -27,6 +27,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.commons.lang.StringEscapeUtils;
 
 import java.util.Arrays;
 import java.util.List;

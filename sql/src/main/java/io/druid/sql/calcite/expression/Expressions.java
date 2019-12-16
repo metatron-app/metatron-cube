@@ -21,11 +21,11 @@ package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.ISE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
@@ -510,9 +510,16 @@ public class Expressions
           operands.size() > 2 ? RexLiteral.stringValue(operands.get(2)) : null,
           druidExpression.getSimpleExtraction().getExtractionFn()
       );
-    } else {
-      return null;
+    } else if (rexNode instanceof RexCall) {
+      final SqlOperator operator = ((RexCall) rexNode).getOperator();
+
+      final DimFilterConversion conversion = plannerContext.getOperatorTable()
+                                                           .lookupDimFilterConversion(operator);
+      if (conversion != null) {
+        return conversion.toDruidFilter(plannerContext, rowSignature, rexNode);
+      }
     }
+    return null;
   }
 
   /**

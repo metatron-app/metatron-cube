@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
@@ -36,6 +37,9 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.LuceneNearestFilter;
+import io.druid.query.filter.LuceneQueryFilter;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
@@ -52,8 +56,10 @@ import io.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.SumZeroSqlAggregator;
 import io.druid.sql.calcite.expression.AliasedOperatorConversion;
 import io.druid.sql.calcite.expression.BinaryOperatorConversion;
+import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
@@ -85,6 +91,9 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -98,7 +107,9 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.commons.lang.StringEscapeUtils;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -205,8 +216,14 @@ public class DruidOperatorTable implements SqlOperatorTable
                           .stream()
                           .collect(Collectors.toMap(OperatorKey::of, java.util.function.Function.identity()));
 
+  private static final List<SqlOperatorConversion> LUCENE_FILTER_OPERATOR_CONVERSIONS =
+      ImmutableList.<SqlOperatorConversion>of(
+          new DirectOperatorConversion(SqlStdOperatorTable.ABS, "abs")
+      );
+
   private final Map<OperatorKey, SqlAggregator> aggregators;
   private final Map<OperatorKey, SqlOperatorConversion> operatorConversions;
+  private final Map<OperatorKey, DimFilterConversion> dimFilterConversions;
 
   @Inject
   public DruidOperatorTable(
@@ -217,6 +234,7 @@ public class DruidOperatorTable implements SqlOperatorTable
   {
     this.aggregators = new HashMap<>();
     this.operatorConversions = new HashMap<>();
+    this.dimFilterConversions = new HashMap<>();
 
     for (SqlAggregator aggregator : userAggregators) {
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
@@ -317,6 +335,80 @@ public class DruidOperatorTable implements SqlOperatorTable
         operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
       }
     }
+    addLuceneQuery();
+    addLuceneNearest();
+  }
+
+  private void addLuceneQuery()
+  {
+    final String name = "lucene_query";
+    final SqlReturnTypeInference retType = ReturnTypes.explicit(SqlTypeName.BOOLEAN);
+    final SqlOperator operator = new DummySqlFunction(name, retType);
+    final OperatorKey operatorKey = OperatorKey.of(operator, true);
+    dimFilterConversions.putIfAbsent(operatorKey, new DimFilterConversion()
+    {
+      @Override
+      public SqlOperator calciteOperator()
+      {
+        return operator;
+      }
+
+      @Override
+      public DimFilter toDruidFilter(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+      {
+        final RexCall call = (RexCall) rexNode;
+        final List<RexNode> operands = call.getOperands();
+        if (operands.size() != 2 && operands.size() != 3) {
+          return null;
+        }
+        // field, expression, analyzer (not like param order of LuceneQueryFilter)
+        String field = getFieldName(operands.get(0), plannerContext, rowSignature);
+        String expression = RexLiteral.stringValue(operands.get(1));
+        String analyzer = operands.size() == 3 ? RexLiteral.stringValue(operands.get(2)) : null;
+        return new LuceneQueryFilter(field, analyzer, expression);
+      }
+    });
+  }
+
+  private void addLuceneNearest()
+  {
+    final String name = "lucene_nearest";
+    final SqlReturnTypeInference retType = ReturnTypes.explicit(SqlTypeName.BOOLEAN);
+    final SqlOperator operator = new DummySqlFunction(name, retType);
+    final OperatorKey operatorKey = OperatorKey.of(operator, true);
+    dimFilterConversions.putIfAbsent(operatorKey, new DimFilterConversion()
+    {
+      @Override
+      public SqlOperator calciteOperator()
+      {
+        return operator;
+      }
+
+      @Override
+      public DimFilter toDruidFilter(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+      {
+        final RexCall call = (RexCall) rexNode;
+        final List<RexNode> operands = call.getOperands();
+        if (operands.size() != 4) {
+          return null;
+        }
+        String field = getFieldName(operands.get(0), plannerContext, rowSignature);
+        double latitude = ((Number) RexLiteral.value(operands.get(1))).doubleValue();
+        double longitude = ((Number) RexLiteral.value(operands.get(2))).doubleValue();
+        int count = RexLiteral.intValue(operands.get(3));
+        return new LuceneNearestFilter(field, latitude, longitude, count);
+      }
+    });
+  }
+
+  private String getFieldName(RexNode operand, PlannerContext plannerContext, RowSignature rowSignature)
+  {
+    DruidExpression expression = Expressions.toDruidExpression(plannerContext, rowSignature, operand);
+    if (expression.isDirectColumnAccess()) {
+      return expression.getDirectColumn();
+    } else {
+      return StringUtils.unquote(StringEscapeUtils.unescapeJava(expression.getExpression()));
+    }
   }
 
   public Aggregation lookupAggregator(
@@ -359,6 +451,17 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
   }
 
+  public DimFilterConversion lookupDimFilterConversion(final SqlOperator operator)
+  {
+    final OperatorKey operatorKey = OperatorKey.of(operator);
+    final DimFilterConversion operatorConversion = dimFilterConversions.get(operatorKey);
+    if (operatorConversion != null && operatorConversion.calciteOperator().equals(operator)) {
+      return operatorConversion;
+    } else {
+      return null;
+    }
+  }
+
   @Override
   public void lookupOperatorOverloads(
       final SqlIdentifier opName,
@@ -382,6 +485,10 @@ public class DruidOperatorTable implements SqlOperatorTable
     if (operatorConversion != null) {
       operatorList.add(operatorConversion.calciteOperator());
     }
+    final DimFilterConversion dimFilterConversion = dimFilterConversions.get(operatorKey);
+    if (dimFilterConversion != null) {
+      operatorList.add(dimFilterConversion.calciteOperator());
+    }
 
     final SqlOperator convertletOperator = CONVERTLET_OPERATORS.get(operatorKey);
     if (convertletOperator != null) {
@@ -403,6 +510,9 @@ public class DruidOperatorTable implements SqlOperatorTable
     for (SqlOperatorConversion operatorConversion : operatorConversions.values()) {
       operators.add(operatorConversion.calciteOperator());
     }
+    for (DimFilterConversion dimFilterConversion : dimFilterConversions.values()) {
+      operators.add(dimFilterConversion.calciteOperator());
+    }
     operators.addAll(DruidConvertletTable.knownOperators());
     return Lists.newArrayList(operators);
   }
@@ -415,6 +525,11 @@ public class DruidOperatorTable implements SqlOperatorTable
   public Map<OperatorKey, SqlOperatorConversion> getOperatorConversions()
   {
     return ImmutableMap.copyOf(operatorConversions);
+  }
+
+  public Map<OperatorKey, DimFilterConversion> getDimFilterConversions()
+  {
+    return ImmutableMap.copyOf(dimFilterConversions);
   }
 
   private static class DummySqlAggregator implements SqlAggregator

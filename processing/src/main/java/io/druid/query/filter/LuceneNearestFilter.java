@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.primitives.Doubles;
@@ -42,6 +43,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("lucene.nearest")
 public class LuceneNearestFilter extends DimFilter.LuceneFilter
 {
   private final String field;

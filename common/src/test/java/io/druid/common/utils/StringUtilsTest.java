@@ -81,12 +81,26 @@ public class StringUtilsTest
   public void testLongToKMGT()
   {
     Assert.assertEquals("0B", StringUtils.toKMGT(0));
-    Assert.assertEquals("1,000B",StringUtils.toKMGT(1000));
-    Assert.assertEquals("100,000B",StringUtils.toKMGT(100000));
-    Assert.assertEquals("97,656KB",StringUtils.toKMGT(100000000));
-    Assert.assertEquals("95,367MB",StringUtils.toKMGT(100000000000L));
-    Assert.assertEquals("93,132GB",StringUtils.toKMGT(100000000000000L));
-    Assert.assertEquals("90,949TB",StringUtils.toKMGT(100000000000000000L));
-    Assert.assertEquals("8,191PB",StringUtils.toKMGT(Long.MAX_VALUE));
+    Assert.assertEquals("1,000B", StringUtils.toKMGT(1000));
+    Assert.assertEquals("100,000B", StringUtils.toKMGT(100000));
+    Assert.assertEquals("97,656KB", StringUtils.toKMGT(100000000));
+    Assert.assertEquals("95,367MB", StringUtils.toKMGT(100000000000L));
+    Assert.assertEquals("93,132GB", StringUtils.toKMGT(100000000000000L));
+    Assert.assertEquals("90,949TB", StringUtils.toKMGT(100000000000000000L));
+    Assert.assertEquals("8,191PB", StringUtils.toKMGT(Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testUnquote()
+  {
+    Assert.assertEquals("", StringUtils.unquote(""));
+    Assert.assertEquals("'", StringUtils.unquote("'"));
+    Assert.assertEquals("'\"", StringUtils.unquote("'\""));
+    Assert.assertEquals("\"'", StringUtils.unquote("\"'"));
+    Assert.assertEquals("", StringUtils.unquote("''"));
+    Assert.assertEquals("", StringUtils.unquote("\"\""));
+    Assert.assertEquals("comment", StringUtils.unquote("\"comment\""));
+    Assert.assertEquals(" \"comment\"", StringUtils.unquote(" \"comment\""));
+    Assert.assertEquals("\"comment\"one", StringUtils.unquote("\"comment\"one"));
   }
 }

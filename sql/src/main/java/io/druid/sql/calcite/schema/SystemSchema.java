@@ -635,6 +635,9 @@ public class SystemSchema extends AbstractSchema
       for (OperatorKey key : operatorTable.getOperatorConversions().keySet()) {
         rows.add(new Object[] {key.getName(), "UDF", key.isExternal()});
       }
+      for (OperatorKey key : operatorTable.getDimFilterConversions().keySet()) {
+        rows.add(new Object[] {key.getName(), "UDF", key.isExternal()});
+      }
       Collections.sort(rows, new Comparator<Object[]>()
       {
         @Override

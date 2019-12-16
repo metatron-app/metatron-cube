@@ -128,6 +128,22 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     return isNullOrEmpty(value) ? nullValue : Objects.toString(value, nullValue);
   }
 
+  public static String unquote(String string)
+  {
+    if (string == null || string.length() < 2) {
+      return string;
+    }
+    char char0 = string.charAt(0);
+    if (char0 != '\'' && char0 != '\"') {
+      return string;
+    }
+    char charX = string.charAt(string.length() - 1);
+    if (char0 == charX) {
+      return string.substring(1, string.length() - 1);
+    }
+    return string;
+  }
+
   public static long parseKMGT(String value)
   {
     return parseKMGT(value, 0);

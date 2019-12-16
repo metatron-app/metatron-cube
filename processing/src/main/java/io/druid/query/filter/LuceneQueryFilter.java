@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -39,6 +40,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("lucene.query")
 public class LuceneQueryFilter extends DimFilter.LuceneFilter
 {
   private final String field;
