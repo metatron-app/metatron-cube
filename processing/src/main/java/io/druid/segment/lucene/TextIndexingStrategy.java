@@ -51,7 +51,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return "text";
+    return TEXT_DESC;
   }
 
   @Override

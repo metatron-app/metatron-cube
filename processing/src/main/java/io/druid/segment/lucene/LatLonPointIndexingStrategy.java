@@ -86,7 +86,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return "point(latitude=" + latitude + ",longitude=" + longitude + ")";
+    return String.format("point(latitude=%s,longitude=%s)", latitude, longitude);
   }
 
   @Override

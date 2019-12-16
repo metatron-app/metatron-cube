@@ -28,7 +28,9 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
@@ -122,20 +124,18 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
-        String fieldName = field;
-        LuceneIndex lucene = selector.getLuceneIndex(fieldName);
-        if (lucene == null && fieldName.contains(".")) {
-          // check if it's from struct
-          int index = fieldName.indexOf('.');
-          lucene = selector.getLuceneIndex(fieldName.substring(0, index));
-          fieldName = fieldName.substring(index + 1);
-        }
-        LuceneIndex index = Preconditions.checkNotNull(lucene, "no lucene index for " + field);
+        Column column = Preconditions.checkNotNull(
+            Lucenes.findLuceneColumn(field, selector), "no lucene index for [%s]", field
+        );
+        String luceneField = Preconditions.checkNotNull(
+            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
+            "cannot find lucene field name in [%s]", column.getName()
+        );
+        LuceneIndex lucene = column.getLuceneIndex();
         try {
-          QueryParser parser = new QueryParser(fieldName, Lucenes.createAnalyzer(analyzer));
+          QueryParser parser = new QueryParser(luceneField, Lucenes.createAnalyzer(analyzer));
           Query query = parser.parse(expression);
-
-          return index.filterFor(query, null);
+          return lucene.filterFor(query, null);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

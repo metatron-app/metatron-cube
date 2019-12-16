@@ -148,11 +148,13 @@ public class ColumnBuilder
     return numRows;
   }
 
-  public Column build()
+  public Column build(String name)
   {
-    Preconditions.checkState(type != null, "Type must be set.");
+    Preconditions.checkNotNull(name, "name must be set");
+    Preconditions.checkNotNull(type, "type must be set");
 
     return new SimpleColumn(
+        name,
         new ColumnCapabilities()
             .setType(type.type())
             .setTypeName(type.typeName())

@@ -31,6 +31,7 @@ import java.util.Map;
  */
 class SimpleColumn implements Column
 {
+  private final String name;
   private final ColumnCapabilities capabilities;
   private final ColumnPartProvider.DictionarySupport dictionaryEncodedColumn;
   private final ColumnPartProvider<RunLengthColumn> runLengthColumn;
@@ -45,6 +46,7 @@ class SimpleColumn implements Column
   private final Map<String, String> descs;
 
   SimpleColumn(
+      String name,
       ColumnCapabilities capabilities,
       ColumnPartProvider.DictionarySupport dictionaryEncodedColumn,
       ColumnPartProvider<RunLengthColumn> runLengthColumn,
@@ -59,6 +61,7 @@ class SimpleColumn implements Column
       Map<String, String> descs
   )
   {
+    this.name = name;
     this.capabilities = Preconditions.checkNotNull(capabilities);
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     this.runLengthColumn = runLengthColumn;
@@ -71,6 +74,12 @@ class SimpleColumn implements Column
     this.luceneIndex = luceneIndex;
     this.stats = stats;
     this.descs = descs;
+  }
+
+  @Override
+  public String getName()
+  {
+    return name;
   }
 
   @Override

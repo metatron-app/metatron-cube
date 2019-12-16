@@ -28,10 +28,12 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.segment.column.Column;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
 import org.apache.lucene.analysis.bg.BulgarianAnalyzer;
@@ -380,6 +382,36 @@ public class Lucenes
       bitmap.add(scoreDoc.doc);   // can be slow
     }
     return factory.makeImmutableBitmap(bitmap);
+  }
+
+  public static Column findLuceneColumn(String field, BitmapIndexSelector selector)
+  {
+    Column column = selector.getColumn(field);
+    if (column != null && column.getCapabilities().hasLuceneIndex()) {
+      return column;
+    }
+    for (int index = field.lastIndexOf('.', field.length()); index > 0; index = field.lastIndexOf('.', index - 1)) {
+      column = selector.getColumn(field.substring(0, index));
+      if (column != null && column.getCapabilities().hasLuceneIndex()) {
+        return column;
+      }
+    }
+    return null;
+  }
+
+  public static String findLuceneField(String field, Column column, String expected)
+  {
+    final String columnName = column.getName();
+    final Map<String, String> columnDesc = column.getColumnDescs();
+    if (!field.equals(columnName) && columnDesc.containsKey(field.substring(columnName.length() + 1))) {
+      return field.substring(columnName.length() + 1);
+    }
+    for (Map.Entry<String, String> desc : columnDesc.entrySet()) {
+      if (desc.getValue().startsWith(expected)) {
+        return desc.getKey();
+      }
+    }
+    return null;
   }
 
   // gt

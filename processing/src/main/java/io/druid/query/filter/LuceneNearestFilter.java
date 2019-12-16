@@ -31,7 +31,9 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.search.TopDocs;
@@ -63,7 +65,6 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
     this.latitude = latitude;
     this.longitude = longitude;
     this.count = count;
-    Preconditions.checkArgument(field.contains("."), "should reference lat-lon point in struct field");
     Preconditions.checkArgument(count > 0, "count should be > 0");
   }
 
@@ -134,17 +135,17 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
-        // column-name.field-name
-        int index = field.indexOf(".");
-        String columnName = field.substring(0, index);
-        String fieldName = field.substring(index + 1);
-        LuceneIndex lucene = Preconditions.checkNotNull(
-            selector.getLuceneIndex(columnName),
-            "no lucene index for " + columnName
+        Column column = Preconditions.checkNotNull(
+            Lucenes.findLuceneColumn(field, selector), "no lucene index for [%s]", field
         );
+        String luceneField = Preconditions.checkNotNull(
+            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.LATLON_POINT_DESC),
+            "cannot find lucene field name in [%s]", column.getName()
+        );
+        LuceneIndex lucene = column.getLuceneIndex();
         BitmapFactory factory = selector.getBitmapFactory();
         try {
-          TopDocs searched = LatLonPoint.nearest(lucene.searcher(), fieldName, latitude, longitude, count);
+          TopDocs searched = LatLonPoint.nearest(lucene.searcher(), luceneField, latitude, longitude, count);
           return Lucenes.toBitmap(factory, searched);
         }
         catch (Exception e) {

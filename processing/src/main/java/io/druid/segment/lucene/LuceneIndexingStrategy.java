@@ -34,6 +34,9 @@ import org.apache.lucene.document.Field;
 })
 public interface LuceneIndexingStrategy
 {
+  String TEXT_DESC = "text";
+  String LATLON_POINT_DESC = "point";
+
   String getFieldName();
 
   String getFieldDescriptor();

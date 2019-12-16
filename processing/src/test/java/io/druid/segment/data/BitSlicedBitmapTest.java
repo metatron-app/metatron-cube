@@ -383,7 +383,7 @@ public class BitSlicedBitmapTest
     serializer.getSerializedSize();
     serializer.writeToChannel(channel);
     serde.getDeserializer().read(ByteBuffer.wrap(bout.toByteArray()), builder, serdeFactory);
-    Column column = builder.build();
+    Column column = builder.build("test");
 
     BitSlicedBitmap<Float> bsb = column.getBitSlicedBitmap();
     for (BitSlicedBitmap<Float> target : Arrays.asList(bitmap, bsb)) {

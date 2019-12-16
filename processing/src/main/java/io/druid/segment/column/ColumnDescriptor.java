@@ -117,7 +117,7 @@ public class ColumnDescriptor
     }
   }
 
-  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory)
+  public Column read(String columnName, ByteBuffer buffer, BitmapSerdeFactory serdeFactory)
       throws IOException
   {
     final ColumnBuilder builder = new ColumnBuilder()
@@ -130,7 +130,7 @@ public class ColumnDescriptor
       part.getDeserializer().read(buffer, builder, serdeFactory);
     }
 
-    return builder.build();
+    return builder.build(columnName);
   }
 
   public static class Builder

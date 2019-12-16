@@ -29,6 +29,8 @@ import java.util.Map;
  */
 public interface Column
 {
+  String TIME_COLUMN_NAME = Row.TIME_COLUMN_NAME;
+
   enum EncodeType
   {
     DICTIONARY_ENCODED,
@@ -42,23 +44,25 @@ public interface Column
     LUCENE_INDEX
   }
 
-  public static final String TIME_COLUMN_NAME = Row.TIME_COLUMN_NAME;
-  public ColumnCapabilities getCapabilities();
+  String getName();
+  ColumnCapabilities getCapabilities();
+  int getNumRows();
 
-  public int getNumRows();
-  public long getSerializedSize();
-  public long getSerializedSize(EncodeType encodeType);
-  public float getAverageSize();
-  public Dictionary<String> getDictionary();
-  public DictionaryEncodedColumn getDictionaryEncoding();
-  public RunLengthColumn getRunLengthColumn();
-  public GenericColumn getGenericColumn();
-  public ComplexColumn getComplexColumn();
-  public BitmapIndex getBitmapIndex();
-  public SpatialIndex getSpatialIndex();
-  public HistogramBitmap getMetricBitmap();
-  public BitSlicedBitmap getBitSlicedBitmap();
-  public LuceneIndex getLuceneIndex();
-  public Map<String, Object> getColumnStats();
-  public Map<String, String> getColumnDescs();
+  Dictionary<String> getDictionary();
+  DictionaryEncodedColumn getDictionaryEncoding();
+  RunLengthColumn getRunLengthColumn();
+  GenericColumn getGenericColumn();
+  ComplexColumn getComplexColumn();
+  BitmapIndex getBitmapIndex();
+  SpatialIndex getSpatialIndex();
+  HistogramBitmap getMetricBitmap();
+  BitSlicedBitmap getBitSlicedBitmap();
+  LuceneIndex getLuceneIndex();
+
+  float getAverageSize();
+  long getSerializedSize();
+  long getSerializedSize(EncodeType encodeType);
+
+  Map<String, Object> getColumnStats();
+  Map<String, String> getColumnDescs();
 }

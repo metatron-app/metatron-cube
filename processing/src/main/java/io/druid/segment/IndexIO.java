@@ -929,10 +929,7 @@ public class IndexIO
               )
           );
         }
-        columns.put(
-            dimension,
-            builder.build()
-        );
+        columns.put(dimension, builder.build(dimension));
       }
 
       for (String metric : index.getAvailableMetrics()) {
@@ -943,7 +940,7 @@ public class IndexIO
               new ColumnBuilder()
                   .setType(ValueDesc.FLOAT)
                   .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, NO_NULLS))
-                  .build()
+                  .build(metric)
           );
         } else if (metricHolder.getType() == ValueType.DOUBLE) {
           columns.put(
@@ -951,7 +948,7 @@ public class IndexIO
               new ColumnBuilder()
                   .setType(ValueDesc.DOUBLE)
                   .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, NO_NULLS))
-                  .build()
+                  .build(metric)
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {
           columns.put(
@@ -963,7 +960,7 @@ public class IndexIO
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType
                       )
                   )
-                  .build()
+                  .build(metric)
           );
         }
       }
@@ -976,12 +973,12 @@ public class IndexIO
         colSet.add(metric);
       }
 
-      String[] cols = colSet.toArray(new String[colSet.size()]);
+      String[] cols = colSet.toArray(new String[0]);
       columns.put(
           Column.TIME_COLUMN_NAME, new ColumnBuilder()
               .setType(ValueDesc.LONG)
               .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
-              .build()
+              .build(Column.TIME_COLUMN_NAME)
       );
       return new SimpleQueryableIndex(
           index.getDataInterval(),
@@ -1055,7 +1052,7 @@ public class IndexIO
       for (String columnName : GuavaUtils.concat(cols, Column.TIME_COLUMN_NAME)) {
         ByteBuffer mapped = smooshedFiles.mapFile(columnName);
         ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-        columns.put(columnName, descriptor.read(mapped, serdeFactory));
+        columns.put(columnName, descriptor.read(columnName, mapped, serdeFactory));
       }
 
       final QueryableIndex index = new SimpleQueryableIndex(
