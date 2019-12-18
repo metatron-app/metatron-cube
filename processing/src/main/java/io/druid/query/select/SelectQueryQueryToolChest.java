@@ -278,7 +278,7 @@ public class SelectQueryQueryToolChest
 
   public QueryMetrics<Query<?>> makeMetrics(SelectQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return queryMetricsFactory.makeMetrics(query).granularity(query.getGranularity());
   }
 
   @Override

@@ -189,7 +189,7 @@ public class SearchQueryQueryToolChest
 
   public QueryMetrics<Query<?>> makeMetrics(SearchQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return queryMetricsFactory.makeMetrics(query).granularity(query.getGranularity());
   }
 
   @Override

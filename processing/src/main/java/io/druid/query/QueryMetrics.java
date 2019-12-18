@@ -1,8 +1,8 @@
 /*
- * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * Licensed to SK Telecom Group Inc. (SK Telecom) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. Metamarkets licenses this file
+ * regarding copyright ownership. SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import io.druid.granularity.Granularity;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import org.joda.time.Interval;
 
@@ -253,4 +254,9 @@ public interface QueryMetrics<QueryType extends Query<?>>
    * Emits all metrics, registered since the last {@code emit()} call on this QueryMetrics object.
    */
   void emit(ServiceEmitter emitter);
+
+  default QueryMetrics<QueryType> granularity(Granularity granularity)
+  {
+    return this;
+  }
 }
