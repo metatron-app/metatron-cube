@@ -207,7 +207,7 @@ public interface QueryMetrics<QueryType extends Query<?>>
   /**
    * Registers "query rows" metric.
    */
-  QueryMetrics<QueryType> reportQueryRows(long rows);
+  QueryMetrics<QueryType> reportQueryRows(int rows);
 
   /**
    * Registers "wait time" metric.

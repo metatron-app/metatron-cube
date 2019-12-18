@@ -52,6 +52,7 @@ public class PeonResource extends QueryResource
 
   @Inject
   public PeonResource(
+      QueryLifecycleFactory queryLifecycleFactory,
       @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
@@ -66,17 +67,16 @@ public class PeonResource extends QueryResource
       GenericQueryMetricsFactory queryMetricsFactory
   )
   {
-    super(node,
+    super(
+        queryLifecycleFactory,
+        node,
         config,
         jsonMapper,
         smileMapper,
         queryManager,
         texasRanger,
         warehouse,
-        emitter,
-        requestLogger,
-        authConfig,
-        queryMetricsFactory
+        authConfig
     );
     this.taskRunner = taskRunner;
   }

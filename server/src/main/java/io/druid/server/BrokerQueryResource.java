@@ -31,7 +31,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
@@ -52,7 +51,6 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
-import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -66,7 +64,6 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
@@ -103,6 +100,7 @@ public class BrokerQueryResource extends QueryResource
 
   @Inject
   public BrokerQueryResource(
+      QueryLifecycleFactory queryLifecycleFactory,
       @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
@@ -110,16 +108,14 @@ public class BrokerQueryResource extends QueryResource
       QueryManager queryManager,
       QuerySegmentWalker segmentWalker,
       QueryToolChestWarehouse warehouse,
-      ServiceEmitter emitter,
-      RequestLogger requestLogger,
       AuthConfig authConfig,
-      GenericQueryMetricsFactory queryMetricsFactory,
       CoordinatorClient coordinator,
       TimelineServerView brokerServerView,
       @Processing ExecutorService exec
   )
   {
     super(
+        queryLifecycleFactory,
         node,
         config,
         jsonMapper,
@@ -127,10 +123,7 @@ public class BrokerQueryResource extends QueryResource
         queryManager,
         segmentWalker,
         warehouse,
-        emitter,
-        requestLogger,
-        authConfig,
-        queryMetricsFactory
+        authConfig
     );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;

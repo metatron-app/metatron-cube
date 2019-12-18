@@ -42,6 +42,7 @@ import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
+import io.druid.server.QueryLifecycleFactory;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
@@ -60,17 +61,20 @@ public class DruidSchema extends AbstractSchema
 {
   public static final String NAME = "druid";
 
+  private final QueryLifecycleFactory queryLifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final TimelineServerView serverView;
   private final ViewManager viewManager;
 
   @Inject
   public DruidSchema(
+      final QueryLifecycleFactory queryLifecycleFactory,
       final @JacksonInject QuerySegmentWalker segmentWalker,
       final TimelineServerView serverView,
       final ViewManager viewManager
   )
   {
+    this.queryLifecycleFactory = Preconditions.checkNotNull(queryLifecycleFactory, "queryLifecycleFactory");
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
     this.serverView = Preconditions.checkNotNull(serverView, "serverView");
     this.viewManager = Preconditions.checkNotNull(viewManager, "viewManager");

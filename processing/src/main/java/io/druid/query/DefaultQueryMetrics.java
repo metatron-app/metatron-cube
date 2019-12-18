@@ -160,7 +160,7 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public QueryMetrics<QueryType> reportQueryRows(long rows)
+  public QueryMetrics<QueryType> reportQueryRows(int rows)
   {
     metrics.put("query/rows", rows);
     return this;

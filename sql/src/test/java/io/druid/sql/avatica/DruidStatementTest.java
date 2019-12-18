@@ -70,6 +70,7 @@ public class DruidStatementTest extends CalciteTestBase
     plannerFactory = new PlannerFactory(
         druidSchema,
         systemSchema,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         walker,
         new QueryManager(),
         operatorTable,

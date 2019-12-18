@@ -31,6 +31,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import io.druid.java.util.emitter.core.NoopEmitter;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.DruidLeaderClient;
 import io.druid.client.coordinator.CoordinatorClient;
@@ -47,9 +49,11 @@ import io.druid.guice.GuiceAnnotationIntrospector;
 import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -61,6 +65,11 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.DruidNode;
+import io.druid.server.QueryLifecycleFactory;
+import io.druid.server.QueryManager;
+import io.druid.server.initialization.ServerConfig;
+import io.druid.server.log.NoopRequestLogger;
+import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -197,6 +206,34 @@ public class CalciteTests
     // No instantiation.
   }
 
+  public static QueryLifecycleFactory createMockQueryLifecycleFactory(final QuerySegmentWalker walker)
+  {
+    return new QueryLifecycleFactory(
+        new QueryManager(),
+        new QueryToolChestWarehouse()
+        {
+          @Override
+          public QueryConfig getQueryConfig()
+          {
+            return null;
+          }
+
+          @Override
+          public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+          {
+            return QueryRunnerTestHelper.CONGLOMERATE.findFactory(query).getToolchest();
+          }
+        },
+        walker,
+        new DefaultGenericQueryMetricsFactory(INJECTOR.getInstance(Key.get(ObjectMapper.class, Json.class))),
+        new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
+        new NoopRequestLogger(),
+        new ServerConfig(),
+        new AuthConfig()
+    );
+  }
+
+
   public static TestQuerySegmentWalker newSegmentWalker()
   {
     return new TestQuerySegmentWalker(
@@ -312,6 +349,7 @@ public class CalciteTests
   )
   {
     final DruidSchema schema = new DruidSchema(
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         walker,
         new TestServerInventoryView(walker.getSegments()),
         viewManager

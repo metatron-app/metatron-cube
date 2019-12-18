@@ -24,30 +24,24 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import io.druid.java.util.common.ISE;
+import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Smile;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
-import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
-import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
-import io.druid.query.DruidMetrics;
-import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
-import io.druid.query.QueryMetrics;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -55,7 +49,6 @@ import io.druid.query.QueryUtils;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
@@ -64,7 +57,6 @@ import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.eclipse.jetty.io.EofException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -88,10 +80,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
-import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -104,6 +94,7 @@ public class QueryResource
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
 
+  protected final QueryLifecycleFactory queryLifecycleFactory;
   protected final DruidNode node;
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
@@ -115,13 +106,11 @@ public class QueryResource
   protected final QuerySegmentWalker segmentWalker;
   protected final QueryToolChestWarehouse warehouse;
 
-  protected final ServiceEmitter emitter;
-  protected final RequestLogger requestLogger;
   protected final AuthConfig authConfig;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
 
   @Inject
   public QueryResource(
+      QueryLifecycleFactory queryLifecycleFactory,
       @Self DruidNode node,
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
@@ -129,12 +118,10 @@ public class QueryResource
       QueryManager queryManager,
       QuerySegmentWalker segmentWalker,
       QueryToolChestWarehouse warehouse,
-      ServiceEmitter emitter,
-      RequestLogger requestLogger,
-      AuthConfig authConfig,
-      GenericQueryMetricsFactory queryMetricsFactory
+      AuthConfig authConfig
   )
   {
+    this.queryLifecycleFactory = queryLifecycleFactory;
     this.node = node;
     this.config = config;
     this.jsonMapper = jsonMapper;
@@ -142,12 +129,9 @@ public class QueryResource
     this.queryManager = queryManager;
     this.segmentWalker = segmentWalker;
     this.warehouse = warehouse;
-    this.emitter = emitter;
-    this.requestLogger = requestLogger;
     this.authConfig = authConfig;
     this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
     this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
-    this.queryMetricsFactory = queryMetricsFactory;
   }
 
   @DELETE
@@ -234,6 +218,8 @@ public class QueryResource
       @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
   ) throws IOException
   {
+    final QueryLifecycle queryLifecycle = queryLifecycleFactory.factorize();
+
     final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
     final String contentType = context.getContentType();
@@ -241,9 +227,7 @@ public class QueryResource
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
 
-    final long startNs = System.nanoTime();
-    final Query query = readQuery(in, context);
-    QueryToolChest theToolChest = null;
+    Query query = readQuery(in, context);
     try {
       if (log.isDebugEnabled()) {
         log.info("Got query [%s]", query);
@@ -252,11 +236,11 @@ public class QueryResource
       }
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
-      final Query prepared = prepareQuery(query);
+      queryLifecycle.initialize(prepareQuery(query));
+      final Query prepared = queryLifecycle.getQuery();
 
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final Access access = authorize(prepared, req);
-      if (access != null) {
+      final Access access = queryLifecycle.authorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
+      if (access != null && !access.isAllowed()) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
@@ -275,10 +259,10 @@ public class QueryResource
       queryManager.registerQuery(query, future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
-      theToolChest = toolChest;
-      final Map<String, Object> responseContext = new ConcurrentHashMap<>();
+      final QueryLifecycle.QueryResponse queryResponse = queryLifecycle.execute();
+      Sequence<?> sequence = queryResponse.getResults();
+      final Map<String, Object> responseContext = queryResponse.getResponseContext();
 
-      Sequence sequence = prepared.run(segmentWalker, responseContext);
       if (toolChest != null) {
         sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }
@@ -323,7 +307,7 @@ public class QueryResource
           }
           catch (Throwable t) {
             // it's not propagated to handlings below. so do it here
-            handleException(toolChest, prepared, remote, startNs, counter.intValue(), os.getCount(), t);
+            handleException(queryLifecycle, remote, counter.intValue(), os.getCount(), t);
             currThread.setName(currThreadName);
             if (t instanceof IOException) {
               throw (IOException) t;
@@ -336,34 +320,7 @@ public class QueryResource
             writer.set(null);
           }
 
-          long queryTimeNs = System.nanoTime() - startNs;
-          QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
-              queryMetricsFactory,
-              toolChest,
-              prepared,
-              req.getRemoteAddr()
-          );
-          queryMetrics.success(true);
-          queryMetrics.reportQueryTime(queryTimeNs);
-          queryMetrics.reportQueryBytes(os.getCount());
-          queryMetrics.reportQueryRows(counter.intValue());
-          queryMetrics.emit(emitter);
-
-          requestLogger.log(
-              new RequestLogLine(
-                  DateTimes.utc(TimeUnit.NANOSECONDS.toMillis(startNs)),
-                  remote,
-                  toLoggingQuery(query),
-                  new QueryStats(
-                      ImmutableMap.<String, Object>of(
-                          "query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs),
-                          "query/bytes", os.getCount(),
-                          "query/rows", counter.intValue(),
-                          "success", true
-                      )
-                  )
-              )
-          );
+          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), os.getCount(), counter.intValue());
           currThread.setName(currThreadName);
         }
       };
@@ -383,7 +340,7 @@ public class QueryResource
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      handleException(theToolChest, query, remote, startNs, 0, 0, e);
+      handleException(queryLifecycle, remote, 0, 0, e);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }
@@ -403,55 +360,8 @@ public class QueryResource
     return query.withOverriddenContext(adding);
   }
 
-  private void handleException(QueryToolChest toolChest, Query query, String remote, long startNs, int rows, long bytes, Throwable e)
-      throws IOException
-  {
-    boolean success = queryManager.isCanceled(query);
-    boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
-    if (success || interrupted) {
-      log.info("%s [%s]", e.toString(), query.getId());
-    } else {
-      log.warn(e, "Exception occurred on request [%s]", query);
-      log.makeAlert(e, "Exception handling request")
-         .addData("exception", e.toString())
-         .addData("query", query)
-         .addData("peer", remote)
-         .emit();
-    }
-
-    long queryTimeNs = System.nanoTime() - startNs;
-    Map<String, Object> event = Maps.newHashMap();
-    event.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
-    if (bytes > 0 && rows > 0) {
-      event.put("query/bytes", bytes);
-      event.put("query/rows", rows);
-    }
-    event.put("interrupted", interrupted);
-    event.put("exception", e.toString());
-    event.put("success", success);
-
-    requestLogger.log(
-        new RequestLogLine(
-            DateTimes.utc(TimeUnit.NANOSECONDS.toMillis(queryTimeNs)),
-            remote,
-            toLoggingQuery(query),
-            new QueryStats(event)
-        )
-    );
-
-    QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
-        queryMetricsFactory,
-        toolChest,
-        query,
-        remote
-    );
-    queryMetrics.success(success);
-    queryMetrics.reportQueryTime(queryTimeNs);
-    if (bytes > 0 && rows > 0) {
-      queryMetrics.reportQueryBytes(bytes);
-      queryMetrics.reportQueryRows(rows);
-    }
-    queryMetrics.emit(emitter);
+  private void handleException(QueryLifecycle queryLifecycle, String remote, int rows, long bytes, Throwable e) {
+    queryLifecycle.emitLogsAndMetrics(e, remote, bytes, rows);
   }
 
   // clear previous query name if exists (should not)

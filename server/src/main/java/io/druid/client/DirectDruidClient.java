@@ -26,6 +26,7 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -46,6 +47,7 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Query;
+import io.druid.query.QueryContexts;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -63,11 +65,15 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
 public class DirectDruidClient<T> implements QueryRunner<T>
 {
+  public static final String QUERY_FAIL_TIME = "queryFailTime";
+  public static final String QUERY_TOTAL_BYTES_GATHERED = "queryTotalBytesGathered";
+
   private static final Logger log = new Logger(DirectDruidClient.class);
   private static final long WRITE_DELAY_LOG_THRESHOLD = 100;
 
@@ -87,6 +93,29 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final String contentType;
 
   private final StreamHandlerFactory.WithEmitter handlerFactory;
+
+  /**
+   * Removes the magical fields added by {@link #makeResponseContextForQuery(Query, long)}.
+   */
+  public static void removeMagicResponseContextFields(Map<String, Object> responseContext)
+  {
+    responseContext.remove(DirectDruidClient.QUERY_FAIL_TIME);
+    responseContext.remove(DirectDruidClient.QUERY_TOTAL_BYTES_GATHERED);
+  }
+
+  public static Map<String, Object> makeResponseContextForQuery(Query query, long startTimeMillis)
+  {
+    final Map<String, Object> responseContext = new MapMaker().makeMap();
+    responseContext.put(
+        DirectDruidClient.QUERY_FAIL_TIME,
+        startTimeMillis + QueryContexts.getTimeout(query)
+    );
+    responseContext.put(
+        DirectDruidClient.QUERY_TOTAL_BYTES_GATHERED,
+        new AtomicLong()
+    );
+    return responseContext;
+  }
 
   public DirectDruidClient(
       QueryToolChestWarehouse warehouse,

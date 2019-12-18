@@ -6903,6 +6903,7 @@ public class CalciteQueryTest extends CalciteTestBase
     final PlannerFactory plannerFactory = new PlannerFactory(
         druidSchema,
         systemSchema,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         walker,
         new QueryManager(),
         operatorTable,

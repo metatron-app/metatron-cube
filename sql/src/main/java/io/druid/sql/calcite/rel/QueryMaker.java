@@ -41,13 +41,13 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
-import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.server.QueryLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -68,18 +68,21 @@ public class QueryMaker
 {
   private static final Logger LOG = new Logger(QueryMaker.class);
 
+  private final QueryLifecycleFactory queryLifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
   private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
 
   public QueryMaker(
+      final QueryLifecycleFactory queryLifecycleFactory,
       final QuerySegmentWalker segmentWalker,
       final PlannerContext plannerContext,
       final QueryConfig queryConfig,
       final ObjectMapper jsonMapper
   )
   {
+    this.queryLifecycleFactory = queryLifecycleFactory;
     this.segmentWalker = segmentWalker;
     this.plannerContext = plannerContext;
     this.queryConfig = queryConfig;
@@ -168,7 +171,7 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
-    return QueryRunners.run(query, segmentWalker);
+    return queryLifecycleFactory.factorize().runSimple(query, null, null);
   }
 
   private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)

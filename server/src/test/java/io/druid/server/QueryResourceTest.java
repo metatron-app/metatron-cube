@@ -27,9 +27,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
@@ -141,7 +141,18 @@ public class QueryResourceTest
     EasyMock.expect(testServletRequest.getContentType()).andReturn(MediaType.APPLICATION_JSON).anyTimes();
     EasyMock.expect(testServletRequest.getRemoteAddr()).andReturn("localhost").anyTimes();
     queryManager = new QueryManager();
+    QueryLifecycleFactory queryLifecycleFactory = new QueryLifecycleFactory(
+        queryManager,
+        warehouse,
+        testSegmentWalker,
+        new DefaultGenericQueryMetricsFactory(jsonMapper),
+        new NoopServiceEmitter(),
+        new NoopRequestLogger(),
+        serverConfig,
+        new AuthConfig()
+    );
     queryResource = new QueryResource(
+        queryLifecycleFactory,
         node,
         serverConfig,
         jsonMapper,
@@ -149,10 +160,7 @@ public class QueryResourceTest
         queryManager,
         testSegmentWalker,
         warehouse,
-        new NoopServiceEmitter(),
-        new NoopRequestLogger(),
-        new AuthConfig(),
-        new DefaultGenericQueryMetricsFactory(jsonMapper)
+        new AuthConfig()
     );
   }
 
@@ -219,7 +227,18 @@ public class QueryResourceTest
     ).times(2);
     EasyMock.replay(testServletRequest);
 
+    QueryLifecycleFactory queryLifecycleFactory = new QueryLifecycleFactory(
+        queryManager,
+        warehouse,
+        testSegmentWalker,
+        new DefaultGenericQueryMetricsFactory(jsonMapper),
+        new NoopServiceEmitter(),
+        new NoopRequestLogger(),
+        serverConfig,
+        new AuthConfig(true)
+    );
     queryResource = new QueryResource(
+        queryLifecycleFactory,
         node,
         serverConfig,
         jsonMapper,
@@ -227,10 +246,7 @@ public class QueryResourceTest
         queryManager,
         testSegmentWalker,
         warehouse,
-        new NoopServiceEmitter(),
-        new NoopRequestLogger(),
-        new AuthConfig(true),
-        new DefaultGenericQueryMetricsFactory(jsonMapper)
+        new AuthConfig(true)
     );
 
     Response response = queryResource.doPost(
@@ -289,7 +305,18 @@ public class QueryResourceTest
     ).times(2);
     EasyMock.replay(testServletRequest);
 
+    QueryLifecycleFactory queryLifecycleFactory = new QueryLifecycleFactory(
+        queryManager,
+        warehouse,
+        testSegmentWalker,
+        new DefaultGenericQueryMetricsFactory(jsonMapper),
+        new NoopServiceEmitter(),
+        new NoopRequestLogger(),
+        serverConfig,
+        new AuthConfig(true)
+    );
     queryResource = new QueryResource(
+        queryLifecycleFactory,
         node,
         serverConfig,
         jsonMapper,
@@ -297,10 +324,7 @@ public class QueryResourceTest
         queryManager,
         testSegmentWalker,
         warehouse,
-        new NoopServiceEmitter(),
-        new NoopRequestLogger(),
-        new AuthConfig(true),
-        new DefaultGenericQueryMetricsFactory(jsonMapper)
+        new AuthConfig(true)
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","
@@ -390,6 +414,16 @@ public class QueryResourceTest
     EasyMock.replay(testServletRequest);
 
     queryResource = new QueryResource(
+        new QueryLifecycleFactory(
+            queryManager,
+            warehouse,
+            testSegmentWalker,
+            new DefaultGenericQueryMetricsFactory(jsonMapper),
+            new NoopServiceEmitter(),
+            new NoopRequestLogger(),
+            serverConfig,
+            new AuthConfig(true)
+        ),
         node,
         serverConfig,
         jsonMapper,
@@ -397,10 +431,7 @@ public class QueryResourceTest
         queryManager,
         testSegmentWalker,
         warehouse,
-        new NoopServiceEmitter(),
-        new NoopRequestLogger(),
-        new AuthConfig(true),
-        new DefaultGenericQueryMetricsFactory(jsonMapper)
+        new AuthConfig(true)
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","

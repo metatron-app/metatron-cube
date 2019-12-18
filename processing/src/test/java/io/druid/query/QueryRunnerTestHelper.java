@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Function;
@@ -31,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.sun.corba.se.spi.activation.ServerManager;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.guava.MergeSequence;
 import io.druid.java.util.common.guava.Sequence;
@@ -280,6 +282,14 @@ public class QueryRunnerTestHelper
                           new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
+                  )
+                  .put(
+                      UnionAllQuery.class,
+                      new TestQueryRunnerFactory()
+                  )
+                  .put(
+                      JoinQuery.JoinDelegate.class,
+                      new TestQueryRunnerFactory()
                   )
                   .build()
   );
@@ -1022,5 +1032,54 @@ public class QueryRunnerTestHelper
   public static List list(Object... objects)
   {
     return Arrays.asList(objects);
+  }
+
+  public static class TestQueryRunnerFactory implements QueryRunnerFactory
+  {
+
+    @Override
+    public Future<Object> preFactoring(Query query, List list, Supplier resolver, ExecutorService exec)
+    {
+      return null;
+    }
+
+    @Override
+    public QueryRunner createRunner(Segment segment, Future optimizer)
+    {
+      return null;
+    }
+
+    @Override
+    public QueryRunner mergeRunners(ExecutorService queryExecutor, Iterable iterable, Future optimizer)
+    {
+      return null;
+    }
+
+    @Override
+    public QueryToolChest getToolchest()
+    {
+      return new QueryToolChest()
+      {
+        @Override
+        public QueryRunner mergeResults(QueryRunner runner)
+        {
+          return runner;
+        }
+
+        @Override
+        public QueryMetrics makeMetrics(Query query)
+        {
+          return new DefaultQueryMetrics<>(new DefaultObjectMapper());
+        }
+
+        @Override
+        public TypeReference getResultTypeReference()
+        {
+          return new TypeReference()
+          {
+          };
+        }
+      };
+    }
   }
 }

@@ -25,6 +25,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.server.QueryManager;
+import io.druid.server.QueryLifecycleFactory;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
@@ -61,6 +62,7 @@ public class PlannerFactory
 
   private final DruidSchema druidSchema;
   private final SystemSchema systemSchema;
+  private final QueryLifecycleFactory queryLifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final QueryManager queryManager;
   private final DruidOperatorTable operatorTable;
@@ -72,6 +74,7 @@ public class PlannerFactory
   public PlannerFactory(
       final DruidSchema druidSchema,
       final SystemSchema systemSchema,
+      final QueryLifecycleFactory queryLifecycleFactory,
       final QuerySegmentWalker segmentWalker,
       final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
@@ -82,6 +85,7 @@ public class PlannerFactory
   {
     this.druidSchema = druidSchema;
     this.systemSchema = systemSchema;
+    this.queryLifecycleFactory = queryLifecycleFactory;
     this.segmentWalker = segmentWalker;
     this.queryManager = queryManager;
     this.operatorTable = operatorTable;
@@ -99,7 +103,7 @@ public class PlannerFactory
         plannerConfig,
         queryContext
     );
-    final QueryMaker queryMaker = new QueryMaker(segmentWalker, plannerContext, queryConfig, jsonMapper);
+    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext, queryConfig, jsonMapper);
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
         .configBuilder()
         .withExpand(false)

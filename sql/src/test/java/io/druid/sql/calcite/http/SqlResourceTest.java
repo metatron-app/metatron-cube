@@ -103,6 +103,7 @@ public class SqlResourceTest extends CalciteTestBase
         new PlannerFactory(
             druidSchema,
             systemSchema,
+            CalciteTests.createMockQueryLifecycleFactory(walker),
             walker,
             new QueryManager(),
             operatorTable,
