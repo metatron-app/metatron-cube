@@ -19,16 +19,16 @@
 
 package org.geohex.geohex4j;
 
-import io.druid.java.util.common.IAE;
-import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
 import io.druid.query.ShapeUtils;
+import org.locationtech.jts.geom.Geometry;
 
 import java.util.List;
 
@@ -75,7 +75,7 @@ public class GeoHexFunctions implements Function.Library
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }
-          final com.vividsolutions.jts.geom.Point point = geometry.getCentroid();
+          final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);
           return ExprEval.of(GeoHex.encode(point.getY(), point.getX(), precision));
         }

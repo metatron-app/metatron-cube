@@ -160,7 +160,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       builder.setValueType(ValueDesc.of(desc.typeName()));
       builder.addSerde(new ComplexColumnPartSerde(desc.typeName(), this));
     }
-    if (luceneIndexer != null && luceneIndexer.numDocs() > 0) {
+    if (luceneIndexer != null && luceneIndexer.getDocStats().numDocs > 0) {
       builder.addSerde(new LuceneIndexPartSerDe(luceneIndexer));
       builder.addDescriptor(indexingSpec.getFieldDescriptors());
     }

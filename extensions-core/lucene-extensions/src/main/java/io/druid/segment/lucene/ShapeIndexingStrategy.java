@@ -27,7 +27,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.vividsolutions.jts.geom.Geometry;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.ValueDesc;
@@ -40,6 +39,7 @@ import org.apache.lucene.spatial.SpatialStrategy;
 import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.io.ShapeReader;
@@ -61,8 +61,8 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       {
         if (shape instanceof JtsGeometry) {
           Geometry geometry = ShapeUtils.toGeometry(shape);
-          return geometry instanceof com.vividsolutions.jts.geom.Point ||
-                 geometry instanceof com.vividsolutions.jts.geom.MultiPoint;
+          return geometry instanceof org.locationtech.jts.geom.Point ||
+                 geometry instanceof org.locationtech.jts.geom.MultiPoint;
         }
         return false;
       }
@@ -72,8 +72,8 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       boolean validate(Shape shape)
       {
         Geometry geometry = ShapeUtils.toGeometry(shape);
-        return geometry instanceof com.vividsolutions.jts.geom.LineString ||
-               geometry instanceof com.vividsolutions.jts.geom.MultiLineString;
+        return geometry instanceof org.locationtech.jts.geom.LineString ||
+               geometry instanceof org.locationtech.jts.geom.MultiLineString;
       }
     },
     POLYGON {
@@ -81,8 +81,8 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       boolean validate(Shape shape)
       {
         Geometry geometry = ShapeUtils.toGeometry(shape);
-        return geometry instanceof com.vividsolutions.jts.geom.Polygon ||
-               geometry instanceof com.vividsolutions.jts.geom.MultiPolygon;
+        return geometry instanceof org.locationtech.jts.geom.Polygon ||
+               geometry instanceof org.locationtech.jts.geom.MultiPolygon;
       }
     },
     ALL;

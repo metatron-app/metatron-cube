@@ -32,10 +32,10 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
-import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.LatLonPointPrototypeQueries;
 import org.apache.lucene.search.TopDocs;
 
 import java.nio.ByteBuffer;
@@ -142,10 +142,10 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
             Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.LATLON_POINT_DESC),
             "cannot find lucene field name in [%s]", column.getName()
         );
-        LuceneIndex lucene = column.getLuceneIndex();
         BitmapFactory factory = selector.getBitmapFactory();
+        IndexSearcher searcher = column.getLuceneIndex().searcher();
         try {
-          TopDocs searched = LatLonPoint.nearest(lucene.searcher(), luceneField, latitude, longitude, count);
+          TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
           return Lucenes.toBitmap(factory, searched);
         }
         catch (Exception e) {

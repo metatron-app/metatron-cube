@@ -19,15 +19,15 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.IAE;
-import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.shape.Point;
@@ -81,7 +81,7 @@ public class GeoHashFunctions implements Function.Library
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }
-          final com.vividsolutions.jts.geom.Point point = geometry.getCentroid();
+          final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           if (args.size() == 2) {
             final int precision = Evals.evalInt(args.get(1), bindings);
             return ExprEval.of(GeohashUtils.encodeLatLon(point.getY(), point.getX(), precision));

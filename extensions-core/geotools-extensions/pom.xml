@@ -33,7 +33,7 @@
     </parent>
 
     <properties>
-        <geotools.version>19.0</geotools.version>
+        <geotools.version>20.5</geotools.version>
     </properties>
 
     <dependencies>
@@ -79,15 +79,14 @@
         <dependency>
             <groupId>org.locationtech.spatial4j</groupId>
             <artifactId>spatial4j</artifactId>
-            <scope>provided</scope>
-            <version>0.6</version>
+            <version>0.7</version>
         </dependency>
 
         <!-- WARN : LGPL -->
         <dependency>
-            <groupId>com.vividsolutions</groupId>
+            <groupId>org.locationtech.jts</groupId>
             <artifactId>jts-core</artifactId>
-            <version>1.14.0</version>
+            <version>1.16.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

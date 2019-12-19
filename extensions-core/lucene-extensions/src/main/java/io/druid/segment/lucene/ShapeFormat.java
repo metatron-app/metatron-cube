@@ -21,12 +21,12 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.geom.MultiPolygon;
 import io.druid.query.ShapeUtils;
 import org.apache.lucene.geo.Polygon;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.exception.InvalidShapeException;
 import org.locationtech.spatial4j.io.GeoJSONReader;
@@ -169,14 +169,14 @@ public enum ShapeFormat
     final Shape shape = WKT.newReader(context).read(shapeString);
     final Geometry geometry = ShapeUtils.toGeometry(shape);
     if (geometry != null) {
-      if (geometry instanceof com.vividsolutions.jts.geom.Polygon) {
-        return new Polygon[]{toLucenePolygon((com.vividsolutions.jts.geom.Polygon) geometry)};
+      if (geometry instanceof org.locationtech.jts.geom.Polygon) {
+        return new Polygon[]{toLucenePolygon((org.locationtech.jts.geom.Polygon) geometry)};
       }
-      if (geometry instanceof com.vividsolutions.jts.geom.MultiPolygon) {
+      if (geometry instanceof org.locationtech.jts.geom.MultiPolygon) {
         MultiPolygon multiPolygon = (MultiPolygon) geometry;
         Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
         for (int i = 0; i < polygons.length; i++) {
-          polygons[i] = toLucenePolygon((com.vividsolutions.jts.geom.Polygon) multiPolygon.getGeometryN(i));
+          polygons[i] = toLucenePolygon((org.locationtech.jts.geom.Polygon) multiPolygon.getGeometryN(i));
         }
         return polygons;
       }
@@ -187,7 +187,7 @@ public enum ShapeFormat
     return Polygon.fromGeoJSON(GEOJSON.newWriter(context).toString(shape));
   }
 
-  private static Polygon toLucenePolygon(com.vividsolutions.jts.geom.Polygon polygon)
+  private static Polygon toLucenePolygon(org.locationtech.jts.geom.Polygon polygon)
   {
     LineString exterior = polygon.getExteriorRing();
     Polygon shell = toPolygon(exterior);

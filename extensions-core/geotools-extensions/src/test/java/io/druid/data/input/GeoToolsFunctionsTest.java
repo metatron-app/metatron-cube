@@ -19,12 +19,12 @@
 
 package io.druid.data.input;
 
-import com.vividsolutions.jts.geom.Geometry;
 import io.druid.data.GeoToolsFunctions;
 import io.druid.math.expr.Parser;
 import io.druid.query.ShapeFunctions;
 import org.junit.Assert;
 import org.junit.Test;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.SpatialRelation;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;

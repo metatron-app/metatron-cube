@@ -105,8 +105,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -295,6 +297,12 @@ public class Lucenes
         LOGGER.debug("-------> %s : %d~%d(%d)", name, offsets[0], offsets[0] + offsets[1], offsets[1]);
         datum.limit(offsets[0] + offsets[1]).position(offsets[0]);
         return LuceneIndexInput.newInstance("LuceneIndex(name=" + name + ")", datum.slice(), offsets[1]);
+      }
+
+      @Override
+      public Set<String> getPendingDeletions()
+      {
+        return Collections.emptySet();
       }
 
       @Override

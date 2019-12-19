@@ -22,7 +22,7 @@ package io.druid.data;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.vividsolutions.jts.geom.Geometry;
+import org.locationtech.jts.geom.Geometry;
 import io.druid.query.ShapeUtils;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
