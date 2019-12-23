@@ -20,13 +20,11 @@
 package io.druid.server;
 
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
-import io.druid.client.DirectDruidClient;
+import com.google.common.collect.Maps;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.SequenceWrapper;
 import io.druid.java.util.common.guava.Sequences;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
@@ -34,11 +32,9 @@ import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
-import io.druid.query.QueryPlus;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
@@ -46,14 +42,12 @@ import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
-import org.apache.commons.lang.mutable.MutableInt;
 import org.eclipse.jetty.io.EofException;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -71,6 +65,16 @@ import java.util.concurrent.TimeUnit;
  */
 public class QueryLifecycle
 {
+  public static enum State
+  {
+    NEW,
+    INITIALIZED,
+    AUTHORIZING,
+    AUTHORIZED,
+    EXECUTING,
+    DONE
+  }
+
   private static final EmittingLogger log = new EmittingLogger(QueryLifecycle.class);
 
   private final QueryManager queryManager;
@@ -79,14 +83,13 @@ public class QueryLifecycle
   private final GenericQueryMetricsFactory queryMetricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
-  private final ServerConfig serverConfig;
   private final AuthConfig authConfig;
   private final long startMs;
   private final long startNs;
 
   private State state = State.NEW;
   private QueryToolChest toolChest;
-  private QueryPlus queryPlus;
+  private Query query;
 
   public QueryLifecycle(
       final QueryManager queryManager,
@@ -95,7 +98,6 @@ public class QueryLifecycle
       final GenericQueryMetricsFactory queryMetricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
-      final ServerConfig serverConfig,
       final AuthConfig authConfig,
       final long startMs,
       final long startNs
@@ -107,7 +109,6 @@ public class QueryLifecycle
     this.queryMetricsFactory = queryMetricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
-    this.serverConfig = serverConfig;
     this.authConfig = authConfig;
     this.startMs = startMs;
     this.startNs = startNs;
@@ -134,33 +135,27 @@ public class QueryLifecycle
   {
     initialize(query);
 
-    final Sequence<T> results;
-
     try {
       final Access access = authorize(authorizationInfo);
       if (!access.isAllowed()) {
         throw new ISE("Unauthorized");
       }
-
-      final QueryLifecycle.QueryResponse queryResponse = execute();
-      results = queryResponse.getResults();
+      return Sequences.wrap(
+          execute(Maps.newHashMap()),
+          new SequenceWrapper()
+          {
+            @Override
+            public void after(final boolean isDone, final Throwable thrown) throws Exception
+            {
+              emitLogsAndMetrics(thrown, remoteAddress, -1, -1);
+            }
+          }
+      );
     }
     catch (Throwable e) {
-      emitLogsAndMetrics(e, remoteAddress, -1, 0);
+      emitLogsAndMetrics(query, e, remoteAddress, -1, 0);
       throw e;
     }
-
-    return Sequences.wrap(
-        results,
-        new SequenceWrapper()
-        {
-          @Override
-          public void after(final boolean isDone, final Throwable thrown) throws Exception
-          {
-            emitLogsAndMetrics(thrown, remoteAddress, -1, -1);
-          }
-        }
-    );
   }
 
   /**
@@ -169,19 +164,12 @@ public class QueryLifecycle
    * @param baseQuery the query
    */
   @SuppressWarnings("unchecked")
-  public void initialize(final Query baseQuery)
+  public Query initialize(final Query query)
   {
     transition(State.NEW, State.INITIALIZED);
-
-    String queryId = baseQuery.getId();
-    if (queryId == null) {
-      queryId = UUID.randomUUID().toString();
-    }
-
-    this.queryPlus = QueryPlus.wrap(
-        baseQuery.withId(queryId)
-    );
-    this.toolChest = warehouse.getToolChest(baseQuery);
+    this.query = query;
+    this.toolChest = warehouse.getToolChest(query);
+    return query;
   }
 
   /**
@@ -201,7 +189,7 @@ public class QueryLifecycle
     if (authConfig.isEnabled()) {
       // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
       if (authorizationInfo != null) {
-        for (String dataSource : queryPlus.getQuery().getDataSource().getNames()) {
+        for (String dataSource : query.getDataSource().getNames()) {
           Access authResult = authorizationInfo.isAuthorized(
               new Resource(dataSource, ResourceType.DATASOURCE),
               Action.READ
@@ -231,18 +219,10 @@ public class QueryLifecycle
    *
    * @return result sequence and response context
    */
-  public QueryResponse execute()
+  public Sequence execute(Map<String, Object> responseContext)
   {
     transition(State.AUTHORIZED, State.EXECUTING);
-
-    final Map<String, Object> responseContext = DirectDruidClient.makeResponseContextForQuery(
-        queryPlus.getQuery(),
-        System.currentTimeMillis()
-    );
-
-    final Sequence res = queryPlus.run(texasRanger, responseContext);
-
-    return new QueryResponse(res == null ? Sequences.empty() : res, responseContext);
+    return query.run(texasRanger, responseContext);
   }
 
   /**
@@ -254,38 +234,30 @@ public class QueryLifecycle
    */
   @SuppressWarnings("unchecked")
   public void emitLogsAndMetrics(
+      final Query forLog,
       @Nullable final Throwable e,
       @Nullable final String remoteAddress,
       final long bytesWritten,
       final int rows
   )
   {
-    if (queryPlus == null) {
-      // Never initialized, don't log or emit anything.
-      return;
+    if (state == State.NEW) {
+      return;   // nothing to emit
     }
-
     if (state == State.DONE) {
-      log.warn("Tried to emit logs and metrics twice for query[%s]!", queryPlus.getQuery().getId());
+      log.warn("Tried to emit logs and metrics twice for query[%s]!", query.getId());
     }
-
     state = State.DONE;
 
-    final Query query = queryPlus != null ? queryPlus.getQuery() : null;
-    boolean success = e == null;
-    if (!success) {
-      // succeed if query is canceled
-      success = queryManager.isCanceled(query);
-    }
-    boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
-
+    final boolean success = e == null || queryManager.isCanceled(query);
+    final boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
 
     if (success) {
-      log.info("[%s] success = %s", query.getId(), success);
+      log.info("[%s] success", query.getId());
     } else if (interrupted) {
-      log.info("%s [%s]", e.toString(), query.getId());
+      log.info("[%s] interrupted[%s]", query.getId(), e.toString());
     } else {
-      log.warn(e, "Exception occurred on request [%s]", query);
+      log.warn(e, "Exception occurred on request [%s]", forLog);
       // FIXME duplicated logging
       log.makeAlert(e, "Exception handling request")
          .addData("exception", e.toString())
@@ -296,23 +268,23 @@ public class QueryLifecycle
 
     try {
       final long queryTimeNs = System.nanoTime() - startNs;
-      QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
+      QueryMetrics metrics = DruidMetrics.makeRequestMetrics(
           queryMetricsFactory,
           toolChest,
-          queryPlus.getQuery(),
+          query,
           Strings.nullToEmpty(remoteAddress)
       );
-      queryMetrics.success(success);
-      queryMetrics.reportQueryTime(queryTimeNs);
+      metrics.success(success);
+      metrics.reportQueryTime(queryTimeNs);
 
       if (rows >= 0 ) {
-        queryMetrics.reportQueryRows(rows);
+        metrics.reportQueryRows(rows);
       }
       if (bytesWritten >= 0) {
-        queryMetrics.reportQueryBytes(bytesWritten);
+        metrics.reportQueryBytes(bytesWritten);
       }
 
-      queryMetrics.emit(emitter);
+      metrics.emit(emitter);
 
       final Map<String, Object> statsMap = new LinkedHashMap<>();
       statsMap.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
@@ -332,23 +304,14 @@ public class QueryLifecycle
           new RequestLogLine(
               new DateTime(startMs),
               Strings.nullToEmpty(remoteAddress),
-              queryPlus.getQuery(),
+              forLog,
               new QueryStats(statsMap)
           )
       );
     }
     catch (Exception ex) {
-      log.error(ex, "Unable to log query [%s]!", query);
+      log.error(ex, "Unable to log query [%s]!", forLog);
     }
-  }
-
-  public Query getQuery()
-  {
-    return queryPlus.getQuery();
-  }
-
-  public QuerySegmentWalker getSegmentWalker() {
-    return texasRanger;
   }
 
   private void transition(final State from, final State to)
@@ -356,39 +319,6 @@ public class QueryLifecycle
     if (state != from) {
       throw new ISE("Cannot transition from[%s] to[%s].", from, to);
     }
-
     state = to;
-  }
-
-  enum State
-  {
-    NEW,
-    INITIALIZED,
-    AUTHORIZING,
-    AUTHORIZED,
-    EXECUTING,
-    DONE
-  }
-
-  public static class QueryResponse
-  {
-    private final Sequence results;
-    private final Map<String, Object> responseContext;
-
-    private QueryResponse(final Sequence results, final Map<String, Object> responseContext)
-    {
-      this.results = results;
-      this.responseContext = responseContext;
-    }
-
-    public Sequence getResults()
-    {
-      return results;
-    }
-
-    public Map<String, Object> getResponseContext()
-    {
-      return responseContext;
-    }
   }
 }

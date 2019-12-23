@@ -27,18 +27,18 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
+import io.druid.common.utils.JodaUtils;
+import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.JodaStuff;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.common.utils.JodaUtils;
-import io.druid.concurrent.Execs;
-import io.druid.guice.annotations.Self;
-import io.druid.jackson.JodaStuff;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
@@ -80,6 +80,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 
@@ -218,7 +219,7 @@ public class QueryResource
       @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
   ) throws IOException
   {
-    final QueryLifecycle queryLifecycle = queryLifecycleFactory.factorize();
+    final QueryLifecycle lifecycle = queryLifecycleFactory.factorize();
 
     final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
@@ -227,19 +228,17 @@ public class QueryResource
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
 
-    Query query = readQuery(in, context);
+    final Query query = readQuery(in, context);
+    if (log.isDebugEnabled()) {
+      log.info("Got query [%s]", query);
+    } else {
+      log.info("Got query [%s:%s]", query.getType(), query.getId());
+    }
     try {
-      if (log.isDebugEnabled()) {
-        log.info("Got query [%s]", query);
-      } else {
-        log.info("Got query [%s:%s]", query.getType(), query.getId());
-      }
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
-      queryLifecycle.initialize(prepareQuery(query));
-      final Query prepared = queryLifecycle.getQuery();
-
-      final Access access = queryLifecycle.authorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
+      final Query prepared = lifecycle.initialize(prepareQuery(query));
+      final Access access = lifecycle.authorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
       if (access != null && !access.isAllowed()) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
@@ -259,10 +258,9 @@ public class QueryResource
       queryManager.registerQuery(query, future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
-      final QueryLifecycle.QueryResponse queryResponse = queryLifecycle.execute();
-      Sequence<?> sequence = queryResponse.getResults();
-      final Map<String, Object> responseContext = queryResponse.getResponseContext();
+      final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
+      Sequence<?> sequence = lifecycle.execute(responseContext);
       if (toolChest != null) {
         sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }
@@ -307,7 +305,7 @@ public class QueryResource
           }
           catch (Throwable t) {
             // it's not propagated to handlings below. so do it here
-            handleException(queryLifecycle, remote, counter.intValue(), os.getCount(), t);
+            lifecycle.emitLogsAndMetrics(toLoggingQuery(prepared), t, remote, os.getCount(), counter.intValue());
             currThread.setName(currThreadName);
             if (t instanceof IOException) {
               throw (IOException) t;
@@ -320,7 +318,7 @@ public class QueryResource
             writer.set(null);
           }
 
-          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), os.getCount(), counter.intValue());
+          lifecycle.emitLogsAndMetrics(toLoggingQuery(prepared), null, remote, os.getCount(), counter.intValue());
           currThread.setName(currThreadName);
         }
       };
@@ -340,7 +338,7 @@ public class QueryResource
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      handleException(queryLifecycle, remote, 0, 0, e);
+      lifecycle.emitLogsAndMetrics(toLoggingQuery(query), e, remote, 0, 0);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }
@@ -358,10 +356,6 @@ public class QueryResource
         warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(QueryContextKeys.TIMEOUT, -1))
     );
     return query.withOverriddenContext(adding);
-  }
-
-  private void handleException(QueryLifecycle queryLifecycle, String remote, int rows, long bytes, Throwable e) {
-    queryLifecycle.emitLogsAndMetrics(e, remote, bytes, rows);
   }
 
   // clear previous query name if exists (should not)

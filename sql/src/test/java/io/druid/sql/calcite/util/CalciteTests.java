@@ -67,7 +67,6 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.QueryManager;
-import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
@@ -228,7 +227,6 @@ public class CalciteTests
         new DefaultGenericQueryMetricsFactory(INJECTOR.getInstance(Key.get(ObjectMapper.class, Json.class))),
         new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
         new NoopRequestLogger(),
-        new ServerConfig(),
         new AuthConfig()
     );
   }
@@ -349,7 +347,6 @@ public class CalciteTests
   )
   {
     final DruidSchema schema = new DruidSchema(
-        CalciteTests.createMockQueryLifecycleFactory(walker),
         walker,
         new TestServerInventoryView(walker.getSegments()),
         viewManager

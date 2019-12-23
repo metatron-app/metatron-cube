@@ -138,7 +138,6 @@ public class DruidSchemaTest extends CalciteTestBase
 
 
     schema = new DruidSchema(
-        CalciteTests.createMockQueryLifecycleFactory(walker),
         walker,
         new TestServerInventoryView(walker.getSegments()),
         new NoopViewManager()
