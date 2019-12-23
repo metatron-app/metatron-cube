@@ -51,7 +51,7 @@ public class DruidViewMacro implements TableMacro
     try (final DruidPlanner planner = plannerFactory.createPlanner(null)) {
       // Using an escalator here is a hack, but it's currently needed to get the row type. Ideally, some
       // later refactoring would make this unnecessary, since there is no actual query going out herem.
-      rowType = planner.plan(viewSql, null, null).rowType();
+      rowType = planner.plan(viewSql, null).rowType();
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

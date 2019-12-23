@@ -6926,7 +6926,7 @@ public class CalciteQueryTest extends CalciteTestBase
     );
 
     try (DruidPlanner planner = plannerFactory.createPlanner(queryContext)) {
-      final PlannerResult plan = planner.plan(sql, null, null);
+      final PlannerResult plan = planner.plan(sql, null);
       List<Object[]> results = Sequences.toList(plan.run(), Lists.newArrayList());
       log.info("result schema " + plan.rowType());
       return results;

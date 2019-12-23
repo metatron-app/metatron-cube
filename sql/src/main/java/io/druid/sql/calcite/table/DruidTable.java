@@ -20,10 +20,7 @@
 package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import io.druid.java.util.common.Pair;
 import io.druid.query.DataSource;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
@@ -43,18 +40,14 @@ import java.util.Objects;
 public class DruidTable implements TranslatableTable
 {
   private final DataSource dataSource;
-  private final Supplier<Pair<RowSignature, Long>> supplier;
+  private final RowSignature signature;
+  private final long rowNum;
 
-  public DruidTable(DataSource dataSource, Supplier<Pair<RowSignature, Long>> supplier)
+  public DruidTable(DataSource dataSource, RowSignature signature, long rowNum)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
-    this.supplier = Preconditions.checkNotNull(supplier, "supplier");
-  }
-
-  public DruidTable(DataSource dataSource, RowSignature rowSignature, long numRows)
-  {
-    this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
-    this.supplier = Suppliers.ofInstance(Pair.of(Preconditions.checkNotNull(rowSignature, "rowSignature"), numRows));
+    this.signature = Preconditions.checkNotNull(signature, "signature");
+    this.rowNum = rowNum;
   }
 
   public DataSource getDataSource()
@@ -64,7 +57,7 @@ public class DruidTable implements TranslatableTable
 
   public RowSignature getRowSignature()
   {
-    return supplier.get().lhs;
+    return signature;
   }
 
   @Override
@@ -76,7 +69,7 @@ public class DruidTable implements TranslatableTable
   @Override
   public Statistic getStatistic()
   {
-    return Statistics.of(supplier.get().rhs, ImmutableList.of());
+    return Statistics.of(rowNum, ImmutableList.of());
   }
 
   @Override
@@ -132,7 +125,24 @@ public class DruidTable implements TranslatableTable
   {
     return "DruidTable{" +
            "dataSource=" + dataSource +
-           ", rowSignature=" + getRowSignature() +
+           ", rowSignature=" + signature +
+           ", rowNum=" + rowNum +
            '}';
+  }
+
+  public static class WithTimestamp extends DruidTable
+  {
+    private final long timestamp;
+
+    public WithTimestamp(DataSource dataSource, RowSignature signature, long rowNum)
+    {
+      super(dataSource, signature, rowNum);
+      this.timestamp = System.currentTimeMillis();
+    }
+
+    public long getTimestamp()
+    {
+      return timestamp;
+    }
   }
 }

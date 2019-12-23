@@ -122,7 +122,7 @@ public class SqlResource
     final String query = sqlQuery.getQuery();
     final long start = System.currentTimeMillis();
     try (final DruidPlanner planner = plannerFactory.createPlanner(context)) {
-      plannerResult = planner.plan(query, brokerServerView, req);
+      plannerResult = planner.plan(query, brokerServerView);
       timeZone = planner.getPlannerContext().getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.

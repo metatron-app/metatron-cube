@@ -72,18 +72,12 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 public class DruidPlanner implements Closeable, ForwardConstants
 {
@@ -98,11 +92,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     this.plannerContext = plannerContext;
   }
 
-  public PlannerResult plan(
-      final String sql,
-      final BrokerServerView brokerServerView,
-      final HttpServletRequest request
-  )
+  public PlannerResult plan(final String sql, final BrokerServerView brokerServerView)
       throws SqlParseException, ValidationException, RelConversionException
   {
     final SqlNode source = planner.parse(sql);
@@ -123,13 +113,13 @@ public class DruidPlanner implements Closeable, ForwardConstants
     final RelRoot root = planner.rel(validated);
 
     try {
-      return planWithDruidConvention(source, root, brokerServerView, request);
+      return planWithDruidConvention(source, root);
     }
     catch (RelOptPlanner.CannotPlanException e) {
       // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
       try {
         if (!SqlKind.DML.contains(source.getKind())) {
-          return planWithBindableConvention(source, root, request);
+          return planWithBindableConvention(source, root);
         }
       }
       catch (Exception e2) {
@@ -151,12 +141,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     planner.close();
   }
 
-  private PlannerResult planWithDruidConvention(
-      final SqlNode source,
-      final RelRoot root,
-      final BrokerServerView brokerServerView,
-      final HttpServletRequest request
-  ) throws RelConversionException
+  private PlannerResult planWithDruidConvention(final SqlNode source, final RelRoot root) throws RelConversionException
   {
     final DruidRel<?> druidRel = (DruidRel<?>) planner.transform(
         Rules.DRUID_CONVENTION_RULES,
@@ -169,9 +154,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     if (source.getKind() == SqlKind.EXPLAIN) {
       return handleExplain(druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
-      return handleCTAS(Utils.getFieldNames(root), druidRel, (SqlCreateTable) source, brokerServerView);
+      return handleCTAS(Utils.getFieldNames(root), druidRel, (SqlCreateTable) source);
     } else if (source instanceof SqlInsertDirectory) {
-      return handleInsertDirectory(Utils.getFieldNames(root), druidRel, (SqlInsertDirectory) source, brokerServerView);
+      return handleInsertDirectory(Utils.getFieldNames(root), druidRel, (SqlInsertDirectory) source);
     }
 
     final QueryMaker queryMaker = druidRel.getQueryMaker();
@@ -211,11 +196,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
     return new PlannerResult(resultsSupplier, root.validatedRowType);
   }
 
-  private PlannerResult planWithBindableConvention(
-      final SqlNode source,
-      final RelRoot root,
-      final HttpServletRequest request
-  ) throws RelConversionException
+  private PlannerResult planWithBindableConvention(final SqlNode source, final RelRoot root)
+      throws RelConversionException
   {
     BindableRel bindableRel = (BindableRel) planner.transform(
         Rules.BINDABLE_CONVENTION_RULES,
@@ -321,8 +303,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
   private PlannerResult handleCTAS(
       final List<String> mappedColumns,
       final DruidRel<?> druidRel,
-      final SqlCreateTable source,
-      final BrokerServerView brokerServerView
+      final SqlCreateTable source
   )
   {
     boolean temporary = source.isTemporary();
@@ -384,8 +365,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
   private PlannerResult handleInsertDirectory(
       final List<String> mappedColumns,
       final DruidRel<?> druidRel,
-      final SqlInsertDirectory source,
-      final BrokerServerView brokerServerView
+      final SqlInsertDirectory source
   )
   {
     QueryMaker queryMaker = druidRel.getQueryMaker();
@@ -456,26 +436,5 @@ public class DruidPlanner implements Closeable, ForwardConstants
     }
     RelDataType dataType = typeFactory.createStructType(relTypes, names);
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(values.toArray())), dataType);
-  }
-
-  public static void main(String[] args) throws Exception
-  {
-    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
-
-    // Set any connection context parameters you need here (see "Connection context" below).
-    // Or leave empty for default behavior.
-    Properties connectionProperties = new Properties();
-
-    try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
-      try (
-          final Statement statement = connection.createStatement();
-          final ResultSet resultSet = statement.executeQuery("select * from lineitem")
-      ) {
-        int x = 0;
-        while (resultSet.next() && x++ < 10000) {
-          // Do something
-        }
-      }
-    }
   }
 }
