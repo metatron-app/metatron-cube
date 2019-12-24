@@ -23,8 +23,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.SequenceWrapper;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
@@ -140,17 +138,7 @@ public class QueryLifecycle
       if (!access.isAllowed()) {
         throw new ISE("Unauthorized");
       }
-      return Sequences.wrap(
-          execute(Maps.newHashMap()),
-          new SequenceWrapper()
-          {
-            @Override
-            public void after(final boolean isDone, final Throwable thrown) throws Exception
-            {
-              emitLogsAndMetrics(thrown, remoteAddress, -1, -1);
-            }
-          }
-      );
+      return execute(Maps.newHashMap());
     }
     catch (Throwable e) {
       emitLogsAndMetrics(query, e, remoteAddress, -1, 0);
