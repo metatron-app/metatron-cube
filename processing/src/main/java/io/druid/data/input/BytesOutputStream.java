@@ -183,9 +183,25 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     }
   }
 
+  public void mark(int mark)
+  {
+    this.mark = mark;
+  }
+
+  @Override
+  public void reset()
+  {
+    count = mark;
+  }
+
   public void reset(int mark)
   {
     count = mark;
+  }
+
+  public void clear()
+  {
+    mark = count = 0;
   }
 
   public void writeVarSizeBytes(byte[] value)

@@ -81,12 +81,16 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           category[i] = 2;
           page[i] = new double[max];
           break;
-        case STRING:
+        case BOOLEAN:
           category[i] = 3;
+          page[i] = new boolean[max];
+          break;
+        case STRING:
+          category[i] = 4;
           page[i] = new BytesOutputStream(4096);
           break;
         default:
-          category[i] = 4;
+          category[i] = 5;
           page[i] = new Object[max];
       }
       nulls[i] = new BitSet();
@@ -185,7 +189,8 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           case 0: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); break;
           case 1: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); break;
           case 2: ((double[]) page[i])[ix] = ((Number) values[i]).doubleValue(); break;
-          case 3:
+          case 3: ((boolean[]) page[i])[ix] = (Boolean) values[i]; break;
+          case 4:
             final byte[] bytes = values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
                                                                 : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
             ((BytesOutputStream) page[i]).writeVarSizeBytes(bytes);
@@ -207,7 +212,8 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
           case 0: copy[i] = copy((float[]) page[i], size, nulls[i]); break;
           case 1: copy[i] = copy((long[]) page[i], size, nulls[i]); break;
           case 2: copy[i] = copy((double[]) page[i], size, nulls[i]); break;
-          case 3:
+          case 3: copy[i] = copy((boolean[]) page[i], size, nulls[i]); break;
+          case 4:
             final BytesOutputStream stream = (BytesOutputStream) page[i];
             final byte[] compressed = new byte[Integer.BYTES + LZ4.maxCompressedLength(stream.size())];
             System.arraycopy(Ints.toByteArray(stream.size()), 0, compressed, 0, Integer.BYTES);
@@ -215,7 +221,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
                 compressed,
                 Integer.BYTES + LZ4.compress(stream.toByteArray(), 0, stream.size(), compressed, Integer.BYTES)
             );
-            stream.reset();
+            stream.clear();
             break;
           default: copy[i] = Arrays.copyOf((Object[]) page[i], size); break;
         }
@@ -261,6 +267,21 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
       return Arrays.copyOf(array, size);
     }
     final Double[] copy = new Double[size];
+    for (int i = 0; i < copy.length; i++) {
+      if (!nulls.get(i)) {
+        copy[i] = array[i];
+      }
+    }
+    nulls.clear();
+    return copy;
+  }
+
+  private Object copy(final boolean[] array, final int size, final BitSet nulls)
+  {
+    if (nulls.isEmpty()) {
+      return Arrays.copyOf(array, size);
+    }
+    final Boolean[] copy = new Boolean[size];
     for (int i = 0; i < copy.length; i++) {
       if (!nulls.get(i)) {
         copy[i] = array[i];
