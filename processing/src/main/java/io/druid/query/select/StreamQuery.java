@@ -32,7 +32,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -40,6 +39,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.JoinElement;
@@ -55,11 +55,13 @@ import io.druid.query.groupby.orderby.OrderingProcessor;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
+import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -193,7 +195,15 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    // try ordering push down
+    StreamQuery query = this;
+    if (GuavaUtils.isNullOrEmpty(orderingSpecs)) {
+      query = query.tryOrderingPushdown();
+    }
+    return query;
+  }
+
+  private StreamQuery tryOrderingPushdown()
+  {
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
       WindowingSpec first = windowingSpecs.get(0);
@@ -214,22 +224,20 @@ public class StreamQuery extends BaseQuery<Object[]>
           getOutputColumns(),
           getContext()
       );
-    } else {
-      if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())) {
-        return new StreamQuery(
-            getDataSource(),
-            getQuerySegmentSpec(),
-            isDescending(),
-            getFilter(),
-            getColumns(),
-            getVirtualColumns(),
-            limitSpec.getColumns(),
-            getConcatString(),
-            limitSpec.withOrderingSpec(null),
-            getOutputColumns(),
-            getContext()
-        );
-      }
+    } else if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())) {
+      return new StreamQuery(
+          getDataSource(),
+          getQuerySegmentSpec(),
+          isDescending(),
+          getFilter(),
+          getColumns(),
+          getVirtualColumns(),
+          limitSpec.getColumns(),
+          getConcatString(),
+          limitSpec.withOrderingSpec(null),
+          getOutputColumns(),
+          getContext()
+      );
     }
     return this;
   }
@@ -304,18 +312,24 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery toLocalQuery()
   {
+    boolean descending = isDescending();
+    List<OrderByColumnSpec> orderingSpecs = getOrderingSpecs();
+    if (OrderByColumnSpec.isSimpleTimeOrdering(orderingSpecs)) {
+      descending = orderingSpecs.get(0).getDirection() == Direction.DESCENDING;
+      orderingSpecs = Arrays.asList();
+    }
     LimitSpec limitSpec = getLimitSpec();
-    if (OrderByColumnSpec.needsExplicitOrdering(orderingSpecs) || !limitSpec.isSimpleLimiter()) {
+    if (!limitSpec.isSimpleLimiter()) {
       limitSpec = limitSpec.withNoLocalProcessing();
     }
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        isDescending(),
+        descending,
         getFilter(),
         getColumns(),
         getVirtualColumns(),
-        getOrderingSpecs(),
+        orderingSpecs,
         getConcatString(),
         limitSpec,
         null,

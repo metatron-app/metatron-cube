@@ -20,13 +20,13 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -53,9 +53,8 @@ public class StreamQueryEngine
   )
   {
     Sequence<Object[]> result = processRaw(query, segment, optimizer, cache);
-    Ordering<Object[]> mergeOrdering = query.getMergeOrdering();
-    if (mergeOrdering != null) {
-      result = LimitSpec.sortLimit(result, mergeOrdering, -1);
+    if (!GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
+      result = LimitSpec.sortLimit(result, query.getMergeOrdering(), -1);
     }
     return result;
   }
@@ -92,7 +91,7 @@ public class StreamQueryEngine
     {
       private final String[] columns = query.getColumns().toArray(new String[0]);
       private final String concatString = query.getConcatString();
-      private final int limit = query.getSimpleLimit();
+      private final int limit = GuavaUtils.isNullOrEmpty(query.getOrderingSpecs()) ? query.getSimpleLimit() : -1;
 
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)

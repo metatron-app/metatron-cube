@@ -24,12 +24,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
@@ -113,7 +113,7 @@ public class StreamQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    if (!OrderByColumnSpec.needsExplicitOrdering(query.getOrderingSpecs())) {
+    if (GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
       return null;
     }
     int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1);
@@ -225,14 +225,7 @@ public class StreamQueryRunnerFactory
       return QueryRunners.empty();
     }
     if (runners.size() == 1) {
-      return new QueryRunner<Object[]>()
-      {
-        @Override
-        public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
-        {
-          return runners.get(0).run(query, responseContext);
-        }
-      };
+      return runners.get(0);
     }
     return new QueryRunner<Object[]>()
     {
@@ -240,7 +233,7 @@ public class StreamQueryRunnerFactory
       public Sequence<Object[]> run(final Query<Object[]> query, final Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
-        if (OrderByColumnSpec.needsExplicitOrdering(stream.getOrderingSpecs())) {
+        if (!GuavaUtils.isNullOrEmpty(stream.getOrderingSpecs())) {
           int priority = BaseQuery.getContextPriority(query, 0);
           Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
           return QueryUtils.mergeSort(query, Lists.newArrayList(Iterables.transform(

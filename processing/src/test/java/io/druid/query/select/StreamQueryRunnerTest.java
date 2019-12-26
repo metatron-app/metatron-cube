@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
@@ -36,6 +36,7 @@ import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.TestIndex;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -169,6 +170,44 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     for (int i = 0; i < expected.length; i++) {
       Assert.assertEquals(i + 1 + " th", expected[i], GuavaUtils.arrayToString(results.get(i)));
     }
+  }
+
+  @Test
+  public void testTimeAsc()
+  {
+    Druids.SelectQueryBuilder builder = testEq(newTestQuery());
+    testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index")));
+    testEq(builder.interval(new Interval("2011-03-12/2011-04-07")));
+    testEq(builder.limit(3));
+    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.ascending(Column.TIME_COLUMN_NAME));
+    List<Object[]> expected = createExpected(
+        new Object[]{"2011-03-12T00:00:00.000Z", "spot", "automotive", 155.72804260253906D},
+        new Object[]{"2011-03-12T00:00:00.000Z", "spot", "business", 113.49346160888672D},
+        new Object[]{"2011-03-12T00:00:00.000Z", "spot", "entertainment", 132.68707275390625D}
+    );
+    List<Object[]> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    validate(expected, results);
+  }
+
+  @Test
+  public void testTimeDesc()
+  {
+    Druids.SelectQueryBuilder builder = testEq(newTestQuery());
+    testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index")));
+    testEq(builder.interval(new Interval("2011-03-12/2011-04-07")));
+    testEq(builder.limit(3));
+    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.descending(Column.TIME_COLUMN_NAME));
+    List<Object[]> expected = createExpected(
+        new Object[]{"2011-04-06T00:00:00.000Z", "upfront", "premium", 897.3934326171875D},
+        new Object[]{"2011-04-06T00:00:00.000Z", "upfront", "mezzanine", 1355.8433837890625D},
+        new Object[]{"2011-04-06T00:00:00.000Z", "total_market", "premium", 1141.5146484375D}
+    );
+    List<Object[]> results = Sequences.toList(
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    validate(expected, results);
   }
 
   @Test

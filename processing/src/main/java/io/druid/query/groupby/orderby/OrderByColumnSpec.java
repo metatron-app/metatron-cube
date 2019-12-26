@@ -24,10 +24,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.ISE;
 import io.druid.common.Cacheable;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.ISE;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -60,15 +59,11 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return orderByColumnSpecs == null ? null : Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
   }
 
-  public static boolean needsExplicitOrdering(List<OrderByColumnSpec> orderByColumnSpecs)
+  public static boolean isSimpleTimeOrdering(List<OrderByColumnSpec> orderByColumnSpecs)
   {
-    if (GuavaUtils.isNullOrEmpty(orderByColumnSpecs)) {
-      return false;
-    }
-    if (orderByColumnSpecs.size() > 1) {
-      return true;
-    }
-    return !orderByColumnSpecs.get(0).isSimpleTimeOrdering();
+    return orderByColumnSpecs != null &&
+           orderByColumnSpecs.size() == 1 &&
+           orderByColumnSpecs.get(0).isSimpleTimeOrdering();
   }
 
   @JsonCreator
