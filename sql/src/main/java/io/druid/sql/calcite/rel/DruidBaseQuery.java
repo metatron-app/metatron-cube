@@ -245,16 +245,12 @@ public class DruidBaseQuery implements DruidQuery
     int virtualColumnNameCounter = 0;
 
     for (DruidExpression expression : expressions) {
-      if (expression.isDirectColumnAccess()) {
+      if (expression.isDirectColumnAccess() && !rowOrder.contains(expression.getDirectColumn())) {
         directColumns.add(expression.getDirectColumn());
         rowOrder.add(expression.getDirectColumn());
       } else {
-        final String virtualColumnName = virtualColumnPrefix + virtualColumnNameCounter++;
-        virtualColumns.add(
-            expression.toVirtualColumn(
-                virtualColumnName
-            )
-        );
+        String virtualColumnName = virtualColumnPrefix + virtualColumnNameCounter++;
+        virtualColumns.add(expression.toVirtualColumn(virtualColumnName));
         rowOrder.add(virtualColumnName);
       }
     }

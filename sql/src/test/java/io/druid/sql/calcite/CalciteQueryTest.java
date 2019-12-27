@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
@@ -33,6 +32,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
@@ -820,6 +820,29 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             new Object[]{"abc"},
             new Object[]{"def"}
+        )
+    );
+  }
+
+  @Test
+  public void testOrderByOnTypeCasting() throws Exception
+  {
+    testQuery(
+        "SELECT dim1 FROM druid.foo ORDER BY cast(dim1 as bigint) DESC LIMIT 3",
+        ImmutableList.of(
+            Druids.newSelectQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .granularity(Granularities.ALL)
+                  .columns(ImmutableList.of("dim1", "v0"))
+                  .virtualColumns(EXPR_VC("v0", "CAST(\"dim1\", 'LONG')"))
+                  .orderBy(OrderByColumnSpec.desc("v0"))
+                  .limit(3)
+                  .streaming()
+        ),
+        ImmutableList.of(
+            new Object[]{"10.1"},
+            new Object[]{"2"},
+            new Object[]{"1"}
         )
     );
   }
