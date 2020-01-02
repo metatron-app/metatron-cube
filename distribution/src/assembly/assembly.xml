@@ -198,6 +198,8 @@
             <directory>../</directory>
             <includes>
                 <include>LICENSE</include>
+                <include>git.version</include>
+                <include>git.history</include>
             </includes>
         </fileSet>
     </fileSets>

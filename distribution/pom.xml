@@ -49,6 +49,19 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <executions>
                     <execution>
+                        <id>git-info</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${project.basedir}/bin/latest.sh</executable>
+                            <arguments>
+                                <argument>${project.basedir}/../</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>pull-deps</id>
                         <phase>package</phase>
                         <goals>
