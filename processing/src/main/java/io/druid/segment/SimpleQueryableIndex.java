@@ -20,6 +20,8 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -52,6 +54,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Map<String, Column> columns;
   private final SmooshedFileMapper fileMapper;
   private final Metadata metadata;
+  private final Supplier<Integer> numRows;
 
   public SimpleQueryableIndex(
       Interval dataInterval,
@@ -71,6 +74,14 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.columns = columns;
     this.fileMapper = fileMapper;
     this.metadata = metadata;
+    this.numRows = Suppliers.memoize(new Supplier<Integer>()
+    {
+      @Override
+      public Integer get()
+      {
+        return columns.get(Column.TIME_COLUMN_NAME).getNumRows();
+      }
+    });
   }
 
   @Override
@@ -82,7 +93,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public int getNumRows()
   {
-    return columns.get(Column.TIME_COLUMN_NAME).getNumRows();
+    return numRows.get();
   }
 
   @Override

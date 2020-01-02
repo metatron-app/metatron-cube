@@ -120,20 +120,7 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        int numRows = 0;
-        DataSource ds = query.getDataSource();
-        DimFilter filter = query.getFilter();
-        Map<String, Object> context = BaseQuery.copyContextForMeta(query);
-        context.put(Query.DISABLE_LOG, true);
-        for (Segment segment : segments) {
-          SelectMetaQuery meta = SelectMetaQuery.of(
-              ds, new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor()), filter, context
-          );
-          Result<SelectMetaResultValue> result = Sequences.only(meta.run(segmentWalker, null), null);
-          if (result != null) {
-            numRows += result.getValue().getTotalCount();
-          }
-        }
+        int numRows = getNumRows(query, segments, segmentWalker);
         logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
         numSplit = numRows / splitRows;
       }
@@ -198,6 +185,31 @@ public class StreamQueryRunnerFactory
       );
     }
     return splits;
+  }
+
+  private int getNumRows(StreamQuery query, List<Segment> segments, QuerySegmentWalker segmentWalker)
+  {
+    int numRows = 0;
+    if (query.getFilter() == null) {
+      for (Segment segment : segments) {
+        numRows += segment.getNumRows();
+      }
+      return numRows;
+    }
+    final DataSource ds = query.getDataSource();
+    final DimFilter filter = query.getFilter();
+    final Map<String, Object> context = BaseQuery.copyContextForMeta(query);
+    context.put(Query.DISABLE_LOG, true);
+    for (Segment segment : segments) {
+      SelectMetaQuery meta = SelectMetaQuery.of(
+          ds, new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor()), filter, context
+      );
+      Result<SelectMetaResultValue> result = Sequences.only(meta.run(segmentWalker, null), null);
+      if (result != null) {
+        numRows += result.getValue().getTotalCount();
+      }
+    }
+    return numRows;
   }
 
   @Override

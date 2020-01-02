@@ -77,6 +77,12 @@ public class ReferenceCountingSegmentTest
           }
 
           @Override
+          public int getNumRows()
+          {
+            return 0;
+          }
+
+          @Override
           public Schema asSchema(boolean prependTime)
           {
             return null;

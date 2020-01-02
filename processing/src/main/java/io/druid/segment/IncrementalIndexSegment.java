@@ -69,6 +69,12 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
+  public int getNumRows()
+  {
+    return index.size();
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);

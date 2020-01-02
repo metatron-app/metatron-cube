@@ -64,6 +64,12 @@ public class StorageAdapterSegment extends AbstractSegment
   }
 
   @Override
+  public int getNumRows()
+  {
+    return adapter.getNumRows();
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return adapter.asSchema(prependTime);

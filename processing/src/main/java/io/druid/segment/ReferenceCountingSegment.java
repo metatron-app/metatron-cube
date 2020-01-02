@@ -47,6 +47,12 @@ public class ReferenceCountingSegment implements Segment
     return baseSegment.isIndexed();
   }
 
+  @Override
+  public int getNumRows()
+  {
+    return baseSegment.getNumRows();
+  }
+
   public synchronized Segment getBaseSegment()
   {
     return numReferences < 0 ? null : baseSegment;

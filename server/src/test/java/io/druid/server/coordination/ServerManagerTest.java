@@ -662,6 +662,12 @@ public class ServerManagerTest
     }
 
     @Override
+    public int getNumRows()
+    {
+      return 0;
+    }
+
+    @Override
     public Schema asSchema(boolean prependTime)
     {
       throw new UnsupportedOperationException();

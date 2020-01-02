@@ -71,6 +71,12 @@ public class QueryableIndexSegment extends AbstractSegment
   }
 
   @Override
+  public int getNumRows()
+  {
+    return index.getNumRows();
+  }
+
+  @Override
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);
