@@ -32,17 +32,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.sun.corba.se.spi.activation.ServerManager;
-import io.druid.java.util.common.UOE;
-import io.druid.java.util.common.guava.MergeSequence;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.UOE;
+import io.druid.java.util.common.guava.MergeSequence;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -433,9 +432,9 @@ public class QueryRunnerTestHelper
   public static final String[] expectedFullOnIndexValuesDesc;
 
   static {
-    List<String> list = new ArrayList(Arrays.asList(expectedFullOnIndexValues));
+    List<String> list = new ArrayList<String>(Arrays.asList(expectedFullOnIndexValues));
     Collections.reverse(list);
-    expectedFullOnIndexValuesDesc = list.toArray(new String[list.size()]);
+    expectedFullOnIndexValuesDesc = list.toArray(new String[0]);
   }
 
   public static final DateTime earliest = new DateTime("2011-01-12");
@@ -456,7 +455,7 @@ public class QueryRunnerTestHelper
       Arrays.asList(new Interval("2011-04-02T00:00:00.000Z/P1D"))
   );
   public static final QuerySegmentSpec fullOnInterval = new MultipleIntervalSegmentSpec(
-      Arrays.asList(new Interval("1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z"))
+      Arrays.asList(new Interval("1970-01-01T00:00:00.000Z/2120-01-01T00:00:00.000Z"))
   );
   public static final QuerySegmentSpec emptyInterval = new MultipleIntervalSegmentSpec(
       Arrays.asList(new Interval("2020-04-02T00:00:00.000Z/P1D"))

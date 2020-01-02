@@ -144,7 +144,7 @@ public class TopNQueryTest
                        + "    }\n"
                        + "  ],\n"
                        + "  \"intervals\": [\n"
-                       + "    \"1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z\"\n"
+                       + "    \"1970-01-01T00:00:00.000Z/2120-01-01T00:00:00.000Z\"\n"
                        + "  ]\n"
                        + "}";
     TopNQuery actualQuery = jsonMapper.readValue(
