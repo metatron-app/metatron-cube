@@ -78,6 +78,12 @@ public class ColumnBuilder
     return this;
   }
 
+  // hack for cube
+  public ColumnPartProvider.DictionarySupport getDictionaryEncodedColumn()
+  {
+    return dictionaryEncodedColumn;
+  }
+
   public ColumnBuilder setRunLengthColumn(ColumnPartProvider<RunLengthColumn> runLengthColumn)
   {
     this.runLengthColumn = setNumRows(runLengthColumn);

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import io.druid.query.Query;
 import io.druid.query.select.Schema;
 import org.joda.time.Interval;
 
@@ -62,6 +63,16 @@ public class QueryableIndexSegment extends AbstractSegment
   {
     accessed(forQuery);
     return new QueryableIndexStorageAdapter(index, identifier);
+  }
+
+  @Override
+  public Segment cuboidFor(Query<?> query)
+  {
+    final QueryableIndex cuboid = index.cuboidFor(query);
+    if (cuboid != null) {
+      return new QueryableIndexSegment(identifier, cuboid);
+    }
+    return null;
   }
 
   @Override

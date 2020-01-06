@@ -30,6 +30,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -176,15 +177,11 @@ public class ApproximateHistogramGroupByQueryTest
             )
         )
         .setAggregatorSpecs(
-            Lists.newArrayList(
-                QueryRunnerTestHelper.rowsCount,
-                aggFactory
-            )
+            QueryRunnerTestHelper.rowsCount,
+            aggFactory
         )
         .setPostAggregatorSpecs(
-            Arrays.<PostAggregator>asList(
-                new QuantilePostAggregator("quantile", "apphisto", 0.5f)
-            )
+            new QuantilePostAggregator("quantile", "apphisto", 0.5f)
         )
         .build();
 
@@ -215,7 +212,7 @@ public class ApproximateHistogramGroupByQueryTest
     TestHelper.assertExpectedObjects(expectedResults, results, "approx-histo");
 
     query = query.withAggregatorSpecs(
-        Arrays.asList(
+        Arrays.<AggregatorFactory>asList(
             QueryRunnerTestHelper.rowsCount,
             new ApproximateHistogramAggregatorFactory(
                 "apphisto",
@@ -290,10 +287,8 @@ public class ApproximateHistogramGroupByQueryTest
             )
         )
         .setAggregatorSpecs(
-            Lists.newArrayList(
-                QueryRunnerTestHelper.rowsCount,
-                aggFactory
-            )
+            QueryRunnerTestHelper.rowsCount,
+            aggFactory
         )
         .setPostAggregatorSpecs(
             Arrays.<PostAggregator>asList(

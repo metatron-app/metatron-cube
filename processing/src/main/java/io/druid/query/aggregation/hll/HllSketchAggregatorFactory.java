@@ -39,7 +39,7 @@ import java.util.Objects;
  *
  * @author Alexander Saydakov
  */
-abstract class HllSketchAggregatorFactory extends AggregatorFactory
+abstract class HllSketchAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
 
   static final int DEFAULT_LG_K = 12;
@@ -80,6 +80,7 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -144,6 +145,12 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     return new HllSketchMergeAggregatorFactory(getName(), getName(), getLgK(), getTgtHllType());
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new HllSketchMergeAggregatorFactory(getName(), inputField, getLgK(), getTgtHllType());
   }
 
   @Override

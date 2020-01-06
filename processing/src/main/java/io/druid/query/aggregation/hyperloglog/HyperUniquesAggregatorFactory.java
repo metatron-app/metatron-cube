@@ -43,7 +43,7 @@ import java.util.Objects;
 
 /**
  */
-public class HyperUniquesAggregatorFactory extends AggregatorFactory
+public class HyperUniquesAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   public static Object estimateCardinality(Object object, boolean round)
   {
@@ -216,10 +216,17 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
     return Arrays.asList(fieldName);
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new HyperUniquesAggregatorFactory(name, inputField, null, round);
   }
 
   @Override

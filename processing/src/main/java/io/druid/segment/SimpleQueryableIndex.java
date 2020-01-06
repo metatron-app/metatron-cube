@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
@@ -27,12 +28,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
-import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
+import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -56,12 +62,15 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Metadata metadata;
   private final Supplier<Integer> numRows;
 
+  private final Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids;
+
   public SimpleQueryableIndex(
       Interval dataInterval,
       Indexed<String> columnNames,
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
       Map<String, Column> columns,
+      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids,
       SmooshedFileMapper fileMapper,
       Metadata metadata
   )
@@ -72,6 +81,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.availableDimensions = dimNames;
     this.bitmapFactory = bitmapFactory;
     this.columns = columns;
+    this.cuboids = cuboids;
     this.fileMapper = fileMapper;
     this.metadata = metadata;
     this.numRows = Suppliers.memoize(new Supplier<Integer>()
@@ -154,6 +164,35 @@ public class SimpleQueryableIndex implements QueryableIndex
   public Metadata getMetadata()
   {
     return metadata;
+  }
+
+  @Override
+  public QueryableIndex cuboidFor(Query<?> query)
+  {
+    if (GuavaUtils.isNullOrEmpty(cuboids) || !(query instanceof GroupByQuery)) {
+      return null;
+    }
+    final GroupByQuery groupby = (GroupByQuery) query;
+    if (!DimensionSpecs.isAllDefault(groupby.getDimensions())) {
+      return null;
+    }
+    QueryableIndex withMinRow = null;
+    for (QueryableIndex index : Iterables.transform(Iterables.filter(
+        cuboids.values(),
+        new Predicate<Pair<CuboidSpec, QueryableIndex>>()
+        {
+          @Override
+          public boolean apply(Pair<CuboidSpec, QueryableIndex> input)
+          {
+            return input.lhs.supports(groupby);
+          }
+        }
+    ), Pair.rhsFn())) {
+      if (withMinRow == null || withMinRow.getNumRows() > index.getNumRows()) {
+        withMinRow = index;
+      }
+    }
+    return withMinRow;
   }
 
   @Override

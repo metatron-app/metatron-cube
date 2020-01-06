@@ -72,7 +72,6 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -300,7 +299,7 @@ public class IndexMerger
             new Function<IndexableAdapter, Iterable<String>>()
             {
               @Override
-              public Iterable<String> apply(@Nullable IndexableAdapter input)
+              public Iterable<String> apply(IndexableAdapter input)
               {
                 return input.getDimensionNames();
               }
@@ -383,7 +382,7 @@ public class IndexMerger
                         new Function<IndexableAdapter, Iterable<String>>()
                         {
                           @Override
-                          public Iterable<String> apply(@Nullable IndexableAdapter input)
+                          public Iterable<String> apply(IndexableAdapter input)
                           {
                             return input.getMetricNames();
                           }
@@ -465,7 +464,7 @@ public class IndexMerger
         @Override
         public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
         {
-          return new RowNumIterator(boats, rowNumConversions, merger, ordering);
+          return RowNumIterator.create(boats, rowNumConversions, ordering, merger);
         }
       };
     }
@@ -573,7 +572,7 @@ public class IndexMerger
           @Override
           public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
           {
-            return new RowNumIterator(boats, rowNumConversions, null, Ordering.natural());
+            return new RowNumIterator(boats, rowNumConversions, Ordering.natural());
           }
         };
 
@@ -649,7 +648,6 @@ public class IndexMerger
     }
 
     Closer closer = Closer.create();
-    final Interval dataInterval;
     final File v8OutDir = new File(outDir, "v8-tmp");
     v8OutDir.mkdirs();
     closer.register(new Closeable()
@@ -675,6 +673,8 @@ public class IndexMerger
       long startTime = System.currentTimeMillis();
       File indexFile = new File(v8OutDir, "index.drd");
 
+      Interval dataInterval = toDataInterval(indexes);
+
       try (FileOutputStream fileOutputStream = new FileOutputStream(indexFile);
            FileChannel channel = fileOutputStream.getChannel()) {
         channel.write(ByteBuffer.wrap(new byte[]{IndexIO.V8_VERSION}));
@@ -682,16 +682,7 @@ public class IndexMerger
         GenericIndexed.fromIterable(mergedDimensions, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
         GenericIndexed.fromIterable(mergedMetrics, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
 
-        DateTime minTime = new DateTime(JodaUtils.MAX_INSTANT);
-        DateTime maxTime = new DateTime(JodaUtils.MIN_INSTANT);
-
-        for (IndexableAdapter index : indexes) {
-          minTime = JodaUtils.minDateTime(minTime, index.getDataInterval().getStart());
-          maxTime = JodaUtils.maxDateTime(maxTime, index.getDataInterval().getEnd());
-        }
-
-        dataInterval = new Interval(minTime, maxTime);
-        SerializerUtils.writeString(channel, String.format("%s/%s", minTime, maxTime));
+        SerializerUtils.writeString(channel, String.format("%s/%s", dataInterval.getStart(), dataInterval.getEnd()));
         SerializerUtils.writeString(channel, mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory()));
       }
       IndexIO.checkFileSize(indexFile);
@@ -981,13 +972,13 @@ public class IndexMerger
             }
           }
 
-          final MutableBitmap bitset = toBitmap(convertedInverteds, bitmapFactory.makeEmptyMutableBitmap());
+          final MutableBitmap bitmap = toBitmap(convertedInverteds, bitmapFactory.makeEmptyMutableBitmap());
 
           if (dictId == 0 && (Iterables.getFirst(dimVals, "") == null)) {
-            bitset.or(nullRowsList.get(i));
+            bitmap.or(nullRowsList.get(i));
           }
 
-          writer.add(bitmapFactory.makeImmutableBitmap(bitset));
+          writer.add(bitmapFactory.makeImmutableBitmap(bitmap));
 
           if (isSpatialDim) {
             String dimVal = dimVals.get(dictId);
@@ -997,7 +988,7 @@ public class IndexMerger
               for (int j = 0; j < coords.length; j++) {
                 coords[j] = Float.valueOf(stringCoords.get(j));
               }
-              tree.insert(coords, bitset);
+              tree.insert(coords, bitmap);
             }
           }
         }
@@ -1130,7 +1121,7 @@ public class IndexMerger
     return dimLookup;
   }
 
-  public static <T extends Comparable> ArrayList<T> mergeIndexed(final List<Iterable<T>> indexedLists)
+  private static <T extends Comparable> List<T> mergeIndexed(final List<Iterable<T>> indexedLists)
   {
     Set<T> retVal = Sets.newTreeSet(Ordering.<T>natural().nullsFirst());
 
@@ -1143,7 +1134,7 @@ public class IndexMerger
     return Lists.newArrayList(retVal);
   }
 
-  public void createIndexDrdFile(
+  private void createIndexDrdFile(
       byte versionId,
       File inDir,
       GenericIndexed<String> availableDimensions,
@@ -1171,11 +1162,11 @@ public class IndexMerger
 
   protected IndexSeeker[] toIndexSeekers(
       List<IndexableAdapter> adapters,
-      ArrayList<Map<String, IntBuffer>> dimConversions,
+      List<Map<String, IntBuffer>> dimConversions,
       String dimension
   )
   {
-    IndexSeeker[] seekers = new IndexSeeker[adapters.size()];
+    final IndexSeeker[] seekers = new IndexSeeker[adapters.size()];
     for (int i = 0; i < adapters.size(); i++) {
       IntBuffer dimConversion = dimConversions.get(i).get(dimension);
       if (dimConversion != null) {
@@ -1268,43 +1259,7 @@ public class IndexMerger
     }
   }
 
-  static class ConvertingIndexedInts implements Iterable<Integer>
-  {
-    private final ImmutableBitmap baseIndex;
-    private final int[] conversion;
-
-    public ConvertingIndexedInts(ImmutableBitmap baseIndex, int[] conversion)
-    {
-      this.baseIndex = baseIndex;
-      this.conversion = conversion;
-    }
-
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      if (baseIndex == null) {
-        return Iterators.emptyIterator();
-      }
-      return new Iterator<Integer>()
-      {
-        private final IntIterator iterator = baseIndex.iterator();
-
-        @Override
-        public boolean hasNext()
-        {
-          return iterator.hasNext();
-        }
-
-        @Override
-        public Integer next()
-        {
-          return conversion == null ? iterator.next() : conversion[iterator.next()];
-        }
-      };
-    }
-  }
-
-  public static class DimConversionIterator implements Iterator<Rowboat>
+  private static class DimConversionIterator implements Iterator<Rowboat>
   {
     private static final int[] EMPTY_STR_DIM = new int[]{0};
     private final Iterator<Rowboat> iterator;
@@ -1352,38 +1307,7 @@ public class IndexMerger
     }
   }
 
-  public static class AggFactoryStringIndexed implements Indexed<String>
-  {
-    private final AggregatorFactory[] metricAggs;
-
-    public AggFactoryStringIndexed(AggregatorFactory[] metricAggs) {this.metricAggs = metricAggs;}
-
-    @Override
-    public int size()
-    {
-      return metricAggs.length;
-    }
-
-    @Override
-    public String get(int index)
-    {
-      return metricAggs[index].getName();
-    }
-
-    @Override
-    public int indexOf(String value)
-    {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Iterator<String> iterator()
-    {
-      return IndexedIterable.create(this).iterator();
-    }
-  }
-
-  public static class RowboatMergeFunction implements BinaryFn.Identical<Rowboat>
+  private static class RowboatMergeFunction implements BinaryFn.Identical<Rowboat>
   {
     private final AggregatorFactory.Combiner[] metricAggs;
 
@@ -1417,19 +1341,6 @@ public class IndexMerger
       }
       return lhs;
     }
-  }
-
-  public static boolean isNullColumn(Iterable<String> dimValues)
-  {
-    if (dimValues == null) {
-      return true;
-    }
-    for (String val : dimValues) {
-      if (val != null) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private void writeMetadataToFile(File metadataFile, Metadata metadata) throws IOException
@@ -1549,20 +1460,25 @@ public class IndexMerger
 
   static class RowNumIterator implements Iterator<Rowboat>
   {
-    private final PriorityQueue<Pair<Integer, PeekingIterator<Rowboat>>> pQueue;
-
-    private final int[][] conversions;
-    private final BinaryFn.Identical<Rowboat> merger;
-    private final Ordering<Rowboat> ordering;
-
-    private int rowNum;
-
-    RowNumIterator(
-        List<Iterator<Rowboat>> rowboats,
+    static RowNumIterator create(
+        List<Iterator<Rowboat>> rows,
         int[][] conversions,
-        BinaryFn.Identical<Rowboat> merger,
-        Ordering<Rowboat> ordering
+        Ordering<Rowboat> ordering,
+        BinaryFn.Identical<Rowboat> merger
     )
+    {
+      return merger == null ?
+             new RowNumIterator(rows, conversions, ordering) :
+             new RowNumIterator.Merging(rows, conversions, ordering, merger);
+    }
+
+    final PriorityQueue<Pair<Integer, PeekingIterator<Rowboat>>> pQueue;
+    final int[][] conversions;
+    final Ordering<Rowboat> ordering;
+
+    int rowNum;
+
+    RowNumIterator(List<Iterator<Rowboat>> rowboats, int[][] conversions, Ordering<Rowboat> ordering)
     {
       Preconditions.checkArgument(rowboats.size() == conversions.length);
       pQueue = new ObjectHeapPriorityQueue<>(
@@ -1583,7 +1499,6 @@ public class IndexMerger
           pQueue.enqueue(Pair.of(i, iter));
         }
       }
-      this.merger = merger;
       this.ordering = ordering;
     }
 
@@ -1596,18 +1511,10 @@ public class IndexMerger
     @Override
     public Rowboat next()
     {
-      Rowboat value = writeTranslate(pQueue.first(), rowNum);
-      if (merger != null) {
-        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.first().rhs.peek()) == 0) {
-          value = merger.apply(value, writeTranslate(pQueue.first(), rowNum));
-        }
-      }
-      rowNum++;
-
-      return value;
+      return writeConversion(pQueue.first(), rowNum++);
     }
 
-    private Rowboat writeTranslate(Pair<Integer, PeekingIterator<Rowboat>> smallest, int rowNum)
+    Rowboat writeConversion(Pair<Integer, PeekingIterator<Rowboat>> smallest, int rowNum)
     {
       final int index = smallest.lhs;
       final Rowboat value = smallest.rhs.next();
@@ -1626,9 +1533,49 @@ public class IndexMerger
     {
       throw new UnsupportedOperationException("remove");
     }
+
+    static class Merging extends RowNumIterator
+    {
+      private final BinaryFn.Identical<Rowboat> merger;
+
+      Merging(
+          List<Iterator<Rowboat>> rowboats,
+          int[][] conversions,
+          Ordering<Rowboat> ordering,
+          BinaryFn.Identical<Rowboat> merger
+      )
+      {
+        super(rowboats, conversions, ordering);
+        this.merger = Preconditions.checkNotNull(merger, "merger");
+      }
+
+      @Override
+      public Rowboat next()
+      {
+        Rowboat value = writeConversion(pQueue.first(), rowNum);
+        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.first().rhs.peek()) == 0) {
+          value = merger.apply(value, writeConversion(pQueue.first(), rowNum));
+        }
+        rowNum++;
+        return value;
+      }
+    }
   }
 
-  MutableBitmap toBitmap(final List<IntIterator> intIterators, final MutableBitmap bitmap)
+  static boolean isNullColumn(Iterable<String> dimValues)
+  {
+    if (dimValues == null) {
+      return true;
+    }
+    for (String val : dimValues) {
+      if (val != null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static MutableBitmap toBitmap(final List<IntIterator> intIterators, final MutableBitmap bitmap)
   {
     if (intIterators.isEmpty()) {
       return bitmap;
@@ -1643,5 +1590,17 @@ public class IndexMerger
       bitmap.add(iterator.next());
     }
     return bitmap;
+  }
+
+  static Interval toDataInterval(List<IndexableAdapter> adapters)
+  {
+    return JodaUtils.umbrellaInterval(Lists.transform(adapters, new Function<IndexableAdapter, Interval>()
+    {
+      @Override
+      public Interval apply(IndexableAdapter input)
+      {
+        return input.getDataInterval();
+      }
+    }));
   }
 }

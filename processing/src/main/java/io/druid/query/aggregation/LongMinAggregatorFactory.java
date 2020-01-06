@@ -38,7 +38,7 @@ import java.util.Objects;
 
 /**
  */
-public class LongMinAggregatorFactory extends AggregatorFactory
+public class LongMinAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0xB;
 
@@ -127,10 +127,17 @@ public class LongMinAggregatorFactory extends AggregatorFactory
     return object;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new LongMinAggregatorFactory(name, inputField, null);
   }
 
   @JsonProperty

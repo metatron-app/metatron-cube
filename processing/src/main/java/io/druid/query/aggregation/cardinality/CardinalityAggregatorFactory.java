@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -49,7 +50,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class CardinalityAggregatorFactory extends AggregatorFactory
+public class CardinalityAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
@@ -220,6 +221,18 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public String getName()
   {
     return name;
+  }
+
+  @Override
+  public String getFieldName()
+  {
+    return fieldNames != null ? Iterables.getOnlyElement(fieldNames, null) : null;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new HyperUniquesAggregatorFactory(name, inputField, null, round);
   }
 
   @JsonProperty

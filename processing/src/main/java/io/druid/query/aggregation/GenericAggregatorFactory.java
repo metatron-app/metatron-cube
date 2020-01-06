@@ -48,6 +48,7 @@ import java.util.Set;
 /**
  */
 public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeResolving
+    implements AggregatorFactory.CubeSupport
 {
   protected final String fieldName;
   protected final String name;
@@ -213,11 +214,18 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return object;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return withName(name, inputField, getOutputType());
   }
 
   @JsonProperty

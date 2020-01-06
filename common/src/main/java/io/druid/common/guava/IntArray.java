@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,55 +17,46 @@
  * under the License.
  */
 
-package io.druid.segment.data;
+package io.druid.common.guava;
 
-import java.util.Iterator;
-import java.util.List;
+import java.util.Arrays;
 
-/**
- */
-public class ListIndexed<T> implements Indexed<T>
+public class IntArray implements Comparable<IntArray>
 {
-  public static ListIndexed<String> ofString(List<String> list)
+  private final int[] array;
+
+  public IntArray(int[] array)
   {
-    return new ListIndexed<>(list, String.class);
+    this.array = array;
   }
 
-  private final List<T> baseList;
-  private final Class<? extends T> clazz;
-
-  public ListIndexed(List<T> baseList, Class<? extends T> clazz)
+  public int[] array()
   {
-    this.baseList = baseList;
-    this.clazz = clazz;
-  }
-
-  public Class<? extends T> type()
-  {
-    return clazz;
+    return array;
   }
 
   @Override
-  public int size()
+  public int hashCode()
   {
-    return baseList.size();
+    return array.length == 1 ? array[0] : Arrays.hashCode(array);
   }
 
   @Override
-  public T get(int index)
+  public boolean equals(Object obj)
   {
-    return baseList.get(index);
+    final int[] other = ((IntArray) obj).array;
+    return array.length == 1 ? array[0] == other[0] : Arrays.equals(array, other);
   }
 
   @Override
-  public int indexOf(T value)
+  public int compareTo(IntArray o)
   {
-    return baseList.indexOf(value);
-  }
-
-  @Override
-  public Iterator<T> iterator()
-  {
-    return baseList.iterator();
+    for (int i = 0; i < array.length; i++) {
+      final int compare = Integer.compare(array[i], o.array[i]);
+      if (compare != 0) {
+        return compare;
+      }
+    }
+    return 0;
   }
 }

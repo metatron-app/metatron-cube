@@ -26,7 +26,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
@@ -36,6 +35,7 @@ import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -75,12 +75,14 @@ public class IndexSpec
   private final ColumnIncluderator dimensionSketches;
   private final boolean allowNullForNumbers;
 
+  private final List<CuboidSpec> cuboidSpecs;
+
   /**
    * Creates an IndexSpec with default parameters
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, null, false);
+    this(null, null, null, null, null, null, null, false);
   }
 
   /**
@@ -103,8 +105,9 @@ public class IndexSpec
       @JsonProperty("dimensionCompression") String dimensionCompression,
       @JsonProperty("dimensionSketches") ColumnIncluderator dimensionSketches,
       @JsonProperty("metricCompression") String metricCompression,
-      @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
       @JsonProperty("columnCompression") Map<String, String> columnCompression,
+      @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
+      @JsonProperty("cuboidSpecs") List<CuboidSpec> cuboidSpecs,
       @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers
   )
   {
@@ -120,6 +123,7 @@ public class IndexSpec
     this.metricCompression = metricCompression;
     this.secondaryIndexing = secondaryIndexing;
     this.columnCompression = columnCompression;
+    this.cuboidSpecs = cuboidSpecs;
     this.allowNullForNumbers = allowNullForNumbers;
   }
 
@@ -129,7 +133,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, false);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false);
   }
 
   @JsonProperty("bitmap")
@@ -170,6 +174,13 @@ public class IndexSpec
   public Map<String, String> getColumnCompression()
   {
     return columnCompression;
+  }
+
+  @JsonProperty("cuboidSpecs")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<CuboidSpec> getCuboidSpecs()
+  {
+    return cuboidSpecs;
   }
 
   @JsonProperty("allowNullForNumbers")
@@ -217,31 +228,16 @@ public class IndexSpec
     return compression.equals(UNCOMPRESSED) ? null : CompressionStrategy.valueOf(compression.toUpperCase());
   }
 
-  public IndexSpec withSecondaryIndexing(Map<String, SecondaryIndexingSpec> secondaryIndexing)
+  public IndexSpec asIntermediarySpec()
   {
     return new IndexSpec(
         bitmapSerdeFactory,
         dimensionCompression,
         dimensionSketches,
         metricCompression,
-        secondaryIndexing,
         columnCompression,
-        allowNullForNumbers
-    );
-  }
-
-  public IndexSpec withoutSecondaryIndexing()
-  {
-    if (GuavaUtils.isNullOrEmpty(secondaryIndexing)) {
-      return this;
-    }
-    return new IndexSpec(
-        bitmapSerdeFactory,
-        dimensionCompression,
-        dimensionSketches,
-        metricCompression,
         null,
-        columnCompression,
+        null,
         allowNullForNumbers
     );
   }
@@ -276,6 +272,9 @@ public class IndexSpec
     if (!Objects.equals(columnCompression, indexSpec.columnCompression)) {
       return false;
     }
+    if (!Objects.equals(cuboidSpecs, indexSpec.cuboidSpecs)) {
+      return false;
+    }
     if (allowNullForNumbers != indexSpec.allowNullForNumbers) {
       return false;
     }
@@ -292,6 +291,7 @@ public class IndexSpec
         metricCompression,
         secondaryIndexing,
         columnCompression,
+        cuboidSpecs,
         allowNullForNumbers
     );
   }

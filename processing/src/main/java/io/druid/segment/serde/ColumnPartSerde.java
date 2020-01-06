@@ -79,14 +79,23 @@ public interface ColumnPartSerde
     void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
   }
 
-  public class Skipper implements ColumnPartSerde
+  class Abstract implements ColumnPartSerde
   {
     @Override
     public Serializer getSerializer()
     {
-      throw new IllegalStateException("not for use");
+      throw new UnsupportedOperationException("getSerializer");
     }
 
+    @Override
+    public Deserializer getDeserializer()
+    {
+      throw new UnsupportedOperationException("getDeserializer");
+    }
+  }
+
+  class Skipper extends Abstract
+  {
     @Override
     public Deserializer getDeserializer()
     {

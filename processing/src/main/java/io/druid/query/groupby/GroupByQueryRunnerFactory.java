@@ -26,9 +26,6 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
@@ -39,6 +36,9 @@ import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -61,6 +61,7 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -325,7 +326,7 @@ public class GroupByQueryRunnerFactory
   @Override
   public QueryRunner<Row> createRunner(final Segment segment, final Future<Object> optimizer)
   {
-    return new GroupByQueryRunner(segment, engine, cache);
+    return new GroupByQueryRunner(segment, engine, config.getGroupBy(), cache);
   }
 
   @Override
@@ -348,23 +349,28 @@ public class GroupByQueryRunnerFactory
   {
     private final Segment segment;
     private final GroupByQueryEngine engine;
+    private final GroupByQueryConfig config;
     private final Cache cache;
 
-    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, Cache cache)
+    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, GroupByQueryConfig config, Cache cache)
     {
       this.segment = segment;
       this.engine = engine;
+      this.config = config;
       this.cache = cache;
     }
 
     @Override
     public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
     {
-      if (!(input instanceof GroupByQuery)) {
-        throw new ISE("Got a [%s] which isn't a %s", input.getClass(), GroupByQuery.class);
+      GroupByQuery query = (GroupByQuery) input;
+      if (query.getContextBoolean(Query.GBY_USE_CUBOIDS, config.isUseCuboids())) {
+        Segment cuboid = segment.cuboidFor(query);
+        if (cuboid != null) {
+          return engine.process(Cuboids.rewrite(query), cuboid, true, null);   // disable filter cache
+        }
       }
-
-      return engine.process((GroupByQuery) input, segment, true, cache);
+      return engine.process(query, segment, true, cache);
     }
 
     @Override

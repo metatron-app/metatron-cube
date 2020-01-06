@@ -39,6 +39,7 @@ public interface DictionaryEncodedColumn extends Closeable
   public int getCardinality();
 
   public Dictionary<String> dictionary();
+  public DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
 
   public boolean hasSketch();
   public Sketch getTheta();

@@ -34,5 +34,36 @@ public interface ColumnPartProvider<T> extends Supplier<T>
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
     Dictionary<String> getDictionary();
+
+    class Delegated implements DictionarySupport
+    {
+      private final DictionarySupport delegated;
+
+      public Delegated(DictionarySupport delegated) {this.delegated = delegated;}
+
+      @Override
+      public int numRows()
+      {
+        return delegated.numRows();
+      }
+
+      @Override
+      public long getSerializedSize()
+      {
+        return delegated.getSerializedSize();
+      }
+
+      @Override
+      public Dictionary<String> getDictionary()
+      {
+        return delegated.getDictionary();
+      }
+
+      @Override
+      public DictionaryEncodedColumn get()
+      {
+        return delegated.get();
+      }
+    }
   }
 }

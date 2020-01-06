@@ -44,7 +44,8 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("kurtosis")
-public class KurtosisAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
+public class KurtosisAggregatorFactory extends AggregatorFactory
+    implements AggregatorFactory.SQLSupport, AggregatorFactory.CubeSupport
 {
   protected static final byte CACHE_TYPE_ID = 23;
 
@@ -93,10 +94,17 @@ public class KurtosisAggregatorFactory extends AggregatorFactory implements Aggr
     return inputType;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new KurtosisFoldingAggregatorFactory(name, inputField, predicate);
   }
 
   @JsonProperty

@@ -19,6 +19,8 @@
 
 package io.druid.segment;
 
+import io.druid.query.Query;
+
 import java.io.IOException;
 
 public abstract class AbstractSegment implements Segment
@@ -36,6 +38,12 @@ public abstract class AbstractSegment implements Segment
   public long getLastAccessTime()
   {
     return lastAccessTime;
+  }
+
+  @Override
+  public Segment cuboidFor(Query<?> query)
+  {
+    return null;
   }
 
   public void close() throws IOException {}

@@ -38,7 +38,7 @@ import java.util.Objects;
 
 /**
  */
-public class DoubleMaxAggregatorFactory extends AggregatorFactory
+public class DoubleMaxAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x3;
 
@@ -132,10 +132,17 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory
     return object;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new DoubleMaxAggregatorFactory(name, inputField, null);
   }
 
   @JsonProperty

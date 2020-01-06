@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IntArray;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.segment.ColumnSelectorFactory;
@@ -344,7 +345,7 @@ public class Aggregators
       this.aggregator = aggregator;
     }
 
-    private Aggregators.IntArray toKey(ByteBuffer buf, int position)
+    private IntArray toKey(ByteBuffer buf, int position)
     {
       return new IntArray(new int[]{System.identityHashCode(buf), position});
     }
@@ -453,41 +454,6 @@ public class Aggregators
         };
       default:
         throw new IllegalArgumentException("invalid type " + type);
-    }
-  }
-
-  private static class IntArray implements Comparable<IntArray>
-  {
-    private final int[] array;
-
-    private IntArray(int[] array)
-    {
-      this.array = array;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return array.length == 1 ? array[0] : Arrays.hashCode(array);
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-      final int[] other = ((IntArray) obj).array;
-      return array.length == 1 ? array[0] == other[0] : Arrays.equals(array, other);
-    }
-
-    @Override
-    public int compareTo(IntArray o)
-    {
-      for (int i = 0; i < array.length; i++) {
-        final int compare = Integer.compare(array[i], o.array[i]);
-        if (compare != 0) {
-          return compare;
-        }
-      }
-      return 0;
     }
   }
 

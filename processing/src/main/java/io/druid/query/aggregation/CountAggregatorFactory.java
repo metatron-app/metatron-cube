@@ -37,7 +37,7 @@ import java.util.Objects;
 
 /**
  */
-public class CountAggregatorFactory extends AggregatorFactory
+public class CountAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   public static CountAggregatorFactory of(String name)
   {
@@ -141,11 +141,18 @@ public class CountAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new LongSumAggregatorFactory(name, inputField);
   }
 
   @JsonProperty

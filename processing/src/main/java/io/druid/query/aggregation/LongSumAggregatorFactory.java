@@ -40,7 +40,7 @@ import java.util.Set;
 
 /**
  */
-public class LongSumAggregatorFactory extends AggregatorFactory
+public class LongSumAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x1;
 
@@ -143,10 +143,17 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     return object;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new LongSumAggregatorFactory(name, inputField);
   }
 
   @JsonProperty

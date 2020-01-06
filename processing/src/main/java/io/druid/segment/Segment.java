@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.Query;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.select.Schema;
 import org.joda.time.Interval;
@@ -38,24 +39,20 @@ public interface Segment extends SchemaProvider, Closeable
   boolean isIndexed();
   int getNumRows();
 
-  class WithDescriptor implements Segment
+  Segment cuboidFor(Query<?> query);
+
+  class Delegated implements Segment
   {
     private final Segment segment;
-    private final SegmentDescriptor descriptor;
 
-    public WithDescriptor(Segment segment, SegmentDescriptor descriptor) {
+    public Delegated(Segment segment)
+    {
       this.segment = segment;
-      this.descriptor = descriptor;
     }
 
     public Segment getSegment()
     {
       return segment;
-    }
-
-    public SegmentDescriptor getDescriptor()
-    {
-      return descriptor;
     }
 
     @Override
@@ -101,6 +98,12 @@ public interface Segment extends SchemaProvider, Closeable
     }
 
     @Override
+    public Segment cuboidFor(Query<?> query)
+    {
+      return segment.cuboidFor(query);
+    }
+
+    @Override
     public Schema asSchema(boolean prependTime)
     {
       return segment.asSchema(prependTime);
@@ -110,6 +113,22 @@ public interface Segment extends SchemaProvider, Closeable
     public void close() throws IOException
     {
       segment.close();
+    }
+  }
+
+  class WithDescriptor extends Delegated
+  {
+    private final SegmentDescriptor descriptor;
+
+    public WithDescriptor(Segment segment, SegmentDescriptor descriptor)
+    {
+      super(segment);
+      this.descriptor = descriptor;
+    }
+
+    public SegmentDescriptor getDescriptor()
+    {
+      return descriptor;
     }
   }
 }

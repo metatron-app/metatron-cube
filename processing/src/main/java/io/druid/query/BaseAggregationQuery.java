@@ -695,6 +695,15 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return this;
     }
 
+    public Builder<T> addAggregators(AggregatorFactory... aggregators)
+    {
+      if (aggregatorSpecs == null) {
+        aggregatorSpecs = Lists.newArrayList();
+      }
+      aggregatorSpecs.addAll(Arrays.asList(aggregators));
+      return this;
+    }
+
     public Builder<T> setAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
     {
       this.aggregatorSpecs = Lists.newArrayList(aggregatorSpecs);

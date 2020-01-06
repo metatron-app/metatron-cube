@@ -23,6 +23,7 @@ import com.google.common.base.Supplier;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 
+import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,6 +64,11 @@ public class StupidPool<T>
       }
     }
     return new ObjectResourceHolder(obj);
+  }
+
+  public void clear()
+  {
+    objects.clear();
   }
 
   private class ObjectResourceHolder implements ResourceHolder<T>
@@ -114,6 +120,21 @@ public class StupidPool<T>
       finally {
         super.finalize();
       }
+    }
+  }
+
+  public static class Heap extends StupidPool<ByteBuffer>
+  {
+    public Heap(final int bufferSize, final int numObjects)
+    {
+      super(new Supplier<ByteBuffer>()
+      {
+        @Override
+        public ByteBuffer get()
+        {
+          return ByteBuffer.wrap(new byte[bufferSize]);
+        }
+      }, numObjects);
     }
   }
 }

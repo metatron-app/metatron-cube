@@ -30,7 +30,6 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
@@ -133,6 +132,7 @@ public class DruidTDigestGroupByQueryTest
     );
   }
 
+  @SuppressWarnings("unchecked")
   public DruidTDigestGroupByQueryTest(GroupByQueryRunnerFactory factory, QueryRunner runner)
   {
     this.factory = factory;
@@ -171,15 +171,11 @@ public class DruidTDigestGroupByQueryTest
             )
         )
         .setAggregatorSpecs(
-            Lists.newArrayList(
-                QueryRunnerTestHelper.rowsCount,
-                aggFactory
-            )
+            QueryRunnerTestHelper.rowsCount,
+            aggFactory
         )
         .setPostAggregatorSpecs(
-            Arrays.<PostAggregator>asList(
-                new DruidTDigestMedianPostAggregator("median", "digest")
-            )
+            new DruidTDigestMedianPostAggregator("median", "digest")
         )
         .build();
 
@@ -230,15 +226,11 @@ public class DruidTDigestGroupByQueryTest
             )
         )
         .setAggregatorSpecs(
-            Lists.newArrayList(
-                QueryRunnerTestHelper.rowsCount,
-                aggFactory
-            )
+            QueryRunnerTestHelper.rowsCount,
+            aggFactory
         )
         .setPostAggregatorSpecs(
-            Arrays.<PostAggregator>asList(
-                new DruidTDigestMedianPostAggregator("quantile", "quantile")
-            )
+            new DruidTDigestMedianPostAggregator("quantile", "quantile")
         )
         .build();
 

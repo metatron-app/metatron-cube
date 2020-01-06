@@ -53,6 +53,7 @@ public interface QueryContextKeys
   public static final String GBY_LOCAL_SPLIT_CARDINALITY = "groupByLocalSplitCardinality";
   public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
+  public static final String GBY_USE_CUBOIDS = "groupByUseCuboids";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
   // timeseries

@@ -77,6 +77,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private int maxStreamSubQueryPage = 4;
 
+  @JsonProperty
+  private boolean useCuboids = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -235,5 +238,15 @@ public class GroupByQueryConfig
   public void setMaxStreamSubQueryPage(int maxStreamSubQueryPage)
   {
     this.maxStreamSubQueryPage = maxStreamSubQueryPage;
+  }
+
+  public boolean isUseCuboids()
+  {
+    return useCuboids;
+  }
+
+  public void setUseCuboids(boolean useCuboids)
+  {
+    this.useCuboids = useCuboids;
   }
 }

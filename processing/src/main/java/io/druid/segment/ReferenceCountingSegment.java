@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.query.Query;
 import io.druid.query.select.Schema;
 import org.joda.time.Interval;
 
@@ -51,6 +52,12 @@ public class ReferenceCountingSegment implements Segment
   public int getNumRows()
   {
     return baseSegment.getNumRows();
+  }
+
+  @Override
+  public Segment cuboidFor(Query<?> query)
+  {
+    return numReferences < 0 ? null : baseSegment.cuboidFor(query);
   }
 
   public synchronized Segment getBaseSegment()

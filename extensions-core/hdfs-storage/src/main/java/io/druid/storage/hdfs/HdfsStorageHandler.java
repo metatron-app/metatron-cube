@@ -471,7 +471,7 @@ public class HdfsStorageHandler implements StorageHandler
               "Flushing %,d rows with estimated size %,d bytes.. Heap usage %s",
               index.size(), index.estimatedOccupation(), memoryMXBean.getHeapMemoryUsage()
           );
-          return merger.persist(index, nextFile(), indexSpec.withoutSecondaryIndexing());
+          return merger.persist(index, nextFile(), indexSpec.asIntermediarySpec());
         }
 
         private File nextFile()

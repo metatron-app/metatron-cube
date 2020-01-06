@@ -45,7 +45,7 @@ public class KurtosisTestHelper extends QueryRunnerTestHelper
       ValueDesc.FLOAT
   );
 
-  public static final List<AggregatorFactory> commonPlusCorrAggregators = Arrays.asList(
+  public static final List<AggregatorFactory> commonPlusCorrAggregators = Arrays.<AggregatorFactory>asList(
       rowsCount,
       indexDoubleSum,
       qualityUniques,

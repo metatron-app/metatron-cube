@@ -22,7 +22,6 @@ package io.druid.common.guava;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -254,6 +253,11 @@ public class GuavaUtils
     };
   }
 
+  public static List<String> exclude(Iterable<String> name, String... exclusions)
+  {
+    return exclude(name, Arrays.asList(exclusions));
+  }
+
   public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
   {
     if (name == null) {
@@ -316,6 +320,12 @@ public class GuavaUtils
     return Lists.newArrayList(Iterables.concat(list1, list2));
   }
 
+  @SafeVarargs
+  public static <T> List<T> concat(List<T>... lists)
+  {
+    return Lists.newArrayList(Iterables.concat(lists));
+  }
+
   public static <T> List<T> concatish(final List<T> list1, final List<T> list2)
   {
     if (list1 == null && list2 == null) {
@@ -347,40 +357,6 @@ public class GuavaUtils
   public static <T, X extends T> X lastOf(List<T> list)
   {
     return list.isEmpty() ? null : (X) list.get(list.size() - 1);
-  }
-
-  public static Closeable bind(final Closeable... resources)
-  {
-    return bind(Arrays.asList(resources));
-  }
-
-  public static Closeable bind(final Iterable<Closeable> resources)
-  {
-    return new Closeable()
-    {
-      @Override
-      public void close() throws IOException
-      {
-        Exception exception = null;
-        for (Closeable resource : resources) {
-          try {
-            if (resource != null) {
-              resource.close();
-            }
-          }
-          catch (Exception e) {
-            if (exception == null) {
-              exception = e;
-            } else {
-              exception.addSuppressed(e);
-            }
-          }
-        }
-        if (exception != null) {
-          throw Throwables.propagate(exception);
-        }
-      }
-    };
   }
 
   public static int[] indexOf(List<String> list, List<String> indexing)

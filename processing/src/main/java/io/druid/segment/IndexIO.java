@@ -46,15 +46,18 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.segment.ColumnPartProvider.DictionarySupport;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -69,10 +72,12 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
+import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
@@ -986,6 +991,7 @@ public class IndexIO
           index.getAvailableDimensions(),
           CONCISE_FACTORY,
           columns,
+          null,
           index.getFileMapper(),
           null
       );
@@ -1027,6 +1033,7 @@ public class IndexIO
       } else {
         serdeFactory = new BitmapSerde.LegacyBitmapSerdeFactory();
       }
+      final BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
 
       Metadata metadata = null;
       ByteBuffer metadataBB = smooshedFiles.mapFile("metadata.drd");
@@ -1055,8 +1062,54 @@ public class IndexIO
         columns.put(columnName, descriptor.read(columnName, mapped, serdeFactory));
       }
 
+      // load cuboids
+      Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), new Predicate<String>()
+      {
+        @Override
+        public boolean apply(String input)
+        {
+          return !columns.containsKey(input);
+        }
+      });
+      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newHashMap();
+      for (Map.Entry<Long, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {
+        final Map<String, Column> cuboidColumns = Maps.newTreeMap();
+        final long cubeId = cuboid.getKey();
+        final CuboidSpec cuboidSpec = cuboid.getValue();
+        log.info("-------> [%d] %s", cubeId, cuboidSpec);
+        for (String dimension : cuboidSpec.getDimensions()) {
+          Column source = Preconditions.checkNotNull(columns.get(dimension), dimension);
+          ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
+          ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+          if (!dimension.equals(Column.TIME_COLUMN_NAME)) {
+            Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
+            desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
+          }
+          cuboidColumns.put(dimension, desc.read(dimension, mapped, serdeFactory));
+        }
+        for (Map.Entry<String, Set<String>> entry : cuboidSpec.getMetrics().entrySet()) {
+          String metric = entry.getKey();
+          for (String aggregator : entry.getValue()) {
+            String column = metric.equals(Cuboids.COUNT_ALL_METRIC) ? metric : Cuboids.metricColumn(metric, aggregator);
+            ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.metric(cubeId, metric, aggregator));
+            ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+            cuboidColumns.put(column, descriptor.read(metric, mapped, serdeFactory));
+          }
+        }
+        Indexed<String> dimensionNames = ListIndexed.ofString(
+            GuavaUtils.exclude(cuboidSpec.getDimensions(), Column.TIME_COLUMN_NAME)
+        );
+        Indexed<String> columnNames = ListIndexed.ofString(
+            GuavaUtils.exclude(cuboidColumns.keySet(), Column.TIME_COLUMN_NAME)
+        );
+        QueryableIndex index = new SimpleQueryableIndex(
+            dataInterval, columnNames, dimensionNames, bitmapFactory, cuboidColumns, null, null, null
+        );
+        cuboids.put(cubeId, Pair.of(cuboidSpec, index));
+      }
+
       final QueryableIndex index = new SimpleQueryableIndex(
-          dataInterval, cols, dims, serdeFactory.getBitmapFactory(), columns, smooshedFiles, metadata
+          dataInterval, cols, dims, bitmapFactory, columns, cuboids, smooshedFiles, metadata
       );
 
       log.debug("Mapped v9 index[%s] in %,d millis", inDir, System.currentTimeMillis() - startTime);
@@ -1078,5 +1131,38 @@ public class IndexIO
   public static File makeMetricFile(File dir, String metricName, ByteOrder order)
   {
     return new File(dir, String.format("met_%s_%s.drd", metricName, order));
+  }
+
+  private static ColumnPartSerde delegateDictionary(final Column source)
+  {
+    return new ColumnPartSerde.Abstract()
+    {
+      @Override
+      public ColumnPartSerde.Deserializer getDeserializer()
+      {
+        return new ColumnPartSerde.Deserializer()
+        {
+          @Override
+          public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
+          {
+            DictionarySupport provider = Preconditions.checkNotNull(builder.getDictionaryEncodedColumn());
+            builder.setDictionaryEncodedColumn(new DictionarySupport.Delegated(provider)
+            {
+              @Override
+              public Dictionary<String> getDictionary()
+              {
+                return source.getDictionary();
+              }
+
+              @Override
+              public DictionaryEncodedColumn get()
+              {
+                return super.get().withDictionary(source.getDictionary());
+              }
+            });
+          }
+        };
+      }
+    };
   }
 }

@@ -328,6 +328,7 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return new InterruptibleSequence<>(future, sequence);
   }
 
+  // warn : use only for trivial case
   public static <T> CloseableIterator<T> toIterator(final Sequence<T> sequence)
   {
     return new CloseableIterator<T>()
@@ -343,15 +344,25 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
       @Override
       public boolean hasNext()
       {
-        return !yielder.isDone();
+        if (yielder.isDone()) {
+          IOUtils.closeQuietly(yielder);
+          return false;
+        }
+        return true;
       }
 
       @Override
       public T next()
       {
-        final T yield = yielder.get();
-        yielder = yielder.next(null);
-        return yield;
+        try {
+          final T yield = yielder.get();
+          yielder = yielder.next(null);
+          return yield;
+        }
+        catch (Exception e) {
+          IOUtils.closeQuietly(yielder);
+          throw Throwables.propagate(e);
+        }
       }
     };
   }

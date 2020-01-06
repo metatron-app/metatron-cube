@@ -103,6 +103,12 @@ public class SimpleDictionaryEncodedColumn
   }
 
   @Override
+  public DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary)
+  {
+    return new SimpleDictionaryEncodedColumn(column, multiValueColumn, dictionary, sketch);
+  }
+
+  @Override
   public boolean hasSketch()
   {
     return sketch != null;

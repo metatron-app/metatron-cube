@@ -206,7 +206,8 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
                   throw new ISE("Result of subquery is exceeding max pages [%d]", maxPages);
                 }
               }
-            };
+            }.asArray();
+
             LOG.info("Running streaming subquery with max pages [%d]", maxPages);
             return Sequences.map(
                 Sequences.once(iterator),

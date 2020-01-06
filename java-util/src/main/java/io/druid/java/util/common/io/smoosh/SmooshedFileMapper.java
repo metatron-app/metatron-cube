@@ -92,10 +92,7 @@ public class SmooshedFileMapper implements Closeable
   private final Map<String, Metadata> internalFiles;
   private final List<MappedByteBuffer> buffersList = Lists.newArrayList();
 
-  private SmooshedFileMapper(
-      List<File> outFiles,
-      Map<String, Metadata> internalFiles
-  )
+  SmooshedFileMapper(List<File> outFiles, Map<String, Metadata> internalFiles)
   {
     this.outFiles = outFiles;
     this.internalFiles = internalFiles;
@@ -144,6 +141,7 @@ public class SmooshedFileMapper implements Closeable
         }
       }
     }
+    buffersList.clear();
     Throwables.propagateIfPossible(thrown);
   }
 }

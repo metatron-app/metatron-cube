@@ -55,7 +55,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary.get(),
+        dictionary == null ? null : dictionary.get(),
         sketch
     );
   }
@@ -69,13 +69,13 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   @Override
   public long getSerializedSize()
   {
-    return dictionary.getSerializedSize() +
+    return (dictionary == null ? 0 : dictionary.getSerializedSize()) +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
   }
 
   @Override
   public Dictionary<String> getDictionary()
   {
-    return dictionary.get();
+    return dictionary == null ? null : dictionary.get();
   }
 }

@@ -17,6 +17,8 @@ package io.druid.java.util.common.io.smoosh;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -296,5 +298,18 @@ public class FileSmoosher implements Closeable
     {
       channel.close();
     }
+
+    public void sync() throws IOException
+    {
+      channel.force(true);
+    }
+  }
+
+  public SmooshedFileMapper asMapped(File baseDir) throws IOException
+  {
+    if (currOut != null) {
+      currOut.sync();
+    }
+    return new SmooshedFileMapper(ImmutableList.copyOf(outFiles), ImmutableMap.copyOf(internalFiles));
   }
 }

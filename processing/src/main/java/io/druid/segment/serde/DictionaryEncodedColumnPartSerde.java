@@ -65,17 +65,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
   private static final int NO_FLAGS = 0;
 
-  enum Feature
-  {
-    MULTI_VALUE,
-    MULTI_VALUE_V3,
-    DICTIONARY_SKETCH;
-
-    public boolean isSet(int flags) { return (getMask() & flags) != 0; }
-
-    public int getMask() { return (1 << ordinal()); }
-  }
-
   enum VERSION
   {
     UNCOMPRESSED_SINGLE_VALUE,  // 0x0
@@ -94,6 +83,30 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     {
       return (byte) this.ordinal();
     }
+  }
+
+  enum Feature
+  {
+    MULTI_VALUE,
+    MULTI_VALUE_V3,
+    NO_DICTIONARY,
+    DICTIONARY_SKETCH;
+
+    public static boolean hasAny(int flags, Feature... features)
+    {
+      for (Feature feature : features) {
+        if (feature.isSet(flags)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    public static boolean isSet(int flags, Feature feature) { return feature.isSet(flags); }
+
+    public boolean isSet(int flags) { return (getMask() & flags) != 0; }
+
+    public int getMask() { return (1 << ordinal()); }
   }
 
   @JsonCreator
@@ -144,7 +157,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
   public static class SerializerBuilder
   {
     private VERSION version = null;
-    private int flags = NO_FLAGS;
+    private int flags = Feature.NO_DICTIONARY.getMask();
     private ColumnPartWriter<String> dictionaryWriter = null;
     private ColumnPartWriter<Pair<String, Integer>> sketchWriter = null;
     private ColumnPartWriter valueWriter = null;
@@ -156,6 +169,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     public SerializerBuilder withDictionary(ColumnPartWriter<String> dictionaryWriter)
     {
       this.dictionaryWriter = dictionaryWriter;
+      if (dictionaryWriter == null) {
+        flags |= Feature.NO_DICTIONARY.getMask();
+      } else {
+        flags &= ~Feature.NO_DICTIONARY.getMask();
+      }
       return this;
     }
 
@@ -163,7 +181,9 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     {
       this.sketchWriter = sketchWriter;
       if (sketchWriter != null) {
-        this.flags |= Feature.DICTIONARY_SKETCH.getMask();
+        flags |= Feature.DICTIONARY_SKETCH.getMask();
+      } else {
+        flags &= ~Feature.DICTIONARY_SKETCH.getMask();
       }
       return this;
     }
@@ -464,25 +484,23 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         final VERSION rVersion = VERSION.fromByte(buffer.get());
         final int rFlags;
 
-        if (rVersion.compareTo(VERSION.COMPRESSED) >= 0) {
-          rFlags = buffer.getInt();
+        if (rVersion.compareTo(VERSION.COMPRESSED) < 0) {
+          rFlags = rVersion.equals(VERSION.UNCOMPRESSED_MULTI_VALUE) ? Feature.MULTI_VALUE.getMask() : NO_FLAGS;
         } else {
-          rFlags = rVersion.equals(VERSION.UNCOMPRESSED_MULTI_VALUE)
-                   ? Feature.MULTI_VALUE.getMask()
-                   : NO_FLAGS;
+          rFlags = buffer.getInt();
         }
 
-        final boolean hasMultipleValues = Feature.MULTI_VALUE.isSet(rFlags) || Feature.MULTI_VALUE_V3.isSet(rFlags);
-
-        final ColumnPartProvider<Dictionary<String>> rDictionary = StringMetricSerde.deserializeDictionary(
-            buffer, ObjectStrategy.STRING_STRATEGY
-        );
-        builder.setType(ValueDesc.STRING);
+        ColumnPartProvider<Dictionary<String>> rDictionary = null;
+        if (!Feature.isSet(rFlags, Feature.NO_DICTIONARY)) {
+          rDictionary = StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY);
+        }
 
         DictionarySketch sketch = null;
-        if (Feature.DICTIONARY_SKETCH.isSet(rFlags)) {
+        if (Feature.isSet(rFlags, Feature.DICTIONARY_SKETCH)) {
           sketch = DictionarySketch.of(buffer);
         }
+
+        final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);
 
         final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
         final ColumnPartProvider<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;
@@ -495,7 +513,8 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           rMultiValuedColumn = null;
         }
 
-        builder.setHasMultipleValues(hasMultipleValues)
+        builder.setType(ValueDesc.STRING)
+               .setHasMultipleValues(hasMultipleValues)
                .setDictionaryEncodedColumn(
                    new DictionaryEncodedColumnSupplier(
                        rDictionary,

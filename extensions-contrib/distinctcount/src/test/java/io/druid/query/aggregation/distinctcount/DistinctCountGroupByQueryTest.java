@@ -137,10 +137,8 @@ public class DistinctCountGroupByQueryTest
             )
         )
         .setAggregatorSpecs(
-            Lists.newArrayList(
-                QueryRunnerTestHelper.rowsCount,
-                new DistinctCountAggregatorFactory("UV", visitor_id, null)
-            )
+            QueryRunnerTestHelper.rowsCount,
+            new DistinctCountAggregatorFactory("UV", visitor_id, null)
         )
         .build();
     final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);

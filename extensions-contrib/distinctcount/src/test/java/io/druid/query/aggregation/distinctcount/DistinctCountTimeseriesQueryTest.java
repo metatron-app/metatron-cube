@@ -84,10 +84,8 @@ public class DistinctCountTimeseriesQueryTest
                                   .granularity(QueryRunnerTestHelper.allGran)
                                   .intervals(QueryRunnerTestHelper.fullOnInterval)
                                   .aggregators(
-                                      Lists.newArrayList(
-                                          QueryRunnerTestHelper.rowsCount,
-                                          new DistinctCountAggregatorFactory("UV", visitor_id, null)
-                                      )
+                                      QueryRunnerTestHelper.rowsCount,
+                                      new DistinctCountAggregatorFactory("UV", visitor_id, null)
                                   )
                                   .build();
 

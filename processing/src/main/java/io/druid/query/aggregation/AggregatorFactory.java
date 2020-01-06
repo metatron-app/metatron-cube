@@ -26,12 +26,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.Cacheable;
 import io.druid.common.Tagged;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.ordering.Comparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
@@ -147,6 +147,13 @@ public abstract class AggregatorFactory implements Cacheable
   }
 
   public abstract String getName();
+
+  public static interface CubeSupport
+  {
+    String getFieldName();
+
+    AggregatorFactory getCombiningFactory(String inputField);
+  }
 
   public abstract List<String> requiredFields();
 
@@ -383,6 +390,15 @@ public abstract class AggregatorFactory implements Cacheable
       ++aggregatorIndex;
     }
     return aggregators;
+  }
+
+  public static boolean isCountAll(AggregatorFactory factory)
+  {
+    if (factory instanceof CountAggregatorFactory) {
+      CountAggregatorFactory count = (CountAggregatorFactory) factory;
+      return count.getFieldName() == null && count.getPredicate() == null;
+    }
+    return false;
   }
 
   public static Function<AggregatorFactory, Pair<String, ValueDesc>> NAME_TYPE =

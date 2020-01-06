@@ -35,7 +35,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class TimestampMaxAggregatorFactory extends AggregatorFactory
+public class TimestampMaxAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 31;
 
@@ -134,10 +134,17 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new TimestampMaxAggregatorFactory(name, inputField, timeFormat);
   }
 
   @JsonProperty

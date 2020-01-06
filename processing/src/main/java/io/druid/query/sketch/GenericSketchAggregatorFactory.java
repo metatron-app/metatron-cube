@@ -52,6 +52,7 @@ import java.util.Objects;
 
 @JsonTypeName("sketch")
 public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolving
+  implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 24;
 
@@ -449,10 +450,17 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     return name;
   }
 
+  @Override
   @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new GenericSketchAggregatorFactory(inputField, name, inputType, sketchOp, sketchParam, orderingSpecs, true);
   }
 
   @JsonProperty

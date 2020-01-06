@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.metamx.collections.bitmap.BitmapFactory;
+import io.druid.query.Query;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -36,6 +37,7 @@ public interface QueryableIndex extends SchemaProvider, ColumnSelector, Closeabl
   BitmapFactory getBitmapFactoryForDimensions();
   Iterable<String> getAvailableMetrics();
   Metadata getMetadata();
+  QueryableIndex cuboidFor(Query<?> query);
 
   /**
    * The close method shouldn't actually be here as this is nasty. We will adjust it in the future.
