@@ -25,6 +25,7 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.Druids;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -61,6 +62,7 @@ public class TimeseriesQueryMergedRunnerTest
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                 ),
                 new TimeseriesQueryEngine(),
+                new QueryConfig(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
             )
         )

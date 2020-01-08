@@ -51,6 +51,9 @@ public class QueryConfig
   @Min(1_000)
   private long maxQueryTimeout = 60_000;
 
+  @JsonProperty
+  private boolean useCuboids;
+
   @JacksonInject
   @NotNull
   public Supplier<GroupByQueryConfig> groupBy = Suppliers.ofInstance(new GroupByQueryConfig());
@@ -123,6 +126,16 @@ public class QueryConfig
     return !BaseQuery.isBySegment(query) &&
            query instanceof GroupByQuery &&
            query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow());
+  }
+
+  public boolean isUseCuboids()
+  {
+    return useCuboids;
+  }
+
+  public void setUseCuboids(boolean useCuboids)
+  {
+    this.useCuboids = useCuboids;
   }
 
   public long getMaxQueryTimeout()

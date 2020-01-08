@@ -39,6 +39,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
@@ -225,6 +226,7 @@ public class TimeseriesBenchmark
             QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryBenchmarkUtil.NOOP_QUERYWATCHER
     );
   }

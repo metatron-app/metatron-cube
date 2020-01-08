@@ -326,7 +326,7 @@ public class GroupByQueryRunnerFactory
   @Override
   public QueryRunner<Row> createRunner(final Segment segment, final Future<Object> optimizer)
   {
-    return new GroupByQueryRunner(segment, engine, config.getGroupBy(), cache);
+    return new GroupByQueryRunner(segment, engine, config, cache);
   }
 
   @Override
@@ -349,10 +349,10 @@ public class GroupByQueryRunnerFactory
   {
     private final Segment segment;
     private final GroupByQueryEngine engine;
-    private final GroupByQueryConfig config;
+    private final QueryConfig config;
     private final Cache cache;
 
-    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, GroupByQueryConfig config, Cache cache)
+    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, QueryConfig config, Cache cache)
     {
       this.segment = segment;
       this.engine = engine;
@@ -364,7 +364,7 @@ public class GroupByQueryRunnerFactory
     public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
     {
       GroupByQuery query = (GroupByQuery) input;
-      if (query.getContextBoolean(Query.GBY_USE_CUBOIDS, config.isUseCuboids())) {
+      if (query.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
         Segment cuboid = segment.cuboidFor(query);
         if (cuboid != null) {
           return engine.process(Cuboids.rewrite(query), cuboid, true, null);   // disable filter cache

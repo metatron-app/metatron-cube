@@ -30,6 +30,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
+import io.druid.query.QueryConfig;
 import io.druid.query.UnpivotSpec;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -78,6 +79,7 @@ public class TimeseriesQueryUnpivotTest
     TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 

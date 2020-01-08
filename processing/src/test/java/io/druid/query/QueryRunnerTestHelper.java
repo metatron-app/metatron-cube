@@ -194,6 +194,7 @@ public class QueryRunnerTestHelper
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
                           new TimeseriesQueryEngine(),
+                          QUERY_CONFIG,
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )

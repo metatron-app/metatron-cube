@@ -37,6 +37,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -213,6 +214,7 @@ public class AppenderatorTester implements AutoCloseable
                         )
                     ),
                     new TimeseriesQueryEngine(),
+                    new QueryConfig(),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER
                 )
             )

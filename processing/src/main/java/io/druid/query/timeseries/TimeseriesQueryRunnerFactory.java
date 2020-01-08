@@ -21,16 +21,17 @@ package io.druid.query.timeseries;
 
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunners;
 import io.druid.query.QueryWatcher;
+import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
 
 import java.util.Map;
@@ -42,22 +43,25 @@ import java.util.concurrent.Future;
 public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row, TimeseriesQuery>
 {
   private final TimeseriesQueryEngine engine;
+  private final QueryConfig config;
 
   @Inject
   public TimeseriesQueryRunnerFactory(
       TimeseriesQueryQueryToolChest toolChest,
       TimeseriesQueryEngine engine,
+      QueryConfig config,
       QueryWatcher queryWatcher
   )
   {
     super(toolChest, queryWatcher);
     this.engine = engine;
+    this.config = config;
   }
 
   @Override
   public QueryRunner<Row> createRunner(Segment segment, Future<Object> optimizer)
   {
-    return new TimeseriesQueryRunner(engine, segment, cache);
+    return new TimeseriesQueryRunner(segment, engine, config, cache);
   }
 
   @Override
@@ -87,24 +91,30 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
 
   private static class TimeseriesQueryRunner implements QueryRunner<Row>
   {
-    private final TimeseriesQueryEngine engine;
     private final Segment segment;
+    private final TimeseriesQueryEngine engine;
+    private final QueryConfig config;
     private final Cache cache;
 
-    private TimeseriesQueryRunner(TimeseriesQueryEngine engine, Segment segment, Cache cache)
+    private TimeseriesQueryRunner(Segment segment, TimeseriesQueryEngine engine, QueryConfig config, Cache cache)
     {
       this.engine = engine;
       this.segment = segment;
+      this.config = config;
       this.cache = cache;
     }
 
     @Override
     public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
     {
-      if (!(input instanceof TimeseriesQuery)) {
-        throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TimeseriesQuery.class);
+      TimeseriesQuery query = (TimeseriesQuery) input;
+      if (query.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
+        Segment cuboid = segment.cuboidFor(query);
+        if (cuboid != null) {
+          return engine.process(Cuboids.rewrite(query), cuboid, true, null);   // disable filter cache
+        }
       }
-      return engine.process((TimeseriesQuery) input, segment, true, cache);
+      return engine.process(query, segment, true, cache);
     }
   }
 }

@@ -41,6 +41,8 @@ public interface QueryContextKeys
   public static final String MAJOR_TYPES = "#majorTypes";   // for sketch
   public static final String DISABLE_LOG = "#disableLog";
 
+  public static final String USE_CUBOIDS = "useCuboids";
+
   // group-by config.. overriding
   public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
@@ -53,7 +55,6 @@ public interface QueryContextKeys
   public static final String GBY_LOCAL_SPLIT_CARDINALITY = "groupByLocalSplitCardinality";
   public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
-  public static final String GBY_USE_CUBOIDS = "groupByUseCuboids";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
   // timeseries

@@ -26,8 +26,8 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.segment.filter.Filters;
 
 import java.util.Collections;
@@ -94,7 +94,7 @@ public class CuboidSpec
     return Ints.toArray(indices);
   }
 
-  public boolean supports(GroupByQuery query)
+  public boolean supports(BaseAggregationQuery query)
   {
     return Objects.equal(granularity, query.getGranularity()) &&
            dimensions.containsAll(DimensionSpecs.toInputNames(query.getDimensions())) &&

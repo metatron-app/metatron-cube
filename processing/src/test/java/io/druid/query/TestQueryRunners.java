@@ -83,6 +83,7 @@ public class TestQueryRunners
         new TimeseriesQueryQueryToolChest(
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 

@@ -38,6 +38,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
@@ -323,6 +324,7 @@ public class IncrementalIndexTest
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     final QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
@@ -428,6 +430,7 @@ public class IncrementalIndexTest
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     final AtomicInteger currentlyRunning = new AtomicInteger(0);

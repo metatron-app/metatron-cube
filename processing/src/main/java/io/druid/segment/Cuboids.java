@@ -22,13 +22,13 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.query.groupby.GroupByQuery;
 
 import java.util.List;
 import java.util.Map;
@@ -150,13 +150,14 @@ public class Cuboids
     return false;
   }
 
-  public static GroupByQuery rewrite(GroupByQuery query)
+  @SuppressWarnings("unchecked")
+  public static <T extends BaseAggregationQuery> T rewrite(T query)
   {
     final List<AggregatorFactory> rewritten = Lists.newArrayList();
     for (AggregatorFactory aggregator : query.getAggregatorSpecs()) {
       rewritten.add(toCubeCombiner(aggregator));
     }
-    return query.withAggregatorSpecs(rewritten);
+    return (T) query.withAggregatorSpecs(rewritten);
   }
 
   private static AggregatorFactory toCubeCombiner(AggregatorFactory aggregator)

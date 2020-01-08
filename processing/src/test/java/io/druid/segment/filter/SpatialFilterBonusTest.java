@@ -33,6 +33,7 @@ import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -489,6 +490,7 @@ public class SpatialFilterBonusTest
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
+          new QueryConfig(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
@@ -568,6 +570,7 @@ public class SpatialFilterBonusTest
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
+          new QueryConfig(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 
@@ -653,6 +656,7 @@ public class SpatialFilterBonusTest
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
+          new QueryConfig(),
           QueryRunnerTestHelper.NOOP_QUERYWATCHER
       );
 

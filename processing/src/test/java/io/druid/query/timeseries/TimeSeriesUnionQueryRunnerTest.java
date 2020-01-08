@@ -29,6 +29,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.Druids;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
@@ -71,6 +72,7 @@ public class TimeSeriesUnionQueryRunnerTest
             new TimeseriesQueryRunnerFactory(
                 new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
                 new TimeseriesQueryEngine(),
+                new QueryConfig(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
             ),
             QueryRunnerTestHelper.unionDataSource

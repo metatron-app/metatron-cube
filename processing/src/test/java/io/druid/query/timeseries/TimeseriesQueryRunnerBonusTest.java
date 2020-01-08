@@ -29,6 +29,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
@@ -113,6 +114,7 @@ public class TimeseriesQueryRunnerBonusTest
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
+        new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 

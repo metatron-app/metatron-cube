@@ -35,10 +35,11 @@ import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -53,6 +54,8 @@ import java.util.Map;
  */
 public class SimpleQueryableIndex implements QueryableIndex
 {
+  private static final Logger LOG = new Logger(QueryableIndex.class);
+
   private final Interval dataInterval;
   private final Indexed<String> columnNames;
   private final Indexed<String> availableDimensions;
@@ -175,30 +178,33 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public QueryableIndex cuboidFor(Query<?> query)
   {
-    if (GuavaUtils.isNullOrEmpty(cuboids) || !(query instanceof GroupByQuery)) {
+    if (GuavaUtils.isNullOrEmpty(cuboids) || !(query instanceof BaseAggregationQuery)) {
       return null;
     }
-    final GroupByQuery groupby = (GroupByQuery) query;
-    if (!DimensionSpecs.isAllDefault(groupby.getDimensions())) {
+    final BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
+    if (!DimensionSpecs.isAllDefault(aggregation.getDimensions())) {
       return null;
     }
-    QueryableIndex withMinRow = null;
-    for (QueryableIndex index : Iterables.transform(Iterables.filter(
+    Pair<CuboidSpec, QueryableIndex> withMinRow = null;
+    for (Pair<CuboidSpec, QueryableIndex> entry : Iterables.filter(
         cuboids.values(),
         new Predicate<Pair<CuboidSpec, QueryableIndex>>()
         {
           @Override
           public boolean apply(Pair<CuboidSpec, QueryableIndex> input)
           {
-            return input.lhs.supports(groupby);
+            return input.lhs.supports(aggregation);
           }
         }
-    ), Pair.rhsFn())) {
-      if (withMinRow == null || withMinRow.getNumRows() > index.getNumRows()) {
-        withMinRow = index;
+    )) {
+      if (withMinRow == null || withMinRow.rhs.getNumRows() > entry.rhs.getNumRows()) {
+        withMinRow = entry;
       }
     }
-    return withMinRow;
+    if (withMinRow != null) {
+      LOG.info("Using cuboid... %s", GuavaUtils.exclude(withMinRow.lhs.getDimensions(), Column.TIME_COLUMN_NAME));
+    }
+    return withMinRow.rhs;
   }
 
   @Override

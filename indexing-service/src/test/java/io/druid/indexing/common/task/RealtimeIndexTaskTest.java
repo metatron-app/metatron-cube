@@ -82,6 +82,7 @@ import io.druid.query.Druids;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -1147,6 +1148,7 @@ public class RealtimeIndexTaskTest
                     }
                 ),
                 new TimeseriesQueryEngine(),
+                new QueryConfig(),
                 NoopQueryWatcher.instance()
             )
         )
