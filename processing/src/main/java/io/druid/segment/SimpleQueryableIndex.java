@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -36,7 +37,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.Schema;
@@ -81,7 +81,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.availableDimensions = dimNames;
     this.bitmapFactory = bitmapFactory;
     this.columns = columns;
-    this.cuboids = cuboids;
+    this.cuboids = cuboids == null ? ImmutableMap.of() : cuboids;
     this.fileMapper = fileMapper;
     this.metadata = metadata;
     this.numRows = Suppliers.memoize(new Supplier<Integer>()
@@ -164,6 +164,12 @@ public class SimpleQueryableIndex implements QueryableIndex
   public Metadata getMetadata()
   {
     return metadata;
+  }
+
+  @Override
+  public Map<Long, Pair<CuboidSpec, QueryableIndex>> getQuboids()
+  {
+    return cuboids;
   }
 
   @Override

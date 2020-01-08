@@ -48,17 +48,17 @@ public class Cuboids
   private static final Logger LOG = new Logger(Cuboids.class);
   private static final Pattern CUBOID = Pattern.compile("^___(\\d+)_(.+)___(.*)?$");
 
-  static String dimension(long cubeId, String columnName)
+  public static String dimension(long cubeId, String columnName)
   {
     return String.format("___%d_%s___", cubeId, columnName);
   }
 
-  static String metric(long cubeId, String columnName, String aggregation)
+  public static String metric(long cubeId, String columnName, String aggregation)
   {
     return String.format("___%d_%s___%s", cubeId, columnName, aggregation);
   }
 
-  static String metricColumn(String metricName, String aggregation)
+  public static String metricColumn(String metricName, String aggregation)
   {
     return String.format("%s___%s", metricName, aggregation);
   }

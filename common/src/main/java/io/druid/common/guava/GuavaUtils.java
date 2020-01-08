@@ -354,6 +354,12 @@ public class GuavaUtils
   }
 
   @SuppressWarnings("unchecked")
+  public static <T, X extends T> X firstOf(List<T> list)
+  {
+    return list.isEmpty() ? null : (X) list.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
   public static <T, X extends T> X lastOf(List<T> list)
   {
     return list.isEmpty() ? null : (X) list.get(list.size() - 1);

@@ -44,6 +44,8 @@ import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.segment.CuboidSpec;
+import io.druid.segment.Cuboids;
 import io.druid.segment.IndexIO;
 import io.druid.segment.Metadata;
 import io.druid.segment.QueryableIndex;
@@ -97,6 +99,19 @@ public class IndexViewer extends CommonShell.WithUtils
 
   private final IndexIO indexIO;
   private final ObjectMapper jsonMapper;
+
+  private static final Comparator<int[]> OFFSET_COMP = new Comparator<int[]>()
+  {
+    @Override
+    public int compare(int[] o1, int[] o2)
+    {
+      int compare = Ints.compare(o1[0], o2[0]);
+      if (compare == 0) {
+        compare = Ints.compare(o1[1], o2[1]);
+      }
+      return compare;
+    }
+  };
 
   @Inject
   public IndexViewer(IndexIO indexIO)
@@ -325,45 +340,74 @@ public class IndexViewer extends CommonShell.WithUtils
   private void dumpIndex(IndexMeta indexMeta, PrintWriter writer)
   {
     try (QueryableIndex index = indexMeta.index()) {
-      dumpIndex(index, indexMeta.offsets.get(), writer);
+      dumpIndex(index, indexMeta.offsets.get(), writer, -1, null);
     }
     catch (IOException e) {
       // ignore
     }
   }
 
-  private void dumpIndex(QueryableIndex index, Map<String, int[]> offsets, PrintWriter writer)
+  private void dumpIndex(
+      final QueryableIndex index,
+      final Map<String, int[]> offsets,
+      final PrintWriter writer,
+      final long cubeId,
+      final CuboidSpec cuboidSpec
+  )
   {
-    long totalSize = 0;
+    List<String> availableDimensions = Lists.newArrayList(index.getAvailableDimensions());
+
     List<Pair<String, int[]>> values = Lists.newArrayList();
-    Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.getColumnNames());
-    for (String column : columns) {
-      values.add(Pair.of(column, offsets.get(column)));
-      totalSize += index.getColumn(column).getSerializedSize();
-    }
-    Collections.sort(
-        values, new Comparator<Pair<String, int[]>>()
-        {
-          @Override
-          public int compare(Pair<String, int[]> o1, Pair<String, int[]> o2)
-          {
-            int compare = Ints.compare(o1.rhs[0], o2.rhs[0]);
-            if (compare == 0) {
-              compare = Ints.compare(o1.rhs[1], o2.rhs[1]);
-            }
-            return compare;
-          }
+    if (cuboidSpec != null) {
+      // column name is not equal with key of offsets
+      for (String cubeColumn : cuboidSpec.getDimensions()) {
+        values.add(Pair.of(cubeColumn, offsets.get(Cuboids.dimension(cubeId, cubeColumn))));
+      }
+      for (Map.Entry<String, Set<String>> cubeMetricEntry : cuboidSpec.getMetrics().entrySet()) {
+        String metric = cubeMetricEntry.getKey();
+        for (String aggregator : cubeMetricEntry.getValue()) {
+          String column = metric.equals(Cuboids.COUNT_ALL_METRIC) ? metric : Cuboids.metricColumn(metric, aggregator);
+          values.add(Pair.of(column, offsets.get(Cuboids.metric(cubeId, metric, aggregator))));
         }
-    );
-    writer.println();
-    writer.println(format("> Size of Index (except metadata) : %,d bytes", totalSize));
-    writer.println(
-        format("  Number of Rows in index : %,d", index.getColumn(Column.TIME_COLUMN_NAME).getNumRows())
-    );
-    Metadata metadata = index.getMetadata();
-    if (metadata == null) {
-      writer.println("  No metadata");
+      }
     } else {
+      Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.getColumnNames());
+      for (String column : columns) {
+        values.add(Pair.of(column, offsets.get(column)));
+      }
+    }
+    Collections.sort(values, Ordering.from(OFFSET_COMP).onResultOf(Pair.<String, int[]>rhsFn()));
+
+    Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = index.getQuboids();
+    List<Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>>> sorted = Lists.newArrayList(cuboids.entrySet());
+    Collections.sort(
+        sorted, Ordering.from(OFFSET_COMP)
+                        .onResultOf(new Function<Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>>, int[]>()
+                        {
+                          @Override
+                          public int[] apply(Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>> input)
+                          {
+                            return offsets.get(Cuboids.dimension(input.getKey(), Column.TIME_COLUMN_NAME));
+                          }
+                        })
+    );
+
+    long totalSize = GuavaUtils.lastOf(values).rhs[2] - GuavaUtils.firstOf(values).rhs[1];
+
+    if (cuboidSpec == null) {
+      writer.println();
+      writer.println(format("> Size of Index (except metadata & cubes) : %,d bytes", totalSize));
+    } else {
+      writer.println(format("----- Cuboid %s", cubeId == 0 ? "(apex)" : String.format("%d : %s", cubeId, availableDimensions)));
+      writer.println();
+      writer.println(format("> Size of Cuboid : %,d bytes", totalSize));
+    }
+    writer.println(format("  Number of Rows in %s : %,d", cuboidSpec == null ? "index": "cuboid", index.getNumRows()));
+    if (!cuboids.isEmpty()) {
+      writer.println(format("  Cuboid IDs : %s", Lists.newArrayList(cuboids.keySet())));
+    }
+    Metadata metadata = index.getMetadata();
+    if (metadata != null) {
       if (!metadata.getContainer().isEmpty()) {
         writer.println("  Container");
         for (Map.Entry<String, Object> entry : metadata.getContainer().entrySet()) {
@@ -382,8 +426,10 @@ public class IndexViewer extends CommonShell.WithUtils
         }
       }
     }
-    String bitmapFactory = index.getBitmapFactoryForDimensions().getClass().getSimpleName();
-    writer.println(format("  Bitmap Factory : %s", bitmapFactory));
+    if (cuboidSpec == null) {
+      String bitmapFactory = index.getBitmapFactoryForDimensions().getClass().getSimpleName();
+      writer.println(format("  Bitmap Factory : %s", bitmapFactory));
+    }
     writer.println();
 
     Set<String> dimensions = Sets.newHashSet(index.getAvailableDimensions());
@@ -415,9 +461,16 @@ public class IndexViewer extends CommonShell.WithUtils
       } else {
         desc = ValueDesc.of(type);
       }
+      StringBuilder builder = new StringBuilder();
       if (dimensionsType) {
-        boolean multipleValued = capabilities.hasMultipleValues();
-        writer.print(format("  type : %s (hasMultiValue = %s, size = %,d bytes)", desc, multipleValued, columnSize));
+        if (cuboidSpec == null) {
+          boolean multipleValued = capabilities.hasMultipleValues();
+          builder.append(
+              format("  type : %s (hasMultiValue = %s, size = %,d bytes)", desc, multipleValued, columnSize)
+          );
+        } else {
+          builder.append(format("  type : %s (%,d bytes)", desc, columnSize));
+        }
       } else {
         CompressionStrategy compressionType = CompressionStrategy.UNCOMPRESSED;
         GenericColumn genericColumn = column.getGenericColumn();
@@ -425,61 +478,52 @@ public class IndexViewer extends CommonShell.WithUtils
           compressionType = genericColumn.compressionType();
           CloseQuietly.close(genericColumn);
         }
-        writer.print(format("  type : %s (compression = %s, size = %,d bytes)", desc, compressionType, columnSize));
+        builder.append(format("  type : %s (compression = %s, size = %,d bytes)", desc, compressionType, columnSize));
       }
       Map<String, Object> columnStats = column.getColumnStats();
       if (!GuavaUtils.isNullOrEmpty(columnStats)) {
         for (Map.Entry<String, Object> entry : columnStats.entrySet()) {
           String stat = Objects.toString(entry.getValue(), null);
-          if (stat != null && stat.length() > 16) {
+          if (stat != null && stat.length() > 24) {
             entry.setValue(stat.substring(0, 12) + "...(abbreviated)");
           }
         }
-        writer.println(format(", stats %s", columnStats));
-      } else {
-        writer.println();
+        builder.append(format(", stats %s", columnStats));
       }
 
-      StringBuilder builder = new StringBuilder().append("  ");
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
         boolean hasSketch = dictionaryEncoded.hasSketch();
-        long dictionarySize = dictionary.getSerializedSize();
+        long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
-        builder.append(
-            format(
-                "dictionary (cardinality = %d, hasNull = %s, hasSketch = %s, size = %,d bytes), rows (%,d bytes)",
-                dictionary.size(), hasNull, hasSketch, dictionarySize, encodedSize - dictionarySize
-            )
-        );
+        if (cuboidSpec == null) {
+          append(
+              builder, writer,
+              format(
+                  "dictionary (cardinality = %d, hasNull = %s, hasSketch = %s, size = %,d bytes)",
+                  dictionary.size(), hasNull, hasSketch, dictionarySize
+              )
+          );
+        } else {
+          append(builder, writer, format("cardinality = %d", dictionary.size()));
+        }
+        append(builder, writer, format("rows (%,d bytes)", encodedSize - dictionarySize));
         CloseQuietly.close(dictionaryEncoded);
       }
       if (capabilities.hasBitmapIndexes()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
-        builder.append(format("bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITMAP)));
+        append(builder, writer, format("bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITMAP)));
       }
       if (capabilities.hasSpatialIndexes()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
-        builder.append(format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));
+        append(builder, writer, format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));
       }
       if (capabilities.isRunLengthEncoded()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
-        builder.append(format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED)));
+        append(builder, writer, format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED)));
       }
       if (capabilities.hasMetricBitmap()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
         HistogramBitmap bitmap = column.getMetricBitmap();
-        builder.append(
+        append(builder, writer,
             format(
                 "metric bitmap (%d bitmaps, %,d zeros, %,d bytes)",
                 bitmap.numBins(), bitmap.zeroRows(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
@@ -487,18 +531,12 @@ public class IndexViewer extends CommonShell.WithUtils
         );
       }
       if (capabilities.hasBitSlicedBitmap()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
-        builder.append(
+        append(builder, writer,
             format("bit sliced bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITSLICED_BITMAP))
         );
       }
       if (capabilities.hasLuceneIndex()) {
-        if (builder.length() > 2) {
-          builder.append(", ");
-        }
-        builder.append(format("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX)));
+        append(builder, writer, format("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX)));
         Map<String, String> columnDescs = column.getColumnDescs();
         if (!GuavaUtils.isNullOrEmpty(columnDescs)) {
           builder.append(format(", descs %s", columnDescs));
@@ -509,6 +547,22 @@ public class IndexViewer extends CommonShell.WithUtils
       }
       writer.println();
     }
+    for (Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>> entry : sorted) {
+      dumpIndex(entry.getValue().rhs, offsets, writer, entry.getKey(), entry.getValue().lhs);
+    }
+  }
+
+  private StringBuilder append(StringBuilder builder, PrintWriter writer, String string)
+  {
+    int length = builder.length() + string.length();
+    if (length > 120) {
+      writer.println(builder.toString());
+      builder.setLength(0);
+      builder.append("  ");
+    } else if (length > 2) {
+      builder.append(", ");
+    }
+    return builder.append(string);
   }
 
   private String format(String format, Object... arguments)

@@ -20,12 +20,14 @@
 package io.druid.segment;
 
 import com.metamx.collections.bitmap.BitmapFactory;
+import io.druid.java.util.common.Pair;
 import io.druid.query.Query;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  */
@@ -37,6 +39,8 @@ public interface QueryableIndex extends SchemaProvider, ColumnSelector, Closeabl
   BitmapFactory getBitmapFactoryForDimensions();
   Iterable<String> getAvailableMetrics();
   Metadata getMetadata();
+
+  Map<Long, Pair<CuboidSpec, QueryableIndex>> getQuboids();
   QueryableIndex cuboidFor(Query<?> query);
 
   /**

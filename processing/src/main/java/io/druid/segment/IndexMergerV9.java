@@ -234,11 +234,11 @@ public class IndexMergerV9 extends IndexMerger
       );
 
       /************ Finalize Build Columns *************/
-      makeTimeColumn(v9Smoosher, progress, Column.TIME_COLUMN_NAME, timeWriter);
-      makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters);
+      makeTimeColumn(v9Smoosher, progress, Column.TIME_COLUMN_NAME, timeWriter, true);
+      makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters, true);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
-          dimValueWriters, dimSketchWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters
+          dimValueWriters, dimSketchWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters, true
       );
 
       Interval dataInterval = toDataInterval(adapters);
@@ -347,10 +347,12 @@ public class IndexMergerV9 extends IndexMerger
             }
           }
 
-          makeTimeColumn(v9Smoosher, progress, Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME), cubeTimeWriter);
-          makeMetricsColumns(v9Smoosher, progress, cubeMetrics, cubeMetricTypes, cubeMetricWriters);
+          String timeColumn = Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME);
+          makeTimeColumn(v9Smoosher, progress, timeColumn, cubeTimeWriter, false);
+          makeMetricsColumns(v9Smoosher, progress, cubeMetrics, cubeMetricTypes, cubeMetricWriters, false);
           makeDimensionColumns(
-              v9Smoosher, progress, indexSpec, cubeDims, null, null, null, null, cubeDimWriters, cubeBitmapWriters, null
+              v9Smoosher, progress, indexSpec,
+              cubeDims, null, null, null, null, cubeDimWriters, cubeBitmapWriters, null, false
           );
         }
 
@@ -453,7 +455,8 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<ColumnPartWriter<Pair<String, Integer>>> dimSketchWriters,
       final ArrayList<ColumnPartWriter> dimWriters,
       final ArrayList<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
-      final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters
+      final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters,
+      final boolean includeStats
   ) throws IOException
   {
     final String section = "make dimension columns";
@@ -499,7 +502,7 @@ public class IndexMergerV9 extends IndexMerger
 
       builder.addSerde(partBuilder.build());
 
-      makeColumn(v9Smoosher, dim, builder.build());
+      makeColumn(v9Smoosher, dim, builder.build(includeStats));
       log.info("Completed dimension column[%s] in %,d millis.", dim, System.currentTimeMillis() - dimStartTime);
     }
     log.info("Completed dimension columns in %,d millis.", System.currentTimeMillis() - startTime);
@@ -511,7 +514,8 @@ public class IndexMergerV9 extends IndexMerger
       final ProgressIndicator progress,
       final List<String> mergedMetrics,
       final Map<String, ValueDesc> metricTypeNames,
-      final List<GenericColumnSerializer> metWriters
+      final List<GenericColumnSerializer> metWriters,
+      final boolean includeStats
   ) throws IOException
   {
     final String section = "make metric columns";
@@ -527,7 +531,7 @@ public class IndexMergerV9 extends IndexMerger
       ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
       writer.buildDescriptor(metricTypeNames.get(metric), builder);
 
-      makeColumn(v9Smoosher, metric, builder.build());
+      makeColumn(v9Smoosher, metric, builder.build(includeStats));
       log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
     }
     log.info("Completed metric columns in %,d millis.", System.currentTimeMillis() - startTime);
@@ -539,7 +543,8 @@ public class IndexMergerV9 extends IndexMerger
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
       final String columnName,
-      final GenericColumnSerializer timeWriter
+      final GenericColumnSerializer timeWriter,
+      final boolean includeStats
   ) throws IOException
   {
     final String section = "make time column";
@@ -551,7 +556,7 @@ public class IndexMergerV9 extends IndexMerger
     ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
     timeWriter.buildDescriptor(ValueDesc.LONG, builder);
 
-    makeColumn(v9Smoosher, columnName, builder.build());
+    makeColumn(v9Smoosher, columnName, builder.build(includeStats));
     log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }

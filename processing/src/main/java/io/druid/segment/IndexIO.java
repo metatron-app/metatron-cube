@@ -1071,12 +1071,12 @@ public class IndexIO
           return !columns.containsKey(input);
         }
       });
-      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newHashMap();
+      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newTreeMap();
       for (Map.Entry<Long, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {
         final Map<String, Column> cuboidColumns = Maps.newTreeMap();
         final long cubeId = cuboid.getKey();
         final CuboidSpec cuboidSpec = cuboid.getValue();
-        log.info("-------> [%d] %s", cubeId, cuboidSpec);
+        log.debug("-------> [%d] %s", cubeId, cuboidSpec);
         for (String dimension : cuboidSpec.getDimensions()) {
           Column source = Preconditions.checkNotNull(columns.get(dimension), dimension);
           ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));

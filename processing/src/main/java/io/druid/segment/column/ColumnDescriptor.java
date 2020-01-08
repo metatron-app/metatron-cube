@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -88,12 +89,14 @@ public class ColumnDescriptor
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, String> getDescs()
   {
     return descs;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Object> getStats()
   {
     return stats;
@@ -181,6 +184,11 @@ public class ColumnDescriptor
     }
 
     public ColumnDescriptor build()
+    {
+      return build(true);
+    }
+
+    public ColumnDescriptor build(boolean includeStats)
     {
       Preconditions.checkNotNull(valueType, "must specify a valueType");
       Set<String> statConflicts = Sets.newHashSet();
