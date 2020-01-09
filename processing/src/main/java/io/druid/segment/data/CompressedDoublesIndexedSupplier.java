@@ -51,7 +51,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   private final GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers;
   private final CompressionStrategy compression;
 
-  CompressedDoublesIndexedSupplier(
+  public CompressedDoublesIndexedSupplier(
       int numRows,
       int sizePer,
       GenericIndexed<ResourceHolder<DoubleBuffer>> baseDoubleBuffers,

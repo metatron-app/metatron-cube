@@ -40,10 +40,12 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
@@ -60,12 +62,16 @@ import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.DimensionSpecVirtualColumn;
+import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -150,9 +156,8 @@ public class Queries
     Schema schema = _relaySchema(query, segmentWalker);
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView instanceof Schema.SchemaResolving) {
-        // todo : handle schema change by lateral view
-        schema = ((Schema.SchemaResolving) lateralView).resolve(query, schema, mapper);
+      if (lateralView != null) {
+        schema = lateralView.resolve(query, schema, mapper);
       }
     }
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
@@ -285,7 +290,7 @@ public class Queries
     } else if (subQuery instanceof BaseAggregationQuery) {
       return (Sequence<Row>) sequence;
     } else if (subQuery instanceof StreamQuery) {
-      return ((StreamQuery)subQuery).asRow((Sequence<Object[]>) sequence);
+      return ((StreamQuery) subQuery).asRow((Sequence<Object[]>) sequence);
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }
@@ -416,9 +421,37 @@ public class Queries
   {
     ObjectMapper objectMapper = segmentWalker.getObjectMapper();
     query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
-    Query<Row> counter = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
-    Row row = Sequences.only(QueryRunners.run(counter, segmentWalker));
-    return row.getLongMetric("cardinality");
+    Query<Row> sequence = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
+
+    return QueryRunners.run(sequence, segmentWalker).accumulate(new MutableLong(), new Accumulator<MutableLong, Row>()
+    {
+      @Override
+      public MutableLong accumulate(MutableLong accumulated, Row in)
+      {
+        accumulated.add(in.getLongMetric("cardinality"));
+        return accumulated;
+      }
+    }).longValue();
+  }
+
+  // for cubing
+  public static int estimateCardinality(GroupByQuery query, Segment segment)
+  {
+    final CardinalityAggregatorFactory cardinality = new CardinalityAggregatorFactory(
+        "$cardinality", null, query.getDimensions(), query.getGroupingSets(), null, true, true
+    );
+    TimeseriesQuery timeseries = new TimeseriesQuery.Builder(query).setAggregatorSpecs(cardinality).build();
+    TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
+
+    return engine.process(timeseries, segment, false).accumulate(new MutableInt(), new Accumulator<MutableInt, Row>()
+    {
+      @Override
+      public MutableInt accumulate(MutableInt accumulated, Row in)
+      {
+        accumulated.add(in.getLongMetric("cardinality"));
+        return accumulated;
+      }
+    }).intValue();
   }
 
   public static int getNumSplits(List<DictionaryEncodedColumn> dictionaries, int numSplit)

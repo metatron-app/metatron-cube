@@ -375,6 +375,36 @@ public class TimeseriesQuery extends BaseAggregationQuery
     return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering();
   }
 
+  public static class Builder extends BaseAggregationQuery.Builder<TimeseriesQuery>
+  {
+    public Builder() { }
+
+    public Builder(BaseAggregationQuery aggregationQuery)
+    {
+      super(aggregationQuery);
+    }
+
+    @Override
+    public TimeseriesQuery build()
+    {
+      return new TimeseriesQuery(
+          dataSource,
+          querySegmentSpec,
+          descending,
+          dimFilter,
+          granularity,
+          virtualColumns,
+          aggregatorSpecs,
+          postAggregatorSpecs,
+          havingSpec,
+          buildLimitSpec(),
+          outputColumns,
+          lateralViewSpec,
+          context
+      );
+    }
+  }
+
   @Override
   public String toString()
   {

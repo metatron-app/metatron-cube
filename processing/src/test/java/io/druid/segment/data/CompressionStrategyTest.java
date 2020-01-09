@@ -33,7 +33,6 @@ import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
@@ -52,7 +51,7 @@ public class CompressionStrategyTest
   public static Iterable<Object[]> compressionStrategies()
   {
     return Iterables.transform(
-        Arrays.asList(CompressedObjectStrategy.CompressionStrategy.values()),
+        CompressedObjectStrategy.COMPRESS,
         new Function<CompressedObjectStrategy.CompressionStrategy, Object[]>()
         {
           @Override

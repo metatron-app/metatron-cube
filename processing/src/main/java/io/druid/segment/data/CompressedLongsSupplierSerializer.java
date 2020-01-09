@@ -22,6 +22,7 @@ package io.druid.segment.data;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -32,15 +33,18 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract<Long>
+public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract<Long> implements ColumnPartWriter.LongType
 {
-  public static CompressedLongsSupplierSerializer create(
+  public static ColumnPartWriter.LongType create(
       final IOPeon ioPeon,
       final String filenameBase,
       final ByteOrder order,
-      final CompressedObjectStrategy.CompressionStrategy compression
+      final CompressionStrategy compression
   ) throws IOException
   {
+    if (compression == CompressionStrategy.NONE) {
+      return new LongWriter(ioPeon, filenameBase);
+    }
     return new CompressedLongsSupplierSerializer(
         CompressedLongsIndexedSupplier.MAX_LONGS_IN_BUFFER,
         new GenericIndexedWriter<ResourceHolder<LongBuffer>>(
@@ -58,7 +62,7 @@ public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract
 
   private final int sizePer;
   private final ColumnPartWriter<ResourceHolder<LongBuffer>> flattener;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
   private int numInserted = 0;
 
@@ -67,7 +71,7 @@ public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract
   public CompressedLongsSupplierSerializer(
       int sizePer,
       ColumnPartWriter<ResourceHolder<LongBuffer>> flattener,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressionStrategy compression
   )
   {
     this.sizePer = sizePer;
@@ -95,6 +99,7 @@ public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract
     add(value == null ? 0L : value.longValue());
   }
 
+  @Override
   public void add(long value) throws IOException
   {
     if (!endBuffer.hasRemaining()) {

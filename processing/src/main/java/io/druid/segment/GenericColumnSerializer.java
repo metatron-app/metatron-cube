@@ -19,21 +19,15 @@
 
 package io.druid.segment;
 
-import io.druid.data.ValueDesc;
-import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.ColumnPartSerde;
-
-import java.io.IOException;
 
 public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, MetricColumnSerializer
 {
   int DEFAULT_NUM_SAMPLE = 40000;
   int DEFAULT_NUM_GROUP = 32;
   int DEFAULT_COMPACT_INTERVAL = 100000;
-
-  public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException;
 
   class FloatMinMax implements MetricHistogram.FloatType
   {

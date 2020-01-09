@@ -35,7 +35,8 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class ComplexMetricColumnSerializer implements MetricColumnSerializer
+@Deprecated
+public class ComplexMetricColumnSerializer extends MetricColumnSerializer.Abstract
 {
   private final String metricName;
   private final ComplexMetricSerde serde;

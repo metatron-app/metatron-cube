@@ -28,8 +28,9 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.DoubleHistogram;
 import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.IOPeon;
@@ -47,7 +48,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   public static DoubleColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
-      CompressedObjectStrategy.CompressionStrategy compression,
+      CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
       SecondaryIndexingSpec indexing,
       boolean allowNullForNumbers
@@ -94,7 +95,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
         @Override
         public Map<String, Object> getSerializeStats()
         {
-          if (writer.size() == 0) {
+          if (histogram.getMin() > histogram.getMax()) {
             return null;
           }
           return ImmutableMap.<String, Object>of(
@@ -113,9 +114,9 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   private final IOPeon ioPeon;
   private final String filenameBase;
   private final ByteOrder byteOrder;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
-  CompressedDoublesSupplierSerializer writer;
+  ColumnPartWriter.DoubleType writer;
 
   final BitmapSerdeFactory serdeFactory;
   final MetricHistogram.DoubleType histogram;
@@ -125,7 +126,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
-      CompressedObjectStrategy.CompressionStrategy compression,
+      CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
       SecondaryIndexingSpec indexing
   )
@@ -205,7 +206,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    if (writer.size() == 0) {
+    if (histogram.getMin() > histogram.getMax()) {
       return null;
     }
     return ImmutableMap.<String, Object>of(

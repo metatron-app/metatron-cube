@@ -29,20 +29,20 @@ public abstract class SingleValueIndexedIntsWriter extends ColumnPartWriter.Abst
   public void add(Object obj) throws IOException
   {
     if (obj == null) {
-      addValue(0);
+      add(0);
     } else if (obj instanceof Integer) {
-      addValue(((Number) obj).intValue());
+      add(((Number) obj).intValue());
     } else if (obj instanceof int[]) {
       int[] vals = (int[]) obj;
       if (vals.length == 0) {
-        addValue(0);
+        add(0);
       } else {
-        addValue(vals[0]);
+        add(vals[0]);
       }
     } else {
       throw new IAE("Unsupported single value type: " + obj.getClass());
     }
   }
 
-  protected abstract void addValue(int val) throws IOException;
+  public abstract void add(int val) throws IOException;
 }

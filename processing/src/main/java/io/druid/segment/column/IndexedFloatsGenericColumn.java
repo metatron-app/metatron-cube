@@ -20,7 +20,6 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedFloats;
 
@@ -28,7 +27,7 @@ import java.io.IOException;
 
 /**
 */
-public class IndexedFloatsGenericColumn extends AbstractGenericColumn
+public class IndexedFloatsGenericColumn extends AbstractGenericColumn.FloatType
 {
   private final IndexedFloats column;
   private final CompressionStrategy compressionType;
@@ -47,12 +46,6 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   }
 
   @Override
-  public ValueDesc getType()
-  {
-    return ValueDesc.FLOAT;
-  }
-
-  @Override
   public CompressionStrategy compressionType()
   {
     return compressionType;
@@ -62,26 +55,6 @@ public class IndexedFloatsGenericColumn extends AbstractGenericColumn
   public int getNumRows()
   {
     return column.size();
-  }
-
-  @Override
-  public Double getDouble(int rowNum)
-  {
-    final Float value = getValue(rowNum);
-    return value == null ? null : value.doubleValue();
-  }
-
-  @Override
-  public Float getFloat(int rowNum)
-  {
-    return getValue(rowNum);
-  }
-
-  @Override
-  public Long getLong(int rowNum)
-  {
-    final Float value = getValue(rowNum);
-    return value == null ? null : value.longValue();
   }
 
   @Override

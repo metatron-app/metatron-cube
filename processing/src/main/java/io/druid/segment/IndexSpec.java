@@ -242,6 +242,20 @@ public class IndexSpec
     );
   }
 
+  public IndexSpec withMetricCompression(String metricCompression)
+  {
+    return new IndexSpec(
+        bitmapSerdeFactory,
+        dimensionCompression,
+        dimensionSketches,
+        metricCompression,
+        columnCompression,
+        secondaryIndexing,
+        cuboidSpecs,
+        allowNullForNumbers
+    );
+  }
+
   @Override
   public boolean equals(Object o)
   {

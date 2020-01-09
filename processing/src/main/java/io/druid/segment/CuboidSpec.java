@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
@@ -69,6 +70,11 @@ public class CuboidSpec
   public Map<String, Set<String>> getMetrics()
   {
     return metrics;
+  }
+
+  public boolean isApexCuboid()
+  {
+    return GuavaUtils.isNullOrEmpty(dimensions);
   }
 
   public int[] toDimensionIndices(List<String> mergedDimensions)

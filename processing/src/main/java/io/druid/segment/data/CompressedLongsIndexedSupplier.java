@@ -55,7 +55,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   private final GenericIndexed<ResourceHolder<LongBuffer>> baseLongBuffers;
   private final CompressionStrategy compression;
 
-  CompressedLongsIndexedSupplier(
+  public CompressedLongsIndexedSupplier(
       int totalSize,
       int sizePer,
       GenericIndexed<ResourceHolder<LongBuffer>> baseLongBuffers,

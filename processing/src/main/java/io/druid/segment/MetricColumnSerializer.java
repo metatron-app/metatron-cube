@@ -19,6 +19,9 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
+import io.druid.segment.column.ColumnDescriptor.Builder;
+
 import java.io.Closeable;
 import java.io.IOException;
 
@@ -28,4 +31,15 @@ public interface MetricColumnSerializer extends Closeable
 {
   void open() throws IOException;
   void serialize(int rowNum, Object aggs) throws IOException;
+  Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException;
+
+  // for deprecated classes
+  abstract class Abstract implements MetricColumnSerializer
+  {
+    @Override
+    public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+    {
+      throw new UnsupportedOperationException("buildDescriptor");
+    }
+  }
 }

@@ -49,7 +49,7 @@ public class CompressedVSizeIntWriterTest
   public static Iterable<Object[]> compressionStrategiesAndByteOrders()
   {
     Set<List<Object>> combinations = Sets.cartesianProduct(
-        Sets.newHashSet(CompressedObjectStrategy.CompressionStrategy.values()),
+        Sets.newHashSet(CompressedObjectStrategy.COMPRESS),
         Sets.newHashSet(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
     );
 

@@ -29,18 +29,22 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 /**
  */
-public class CompressedFloatsSupplierSerializer extends ColumnPartWriter.Abstract<Float>
+public class CompressedFloatsSupplierSerializer implements ColumnPartWriter.FloatType
 {
-  public static CompressedFloatsSupplierSerializer create(
+  public static ColumnPartWriter.FloatType create(
       IOPeon ioPeon,
       final String filenameBase,
       final ByteOrder order,
       final CompressedObjectStrategy.CompressionStrategy compression
   ) throws IOException
   {
+    if (compression == CompressedObjectStrategy.CompressionStrategy.NONE) {
+      return new FloatWriter(ioPeon, filenameBase);
+    }
     return new CompressedFloatsSupplierSerializer(
         CompressedFloatsIndexedSupplier.MAX_FLOATS_IN_BUFFER,
         new GenericIndexedWriter<ResourceHolder<FloatBuffer>>(
@@ -92,6 +96,12 @@ public class CompressedFloatsSupplierSerializer extends ColumnPartWriter.Abstrac
   @Override
   public void add(Float value) throws IOException
   {
+    add(value == null ? 0F : value.floatValue());
+  }
+
+  @Override
+  public void add(float value) throws IOException
+  {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
       flattener.add(StupidResourceHolder.create(endBuffer));
@@ -131,5 +141,11 @@ public class CompressedFloatsSupplierSerializer extends ColumnPartWriter.Abstrac
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     flattener.writeToChannel(channel);
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 }

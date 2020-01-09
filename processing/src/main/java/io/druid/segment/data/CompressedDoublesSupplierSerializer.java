@@ -29,18 +29,23 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 /**
  */
-public class CompressedDoublesSupplierSerializer extends ColumnPartWriter.Abstract<Double>
+public class CompressedDoublesSupplierSerializer implements ColumnPartWriter.DoubleType
 {
-  public static CompressedDoublesSupplierSerializer create(
+  public static ColumnPartWriter.DoubleType create(
       IOPeon ioPeon,
       final String filenameBase,
       final ByteOrder order,
       final CompressedObjectStrategy.CompressionStrategy compression
   ) throws IOException
   {
+    if (compression == CompressedObjectStrategy.CompressionStrategy.NONE) {
+      return new DoubleWriter(ioPeon, filenameBase);
+    }
+
     return new CompressedDoublesSupplierSerializer(
         CompressedDoublesIndexedSupplier.MAX_DOUBLES_IN_BUFFER,
         new GenericIndexedWriter<ResourceHolder<DoubleBuffer>>(
@@ -92,6 +97,12 @@ public class CompressedDoublesSupplierSerializer extends ColumnPartWriter.Abstra
   @Override
   public void add(Double value) throws IOException
   {
+    add(value == null ? 0D : value.doubleValue());
+  }
+
+  @Override
+  public void add(double value) throws IOException
+  {
     if (!endBuffer.hasRemaining()) {
       endBuffer.rewind();
       flattener.add(StupidResourceHolder.create(endBuffer));
@@ -131,5 +142,11 @@ public class CompressedDoublesSupplierSerializer extends ColumnPartWriter.Abstra
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     flattener.writeToChannel(channel);
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 }

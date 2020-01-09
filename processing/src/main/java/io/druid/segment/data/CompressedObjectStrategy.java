@@ -21,11 +21,11 @@ package io.druid.segment.data;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.logger.Logger;
 import com.ning.compress.BufferRecycler;
 import com.ning.compress.lzf.LZFDecoder;
 import com.ning.compress.lzf.LZFEncoder;
 import io.druid.collections.ResourceHolder;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.CompressedPools;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -36,6 +36,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Map;
 
 /**
@@ -44,6 +45,8 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
 {
   private static final Logger log = new Logger(CompressedObjectStrategy.class);
   public static final CompressionStrategy DEFAULT_COMPRESSION_STRATEGY = CompressionStrategy.LZ4;
+
+  public static EnumSet<CompressionStrategy> COMPRESS = EnumSet.complementOf(EnumSet.of(CompressionStrategy.NONE));
 
   public static enum CompressionStrategy
   {
@@ -86,7 +89,8 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       {
         return UncompressedCompressor.defaultCompressor;
       }
-    };
+    },
+    NONE((byte) 0xFE);
 
     final byte id;
 
@@ -100,9 +104,15 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       return id;
     }
 
-    public abstract Compressor getCompressor();
+    public Compressor getCompressor()
+    {
+      throw new UnsupportedOperationException("compressor");
+    }
 
-    public abstract Decompressor getDecompressor();
+    public Decompressor getDecompressor()
+    {
+      throw new UnsupportedOperationException("decompressor");
+    }
 
     static final Map<Byte, CompressionStrategy> idMap = Maps.newHashMap();
 

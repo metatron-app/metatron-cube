@@ -20,76 +20,83 @@
 package io.druid.segment.data;
 
 import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.serde.ColumnPartSerde;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
-/**
- * Streams integers out in the binary format described by VSizeIndexedInts
- */
-public class VSizeIntWriter extends SingleValueIndexedIntsWriter
+public class FloatWriter implements ColumnPartWriter.FloatType
 {
-  private static final byte VERSION = VSizeIndexedInts.VERSION;
-
   private final IOPeon ioPeon;
   private final String valueFileName;
-  private final int numBytes;
 
-  private CountingOutputStream valuesOut = null;
+  private int count;
+  private DataOutputStream valuesOut;
 
-  public VSizeIntWriter(
-      final IOPeon ioPeon,
-      final String filenameBase,
-      final int maxValue
-  )
+  public FloatWriter(IOPeon ioPeon, String filenameBase)
   {
     this.ioPeon = ioPeon;
     this.valueFileName = String.format("%s.values", filenameBase);
-    this.numBytes = VSizeIndexedInts.getNumBytesForMax(maxValue);
   }
 
   @Override
   public void open() throws IOException
   {
-    valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(valueFileName));
+    valuesOut = new DataOutputStream(ioPeon.makeOutputStream(valueFileName));
   }
 
   @Override
-  public void add(int val) throws IOException
+  public void add(Float obj) throws IOException
   {
-    byte[] intAsBytes = Ints.toByteArray(val);
-    valuesOut.write(intAsBytes, intAsBytes.length - numBytes, numBytes);
+    throw new ISE("not expects nulls");
+  }
+
+  @Override
+  public void add(float obj) throws IOException
+  {
+    valuesOut.writeFloat(obj);
+    count++;
   }
 
   @Override
   public void close() throws IOException
   {
-    byte[] bufPadding = new byte[4 - numBytes];
-    valuesOut.write(bufPadding);
     valuesOut.close();
   }
 
   @Override
-  public long getSerializedSize()
+  public long getSerializedSize() throws IOException
   {
-    return 2 +       // version and numBytes
-           4 +       // dataLen
-           valuesOut.getCount();
+    return 1 +              // version
+           Ints.BYTES +     // elements num
+           Ints.BYTES +     // sizePer
+           1 +              // compression id
+           Float.BYTES * count;
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    long numBytesWritten = valuesOut.getCount();
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(numBytesWritten))));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(Float.BYTES)));
+    channel.write(ByteBuffer.wrap(new byte[]{CompressionStrategy.NONE.getId()}));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
       if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
         ((SmooshedWriter) channel).transferFrom((FileChannel) input);

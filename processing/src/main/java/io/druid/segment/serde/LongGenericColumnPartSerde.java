@@ -22,14 +22,26 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.column.AbstractGenericColumn;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.CompressedLongBufferObjectStrategy;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.LongBuffer;
 
 /**
  */
@@ -76,11 +88,87 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
           final BitmapSerdeFactory serdeFactory
       )
       {
-        final CompressedLongsIndexedSupplier column = CompressedLongsIndexedSupplier.fromByteBuffer(buffer, byteOrder);
-        final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
+        final byte versionFromBuffer = buffer.get();
+        final int numRows = buffer.getInt();
+        final int sizePer = buffer.getInt();
+
+        final CompressionStrategy compression;
+        if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+          compression = CompressedObjectStrategy.forId(buffer.get());
+        } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
+          compression = CompressionStrategy.LZF;
+        } else {
+          throw new IAE("Unknown version[%s]", versionFromBuffer);
+        }
+
         builder.setType(ValueDesc.LONG)
-               .setHasMultipleValues(false)
-               .setGenericColumn(new LongGenericColumnSupplier(column, nulls));
+               .setHasMultipleValues(false);
+
+        if (compression == CompressionStrategy.NONE) {
+          final LongBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer, Longs.BYTES * numRows)
+                                                             .asLongBuffer();
+          final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
+          builder.setGenericColumn(new ColumnPartProvider<GenericColumn>()
+          {
+            @Override
+            public int numRows()
+            {
+              return numRows;
+            }
+
+            @Override
+            public long getSerializedSize()
+            {
+              return 1 +              // version
+                     Ints.BYTES +     // elements num
+                     Ints.BYTES +     // sizePer
+                     1 +              // compression id
+                     Long.BYTES * numRows;
+            }
+
+            @Override
+            public GenericColumn get()
+            {
+              return new AbstractGenericColumn.LongType()
+              {
+                private final ImmutableBitmap bitmap = nulls.get();
+
+                @Override
+                public CompressionStrategy compressionType()
+                {
+                  return CompressionStrategy.NONE;
+                }
+
+                @Override
+                public int getNumRows()
+                {
+                  return numRows;
+                }
+
+                @Override
+                public ImmutableBitmap getNulls()
+                {
+                  return bitmap;
+                }
+
+                @Override
+                public Long getValue(int rowNum)
+                {
+                  return bitmap.get(rowNum) ? null : bufferToUse.get(rowNum);
+                }
+              };
+            }
+          });
+        } else {
+          CompressedLongBufferObjectStrategy strategy =
+              CompressedLongBufferObjectStrategy.getBufferForOrder(byteOrder, compression, sizePer);
+          CompressedLongsIndexedSupplier column = new CompressedLongsIndexedSupplier(
+              numRows, sizePer, GenericIndexed.read(buffer, strategy), compression
+          );
+          builder.setGenericColumn(
+              new LongGenericColumnSupplier(column, ComplexMetrics.readBitmap(buffer, serdeFactory))
+          );
+        }
       }
     };
   }

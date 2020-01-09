@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.common.utils.SerializerUtils;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
@@ -33,13 +34,13 @@ import java.nio.channels.WritableByteChannel;
 /**
  */
 @Deprecated
-public class DoubleMetricColumnSerializer implements MetricColumnSerializer
+public class DoubleMetricColumnSerializer extends MetricColumnSerializer.Abstract
 {
   private final String metricName;
   private final IOPeon ioPeon;
   private final File outDir;
 
-  private CompressedDoublesSupplierSerializer writer;
+  private ColumnPartWriter writer;
 
   public DoubleMetricColumnSerializer(
       String metricName,

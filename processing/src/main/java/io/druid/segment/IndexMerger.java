@@ -797,7 +797,7 @@ public class IndexMerger
           rowMergerFn
       );
 
-      CompressedLongsSupplierSerializer timeWriter = CompressedLongsSupplierSerializer.create(
+      ColumnPartWriter timeWriter = CompressedLongsSupplierSerializer.create(
           ioPeon, "little_end_time", IndexIO.BYTE_ORDER, CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY
       );
 

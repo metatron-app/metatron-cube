@@ -51,7 +51,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   private final GenericIndexed<ResourceHolder<FloatBuffer>> baseFloatBuffers;
   private final CompressionStrategy compression;
 
-  CompressedFloatsIndexedSupplier(
+  public CompressedFloatsIndexedSupplier(
       int totalSize,
       int sizePer,
       GenericIndexed<ResourceHolder<FloatBuffer>> baseFloatBuffers,

@@ -191,6 +191,9 @@ public class ColumnDescriptor
     public ColumnDescriptor build(boolean includeStats)
     {
       Preconditions.checkNotNull(valueType, "must specify a valueType");
+      if (!includeStats) {
+        return new ColumnDescriptor(valueType, hasMultipleValues != null && hasMultipleValues, parts, descs, null);
+      }
       Set<String> statConflicts = Sets.newHashSet();
       Map<String, Object> stats = Maps.newHashMap();
       for (ColumnPartSerde part : parts) {
@@ -205,7 +208,7 @@ public class ColumnDescriptor
       for (String conflict : statConflicts) {
         stats.remove(conflict);
       }
-      return new ColumnDescriptor(valueType, hasMultipleValues == null ? false : hasMultipleValues, parts, descs, stats);
+      return new ColumnDescriptor(valueType, hasMultipleValues != null && hasMultipleValues, parts, descs, stats);
     }
   }
 }
