@@ -177,20 +177,19 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     final MutableRoaringBitmap mutable = new MutableRoaringBitmap();
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
 
-    int containerNum = 0;
     short current_hb = 0;
     final IntArrayList values = new IntArrayList();
     for (int x = iterator.next(); x >= 0; x = iterator.next()) {
       final short hb = RoaringUtils.highbits(x);
       if (hb != current_hb && !values.isEmpty()) {
-        RoaringUtils.addContainer(roaringArray, containerNum++, current_hb, values);
+        RoaringUtils.addContainer(roaringArray, current_hb, values);
         values.clear();
       }
       current_hb = hb;
       values.add(x);
     }
     if (!values.isEmpty()) {
-      RoaringUtils.addContainer(roaringArray, containerNum, current_hb, values);
+      RoaringUtils.addContainer(roaringArray, current_hb, values);
     }
     values.clear();
     return new WrappedImmutableRoaringBitmap(mutable);

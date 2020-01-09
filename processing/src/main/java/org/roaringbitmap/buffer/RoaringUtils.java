@@ -39,22 +39,27 @@ public class RoaringUtils
     return bitmap.highLowContainer.size();
   }
 
-  public static void addContainer(MutableRoaringArray array, int index, short key, IntArrayList values)
+  public static void addContainer(MutableRoaringArray array, short key, IntArrayList values)
   {
-    final MappeableContainer container;
-    final IntListIterator iterator = values.iterator();
+    array.append(key, container(values));
+  }
+
+  private static MappeableContainer container(IntArrayList values)
+  {
     if (values.size() < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
       final ShortBuffer buffer = ShortBuffer.allocate(values.size());
+      final IntListIterator iterator = values.iterator();
       while (iterator.hasNext()) {
         buffer.put(lowbits(iterator.nextInt()));
       }
-      container = new MappeableArrayContainer(buffer, values.size());
+      return new MappeableArrayContainer(buffer, values.size());
     } else {
-      container = new MappeableBitmapContainer();
+      final MappeableBitmapContainer container = new MappeableBitmapContainer();
+      final IntListIterator iterator = values.iterator();
       while (iterator.hasNext()) {
         container.add(lowbits(iterator.nextInt()));
       }
+      return container;
     }
-    array.insertNewKeyValueAt(index, key, container);
   }
 }
