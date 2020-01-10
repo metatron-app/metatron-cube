@@ -19,6 +19,8 @@
 
 package io.druid.granularity;
 
+import org.joda.time.Period;
+
 /**
  * This class was created b/c sometimes  static initializers of a class that use a subclass can deadlock.
  * See: #2979, #3979
@@ -41,4 +43,18 @@ public class Granularities
   public static final Granularity ALL = GranularityType.ALL.getDefaultGranularity();
   public static final Granularity NONE = GranularityType.NONE.getDefaultGranularity();
 
+  public static int getOnlyDurationIndex(Period period)
+  {
+    int index = -1;
+    final int[] values = period.getValues();
+    for (int i = 0; i < values.length; i++) {
+      if (values[i] > 0) {
+        if (index >= 0) {
+          return -1;
+        }
+        index = i;
+      }
+    }
+    return index;
+  }
 }

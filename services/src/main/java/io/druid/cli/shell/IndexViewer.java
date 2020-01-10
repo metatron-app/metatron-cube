@@ -80,6 +80,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -340,7 +341,7 @@ public class IndexViewer extends CommonShell.WithUtils
   private void dumpIndex(IndexMeta indexMeta, PrintWriter writer)
   {
     try (QueryableIndex index = indexMeta.index()) {
-      dumpIndex(index, indexMeta.offsets.get(), writer, -1, null);
+      dumpIndex(index, indexMeta.offsets.get(), writer, null, null);
     }
     catch (IOException e) {
       // ignore
@@ -351,7 +352,7 @@ public class IndexViewer extends CommonShell.WithUtils
       final QueryableIndex index,
       final Map<String, int[]> offsets,
       final PrintWriter writer,
-      final long cubeId,
+      final BigInteger cubeId,
       final CuboidSpec cuboidSpec
   )
   {
@@ -360,6 +361,7 @@ public class IndexViewer extends CommonShell.WithUtils
     List<Pair<String, int[]>> values = Lists.newArrayList();
     if (cuboidSpec != null) {
       // column name is not equal with key of offsets
+      values.add(Pair.of(Column.TIME_COLUMN_NAME, offsets.get(Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME))));
       for (String cubeColumn : cuboidSpec.getDimensions()) {
         values.add(Pair.of(cubeColumn, offsets.get(Cuboids.dimension(cubeId, cubeColumn))));
       }
@@ -378,14 +380,14 @@ public class IndexViewer extends CommonShell.WithUtils
     }
     Collections.sort(values, Ordering.from(OFFSET_COMP).onResultOf(Pair.<String, int[]>rhsFn()));
 
-    Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = index.getQuboids();
-    List<Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>>> sorted = Lists.newArrayList(cuboids.entrySet());
+    Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids = index.getQuboids();
+    List<Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>>> sorted = Lists.newArrayList(cuboids.entrySet());
     Collections.sort(
         sorted, Ordering.from(OFFSET_COMP)
-                        .onResultOf(new Function<Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>>, int[]>()
+                        .onResultOf(new Function<Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>>, int[]>()
                         {
                           @Override
-                          public int[] apply(Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>> input)
+                          public int[] apply(Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>> input)
                           {
                             return offsets.get(Cuboids.dimension(input.getKey(), Column.TIME_COLUMN_NAME));
                           }
@@ -398,13 +400,18 @@ public class IndexViewer extends CommonShell.WithUtils
       writer.println();
       writer.println(format("> Size of Index (except metadata & cubes) : %,d bytes", totalSize));
     } else {
-      writer.println(format("----- Cuboid %s", cubeId == 0 ? "(apex)" : String.format("%d : %s", cubeId, availableDimensions)));
+      writer.println(format(
+          "----- Cuboid %s", cuboidSpec.isApex() ? "(apex)" : String.format("%s : %s", cubeId, availableDimensions))
+      );
       writer.println();
       writer.println(format("> Size of Cuboid : %,d bytes", totalSize));
     }
     writer.println(format("  Number of Rows in %s : %,d", cuboidSpec == null ? "index": "cuboid", index.getNumRows()));
     if (!cuboids.isEmpty()) {
       writer.println(format("  Cuboid IDs : %s", Lists.newArrayList(cuboids.keySet())));
+    }
+    if (cuboidSpec != null) {
+      writer.println(format("  Cuboid Granularity : %s ", Cuboids.getGranularity(cubeId)));
     }
     Metadata metadata = index.getMetadata();
     if (metadata != null) {
@@ -547,7 +554,7 @@ public class IndexViewer extends CommonShell.WithUtils
       }
       writer.println();
     }
-    for (Map.Entry<Long, Pair<CuboidSpec, QueryableIndex>> entry : sorted) {
+    for (Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>> entry : sorted) {
       dumpIndex(entry.getValue().rhs, offsets, writer, entry.getKey(), entry.getValue().lhs);
     }
   }

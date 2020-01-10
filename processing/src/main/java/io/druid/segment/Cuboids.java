@@ -20,6 +20,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
+import io.druid.granularity.GranularityType;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseAggregationQuery;
@@ -30,6 +32,7 @@ import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,12 +51,14 @@ public class Cuboids
   private static final Logger LOG = new Logger(Cuboids.class);
   private static final Pattern CUBOID = Pattern.compile("^___(\\d+)_(.+)___(.*)?$");
 
-  public static String dimension(long cubeId, String columnName)
+  public static final int METRIC_COMPRESSION_DISABLE = 32;
+
+  public static String dimension(BigInteger cubeId, String columnName)
   {
     return String.format("___%d_%s___", cubeId, columnName);
   }
 
-  public static String metric(long cubeId, String columnName, String aggregation)
+  public static String metric(BigInteger cubeId, String columnName, String aggregation)
   {
     return String.format("___%d_%s___%s", cubeId, columnName, aggregation);
   }
@@ -63,24 +68,44 @@ public class Cuboids
     return String.format("%s___%s", metricName, aggregation);
   }
 
-  static Map<Long, CuboidSpec> extractCuboids(Iterable<String> values)
+  public static final int GRANULARITY_SHIFT = 5;   // reserve 1 more
+  public static final BigInteger GRANULARITIES_MASK = BigInteger.valueOf(0b11111);
+
+  public static BigInteger toCubeId(int[] cubeDimIndices, GranularityType granularity)
   {
-    final Map<Long, CuboidSpec> cuboids = Maps.newHashMap();
+    BigInteger cubeId = BigInteger.ZERO;
+    for (int cubeDimIndex : cubeDimIndices) {
+      cubeId = cubeId.add(BigInteger.ONE.shiftLeft(cubeDimIndex));
+    }
+    return cubeId.shiftLeft(GRANULARITY_SHIFT).add(BigInteger.valueOf(granularity.ordinal()));
+  }
+
+  public static GranularityType getGranularity(BigInteger cubeId)
+  {
+    return GranularityType.values()[cubeId.and(GRANULARITIES_MASK).intValue()];
+  }
+
+  static Map<BigInteger, CuboidSpec> extractCuboids(Iterable<String> values)
+  {
+    final Map<BigInteger, CuboidSpec> cuboids = Maps.newHashMap();
     final Matcher matcher = CUBOID.matcher("");
     for (String value : values) {
       matcher.reset(value);
       if (matcher.matches()) {
-        long cubeId = Long.parseLong(matcher.group(1));
+        BigInteger cubeId = new BigInteger(matcher.group(1));
         String columnName = matcher.group(2);
         String aggregator = matcher.group(3);
-        CuboidSpec cuboid = cuboids.computeIfAbsent(cubeId, new Function<Long, CuboidSpec>()
+        CuboidSpec cuboid = cuboids.computeIfAbsent(cubeId, new Function<BigInteger, CuboidSpec>()
         {
           @Override
-          public CuboidSpec apply(Long cubeId)
+          public CuboidSpec apply(BigInteger cubeId)
           {
-            return new CuboidSpec(null, Lists.newArrayList(), Maps.newHashMap());
+            return new CuboidSpec(getGranularity(cubeId), Lists.newArrayList(), Maps.newHashMap());
           }
         });
+        if (columnName.equals(Row.TIME_COLUMN_NAME)) {
+          continue;
+        }
         if (StringUtils.isNullOrEmpty(aggregator)) {
           cuboid.getDimensions().add(columnName);
         } else {

@@ -20,13 +20,17 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.GranularityType;
+import io.druid.granularity.PeriodGranularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.filter.Filters;
@@ -38,43 +42,46 @@ import java.util.Set;
 
 public class CuboidSpec
 {
-  private final Granularity granularity;  // todo
+  private final GranularityType granularity;
   private final List<String> dimensions;
   private final Map<String, Set<String>> metrics;
 
   @JsonCreator
   public CuboidSpec(
-      @JsonProperty("granularity") Granularity granularity,
+      @JsonProperty("granularity") GranularityType granularity,
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("metrics") Map<String, Set<String>> metrics
   )
   {
-    this.granularity = granularity == null ? Granularities.ALL : granularity;
-    this.dimensions = dimensions;
+    this.granularity = granularity == null ? GranularityType.ALL : granularity;
+    this.dimensions = dimensions == null ? Collections.emptyList() : dimensions;
     this.metrics = metrics;
+    Preconditions.checkArgument(this.granularity != GranularityType.NONE, "not supports 'NONE'");
   }
 
   @JsonProperty
-  public Granularity getGranularity()
+  public GranularityType getGranularity()
   {
     return granularity;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<String> getDimensions()
   {
     return dimensions;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Map<String, Set<String>> getMetrics()
   {
     return metrics;
   }
 
-  public boolean isApexCuboid()
+  public boolean isApex()
   {
-    return GuavaUtils.isNullOrEmpty(dimensions);
+    return granularity == GranularityType.ALL && GuavaUtils.isNullOrEmpty(dimensions);
   }
 
   public int[] toDimensionIndices(List<String> mergedDimensions)
@@ -102,10 +109,43 @@ public class CuboidSpec
 
   public boolean supports(BaseAggregationQuery query)
   {
-    return Objects.equal(granularity, query.getGranularity()) &&
-           dimensions.containsAll(DimensionSpecs.toInputNames(query.getDimensions())) &&
+    return dimensions.containsAll(DimensionSpecs.toInputNames(query.getDimensions())) &&
            dimensions.containsAll(Filters.getDependents(query.getFilter())) &&
-           Cuboids.supports(metrics, query.getAggregatorSpecs());
+           Cuboids.supports(metrics, query.getAggregatorSpecs()) &&
+           covers(query.getGranularity());
+  }
+
+  private boolean covers(Granularity queryGran)
+  {
+    if (queryGran.equals(Granularities.ALL) ||
+        queryGran.equals(granularity.getDefaultGranularity())) {
+      return true;
+    }
+    if (granularity == GranularityType.ALL) {
+      return false;
+    }
+    if (queryGran instanceof PeriodGranularity) {
+      PeriodGranularity periodGran = (PeriodGranularity) queryGran;
+      if (periodGran.getOrigin() != null || periodGran.isCompound() || !periodGran.isUTC()) {
+        return false;
+      }
+      // I'm not sure of this
+      int index1 = Granularities.getOnlyDurationIndex(granularity.getPeriod());
+      int index2 = Granularities.getOnlyDurationIndex(periodGran.getPeriod());
+      if (index1 < 0 || index2 < 0 || index1 > index2) {
+        return false;
+      }
+      if (index1 == index2) {
+        int v1 = granularity.getPeriod().getValue(index1);
+        int v2 = periodGran.getPeriod().getValue(index2);
+        if (v1 == v2 || (v1 < v2 && v2 % v1 == 0)) {
+          return true;
+        }
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   @Override

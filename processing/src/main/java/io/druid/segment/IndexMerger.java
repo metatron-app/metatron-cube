@@ -658,15 +658,8 @@ public class IndexMerger
         FileUtils.deleteDirectory(v8OutDir);
       }
     });
-    final IOPeon ioPeon = new TmpFileIOPeon();
-    closer.register(new Closeable()
-    {
-      @Override
-      public void close() throws IOException
-      {
-        ioPeon.cleanup();
-      }
-    });
+
+    final IOPeon ioPeon = closer.register(new TmpFileIOPeon(false));
     try {
       /*************  Main index.drd file **************/
       progress.progress();
@@ -780,7 +773,7 @@ public class IndexMerger
           writer.writeToChannel(channel);
         }
 
-        ioPeon.cleanup();
+        ioPeon.close();
       }
       log.info("outDir[%s] completed dim conversions in %,d millis.", v8OutDir, System.currentTimeMillis() - startTime);
 
@@ -899,7 +892,7 @@ public class IndexMerger
         metWriter.close();
       }
 
-      ioPeon.cleanup();
+      ioPeon.close();
       log.info(
           "outDir[%s] completed walk through of %,d rows in %,d millis.",
           v8OutDir,
@@ -998,7 +991,7 @@ public class IndexMerger
           SerializerUtils.writeString(channel, dimension);
           writer.writeToChannel(channel);
         }
-        ioPeon.cleanup();
+        ioPeon.close();
 
         log.info("Completed dimension[%s] in %,d millis.", dimension, System.currentTimeMillis() - dimStartTime);
 
@@ -1010,7 +1003,7 @@ public class IndexMerger
             SerializerUtils.writeString(channel, dimension);
             spatialWriter.writeToChannel(channel);
           }
-          spatialIoPeon.cleanup();
+          spatialIoPeon.close();
         }
         ByteBufferUtils.unmap(dimValsMapped);
       }

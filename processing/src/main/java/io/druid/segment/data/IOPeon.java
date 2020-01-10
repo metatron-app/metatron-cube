@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,13 +27,11 @@ import java.io.OutputStream;
 
 /**
  */
-public interface IOPeon
+public interface IOPeon extends Closeable
 {
   File getFile(String filename);
 
   OutputStream makeOutputStream(String filename) throws IOException;
 
   InputStream makeInputStream(String filename) throws IOException;
-
-  void cleanup() throws IOException;
 }

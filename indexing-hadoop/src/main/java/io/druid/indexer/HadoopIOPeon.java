@@ -62,7 +62,7 @@ class HadoopIOPeon implements IOPeon
   }
 
   @Override
-  public void cleanup() throws IOException
+  public void close() throws IOException
   {
     throw new UnsupportedOperationException();
   }

@@ -47,6 +47,7 @@ import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
@@ -65,7 +66,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Metadata metadata;
   private final Supplier<Integer> numRows;
 
-  private final Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids;
+  private final Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids;
 
   public SimpleQueryableIndex(
       Interval dataInterval,
@@ -73,7 +74,7 @@ public class SimpleQueryableIndex implements QueryableIndex
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
       Map<String, Column> columns,
-      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids,
+      Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids,
       SmooshedFileMapper fileMapper,
       Metadata metadata
   )
@@ -170,7 +171,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   }
 
   @Override
-  public Map<Long, Pair<CuboidSpec, QueryableIndex>> getQuboids()
+  public Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> getQuboids()
   {
     return cuboids;
   }
@@ -202,9 +203,9 @@ public class SimpleQueryableIndex implements QueryableIndex
       }
     }
     if (withMinRow != null) {
-      LOG.info("Using cuboid... %s", GuavaUtils.exclude(withMinRow.lhs.getDimensions(), Column.TIME_COLUMN_NAME));
+      LOG.debug("Using cuboid... %s", withMinRow.lhs.getDimensions());
     }
-    return withMinRow.rhs;
+    return withMinRow == null ? null : withMinRow.rhs;
   }
 
   @Override

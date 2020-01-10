@@ -71,6 +71,6 @@ public class HadoopIOPeonTest
 
   @Test(expected = UnsupportedOperationException.class) public void testCleanup() throws IOException
   {
-    ioPeon.cleanup();
+    ioPeon.close();
   }
 }

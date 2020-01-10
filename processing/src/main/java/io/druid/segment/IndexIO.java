@@ -96,6 +96,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.AbstractList;
@@ -1071,20 +1072,18 @@ public class IndexIO
           return !columns.containsKey(input);
         }
       });
-      Map<Long, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newTreeMap();
-      for (Map.Entry<Long, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {
+      final Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newTreeMap();
+      for (Map.Entry<BigInteger, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {
         final Map<String, Column> cuboidColumns = Maps.newTreeMap();
-        final long cubeId = cuboid.getKey();
+        final BigInteger cubeId = cuboid.getKey();
         final CuboidSpec cuboidSpec = cuboid.getValue();
         log.debug("-------> [%d] %s", cubeId, cuboidSpec);
         for (String dimension : cuboidSpec.getDimensions()) {
           Column source = Preconditions.checkNotNull(columns.get(dimension), dimension);
           ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
           ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-          if (!dimension.equals(Column.TIME_COLUMN_NAME)) {
-            Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
-            desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
-          }
+          Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
+          desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
           cuboidColumns.put(dimension, desc.read(dimension, mapped, serdeFactory));
         }
         for (Map.Entry<String, Set<String>> entry : cuboidSpec.getMetrics().entrySet()) {
@@ -1096,9 +1095,11 @@ public class IndexIO
             cuboidColumns.put(column, descriptor.read(metric, mapped, serdeFactory));
           }
         }
-        Indexed<String> dimensionNames = ListIndexed.ofString(
-            GuavaUtils.exclude(cuboidSpec.getDimensions(), Column.TIME_COLUMN_NAME)
-        );
+        ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME));
+        ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+        cuboidColumns.put(Column.TIME_COLUMN_NAME, desc.read(Column.TIME_COLUMN_NAME, mapped, serdeFactory));
+
+        Indexed<String> dimensionNames = ListIndexed.ofString(cuboidSpec.getDimensions());
         Indexed<String> columnNames = ListIndexed.ofString(
             GuavaUtils.exclude(cuboidColumns.keySet(), Column.TIME_COLUMN_NAME)
         );

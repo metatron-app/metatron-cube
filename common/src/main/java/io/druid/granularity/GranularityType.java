@@ -19,6 +19,8 @@
 
 package io.druid.granularity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -164,6 +166,12 @@ public enum GranularityType
         0,
         ISOChronology.getInstanceUTC()
     );
+  }
+
+  @JsonCreator
+  public static GranularityType fromString(String str)
+  {
+    return GranularityType.valueOf(StringUtils.toUpperCase(str));
   }
 
   /**

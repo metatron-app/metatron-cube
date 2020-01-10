@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -43,6 +44,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
+import io.druid.granularity.GranularityType;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
@@ -62,7 +64,6 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.ColumnPartWriter.Compressed;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.CompressedVSizeIntWriter;
 import io.druid.segment.data.CompressedVSizeIntsV3Writer;
@@ -91,6 +92,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -148,15 +150,7 @@ public class IndexMergerV9 extends IndexMerger
     Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 
     final Closer closer = Closer.create();
-    final IOPeon ioPeon = new TmpFileIOPeon(false);
-    closer.register(new Closeable()
-    {
-      @Override
-      public void close() throws IOException
-      {
-        ioPeon.cleanup();
-      }
-    });
+    final IOPeon ioPeon = closer.register(new TmpFileIOPeon(false));
     final FileSmoosher v9Smoosher = new FileSmoosher(outDir);
     final File v9TmpDir = new File(outDir, "v9-tmp");
     v9TmpDir.mkdirs();
@@ -263,16 +257,15 @@ public class IndexMergerV9 extends IndexMerger
         GroupByQueryEngine engine = new GroupByQueryEngine(heapPool);
 
         for (CuboidSpec cuboidSpec : indexSpec.getCuboidSpecs()) {
+          final GranularityType granularity = cuboidSpec.getGranularity();
           final int[] cubeDimIndices = cuboidSpec.toDimensionIndices(mergedDimensions);
-          long cubeId = 0;
-          for (int cubeDimIndex : cubeDimIndices) {
-            cubeId += 1 << cubeDimIndex;
-          }
+          final BigInteger cubeId = Cuboids.toCubeId(cubeDimIndices, granularity);
+
           log.info("Start making cube %d : %s", cubeId, cuboidSpec);
           GroupByQuery.Builder builder = GroupByQuery.builder();
           builder.dataSource("$$cube$$")
                  .intervals(dataInterval)
-                 .granularity(cuboidSpec.getGranularity());
+                 .granularity(granularity.getDefaultGranularity());
 
           ArrayList<String> cubeDims = Lists.newArrayList();
           for (int cubeDimIndex : cubeDimIndices) {
@@ -286,7 +279,11 @@ public class IndexMergerV9 extends IndexMerger
               CountAggregatorFactory.of(Cuboids.metric(cubeId, Cuboids.COUNT_ALL_METRIC, "count"))
           );
           // disable compression for apex cuboid (maybe some threshold like cardinality < 100 ?)
-          IndexSpec indexer = cuboidSpec.isApexCuboid() ? indexSpec.withMetricCompression("none") : indexSpec;
+          IndexSpec indexer = indexSpec;
+          if (cubeDimIndices.length == 0 &&
+              granularity.getDefaultGranularity().count(dataInterval) < Cuboids.METRIC_COMPRESSION_DISABLE) {
+            indexer = indexSpec.withMetricCompression("none");
+          }
 
           String timeFileBase = Cuboids.dimension(cubeId, "little_end_time");
           LongColumnSerializer cubeTimeWriter = setupTimeWriter(ioPeon, timeFileBase, indexer);

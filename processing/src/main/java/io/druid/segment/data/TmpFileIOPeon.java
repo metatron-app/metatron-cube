@@ -28,7 +28,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -79,10 +78,15 @@ public class TmpFileIOPeon implements IOPeon
   }
 
   @Override
-  public void cleanup() throws IOException
+  public void close() throws IOException
   {
     for (File file : createdFiles.values()) {
-      file.delete();
+      try {
+        file.delete();
+      }
+      catch (Exception e) {
+        // ignore
+      }
     }
     createdFiles.clear();
   }

@@ -21,14 +21,15 @@ package io.druid.granularity;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.IAE;
 import io.druid.common.Cacheable;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.IAE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -200,6 +201,11 @@ public abstract class Granularity implements Cacheable
     }
 
     return vals;
+  }
+
+  public int count(final Interval input)
+  {
+    return Iterables.size(getStartIterable(input));
   }
 
   public Iterable<Interval> getIterable(final Interval input)

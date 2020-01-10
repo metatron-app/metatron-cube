@@ -27,6 +27,7 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.Map;
 
 /**
@@ -40,7 +41,7 @@ public interface QueryableIndex extends SchemaProvider, ColumnSelector, Closeabl
   Iterable<String> getAvailableMetrics();
   Metadata getMetadata();
 
-  Map<Long, Pair<CuboidSpec, QueryableIndex>> getQuboids();
+  Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> getQuboids();
   QueryableIndex cuboidFor(Query<?> query);
 
   /**
