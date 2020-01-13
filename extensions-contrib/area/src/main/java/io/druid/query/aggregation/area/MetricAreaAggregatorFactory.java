@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
@@ -156,11 +157,10 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length)
-        .put(CACHE_TYPE_ID)
-        .put(fieldNameBytes)
-        .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName)
+                     .build();
   }
 
   @Override

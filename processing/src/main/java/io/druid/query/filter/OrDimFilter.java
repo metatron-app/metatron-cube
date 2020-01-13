@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.OrExpression;
 import io.druid.segment.filter.Filters;
@@ -60,7 +61,10 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public byte[] getCacheKey()
   {
-    return DimFilterCacheHelper.computeCacheKey(DimFilterCacheHelper.OR_CACHE_ID, fields);
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.OR_CACHE_ID)
+                     .append(fields)
+                     .build();
   }
 
   @Override

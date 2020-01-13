@@ -22,6 +22,7 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
+import io.druid.common.Cacheable;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.MultiDimLookupExtractionFn;
 import io.druid.query.lookup.RegisteredLookupExtractionFn;
@@ -55,7 +56,7 @@ import io.druid.query.lookup.RegisteredLookupExtractionFn;
  * regular expression with a capture group.  When the regular expression matches the value of a dimension,
  * the value captured by the group is used for grouping operations instead of the dimension value.
  */
-public interface ExtractionFn extends Function<Object, String>
+public interface ExtractionFn extends Function<Object, String>, Cacheable
 {
   /**
    * Returns a byte[] unique to all concrete implementations of DimExtractionFn.  This byte[] is used to

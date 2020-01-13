@@ -23,10 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -80,6 +80,12 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   {
     ValueDesc variance = ValueDesc.of("variance", VarianceAggregatorCollector.class);
     return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(variance) : variance;
+  }
+
+  @Override
+  public String getCubeName()
+  {
+    return "variance";
   }
 
   @Override
@@ -173,19 +179,19 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
-      switch (valueType.typeName()) {
-        case "variance":
-        case "varianceCombined":
-          return VarianceBufferAggregator.create(
-              name,
-              ColumnSelectors.getObjectColumnSelector(
-                  metricFactory,
-                  fieldName,
-                  fieldExpression
-              ),
-              ColumnSelectors.toMatcher(predicate, metricFactory)
-          );
-      }
+        switch (valueType.typeName()) {
+          case "variance":
+          case "varianceCombined":
+            return VarianceBufferAggregator.create(
+                name,
+                ColumnSelectors.getObjectColumnSelector(
+                    metricFactory,
+                    fieldName,
+                    fieldExpression
+                ),
+                ColumnSelectors.toMatcher(predicate, metricFactory)
+            );
+        }
     }
     throw new IAE(
         "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
@@ -266,11 +272,8 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   @Override
   public byte[] getCacheKey()
   {
-    byte[] superKey = super.getCacheKey();
-    return ByteBuffer.allocate(superKey.length + 1)
-                     .put(superKey)
-                     .put(isVariancePop ? (byte) 1 : 0)
-                     .array();
+    return baseKey().append(isVariancePop)
+                    .build();
   }
 
   @Override
@@ -289,9 +292,9 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   {
     return getClass().getSimpleName() + '{' +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "" : ", fieldExpression='" + fieldExpression + '\'') +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", estimator='" + estimator + '\'' +
            ", inputType='" + inputType + '\'' +
            '}';

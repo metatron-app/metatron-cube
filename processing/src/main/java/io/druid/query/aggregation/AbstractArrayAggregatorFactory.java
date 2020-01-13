@@ -22,12 +22,10 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 
@@ -157,14 +155,12 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnBytes = StringUtils.toUtf8(column);
-    byte[] cacheKey = delegate.getCacheKey();
-    return ByteBuffer.allocate(1 + columnBytes.length + cacheKey.length + Ints.BYTES)
-                     .put(cacheTypeID())
-                     .put(columnBytes)
-                     .put(cacheKey)
-                     .putInt(limit)
-                     .array();
+    return KeyBuilder.get()
+                     .append(cacheTypeID())
+                     .append(column)
+                     .append(delegate)
+                     .append(limit)
+                     .build();
   }
 
   protected abstract byte cacheTypeID();

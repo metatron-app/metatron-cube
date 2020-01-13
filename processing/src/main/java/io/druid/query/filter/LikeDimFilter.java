@@ -26,14 +26,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.filter.DimensionPredicateFilter;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -220,21 +219,13 @@ public class LikeDimFilter extends DimFilter.NotOptimizable
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[] patternBytes = StringUtils.toUtf8(pattern);
-    final byte[] escapeBytes = escapeChar == null ? new byte[0] : Chars.toByteArray(escapeChar);
-    final byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-    final int sz = 4 + dimensionBytes.length + patternBytes.length + escapeBytes.length + extractionFnBytes.length;
-    return ByteBuffer.allocate(sz)
-                     .put(DimFilterCacheHelper.LIKE_CACHE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(patternBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(escapeBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(extractionFnBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.LIKE_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(pattern).sp()
+                     .append(escapeChar == null ? new byte[0] : Chars.toByteArray(escapeChar)).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

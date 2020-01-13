@@ -26,22 +26,21 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BySegmentSkippingQueryRunner;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
-import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -138,11 +137,10 @@ public class TimeBoundaryQueryQueryToolChest
       @Override
       public byte[] computeCacheKey(TimeBoundaryQuery query)
       {
-        final byte[] cacheKey = query.getCacheKey();
-        return ByteBuffer.allocate(1 + cacheKey.length)
-                         .put(TIMEBOUNDARY_QUERY)
-                         .put(cacheKey)
-                         .array();
+        return KeyBuilder.get()
+                         .append(TIMEBOUNDARY_QUERY)
+                         .append(query.getBound())
+                         .build();
       }
 
       @Override

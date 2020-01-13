@@ -29,9 +29,9 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -52,7 +52,7 @@ import java.util.Objects;
 
 @JsonTypeName("sketch")
 public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolving
-  implements AggregatorFactory.CubeSupport
+    implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 24;
 
@@ -212,14 +212,18 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
 
     final TypedSketch updateWithValue(TypedSketch sketch, Object value)
     {
-      if (sketch == null) { sketch = newSketch(); }
+      if (sketch == null) {
+        sketch = newSketch();
+      }
       handler.updateWithValue(sketch, value);
       return sketch;
     }
 
     final TypedSketch updateWithSketch(TypedSketch sketch, Object value)
     {
-      if (sketch == null) { sketch = newSketch(); }
+      if (sketch == null) {
+        sketch = newSketch();
+      }
       handler.updateWithSketch(sketch, value);
       return sketch;
     }
@@ -410,7 +414,8 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @SuppressWarnings("unchecked")
   public Combiner<TypedSketch> combiner()
   {
-    return new Combiner<TypedSketch>() {
+    return new Combiner<TypedSketch>()
+    {
       @Override
       public TypedSketch combine(TypedSketch param1, TypedSketch param2)
       {
@@ -448,6 +453,18 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public String getName()
   {
     return name;
+  }
+
+  @Override
+  public String getCubeName()
+  {
+    return "sketch";
+  }
+
+  @Override
+  public String getPredicate()
+  {
+    return null;
   }
 
   @Override
@@ -502,20 +519,15 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = QueryCacheHelper.computeCacheBytes(fieldName);
-    byte[] inputTypeBytes = QueryCacheHelper.computeCacheBytes(inputType);
-    byte[] orderingSpecsBytes = QueryCacheHelper.computeCacheKeys(orderingSpecs);
-    int length = 7 + fieldNameBytes.length + inputTypeBytes.length + orderingSpecsBytes.length;
-
-    return ByteBuffer.allocate(length)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
-                     .put(inputTypeBytes)
-                     .put((byte) sketchOp.ordinal())
-                     .putInt(sketchParam)
-                     .put(orderingSpecsBytes)
-                     .put((byte) (merge ? 1 : 0))
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName)
+                     .append(inputType)
+                     .appendByte(sketchOp)
+                     .append(sketchParam)
+                     .append(orderingSpecs)
+                     .append(merge)
+                     .build();
   }
 
   @Override

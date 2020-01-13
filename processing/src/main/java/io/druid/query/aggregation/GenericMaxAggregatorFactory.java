@@ -219,4 +219,10 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
       }
     };
   }
+
+  @Override
+  public String getCubeName()
+  {
+    return "max";
+  }
 }

@@ -25,14 +25,13 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.ISE;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
+import io.druid.java.util.common.ISE;
 import io.druid.segment.serde.ComplexMetrics;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -180,11 +179,9 @@ public class OrderingSpec implements Cacheable
   public byte[] getCacheKey()
   {
     final String normalized = Objects.toString(dimensionOrder, StringComparators.LEXICOGRAPHIC_NAME);
-    final byte[] dimensionOrderBytes = QueryCacheHelper.computeCacheBytes(normalized);
-
-    return ByteBuffer.allocate(dimensionOrderBytes.length + 1)
-                     .put((byte) direction.ordinal())
-                     .put(dimensionOrderBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append((byte) direction.ordinal())
+                     .append(normalized)
+                     .build();
   }
 }

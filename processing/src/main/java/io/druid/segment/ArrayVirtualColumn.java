@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -160,15 +158,10 @@ public class ArrayVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnNameBytes = StringUtils.toUtf8WithNullToEmpty(columnName);
-    byte[] outputNameBytes = StringUtils.toUtf8(outputName);
-
-    return ByteBuffer.allocate(2 + columnNameBytes.length + outputNameBytes.length)
-                     .put(VC_TYPE_ID)
-                     .put(columnNameBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(outputNameBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(columnName, outputName)
+                     .build();
   }
 
   @JsonProperty

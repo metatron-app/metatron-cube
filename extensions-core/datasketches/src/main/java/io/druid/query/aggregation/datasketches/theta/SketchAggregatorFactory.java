@@ -22,15 +22,15 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.IAE;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.Util;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -39,7 +39,6 @@ import io.druid.query.sketch.ThetaOperations;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -190,12 +189,11 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = fieldName.getBytes();
-    return ByteBuffer.allocate(1 + Ints.BYTES + fieldNameBytes.length)
-                     .put(cacheId)
-                     .putInt(size)
-                     .put(fieldNameBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(cacheId)
+                     .append(fieldName)
+                     .append(size)
+                     .build();
   }
 
   @Override

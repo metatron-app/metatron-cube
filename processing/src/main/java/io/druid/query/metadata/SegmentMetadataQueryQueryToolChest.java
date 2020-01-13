@@ -30,17 +30,17 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.MappedSequence;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
-import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
+import io.druid.java.util.common.guava.MappedSequence;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -54,7 +54,6 @@ import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -160,21 +159,13 @@ public class SegmentMetadataQueryQueryToolChest
       @Override
       public byte[] computeCacheKey(SegmentMetadataQuery query)
       {
-        byte[] includeBytes = QueryCacheHelper.computeCacheBytes(query.getToInclude());
-        byte[] columnsBytes = QueryCacheHelper.computeCacheBytes(query.getColumns());
-        byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        byte[] analysisTypesBytes = query.getAnalysisTypesCacheKey();
-        return ByteBuffer.allocate(1
-                                   + includeBytes.length
-                                   + columnsBytes.length
-                                   + vcBytes.length
-                                   + analysisTypesBytes.length)
-                         .put(SEGMENT_METADATA_QUERY)
-                         .put(includeBytes)
-                         .put(columnsBytes)
-                         .put(vcBytes)
-                         .put(analysisTypesBytes)
-                         .array();
+        return KeyBuilder.get()
+                         .append(SEGMENT_METADATA_QUERY)
+                         .append(query.getToInclude())
+                         .append(query.getColumns())
+                         .append(query.getVirtualColumns())
+                         .append(query.getAnalysisTypesCacheKey())
+                         .build();
       }
     };
   }

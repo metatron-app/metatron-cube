@@ -21,6 +21,7 @@ package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 
 import java.util.Comparator;
 
@@ -31,13 +32,11 @@ import java.util.Comparator;
     @JsonSubTypes.Type(name = "lexicographic", value = LexicographicSearchSortSpec.class),
     @JsonSubTypes.Type(name = "strlen", value = StrlenSearchSortSpec.class)
 })
-public interface SearchSortSpec
+public interface SearchSortSpec extends Cacheable
 {
   Comparator<SearchHit> getComparator();
 
   Comparator<SearchHit> getResultComparator();
 
   boolean sortOnCount();
-
-  byte[] getCacheKey();
 }

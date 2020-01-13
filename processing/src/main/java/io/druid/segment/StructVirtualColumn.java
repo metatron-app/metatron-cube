@@ -22,16 +22,14 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 
@@ -172,15 +170,10 @@ public class StructVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnNameBytes = StringUtils.toUtf8(columnName);
-    byte[] outputNameBytes = StringUtils.toUtf8(outputName);
-
-    return ByteBuffer.allocate(2 + columnNameBytes.length + outputNameBytes.length)
-                     .put(VC_TYPE_ID)
-                     .put(columnNameBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(outputNameBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(columnName, outputName)
+                     .build();
   }
 
   @JsonProperty

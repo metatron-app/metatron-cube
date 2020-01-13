@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
@@ -183,6 +184,13 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
     return new AverageAggregatorFactory(name, inputField, null);
   }
 
+  @Override
+  public String getCubeName()
+  {
+    return "avg";
+  }
+
+  @Override
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
@@ -199,11 +207,10 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length)
-                     .put(CACHE_KEY)
-                     .put(fieldNameBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_KEY)
+                     .append(fieldName)
+                     .build();
   }
 
   @Override

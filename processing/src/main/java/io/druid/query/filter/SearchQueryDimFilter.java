@@ -23,13 +23,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.filter.SearchQueryFilter;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
@@ -77,18 +76,12 @@ public class SearchQueryDimFilter extends DimFilter.NotOptimizable
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[] queryBytes = query.getCacheKey();
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    return ByteBuffer.allocate(3 + dimensionBytes.length + queryBytes.length + extractionFnBytes.length)
-                     .put(DimFilterCacheHelper.SEARCH_QUERY_TYPE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(queryBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(extractionFnBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.SEARCH_QUERY_TYPE_ID)
+                     .append(dimension).sp()
+                     .append(query).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

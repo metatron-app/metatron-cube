@@ -32,7 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
@@ -41,7 +41,6 @@ import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -91,18 +90,12 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    byte[] valueBytes = StringUtils.toUtf8(value);
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    return ByteBuffer.allocate(3 + dimensionBytes.length + valueBytes.length + extractionFnBytes.length)
-                     .put(DimFilterCacheHelper.SELECTOR_CACHE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valueBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(extractionFnBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.SELECTOR_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(value).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

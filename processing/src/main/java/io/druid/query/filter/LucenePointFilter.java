@@ -23,17 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.query.QueryCacheHelper;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
 import org.apache.lucene.search.Query;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -136,17 +133,14 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldBytes = StringUtils.toUtf8(field);
-    byte[] longitudesBytes = QueryCacheHelper.toBytes(longitudes, false);
-    byte[] latitudesBytes = QueryCacheHelper.toBytes(latitudes, false);
-    return ByteBuffer.allocate(2 + fieldBytes.length + longitudesBytes.length + latitudesBytes.length + Doubles.BYTES)
-                     .put(DimFilterCacheHelper.LUCENE_POINT_CACHE_ID)
-                     .put(fieldBytes)
-                     .put((byte) query.ordinal())
-                     .put(longitudesBytes)
-                     .put(latitudesBytes)
-                     .putDouble(radiusMeters)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.LUCENE_POINT_CACHE_ID)
+                     .append(field)
+                     .append((byte) query.ordinal())
+                     .append(longitudes)
+                     .append(latitudes)
+                     .append(radiusMeters)
+                     .build();
   }
 
   @Override

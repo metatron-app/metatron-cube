@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.StringUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -34,7 +33,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +47,6 @@ public class TimeBoundaryQuery extends BaseQuery<Result<TimeBoundaryResultValue>
   );
   public static final String MAX_TIME = "maxTime";
   public static final String MIN_TIME = "minTime";
-
-  private static final byte CACHE_TYPE_ID = 0x0;
 
   private final String bound;
 
@@ -116,15 +112,6 @@ public class TimeBoundaryQuery extends BaseQuery<Result<TimeBoundaryResultValue>
         bound,
         getContext()
     );
-  }
-
-  public byte[] getCacheKey()
-  {
-    final byte[] boundBytes = StringUtils.toUtf8(bound);
-    return ByteBuffer.allocate(1 + boundBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(boundBytes)
-                     .array();
   }
 
   public Iterable<Result<TimeBoundaryResultValue>> buildResult(DateTime timestamp, DateTime min, DateTime max)

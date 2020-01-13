@@ -150,6 +150,10 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static interface CubeSupport
   {
+    String getCubeName();
+
+    String getPredicate();
+
     String getFieldName();
 
     AggregatorFactory getCombiningFactory(String inputField);

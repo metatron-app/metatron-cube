@@ -24,12 +24,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.RegexFilter;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -79,18 +78,12 @@ public class RegexDimFilter extends DimFilter.NotOptimizable
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[] patternBytes = StringUtils.toUtf8(pattern);
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    return ByteBuffer.allocate(3 + dimensionBytes.length + patternBytes.length + extractionFnBytes.length)
-                     .put(DimFilterCacheHelper.REGEX_CACHE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(patternBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(extractionFnBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.REGEX_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(pattern).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

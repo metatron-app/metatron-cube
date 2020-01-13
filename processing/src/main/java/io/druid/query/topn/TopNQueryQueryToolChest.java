@@ -26,23 +26,21 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
@@ -59,13 +57,11 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +69,8 @@ import java.util.function.ToIntFunction;
 
 /**
  */
-public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<TopNResultValue>, List<Object>, TopNQuery>
+public class TopNQueryQueryToolChest
+    extends QueryToolChest.CacheSupport<Result<TopNResultValue>, List<Object>, TopNQuery>
 {
   private static final TypeReference<Result<TopNResultValue>> TYPE_REFERENCE = new TypeReference<Result<TopNResultValue>>()
   {
@@ -203,6 +200,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
     queryMetrics.query(query);
     return queryMetrics;
   }
+
   @Override
   public Function<Result<TopNResultValue>, Result<TopNResultValue>> makePreComputeManipulatorFn(
       final TopNQuery query, final MetricManipulationFn fn
@@ -311,31 +309,16 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
       @Override
       public byte[] computeCacheKey(TopNQuery query)
       {
-        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        final byte[] dimensionSpecBytes = query.getDimensionSpec().getCacheKey();
-        final byte[] metricSpecBytes = query.getTopNMetricSpec().getCacheKey();
-
-        final DimFilter filter = query.getFilter();
-        final byte[] filterBytes = filter == null ? new byte[]{} : filter.getCacheKey();
-        final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
-        final byte[] granularityBytes = query.getGranularity().getCacheKey();
-        final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
-
-        return ByteBuffer
-            .allocate(
-                1 + vcBytes.length + dimensionSpecBytes.length + metricSpecBytes.length + 4 +
-                granularityBytes.length + filterBytes.length + aggregatorBytes.length + outputColumnsBytes.length
-            )
-            .put(TOPN_QUERY)
-            .put(vcBytes)
-            .put(dimensionSpecBytes)
-            .put(metricSpecBytes)
-            .put(Ints.toByteArray(query.getThreshold()))
-            .put(granularityBytes)
-            .put(filterBytes)
-            .put(aggregatorBytes)
-            .put(outputColumnsBytes)
-            .array();
+        return KeyBuilder.get()
+                         .append(TOPN_QUERY)
+                         .append(query.getVirtualColumns())
+                         .append(query.getDimensionSpec())
+                         .append(query.getTopNMetricSpec())
+                         .append(query.getThreshold())
+                         .append(query.getGranularity())
+                         .append(query.getFilter())
+                         .append(query.getAggregatorSpecs())
+                         .build();
       }
 
       @Override
@@ -599,7 +582,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest.CacheSupport<Result<
           Query<Result<TopNResultValue>> query, Map<String, Object> responseContext
       )
       {
-        final List<String> outputColumns = ((TopNQuery)query).getOutputColumns();
+        final List<String> outputColumns = ((TopNQuery) query).getOutputColumns();
         final Sequence<Result<TopNResultValue>> result = runner.run(query, responseContext);
         if (outputColumns != null) {
           return Sequences.map(

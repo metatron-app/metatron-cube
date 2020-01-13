@@ -22,9 +22,8 @@ package io.druid.query.search.search;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Ints;
-import io.druid.query.QueryCacheHelper;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +32,8 @@ import java.util.Objects;
  */
 public class StrlenSearchSortSpec implements SearchSortSpec
 {
+  private static final byte CACHE_KEY = 0x01;
+
   private final List<String> ordering;
   private final SearchHitSort comparator;
 
@@ -102,11 +103,10 @@ public class StrlenSearchSortSpec implements SearchSortSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] key = QueryCacheHelper.computeCacheBytes(ordering);
-    return ByteBuffer.allocate(1 + key.length)
-                     .put((byte) 0x01)
-                     .put(key)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_KEY)
+                     .append(ordering)
+                     .build();
   }
 
   @Override

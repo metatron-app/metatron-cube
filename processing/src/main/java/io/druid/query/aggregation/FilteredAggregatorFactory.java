@@ -21,11 +21,11 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.ColumnSelectorFactory;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -130,13 +130,11 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] filterCacheKey = filter.getCacheKey();
-    byte[] aggregatorCacheKey = delegate.getCacheKey();
-    return ByteBuffer.allocate(1 + filterCacheKey.length + aggregatorCacheKey.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(filterCacheKey)
-                     .put(aggregatorCacheKey)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(filter)
+                     .append(delegate)
+                     .build();
   }
 
   @Override

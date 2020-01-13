@@ -1125,7 +1125,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             Arrays.<VirtualColumn>asList(new ExprVirtualColumn("partial_null_column + ''", "PN"))
         ).withAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new CountAggregatorFactory("not_null", "!isnull(PN)"), new CountAggregatorFactory("null", "isnull(PN)"))
+                CountAggregatorFactory.predicate("not_null", "!isnull(PN)"),
+                CountAggregatorFactory.predicate("null", "isnull(PN)"))
         );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
@@ -1668,8 +1669,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     builder.setAggregatorSpecs(
         Arrays.asList(
             QueryRunnerTestHelper.rowsCount,
-            new CountAggregatorFactory("rows1", "index > 110"),
-            new CountAggregatorFactory("rows2", "index > 130"),
+            CountAggregatorFactory.predicate("rows1", "index > 110"),
+            CountAggregatorFactory.predicate("rows2", "index > 130"),
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("idx2", "index", null, "index > 110"),
             new DoubleSumAggregatorFactory("idx3", "index", null, "index > 130")

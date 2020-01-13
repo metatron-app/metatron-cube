@@ -23,14 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
@@ -99,14 +97,10 @@ public class ExprVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] expr = StringUtils.toUtf8(expression);
-    byte[] output = StringUtils.toUtf8(outputName);
-
-    return ByteBuffer.allocate(2 + expr.length + output.length + 2)
-                     .put(VC_TYPE_ID)
-                     .put(expr).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(output)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(expression, outputName)
+                     .build();
   }
 
   @JsonProperty

@@ -25,7 +25,7 @@ import com.google.common.primitives.Doubles;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
-import io.druid.common.CacheKeyBuilder;
+import io.druid.common.KeyBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import javax.annotation.Nullable;
@@ -39,7 +39,7 @@ import java.util.Objects;
  *
  * @author Alexander Saydakov
  */
-abstract class HllSketchAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+abstract class HllSketchAggregatorFactory extends AggregatorFactory
 {
 
   static final int DEFAULT_LG_K = 12;
@@ -80,7 +80,6 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory implements A
     return name;
   }
 
-  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -148,16 +147,14 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory(String inputField)
-  {
-    return new HllSketchMergeAggregatorFactory(getName(), inputField, getLgK(), getTgtHllType());
-  }
-
-  @Override
   public byte[] getCacheKey()
   {
-    return new CacheKeyBuilder(getCacheTypeId()).appendString(name).appendString(fieldName)
-                                                .appendInt(lgK).appendInt(tgtHllType.ordinal()).build();
+    return KeyBuilder.get()
+                     .append(getCacheTypeId())
+                     .append(fieldName)
+                     .append(lgK)
+                     .append(tgtHllType.ordinal())
+                     .build();
   }
 
   @Override

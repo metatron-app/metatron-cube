@@ -31,22 +31,20 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.RowResolver;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -434,26 +432,12 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnBytes = QueryCacheHelper.computeCacheKeys(columns);
-    byte[] segmentLimitBytes = QueryCacheHelper.computeCacheBytes(segmentLimit);
-    byte[] nodeLimitBytes = QueryCacheHelper.computeCacheBytes(nodeLimit);
-    byte[] windowingSpecBytes = QueryCacheHelper.computeCacheKeys(getWindowingSpecs());
-
-    ByteBuffer buffer = ByteBuffer.allocate(
-        1
-        + columnBytes.length
-        + segmentLimitBytes.length
-        + nodeLimitBytes.length
-        + windowingSpecBytes.length
-        + Integer.BYTES
-    );
-    return buffer.put(CACHE_KEY)
-                 .put(columnBytes)
-                 .put(segmentLimitBytes)
-                 .put(nodeLimitBytes)
-                 .put(Ints.toByteArray(limit))
-                 .put(windowingSpecBytes)
-                 .array();
+    return KeyBuilder.get()
+                     .append(CACHE_KEY)
+                     .append(columns)
+                     .append(segmentLimit)
+                     .append(nodeLimit)
+                     .build();
   }
 
   @Override

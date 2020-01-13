@@ -28,13 +28,12 @@ import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
@@ -56,7 +55,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -66,6 +64,8 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     implements AggregatorFactory.SQLSupport
 {
   private static final Logger LOG = new Logger(HiveUDAFAggregatorFactory.class);
+
+  private static final byte CACHE_TYPE_ID = 0x7e;
 
   private final String name;
   private final List<String> fieldNames;
@@ -365,15 +365,11 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNamesBytes = QueryCacheHelper.computeCacheBytes(fieldNames);
-    byte[] udafNameBytes = StringUtils.toUtf8WithNullToEmpty(udafName);
-
-    int length = 1 + fieldNamesBytes.length + udafNameBytes.length;
-    return ByteBuffer.allocate(length)
-                     .put((byte) 0x7e)
-                     .put(fieldNamesBytes)
-                     .put(udafNameBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldNames)
+                     .append(udafName)
+                     .build();
   }
 
   @Override

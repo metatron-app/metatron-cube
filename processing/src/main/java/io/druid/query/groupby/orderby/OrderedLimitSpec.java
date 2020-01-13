@@ -23,10 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.QueryCacheHelper;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -86,14 +85,10 @@ public class OrderedLimitSpec implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    if (columns.isEmpty() && limit < 0) {
-      return new byte[0];
-    }
-    byte[] columnBytes = QueryCacheHelper.computeCacheKeys(columns);
-    ByteBuffer buffer = ByteBuffer.allocate(columnBytes.length + Integer.BYTES);
-    return buffer.put(columnBytes)
-                 .putInt(limit)
-                 .array();
+    return KeyBuilder.get()
+                     .append(columns)
+                     .append(limit)
+                     .build();
   }
 
   @Override

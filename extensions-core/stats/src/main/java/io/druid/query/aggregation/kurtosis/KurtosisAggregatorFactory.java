@@ -24,10 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.IAE;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -107,6 +108,13 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
     return new KurtosisFoldingAggregatorFactory(name, inputField, predicate);
   }
 
+  @Override
+  public String getCubeName()
+  {
+    return "kurtosis";
+  }
+
+  @Override
   @JsonProperty
   public String getPredicate()
   {
@@ -225,19 +233,11 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
-
-    int length = 1 + fieldNameBytes.length
-                   + predicateBytes.length
-                   + inputTypeBytes.length;
-    return ByteBuffer.allocate(length)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
-                     .put(predicateBytes)
-                     .put(inputTypeBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName, predicate)
+                     .append(inputType)
+                     .build();
   }
 
   @Override

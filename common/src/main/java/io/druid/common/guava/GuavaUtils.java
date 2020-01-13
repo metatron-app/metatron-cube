@@ -130,6 +130,9 @@ public class GuavaUtils
   @SuppressWarnings("unchecked")
   public static <X, Y> List<Y> cast(Collection<X> input)
   {
+    if (input == null) {
+      return null;
+    }
     List<Y> casted = Lists.<Y>newArrayListWithCapacity(input.size());
     for (X x : input) {
       casted.add((Y) x);

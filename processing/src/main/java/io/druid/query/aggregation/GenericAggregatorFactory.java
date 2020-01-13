@@ -29,12 +29,11 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
-import io.druid.query.QueryCacheHelper;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -235,6 +234,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return fieldExpression;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
@@ -271,22 +271,15 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = QueryCacheHelper.computeCacheBytes(inputType);
+    return baseKey().build();
+  }
 
-    int length = 1 + fieldNameBytes.length
-                   + fieldExpressionBytes.length
-                   + predicateBytes.length
-                   + inputTypeBytes.length;
-    return ByteBuffer.allocate(length)
-                     .put(cacheTypeID())
-                     .put(fieldNameBytes)
-                     .put(fieldExpressionBytes)
-                     .put(predicateBytes)
-                     .put(inputTypeBytes)
-                     .array();
+  protected final KeyBuilder baseKey()
+  {
+    return KeyBuilder.get()
+                     .append(cacheTypeID())
+                     .append(fieldName, fieldExpression, predicate)
+                     .append(inputType);
   }
 
   @Override

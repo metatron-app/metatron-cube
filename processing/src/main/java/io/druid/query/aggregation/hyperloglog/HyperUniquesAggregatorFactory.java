@@ -22,9 +22,10 @@ package io.druid.query.aggregation.hyperloglog;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.IAE;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -204,6 +205,12 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     return name;
   }
 
+  @Override
+  public String getCubeName()
+  {
+    return "hyperUnique";
+  }
+
   @JsonProperty
   public String getPredicate()
   {
@@ -232,14 +239,11 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + predicateBytes.length + 1)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
-                     .put(predicateBytes)
-                     .put((byte) (isRound() ? 1 : 0))
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName, predicate)
+                     .append(round)
+                     .build();
   }
 
   @JsonProperty

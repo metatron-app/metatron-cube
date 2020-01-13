@@ -26,9 +26,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -235,6 +235,13 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
     return new HyperUniquesAggregatorFactory(name, inputField, null, round);
   }
 
+  @Override
+  public String getCubeName()
+  {
+    return "cardinality";
+  }
+
+  @Override
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
@@ -283,21 +290,12 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldBytes;
-    if (fieldNames != null) {
-      fieldBytes = QueryCacheHelper.computeCacheBytes(fieldNames);
-    } else {
-      fieldBytes = QueryCacheHelper.computeCacheKeys(fields);
-    }
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-
-    return ByteBuffer.allocate(3 + fieldBytes.length + predicateBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldBytes)
-                     .put(predicateBytes)
-                     .put((byte) (byRow ? 1 : 0))
-                     .put((byte) (round ? 1 : 0))
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldNames)
+                     .append(fields)
+                     .append(byRow, round)
+                     .build();
   }
 
   @Override

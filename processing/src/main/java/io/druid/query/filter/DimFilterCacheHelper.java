@@ -19,9 +19,6 @@
 
 package io.druid.query.filter;
 
-import java.nio.ByteBuffer;
-import java.util.List;
-
 /**
  */
 public class DimFilterCacheHelper
@@ -45,29 +42,4 @@ public class DimFilterCacheHelper
   static final byte LUCENE_GEOJSON_CACHE_ID = 0xF;
   static final byte LUCENE_SPATIAL_CACHE_ID = 0x10;
   static final byte LIKE_CACHE_ID = 0x11;
-
-  public static final byte STRING_SEPARATOR = (byte) 0xFF;
-
-  static byte[] computeCacheKey(byte cacheIdKey, List<DimFilter> filters)
-  {
-    if (filters.size() == 1) {
-      return filters.get(0).getCacheKey();
-    }
-
-    byte[][] cacheKeys = new byte[filters.size()][];
-    int totalSize = 0;
-    int index = 0;
-    for (DimFilter field : filters) {
-      cacheKeys[index] = field.getCacheKey();
-      totalSize += cacheKeys[index].length;
-      ++index;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(1 + totalSize);
-    retVal.put(cacheIdKey);
-    for (byte[] cacheKey : cacheKeys) {
-      retVal.put(cacheKey);
-    }
-    return retVal.array();
-  }
 }

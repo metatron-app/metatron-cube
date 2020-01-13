@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
@@ -35,7 +35,6 @@ import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.search.Query;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -83,15 +82,10 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldBytes = StringUtils.toUtf8(field);
-    byte[] shapeStringBytes = StringUtils.toUtf8(shapeString);
-    return ByteBuffer.allocate(3 + fieldBytes.length + shapeStringBytes.length)
-                     .put(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
-                     .put((byte) shapeFormat.ordinal())
-                     .put(fieldBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(shapeStringBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
+                     .append(field, shapeString)
+                     .build();
   }
 
   @Override

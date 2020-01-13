@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -50,7 +51,6 @@ import io.druid.query.select.Schema;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
@@ -282,28 +282,14 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       @Override
       public byte[] computeCacheKey(T query)
       {
-        final byte[] granularityBytes = QueryCacheHelper.computeCacheBytes(query.getGranularity());
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getFilter());
-        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        final byte[] dimensionsBytes = QueryCacheHelper.computeCacheKey(query.getDimensions());
-        final byte[] aggregatorBytes = QueryCacheHelper.computeCacheKeys(query.getAggregatorSpecs());
-
-        return ByteBuffer
-            .allocate(
-                2
-                + granularityBytes.length
-                + filterBytes.length
-                + vcBytes.length
-                + dimensionsBytes.length
-                + aggregatorBytes.length
-            )
-            .put(queryCode())
-            .put(granularityBytes)
-            .put(filterBytes)
-            .put(vcBytes)
-            .put(dimensionsBytes)
-            .put(aggregatorBytes)
-            .array();
+        return KeyBuilder.get()
+                         .append(queryCode())
+                         .append(query.getGranularity())
+                         .append(query.getFilter())
+                         .append(query.getVirtualColumns())
+                         .append(query.getDimensions())
+                         .append(query.getAggregatorSpecs())
+                         .build();
       }
 
       @Override

@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.JsonSerializable;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.IAE;
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -167,6 +167,13 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   @Override
   public byte[] getCacheKey()
   {
+    if (!hasOrigin && chronology == ISOChronology.getInstanceUTC()) {
+      GranularityType knownType = Granularities.MAPPING.get(period);
+      if (knownType != null) {
+        return new byte[]{(byte) knownType.ordinal()};
+      }
+      return StringUtils.toUtf8(period.toString());
+    }
     return StringUtils.toUtf8(
         getPeriod().toString() + ":" +
         getTimeZone().toString() + ":" + getOrigin()

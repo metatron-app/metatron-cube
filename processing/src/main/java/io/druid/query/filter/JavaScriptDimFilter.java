@@ -26,9 +26,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.java.util.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.JavaScriptFilter;
@@ -36,7 +36,6 @@ import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
@@ -93,18 +92,12 @@ public class JavaScriptDimFilter extends DimFilter.NotOptimizable
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[] functionBytes = StringUtils.toUtf8(function);
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    return ByteBuffer.allocate(3 + dimensionBytes.length + functionBytes.length + extractionFnBytes.length)
-                     .put(DimFilterCacheHelper.JAVASCRIPT_CACHE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(functionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(extractionFnBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.JAVASCRIPT_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(function).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

@@ -23,13 +23,13 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
+import io.druid.common.KeyBuilder;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
-import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -41,7 +41,6 @@ import org.mozilla.javascript.ScriptableObject;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
@@ -227,14 +226,14 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
-      byte[] fieldNameBytes = StringUtils.toUtf8(Joiner.on(",").join(fieldNames));
       byte[] sha1 = md.digest(StringUtils.toUtf8(fnAggregate + fnReset + fnCombine));
 
-      return ByteBuffer.allocate(1 + fieldNameBytes.length + sha1.length)
-                       .put(CACHE_TYPE_ID)
-                       .put(fieldNameBytes)
-                       .put(sha1)
-                       .array();
+      return KeyBuilder.get()
+                       .append(CACHE_TYPE_ID)
+                       .append(fieldNames)
+                       .append(md.digest(StringUtils.toUtf8(fnAggregate + fnReset + fnCombine)))
+                       .append(sha1)
+                       .build();
     }
     catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("Unable to get SHA1 digest instance", e);

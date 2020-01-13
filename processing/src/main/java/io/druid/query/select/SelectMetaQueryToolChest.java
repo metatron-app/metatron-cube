@@ -23,23 +23,21 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.common.KeyBuilder;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -133,38 +131,14 @@ public class SelectMetaQueryToolChest
       @Override
       public byte[] computeCacheKey(SelectMetaQuery query)
       {
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getFilter());
-        final byte[] granBytes = query.getGranularity().getCacheKey();
-        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        final List<DimensionSpec> dimensions = query.getDimensions();
-        final List<String> metrics = query.getMetrics();
-
-        final byte[][] columnsBytes = new byte[dimensions.size() + metrics.size()][];
-        int columnsBytesSize = 0;
-        int index = 0;
-        for (DimensionSpec dimension : dimensions) {
-          columnsBytes[index] = dimension.getCacheKey();
-          columnsBytesSize += columnsBytes[index].length;
-          ++index;
-        }
-        for (String metric : metrics) {
-          columnsBytes[index] = QueryCacheHelper.computeCacheBytes(metric);
-          columnsBytesSize += columnsBytes[index].length;
-          ++index;
-        }
-
-        final ByteBuffer queryCacheKey = ByteBuffer
-            .allocate(6 + filterBytes.length + granBytes.length + vcBytes.length + columnsBytesSize)
-            .put(SELECT_META_QUERY)
-            .put(filterBytes)
-            .put(granBytes)
-            .put(vcBytes);
-
-        for (byte[] bytes : columnsBytes) {
-          queryCacheKey.put(bytes);
-        }
-
-        return queryCacheKey.array();
+        return KeyBuilder.get()
+                         .append(SELECT_META_QUERY)
+                         .append(query.getFilter())
+                         .append(query.getGranularity())
+                         .append(query.getVirtualColumns())
+                         .append(query.getDimensions())
+                         .append(query.getMetrics())
+                         .build();
       }
     };
   }

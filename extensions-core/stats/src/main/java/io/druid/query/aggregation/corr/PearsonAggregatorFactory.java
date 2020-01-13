@@ -23,10 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.IAE;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -232,22 +233,11 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldName1Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName1);
-    byte[] fieldName2Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName2);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
-
-    int length = 1 + fieldName1Bytes.length
-                   + fieldName2Bytes.length
-                   + predicateBytes.length
-                   + inputTypeBytes.length;
-    return ByteBuffer.allocate(length)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldName1Bytes)
-                     .put(fieldName2Bytes)
-                     .put(predicateBytes)
-                     .put(inputTypeBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName1, fieldName2, predicate)
+                     .append(inputType)
+                     .build();
   }
 
   @Override

@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
@@ -361,9 +362,9 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length)
-                     .put(CACHE_KEY).put(fieldNameBytes).array();
-
+    return KeyBuilder.get()
+                     .append(CACHE_KEY)
+                     .append(fieldName)
+                     .build();
   }
 }

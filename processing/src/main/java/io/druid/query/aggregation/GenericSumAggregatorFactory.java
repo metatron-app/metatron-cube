@@ -238,4 +238,10 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     }
     throw new IllegalStateException();
   }
+
+  @Override
+  public String getCubeName()
+  {
+    return "sum";
+  }
 }

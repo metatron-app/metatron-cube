@@ -73,7 +73,7 @@ public class TestEstateQuery extends QueryRunnerTestHelper
         .setDataSource("estate")
         .setDimensions(DefaultDimensionSpec.of("gu"))
         .setAggregatorSpecs(
-            new CountAggregatorFactory("count", "hasPrice"),
+            CountAggregatorFactory.predicate("count", "hasPrice"),
             new GenericSumAggregatorFactory("price", "price", null)
         )
         .setGranularity(Granularities.YEAR)

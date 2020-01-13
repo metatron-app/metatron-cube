@@ -23,15 +23,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.common.DateTimes;
+import io.druid.common.KeyBuilder;
+import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.common.DateTimes;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
@@ -41,14 +41,11 @@ import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.select.SchemaQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -142,38 +139,15 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
       @Override
       public byte[] computeCacheKey(SketchQuery query)
       {
-        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getFilter());
-        final byte[] vcBytes = QueryCacheHelper.computeCacheKeys(query.getVirtualColumns());
-        final List<DimensionSpec> dimensions = query.getDimensions();
-        final List<String> metrics = query.getMetrics();
-
-        final byte[][] columnsBytes = new byte[dimensions.size() + metrics.size()][];
-        int columnsBytesSize = 0;
-        int index = 0;
-        for (DimensionSpec dimension : dimensions) {
-          columnsBytes[index] = dimension.getCacheKey();
-          columnsBytesSize += columnsBytes[index].length;
-          ++index;
-        }
-        for (String metric : metrics) {
-          columnsBytes[index] = QueryCacheHelper.computeCacheBytes(metric);
-          columnsBytesSize += columnsBytes[index].length;
-          ++index;
-        }
-
-        final ByteBuffer queryCacheKey = ByteBuffer
-            .allocate(6 + filterBytes.length + vcBytes.length + columnsBytesSize)
-            .put(SKETCH_QUERY)
-            .put((byte) query.getSketchOp().ordinal())
-            .putInt(query.getSketchParam())
-            .put(filterBytes)
-            .put(vcBytes);
-
-        for (byte[] bytes : columnsBytes) {
-          queryCacheKey.put(bytes);
-        }
-
-        return queryCacheKey.array();
+        return KeyBuilder.get()
+                         .append(SKETCH_QUERY)
+                         .appendByte(query.getSketchOp())
+                         .append(query.getSketchParam())
+                         .append(query.getFilter())
+                         .append(query.getVirtualColumns())
+                         .append(query.getDimensions())
+                         .append(query.getMetrics())
+                         .build();
       }
 
       @Override

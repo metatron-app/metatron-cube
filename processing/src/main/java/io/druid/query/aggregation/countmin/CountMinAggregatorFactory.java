@@ -28,10 +28,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.ISE;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -47,7 +47,6 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import org.apache.commons.codec.binary.Base64;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -279,22 +278,13 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldBytes;
-    if (fieldNames != null) {
-      fieldBytes = QueryCacheHelper.computeCacheBytes(fieldNames);
-    } else {
-      fieldBytes = QueryCacheHelper.computeCacheKeys(fields);
-    }
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-
-    return ByteBuffer.allocate(2 + fieldBytes.length + predicateBytes.length + Ints.BYTES * 2)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldBytes)
-                     .put(predicateBytes)
-                     .put((byte) (byRow ? 1 : 0))
-                     .putInt(width)
-                     .putInt(depth)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldNames)
+                     .append(fields)
+                     .append(byRow)
+                     .append(width, depth)
+                     .build();
   }
 
   @Override

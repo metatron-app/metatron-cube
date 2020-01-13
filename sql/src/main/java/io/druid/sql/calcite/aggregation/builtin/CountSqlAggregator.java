@@ -106,7 +106,7 @@ public class CountSqlAggregator implements SqlAggregator
       if (rexNode.getType().isNullable()) {
         if (args.size() == 1 && args.get(0).isDirectColumnAccess()) {
           // it's fieldName.. fieldExpression later if really needed
-          return Aggregation.create(new CountAggregatorFactory(name, null, args.get(0).getDirectColumn()));
+          return Aggregation.create(CountAggregatorFactory.of(name, args.get(0).getDirectColumn()));
         }
         final DimFilter nonNullFilter = Expressions.toFilter(
             plannerContext,

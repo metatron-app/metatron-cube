@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatchers;
@@ -46,7 +47,12 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
 
   public static CountAggregatorFactory of(String name, String fieldName)
   {
-    return new CountAggregatorFactory(name, null, fieldName);
+    return new CountAggregatorFactory(name, fieldName, null);
+  }
+
+  public static CountAggregatorFactory predicate(String name, String predicate)
+  {
+    return new CountAggregatorFactory(name, null, predicate);
   }
 
   private static final byte[] CACHE_KEY = new byte[]{0x0};
@@ -58,13 +64,13 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   @JsonCreator
   public CountAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("predicate") String predicate,
-      @JsonProperty("fieldName") String fieldName
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("predicate") String predicate
   )
   {
     this.name = name == null ? fieldName : name;
-    this.predicate = predicate;
     this.fieldName = fieldName;
+    this.predicate = predicate;
     Preconditions.checkNotNull(this.name, "Must have a valid, non-null aggregator name");
   }
 
@@ -73,15 +79,16 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
     this(name, null, null);
   }
 
-  public CountAggregatorFactory(String name, String predicate)
-  {
-    this(name, predicate, null);
-  }
-
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     return new CountAggregator(toValueMatcher(metricFactory));
+  }
+
+  @Override
+  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  {
+    return new CountBufferAggregator(toValueMatcher(metricFactory));
   }
 
   private ValueMatcher toValueMatcher(ColumnSelectorFactory metricFactory)
@@ -94,12 +101,6 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
       matcher = ValueMatchers.and(ColumnSelectors.toMatcher(predicate, metricFactory));
     }
     return matcher == null ? ValueMatcher.TRUE : matcher;
-  }
-
-  @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
-  {
-    return new CountBufferAggregator(toValueMatcher(metricFactory));
   }
 
   @Override
@@ -150,16 +151,23 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory(String inputField)
-  {
-    return new LongSumAggregatorFactory(name, inputField);
-  }
-
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getPredicate()
   {
     return predicate;
+  }
+
+  @Override
+  public AggregatorFactory getCombiningFactory(String inputField)
+  {
+    return new LongSumAggregatorFactory(name, inputField);
+  }
+
+  @Override
+  public String getCubeName()
+  {
+    return "count";
   }
 
   @Override
@@ -171,7 +179,10 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   @Override
   public byte[] getCacheKey()
   {
-    return CACHE_KEY;
+    return KeyBuilder.get()
+                     .append(CACHE_KEY)
+                     .append(fieldName, predicate)
+                     .build();
   }
 
   @Override

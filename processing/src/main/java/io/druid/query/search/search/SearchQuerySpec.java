@@ -21,6 +21,7 @@ package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 
 /**
  */
@@ -32,7 +33,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name = "regex", value = RegexSearchQuerySpec.class),
     @JsonSubTypes.Type(name = "all", value = SearchQuerySpec.TakeAll.class)
 })
-public interface SearchQuerySpec
+public interface SearchQuerySpec extends Cacheable
 {
   public boolean accept(String dimVal);
 

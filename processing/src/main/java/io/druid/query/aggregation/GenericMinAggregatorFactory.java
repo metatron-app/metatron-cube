@@ -214,4 +214,10 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
       }
     };
   }
+
+  @Override
+  public String getCubeName()
+  {
+    return "min";
+  }
 }

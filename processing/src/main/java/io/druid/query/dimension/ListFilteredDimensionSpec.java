@@ -21,12 +21,10 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.DimensionSelector;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -114,27 +112,12 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] delegateCacheKey = delegate.getCacheKey();
-
-    byte[][] valuesBytes = new byte[values.size()][];
-    int valuesBytesSize = 0;
-    int index = 0;
-    for (String value : values) {
-      valuesBytes[index] = StringUtils.toUtf8(value);
-      valuesBytesSize += valuesBytes[index].length + 1;
-      ++index;
-    }
-
-    ByteBuffer filterCacheKey = ByteBuffer.allocate(3 + delegateCacheKey.length + valuesBytesSize)
-                                          .put(CACHE_TYPE_ID)
-                                          .put(delegateCacheKey)
-                                          .put((byte) (isWhitelist ? 1 : 0))
-                                          .put(DimFilterCacheHelper.STRING_SEPARATOR);
-    for (byte[] bytes : valuesBytes) {
-      filterCacheKey.put(bytes)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR);
-    }
-    return filterCacheKey.array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(delegate)
+                     .append(isWhitelist)
+                     .append(values)
+                     .build();
   }
 
   @Override

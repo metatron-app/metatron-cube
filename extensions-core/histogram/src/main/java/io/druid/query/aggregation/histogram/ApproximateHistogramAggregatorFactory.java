@@ -24,8 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
@@ -278,18 +277,13 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    return ByteBuffer.allocate(3 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2 + predicateBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(compact ? (byte) 1 : 0)
-                     .put(base64 ? (byte) 1 : 0)
-                     .put(fieldNameBytes)
-                     .put(predicateBytes)
-                     .putInt(resolution)
-                     .putInt(numBuckets)
-                     .putFloat(lowerLimit)
-                     .putFloat(upperLimit).array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(compact, base64)
+                     .append(fieldName, predicate)
+                     .append(resolution, numBuckets)
+                     .append(lowerLimit, upperLimit)
+                     .build();
   }
 
   @Override

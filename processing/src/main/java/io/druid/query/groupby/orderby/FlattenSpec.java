@@ -28,19 +28,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.query.QueryCacheHelper;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.segment.ObjectArray;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -146,34 +143,14 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] typeBytes = StringUtils.toUtf8WithNullToEmpty(getType());
-    byte[] columnsBytes = QueryCacheHelper.computeCacheBytes(columns);
-    byte[] pivotColumnsBytes = QueryCacheHelper.computeCacheBytes(pivotColumns);
-    byte[] prefixColumnsBytes = QueryCacheHelper.computeCacheBytes(prefixColumns);
-    byte[] separatorBytes = StringUtils.toUtf8WithNullToEmpty(separator);
-    byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
-
-    int length = 5
-                 + typeBytes.length
-                 + columnsBytes.length
-                 + pivotColumnsBytes.length
-                 + prefixColumnsBytes.length
-                 + separatorBytes.length
-                 + expressionsBytes.length;
-
-    return ByteBuffer.allocate(length)
-                     .put(typeBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(columnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(pivotColumnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(prefixColumnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(separatorBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionsBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(getType())
+                     .append(columns).sp()
+                     .append(pivotColumns).sp()
+                     .append(prefixColumns).sp()
+                     .append(separator).sp()
+                     .append(expressions)
+                     .build();
   }
 
   @Override

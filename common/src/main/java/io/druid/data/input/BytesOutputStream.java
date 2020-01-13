@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 // copied from ByteStreams.ByteArrayDataOutputStream
 public class BytesOutputStream extends ByteArrayOutputStream implements ByteArrayDataOutput
@@ -202,6 +203,11 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
   public void clear()
   {
     mark = count = 0;
+  }
+
+  public byte[] toByteArray(int from)
+  {
+    return Arrays.copyOfRange(buf, from, count);
   }
 
   public void writeVarSizeBytes(byte[] value)

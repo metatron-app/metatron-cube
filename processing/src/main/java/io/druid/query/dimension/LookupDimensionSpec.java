@@ -24,18 +24,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupReferencesManager;
 import io.druid.segment.DimensionSelector;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 
 public class LookupDimensionSpec implements DimensionSpec
 {
@@ -175,30 +173,15 @@ public class LookupDimensionSpec implements DimensionSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    byte[] dimExtractionFnBytes = Strings.isNullOrEmpty(name)
-                                  ? getLookup().getCacheKey()
-                                  : StringUtils.toUtf8(name);
-    byte[] outputNameBytes = StringUtils.toUtf8(outputName);
-    byte[] replaceWithBytes = StringUtils.toUtf8(Strings.nullToEmpty(replaceMissingValueWith));
-
-
-    return ByteBuffer.allocate(6
-                               + dimensionBytes.length
-                               + outputNameBytes.length
-                               + dimExtractionFnBytes.length
-                               + replaceWithBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(dimensionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(outputNameBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(dimExtractionFnBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(replaceWithBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(retainMissingValue == true ? (byte) 1 : (byte) 0)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(dimension).sp()
+                     .append(name).sp()
+                     .append(lookup).sp()
+                     .append(outputName).sp()
+                     .append(replaceMissingValueWith).sp()
+                     .append(retainMissingValue)
+                     .build();
   }
 
   @Override

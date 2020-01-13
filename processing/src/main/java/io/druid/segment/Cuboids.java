@@ -18,14 +18,15 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.GranularityType;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
@@ -42,16 +43,19 @@ import java.util.regex.Pattern;
 
 public class Cuboids
 {
+  private static final Logger LOG = new Logger(Cuboids.class);
+
   public static final String COUNT_ALL_METRIC = "$$";
   public static final Set<String> BASIC_AGGREGATORS = ImmutableSet.of("count", "min", "max", "sum");
 
   public static final int PAGES = 16;
   public static final int BUFFER_SIZE = 256 << 10;
+  public static final int METRIC_COMPRESSION_DISABLE = 32;
 
-  private static final Logger LOG = new Logger(Cuboids.class);
   private static final Pattern CUBOID = Pattern.compile("^___(\\d+)_(.+)___(.*)?$");
 
-  public static final int METRIC_COMPRESSION_DISABLE = 32;
+  private static final int GRANULARITY_SHIFT = 5;   // reserve 1 more
+  private static final BigInteger GRANULARITIES_MASK = BigInteger.valueOf(0b11111);
 
   public static String dimension(BigInteger cubeId, String columnName)
   {
@@ -67,9 +71,6 @@ public class Cuboids
   {
     return String.format("%s___%s", metricName, aggregation);
   }
-
-  public static final int GRANULARITY_SHIFT = 5;   // reserve 1 more
-  public static final BigInteger GRANULARITIES_MASK = BigInteger.valueOf(0b11111);
 
   public static BigInteger toCubeId(int[] cubeDimIndices, GranularityType granularity)
   {
@@ -127,7 +128,7 @@ public class Cuboids
   {
     switch (aggregator) {
       case "count":
-        return new CountAggregatorFactory(name, null, fieldName);
+        return CountAggregatorFactory.of(name, fieldName);
       case "min":
         return new GenericMinAggregatorFactory(name, fieldName, inputType);
       case "max":
@@ -151,28 +152,19 @@ public class Cuboids
 
   private static boolean supports(Map<String, Set<String>> metrics, AggregatorFactory aggregator)
   {
-    Set<String> supports = null;
-    if (AggregatorFactory.isCountAll(aggregator)) {
-      supports = metrics.get(COUNT_ALL_METRIC);
-    } else if (aggregator instanceof AggregatorFactory.CubeSupport) {
-      supports = metrics.get(((AggregatorFactory.CubeSupport) aggregator).getFieldName());
-    }
-    if (supports == null) {
+    if (!(aggregator instanceof CubeSupport)) {
       return false;
     }
-    if (aggregator instanceof CountAggregatorFactory) {
-      return supports.contains("count") && ((CountAggregatorFactory) aggregator).getPredicate() == null;
+    final CubeSupport cubeSupport = (CubeSupport) aggregator;
+    if (cubeSupport.getPredicate() != null) {
+      return false;   // cannot
     }
-    if (aggregator instanceof GenericMinAggregatorFactory) {
-      return supports.contains("min") && ((GenericMinAggregatorFactory) aggregator).getPredicate() == null;
+    if (AggregatorFactory.isCountAll(aggregator)) {
+      Set<String> supports = metrics.get(COUNT_ALL_METRIC);
+      return supports != null && supports.contains(cubeSupport.getCubeName());
     }
-    if (aggregator instanceof GenericMaxAggregatorFactory) {
-      return supports.contains("max") && ((GenericMaxAggregatorFactory) aggregator).getPredicate() == null;
-    }
-    if (aggregator instanceof GenericSumAggregatorFactory) {
-      return supports.contains("sum") && ((GenericSumAggregatorFactory) aggregator).getPredicate() == null;
-    }
-    return false;
+    final Set<String> supports = metrics.get(cubeSupport.getFieldName());
+    return !GuavaUtils.isNullOrEmpty(supports) && supports.contains(cubeSupport.getCubeName());
   }
 
   @SuppressWarnings("unchecked")
@@ -190,16 +182,9 @@ public class Cuboids
     if (AggregatorFactory.isCountAll(aggregator)) {
       return new LongSumAggregatorFactory(aggregator.getName(), COUNT_ALL_METRIC);
     }
-    final AggregatorFactory.CubeSupport cubeSupport = (AggregatorFactory.CubeSupport) aggregator;
-    if (aggregator instanceof CountAggregatorFactory) {
-      return cubeSupport.getCombiningFactory(Cuboids.metricColumn(cubeSupport.getFieldName(), "count"));
-    } else if (aggregator instanceof GenericMinAggregatorFactory) {
-      return cubeSupport.getCombiningFactory(Cuboids.metricColumn(cubeSupport.getFieldName(), "min"));
-    } else if (aggregator instanceof GenericMaxAggregatorFactory) {
-      return cubeSupport.getCombiningFactory(Cuboids.metricColumn(cubeSupport.getFieldName(), "max"));
-    } else if (aggregator instanceof GenericSumAggregatorFactory) {
-      return cubeSupport.getCombiningFactory(Cuboids.metricColumn(cubeSupport.getFieldName(), "sum"));
-    }
-    throw new ISE("cannot convert %s to name", aggregator.getClass().getSimpleName());
+    final CubeSupport cubeSupport = (CubeSupport) aggregator;
+    return cubeSupport.getCombiningFactory(
+        Cuboids.metricColumn(cubeSupport.getFieldName(), cubeSupport.getCubeName())
+    );
   }
 }

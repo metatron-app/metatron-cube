@@ -21,12 +21,10 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.DimensionSelector;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -94,14 +92,11 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] delegateCacheKey = delegate.getCacheKey();
-    byte[] regexBytes = StringUtils.toUtf8(pattern);
-    return ByteBuffer.allocate(2 + delegateCacheKey.length + regexBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(delegateCacheKey)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(regexBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(delegate)
+                     .append(pattern)
+                     .build();
   }
 
   @Override

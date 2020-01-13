@@ -23,14 +23,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.LongColumnSelector;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -128,6 +127,18 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
+  public String getCubeName()
+  {
+    return "longMax";
+  }
+
+  @Override
+  public String getPredicate()
+  {
+    return null;
+  }
+
+  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -162,11 +173,10 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
-
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + fieldExpressionBytes.length)
-                     .put(CACHE_TYPE_ID).put(fieldNameBytes).put(fieldExpressionBytes).array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName, fieldExpression)
+                     .build();
   }
 
   @Override

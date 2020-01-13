@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
@@ -36,15 +37,12 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
-import io.druid.query.QueryCacheHelper;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Frame;
 import io.druid.query.groupby.orderby.WindowContext.FrameFactory;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.segment.StringArray;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -242,36 +240,15 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnsBytes = QueryCacheHelper.computeCacheKeys(pivotColumns);
-    byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(valueColumns);
-    byte[] separatorBytes = QueryCacheHelper.computeCacheBytes(separator);
-    byte[] nullValueBytes = QueryCacheHelper.computeCacheBytes(nullValue);
-    byte[] rowExpressionsBytes = QueryCacheHelper.computeCacheBytes(rowExpressions);
-    byte[] partitionExpressionsBytes = QueryCacheHelper.computeCacheKeys(partitionExpressions);
-
-    int length = 7
-                 + columnsBytes.length
-                 + valuesBytes.length
-                 + separatorBytes.length
-                 + nullValueBytes.length
-                 + rowExpressionsBytes.length
-                 + partitionExpressionsBytes.length;
-
-    return ByteBuffer.allocate(length)
-                     .put(columnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valuesBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(separatorBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(nullValueBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(rowExpressionsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(partitionExpressionsBytes)
-                     .put(tabularFormat ? (byte) 0x01 : 0)
-                     .put(appendValueColumn ? (byte) 0x01 : 0)
-                     .array();
+    return KeyBuilder.get()
+                     .append(pivotColumns).sp()
+                     .append(valueColumns).sp()
+                     .append(separator).sp()
+                     .append(nullValue).sp()
+                     .append(rowExpressions).sp()
+                     .append(partitionExpressions).sp()
+                     .append(tabularFormat, appendValueColumn)
+                     .build();
   }
 
   @Override

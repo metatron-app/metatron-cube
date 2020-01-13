@@ -26,10 +26,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
-import io.druid.query.QueryCacheHelper;
-import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -97,18 +95,9 @@ public class PartitionExpression implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    byte[] conditionBytes = QueryCacheHelper.computeCacheBytes(condition);
-    byte[] expressionBytes = QueryCacheHelper.computeCacheBytes(expression);
-
-    int length = 1
-                 + conditionBytes.length
-                 + expressionBytes.length;
-
-    return ByteBuffer.allocate(length)
-                     .put(conditionBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(condition, expression)
+                     .build();
   }
 
   @Override

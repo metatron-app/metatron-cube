@@ -40,7 +40,6 @@ import java.util.Objects;
 /**
  */
 public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
-  implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x11;
 
@@ -167,18 +166,6 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
   public String getName()
   {
     return name;
-  }
-
-  @Override
-  public String getFieldName()
-  {
-    return columnName;
-  }
-
-  @Override
-  public AggregatorFactory getCombiningFactory(String inputField)
-  {
-    return new RelayAggregatorFactory(name, inputField, typeName, relayType);
   }
 
   @JsonProperty

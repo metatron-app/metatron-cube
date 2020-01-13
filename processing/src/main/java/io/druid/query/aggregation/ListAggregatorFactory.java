@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -386,22 +387,13 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] expressionBytes = StringUtils.toUtf8WithNullToEmpty(expression);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
-
-    int length = 1
-                 + expressionBytes.length
-                 + inputTypeBytes.length
-                 + 6;
-
-    return ByteBuffer.allocate(length)
-                     .put(CACHE_TYPE_ID)
-                     .put(expressionBytes)
-                     .put(inputTypeBytes)
-                     .putInt(limit)
-                     .put(dedup ? (byte) 0x01 : (byte) 0x00)
-                     .put(sort ? (byte) 0x01 : (byte) 0x00)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(expression)
+                     .append(inputType)
+                     .append(limit)
+                     .append(dedup, sort)
+                     .build();
   }
 
   @Override

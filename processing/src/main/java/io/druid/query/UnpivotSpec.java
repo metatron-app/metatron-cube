@@ -30,12 +30,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.common.Cacheable;
-import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.common.KeyBuilder;
 import io.druid.query.select.Schema;
 import io.druid.segment.StringArray;
 import org.apache.commons.lang.StringUtils;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -325,6 +324,15 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
     }
 
     @Override
+    public byte[] getCacheKey()
+    {
+      return KeyBuilder.get()
+                       .append(output).sp()
+                       .append(values)
+                       .build();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       if (this == o) {
@@ -359,20 +367,6 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
              "column='" + output + '\'' +
              ", values=" + values +
              '}';
-    }
-
-    @Override
-    public byte[] getCacheKey()
-    {
-      byte[] outputBytes = io.druid.common.utils.StringUtils.toUtf8WithNullToEmpty(output);
-      byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(values);
-
-      int length = 1 + outputBytes.length + valuesBytes.length;
-      return ByteBuffer.allocate(length)
-                       .put(outputBytes)
-                       .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                       .put(valuesBytes)
-                       .array();
     }
   }
 }

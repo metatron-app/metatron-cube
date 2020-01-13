@@ -22,7 +22,7 @@ package io.druid.query.aggregation.median;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -38,7 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @JsonTypeName("digestQuantileAgg")
-public class DruidTDigestAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class DruidTDigestAggregatorFactory extends AggregatorFactory
 {
   private static final byte CACHE_TYPE_ID = 0xA;
 
@@ -133,19 +133,6 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory implements 
     return name;
   }
 
-  @Override
-  @JsonProperty
-  public String getFieldName()
-  {
-    return fieldName;
-  }
-
-  @Override
-  public AggregatorFactory getCombiningFactory(String inputField)
-  {
-    return new DruidTDigestAggregatorFactory(name, inputField, compression);
-  }
-
   @JsonProperty
   public int getCompression()
   {
@@ -158,12 +145,13 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  public byte[] getCacheKey() {
-    byte[] fieldNameBytes = StringUtils.getBytesUtf8(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + Ints.BYTES)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
-                     .putInt(compression).array();
+  public byte[] getCacheKey()
+  {
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName)
+                     .append(compression)
+                     .build();
   }
 
   @Override

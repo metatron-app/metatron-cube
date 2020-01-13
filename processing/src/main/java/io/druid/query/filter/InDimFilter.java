@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
@@ -39,7 +39,6 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.segment.filter.InFilter;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -102,31 +101,12 @@ public class InDimFilter implements DimFilter.RangeFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[][] valuesBytes = new byte[values.size()][];
-    int valuesBytesSize = 0;
-    int index = 0;
-    for (String value : values) {
-      valuesBytes[index] = StringUtils.toUtf8(Strings.nullToEmpty(value));
-      valuesBytesSize += valuesBytes[index].length + 1;
-      ++index;
-    }
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    ByteBuffer filterCacheKey = ByteBuffer.allocate(3
-                                                    + dimensionBytes.length
-                                                    + valuesBytesSize
-                                                    + extractionFnBytes.length)
-                                          .put(DimFilterCacheHelper.IN_CACHE_ID)
-                                          .put(dimensionBytes)
-                                          .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                                          .put(extractionFnBytes)
-                                          .put(DimFilterCacheHelper.STRING_SEPARATOR);
-    for (byte[] bytes : valuesBytes) {
-      filterCacheKey.put(bytes)
-                    .put((byte) 0xFF);
-    }
-    return filterCacheKey.array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.IN_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(values).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

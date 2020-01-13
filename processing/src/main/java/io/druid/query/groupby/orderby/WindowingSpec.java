@@ -30,15 +30,13 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.query.QueryCacheHelper;
-import io.druid.query.filter.DimFilterCacheHelper;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -281,30 +279,14 @@ public class WindowingSpec implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    byte[] partitionColumnsBytes = QueryCacheHelper.computeCacheBytes(partitionColumns);
-    byte[] sortingColumnsBytes = QueryCacheHelper.computeCacheKeys(sortingColumns);
-    byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
-    byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattenSpec);
-    byte[] pivotSpecBytes = QueryCacheHelper.computeCacheBytes(pivotSpec);
-
-    int length = 5 + partitionColumnsBytes.length
-                 + sortingColumnsBytes.length
-                 + expressionsBytes.length
-                 + flattenerBytes.length
-                 + pivotSpecBytes.length;
-
-    return ByteBuffer.allocate(length)
-                     .put(skipSorting ? (byte) 0x01 : (byte) 0x00)
-                     .put(partitionColumnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(sortingColumnsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionsBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(flattenerBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(pivotSpecBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(skipSorting).sp()
+                     .append(partitionColumns).sp()
+                     .append(sortingColumns).sp()
+                     .append(expressions).sp()
+                     .append(flattenSpec)
+                     .append(pivotSpec)
+                     .build();
   }
 
   @Override

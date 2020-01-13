@@ -26,17 +26,14 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.DSuppliers.HandOver;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.QueryCacheHelper;
+import io.druid.java.util.common.ISE;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Set;
 
@@ -232,18 +229,12 @@ public class LateralViewVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] outputBytes = StringUtils.toUtf8(outputName);
-    byte[] metricBytes = StringUtils.toUtf8(metricName);
-    byte[] excludesBytes = QueryCacheHelper.computeCacheBytes(excludes);
-    byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(values);
-
-    return ByteBuffer.allocate(4 + excludesBytes.length + valuesBytes.length + outputBytes.length + metricBytes.length)
-                     .put(VC_TYPE_ID)
-                     .put(outputBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(metricBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(excludesBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valuesBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(outputName, metricName)
+                     .append(excludes)
+                     .append(values)
+                     .build();
   }
 
   @Override

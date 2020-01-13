@@ -21,6 +21,7 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -39,7 +40,7 @@ import java.util.List;
     @JsonSubTypes.Type(name = "inverted", value = InvertedTopNMetricSpec.class),
     @JsonSubTypes.Type(name = "dimension", value = DimensionTopNMetricSpec.class)
 })
-public interface TopNMetricSpec
+public interface TopNMetricSpec extends Cacheable
 {
   public void verifyPreconditions(List<AggregatorFactory> aggregatorSpecs, List<PostAggregator> postAggregatorSpecs);
 
@@ -53,8 +54,6 @@ public interface TopNMetricSpec
       List<AggregatorFactory> aggFactories,
       List<PostAggregator> postAggs
   );
-
-  public byte[] getCacheKey();
 
   public <T> TopNMetricSpecBuilder<T> configureOptimizer(TopNMetricSpecBuilder<T> builder);
 

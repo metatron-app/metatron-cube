@@ -25,8 +25,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.codec.binary.Base64;
 
@@ -142,6 +143,18 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
+  public String getCubeName()
+  {
+    return "histogram";
+  }
+
+  @Override
+  public String getPredicate()
+  {
+    return null;
+  }
+
+  @Override
   @JsonProperty
   public String getFieldName()
   {
@@ -169,15 +182,11 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    ByteBuffer buf = ByteBuffer
-        .allocate(1 + fieldNameBytes.length + Floats.BYTES * breaks.length)
-        .put(CACHE_TYPE_ID)
-        .put(fieldNameBytes)
-        .put((byte)0xFF);
-    buf.asFloatBuffer().put(breaks);
-
-    return buf.array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(fieldName)
+                     .append(breaks)
+                     .build();
   }
 
   @Override

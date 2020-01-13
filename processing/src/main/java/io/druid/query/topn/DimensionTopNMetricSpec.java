@@ -21,14 +21,13 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.query.QueryCacheHelper;
+import io.druid.common.KeyBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.ordering.StringComparators;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 
@@ -98,17 +97,11 @@ public class DimensionTopNMetricSpec implements TopNMetricSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] previousStopBytes = QueryCacheHelper.computeCacheBytes(previousStop);
-    byte[] orderingBytes = QueryCacheHelper.computeCacheBytes(ordering);
-
-    int totalLen = 2 + previousStopBytes.length + orderingBytes.length;
-
-    return ByteBuffer.allocate(totalLen)
-                     .put(CACHE_TYPE_ID)
-                     .put(previousStopBytes)
-                     .put(STRING_SEPARATOR)
-                     .put(orderingBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(previousStop).sp()
+                     .append(ordering)
+                     .build();
   }
 
   @Override

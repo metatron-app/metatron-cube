@@ -429,9 +429,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     List<PostAggregator> postAggregators = Lists.newArrayList();
     if (type.isPrimitiveNumeric()) {
-      aggregators.add(new CountAggregatorFactory(column + ".missing", escaped + " == 0"));
+      aggregators.add(CountAggregatorFactory.predicate(column + ".missing", escaped + " == 0"));
     } else {
-      aggregators.add(new CountAggregatorFactory(column + ".missing", "isnull(" + escaped + ")"));
+      aggregators.add(CountAggregatorFactory.predicate(column + ".missing", "isnull(" + escaped + ")"));
     }
 
     if (type.isPrimitiveNumeric()) {
@@ -440,7 +440,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;
       String outlier = escaped + " < " + (q1 - iqr * 1.5) + " || " + escaped + " >  " + (q3 + iqr * 1.5);
-      aggregators.add(new CountAggregatorFactory(column + ".outlier", outlier));
+      aggregators.add(CountAggregatorFactory.predicate(column + ".outlier", outlier));
       aggregators.add(new GenericSumAggregatorFactory(column + ".sum", column, inputType));
       aggregators.add(new VarianceAggregatorFactory(column + ".variance", column, inputType));
       aggregators.add(new KurtosisAggregatorFactory(column + ".skewness", column, null, inputType));

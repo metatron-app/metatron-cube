@@ -25,9 +25,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
@@ -35,7 +35,6 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -229,12 +228,9 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] orderingBytes = super.getCacheKey();
-    final byte[] dimensionBytes = QueryCacheHelper.computeCacheBytes(dimension);
-
-    return ByteBuffer.allocate(orderingBytes.length + dimensionBytes.length)
-                     .put(orderingBytes)
-                     .put(dimensionBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(super.getCacheKey())
+                     .append(dimension)
+                     .build();
   }
 }

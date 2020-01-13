@@ -23,16 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -289,18 +287,10 @@ public class MapVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] key = StringUtils.toUtf8(keyDimension);
-    byte[] valueDim = StringUtils.toUtf8WithNullToEmpty(valueDimension);
-    byte[] valueMet = StringUtils.toUtf8WithNullToEmpty(valueMetric);
-    byte[] output = StringUtils.toUtf8(outputName);
-
-    return ByteBuffer.allocate(4 + key.length + valueDim.length + valueMet.length + output.length)
-                     .put(VC_TYPE_ID)
-                     .put(key).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valueDim).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valueMet).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(output)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(keyDimension, valueDimension, valueMetric, outputName)
+                     .build();
   }
 
   public KeyIndexedVirtualColumn asKeyIndexed()

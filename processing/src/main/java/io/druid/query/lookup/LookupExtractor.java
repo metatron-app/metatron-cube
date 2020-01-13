@@ -22,6 +22,7 @@ package io.druid.query.lookup;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.extraction.MultiKeyMapLookupExtractor;
 
@@ -37,7 +38,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "map", value = MapLookupExtractor.class),
     @JsonSubTypes.Type(name = "multiKeyMap", value = MultiKeyMapLookupExtractor.class)
 })
-public abstract class LookupExtractor
+public abstract class LookupExtractor implements Cacheable
 {
   /**
    * Apply a particular lookup methodology to the input string

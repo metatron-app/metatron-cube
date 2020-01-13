@@ -25,17 +25,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedID;
@@ -43,7 +41,6 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -319,20 +316,14 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] key = StringUtils.toUtf8(keyDimension);
-    byte[] valueDims = QueryCacheHelper.computeCacheBytes(valueDimensions);
-    byte[] valueMets = QueryCacheHelper.computeCacheBytes(valueMetrics);
-    byte[] keyFilters = keyFilter == null ? new byte[0] : keyFilter.getCacheKey();
-    byte[] output = StringUtils.toUtf8(outputName);
-
-    return ByteBuffer.allocate(5 + key.length + valueDims.length + valueMets.length + keyFilters.length + output.length)
-                     .put(VC_TYPE_ID)
-                     .put(key).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valueDims).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(valueMets).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(keyFilters).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(output)
-                     .array();
+    return KeyBuilder.get()
+                     .append(VC_TYPE_ID)
+                     .append(keyDimension).sp()
+                     .append(valueDimensions).sp()
+                     .append(valueMetrics).sp()
+                     .append(keyFilter).sp()
+                     .append(outputName)
+                     .build();
   }
 
   @JsonProperty

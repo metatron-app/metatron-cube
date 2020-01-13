@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
@@ -35,7 +35,6 @@ import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -82,15 +81,12 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldBytes = StringUtils.toUtf8(field);
-    byte[] analyzerBytes = StringUtils.toUtf8WithNullToEmpty(analyzer);
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-    return ByteBuffer.allocate(3 + fieldBytes.length + analyzerBytes.length + expressionBytes.length)
-                     .put(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
-                     .put(fieldBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(analyzerBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
+                     .append(field).sp()
+                     .append(analyzer).sp()
+                     .append(expression)
+                     .build();
   }
 
   @Override

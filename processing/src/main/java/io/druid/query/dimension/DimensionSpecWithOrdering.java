@@ -20,12 +20,11 @@
 package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.query.QueryCacheHelper;
+import io.druid.common.KeyBuilder;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
@@ -115,14 +114,12 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] delegateCacheKey = delegate.getCacheKey();
-    byte[] comparatorNameBytes = QueryCacheHelper.computeCacheBytes(ordering);
-    ByteBuffer filterCacheKey = ByteBuffer.allocate(2 + delegateCacheKey.length + comparatorNameBytes.length)
-                                          .put(CACHE_TYPE_ID)
-                                          .put(delegateCacheKey)
-                                          .put((byte) direction.ordinal())
-                                          .put(comparatorNameBytes);
-    return filterCacheKey.array();
+    return KeyBuilder.get()
+                     .append(CACHE_TYPE_ID)
+                     .append(delegate)
+                     .append(direction.ordinal())
+                     .append(ordering)
+                     .build();
   }
 
   @Override

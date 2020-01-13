@@ -28,19 +28,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -261,16 +260,10 @@ public class PivotColumnSpec extends OrderingSpec
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] superBytes = super.getCacheKey();
-    final byte[] dimensionBytes = QueryCacheHelper.computeCacheBytes(dimension);
-    final byte[] expressionBytes = QueryCacheHelper.computeCacheBytes(expression);
-    final byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(values);
-
-    return ByteBuffer.allocate(superBytes.length + dimensionBytes.length + expressionBytes.length + valuesBytes.length)
-                     .put(superBytes)
-                     .put(dimensionBytes)
-                     .put(expressionBytes)
-                     .put(valuesBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(super.getCacheKey())
+                     .append(dimension, expression)
+                     .append(values)
+                     .build();
   }
 }

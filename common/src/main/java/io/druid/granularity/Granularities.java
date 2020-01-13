@@ -19,7 +19,10 @@
 
 package io.druid.granularity;
 
+import com.google.common.collect.Maps;
 import org.joda.time.Period;
+
+import java.util.Map;
 
 /**
  * This class was created b/c sometimes  static initializers of a class that use a subclass can deadlock.
@@ -42,6 +45,16 @@ public class Granularities
   public static final Granularity YEAR = GranularityType.YEAR.getDefaultGranularity();
   public static final Granularity ALL = GranularityType.ALL.getDefaultGranularity();
   public static final Granularity NONE = GranularityType.NONE.getDefaultGranularity();
+
+  public static Map<Period, GranularityType> MAPPING = Maps.newHashMap();
+
+  static {
+    for (GranularityType granularity : GranularityType.values()) {
+      if (granularity.getPeriod() != null) {
+        MAPPING.put(granularity.getPeriod(), granularity);
+      }
+    }
+  }
 
   public static int getOnlyDurationIndex(Period period)
   {

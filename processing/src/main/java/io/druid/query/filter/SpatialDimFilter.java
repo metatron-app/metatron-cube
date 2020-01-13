@@ -22,11 +22,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.collections.spatial.search.Bound;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.filter.SpatialFilter;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,25 +42,18 @@ public class SpatialDimFilter extends DimFilter.NotOptimizable
       @JsonProperty("bound") Bound bound
   )
   {
-    Preconditions.checkArgument(dimension != null, "dimension must not be null");
-    Preconditions.checkArgument(bound != null, "bound must not be null");
-
-    this.dimension = dimension;
-    this.bound = bound;
+    this.dimension = Preconditions.checkNotNull(dimension, "dimension must not be null");
+    this.bound = Preconditions.checkNotNull(bound, "bound must not be null");
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimBytes = StringUtils.toUtf8(dimension);
-    byte[] boundBytes = bound.getCacheKey();
-
-    return ByteBuffer.allocate(2 + dimBytes.length + boundBytes.length)
-                     .put(DimFilterCacheHelper.SPATIAL_CACHE_ID)
-                     .put(dimBytes)
-                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(boundBytes)
-                     .array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.SPATIAL_CACHE_ID)
+                     .append(dimension).sp()
+                     .append(bound.getCacheKey())
+                     .build();
   }
 
   @Override

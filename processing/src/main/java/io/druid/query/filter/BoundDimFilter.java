@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -37,7 +38,6 @@ import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -275,45 +275,15 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimensionBytes = StringUtils.toUtf8WithNullToEmpty(dimension);
-    byte[] lowerBytes = StringUtils.toUtf8WithNullToEmpty(getLower());
-    byte[] upperBytes = StringUtils.toUtf8WithNullToEmpty(getUpper());
-    byte boundType = 0x1;
-    if (this.getLower() == null) {
-      boundType = 0x2;
-    } else if (this.getUpper() == null) {
-      boundType = 0x3;
-    }
-    byte[] comparatorBytes = StringUtils.toUtf8WithNullToEmpty(comparatorType);
-
-    byte lowerStrictByte = !isLowerStrict() ? 0x0 : (byte) 1;
-    byte upperStrictByte = !isUpperStrict() ? 0x0 : (byte) 1;
-
-    byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
-
-    ByteBuffer boundCacheBuffer = ByteBuffer.allocate(
-        9
-        + dimensionBytes.length
-        + upperBytes.length
-        + lowerBytes.length
-        + comparatorBytes.length
-        + extractionFnBytes.length
-    );
-    boundCacheBuffer.put(DimFilterCacheHelper.BOUND_CACHE_ID)
-                    .put(boundType)
-                    .put(upperStrictByte)
-                    .put(lowerStrictByte)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                    .put(dimensionBytes)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                    .put(upperBytes)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                    .put(lowerBytes)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                    .put(comparatorBytes)
-                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                    .put(extractionFnBytes);
-    return boundCacheBuffer.array();
+    return KeyBuilder.get()
+                     .append(DimFilterCacheHelper.BOUND_CACHE_ID)
+                     .append(lowerStrict, upperStrict)
+                     .append(dimension).sp()
+                     .append(lower).sp()
+                     .append(upper).sp()
+                     .append(comparatorType).sp()
+                     .append(extractionFn)
+                     .build();
   }
 
   @Override

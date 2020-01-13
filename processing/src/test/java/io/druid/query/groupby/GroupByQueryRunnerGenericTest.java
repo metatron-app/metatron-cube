@@ -29,14 +29,14 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.js.JavaScriptConfig;
 import io.druid.math.expr.Parser;
 import io.druid.query.BaseAggregationQuery;
@@ -334,10 +334,10 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setDataSource(dataSource)
         .setQuerySegmentSpec(firstToThird)
         .setAggregatorSpecs(
-            new CountAggregatorFactory("rows"),
-            new CountAggregatorFactory("rows_nc1", null, "partial_null_column"),
-            new CountAggregatorFactory("rows_nc2", "partial_null_column == 'value'"),
-            new CountAggregatorFactory("rows_nc3", "partial_null_column >= 'value'")
+            CountAggregatorFactory.of("rows"),
+            CountAggregatorFactory.of("rows_nc1", "partial_null_column"),
+            CountAggregatorFactory.predicate("rows_nc2", "partial_null_column == 'value'"),
+            CountAggregatorFactory.predicate("rows_nc3", "partial_null_column >= 'value'")
         )
         .setGranularity(dayGran)
         .build();
@@ -1279,7 +1279,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             Arrays.<VirtualColumn>asList(new ExprVirtualColumn("partial_null_column + ''", "PN"))
         ).withAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new CountAggregatorFactory("not_null", "!isnull(PN)"), new CountAggregatorFactory("null", "isnull(PN)"))
+                CountAggregatorFactory.predicate("not_null", "!isnull(PN)"),
+                CountAggregatorFactory.predicate("null", "isnull(PN)"))
         );
 
     results = runQuery(query, true);
@@ -1753,8 +1754,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     builder.setAggregatorSpecs(
         Arrays.asList(
             rowsCount,
-            new CountAggregatorFactory("rows1", "index > 110"),
-            new CountAggregatorFactory("rows2", "index > 130"),
+            CountAggregatorFactory.predicate("rows1", "index > 110"),
+            CountAggregatorFactory.predicate("rows2", "index > 130"),
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("idx2", "index", null, "index > 110"),
             new DoubleSumAggregatorFactory("idx3", "index", null, "index > 130")
