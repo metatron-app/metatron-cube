@@ -373,14 +373,20 @@ public class Queries
       }
     } else if (query instanceof JoinQuery) {
       JoinQuery joinQuery = (JoinQuery) query;
+      Map<String, DataSource> rewritten = Maps.newHashMap();
       for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
         if (entry.getValue() instanceof QueryDataSource) {
           Query source = ((QueryDataSource) entry.getValue()).getQuery();
           Query converted = iterate(source, function);
           if (source != converted) {
-            entry.setValue(QueryDataSource.of(converted));
+            rewritten.put(entry.getKey(), QueryDataSource.of(converted));
           }
         }
+      }
+      if (!rewritten.isEmpty()) {
+        Map<String, DataSource> copy = Maps.newHashMap(joinQuery.getDataSources());
+        copy.putAll(rewritten);
+        query = joinQuery.withDataSources(copy);
       }
     } else if (query instanceof UnionAllQuery) {
       UnionAllQuery<?> union = (UnionAllQuery) query;

@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
+import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -126,6 +127,22 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
       rightKeys.add(rightOrder.get(rightKey));
     }
 
+    final Query leftDruid = leftQuery.getQuery();
+    final Query rightDruid = rightQuery.getQuery();
+    final String leftAlias = toAlias(leftDruid);
+
+    String rightAlias = toAlias(rightDruid);
+    while (leftAlias.equals(rightAlias)) {
+      rightAlias += "$";
+    }
+
+    final JoinQuery query = new Druids.JoinQueryBuilder()
+        .dataSource(leftAlias, QueryDataSource.of(leftDruid))
+        .dataSource(rightAlias, QueryDataSource.of(rightDruid))
+        .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
+        .asArray(true)
+        .build();
+
     return new DruidQuery()
     {
       @Override
@@ -143,19 +160,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
       @Override
       public Query getQuery()
       {
-        final Query leftDruid = leftQuery.getQuery();
-        final Query rightDruid = rightQuery.getQuery();
-        final String leftAlias = toAlias(leftDruid);
-        String rightAlias = toAlias(rightDruid);
-        while (leftAlias.equals(rightAlias)) {
-          rightAlias += "$";
-        }
-        return new Druids.JoinQueryBuilder()
-            .dataSource(leftAlias, QueryDataSource.of(leftDruid))
-            .dataSource(rightAlias, QueryDataSource.of(rightDruid))
-            .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
-            .asArray(true)
-            .build();
+        return query;
       }
     };
   }

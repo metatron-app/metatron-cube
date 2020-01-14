@@ -151,7 +151,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
 
       if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
-        log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
+        log.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), url);
       }
 
       final QueryMetrics<? super Query<T>> queryMetrics = toolChest.makeMetrics(query);

@@ -29,14 +29,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
@@ -341,6 +341,21 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         prefixAlias,
         asArray,
         getTimeColumnName(),
+        limit,
+        maxRowsInGroup,
+        getContext()
+    );
+  }
+
+  public JoinQuery withDataSources(Map<String, DataSource> dataSources)
+  {
+    return new JoinQuery(
+        dataSources,
+        getQuerySegmentSpec(),
+        elements,
+        prefixAlias,
+        asArray,
+        timeColumnName,
         limit,
         maxRowsInGroup,
         getContext()

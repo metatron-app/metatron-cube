@@ -75,7 +75,7 @@ public class StreamHandlerFactory
 
   private class BaseHandler implements StreamHandler
   {
-    private final String queryId;
+    private final Query query;
     private final boolean disableLog;
     private final URL url;
 
@@ -88,7 +88,7 @@ public class StreamHandlerFactory
 
     private BaseHandler(Query query, URL url, int queueSize)
     {
-      this.queryId = query.getId();
+      this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.url = url;
       this.queue = new LinkedBlockingDeque<>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
@@ -111,8 +111,9 @@ public class StreamHandlerFactory
       HttpResponseStatus status = response.getStatus();
       if (!disableLog) {
         log.debug(
-            "Initial response from url[%s] for queryId[%s] with status[%s] in %,d msec",
-            url, queryId, status, TimeUnit.NANOSECONDS.toMillis(responseStartTimeNs - requestStartTimeNs)
+            "Initial response from url[%s] for [%s][%s:%s] with status[%s] in %,d msec",
+            url, query.getId(), query.getType(), query.getDataSource(),
+            status, TimeUnit.NANOSECONDS.toMillis(responseStartTimeNs - requestStartTimeNs)
         );
       }
 
@@ -236,8 +237,8 @@ public class StreamHandlerFactory
       long nodeTimeNs = stopTimeNs - requestStartTimeNs;
       if (!disableLog) {
         log.debug(
-            "Completed queryId[%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
-            queryId,
+            "Completed [%s][%s:%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
+            query.getId(), query.getType(), query.getDataSource(),
             url,
             byteCount.get(),
             TimeUnit.NANOSECONDS.toMillis(nodeTimeNs),

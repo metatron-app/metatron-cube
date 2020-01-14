@@ -27,7 +27,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -40,10 +42,12 @@ import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
+import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.sql.calcite.table.DruidTable.WithTimestamp;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
 import io.druid.sql.calcite.view.ViewManager;
+import io.druid.timeline.DataSegment;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.impl.AbstractSchema;
 
@@ -59,7 +63,7 @@ public class DruidSchema extends AbstractSchema
     implements BiFunction<String, WithTimestamp, WithTimestamp>
 {
   public static final String NAME = "druid";
-  public static final long CACHE_VALID_MSEC = 20_000;   // 20 sec
+  public static final long CACHE_VALID_MSEC = 300_000;   // 5 min
 
   private final QuerySegmentWalker segmentWalker;
   private final TimelineServerView serverView;
@@ -77,6 +81,31 @@ public class DruidSchema extends AbstractSchema
     this.serverView = Preconditions.checkNotNull(serverView, "serverView");
     this.viewManager = Preconditions.checkNotNull(viewManager, "viewManager");
     this.cached = Maps.newConcurrentMap();
+    serverView.registerTimelineCallback(
+        MoreExecutors.sameThreadExecutor(),
+        new TimelineServerView.TimelineCallback()
+        {
+          @Override
+          public ServerView.CallbackAction timelineInitialized()
+          {
+            return ServerView.CallbackAction.CONTINUE;
+          }
+
+          @Override
+          public ServerView.CallbackAction segmentAdded(final DruidServerMetadata server, final DataSegment segment)
+          {
+            cached.remove(segment.getDataSource());
+            return ServerView.CallbackAction.CONTINUE;
+          }
+
+          @Override
+          public ServerView.CallbackAction segmentRemoved(final DruidServerMetadata server, final DataSegment segment)
+          {
+            cached.remove(segment.getDataSource());
+            return ServerView.CallbackAction.CONTINUE;
+          }
+        }
+    );
   }
 
   @Override
