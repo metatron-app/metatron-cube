@@ -22,14 +22,12 @@ package io.druid.query.groupby;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -37,15 +35,16 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
@@ -65,6 +64,8 @@ import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import org.apache.commons.lang.mutable.MutableLong;
+import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -164,55 +165,68 @@ public class GroupByQueryRunnerFactory
       if (maxCardinality < 0) {
         return null;
       }
-      AggregatorFactory cardinality = new CardinalityAggregatorFactory(
+      AggregatorFactory aggregator = new CardinalityAggregatorFactory(
           "cardinality", null, query.getDimensions(), query.getGroupingSets(), null, true, true
       );
       TimeseriesQuery timeseries = query.asTimeseriesQuery()
                                         .withPostAggregatorSpecs(null)
-                                        .withAggregatorSpecs(Arrays.asList(cardinality))
-                                        .withGranularity(Granularities.ALL)
-                                        .withOverriddenContext(QueryContextKeys.FINALIZE, false);
-      List<Segment> current = Lists.newArrayList();
-      HyperLogLogCollector prev = null;
-      for (int i = 0; i < segments.size(); i++) {
-        Segment segment = segments.get(i);
+                                        .withAggregatorSpecs(Arrays.asList(aggregator))
+                                        .withOverriddenContext(Query.FINALIZE, false);
+
+      final Group group = new Group();
+      for (Segment segment : segments) {
         SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor());
-        Row result = Sequences.only(
-            timeseries.withQuerySegmentSpec(segmentSpec)
-                      .run(segmentWalker, Maps.<String, Object>newHashMap())
-        );
-        HyperLogLogCollector collector = (HyperLogLogCollector) result.getRaw("cardinality");
-        if (prev != null) {
-          collector = collector.fold(prev);
-        }
-        if (collector.estimateCardinalityRound() > maxCardinality) {
-          if (current.isEmpty()) {
-            current.add(segment);
-            segmentGroups.add(current);
-            current = Lists.newArrayList();
-          } else {
-            segmentGroups.add(current);
-            current = Lists.newArrayList(segment);
+        Sequence<Row> sequence = QueryRunners.run(timeseries.withQuerySegmentSpec(segmentSpec), segmentWalker);
+        long cardinality = sequence.accumulate(new MutableLong(), new Accumulator<MutableLong, Row>()
+        {
+          @Override
+          public MutableLong accumulate(MutableLong accumulated, Row row)
+          {
+            accumulated.add(((HyperLogLogCollector) row.getRaw("cardinality")).estimateCardinalityRound());
+            return accumulated;
           }
-          prev = null;
+        }).longValue();
+        if (group.numRows + cardinality < maxCardinality ||
+            group.interval != null && segment.getDataInterval().overlaps(group.interval)) {
+          group.add(segment, cardinality);
+        } else if (group.segments.isEmpty()) {
+          segmentGroups.add(Arrays.asList(segment));
         } else {
-          current.add(segment);
-          prev = collector;
-        }
-        if (i > 0 && segmentGroups.isEmpty() &&
-            prev.estimateCardinality() / maxCardinality < (double) i * 2 / segments.size()) {
-          // early exiting
-          return null;
+          segmentGroups.add(ImmutableList.copyOf(group.segments));
+          group.reset().add(segment, cardinality);
         }
       }
-      if (!current.isEmpty()) {
-        segmentGroups.add(current);
+      if (!group.segments.isEmpty()) {
+        segmentGroups.add(ImmutableList.copyOf(group.segments));
       }
     } else {
       int segmentSize = segments.size() / numSplit;
       segmentGroups = segmentSize <= 1 ? ImmutableList.<List<Segment>>of() : Lists.partition(segments, segmentSize);
     }
     return segmentGroups.size() <= 1 ? null : segmentGroups;
+  }
+
+  private static class Group
+  {
+    private final List<Segment> segments = Lists.newArrayList();
+    private Interval interval;
+    private long numRows;
+
+    private Group add(Segment segment, long cardinality)
+    {
+      segments.add(segment);
+      numRows += cardinality;
+      interval = segment.getDataInterval();
+      return this;
+    }
+
+    public Group reset()
+    {
+      segments.clear();
+      numRows = 0;
+      interval = null;
+      return this;
+    }
   }
 
   @Override
