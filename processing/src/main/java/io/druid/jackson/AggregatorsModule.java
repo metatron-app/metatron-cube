@@ -58,6 +58,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.TimestampMaxAggregatorFactory;
+import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinPostAggregator;
@@ -157,6 +158,7 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class),
 
       @JsonSubTypes.Type(name = "countMin", value = CountMinAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "bloomFilter", value = BloomFilterAggregatorFactory.class),
   })
   public static interface AggregatorFactoryMixin
   {

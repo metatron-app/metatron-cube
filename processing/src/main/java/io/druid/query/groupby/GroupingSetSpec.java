@@ -28,6 +28,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,7 +43,7 @@ import java.util.List;
     @JsonSubTypes.Type(name = "ids", value = GroupingSetSpec.Ids.class),
     @JsonSubTypes.Type(name = "rollup", value = GroupingSetSpec.Rollup.class),
 })
-public interface GroupingSetSpec
+public interface GroupingSetSpec extends Cacheable
 {
   GroupingSetSpec EMPTY = new GroupingSetSpec.Indices(null);
 
@@ -95,6 +97,19 @@ public interface GroupingSetSpec
         }
       }
       return groupings;
+    }
+
+    @Override
+    public byte[] getCacheKey()
+    {
+      final KeyBuilder builder = KeyBuilder.get();
+      for (int i = 0; i < names.size(); i++) {
+        if (i > 0) {
+          builder.sp();
+        }
+        builder.append(names.get(i));
+      }
+      return builder.build();
     }
 
     @Override
@@ -193,6 +208,19 @@ public interface GroupingSetSpec
     }
 
     @Override
+    public byte[] getCacheKey()
+    {
+      final KeyBuilder builder = KeyBuilder.get();
+      for (int i = 0; i < indices.size(); i++) {
+        if (i > 0) {
+          builder.sp();
+        }
+        builder.append(Ints.toArray(indices.get(i)));
+      }
+      return builder.build();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       return o instanceof Indices && indices.equals(((Indices) o).indices);
@@ -278,6 +306,14 @@ public interface GroupingSetSpec
     }
 
     @Override
+    public byte[] getCacheKey()
+    {
+      return KeyBuilder.get()
+                       .append(Ints.toArray(ids))
+                       .build();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       return o instanceof Ids && ids.equals(((Ids) o).ids);
@@ -323,6 +359,12 @@ public interface GroupingSetSpec
     public boolean isEmpty()
     {
       return false;
+    }
+
+    @Override
+    public byte[] getCacheKey()
+    {
+      return "-".getBytes();
     }
 
     @Override

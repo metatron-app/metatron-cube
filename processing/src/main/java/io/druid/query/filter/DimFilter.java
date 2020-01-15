@@ -54,6 +54,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name="lucene.nearest", value=LuceneNearestFilter.class),
     @JsonSubTypes.Type(name="lucene.geojson", value=LuceneGeoJsonPolygonFilter.class),
     @JsonSubTypes.Type(name="like", value=LikeDimFilter.class),
+    @JsonSubTypes.Type(name="bloomFilter", value=BloomDimFilter.class),
 })
 public interface DimFilter extends Expression, Cacheable
 {
@@ -133,5 +134,17 @@ public interface DimFilter extends Expression, Cacheable
   interface BooleanColumnSupport extends DimFilter
   {
     ImmutableBitmap toBooleanFilter(TypeResolver resolver, BitmapIndexSelector selector);
+  }
+
+  // marker.. does not use index
+  interface ValueOnly extends DimFilter
+  {
+    @Override
+    Filter.ValueOnly toFilter(TypeResolver resolver);
+  }
+
+  interface LogProvider
+  {
+    DimFilter forLog();
   }
 }

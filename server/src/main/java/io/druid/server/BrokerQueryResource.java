@@ -59,6 +59,7 @@ import io.druid.query.RegexDataSource;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
@@ -205,6 +206,9 @@ public class BrokerQueryResource extends QueryResource
   {
     if (query instanceof Query.LogProvider) {
       query = ((Query.LogProvider) query).forLog();
+    }
+    if (query instanceof Query.FilterSupport) {
+      query = DimFilters.rewriteLogFilter(query);
     }
     return query;
   }

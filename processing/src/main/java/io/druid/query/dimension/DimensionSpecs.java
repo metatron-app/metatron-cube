@@ -20,6 +20,7 @@
 package io.druid.query.dimension;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -29,6 +30,8 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.DimensionSelector;
 
 import java.util.Comparator;
 import java.util.List;
@@ -197,5 +200,25 @@ public class DimensionSpecs
   {
     final ExtractionFn extractionFn = input.getExtractionFn();
     return extractionFn != null && ExtractionFn.ExtractionType.ONE_TO_ONE.equals(extractionFn.getExtractionType());
+  }
+
+  public static List<DimensionSelector> toSelectors(
+      final List<DimensionSpec> dimensionSpecs,
+      final ColumnSelectorFactory columnFactory
+  )
+  {
+    return Lists.newArrayList(
+        Lists.transform(
+            Preconditions.checkNotNull(dimensionSpecs),
+            new Function<DimensionSpec, DimensionSelector>()
+            {
+              @Override
+              public DimensionSelector apply(DimensionSpec input)
+              {
+                return columnFactory.makeDimensionSelector(input);
+              }
+            }
+        )
+    );
   }
 }

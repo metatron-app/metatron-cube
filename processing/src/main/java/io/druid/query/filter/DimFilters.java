@@ -197,6 +197,28 @@ public class DimFilters
     return query;
   }
 
+  public static Query rewriteLogFilter(Query query)
+  {
+    final DimFilter filter = BaseQuery.getDimFilter(query);
+    if (filter != null) {
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, new Expressions.Rewriter<DimFilter>()
+      {
+        @Override
+        public DimFilter visit(DimFilter expression)
+        {
+          if (expression instanceof DimFilter.LogProvider) {
+            expression = ((DimFilter.LogProvider) expression).forLog();
+          }
+          return expression;
+        }
+      });
+      if (filter != rewritten) {
+        query = ((Query.FilterSupport) query).withFilter(rewritten);
+      }
+    }
+    return query;
+  }
+
   public static boolean hasAnyLucene(final DimFilter filter)
   {
     return filter != null && hasAny(filter, new Predicate<DimFilter>()

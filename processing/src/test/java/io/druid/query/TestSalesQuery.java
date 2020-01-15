@@ -22,6 +22,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.Intervals;
+import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -29,9 +31,13 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
+import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.BloomDimFilter;
+import io.druid.query.filter.InDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.GroupingSetSpec;
@@ -43,6 +49,8 @@ import io.druid.query.groupby.orderby.PartitionExpression;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.query.select.StreamQuery;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
@@ -629,7 +637,6 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         array("2011-01-01", "Technology", -6600.0, 452.74553329723875, 836221.0)
     };
     Iterable<Row> results = runQuery(query);
-    printToExpected(columnNames, results);
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
     // test ordering
@@ -637,5 +644,57 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         Arrays.asList("Category", "MIN(Profit)", "AVG(Sales)", "SUM(Sales)"),
         Lists.newArrayList(Iterables.getFirst(results, null).getColumns())
     );
+  }
+
+  @Test
+  public void testBloomFilter()
+  {
+    TimeseriesQuery query = new TimeseriesQuery.Builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.of("Category"))
+        .aggregators(
+            BloomFilterAggregatorFactory.of("BLOOM", Arrays.asList("State"), 100)
+        )
+        .build();
+    BloomKFilter filter = (BloomKFilter) Iterables.getOnlyElement(runQuery(query)).getRaw("BLOOM");
+    for (String x : Arrays.asList("California", "New York", "Washington", "Michigan")) {
+      Assert.assertTrue(x, filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+    }
+    for (String x : Arrays.asList("CaliforniA", "New?York", "washington", "MiChigan")) {
+      Assert.assertFalse(x, filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+    }
+  }
+
+  @Test
+  public void testBloomFilterFilter()
+  {
+    final List<String> values = Arrays.asList("California", "New York", "Virginia");
+
+    TimeseriesQuery query = new TimeseriesQuery.Builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.of("Category"))
+        .aggregators(
+            BloomFilterAggregatorFactory.of("BLOOM", Arrays.asList("State"), 100)
+        )
+        .filters(new InDimFilter("State", values, null))
+        .build();
+    BloomKFilter filter = (BloomKFilter) Iterables.getOnlyElement(runQuery(query)).getRaw("BLOOM");
+    for (String x : Arrays.asList("California", "New York", "Washington", "Michigan")) {
+      Assert.assertEquals(values.contains(x), filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+    }
+
+    StreamQuery stream = Druids.newSelectQueryBuilder()
+                               .dataSource("sales")
+                               .intervals(Intervals.of("2011-01-01/2015-01-01"))
+                               .filters(BloomDimFilter.of(Arrays.asList("State"), filter))
+                               .columns("State")
+                               .streaming();
+
+    List<Object[]> rows = runQuery(stream);
+    for (Object[] x : rows) {
+      Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
+    }
   }
 }

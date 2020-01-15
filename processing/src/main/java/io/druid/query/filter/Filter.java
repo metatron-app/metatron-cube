@@ -40,6 +40,24 @@ public interface Filter extends Expression
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);
 
+  abstract class Abstract implements Filter
+  {
+    @Override
+    public final ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+    {
+      return null;
+    }
+  }
+
+  abstract class ValueOnly extends Abstract
+  {
+    @Override
+    public final ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+    {
+      return null;
+    }
+  }
+
   // factory
   class Factory implements Expression.Factory<Filter>
   {

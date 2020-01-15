@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.java.util.common.ISE;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.groupby.UTF8Bytes;
 import io.druid.segment.DimensionSelector;
@@ -32,7 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public abstract class HashAggregator<T extends HashCollector> extends Aggregator.Simple<T>
+public class HashAggregator<T extends HashCollector> extends Aggregator.Simple<T>
 {
   // aggregator can be shared by multi threads
   private static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
@@ -61,7 +62,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
       boolean byRow
   )
   {
-    this.predicate = predicate;
+    this.predicate = predicate == null ? ValueMatcher.TRUE : predicate;
     this.selectorList = selectorList;
     this.groupings = groupings;
     this.byRow = byRow;
@@ -69,7 +70,7 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
 
   public HashAggregator(List<DimensionSelector> selectorList, int[][] groupings)
   {
-    this(ValueMatcher.TRUE, selectorList, groupings, true);
+    this(null, selectorList, groupings, true);
   }
 
   @Override
@@ -90,7 +91,10 @@ public abstract class HashAggregator<T extends HashCollector> extends Aggregator
     return current;
   }
 
-  protected abstract T newCollector();
+  protected T newCollector()
+  {
+    throw new ISE("implement this");
+  }
 
   public static void hashRow(
       List<DimensionSelector> selectorList,

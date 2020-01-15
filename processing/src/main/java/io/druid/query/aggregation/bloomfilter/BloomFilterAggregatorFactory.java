@@ -17,17 +17,15 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.countmin;
+package io.druid.query.aggregation.bloomfilter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -35,7 +33,6 @@ import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -52,10 +49,15 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-@JsonTypeName("countMin")
-public class CountMinAggregatorFactory extends AggregatorFactory
+@JsonTypeName("bloomFilter")
+public class BloomFilterAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x24;
+  public static BloomFilterAggregatorFactory of(String name, List<String> fieldNames, int maxNumEntries)
+  {
+    return new BloomFilterAggregatorFactory(name, fieldNames, null, null, null, true, maxNumEntries, false);
+  }
+
+  private static final byte CACHE_TYPE_ID = 0x25;
 
   private final String name;
   private final List<String> fieldNames;
@@ -63,56 +65,50 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   private final GroupingSetSpec groupingSets;
   private final String predicate;
   private final boolean byRow;
-  private final int width;
-  private final int depth;
-  private final boolean combine;
+  private final int maxNumEntries;
+  private final boolean combine;  // not supports cause seemed useless
 
   @JsonCreator
-  public CountMinAggregatorFactory(
+  public BloomFilterAggregatorFactory(
       @JsonProperty("name") final String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
       @JsonProperty("fields") final List<DimensionSpec> fields,
       @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
       @JsonProperty("predicate") final String predicate,
       @JsonProperty("byRow") final boolean byRow,
-      @JsonProperty("width") final int width,
-      @JsonProperty("depth") final int depth,
+      @JsonProperty("maxNumEntries") final int maxNumEntries,
       @JsonProperty("combine") final boolean combine
   )
   {
     this.name = name;
+    this.predicate = predicate;
     this.fieldNames = fieldNames;
     this.fields = fields;
     this.groupingSets = groupingSets;
-    this.predicate = predicate;
     this.byRow = byRow;
-    this.width = width;
-    this.depth = depth;
+    this.maxNumEntries = maxNumEntries;
     this.combine = combine;
     Preconditions.checkArgument(
         fieldNames == null ^ fields == null,
         "Must have a valid, non-null fieldNames or fields"
     );
-    Preconditions.checkArgument(width > 0 && depth > 0);
   }
 
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnFactory)
   {
     if (combine) {
-      return Aggregators.asAggregator(
-          combiner(), columnFactory.<CountMinSketch>makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames))
-      );
+      throw new UnsupportedOperationException("combining aggregator");
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = new int[][]{};
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
-    return new CountMinAggregator(matcher, selectors, grouping, byRow, width, depth);
+    return new BloomFilterAggregator(matcher, selectors, grouping, byRow, maxNumEntries);
   }
 
 
@@ -120,62 +116,40 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnFactory)
   {
     if (combine) {
-      return CountMinBufferAggregator.combiner(
-          columnFactory.<CountMinSketch>makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames)), width, depth
-      );
+      throw new UnsupportedOperationException("combining buffer aggregator");
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = new int[][]{};
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
-    final ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
-    return CountMinBufferAggregator.iterator(selectors, predicate, grouping, byRow, width, depth);
-  }
-
-  private List<DimensionSelector> makeDimensionSelectors(
-      final List<DimensionSpec> dimensionSpecs,
-      final ColumnSelectorFactory columnFactory
-  )
-  {
-    return Lists.newArrayList(
-        Lists.transform(
-            Preconditions.checkNotNull(dimensionSpecs),
-            new Function<DimensionSpec, DimensionSelector>()
-            {
-              @Override
-              public DimensionSelector apply(DimensionSpec input)
-              {
-                return columnFactory.makeDimensionSelector(input);
-              }
-            }
-        )
-    );
+    ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
+    return BloomFilterBufferAggregator.iterator(selectors, matcher, grouping, byRow, maxNumEntries);
   }
 
   @Override
   public Comparator getComparator()
   {
-    return new Comparator<CountMinSketch>()
+    return new Comparator<BloomKFilter>()
     {
       @Override
-      public int compare(CountMinSketch lhs, CountMinSketch rhs)
+      public int compare(BloomKFilter lhs, BloomKFilter rhs)
       {
-        return lhs.compareTo(rhs);
+        return Longs.compare(lhs.getNumSetBits(), rhs.getNumSetBits());
       }
     };
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public Combiner<CountMinSketch> combiner()
+  public Combiner<BloomKFilter> combiner()
   {
-    return new Combiner<CountMinSketch>()
+    return new Combiner<BloomKFilter>()
     {
       @Override
-      public CountMinSketch combine(CountMinSketch param1, CountMinSketch param2)
+      public BloomKFilter combine(BloomKFilter param1, BloomKFilter param2)
       {
         if (param1 == null) {
           return param2;
@@ -191,19 +165,19 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new CountMinAggregatorFactory(name, Arrays.asList(name), null, null, null, false, width, depth, true);
+    return new BloomFilterAggregatorFactory(name, Arrays.asList(name), null, null, null, false, maxNumEntries, true);
   }
 
   @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    throw new UnsupportedOperationException("can't merge CountMinAggregatorFactory");
+    throw new UnsupportedOperationException("can't merge BloomFilterAggregatorFactory");
   }
 
   @Override
   public Object deserialize(Object object)
   {
-    if (object == null || object instanceof CountMinSketch) {
+    if (object == null || object instanceof BloomKFilter) {
       return object;
     }
     final byte[] buffer;
@@ -214,7 +188,7 @@ public class CountMinAggregatorFactory extends AggregatorFactory
     } else {
       throw new ISE("?? %s", object.getClass().getSimpleName());
     }
-    return CountMinSketch.fromCompressedBytes(buffer);
+    return BloomKFilter.deserialize(buffer);
   }
 
   @Override
@@ -264,15 +238,16 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public int getWidth()
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public GroupingSetSpec getGroupingSets()
   {
-    return width;
+    return groupingSets;
   }
 
   @JsonProperty
-  public int getDepth()
+  public int getMaxNumEntries()
   {
-    return depth;
+    return maxNumEntries;
   }
 
   @Override
@@ -285,21 +260,20 @@ public class CountMinAggregatorFactory extends AggregatorFactory
                      .append(groupingSets)
                      .append(predicate)
                      .append(byRow)
-                     .append(width)
-                     .append(depth)
+                     .append(maxNumEntries)
                      .build();
   }
 
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("countMin");
+    return ValueDesc.of("bloomFilter");
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return (width * depth + 2) * Ints.BYTES;
+    return BloomKFilter.computeSizeBytes(maxNumEntries);
   }
 
   @Override
@@ -312,15 +286,12 @@ public class CountMinAggregatorFactory extends AggregatorFactory
       return false;
     }
 
-    CountMinAggregatorFactory that = (CountMinAggregatorFactory) o;
+    BloomFilterAggregatorFactory that = (BloomFilterAggregatorFactory) o;
 
     if (byRow != that.byRow) {
       return false;
     }
-    if (width != that.width) {
-      return false;
-    }
-    if (depth != that.depth) {
+    if (maxNumEntries != that.maxNumEntries) {
       return false;
     }
     if (!Objects.equals(fieldNames, that.fieldNames)) {
@@ -351,23 +322,21 @@ public class CountMinAggregatorFactory extends AggregatorFactory
     result = 31 * result + Objects.hashCode(groupingSets);
     result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
-    result = 31 * result + width;
-    result = 31 * result + depth;
+    result = 31 * result + maxNumEntries;
     return result;
   }
 
   @Override
   public String toString()
   {
-    return "CountMinAggregatorFactory{" +
+    return "BloomFilterAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldNames='" + fieldNames + '\'' +
            ", fields=" + fields +
            ", groupingSets=" + groupingSets +
            ", predicate='" + predicate + '\'' +
            ", byRow=" + byRow +
-           ", width=" + width +
-           ", depth=" + depth +
+           ", maxNumEntries=" + maxNumEntries +
            '}';
   }
 }

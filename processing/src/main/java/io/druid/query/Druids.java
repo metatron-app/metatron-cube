@@ -51,6 +51,7 @@ import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.LegacySegmentSpec;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -943,8 +944,13 @@ public class Druids
 
     public SelectQueryBuilder intervals(List<Interval> l)
     {
-      querySegmentSpec = new LegacySegmentSpec(l);
+      querySegmentSpec = new MultipleIntervalSegmentSpec(l);
       return this;
+    }
+
+    public SelectQueryBuilder intervals(Interval interval)
+    {
+      return intervals(Arrays.asList(interval));
     }
 
     public SelectQueryBuilder descending(boolean descending)

@@ -636,6 +636,9 @@ public class Filters
   private static BitmapHolder leafToBitmap(DimFilter filter, FilterContext context)
   {
     Preconditions.checkArgument(!(filter instanceof RelationExpression));
+    if (filter instanceof DimFilter.ValueOnly) {
+      return null;
+    }
     final BitmapIndexSelector selector = context.selector;
     final Schema schema = selector.getSchema(true);
     if (filter instanceof MathExprFilter) {

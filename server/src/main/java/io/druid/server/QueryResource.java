@@ -76,7 +76,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -314,7 +313,8 @@ public class QueryResource
               throw (WebApplicationException) t;
             }
             throw Throwables.propagate(t);
-          } finally {
+          }
+          finally {
             writer.set(null);
           }
 
@@ -372,11 +372,16 @@ public class QueryResource
   // suppress excessive interval logging in historical node
   protected Query toLoggingQuery(Query<?> query)
   {
-    query = query.withQuerySegmentSpec(
-        new MultipleIntervalSegmentSpec(Arrays.asList(JodaUtils.umbrellaInterval(query.getIntervals())))
-    );
+    if (query.getIntervals().size() > 1) {
+      query = query.withQuerySegmentSpec(
+          MultipleIntervalSegmentSpec.of(JodaUtils.umbrellaInterval(query.getIntervals()))
+      );
+    }
     if (query instanceof Query.LogProvider) {
       query = ((Query.LogProvider) query).forLog();
+    }
+    if (query instanceof Query.FilterSupport) {
+      query = DimFilters.rewriteLogFilter(query);
     }
     return query;
   }
