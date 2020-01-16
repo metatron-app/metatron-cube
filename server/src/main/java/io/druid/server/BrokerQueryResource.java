@@ -29,8 +29,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
@@ -43,6 +41,8 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.ForwardingSegmentWalker;
@@ -208,7 +208,7 @@ public class BrokerQueryResource extends QueryResource
       query = ((Query.LogProvider) query).forLog();
     }
     if (query instanceof Query.FilterSupport) {
-      query = DimFilters.rewriteLogFilter(query);
+      query = DimFilters.rewrite(query, DimFilters.LOG_PROVIDER);
     }
     return query;
   }

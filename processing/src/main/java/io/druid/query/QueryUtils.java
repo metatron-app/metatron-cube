@@ -237,10 +237,10 @@ public class QueryUtils
           public Query apply(Query input)
           {
             if (input instanceof Query.RewritingQuery) {
-              input = ((Query.RewritingQuery) input).rewriteQuery(
-                  segmentWalker,
-                  queryConfig
-              );
+              input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker, queryConfig);
+            }
+            if (input instanceof Query.FilterSupport) {
+              input = DimFilters.rewrite(input, DimFilters.rewriter(segmentWalker, input));
             }
             return input;
           }

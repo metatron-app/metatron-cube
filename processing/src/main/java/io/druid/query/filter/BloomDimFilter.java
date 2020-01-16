@@ -22,34 +22,52 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
+import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
+import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.aggregation.HashCollector;
+import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupingSetSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  */
+@JsonTypeName("bloom")
 public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvider
 {
   public static BloomDimFilter of(List<String> fieldNames, BloomKFilter filter)
   {
     return new BloomDimFilter(fieldNames, null, GroupingSetSpec.EMPTY, filter.serialize());
+  }
+
+  public static BloomDimFilter.Factory factory(List<String> fieldNames, ViewDataSource dataSource, int maxNumEntries)
+  {
+    return new BloomDimFilter.Factory(fieldNames, null, GroupingSetSpec.EMPTY, dataSource, maxNumEntries);
   }
 
   private final List<String> fieldNames;
@@ -194,5 +212,101 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
            ", fields=" + fields +
            ", groupingSets=" + groupingSets +
            '}';
+  }
+
+  @JsonTypeName("bloom.factory")
+  public static class Factory extends DimFilter.Abstract implements DimFilter.Rewriting
+  {
+    private final List<String> fieldNames;
+    private final List<DimensionSpec> fields;
+    private final GroupingSetSpec groupingSets;
+    private final ViewDataSource bloomSource;
+    private final int maxNumEntries;
+
+    @JsonCreator
+    public Factory(
+        @JsonProperty("fieldNames") List<String> fieldNames,
+        @JsonProperty("fields") List<DimensionSpec> fields,
+        @JsonProperty("groupingSets") GroupingSetSpec groupingSets,
+        @JsonProperty("bloomSource") ViewDataSource bloomSource,
+        @JsonProperty("maxNumEntries") int maxNumEntries
+    )
+    {
+      this.fieldNames = fieldNames;
+      this.fields = fields;
+      this.groupingSets = groupingSets;
+      this.bloomSource = Preconditions.checkNotNull(bloomSource);
+      this.maxNumEntries = maxNumEntries;
+    }
+
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    public List<String> getFieldNames()
+    {
+      return fieldNames;
+    }
+
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    public List<DimensionSpec> getFields()
+    {
+      return fields;
+    }
+
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public GroupingSetSpec getGroupingSets()
+    {
+      return groupingSets;
+    }
+
+    @JsonProperty
+    public ViewDataSource getBloomSource()
+    {
+      return bloomSource;
+    }
+
+    @JsonProperty
+    public int getMaxNumEntries()
+    {
+      return maxNumEntries;
+    }
+
+    @Override
+    public DimFilter rewrite(QuerySegmentWalker walker, Query parent)
+    {
+      TimeseriesQuery query = new TimeseriesQuery.Builder()
+          .dataSource(bloomSource.getName())
+          .filters(bloomSource.getFilter())
+          .context(BaseQuery.copyContextForMeta(parent))
+          .build();
+
+      int expectedCardinality = maxNumEntries;
+      if (expectedCardinality <= 0) {
+        query = query.withAggregatorSpecs(
+            Arrays.asList(CardinalityAggregatorFactory.of("$cardinality", bloomSource.getColumns(), groupingSets))
+        );
+        expectedCardinality = Ints.checkedCast(
+            Sequences.only(QueryRunners.run(query, walker)).getLongMetric("$cardinality")
+        );
+      }
+      query = query.withAggregatorSpecs(
+          Arrays.asList(BloomFilterAggregatorFactory.of("$bloom", bloomSource.getColumns(), expectedCardinality))
+      );
+      BloomKFilter filter = (BloomKFilter) Sequences.only(QueryRunners.run(query, walker)).getRaw("$bloom");
+      return new BloomDimFilter(fieldNames, fields, groupingSets, filter.serialize());
+    }
+
+    @Override
+    public String toString()
+    {
+      return "BloomDimFilter.Factory{" +
+             "fieldNames=" + fieldNames +
+             ", fields=" + fields +
+             ", groupingSets=" + groupingSets +
+             ", bloomSource=" + bloomSource +
+             ", maxNumEntries=" + maxNumEntries +
+             '}';
+    }
   }
 }

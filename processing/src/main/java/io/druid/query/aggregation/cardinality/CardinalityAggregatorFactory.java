@@ -52,6 +52,11 @@ import java.util.Objects;
 
 public class CardinalityAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
+  public static CardinalityAggregatorFactory of(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
+  {
+    return new CardinalityAggregatorFactory(name, fieldNames, null, groupingSets, null, true, true);
+  }
+
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
   private final String name;

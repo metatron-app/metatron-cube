@@ -510,7 +510,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
               @Override
               public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
               {
-                return runner.run(segment.isIndexed() ? query : DimFilters.rewriteLuceneFilter(query), responseContext);
+                return runner.run(segment.isIndexed() ? query : DimFilters.rewrite(query, DimFilters.LUCENE), responseContext);
               }
             };
             return new SpecificSegmentQueryRunner<T>(

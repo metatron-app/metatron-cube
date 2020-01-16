@@ -381,7 +381,7 @@ public class QueryResource
       query = ((Query.LogProvider) query).forLog();
     }
     if (query instanceof Query.FilterSupport) {
-      query = DimFilters.rewriteLogFilter(query);
+      query = DimFilters.rewrite(query, DimFilters.LOG_PROVIDER);
     }
     return query;
   }
@@ -418,7 +418,7 @@ public class QueryResource
     }
     if (ServiceTypes.PEON.equals(node.getType()) ||
         ServiceTypes.REALTIME.equals(node.getType())) {
-      query = DimFilters.rewriteLuceneFilter(query);
+      query = DimFilters.rewrite(query, DimFilters.LUCENE);
     }
     return query;
   }

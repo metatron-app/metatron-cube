@@ -37,6 +37,7 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BloomDimFilter;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
@@ -652,7 +653,6 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     TimeseriesQuery query = new TimeseriesQuery.Builder()
         .dataSource("sales")
         .intervals(Intervals.of("2011-01-01/2015-01-01"))
-        .dimensions(DefaultDimensionSpec.of("Category"))
         .aggregators(
             BloomFilterAggregatorFactory.of("BLOOM", Arrays.asList("State"), 100)
         )
@@ -674,7 +674,6 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     TimeseriesQuery query = new TimeseriesQuery.Builder()
         .dataSource("sales")
         .intervals(Intervals.of("2011-01-01/2015-01-01"))
-        .dimensions(DefaultDimensionSpec.of("Category"))
         .aggregators(
             BloomFilterAggregatorFactory.of("BLOOM", Arrays.asList("State"), 100)
         )
@@ -689,6 +688,28 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
                                .dataSource("sales")
                                .intervals(Intervals.of("2011-01-01/2015-01-01"))
                                .filters(BloomDimFilter.of(Arrays.asList("State"), filter))
+                               .columns("State")
+                               .streaming();
+
+    List<Object[]> rows = runQuery(stream);
+    for (Object[] x : rows) {
+      Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
+    }
+  }
+
+  @Test
+  public void testBloomFilterFactory()
+  {
+    final List<String> values = Arrays.asList("California", "New York", "Virginia");
+
+    DimFilter filter = BloomDimFilter.factory(
+        Arrays.asList("State"),
+        ViewDataSource.of("sales", new InDimFilter("State", values, null), Arrays.asList("State")), -1
+    );
+    StreamQuery stream = Druids.newSelectQueryBuilder()
+                               .dataSource("sales")
+                               .intervals(Intervals.of("2011-01-01/2015-01-01"))
+                               .filters(filter)
                                .columns("State")
                                .streaming();
 

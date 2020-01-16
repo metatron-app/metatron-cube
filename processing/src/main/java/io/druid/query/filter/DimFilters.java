@@ -28,14 +28,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expression;
 import io.druid.math.expr.Expressions;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.Filters;
 
@@ -175,21 +176,11 @@ public class DimFilters
   }
 
   // called for non-historical nodes (see QueryResource.prepareQuery)
-  public static Query rewriteLuceneFilter(Query query)
+  public static Query rewrite(Query query, Expressions.Rewriter<DimFilter> visitor)
   {
     final DimFilter filter = BaseQuery.getDimFilter(query);
     if (filter != null) {
-      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, new Expressions.Rewriter<DimFilter>()
-      {
-        @Override
-        public DimFilter visit(DimFilter expression)
-        {
-          if (expression instanceof DimFilter.LuceneFilter) {
-            expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
-          }
-          return expression;
-        }
-      });
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, visitor);
       if (filter != rewritten) {
         query = ((Query.FilterSupport) query).withFilter(rewritten);
       }
@@ -197,26 +188,43 @@ public class DimFilters
     return query;
   }
 
-  public static Query rewriteLogFilter(Query query)
+  public static final Expressions.Rewriter<DimFilter> LUCENE = new Expressions.Rewriter<DimFilter>()
   {
-    final DimFilter filter = BaseQuery.getDimFilter(query);
-    if (filter != null) {
-      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, new Expressions.Rewriter<DimFilter>()
-      {
-        @Override
-        public DimFilter visit(DimFilter expression)
-        {
-          if (expression instanceof DimFilter.LogProvider) {
-            expression = ((DimFilter.LogProvider) expression).forLog();
-          }
-          return expression;
-        }
-      });
-      if (filter != rewritten) {
-        query = ((Query.FilterSupport) query).withFilter(rewritten);
+    @Override
+    public DimFilter visit(DimFilter expression)
+    {
+      if (expression instanceof DimFilter.LuceneFilter) {
+        expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
       }
+      return expression;
     }
-    return query;
+  };
+
+  public static final Expressions.Rewriter<DimFilter> LOG_PROVIDER = new Expressions.Rewriter<DimFilter>()
+  {
+    @Override
+    public DimFilter visit(DimFilter expression)
+    {
+      if (expression instanceof DimFilter.LogProvider) {
+        expression = ((DimFilter.LogProvider) expression).forLog();
+      }
+      return expression;
+    }
+  };
+
+  public static Expressions.Rewriter<DimFilter> rewriter(final QuerySegmentWalker walker, final Query query)
+  {
+    return new Expressions.Rewriter<DimFilter>()
+    {
+      @Override
+      public DimFilter visit(DimFilter expression)
+      {
+        if (expression instanceof DimFilter.Rewriting) {
+          expression = ((DimFilter.Rewriting) expression).rewrite(walker, query);
+        }
+        return expression;
+      }
+    };
   }
 
   public static boolean hasAnyLucene(final DimFilter filter)

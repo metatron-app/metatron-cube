@@ -26,6 +26,8 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
+import io.druid.query.Query;
+import io.druid.query.QuerySegmentWalker;
 
 import java.util.List;
 import java.util.Map;
@@ -33,28 +35,29 @@ import java.util.Set;
 
 /**
  */
-@JsonTypeInfo(use=JsonTypeInfo.Id.NAME, property="type", defaultImpl = MathExprFilter.class)
-@JsonSubTypes(value={
-    @JsonSubTypes.Type(name="and", value=AndDimFilter.class),
-    @JsonSubTypes.Type(name="or", value=OrDimFilter.class),
-    @JsonSubTypes.Type(name="not", value=NotDimFilter.class),
-    @JsonSubTypes.Type(name="selector", value=SelectorDimFilter.class),
-    @JsonSubTypes.Type(name="extraction", value=ExtractionDimFilter.class),
-    @JsonSubTypes.Type(name="regex", value=RegexDimFilter.class),
-    @JsonSubTypes.Type(name="search", value=SearchQueryDimFilter.class),
-    @JsonSubTypes.Type(name="javascript", value=JavaScriptDimFilter.class),
-    @JsonSubTypes.Type(name="spatial", value=SpatialDimFilter.class),
-    @JsonSubTypes.Type(name="in", value=InDimFilter.class),
-    @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class),
-    @JsonSubTypes.Type(name="math", value=MathExprFilter.class),
-    @JsonSubTypes.Type(name="true", value=DimFilters.All.class),
-    @JsonSubTypes.Type(name="false", value=DimFilters.None.class),
-    @JsonSubTypes.Type(name="lucene.query", value=LuceneQueryFilter.class),
-    @JsonSubTypes.Type(name="lucene.point", value=LucenePointFilter.class),
-    @JsonSubTypes.Type(name="lucene.nearest", value=LuceneNearestFilter.class),
-    @JsonSubTypes.Type(name="lucene.geojson", value=LuceneGeoJsonPolygonFilter.class),
-    @JsonSubTypes.Type(name="like", value=LikeDimFilter.class),
-    @JsonSubTypes.Type(name="bloomFilter", value=BloomDimFilter.class),
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = MathExprFilter.class)
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "and", value = AndDimFilter.class),
+    @JsonSubTypes.Type(name = "or", value = OrDimFilter.class),
+    @JsonSubTypes.Type(name = "not", value = NotDimFilter.class),
+    @JsonSubTypes.Type(name = "selector", value = SelectorDimFilter.class),
+    @JsonSubTypes.Type(name = "extraction", value = ExtractionDimFilter.class),
+    @JsonSubTypes.Type(name = "regex", value = RegexDimFilter.class),
+    @JsonSubTypes.Type(name = "search", value = SearchQueryDimFilter.class),
+    @JsonSubTypes.Type(name = "javascript", value = JavaScriptDimFilter.class),
+    @JsonSubTypes.Type(name = "spatial", value = SpatialDimFilter.class),
+    @JsonSubTypes.Type(name = "in", value = InDimFilter.class),
+    @JsonSubTypes.Type(name = "bound", value = BoundDimFilter.class),
+    @JsonSubTypes.Type(name = "math", value = MathExprFilter.class),
+    @JsonSubTypes.Type(name = "true", value = DimFilters.All.class),
+    @JsonSubTypes.Type(name = "false", value = DimFilters.None.class),
+    @JsonSubTypes.Type(name = "lucene.query", value = LuceneQueryFilter.class),
+    @JsonSubTypes.Type(name = "lucene.point", value = LucenePointFilter.class),
+    @JsonSubTypes.Type(name = "lucene.nearest", value = LuceneNearestFilter.class),
+    @JsonSubTypes.Type(name = "lucene.geojson", value = LuceneGeoJsonPolygonFilter.class),
+    @JsonSubTypes.Type(name = "like", value = LikeDimFilter.class),
+    @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
+    @JsonSubTypes.Type(name = "bloom.factory", value = BloomDimFilter.Factory.class),
 })
 public interface DimFilter extends Expression, Cacheable
 {
@@ -78,10 +81,44 @@ public interface DimFilter extends Expression, Cacheable
    * Returns a Filter that implements this DimFilter. This does not generally involve optimizing the DimFilter,
    * so it does make sense to optimize first and then call toFilter on the resulting DimFilter.
    *
-   * @return a Filter that implements this DimFilter, or null if this DimFilter is a no-op.
    * @param resolver
+   *
+   * @return a Filter that implements this DimFilter, or null if this DimFilter is a no-op.
    */
   public Filter toFilter(TypeResolver resolver);
+
+  abstract class Abstract implements DimFilter {
+
+    @Override
+    public DimFilter optimize()
+    {
+      return this;
+    }
+
+    @Override
+    public DimFilter withRedirection(Map<String, String> mapping)
+    {
+      return this;
+    }
+
+    @Override
+    public void addDependent(Set<String> handler)
+    {
+      throw new UnsupportedOperationException("addDependent");
+    }
+
+    @Override
+    public Filter toFilter(TypeResolver resolver)
+    {
+      throw new UnsupportedOperationException("toFilter");
+    }
+
+    @Override
+    public byte[] getCacheKey()
+    {
+      throw new UnsupportedOperationException("getCacheKey");
+    }
+  }
 
   abstract class NotOptimizable implements DimFilter
   {
@@ -143,8 +180,13 @@ public interface DimFilter extends Expression, Cacheable
     Filter.ValueOnly toFilter(TypeResolver resolver);
   }
 
-  interface LogProvider
+  interface LogProvider extends DimFilter
   {
     DimFilter forLog();
+  }
+
+  interface Rewriting extends DimFilter
+  {
+    DimFilter rewrite(QuerySegmentWalker walker, Query parent);
   }
 }
