@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -37,7 +38,12 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.BloomDimFilter;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -239,6 +245,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final int threshold = queryConfig.getHashJoinThreshold(this);
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
 
+    long estimation0 = ROWNUM_UNKNOWN;
+    long estimation1 = ROWNUM_UNKNOWN;
     double currentEstimation = ROWNUM_UNKNOWN;
     final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
     for (int i = 0; i < elements.size(); i++) {
@@ -266,6 +274,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           query = query.withOverriddenContext(JoinElement.HASHING, true);
         }
         currentEstimation = leftEstimated;
+        estimation0 = leftEstimated;
+        estimation1 = rightEstimated;
         queries.add(query);
       }
       LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
@@ -289,7 +299,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           break;
         case RO:
           if (rightEstimated > 0) {
-            if (currentEstimation > rightEstimated){
+            if (currentEstimation > rightEstimated) {
               currentEstimation = rightEstimated * (currentEstimation / rightEstimated);
             } else {
               currentEstimation = rightEstimated;
@@ -301,6 +311,20 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           break;
       }
       queries.add(query);
+    }
+
+    final Query query0 = queries.get(0);
+    final Query query1 = queries.get(1);
+    final JoinElement element = elements.get(0);
+    final JoinType type = element.getJoinType();
+    if (type.isLeftDrivable() && query0.hasFilters() &&
+        (isHashed(query0) || estimation0 > 0 && estimation1 > 0 && estimation1 > estimation0 * 2)) {
+      // left to right
+      queries.set(1, inject(query0, element.getLeftJoinColumns(), estimation0, query1, element.getRightJoinColumns()));
+    } else if (type.isRightDrivable() && query1.hasFilters() &&
+               (isHashed(query1) || estimation0 > 0 && estimation1 > 0 && estimation0 > estimation1 * 2)) {
+      // right to left
+      queries.set(0, inject(query1, element.getRightJoinColumns(), estimation1, query0, element.getLeftJoinColumns()));
     }
 
     List<String> prefixAliases;
@@ -330,6 +354,34 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return new JoinDelegate(
         queries, prefixAliases, timeColumn, (long) currentEstimation, limit, computeOverriddenContext(joinContext)
     );
+  }
+
+  private boolean isHashed(Query query)
+  {
+    return query.getContextBoolean(JoinElement.HASHING, false);
+  }
+
+  private Query inject(
+      Query source,
+      List<String> sourceJoinOn,
+      long sourceCardinality,
+      Query target,
+      List<String> targetJoinOn
+  )
+  {
+    if (source instanceof StreamQuery &&
+        target instanceof Query.FilterSupport &&
+        source.getDataSource() instanceof TableDataSource &&
+        target.getDataSource() instanceof TableDataSource) {
+      // this is evaluated in UnionQueryRunner
+      List<DimensionSpec> extracted = Queries.extractInputFields(target, targetJoinOn);
+      if (extracted != null) {
+        ViewDataSource sourceView = BaseQuery.asView(source, sourceJoinOn);
+        DimFilter factory = BloomDimFilter.Factory.fields(extracted, sourceView, Ints.checkedCast(sourceCardinality));
+        return DimFilters.and((FilterSupport<?>) target, factory);
+      }
+    }
+    return target;
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)

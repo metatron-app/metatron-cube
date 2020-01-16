@@ -421,7 +421,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
     }
     if (query instanceof UnionAllQuery) {
-      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, executor, this);
+      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, executor, this, queryConfig);
     }
     if (factory == null) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);

@@ -292,7 +292,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   public QueryRunner<T> getUnionQueryRunner(
       final ObjectMapper mapper,
       final ExecutorService exec,
-      final QuerySegmentWalker segmentWalker
+      final QuerySegmentWalker segmentWalker,
+      final QueryConfig queryConfig
   )
   {
     final UnionAllQueryRunner<T> baseRunner;
@@ -319,7 +320,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                                 @Override
                                 public Sequence<T> get()
                                 {
-                                  return query.run(segmentWalker, responseContext);
+                                  return QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig)
+                                                   .run(segmentWalker, responseContext);
                                 }
                               }
                           )
@@ -354,7 +356,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                         public Sequence<T> call()
                         {
                           // removed eager loading.. especially bad for join query
-                          Sequence<T> sequence = query.run(segmentWalker, responseContext);
+                          Sequence<T> sequence = QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig)
+                                                           .run(segmentWalker, responseContext);
                           return Sequences.withBaggage(sequence, semaphore);
                         }
 

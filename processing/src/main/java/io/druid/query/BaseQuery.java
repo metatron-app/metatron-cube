@@ -32,7 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
@@ -40,6 +39,7 @@ import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -244,6 +244,18 @@ public abstract class BaseQuery<T> implements Query<T>
   public static List<PostAggregator> getPostAggregators(Query query)
   {
     return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getPostAggregatorSpecs() : Arrays.asList();
+  }
+
+  public static ViewDataSource asView(Query query, List<String> columns)
+  {
+    Preconditions.checkArgument(query.getDataSource() instanceof TableDataSource);
+    return new ViewDataSource(
+        ((TableDataSource) query.getDataSource()).getName(),
+        columns,
+        getVirtualColumns(query),
+        getDimFilter(query),
+        false
+    );
   }
 
   @Override

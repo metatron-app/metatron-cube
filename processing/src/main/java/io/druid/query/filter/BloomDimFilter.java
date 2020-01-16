@@ -65,11 +65,6 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
     return new BloomDimFilter(fieldNames, null, GroupingSetSpec.EMPTY, filter.serialize());
   }
 
-  public static BloomDimFilter.Factory factory(List<String> fieldNames, ViewDataSource dataSource, int maxNumEntries)
-  {
-    return new BloomDimFilter.Factory(fieldNames, null, GroupingSetSpec.EMPTY, dataSource, maxNumEntries);
-  }
-
   private final List<String> fieldNames;
   private final List<DimensionSpec> fields;
   private final GroupingSetSpec groupingSets;
@@ -217,6 +212,16 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
   @JsonTypeName("bloom.factory")
   public static class Factory extends DimFilter.Abstract implements DimFilter.Rewriting
   {
+    public static BloomDimFilter.Factory fieldNames(List<String> fieldNames, ViewDataSource source, int maxNumEntries)
+    {
+      return new BloomDimFilter.Factory(fieldNames, null, GroupingSetSpec.EMPTY, source, maxNumEntries);
+    }
+
+    public static BloomDimFilter.Factory fields(List<DimensionSpec> fields, ViewDataSource source, int maxNumEntries)
+    {
+      return new BloomDimFilter.Factory(null, fields, GroupingSetSpec.EMPTY, source, maxNumEntries);
+    }
+
     private final List<String> fieldNames;
     private final List<DimensionSpec> fields;
     private final GroupingSetSpec groupingSets;

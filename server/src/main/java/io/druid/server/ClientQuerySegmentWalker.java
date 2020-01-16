@@ -111,7 +111,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
 
     if (query instanceof UnionAllQuery) {
       // all things done inside, include post processings, etc.
-      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, exec, this);
+      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, exec, this, queryConfig);
     }
 
     if (query instanceof Query.IteratingQuery) {

@@ -702,7 +702,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
   {
     final List<String> values = Arrays.asList("California", "New York", "Virginia");
 
-    DimFilter filter = BloomDimFilter.factory(
+    DimFilter filter = BloomDimFilter.Factory.fieldNames(
         Arrays.asList("State"),
         ViewDataSource.of("sales", new InDimFilter("State", values, null), Arrays.asList("State")), -1
     );

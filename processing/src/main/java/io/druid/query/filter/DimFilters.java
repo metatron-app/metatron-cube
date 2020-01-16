@@ -70,6 +70,11 @@ public class DimFilters
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
+  public static <T> Query.FilterSupport<T> and(Query.FilterSupport<T> query, DimFilter filter)
+  {
+    return query.withFilter(and(query.getFilter(), filter));
+  }
+
   public static DimFilter or(DimFilter... filters)
   {
     return or(Arrays.asList(filters));

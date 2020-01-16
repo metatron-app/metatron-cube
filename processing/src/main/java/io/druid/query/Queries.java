@@ -419,6 +419,29 @@ public class Queries
     return function.apply(query);
   }
 
+  public static List<DimensionSpec> extractInputFields(Query query, List<String> outputNames)
+  {
+    if (query instanceof Query.ColumnsSupport) {
+      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport<?>) query;
+      if (columnsSupport.getColumns().containsAll(outputNames)) {
+        return DefaultDimensionSpec.toSpec(outputNames);
+      }
+    }
+    if (query instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<?> dimensionSupport = (Query.DimensionSupport) query;
+      List<DimensionSpec> dimensionSpecs = dimensionSupport.getDimensions();
+      int[] indices = GuavaUtils.indexOf(DimensionSpecs.toOutputNames(dimensionSpecs), outputNames, true);
+      if (indices != null) {
+        List<DimensionSpec> extracted = Lists.newArrayList();
+        for (int index : indices) {
+          extracted.add(dimensionSpecs.get(index));
+        }
+        return extracted;
+      }
+    }
+    return null;
+  }
+
   public static long estimateCardinality(
       GroupByQuery query,
       QuerySegmentWalker segmentWalker,

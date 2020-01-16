@@ -257,6 +257,7 @@ public class Expressions
       for (Expression child : ((RelationExpression) expression).getChildren()) {
         T rewritten = rewrite((T) child, factory, visitor);
         changed |= child != rewritten;
+        rewrittens.add(rewritten);
       }
       if (changed) {
         if (expression instanceof AndExpression) {
