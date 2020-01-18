@@ -21,6 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.validation.constraints.Min;
+
 /**
  */
 public class JoinQueryConfig
@@ -33,6 +35,10 @@ public class JoinQueryConfig
 
   @JsonProperty
   private int hashJoinThreshold = 300_000;
+
+  @Min(0)
+  @JsonProperty
+  private int bloomFilterThreshold = 500_000;
 
   public int getMaxRows()
   {
@@ -57,6 +63,11 @@ public class JoinQueryConfig
   public int getHashJoinThreshold()
   {
     return hashJoinThreshold;
+  }
+
+  public int getBloomFilterThreshold()
+  {
+    return bloomFilterThreshold;
   }
 
   public void setHashJoinThreshold(int hashJoinThreshold)

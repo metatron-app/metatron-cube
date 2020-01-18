@@ -236,16 +236,27 @@ public class QueryUtils
           @Override
           public Query apply(Query input)
           {
-            if (input instanceof Query.RewritingQuery) {
-              input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker, queryConfig);
-            }
-            if (input instanceof Query.FilterSupport) {
-              input = DimFilters.rewrite(input, DimFilters.rewriter(segmentWalker, input));
-            }
-            return input;
+            return rewrite(input, segmentWalker, queryConfig);
           }
         }
     );
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends Query> T rewrite(
+      final Query query,
+      final QuerySegmentWalker segmentWalker,
+      final QueryConfig queryConfig
+  )
+  {
+    Query input = query;
+    if (input instanceof Query.RewritingQuery) {
+      input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker, queryConfig);
+    }
+    if (input instanceof Query.FilterSupport) {
+      input = DimFilters.rewrite(input, DimFilters.rewriter(segmentWalker, input));
+    }
+    return (T) input;
   }
 
   public static Query resolveRecursively(final Query query, final QuerySegmentWalker segmentWalker)
@@ -256,14 +267,14 @@ public class QueryUtils
           @Override
           public Query apply(Query input)
           {
-            return QueryUtils.resolveQuery(input, segmentWalker);
+            return resolve(input, segmentWalker);
           }
         }
     );
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Query<T> resolveQuery(Query<T> query, QuerySegmentWalker segmentWalker)
+  public static <T> Query<T> resolve(Query<T> query, QuerySegmentWalker segmentWalker)
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getSchema() == null) {

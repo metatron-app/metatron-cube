@@ -24,9 +24,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
+import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -125,6 +125,8 @@ public interface Query<T> extends QueryContextKeys
   boolean getContextBoolean(String key, boolean defaultValue);
 
   int getContextInt(String key, int defaultValue);
+
+  long getContextLong(String key, long defaultValue);
 
   boolean isDescending();
 

@@ -29,7 +29,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -43,12 +42,11 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.JoinElement;
+import io.druid.query.JoinQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowResolver;
-import io.druid.query.ViewDataSource;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
@@ -255,12 +253,13 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @JsonIgnore
-  boolean isSimpleProjection()
+  boolean isSimpleProjection(QuerySegmentSpec subQuerySpec)
   {
-    return GuavaUtils.isNullOrEmpty(virtualColumns) &&
-           limitSpec.isSimpleLimiter() &&
-           filter == null &&
-           getQuerySegmentSpec() == null;
+    if (!GuavaUtils.isNullOrEmpty(virtualColumns) || !limitSpec.isSimpleLimiter() || filter != null) {
+      return false;
+    }
+    QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
+    return segmentSpec == null || Objects.equals(subQuerySpec, segmentSpec);
   }
 
   Sequence<Object[]> applyLimit(Sequence<Object[]> sequence)
@@ -611,7 +610,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     }
 
     builder.append(
-        toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinElement.HASHING)
+        toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING)
     );
 
     return builder.append('}').toString();

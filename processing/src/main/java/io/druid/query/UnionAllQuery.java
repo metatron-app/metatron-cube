@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -31,15 +30,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.LazySequence;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.query.PostProcessingOperator.UnionSupport;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
@@ -49,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -290,37 +288,75 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
 
   @SuppressWarnings("unchecked")
   public QueryRunner<T> getUnionQueryRunner(
-      final ObjectMapper mapper,
-      final ExecutorService exec,
       final QuerySegmentWalker segmentWalker,
       final QueryConfig queryConfig
   )
   {
-    final UnionAllQueryRunner<T> baseRunner;
+    final UnionAllQueryRunner<T> baseRunner = toUnionAllRunner(segmentWalker, queryConfig);
+    final PostProcessingOperator postProcessing = PostProcessingOperators.load(this, segmentWalker.getObjectMapper());
+
+    final QueryRunner<T> runner;
+    if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
+      runner = ((UnionSupport<T>) postProcessing).postProcess(baseRunner, segmentWalker.getExecutor());
+    } else {
+      QueryRunner<T> merged = new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          Sequence<Sequence<T>> sequences = Sequences.map(
+              baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
+          );
+          if (isSortOnUnion()) {
+            return QueryUtils.mergeSort(query, sequences);
+          }
+          return Sequences.concat(sequences);
+        }
+      };
+      runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
+    }
+    if (getLimit() > 0 && getLimit() < Integer.MAX_VALUE) {
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          return Sequences.limit(runner.run(query, responseContext), getLimit());
+        }
+      };
+    }
+    return runner;
+  }
+
+  @SuppressWarnings("unchecked")
+  private UnionAllQueryRunner<T> toUnionAllRunner(
+      final QuerySegmentWalker segmentWalker,
+      final QueryConfig queryConfig
+  )
+  {
     if (parallelism <= 1) {
-     // executes when the first element of the sequence is accessed
-     baseRunner = new UnionAllQueryRunner<T>()
+      // executes when the first element of the sequence is accessed
+      return new UnionAllQueryRunner<T>()
       {
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
-          final List<Query<T>> ready = toTargetQueries();
           return Sequences.simple(
               Lists.transform(
-                  ready,
+                  ((UnionAllQuery) query).toTargetQueries(),
                   new Function<Query<T>, Pair<Query<T>, Sequence<T>>>()
                   {
                     @Override
                     public Pair<Query<T>, Sequence<T>> apply(final Query<T> query)
                     {
                       return Pair.<Query<T>, Sequence<T>>of(
-                          query, new LazySequence<T>(
+                          query, Sequences.lazy(
                               new Supplier<Sequence<T>>()
                               {
                                 @Override
                                 public Sequence<T> get()
                                 {
-                                  return QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig)
+                                  return QueryUtils.rewrite(query, segmentWalker, queryConfig)
                                                    .run(segmentWalker, responseContext);
                                 }
                               }
@@ -334,17 +370,17 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       };
     } else {
       // executing now
-      baseRunner = new UnionAllQueryRunner<T>()
+      return new UnionAllQueryRunner<T>()
       {
         final int priority = BaseQuery.getContextPriority(UnionAllQuery.this, 0);
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
-          final List<Query<T>> ready = toTargetQueries();
+          final List<Query<T>> ready = ((UnionAllQuery) query).toTargetQueries();
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(getParallelism(), ready.size()));
           LOG.info("Starting %d parallel works with %d threads", ready.size(), semaphore.availablePermits());
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
-              exec, Lists.transform(
+              segmentWalker.getExecutor(), Lists.transform(
                   ready, new Function<Query<T>, Callable<Sequence<T>>>()
                   {
                     @Override
@@ -356,7 +392,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                         public Sequence<T> call()
                         {
                           // removed eager loading.. especially bad for join query
-                          Sequence<T> sequence = QueryUtils.rewriteRecursively(query, segmentWalker, queryConfig)
+                          Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker, queryConfig)
                                                            .run(segmentWalker, responseContext);
                           return Sequences.withBaggage(sequence, semaphore);
                         }
@@ -388,40 +424,6 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
         }
       };
     }
-
-    final PostProcessingOperator postProcessing = PostProcessingOperators.load(this, mapper);
-
-    final QueryRunner<T> runner;
-    if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
-      runner = ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
-    } else {
-      QueryRunner<T> merged = new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          Sequence<Sequence<T>> sequences = Sequences.map(
-              baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
-          );
-          if (isSortOnUnion()) {
-            return QueryUtils.mergeSort(query, sequences);
-          }
-          return Sequences.concat(sequences);
-        }
-      };
-      runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
-    }
-    if (getLimit() > 0 && getLimit() < Integer.MAX_VALUE) {
-      return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          return Sequences.limit(runner.run(query, responseContext), getLimit());
-        }
-      };
-    }
-    return runner;
   }
 
   private List<Query<T>> toTargetQueries()

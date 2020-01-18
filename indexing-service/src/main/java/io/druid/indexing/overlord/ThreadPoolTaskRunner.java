@@ -67,6 +67,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -343,6 +344,12 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
   public void start()
   {
     // No state startup required
+  }
+
+  @Override
+  public ExecutorService getExecutor()
+  {
+    return toolboxFactory.getQueryExecutorService();
   }
 
   @Override

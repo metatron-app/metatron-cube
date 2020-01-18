@@ -362,6 +362,12 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
+  public long getContextLong(String key, long defaultValue)
+  {
+    return PropUtils.parseLong(getContext(), key, defaultValue);
+  }
+
+  @Override
   public Query<T> withOverriddenContext(String contextKey, Object contextValue)
   {
     return withOverriddenContext(GuavaUtils.mutableMap(contextKey, contextValue));

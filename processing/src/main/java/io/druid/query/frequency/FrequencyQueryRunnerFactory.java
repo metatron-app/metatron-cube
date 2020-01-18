@@ -101,7 +101,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       final Future<Object> optimizer
   )
   {
-    return QueryRunners.executeParallel(executor, Lists.newArrayList(runners), null);
+    return QueryRunners.executeParallel(executor, null, Lists.newArrayList(runners));
   }
 
   private static Function<Cursor, Sequence<Object[]>> processor(final FrequencyQuery query, final CountMinSketch sketch)

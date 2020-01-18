@@ -22,9 +22,9 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -122,7 +122,8 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
         StreamQuery streamQuery = (StreamQuery) query;
         QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
         Query subQuery = dataSource.getQuery();
-        if (streamQuery.isSimpleProjection() && subQuery instanceof Query.ArrayOutputSupport) {
+        if (subQuery instanceof Query.ArrayOutputSupport &&
+            streamQuery.isSimpleProjection(subQuery.getQuerySegmentSpec())) {
           Query.ArrayOutputSupport arrayOutput = (Query.ArrayOutputSupport) subQuery;
           List<String> outputColumns = arrayOutput.estimatedOutputColumns();
           if (!GuavaUtils.isNullOrEmpty(outputColumns)) {

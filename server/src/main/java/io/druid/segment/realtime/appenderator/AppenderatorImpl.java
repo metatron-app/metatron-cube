@@ -36,15 +36,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.RetryUtils;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -54,6 +45,14 @@ import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.RetryUtils;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
@@ -102,8 +101,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -340,6 +339,12 @@ public class AppenderatorImpl implements Appenderator
     }
 
     return retVal;
+  }
+
+  @Override
+  public ExecutorService getExecutor()
+  {
+    return queryExecutorService;
   }
 
   @Override

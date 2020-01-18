@@ -28,8 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Committer;
@@ -42,6 +40,8 @@ import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -227,6 +227,7 @@ public class RealtimeManagerTest
         null,
         null,
         null,
+        null,
         EasyMock.createNiceMock(DataSegmentServerAnnouncer.class)
     );
     plumber2 = new TestPlumber(new Sink(
@@ -245,6 +246,7 @@ public class RealtimeManagerTest
                 tuningConfig
             )
         ),
+        null,
         null,
         null,
         null,
@@ -338,6 +340,7 @@ public class RealtimeManagerTest
         EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         null,
         TestHelper.JSON_MAPPER,
+        null,
         ImmutableMap.<String, Map<Integer, RealtimeManager.FireChief>>of(
             "testing",
             ImmutableMap.of(

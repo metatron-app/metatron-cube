@@ -19,6 +19,8 @@
 
 package io.druid.query;
 
+import com.google.common.collect.Iterables;
+
 /**
  */
 public class DataSources
@@ -33,5 +35,10 @@ public class DataSources
       return true;
     }
     return false;
+  }
+
+  public static String getName(Query query)
+  {
+    return Iterables.getOnlyElement(query.getDataSource().getNames());
   }
 }

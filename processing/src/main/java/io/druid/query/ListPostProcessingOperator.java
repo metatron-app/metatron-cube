@@ -20,17 +20,20 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.query.PostProcessingOperator.UnionSupport;
 import io.druid.query.select.Schema;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionSupport<T>
+public class ListPostProcessingOperator<T> extends UnionSupport<T>
     implements Schema.SchemaResolving
 {
   private final List<PostProcessingOperator> processors;
@@ -53,6 +56,12 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   public List<PostProcessingOperator> getProcessors()
   {
     return processors;
+  }
+
+  @JsonIgnore
+  public List<PostProcessingOperator> getProcessorsInReverse()
+  {
+    return Lists.reverse(processors);
   }
 
   public PostProcessingOperator getLast()
@@ -78,9 +87,9 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<T> postProcess(UnionAllQueryRunner baseQueryRunner)
+  public QueryRunner<T> postProcess(UnionAllQueryRunner baseQueryRunner, ExecutorService exec)
   {
-    QueryRunner<T> queryRunner = ((PostProcessingOperator.UnionSupport) processors.get(0)).postProcess(baseQueryRunner);
+    QueryRunner<T> queryRunner = ((UnionSupport) processors.get(0)).postProcess(baseQueryRunner, exec);
     for (PostProcessingOperator processor : processors) {
       queryRunner = processor.postProcess(queryRunner);
     }

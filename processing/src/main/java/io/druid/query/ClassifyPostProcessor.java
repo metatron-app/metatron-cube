@@ -30,6 +30,7 @@ import io.druid.common.utils.Sequences;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 public class ClassifyPostProcessor extends PostProcessingOperator.UnionSupport
 {
@@ -47,7 +48,7 @@ public class ClassifyPostProcessor extends PostProcessingOperator.UnionSupport
   }
 
   @Override
-  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
+  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner, final ExecutorService exec)
   {
     return new QueryRunner()
     {

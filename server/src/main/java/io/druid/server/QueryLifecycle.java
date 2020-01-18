@@ -241,7 +241,7 @@ public class QueryLifecycle
     final boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
 
     if (success) {
-      log.info("[%s] success", query.getId());
+      log.debug("[%s] success", query.getId());
     } else if (interrupted) {
       log.info("[%s] interrupted[%s]", query.getId(), e.toString());
     } else {

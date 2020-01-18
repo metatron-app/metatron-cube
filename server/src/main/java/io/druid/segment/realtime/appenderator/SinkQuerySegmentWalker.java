@@ -105,6 +105,12 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   }
 
   @Override
+  public ExecutorService getExecutor()
+  {
+    return queryExecutorService;
+  }
+
+  @Override
   public ObjectMapper getObjectMapper()
   {
     return objectMapper;

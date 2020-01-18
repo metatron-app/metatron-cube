@@ -146,6 +146,11 @@ public class TaskToolboxFactory
     );
   }
 
+  public ExecutorService getQueryExecutorService()
+  {
+    return queryExecutorService;
+  }
+
   public ObjectMapper getObjectMapper()
   {
     return objectMapper;

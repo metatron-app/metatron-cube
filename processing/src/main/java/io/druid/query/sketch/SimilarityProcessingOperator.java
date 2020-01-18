@@ -44,6 +44,7 @@ import io.druid.query.UnionAllQueryRunner;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import static io.druid.query.sketch.ThetaOperations.Func.INTERSECT;
 import static io.druid.query.sketch.ThetaOperations.Func.NOT;
@@ -138,7 +139,7 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
   //
   // ds1, {dim1=ds2.dim3:0.66f, dim2=ds3.dim4:0.28f}
   @Override
-  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
+  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner, final ExecutorService exec)
   {
     return new QueryRunner()
     {

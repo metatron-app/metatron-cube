@@ -39,6 +39,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
@@ -73,6 +74,7 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -172,7 +174,7 @@ public class Queries
     if (subQuery.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
       Schema schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
-      LOG.info(
+      LOG.debug(
           "%s resolved schema : %s%s",
           subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
       );
@@ -181,7 +183,7 @@ public class Queries
     if (subQuery instanceof Query.ColumnsSupport) {
       // no type information in query
       Schema schema = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-      LOG.info(
+      LOG.debug(
           "%s resolved schema : %s%s",
           subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
       );
@@ -246,7 +248,7 @@ public class Queries
       // todo union-all (partitioned-join, etc.)
       throw new UnsupportedOperationException("Cannot extract schema from query " + subQuery);
     }
-    LOG.info(
+    LOG.debug(
         "%s resolved schema : %s%s + %s%s",
         subQuery.getDataSource().getNames(), dimensionNames, dimensionTypes, metricNames, metricTypes
     );
@@ -443,6 +445,35 @@ public class Queries
   }
 
   public static long estimateCardinality(
+      BaseAggregationQuery query,
+      QuerySegmentWalker segmentWalker,
+      QueryConfig config
+  )
+  {
+    if (query instanceof TimeseriesQuery) {
+      return estimateCardinality((TimeseriesQuery) query, segmentWalker, config);
+    } else if (query instanceof GroupByQuery) {
+      return estimateCardinality((GroupByQuery) query, segmentWalker, config);
+    } else {
+      return -1;
+    }
+  }
+
+  public static long estimateCardinality(
+      TimeseriesQuery query,
+      QuerySegmentWalker segmentWalker,
+      QueryConfig config
+  )
+  {
+    Granularity granularity = query.getGranularity();
+    long estimated = 0;
+    for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
+      estimated += Iterables.size(granularity.getIterable(interval));
+    }
+    return estimated;
+  }
+
+  public static long estimateCardinality(
       GroupByQuery query,
       QuerySegmentWalker segmentWalker,
       QueryConfig config
@@ -583,52 +614,10 @@ public class Queries
     return result == null ? null : (Object[]) result.getRaw("SPLIT");
   }
 
-
-  public static <I, T> QueryRunner<T> makeIteratingQueryRunner(
-      final Query.IteratingQuery<I, T> iterating,
-      final QuerySegmentWalker walker
-  )
+  public static boolean isNestedQuery(Query<?> query)
   {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
-      {
-        return Sequences.concat(
-            new Iterable<Sequence<T>>()
-            {
-              @Override
-              public Iterator<Sequence<T>> iterator()
-              {
-                return new Iterator<Sequence<T>>()
-                {
-                  private Query<I> query = iterating.next(null, null).rhs;
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return query != null;
-                  }
-
-                  @Override
-                  public Sequence<T> next()
-                  {
-                    Sequence<I> sequence = query.run(walker, responseContext);
-                    Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
-                    query = next.rhs;
-                    return next.lhs;
-                  }
-
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException("remove");
-                  }
-                };
-              }
-            }
-        );
-      }
-    };
+    return query instanceof UnionAllQuery ||
+           query instanceof Query.IteratingQuery ||
+           query.getDataSource() instanceof QueryDataSource;
   }
 }

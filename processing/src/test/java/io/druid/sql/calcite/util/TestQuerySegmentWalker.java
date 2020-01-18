@@ -31,20 +31,20 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.ConveyQuery;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocalStorageHandler;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
@@ -255,6 +255,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     return conglomerate;
   }
 
+  @Override
   public ExecutorService getExecutor()
   {
     return executor;
@@ -348,7 +349,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                   return Pair.of(input, chunk.getObject());
                 }
               }
-              return Pair.of(input, (Segment) null);
+              return Pair.of(input, null);
             }
           }
       );
@@ -405,6 +406,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   @SuppressWarnings("unchecked")
   private <T> QueryRunner<T> toQueryRunner(Query<T> query)
   {
+    if (query instanceof ConveyQuery) {
+      return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
+    }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, query + " does not supports nested query");
@@ -414,14 +418,19 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator(objectMapper)
-                                     .applySubQueryResolver(this)
+                                     .applySubQueryResolver(this, queryConfig)
                                      .build();
     }
-    if (query instanceof Query.IteratingQuery) {
-      return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
-    }
     if (query instanceof UnionAllQuery) {
-      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, executor, this, queryConfig);
+      return ((UnionAllQuery) query).getUnionQueryRunner(this, queryConfig);
+    }
+    if (query instanceof Query.IteratingQuery) {
+      QueryRunner runner = QueryRunners.getIteratingRunner((Query.IteratingQuery) query, this);
+      return FluentQueryRunnerBuilder.create(factory == null ? null : factory.getToolchest(), runner)
+                                     .applyFinalizeResults()
+                                     .applyFinalQueryDecoration()
+                                     .applyPostProcessingOperator(objectMapper)
+                                     .build();
     }
     if (factory == null) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);

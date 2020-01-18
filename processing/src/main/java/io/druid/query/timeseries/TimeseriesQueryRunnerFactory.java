@@ -67,7 +67,7 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
   @Override
   public QueryRunner<Row> mergeRunners(
       final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<Row>> querys,
+      final Iterable<QueryRunner<Row>> runners,
       final Future<Object> optimizer
   )
   {
@@ -80,9 +80,9 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
         final int parallelism = query.getContextInt(Query.TIMESERIES_MERGE_PARALLELISM, -1);
         final QueryRunner<Row> runner;
         if (parallelism > 0) {
-          runner = QueryRunners.executeParallel(queryExecutor, Lists.newArrayList(querys), query.getMergeOrdering());
+          runner = QueryRunners.executeParallel(queryExecutor, query.getMergeOrdering(), Lists.newArrayList(runners));
         } else {
-          runner = new ChainedExecutionQueryRunner<Row>(queryExecutor, queryWatcher, querys);
+          runner = new ChainedExecutionQueryRunner<Row>(queryExecutor, queryWatcher, runners);
         }
         return runner.run(query, responseContext);
       }

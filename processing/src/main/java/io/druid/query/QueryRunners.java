@@ -23,12 +23,14 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.io.Closeable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -140,8 +142,8 @@ public class QueryRunners
 
   public static <T> QueryRunner<T> executeParallel(
       final ExecutorService executor,
-      final List<QueryRunner<T>> runners,
-      final Ordering<T> ordering
+      final Ordering<T> ordering,
+      final List<QueryRunner<T>> runners
   )
   {
     if (runners.isEmpty()) {
@@ -174,6 +176,78 @@ public class QueryRunners
             FutureSequence.<T>toSequence()
         );
         return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
+      }
+    };
+  }
+
+  public static <I, T> QueryRunner<T> getIteratingRunner(
+      final Query.IteratingQuery<I, T> iterating,
+      final QuerySegmentWalker walker
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
+      {
+        return Sequences.concat(
+            new Iterable<Sequence<T>>()
+            {
+              @Override
+              public Iterator<Sequence<T>> iterator()
+              {
+                return new Iterator<Sequence<T>>()
+                {
+                  private Query<I> query = iterating.next(null, null).rhs;
+
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return query != null;
+                  }
+
+                  @Override
+                  public Sequence<T> next()
+                  {
+                    Sequence<I> sequence = query.run(walker, responseContext);
+                    Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
+                    query = next.rhs;
+                    return next.lhs;
+                  }
+
+                  @Override
+                  public void remove()
+                  {
+                    throw new UnsupportedOperationException("remove");
+                  }
+                };
+              }
+            }
+        );
+      }
+    };
+  }
+
+  public static <T> QueryRunner<T> getSubQueryResolver(
+      final QueryRunner<T> baseRunner,
+      final QueryToolChest<T, Query<T>> toolChest,
+      final QuerySegmentWalker segmentWalker,
+      final QueryConfig config
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+        Query subQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
+        if (dataSource.getSchema() == null) {
+          query = query.withDataSource(QueryDataSource.of(subQuery, Queries.relaySchema(subQuery, segmentWalker)));
+        }
+        query = QueryUtils.resolve(query, segmentWalker);
+        query = QueryUtils.rewrite(query, segmentWalker, config);
+        return baseRunner.run(query, responseContext);
       }
     };
   }

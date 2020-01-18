@@ -21,21 +21,22 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
 import io.druid.guice.annotations.Processing;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.query.ConveyQuery;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.ForwardingSegmentWalker;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.query.StorageHandler;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.StorageHandler;
 import io.druid.query.UnionAllQuery;
 import org.joda.time.Interval;
 
@@ -77,6 +78,12 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
   }
 
   @Override
+  public ExecutorService getExecutor()
+  {
+    return exec;
+  }
+
+  @Override
   public ObjectMapper getObjectMapper()
   {
     return objectMapper;
@@ -97,6 +104,9 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
   @SuppressWarnings("unchecked")
   private <T> QueryRunner<T> makeRunner(Query<T> query)
   {
+    if (query instanceof ConveyQuery) {
+      return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
+    }
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
@@ -105,17 +115,17 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator(objectMapper)
-                                     .applySubQueryResolver(this)
+                                     .applySubQueryResolver(this, queryConfig)
                                      .build();
     }
 
     if (query instanceof UnionAllQuery) {
       // all things done inside, include post processings, etc.
-      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, exec, this, queryConfig);
+      return ((UnionAllQuery) query).getUnionQueryRunner(this, queryConfig);
     }
 
     if (query instanceof Query.IteratingQuery) {
-      QueryRunner runner = Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
+      QueryRunner runner = QueryRunners.getIteratingRunner((Query.IteratingQuery) query, this);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()

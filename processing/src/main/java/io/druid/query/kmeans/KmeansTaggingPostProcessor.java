@@ -36,6 +36,7 @@ import io.druid.query.select.StreamQuery;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 @Deprecated
 public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionSupport<T>
@@ -49,7 +50,7 @@ public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionS
   }
 
   @Override
-  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
+  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner, final ExecutorService exec)
   {
     return new QueryRunner()
     {

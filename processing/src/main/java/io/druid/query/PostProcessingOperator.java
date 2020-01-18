@@ -26,6 +26,7 @@ import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = PostAggregationsPostProcessor.class)
 @JsonSubTypes(value = {
@@ -57,7 +58,7 @@ public interface PostProcessingOperator<T>
     @Override
     public boolean supportsUnionProcessing() { return true;}
 
-    public abstract QueryRunner postProcess(UnionAllQueryRunner<?> baseQueryRunner);
+    public abstract QueryRunner postProcess(UnionAllQueryRunner<?> baseQueryRunner, ExecutorService exec);
 
     @Override
     public String toString()

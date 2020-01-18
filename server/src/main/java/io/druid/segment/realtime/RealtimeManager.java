@@ -28,15 +28,17 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.lifecycle.LifecycleStart;
-import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseV2;
 import io.druid.data.input.InputRow;
+import io.druid.guice.annotations.Processing;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.FinalizeResultsQueryRunner;
+import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -44,8 +46,8 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
-import io.druid.query.StorageHandler;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.StorageHandler;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
@@ -53,7 +55,6 @@ import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.segment.realtime.plumber.Plumbers;
 import io.druid.server.ForwardHandler;
-import io.druid.query.ForwardingSegmentWalker;
 import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import org.joda.time.Interval;
 
@@ -62,6 +63,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -73,6 +75,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ForwardHandler forwardHandler;
   private final ObjectMapper objectMapper;
+  private final ExecutorService executor;
   private final DataSegmentServerAnnouncer serverAnnouncer;
 
   /**
@@ -86,10 +89,11 @@ public class RealtimeManager implements ForwardingSegmentWalker
       QueryRunnerFactoryConglomerate conglomerate,
       ForwardHandler forwardHandler,
       ObjectMapper objectMapper,
+      @Processing ExecutorService executor,
       DataSegmentServerAnnouncer serverAnnouncer
   )
   {
-    this(fireDepartments, conglomerate, serverAnnouncer, forwardHandler, objectMapper, Maps.newHashMap());
+    this(fireDepartments, conglomerate, serverAnnouncer, forwardHandler, objectMapper, executor, Maps.newHashMap());
   }
 
   RealtimeManager(
@@ -98,6 +102,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
       DataSegmentServerAnnouncer serverAnnouncer,
       ForwardHandler forwardHandler,
       ObjectMapper objectMapper,
+      ExecutorService executor,
       Map<String, Map<Integer, FireChief>> chiefs
   )
   {
@@ -106,6 +111,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     this.serverAnnouncer = serverAnnouncer;
     this.forwardHandler = forwardHandler;
     this.objectMapper = objectMapper;
+    this.executor = executor;
     this.chiefs = chiefs;
   }
 
@@ -164,6 +170,12 @@ public class RealtimeManager implements ForwardingSegmentWalker
       }
     }
     return snapshot;
+  }
+
+  @Override
+  public ExecutorService getExecutor()
+  {
+    return executor;
   }
 
   @Override

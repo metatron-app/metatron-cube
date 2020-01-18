@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
@@ -284,6 +285,8 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
           .dataSource(bloomSource.getName())
           .filters(bloomSource.getFilter())
           .context(BaseQuery.copyContextForMeta(parent))
+          .addContext(Query.USE_CACHE, false)
+          .addContext(Query.POPULATE_CACHE, false)
           .build();
 
       int expectedCardinality = maxNumEntries;
@@ -312,6 +315,43 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
              ", bloomSource=" + bloomSource +
              ", maxNumEntries=" + maxNumEntries +
              '}';
+    }
+  }
+
+  public static class Lazy extends DimFilter.Abstract implements DimFilter.Rewriting
+  {
+    public static BloomDimFilter.Lazy fieldNames(List<String> fieldNames, Supplier<BloomKFilter> supplier)
+    {
+      return new BloomDimFilter.Lazy(fieldNames, null, GroupingSetSpec.EMPTY, supplier);
+    }
+
+    public static BloomDimFilter.Lazy fields(List<DimensionSpec> fields, Supplier<BloomKFilter> supplier)
+    {
+      return new BloomDimFilter.Lazy(null, fields, GroupingSetSpec.EMPTY, supplier);
+    }
+
+    private final List<String> fieldNames;
+    private final List<DimensionSpec> fields;
+    private final GroupingSetSpec groupingSets;
+    private final Supplier<BloomKFilter> supplier;
+
+    private Lazy(
+        List<String> fieldNames,
+        List<DimensionSpec> fields,
+        GroupingSetSpec groupingSets,
+        Supplier<BloomKFilter> supplier
+    )
+    {
+      this.fieldNames = fieldNames;
+      this.fields = fields;
+      this.groupingSets = groupingSets;
+      this.supplier = Preconditions.checkNotNull(supplier);
+    }
+
+    @Override
+    public DimFilter rewrite(QuerySegmentWalker walker, Query parent)
+    {
+      return new BloomDimFilter(fieldNames, fields, groupingSets, supplier.get().serialize());
     }
   }
 }

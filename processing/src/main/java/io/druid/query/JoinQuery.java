@@ -22,17 +22,17 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import com.google.common.util.concurrent.Futures;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -60,6 +60,9 @@ import static io.druid.query.JoinType.RO;
 @JsonTypeName("join")
 public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
 {
+  public static final String HASHING = "$hash";
+  public static final String CARDINALITY = "$cardinality";
+
   private static final Logger LOG = new Logger(JoinQuery.class);
 
   private final Map<String, DataSource> dataSources;
@@ -240,14 +243,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
   @Override
   @SuppressWarnings("unchecked")
-  public JoinDelegate rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    final int threshold = queryConfig.getHashJoinThreshold(this);
+    final int hashThreshold = config.getHashJoinThreshold(this);
+    final int bloomFilterThreshold = config.getJoin().getBloomFilterThreshold();
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
 
     long estimation0 = ROWNUM_UNKNOWN;
     long estimation1 = ROWNUM_UNKNOWN;
-    double currentEstimation = ROWNUM_UNKNOWN;
+    long currentEstimation = ROWNUM_UNKNOWN;
     final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
     for (int i = 0; i < elements.size(); i++) {
       JoinElement element = elements.get(i);
@@ -256,22 +260,25 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       DataSource right = dataSources.get(element.getRightAlias());
       long rightEstimated = ROWNUM_NOT_EVALUATED;
       boolean rightHashing = false;
-      if (threshold > 0 && joinType.isLeftDrivable()) {
-        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, queryConfig);
-        rightHashing = rightEstimated > 0 && rightEstimated < threshold;
+      if (hashThreshold > 0 && joinType.isLeftDrivable()) {
+        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, config);
+        rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
       }
       long leftEstimated = ROWNUM_NOT_EVALUATED;
       boolean leftHashing = false;
-      if (threshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
-        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, queryConfig);
-        leftHashing = leftEstimated > 0 && leftEstimated < threshold;
+      if (hashThreshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
+        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
+        leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
       }
       if (i == 0) {
         LOG.info("%s (L) -----> %d rows, hashing? %s", element.getLeftAlias(), leftEstimated, leftHashing);
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : element.getLeftJoinColumns();
         Query query = JoinElement.toQuery(left, sortOn, segmentSpec, getContext());
         if (leftHashing) {
-          query = query.withOverriddenContext(JoinElement.HASHING, true);
+          query = query.withOverriddenContext(HASHING, true);
+        }
+        if (leftEstimated > 0) {
+          query = query.withOverriddenContext(CARDINALITY, leftEstimated);
         }
         currentEstimation = leftEstimated;
         estimation0 = leftEstimated;
@@ -282,14 +289,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       List<String> sortOn = (joinType != RO && leftHashing) || rightHashing ? null : element.getRightJoinColumns();
       Query query = JoinElement.toQuery(right, sortOn, segmentSpec, getContext());
       if (rightHashing) {
-        query = query.withOverriddenContext(JoinElement.HASHING, true);
+        query = query.withOverriddenContext(HASHING, true);
+      }
+      if (rightEstimated > 0) {
+        query = query.withOverriddenContext(CARDINALITY, rightEstimated);
       }
       switch (element.getJoinType()) {
         case INNER:
           if (currentEstimation > 0 && rightEstimated > 0) {
             currentEstimation = Math.min(currentEstimation, rightEstimated);
-          } else if (currentEstimation < 0) {
-            currentEstimation = rightEstimated;
           }
           break;
         case LO:
@@ -299,7 +307,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           break;
         case RO:
           if (rightEstimated > 0) {
-            if (currentEstimation > rightEstimated) {
+            if (currentEstimation > 0 && currentEstimation > rightEstimated) {
               currentEstimation = rightEstimated * (currentEstimation / rightEstimated);
             } else {
               currentEstimation = rightEstimated;
@@ -307,7 +315,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           }
           break;
         case FULL:
-          currentEstimation = ROWNUM_UNKNOWN;
+          if (currentEstimation > 0 && rightEstimated > 0) {
+            currentEstimation = (currentEstimation + rightEstimated) << 1;
+          } else {
+            currentEstimation = ROWNUM_UNKNOWN;
+          }
           break;
       }
       queries.add(query);
@@ -317,12 +329,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final Query query1 = queries.get(1);
     final JoinElement element = elements.get(0);
     final JoinType type = element.getJoinType();
-    if (type.isLeftDrivable() && query0.hasFilters() &&
-        (isHashed(query0) || estimation0 > 0 && estimation1 > 0 && estimation1 > estimation0 * 2)) {
+    if (type.isLeftDrivable() && query0.hasFilters() && estimation1 > bloomFilterThreshold) {
       // left to right
       queries.set(1, inject(query0, element.getLeftJoinColumns(), estimation0, query1, element.getRightJoinColumns()));
-    } else if (type.isRightDrivable() && query1.hasFilters() &&
-               (isHashed(query1) || estimation0 > 0 && estimation1 > 0 && estimation0 > estimation1 * 2)) {
+    }
+    if (type.isRightDrivable() && query1.hasFilters() && estimation0 > bloomFilterThreshold) {
       // right to left
       queries.set(0, inject(query1, element.getRightJoinColumns(), estimation1, query0, element.getLeftJoinColumns()));
     }
@@ -337,28 +348,21 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    // to get join config & executor service
-    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
-    Map<String, Object> joinProc = ImmutableMap.of(
-        "type", "join",
-        "elements", elements,
-        "asArray", asArray,
-        "prefixAlias", prefixAlias,
-        "maxRowsInGroup", maxRowsInGroup
+    // no parallelism.. executed parallel in join post processor
+    Map<String, Object> context = BaseQuery.copyContextForMeta(this);
+    JoinDelegate query = new JoinDelegate(
+        queries, prefixAliases, timeColumn, currentEstimation, limit, context
     );
-    Map<String, Object> joinContext = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING, jsonMapper.convertValue(joinProc, JoinPostProcessor.class)
-    );
-
-    // removed parallelism.. executed parallel in join post processor
-    return new JoinDelegate(
-        queries, prefixAliases, timeColumn, (long) currentEstimation, limit, computeOverriddenContext(joinContext)
+    return PostProcessingOperators.append(
+        query,
+        segmentWalker.getObjectMapper(),
+        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, maxRowsInGroup)
     );
   }
 
   private boolean isHashed(Query query)
   {
-    return query.getContextBoolean(JoinElement.HASHING, false);
+    return query.getContextBoolean(HASHING, false);
   }
 
   private Query inject(
@@ -369,15 +373,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       List<String> targetJoinOn
   )
   {
-    if (source instanceof StreamQuery &&
-        target instanceof Query.FilterSupport &&
-        source.getDataSource() instanceof TableDataSource &&
-        target.getDataSource() instanceof TableDataSource) {
+    if (source instanceof StreamQuery && !Queries.isNestedQuery(source) &&
+        target instanceof FilterSupport && !Queries.isNestedQuery(target)) {
       // this is evaluated in UnionQueryRunner
       List<DimensionSpec> extracted = Queries.extractInputFields(target, targetJoinOn);
       if (extracted != null) {
         ViewDataSource sourceView = BaseQuery.asView(source, sourceJoinOn);
         DimFilter factory = BloomDimFilter.Factory.fields(extracted, sourceView, Ints.checkedCast(sourceCardinality));
+        LOG.info("Applying bloom filter from [%s] to [%s]", DataSources.getName(source), DataSources.getName(target));
         return DimFilters.and((FilterSupport<?>) target, factory);
       }
     }
@@ -435,7 +438,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     private final String timeColumnName;
     private final long estimatedCardinality;
 
-    private List<OrderByColumnSpec> collation;        // set when smb join is applied
+    private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture();
 
     public JoinDelegate(
         List<Query<Map<String, Object>>> list,
@@ -446,7 +449,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         Map<String, Object> context
     )
     {
-      super(null, list, false, limit, -1, context);
+      super(null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
       this.prefixAliases = prefixAliases;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
       this.estimatedCardinality = estimatedCardinality;
@@ -464,12 +467,17 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     public List<OrderByColumnSpec> getCollation()
     {
-      return collation;
+      return future.isDone() ? Futures.getUnchecked(future) : null;
     }
 
     public void setCollation(List<OrderByColumnSpec> collation)
     {
-      this.collation = collation;
+      future.set(collation);
+    }
+
+    public void setException(Throwable ex)
+    {
+      future.setException(ex);
     }
 
     public long getEstimatedCardinality()
@@ -532,32 +540,40 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return this;
     }
 
-    private JoinPostProcessor getJoinProcessor()
+    private JoinPostProcessor getLastJoinProcessor()
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
       if (processor instanceof ListPostProcessingOperator) {
-        processor = ((ListPostProcessingOperator) processor).getLast();
+        for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessorsInReverse()) {
+          if (element instanceof JoinPostProcessor) {
+            return (JoinPostProcessor) element;
+          }
+        }
       }
-      return (JoinPostProcessor) processor;
+      return processor instanceof JoinPostProcessor ? (JoinPostProcessor) processor : null;
+    }
+
+    public Query toArrayJoin()
+    {
+      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
+      if (processor instanceof ListPostProcessingOperator) {
+        List<PostProcessingOperator> rewritten = Lists.newArrayList();
+        for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessors()) {
+          if (element instanceof JoinPostProcessor) {
+            element = ((JoinPostProcessor) element).withAsArray(true);
+          }
+          rewritten.add(element);
+        }
+        processor = PostProcessingOperators.list(rewritten);
+      } else if (processor instanceof JoinPostProcessor) {
+        processor = ((JoinPostProcessor) processor).withAsArray(true);
+      }
+      return withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
     }
 
     private boolean isArrayOutput()
     {
-      return getJoinProcessor().asArray();
-    }
-
-    public JoinDelegate toArrayJoin()
-    {
-      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
-      if (processor instanceof ListPostProcessingOperator) {
-        List<PostProcessingOperator> processors = ((ListPostProcessingOperator<?>) processor).getProcessors();
-        int index = processors.size() - 1;
-        processors.set(index, ((JoinPostProcessor) processors.get(index)).withAsArray(true));
-        processor = new ListPostProcessingOperator(processors);
-      } else {
-        processor = ((JoinPostProcessor) processor).withAsArray(true);
-      }
-      return (JoinDelegate) withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
+      return Preconditions.checkNotNull(getLastJoinProcessor(), "no join processor").asArray();
     }
 
     @Override

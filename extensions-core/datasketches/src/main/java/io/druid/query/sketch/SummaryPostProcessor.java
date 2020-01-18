@@ -33,9 +33,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
@@ -47,7 +44,9 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.guice.annotations.Processing;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
@@ -100,7 +99,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
   private final boolean includeCovariance;
   private final Map<String, Map<String, Integer>> typeDetail;
   private final QuerySegmentWalker segmentWalker;
-  private final ListeningExecutorService exec;
 
   @JsonCreator
   public SummaryPostProcessor(
@@ -108,8 +106,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JsonProperty("includeCovariance") boolean includeCovariance,
       @JsonProperty("typeDetail") Map<String, Map<String, Integer>> typeDetail,
-      @JacksonInject QuerySegmentWalker segmentWalker,
-      @JacksonInject @Processing ExecutorService exec
+      @JacksonInject QuerySegmentWalker segmentWalker
   )
   {
     this.round = round == null ? DEFAULT_ROUND : round;
@@ -117,7 +114,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
     this.includeCovariance = includeCovariance;
     this.typeDetail = typeDetail;
     this.segmentWalker = segmentWalker;
-    this.exec = MoreExecutors.listeningDecorator(exec);
   }
 
   @Override
@@ -127,7 +123,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
   }
 
   @Override
-  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner)
+  public QueryRunner postProcess(final UnionAllQueryRunner baseRunner, final ExecutorService exec)
   {
     return new QueryRunner()
     {
@@ -140,6 +136,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           LOG.warn("query should be 'sketch' type");
           return baseRunner.run(query, responseContext);
         }
+        final ListeningExecutorService listening = MoreExecutors.listeningDecorator(exec);
         final List<VirtualColumn> virtualColumns = ((SketchQuery) representative).getVirtualColumns();
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
@@ -259,7 +256,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 final List<Map> frequentItems = Lists.newArrayList();
                 result.put("frequentItems", frequentItems);
                 futures.add(
-                    exec.submit(
+                    listening.submit(
                         new PrioritizedCallable.Background<Integer>()
                         {
                           @Override
@@ -288,7 +285,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
             }
             final TimeseriesQuery timeseries = runner;
             futures.add(
-                exec.submit(
+                listening.submit(
                     new PrioritizedCallable.Background<Integer>()
                     {
                       @Override
@@ -370,7 +367,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
           final List<Map<String, Object>> segments = Lists.newArrayList();
           stats.put("segments", segments);
           futures.add(
-              exec.submit(
+              listening.submit(
                   new PrioritizedCallable.Background<Integer>()
                   {
                     @Override

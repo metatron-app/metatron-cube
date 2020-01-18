@@ -66,7 +66,17 @@ public class DimFilters
 
   public static DimFilter and(List<DimFilter> filters)
   {
-    List<DimFilter> list = Filters.filterNull(filters);
+    if (filters.contains(NONE)) {
+      return NONE;
+    }
+    List<DimFilter> list = Filters.filterNull(Iterables.filter(filters, new Predicate<DimFilter>()
+    {
+      @Override
+      public boolean apply(DimFilter input)
+      {
+        return !ALL.equals(input);
+      }
+    }));
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
@@ -82,7 +92,17 @@ public class DimFilters
 
   public static DimFilter or(List<DimFilter> filters)
   {
-    List<DimFilter> list = Filters.filterNull(filters);
+    if (filters.contains(ALL)) {
+      return ALL;
+    }
+    List<DimFilter> list = Filters.filterNull(Iterables.filter(filters, new Predicate<DimFilter>()
+    {
+      @Override
+      public boolean apply(DimFilter input)
+      {
+        return !NONE.equals(input);
+      }
+    }));
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrDimFilter(list);
   }
 
@@ -290,6 +310,12 @@ public class DimFilters
     {
       return Filters.NONE;
     }
+
+    @Override
+    public boolean equals(Object other)
+    {
+      return other instanceof None;
+    }
   }
 
   public static DimFilter ALL = new All();
@@ -334,6 +360,12 @@ public class DimFilters
           return ValueMatcher.TRUE;
         }
       };
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+      return other instanceof All;
     }
   }
 

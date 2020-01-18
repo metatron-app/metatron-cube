@@ -44,7 +44,15 @@ public class HashAggregator<T extends HashCollector> extends Aggregator.Simple<T
       return new BytesOutputStream();
     }
   };
-  private static final byte NULL_VALUE  = (byte) 0x00;    // HLL seemingly expects this to be zero
+
+  private static BytesOutputStream getCleared()
+  {
+    final BytesOutputStream stream = HashAggregator.BUFFERS.get();
+    stream.clear();
+    return stream;
+  }
+
+  private static final byte NULL_VALUE = (byte) 0x00;    // HLL seemingly expects this to be zero
   private static final byte COLUMN_SEPARATOR = (byte) 0x01;
   private static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
 
@@ -116,6 +124,18 @@ public class HashAggregator<T extends HashCollector> extends Aggregator.Simple<T
       // explode multi-value
       populateAndCollect(values, groupings, collector, buffer);
     }
+  }
+
+  public static void hashRow(final HashCollector collector, final Object[] values)
+  {
+    final BytesOutputStream stream = getCleared();
+    for (int i = 0; i < values.length; i++) {
+      if (i > 0) {
+        stream.write(COLUMN_SEPARATOR);
+      }
+      stream.write(StringUtils.toUtf8WithNullToEmpty(Objects.toString(values[i], null)));
+    }
+    collector.collect(values, stream.asRef());
   }
 
   private static Object toValue(final DimensionSelector selector, final boolean rawBytes, final boolean sort)

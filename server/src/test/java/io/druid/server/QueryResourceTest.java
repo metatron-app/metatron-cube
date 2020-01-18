@@ -63,6 +63,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
@@ -70,6 +71,7 @@ import java.util.concurrent.Executors;
  */
 public class QueryResourceTest
 {
+  private static final ExecutorService executorService = Executors.newSingleThreadExecutor();
   private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
   public static final ServerConfig serverConfig = new ServerConfig()
   {
@@ -88,6 +90,12 @@ public class QueryResourceTest
   private final HttpServletRequest testServletRequest = EasyMock.createMock(HttpServletRequest.class);
   public static final QuerySegmentWalker testSegmentWalker = new QuerySegmentWalker()
   {
+    @Override
+    public ExecutorService getExecutor()
+    {
+      return executorService;
+    }
+
     @Override
     public ObjectMapper getObjectMapper()
     {

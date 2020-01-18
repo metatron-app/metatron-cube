@@ -125,7 +125,7 @@ public class Filters
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrFilter(list);
   }
 
-  public static <T> List<T> filterNull(List<T> filters)
+  public static <T> List<T> filterNull(Iterable<T> filters)
   {
     return Lists.newArrayList(Iterables.filter(filters, Predicates.notNull()));
   }

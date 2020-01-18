@@ -22,11 +22,12 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -87,10 +88,10 @@ public class PostProcessingOperators
     PostProcessingOperator existing = load(query, mapper);
     if (existing != null) {
       if (existing instanceof ListPostProcessingOperator) {
-        ((ListPostProcessingOperator) existing).getProcessors().add(processor);
-        return query;
+        processor = list(GuavaUtils.concat(((ListPostProcessingOperator) existing).getProcessors(), processor));
+      } else {
+        processor = list(Arrays.asList(existing, processor));
       }
-      processor = new ListPostProcessingOperator(Arrays.asList(existing, processor));
     }
     return query.withOverriddenContext(Query.POST_PROCESSING, processor);
   }
@@ -101,12 +102,17 @@ public class PostProcessingOperators
     PostProcessingOperator existing = load(query, mapper);
     if (existing != null) {
       if (existing instanceof ListPostProcessingOperator) {
-        ((ListPostProcessingOperator) existing).getProcessors().add(0, processor);
-        return query;
+        processor = list(GuavaUtils.concat(processor, ((ListPostProcessingOperator) existing).getProcessors()));
+      } else {
+        processor = list(Arrays.asList(processor, existing));
       }
-      processor = new ListPostProcessingOperator(Arrays.asList(processor, existing));
     }
     return query.withOverriddenContext(Query.POST_PROCESSING, processor);
+  }
+
+  public static PostProcessingOperator list(List<PostProcessingOperator> processors)
+  {
+    return processors.size() == 1 ? processors.get(0) : new ListPostProcessingOperator(processors);
   }
 
   @SuppressWarnings("unchecked")
@@ -124,7 +130,7 @@ public class PostProcessingOperators
     } else if (processing instanceof PostProcessingOperator.ReturnsMap) {
       return Map.class;
     } else if (processing instanceof ListPostProcessingOperator) {
-      for (PostProcessingOperator element : Lists.reverse(((ListPostProcessingOperator<?>) processing).getProcessors())) {
+      for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processing).getProcessorsInReverse()) {
         Class<?> returns = returns(element);
         if (returns != null) {
           return returns;

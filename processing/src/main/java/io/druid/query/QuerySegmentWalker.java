@@ -22,11 +22,15 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.Interval;
 
+import java.util.concurrent.ExecutorService;
+
 /**
  */
 public interface QuerySegmentWalker
 {
-  public ObjectMapper getObjectMapper();
+  ExecutorService getExecutor();
+
+  ObjectMapper getObjectMapper();
 
   /**
    * Gets the Queryable for a given interval, the Queryable returned can be any version(s) or partitionNumber(s)
@@ -37,7 +41,7 @@ public interface QuerySegmentWalker
    * @param intervals the intervals to find a Queryable for
    * @return a Queryable object that represents the interval
    */
-  public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals);
+  <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals);
 
   /**
    * Gets the Queryable for a given list of SegmentSpecs.
@@ -47,10 +51,5 @@ public interface QuerySegmentWalker
    * @param specs the list of SegmentSpecs to find a Queryable for
    * @return the Queryable object with the given SegmentSpecs
    */
-  public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs);
-
-  public interface Wrapper extends QuerySegmentWalker
-  {
-    <T> QueryRunner<T> wrap(final Query<T> query, final QueryRunner<T> baseRunner);
-  }
+  <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs);
 }

@@ -23,20 +23,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.granularity.Granularity;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.query.timeseries.TimeseriesQuery;
-import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -211,8 +207,6 @@ public class JoinElement
     return expression;
   }
 
-  public static final String HASHING = "$hash";
-
   public static Query toQuery(
       DataSource dataSource,
       List<String> sortColumns,
@@ -257,31 +251,39 @@ public class JoinElement
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query.getDataSource() instanceof QueryDataSource) {
+        if (query instanceof StreamQuery) {
+          StreamQuery stream = (StreamQuery) query;
+          // ignore simple projections
+          long estimated = estimatedNumRows(query.getDataSource(), segmentSpec, context, segmentWalker, config);
+          if (estimated > 0 && stream.getFilter() != null) {
+            estimated >>= 1;
+          }
+          LimitSpec limitSpec = stream.getLimitSpec();
+          if (estimated > 0 && limitSpec.hasLimit()) {
+            estimated = Math.min(limitSpec.getLimit(), estimated);
+          }
+          return estimated;
+        }
         return -1;  // see later
       }
       if (query instanceof JoinQuery.JoinDelegate) {
-        long estimated = ((JoinQuery.JoinDelegate) query).getEstimatedCardinality();
-        if (estimated > 0) {
-          return estimated;
-        }
+        return ((JoinQuery.JoinDelegate) query).getEstimatedCardinality();
       }
-      if (query instanceof TimeseriesQuery) {
-        Granularity granularity = query.getGranularity();
-        long count = 0;
-        for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
-          count += Iterables.size(granularity.getIterable(interval));
+      if (query instanceof BaseAggregationQuery) {
+        BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
+        long estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
+        if (estimated > 0 && aggregation.getHavingSpec() != null) {
+          estimated >>= 1;
         }
-        return count;
-      }
-      if (query instanceof GroupByQuery) {
-        return Queries.estimateCardinality((GroupByQuery) query, segmentWalker, config);
+        return estimated;
       }
       if (query instanceof StreamQuery) {
+        StreamQuery stream = (StreamQuery) query;
         return runSelectMetaQuery(
-            query.getDataSource(),
-            query.getQuerySegmentSpec(),
-            ((StreamQuery) query).getFilter(),
-            BaseQuery.copyContextForMeta(query),
+            stream.getDataSource(),
+            stream.getQuerySegmentSpec(),
+            stream.getFilter(),
+            BaseQuery.copyContextForMeta(stream),
             segmentWalker
         );
       }
@@ -302,7 +304,6 @@ public class JoinElement
     Result<SelectMetaResultValue> result = Sequences.only(query.run(segmentWalker, null), null);
     return result == null ? -1 : result.getValue().getTotalCount();
   }
-
 
   @Override
   public boolean equals(Object o)

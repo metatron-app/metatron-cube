@@ -32,9 +32,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
@@ -42,6 +39,9 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.ArrayToRow;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
@@ -86,6 +86,7 @@ import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.VirtualColumn;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -981,49 +982,53 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       }
     }
 
-    return query.withGroupingSet(null)
-                .withPostAggregatorSpecs(null)
-                .withAggregatorSpecs(Arrays.asList(cardinality))
-                .withGranularity(granularity)
-                .withDimensionSpecs(null)
-                .withHavingSpec(null)
-                .withLimitSpec(null)
-                .withOutputColumns(null)
-                .withOverriddenContext(FINALIZE, true)
-                .withOverriddenContext(FINAL_MERGE, true)
-                .withOverriddenContext(GBY_CONVERT_TIMESERIES, true)
-                .withOverriddenContext(ALL_DIMENSIONS_FOR_EMPTY, false)
-                .withOverriddenContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
+    return new TimeseriesQuery.Builder()
+        .dataSource(query.getDataSource())
+        .intervals(query.getQuerySegmentSpec())
+        .descending(query.isDescending())
+        .filters(query.getFilter())
+        .granularity(query.getGranularity())
+        .virtualColumns(query.getVirtualColumns())
+        .aggregators(cardinality)
+        .setContext(query.getContext())
+        .addContext(FINALIZE, true)
+        .addContext(FINAL_MERGE, true)
+        .addContext(GBY_CONVERT_TIMESERIES, true)
+        .addContext(ALL_DIMENSIONS_FOR_EMPTY, false)
+        .addContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
+        {
+          @Override
+          public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)
+          {
+            return new QueryRunner<Row>()
+            {
+              @Override
+              public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+              {
+                Sequence<Row> sequence = baseRunner.run(query, responseContext);
+                MutableInt sum = sequence.accumulate(new MutableInt(), new Accumulator<MutableInt, Row>()
                 {
                   @Override
-                  public QueryRunner<Row> postProcess(final QueryRunner<Row> baseRunner)
+                  public MutableInt accumulate(MutableInt accumulated, Row in)
                   {
-                    return new QueryRunner<Row>()
-                    {
-                      @Override
-                      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
-                      {
-                        int sum = baseRunner.run(query, responseContext).accumulate(0, new Accumulator<Integer, Row>()
-                        {
-                          @Override
-                          public Integer accumulate(Integer accumulated, Row in)
-                          {
-                            return accumulated + Ints.checkedCast(in.getLongMetric("$cardinality"));
-                          }
-                        });
-                        return Sequences.<Row>of(
-                            new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", sum))
-                        );
-                      }
-
-                      @Override
-                      public String toString()
-                      {
-                        return "cardinality";
-                      }
-                    };
+                    accumulated.add(Ints.checkedCast(in.getLongMetric("$cardinality")));
+                    return accumulated;
                   }
                 });
+                return Sequences.<Row>of(
+                    new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", sum.intValue()))
+                );
+              }
+
+              @Override
+              public String toString()
+              {
+                return "cardinality";
+              }
+            };
+          }
+        })
+        .build();
   }
 
   private Query<Row> toWorstCase(GroupByQuery query, ObjectMapper jsonMapper)

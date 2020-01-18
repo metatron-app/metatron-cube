@@ -26,12 +26,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -42,6 +36,12 @@ import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
@@ -300,6 +300,12 @@ public class ServerManager implements ForwardingSegmentWalker
   }
 
   @Override
+  public ExecutorService getExecutor()
+  {
+    return exec;
+  }
+
+  @Override
   public ObjectMapper getObjectMapper()
   {
     return objectMapper;
@@ -430,7 +436,13 @@ public class ServerManager implements ForwardingSegmentWalker
   )
   {
     if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
-      log.info("Running resolved [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
+      log.info(
+          "Running resolved [%s][%s:%s] on [%d] segments",
+          query.getId(),
+          query.getType(),
+          query.getDataSource(),
+          segments.size()
+      );
     }
 
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
