@@ -176,12 +176,10 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, fieldExpression)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, fieldExpression);
   }
 
   @Override

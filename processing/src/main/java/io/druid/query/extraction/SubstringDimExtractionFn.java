@@ -23,9 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.KeyBuilder;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 
 /**
  */
@@ -51,13 +51,11 @@ public class SubstringDimExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return ByteBuffer.allocate(1 + 8)
-                     .put(CACHE_TYPE_ID)
-                     .putInt(this.index)
-                     .putInt(this.end)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(index)
+                  .append(end);
   }
 
   @Override

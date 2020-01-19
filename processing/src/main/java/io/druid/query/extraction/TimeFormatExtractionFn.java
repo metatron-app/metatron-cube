@@ -20,15 +20,13 @@
 package io.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.query.aggregation.AggregatorUtil;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class TimeFormatExtractionFn implements ExtractionFn.Stateful
@@ -87,24 +85,13 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] patternBytes = StringUtils.toUtf8(pattern);
-    byte[] timeZoneBytes = StringUtils.toUtf8WithNullToEmpty(getTimeZone());
-    byte[] localeBytes = StringUtils.toUtf8WithNullToEmpty(getLocale());
-    final byte[] granularityCacheKey = granularity.getCacheKey();
-
-    int length = 4 + patternBytes.length + timeZoneBytes.length + localeBytes.length + granularityCacheKey.length;
-    return ByteBuffer.allocate(length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_FORMAT)
-                     .put(patternBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(timeZoneBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(localeBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(granularityCacheKey)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_FORMAT)
+                  .append(pattern).sp()
+                  .append(getTimeZone()).sp()
+                  .append(getLocale()).sp()
+                  .append(granularity);
   }
 
   @Override

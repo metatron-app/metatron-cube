@@ -55,7 +55,8 @@ public class PivotColumnSpec extends OrderingSpec
       String dimension,
       Direction direction,
       String comparatorName,
-      List<String> values)
+      List<String> values
+  )
   {
     return new PivotColumnSpec(dimension, null, direction, comparatorName, values);
   }
@@ -64,7 +65,8 @@ public class PivotColumnSpec extends OrderingSpec
       String expression,
       Direction direction,
       String comparatorName,
-      List<String> values)
+      List<String> values
+  )
   {
     return new PivotColumnSpec(null, expression, direction, comparatorName, values);
   }
@@ -258,12 +260,10 @@ public class PivotColumnSpec extends OrderingSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(super.getCacheKey())
-                     .append(dimension, expression)
-                     .append(values)
-                     .build();
+    return super.getCacheKey(builder)
+                .append(dimension, expression)
+                .append(values);
   }
 }

@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -1337,9 +1338,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     final ExtractionFn nullExtractionFn = new RegexDimExtractionFn("(\\w{1})", false, null)
     {
       @Override
-      public byte[] getCacheKey()
+      public KeyBuilder getCacheKey(KeyBuilder builder)
       {
-        return new byte[]{(byte) 0xFF};
+        return builder.append((byte) 0xFF);
       }
 
       @Override
@@ -1402,9 +1403,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     final ExtractionFn emptyStringExtractionFn = new RegexDimExtractionFn("(\\w{1})", false, null)
     {
       @Override
-      public byte[] getCacheKey()
+      public KeyBuilder getCacheKey(KeyBuilder builder)
       {
-        return new byte[]{(byte) 0xFF};
+        return builder.append((byte) 0xFF);
       }
 
       @Override

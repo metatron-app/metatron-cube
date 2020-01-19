@@ -180,13 +180,11 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName)
-                     .append(breaks)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName)
+                  .append(breaks);
   }
 
   @Override

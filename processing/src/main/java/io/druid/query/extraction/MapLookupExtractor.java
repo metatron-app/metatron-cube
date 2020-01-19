@@ -25,17 +25,14 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.query.lookup.LookupExtractor;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -90,28 +87,12 @@ public class MapLookupExtractor extends LookupExtractor
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    try {
-      final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      for (Map.Entry<Object, String> entry : map.entrySet()) {
-        final String key = entry.getKey().toString();
-        final String val = entry.getValue();
-        if (!Strings.isNullOrEmpty(key)) {
-          outputStream.write(StringUtils.toUtf8(key));
-        }
-        outputStream.write(ExtractionCacheHelper.CACHE_KEY_SEPARATOR);
-        if (!Strings.isNullOrEmpty(val)) {
-          outputStream.write(StringUtils.toUtf8(val));
-        }
-        outputStream.write(ExtractionCacheHelper.CACHE_KEY_SEPARATOR);
-      }
-      return outputStream.toByteArray();
+    for (Map.Entry<Object, String> entry : map.entrySet()) {
+      builder.append(entry.getKey()).sp().append(entry.getValue()).sp();
     }
-    catch (IOException ex) {
-      // If ByteArrayOutputStream.write has problems, that is a very bad thing
-      throw Throwables.propagate(ex);
-    }
+    return builder;
   }
 
   @Override

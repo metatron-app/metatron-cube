@@ -155,12 +155,10 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName);
   }
 
   @Override

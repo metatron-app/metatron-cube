@@ -27,7 +27,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import io.druid.common.Cacheable;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import org.joda.time.Interval;
@@ -714,8 +714,8 @@ public class ValueDesc implements Serializable, Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return type.isPrimitive() ? new byte[] {(byte) type.ordinal()} : StringUtils.toUtf8(typeName);
+    return type.isPrimitive() ? builder.append(type) : builder.append(typeName);
   }
 }

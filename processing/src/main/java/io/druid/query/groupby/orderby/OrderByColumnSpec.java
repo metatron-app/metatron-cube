@@ -226,11 +226,9 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(super.getCacheKey())
-                     .append(dimension)
-                     .build();
+    return super.getCacheKey(builder)
+                .append(dimension);
   }
 }

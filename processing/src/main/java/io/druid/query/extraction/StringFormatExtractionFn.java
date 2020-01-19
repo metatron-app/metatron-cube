@@ -24,9 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import io.druid.java.util.common.StringUtils;
-
-import java.nio.ByteBuffer;
+import io.druid.common.KeyBuilder;
 
 /**
  *
@@ -84,14 +82,11 @@ public class StringFormatExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] bytes = StringUtils.toUtf8(format);
-    return ByteBuffer.allocate(2 + bytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_STRING_FORMAT)
-                     .put((byte) nullHandling.ordinal())
-                     .put(bytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_STRING_FORMAT)
+                  .append(nullHandling)
+                  .append(format);
   }
 
   @Override

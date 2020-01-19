@@ -22,10 +22,10 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import io.druid.common.KeyBuilder;
 import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 public class DimsConcatExtractionFn extends MultiInputFunctionalExtraction
@@ -75,17 +75,11 @@ public class DimsConcatExtractionFn extends MultiInputFunctionalExtraction
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] formatBytes = (format == null) ? new byte[]{} : io.druid.common.utils.StringUtils.toUtf8(format);
-    byte[] delimiterBytes = (delimiter == null) ? new byte[]{} : io.druid.common.utils.StringUtils.toUtf8(delimiter);
-    return ByteBuffer.allocate(3 + formatBytes.length + delimiterBytes.length)
-        .put(ExtractionCacheHelper.CACHE_TYPE_ID_MULTICONCAT)
-        .put(ExtractionCacheHelper.CACHE_KEY_SEPARATOR)
-        .put(formatBytes)
-        .put(ExtractionCacheHelper.CACHE_KEY_SEPARATOR)
-        .put(delimiterBytes)
-        .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_MULTICONCAT)
+                  .append(format)
+                  .append(delimiter);
   }
 
   @Override

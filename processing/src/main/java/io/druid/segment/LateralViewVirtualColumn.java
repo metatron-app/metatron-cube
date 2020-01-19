@@ -227,14 +227,12 @@ public class LateralViewVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(VC_TYPE_ID)
-                     .append(outputName, metricName)
-                     .append(excludes)
-                     .append(values)
-                     .build();
+    return builder.append(VC_TYPE_ID)
+                  .append(outputName, metricName)
+                  .append(excludes)
+                  .append(values);
   }
 
   @Override

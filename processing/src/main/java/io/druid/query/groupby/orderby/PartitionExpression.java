@@ -93,11 +93,9 @@ public class PartitionExpression implements Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(condition, expression)
-                     .build();
+    return builder.append(condition, expression);
   }
 
   @Override

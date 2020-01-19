@@ -22,9 +22,7 @@ package io.druid.query.search.search;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
-import io.druid.java.util.common.StringUtils;
-
-import java.nio.ByteBuffer;
+import io.druid.common.KeyBuilder;
 
 /**
  */
@@ -71,21 +69,11 @@ public class ContainsSearchQuerySpec implements SearchQuerySpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    if (value == null) {
-      return ByteBuffer.allocate(2)
-                       .put(CACHE_TYPE_ID)
-                       .put(caseSensitive ? (byte) 1 : 0).array();
-    }
-
-    byte[] valueBytes = StringUtils.toUtf8(value);
-
-    return ByteBuffer.allocate(2 + valueBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(caseSensitive ? (byte) 1 : 0)
-                     .put(valueBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(caseSensitive)
+                  .append(value);
   }
 
   @Override

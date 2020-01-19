@@ -82,7 +82,9 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
     this.outputType = inputType == null ? null : toOutputType(inputType);
-    this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : GuavaUtils.NULL_FIRST_NATURAL;
+    this.comparator = ValueDesc.isPrimitive(outputType)
+                      ? outputType.type().comparator()
+                      : GuavaUtils.NULL_FIRST_NATURAL;
   }
 
   public GenericAggregatorFactory(String name, String fieldName, ValueDesc inputType)
@@ -269,17 +271,11 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return baseKey().build();
-  }
-
-  protected final KeyBuilder baseKey()
-  {
-    return KeyBuilder.get()
-                     .append(cacheTypeID())
-                     .append(fieldName, fieldExpression, predicate)
-                     .append(inputType);
+    return builder.append(cacheTypeID())
+                  .append(fieldName, fieldExpression, predicate)
+                  .append(inputType);
   }
 
   @Override
@@ -311,10 +307,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   {
     return getClass().getSimpleName() + '{' +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
-           (inputType == null ? "": ", inputType='" + inputType + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "" : ", fieldExpression='" + fieldExpression + '\'') +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
+           (inputType == null ? "" : ", inputType='" + inputType + '\'') +
            '}';
   }
 

@@ -59,12 +59,10 @@ public class AndDimFilter implements DimFilter, AndExpression
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.AND_CACHE_ID)
-                     .append(fields)
-                     .build();
+    return builder.append(DimFilterCacheHelper.AND_CACHE_ID)
+                  .append(fields);
   }
 
   @Override

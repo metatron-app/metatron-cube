@@ -293,14 +293,12 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldNames)
-                     .append(fields)
-                     .append(byRow, round)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldNames)
+                  .append(fields)
+                  .append(byRow, round);
   }
 
   @Override

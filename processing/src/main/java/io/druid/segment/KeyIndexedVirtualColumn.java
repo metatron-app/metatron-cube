@@ -314,16 +314,14 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(VC_TYPE_ID)
-                     .append(keyDimension).sp()
-                     .append(valueDimensions).sp()
-                     .append(valueMetrics).sp()
-                     .append(keyFilter).sp()
-                     .append(outputName)
-                     .build();
+    return builder.append(VC_TYPE_ID)
+                  .append(keyDimension).sp()
+                  .append(valueDimensions).sp()
+                  .append(valueMetrics).sp()
+                  .append(keyFilter).sp()
+                  .append(outputName);
   }
 
   @JsonProperty

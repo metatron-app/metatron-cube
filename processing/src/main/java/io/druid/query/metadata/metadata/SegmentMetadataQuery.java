@@ -28,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
@@ -42,7 +41,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -53,12 +51,6 @@ import java.util.Set;
 @JsonTypeName("segmentMetadata")
 public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements Query.VCSupport<SegmentAnalysis>
 {
-  /* The SegmentMetadataQuery cache key may contain UTF-8 column name strings.
-   * Prepend 0xFF before the analysisTypes as a separator to avoid
-   * any potential confusion with string values.
-   */
-  public static final byte[] ANALYSIS_TYPES_CACHE_PREFIX = new byte[]{(byte) 0xFF};
-
   public static SegmentMetadataQuery of(String dataSource, AnalysisType... analysisTypes)
   {
     return new SegmentMetadataQuery(
@@ -107,11 +99,6 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     public static AnalysisType fromString(String name)
     {
       return valueOf(name.toUpperCase());
-    }
-
-    public byte[] getCacheKey()
-    {
-      return new byte[]{(byte) this.ordinal()};
     }
   }
 
@@ -260,6 +247,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   {
     return analysisTypes.contains(AnalysisType.INTERVAL);
   }
+
   public boolean hasAggregators()
   {
     return analysisTypes.contains(AnalysisType.AGGREGATORS);
@@ -294,26 +282,6 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   {
     return analysisTypes.contains(AnalysisType.LAST_ACCESS_TIME);
   }
-
-  public byte[] getAnalysisTypesCacheKey()
-  {
-    int size = 1;
-    List<byte[]> typeBytesList = Lists.newArrayListWithExpectedSize(analysisTypes.size());
-    for (AnalysisType analysisType : analysisTypes) {
-      final byte[] bytes = analysisType.getCacheKey();
-      typeBytesList.add(bytes);
-      size += bytes.length;
-    }
-
-    final ByteBuffer bytes = ByteBuffer.allocate(size);
-    bytes.put(ANALYSIS_TYPES_CACHE_PREFIX);
-    for (byte[] typeBytes : typeBytesList) {
-      bytes.put(typeBytes);
-    }
-
-    return bytes.array();
-  }
-
 
   @Override
   public SegmentMetadataQuery withOverriddenContext(Map<String, Object> contextOverride)

@@ -100,16 +100,15 @@ public interface GroupingSetSpec extends Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      final KeyBuilder builder = KeyBuilder.get();
       for (int i = 0; i < names.size(); i++) {
         if (i > 0) {
           builder.sp();
         }
         builder.append(names.get(i));
       }
-      return builder.build();
+      return builder;
     }
 
     @Override
@@ -208,16 +207,15 @@ public interface GroupingSetSpec extends Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      final KeyBuilder builder = KeyBuilder.get();
       for (int i = 0; i < indices.size(); i++) {
         if (i > 0) {
           builder.sp();
         }
         builder.append(Ints.toArray(indices.get(i)));
       }
-      return builder.build();
+      return builder;
     }
 
     @Override
@@ -306,11 +304,9 @@ public interface GroupingSetSpec extends Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return KeyBuilder.get()
-                       .append(Ints.toArray(ids))
-                       .build();
+      return builder.append(Ints.toArray(ids));
     }
 
     @Override
@@ -362,9 +358,9 @@ public interface GroupingSetSpec extends Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return "-".getBytes();
+      return builder.append("-");
     }
 
     @Override

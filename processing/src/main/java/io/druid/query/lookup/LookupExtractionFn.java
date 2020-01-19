@@ -24,14 +24,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.query.extraction.ExtractionCacheHelper;
 import io.druid.query.extraction.FunctionalExtraction;
 
 import javax.annotation.Nullable;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 public class LookupExtractionFn extends FunctionalExtraction
 {
@@ -101,25 +98,14 @@ public class LookupExtractionFn extends FunctionalExtraction
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    try {
-      final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      outputStream.write(ExtractionCacheHelper.CACHE_TYPE_ID_LOOKUP);
-      outputStream.write(lookup.getCacheKey());
-      if (getReplaceMissingValueWith() != null) {
-        outputStream.write(StringUtils.toUtf8(getReplaceMissingValueWith()));
-        outputStream.write(ExtractionCacheHelper.CACHE_KEY_SEPARATOR);
-      }
-      outputStream.write(isInjective() ? 1 : 0);
-      outputStream.write(isRetainMissingValue() ? 1 : 0);
-      outputStream.write(isOptimize() ? 1 : 0);
-      return outputStream.toByteArray();
-    }
-    catch (IOException ex) {
-      // If ByteArrayOutputStream.write has problems, that is a very bad thing
-      throw Throwables.propagate(ex);
-    }
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_LOOKUP)
+                  .append(lookup)
+                  .append(getReplaceMissingValueWith())
+                  .append(isInjective())
+                  .append(isRetainMissingValue())
+                  .append(isOptimize());
   }
 
   @Override

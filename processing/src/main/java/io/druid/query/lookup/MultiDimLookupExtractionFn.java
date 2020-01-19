@@ -23,15 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.query.extraction.ExtractionCacheHelper;
 import io.druid.query.extraction.MultiInputFunctionalExtraction;
 import org.apache.commons.collections.keyvalue.MultiKey;
 
 import javax.annotation.Nullable;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
 
 public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
@@ -56,8 +53,10 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
           @Override
           public String apply(List<String> inputList)
           {
-            Preconditions.checkArgument(inputList.size() == numKeys,
-                String.format("Number of Keys should be %d", numKeys));
+            Preconditions.checkArgument(
+                inputList.size() == numKeys,
+                String.format("Number of Keys should be %d", numKeys)
+            );
             String[] inputArray = new String[inputList.size()];
             inputArray = inputList.toArray(inputArray);
             MultiKey key = new MultiKey(inputArray);
@@ -67,7 +66,7 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
         replaceMissingValueWith
     );
     this.lookup = lookup;
-    this.optimize = optimize == null ?  true : optimize;
+    this.optimize = optimize == null ? true : optimize;
     this.replaceMissingValueWith = replaceMissingValueWith;
     Preconditions.checkArgument(numKeys > 1, "number of dimension keys should be greater than 1");
     this.numKeys = numKeys;
@@ -99,23 +98,13 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
   }
 
   @Override
-  public byte[] getCacheKey() {
-    try {
-      final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      outputStream.write(ExtractionCacheHelper.CACHE_TYPE_ID_MULTILOOKUP);
-      outputStream.write(lookup.getCacheKey());
-      if (getReplaceMissingValueWith() != null) {
-        outputStream.write(StringUtils.toUtf8(getReplaceMissingValueWith()));
-        outputStream.write(ExtractionCacheHelper.CACHE_KEY_SEPARATOR);
-      }
-      outputStream.write(isOptimize() ? 1 : 0);
-      outputStream.write(getNumKeys());
-      return outputStream.toByteArray();
-    }
-    catch (IOException ex) {
-      // If ByteArrayOutputStream.write has problems, that is a very bad thing
-      throw Throwables.propagate(ex);
-    }
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_MULTILOOKUP)
+                  .append(lookup)
+                  .append(getReplaceMissingValueWith())
+                  .append(isOptimize())
+                  .append(getNumKeys());
   }
 
   @Override
@@ -146,8 +135,8 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
       return false;
     }
     return getReplaceMissingValueWith() != null
-        ? getReplaceMissingValueWith().equals(that.getReplaceMissingValueWith())
-        : that.getReplaceMissingValueWith() == null;
+           ? getReplaceMissingValueWith().equals(that.getReplaceMissingValueWith())
+           : that.getReplaceMissingValueWith() == null;
 
   }
 

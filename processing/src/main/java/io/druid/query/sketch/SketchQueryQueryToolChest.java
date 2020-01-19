@@ -141,7 +141,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
       {
         return KeyBuilder.get()
                          .append(SKETCH_QUERY)
-                         .appendByte(query.getSketchOp())
+                         .append(query.getSketchOp())
                          .append(query.getSketchParam())
                          .append(query.getFilter())
                          .append(query.getVirtualColumns())

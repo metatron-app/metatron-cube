@@ -176,12 +176,10 @@ public class OrderingSpec implements Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     final String normalized = Objects.toString(dimensionOrder, StringComparators.LEXICOGRAPHIC_NAME);
-    return KeyBuilder.get()
-                     .append((byte) direction.ordinal())
-                     .append(normalized)
-                     .build();
+    return builder.append(direction)
+                  .append(normalized);
   }
 }

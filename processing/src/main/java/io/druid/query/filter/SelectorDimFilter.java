@@ -88,14 +88,12 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.SELECTOR_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(value).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.SELECTOR_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(value).sp()
+                  .append(extractionFn);
   }
 
   @Override

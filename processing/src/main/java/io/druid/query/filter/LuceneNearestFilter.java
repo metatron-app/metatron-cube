@@ -24,11 +24,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
@@ -38,7 +36,6 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.LatLonPointPrototypeQueries;
 import org.apache.lucene.search.TopDocs;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -93,16 +90,13 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] fieldBytes = StringUtils.toUtf8(field);
-    return ByteBuffer.allocate(1 + fieldBytes.length + Doubles.BYTES * 2 + Ints.BYTES)
-                     .put(DimFilterCacheHelper.LUCENE_NEAREST_CACHE_ID)
-                     .put(fieldBytes)
-                     .putDouble(latitude)
-                     .putDouble(longitude)
-                     .putInt(count)
-                     .array();
+    return builder.append(DimFilterCacheHelper.LUCENE_NEAREST_CACHE_ID)
+                  .append(field)
+                  .append(latitude)
+                  .append(longitude)
+                  .append(count);
   }
 
   @Override

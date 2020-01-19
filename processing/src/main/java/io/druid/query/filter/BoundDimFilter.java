@@ -273,17 +273,15 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.BOUND_CACHE_ID)
-                     .append(lowerStrict, upperStrict)
-                     .append(dimension).sp()
-                     .append(lower).sp()
-                     .append(upper).sp()
-                     .append(comparatorType).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.BOUND_CACHE_ID)
+                  .append(lowerStrict, upperStrict)
+                  .append(dimension).sp()
+                  .append(lower).sp()
+                  .append(upper).sp()
+                  .append(comparatorType).sp()
+                  .append(extractionFn);
   }
 
   @Override

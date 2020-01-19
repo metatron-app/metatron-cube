@@ -64,7 +64,7 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
       return null;
     }
     int count = 0;
-    final Map<Integer,Integer> forwardMapping = new HashMap<>();
+    final Map<Integer, Integer> forwardMapping = new HashMap<>();
 
     final int cardinality = selector.getValueCardinality();
     if (cardinality < 0) {
@@ -90,13 +90,11 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(delegate)
-                     .append(pattern)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(delegate)
+                  .append(pattern);
   }
 
   @Override

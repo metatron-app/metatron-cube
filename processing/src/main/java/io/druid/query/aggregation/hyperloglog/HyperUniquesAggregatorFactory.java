@@ -69,6 +69,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
 
   private final String fieldName;
   private final String predicate;
+
   @JsonCreator
   public HyperUniquesAggregatorFactory(
       @JsonProperty("name") String name,
@@ -237,13 +238,11 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, predicate)
-                     .append(round)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, predicate)
+                  .append(round);
   }
 
   @JsonProperty
@@ -283,15 +282,27 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public boolean equals(final Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     HyperUniquesAggregatorFactory that = (HyperUniquesAggregatorFactory) o;
 
-    if (!Objects.equals(fieldName, that.fieldName)) return false;
-    if (!Objects.equals(name, that.name)) return false;
-    if (!Objects.equals(predicate, that.predicate)) return false;
-    if (!Objects.equals(round, that.round)) return false;
+    if (!Objects.equals(fieldName, that.fieldName)) {
+      return false;
+    }
+    if (!Objects.equals(name, that.name)) {
+      return false;
+    }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
+    if (!Objects.equals(round, that.round)) {
+      return false;
+    }
 
     return true;
   }

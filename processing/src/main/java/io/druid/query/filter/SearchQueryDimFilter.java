@@ -74,14 +74,12 @@ public class SearchQueryDimFilter extends DimFilter.NotOptimizable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.SEARCH_QUERY_TYPE_ID)
-                     .append(dimension).sp()
-                     .append(query).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.SEARCH_QUERY_TYPE_ID)
+                  .append(dimension).sp()
+                  .append(query).sp()
+                  .append(extractionFn);
   }
 
   @Override

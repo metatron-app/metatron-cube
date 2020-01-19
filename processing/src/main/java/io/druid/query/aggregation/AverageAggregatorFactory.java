@@ -205,12 +205,10 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_KEY)
-                     .append(fieldName)
-                     .build();
+    return builder.append(CACHE_KEY)
+                  .append(fieldName);
   }
 
   @Override
@@ -259,7 +257,7 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
     return "AverageAggregatorFactory{" +
            "name='" + name + '\'' +
            "fieldName='" + fieldName + '\'' +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            '}';
   }
 

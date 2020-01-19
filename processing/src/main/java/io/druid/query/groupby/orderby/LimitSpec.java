@@ -430,14 +430,12 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_KEY)
-                     .append(columns)
-                     .append(segmentLimit)
-                     .append(nodeLimit)
-                     .build();
+    return builder.append(CACHE_KEY)
+                  .append(columns)
+                  .append(segmentLimit)
+                  .append(nodeLimit);
   }
 
   @Override

@@ -160,14 +160,12 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, predicate)
-                     .append(resolution, numBuckets)
-                     .append(lowerLimit, upperLimit)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, predicate)
+                  .append(resolution, numBuckets)
+                  .append(lowerLimit, upperLimit);
   }
 
   @Override

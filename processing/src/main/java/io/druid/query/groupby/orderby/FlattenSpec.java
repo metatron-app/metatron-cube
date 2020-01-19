@@ -141,16 +141,14 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(getType())
-                     .append(columns).sp()
-                     .append(pivotColumns).sp()
-                     .append(prefixColumns).sp()
-                     .append(separator).sp()
-                     .append(expressions)
-                     .build();
+    return builder.append(getType())
+                  .append(columns).sp()
+                  .append(pivotColumns).sp()
+                  .append(prefixColumns).sp()
+                  .append(separator).sp()
+                  .append(expressions);
   }
 
   @Override

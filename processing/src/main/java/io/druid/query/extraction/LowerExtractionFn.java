@@ -22,10 +22,9 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Strings;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.Locale;
 
 @JsonTypeName("lower")
@@ -77,13 +76,9 @@ public class LowerExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] localeBytes = StringUtils.toUtf8(Strings.nullToEmpty(localeString));
-    return ByteBuffer.allocate(2 + localeBytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_LOWER)
-                     .put(ExtractionCacheHelper.CACHE_KEY_SEPARATOR)
-                     .put(localeBytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_LOWER)
+                  .append(localeString);
   }
 }

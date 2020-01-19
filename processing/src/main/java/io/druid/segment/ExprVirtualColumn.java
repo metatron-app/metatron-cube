@@ -95,12 +95,10 @@ public class ExprVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(VC_TYPE_ID)
-                     .append(expression, outputName)
-                     .build();
+    return builder.append(VC_TYPE_ID)
+                  .append(expression, outputName);
   }
 
   @JsonProperty

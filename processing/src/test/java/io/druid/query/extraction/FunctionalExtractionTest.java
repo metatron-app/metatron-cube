@@ -22,6 +22,7 @@ package io.druid.query.extraction;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.KeyBuilder;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,9 +46,9 @@ public class FunctionalExtractionTest
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[0];
+      return builder;
     }
   }
 

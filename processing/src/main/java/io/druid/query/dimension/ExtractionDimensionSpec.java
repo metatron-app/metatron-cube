@@ -22,12 +22,10 @@ package io.druid.query.dimension;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
-
-import java.nio.ByteBuffer;
 
 /**
  */
@@ -102,16 +100,11 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    byte[] dimExtractionFnBytes = extractionFn.getCacheKey();
-
-    return ByteBuffer.allocate(1 + dimensionBytes.length + dimExtractionFnBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(dimensionBytes)
-                     .put(dimExtractionFnBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(dimension)
+                  .append(extractionFn);
   }
 
   @Override
@@ -139,15 +132,24 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     ExtractionDimensionSpec that = (ExtractionDimensionSpec) o;
 
-    if (extractionFn != null ? !extractionFn.equals(that.extractionFn) : that.extractionFn != null)
+    if (extractionFn != null ? !extractionFn.equals(that.extractionFn) : that.extractionFn != null) {
       return false;
-    if (dimension != null ? !dimension.equals(that.dimension) : that.dimension != null) return false;
-    if (outputName != null ? !outputName.equals(that.outputName) : that.outputName != null) return false;
+    }
+    if (dimension != null ? !dimension.equals(that.dimension) : that.dimension != null) {
+      return false;
+    }
+    if (outputName != null ? !outputName.equals(that.outputName) : that.outputName != null) {
+      return false;
+    }
 
     return true;
   }

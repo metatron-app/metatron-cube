@@ -19,6 +19,7 @@
 
 package io.druid.query.filter;
 
+import io.druid.common.KeyBuilder;
 import io.druid.java.util.common.StringUtils;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import io.druid.query.search.search.SearchQuerySpec;
@@ -44,9 +45,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         null
@@ -63,9 +64,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("mvalue");
+            return builder.append("mvalue");
           }
         },
         null
@@ -84,9 +85,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         regexFn
@@ -108,9 +109,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         null
@@ -127,9 +128,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("mvalue");
+            return builder.append("mvalue");
           }
         },
         null
@@ -148,9 +149,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         regexFn
@@ -172,9 +173,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         null
@@ -191,9 +192,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("mvalue");
+            return builder.append("mvalue");
           }
         },
         null
@@ -212,9 +213,9 @@ public class SearchQueryDimFilterTest
           }
 
           @Override
-          public byte[] getCacheKey()
+          public KeyBuilder getCacheKey(KeyBuilder builder)
           {
-            return StringUtils.toUtf8("value");
+            return builder.append("value");
           }
         },
         regexFn

@@ -23,6 +23,7 @@ package io.druid.query.lookup;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.extraction.MultiKeyMapLookupExtractor;
 
@@ -108,9 +109,10 @@ public abstract class LookupExtractor implements Cacheable
    * Create a cache key for use in results caching
    *
    * @return A byte array that can be used to uniquely identify if results of a prior lookup can use the cached values
+   * @param builder
    */
 
-  public abstract byte[] getCacheKey();
+  public abstract KeyBuilder getCacheKey(KeyBuilder builder);
 
   // make this abstract again once @drcrallen fix the metmax lookup implementation.
   public boolean isOneToOne()

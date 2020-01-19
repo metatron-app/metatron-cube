@@ -23,11 +23,10 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.query.extraction.ExtractionFn;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 
 public class RegisteredLookupExtractionFn implements ExtractionFn
 {
@@ -100,17 +99,11 @@ public class RegisteredLookupExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    final byte[] keyPrefix = StringUtils.toUtf8(getClass().getCanonicalName());
-    final byte[] lookupName = StringUtils.toUtf8(getLookup());
-    final byte[] delegateKey = ensureDelegate().getCacheKey();
-    return ByteBuffer
-        .allocate(keyPrefix.length + 1 + lookupName.length + 1 + delegateKey.length)
-        .put(keyPrefix).put((byte) 0xFF)
-        .put(lookupName).put((byte) 0xFF)
-        .put(delegateKey)
-        .array();
+    return builder.append(getClass().getCanonicalName())
+                  .append(getLookup())
+                  .append(ensureDelegate());
   }
 
   @Override

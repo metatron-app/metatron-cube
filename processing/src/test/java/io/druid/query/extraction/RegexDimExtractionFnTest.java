@@ -201,10 +201,11 @@ public class RegexDimExtractionFnTest
 
     byte[] cacheKey = extractionFn.getCacheKey();
     byte[] expectedCacheKey = new byte[]{
-        0x01, 0x28, 0x61, 0x5C, 0x77, 0x2A, 0x29, (byte) 0xFF, // expr
+        0x01,
+        0x28, 0x61, 0x5C, 0x77, 0x2A, 0x29, // expr
         0x00, 0x00, 0x00, 0x01, // index
-        0x66, 0x6F, 0x6F, 0x62, 0x61, 0x72, (byte) 0xFF, // replaceMissingValueWith
-        0x01 // replaceMissingValue
+        0x01, // replaceMissingValue
+        0x66, 0x6F, 0x6F, 0x62, 0x61, 0x72 // replaceMissingValueWith
     };
     Assert.assertArrayEquals(expectedCacheKey, cacheKey);
 
@@ -221,9 +222,8 @@ public class RegexDimExtractionFnTest
 
     cacheKey = nullExtractionFn.getCacheKey();
     expectedCacheKey = new byte[]{
-        0x01, 0x28, 0x61, 0x5C, 0x77, 0x2A, 0x29, (byte) 0xFF, // expr
+        0x01, 0x28, 0x61, 0x5C, 0x77, 0x2A, 0x29, // expr
         0x00, 0x00, 0x00, 0x01, // index
-        (byte) 0xFF, // replaceMissingValueWith
         0x01 // replaceMissingValue
     };
     Assert.assertArrayEquals(expectedCacheKey, cacheKey);

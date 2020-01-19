@@ -78,14 +78,12 @@ public class ExtractionDimFilter implements DimFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.EXTRACTION_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(value).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.EXTRACTION_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(value).sp()
+                  .append(extractionFn);
   }
 
   @Override

@@ -171,17 +171,15 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(dimension).sp()
-                     .append(name).sp()
-                     .append(lookup).sp()
-                     .append(outputName).sp()
-                     .append(replaceMissingValueWith).sp()
-                     .append(retainMissingValue)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(dimension).sp()
+                  .append(name).sp()
+                  .append(lookup).sp()
+                  .append(outputName).sp()
+                  .append(replaceMissingValueWith).sp()
+                  .append(retainMissingValue);
   }
 
   @Override

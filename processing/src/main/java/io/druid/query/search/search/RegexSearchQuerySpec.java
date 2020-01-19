@@ -22,9 +22,8 @@ package io.druid.query.search.search;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
 
 
@@ -84,14 +83,10 @@ public class RegexSearchQuerySpec implements SearchQuerySpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] patternBytes = StringUtils.toUtf8(pattern);
-
-    return ByteBuffer.allocate(1 + patternBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(patternBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(pattern);
   }
 
   @Override

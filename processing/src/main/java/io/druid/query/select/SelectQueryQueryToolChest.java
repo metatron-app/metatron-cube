@@ -27,15 +27,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
@@ -60,14 +59,12 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
@@ -76,14 +73,12 @@ import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.ToIntFunction;
 
@@ -331,80 +326,15 @@ public class SelectQueryQueryToolChest
       @Override
       public byte[] computeCacheKey(SelectQuery query)
       {
-        final DimFilter filter = query.getFilter();
-        final byte[] filterBytes = filter == null ? new byte[]{} : filter.getCacheKey();
-        final byte[] granularityBytes = query.getGranularity().getCacheKey();
-
-        List<DimensionSpec> dimensionSpecs = query.getDimensions();
-        if (dimensionSpecs == null) {
-          dimensionSpecs = Collections.emptyList();
-        }
-
-        final byte[][] dimensionsBytes = new byte[dimensionSpecs.size()][];
-        int dimensionsBytesSize = 0;
-        int index = 0;
-        for (DimensionSpec dimension : dimensionSpecs) {
-          dimensionsBytes[index] = dimension.getCacheKey();
-          dimensionsBytesSize += dimensionsBytes[index].length;
-          ++index;
-        }
-
-        final Set<String> metrics = Sets.newTreeSet();
-        if (query.getMetrics() != null) {
-          metrics.addAll(query.getMetrics());
-        }
-
-        final byte[][] metricBytes = new byte[metrics.size()][];
-        int metricBytesSize = 0;
-        index = 0;
-        for (String metric : metrics) {
-          metricBytes[index] = StringUtils.toUtf8(metric);
-          metricBytesSize += metricBytes[index].length;
-          ++index;
-        }
-
-        List<VirtualColumn> virtualColumns = query.getVirtualColumns();
-        if (virtualColumns == null) {
-          virtualColumns = Collections.emptyList();
-        }
-
-        final byte[][] virtualColumnsBytes = new byte[virtualColumns.size()][];
-        int virtualColumnsBytesSize = 0;
-        index = 0;
-        for (VirtualColumn vc : virtualColumns) {
-          virtualColumnsBytes[index] = vc.getCacheKey();
-          virtualColumnsBytesSize += virtualColumnsBytes[index].length;
-          ++index;
-        }
-
-        final ByteBuffer queryCacheKey = ByteBuffer
-            .allocate(
-                1
-                + granularityBytes.length
-                + filterBytes.length
-                + query.getPagingSpec().getCacheKey().length
-                + dimensionsBytesSize
-                + metricBytesSize
-                + virtualColumnsBytesSize
-            )
-            .put(SELECT_QUERY)
-            .put(granularityBytes)
-            .put(filterBytes)
-            .put(query.getPagingSpec().getCacheKey());
-
-        for (byte[] dimensionsByte : dimensionsBytes) {
-          queryCacheKey.put(dimensionsByte);
-        }
-
-        for (byte[] metricByte : metricBytes) {
-          queryCacheKey.put(metricByte);
-        }
-
-        for (byte[] vcByte : virtualColumnsBytes) {
-          queryCacheKey.put(vcByte);
-        }
-
-        return queryCacheKey.array();
+        return KeyBuilder.get()
+                         .append(SELECT_QUERY)
+                         .append(query.getGranularity())
+                         .append(query.getFilter())
+                         .append(query.getPagingSpec())
+                         .append(query.getDimensions())
+                         .append(query.getMetrics())
+                         .append(query.getVirtualColumns())
+                         .build();
       }
 
       @Override

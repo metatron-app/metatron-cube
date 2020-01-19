@@ -22,11 +22,11 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.NotExpression;
 import io.druid.segment.filter.NotFilter;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -54,11 +54,9 @@ public class NotDimFilter implements DimFilter, NotExpression
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] subKey = field.getCacheKey();
-
-    return ByteBuffer.allocate(1 + subKey.length).put(DimFilterCacheHelper.NOT_CACHE_ID).put(subKey).array();
+    return builder.append(DimFilterCacheHelper.NOT_CACHE_ID).append(field);
   }
 
   @Override
@@ -131,7 +129,8 @@ public class NotDimFilter implements DimFilter, NotExpression
     return "!(" + field + ")";
   }
 
-  public static DimFilter of(DimFilter filter) {
+  public static DimFilter of(DimFilter filter)
+  {
     return filter == null ? null : new NotDimFilter(filter);
   }
 }

@@ -24,14 +24,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -218,19 +217,12 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] columnNameBytes = StringUtils.toUtf8WithNullToEmpty(columnName);
-    byte[] typeNameBytes = StringUtils.toUtf8WithNullToEmpty(typeName);
-    byte[] relayTypeBytes = StringUtils.toUtf8WithNullToEmpty(relayType);
-
-    int length = 1 + columnNameBytes.length + typeNameBytes.length + relayTypeBytes.length;
-    return ByteBuffer.allocate(length)
-                     .put(CACHE_TYPE_ID)
-                     .put(columnNameBytes)
-                     .put(typeNameBytes)
-                     .put(relayTypeBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(columnName)
+                  .append(typeName)
+                  .append(relayType);
   }
 
   @Override

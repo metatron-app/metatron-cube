@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
@@ -291,9 +292,9 @@ public class DimFilters
   public static class None extends DimFilter.NotOptimizable
   {
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[]{0x7f, 0x00};
+      return builder.append(new byte[]{0x7f, 0x00});
     }
 
     @Override
@@ -323,9 +324,9 @@ public class DimFilters
   public static class All extends DimFilter.NotOptimizable
   {
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[]{0x7f, 0x01};
+      return builder.append(new byte[]{0x7f, 0x01});
     }
 
     @Override

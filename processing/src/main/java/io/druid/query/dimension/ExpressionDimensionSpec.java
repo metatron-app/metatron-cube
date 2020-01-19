@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
@@ -33,7 +33,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 
 /**
@@ -144,14 +143,10 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-
-    return ByteBuffer.allocate(1 + expressionBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(expressionBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(expression);
   }
 
   @Override
@@ -170,8 +165,8 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public String toString()
   {
     return "ExpressionDimensionSpec{" +
-        "expression='" + expression + '\'' +
-        ", outputName='" + outputName + '\'' +
-        '}';
+           "expression='" + expression + '\'' +
+           ", outputName='" + outputName + '\'' +
+           '}';
   }
 }

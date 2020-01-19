@@ -21,11 +21,9 @@ package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -58,23 +56,9 @@ public class ListColumnIncluderator implements ColumnIncluderator
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    int size = 1;
-    List<byte[]> columns = Lists.newArrayListWithExpectedSize(this.columns.size());
-
-    for (String column : this.columns) {
-      final byte[] bytes = StringUtils.toUtf8(column);
-      columns.add(bytes);
-      size += bytes.length + 1;
-    }
-
-    final ByteBuffer bytes = ByteBuffer.allocate(size).put(LIST_CACHE_PREFIX);
-    for (byte[] column : columns) {
-      bytes.put(column);
-      bytes.put((byte) 0xff);
-    }
-
-    return bytes.array();
+    return builder.append(LIST_CACHE_PREFIX)
+                  .append(columns);
   }
 }

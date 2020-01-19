@@ -19,6 +19,8 @@
 
 package io.druid.query.metadata.metadata;
 
+import io.druid.common.KeyBuilder;
+
 /**
  */
 public class NoneColumnIncluderator implements ColumnIncluderator
@@ -30,9 +32,9 @@ public class NoneColumnIncluderator implements ColumnIncluderator
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return NONE_CACHE_PREFIX;
+    return builder.append(NONE_CACHE_PREFIX);
   }
 
   @Override

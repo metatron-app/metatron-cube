@@ -90,14 +90,12 @@ public class JavaScriptDimFilter extends DimFilter.NotOptimizable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.JAVASCRIPT_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(function).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.JAVASCRIPT_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(function).sp()
+                  .append(extractionFn);
   }
 
   @Override

@@ -26,13 +26,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
+import io.druid.common.KeyBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.ordering.Direction;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 
@@ -153,14 +153,10 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] metricBytes = io.druid.java.util.common.StringUtils.toUtf8(metric);
-
-    return ByteBuffer.allocate(1 + metricBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(metricBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(metric);
   }
 
   @Override
@@ -198,12 +194,18 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     NumericTopNMetricSpec that = (NumericTopNMetricSpec) o;
 
-    if (metric != null ? !metric.equals(that.metric) : that.metric != null) return false;
+    if (metric != null ? !metric.equals(that.metric) : that.metric != null) {
+      return false;
+    }
 
     return true;
   }

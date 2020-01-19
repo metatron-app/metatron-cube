@@ -231,13 +231,11 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, predicate)
-                     .append(inputType)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, predicate)
+                  .append(inputType);
   }
 
   @Override

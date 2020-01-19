@@ -23,9 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.KeyBuilder;
 import io.druid.query.search.search.SearchQuerySpec;
-
-import java.nio.ByteBuffer;
 
 /**
  */
@@ -50,13 +49,10 @@ public class SearchQuerySpecDimExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] specBytes = searchQuerySpec.getCacheKey();
-    return ByteBuffer.allocate(1 + specBytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_SEARCH_QUERY)
-                     .put(specBytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_SEARCH_QUERY)
+                  .append(searchQuerySpec);
   }
 
   @Override

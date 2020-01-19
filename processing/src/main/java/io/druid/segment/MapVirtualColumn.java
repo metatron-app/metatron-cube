@@ -285,12 +285,10 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(VC_TYPE_ID)
-                     .append(keyDimension, valueDimension, valueMetric, outputName)
-                     .build();
+    return builder.append(VC_TYPE_ID)
+                  .append(keyDimension, valueDimension, valueMetric, outputName);
   }
 
   public KeyIndexedVirtualColumn asKeyIndexed()

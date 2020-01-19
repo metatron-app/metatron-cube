@@ -324,12 +324,10 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return KeyBuilder.get()
-                       .append(output).sp()
-                       .append(values)
-                       .build();
+      return builder.append(output).sp()
+                    .append(values);
     }
 
     @Override

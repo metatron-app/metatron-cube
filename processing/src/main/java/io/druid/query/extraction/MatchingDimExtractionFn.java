@@ -23,9 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,13 +47,10 @@ public class MatchingDimExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] exprBytes = StringUtils.toUtf8(expr);
-    return ByteBuffer.allocate(1 + exprBytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_MATCHING_DIM)
-                     .put(exprBytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_MATCHING_DIM)
+                  .append(expr);
   }
 
   @Override

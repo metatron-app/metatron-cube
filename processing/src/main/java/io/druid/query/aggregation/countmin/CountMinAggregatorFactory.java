@@ -276,18 +276,16 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldNames)
-                     .append(fields)
-                     .append(groupingSets)
-                     .append(predicate)
-                     .append(byRow)
-                     .append(width)
-                     .append(depth)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldNames)
+                  .append(fields)
+                  .append(groupingSets)
+                  .append(predicate)
+                  .append(byRow)
+                  .append(width)
+                  .append(depth);
   }
 
   @Override

@@ -23,5 +23,10 @@ package io.druid.common;
  */
 public interface Cacheable
 {
-  byte[] getCacheKey();
+  default byte[] getCacheKey()
+  {
+    return getCacheKey(KeyBuilder.get()).build();
+  }
+
+  KeyBuilder getCacheKey(KeyBuilder builder);
 }

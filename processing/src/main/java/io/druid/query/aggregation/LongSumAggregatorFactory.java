@@ -193,12 +193,10 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, fieldExpression, predicate)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, fieldExpression, predicate);
   }
 
   @Override

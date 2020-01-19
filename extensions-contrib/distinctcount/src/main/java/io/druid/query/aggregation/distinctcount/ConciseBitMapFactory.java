@@ -22,6 +22,7 @@ package io.druid.query.aggregation.distinctcount;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.common.KeyBuilder;
 
 public class ConciseBitMapFactory implements BitMapFactory
 {
@@ -51,5 +52,11 @@ public class ConciseBitMapFactory implements BitMapFactory
   public int hashCode()
   {
     return 0;
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append((byte) 0x01);
   }
 }

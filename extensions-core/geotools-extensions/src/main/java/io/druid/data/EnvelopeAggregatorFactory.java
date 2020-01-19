@@ -360,11 +360,9 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_KEY)
-                     .append(fieldName)
-                     .build();
+    return builder.append(CACHE_KEY)
+                  .append(fieldName);
   }
 }

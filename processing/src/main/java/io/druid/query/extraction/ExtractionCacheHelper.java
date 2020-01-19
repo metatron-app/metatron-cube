@@ -24,8 +24,6 @@ package io.druid.query.extraction;
  */
 public class ExtractionCacheHelper
 {
-  public static final byte CACHE_KEY_SEPARATOR = (byte) 0xFF;
-
   public static final byte CACHE_TYPE_ID_TIME_DIM = 0x0;
   public static final byte CACHE_TYPE_ID_REGEX = 0x1;
   public static final byte CACHE_TYPE_ID_MATCHING_DIM = 0x2;

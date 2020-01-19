@@ -164,7 +164,7 @@ public class SegmentMetadataQueryQueryToolChest
                          .append(query.getToInclude())
                          .append(query.getColumns())
                          .append(query.getVirtualColumns())
-                         .append(query.getAnalysisTypesCacheKey())
+                         .append(query.getAnalysisTypes())
                          .build();
       }
     };

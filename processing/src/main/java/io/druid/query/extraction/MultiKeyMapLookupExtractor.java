@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import io.druid.common.KeyBuilder;
 import org.apache.commons.collections.keyvalue.MultiKey;
 
 import javax.annotation.Nullable;
@@ -95,8 +96,8 @@ public class MultiKeyMapLookupExtractor extends MapLookupExtractor
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return super.getCacheKey();
+    return super.getCacheKey(builder);
   }
 }

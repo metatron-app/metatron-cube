@@ -22,12 +22,10 @@ package io.druid.granularity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
+import io.druid.common.KeyBuilder;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
-
-import java.nio.ByteBuffer;
 
 /**
  * DurationGranularity buckets data based on the length of a duration
@@ -112,9 +110,9 @@ public class DurationGranularity extends Granularity
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return ByteBuffer.allocate(2 * Longs.BYTES).putLong(duration).putLong(origin).array();
+    return builder.append(duration).append(origin);
   }
 
   public long getDurationMillis()

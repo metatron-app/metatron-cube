@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.MultiDimLookupExtractionFn;
 import io.druid.query.lookup.RegisteredLookupExtractionFn;
@@ -63,8 +64,9 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    * generate a cache key for the specific query.
    *
    * @return a byte[] unit to all concrete implements of DimExtractionFn
+   * @param builder
    */
-  public byte[] getCacheKey();
+  public KeyBuilder getCacheKey(KeyBuilder builder);
 
   /**
    * The "extraction" function.  This should map an Object into some String value.

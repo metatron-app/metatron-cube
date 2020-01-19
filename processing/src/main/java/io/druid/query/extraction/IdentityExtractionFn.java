@@ -20,6 +20,7 @@
 package io.druid.query.extraction;
 
 import com.google.common.base.Strings;
+import io.druid.common.KeyBuilder;
 
 import java.util.Objects;
 
@@ -28,9 +29,9 @@ public class IdentityExtractionFn implements ExtractionFn
   private static final IdentityExtractionFn emptyToNull = new IdentityExtractionFn();
   private static final IdentityExtractionFn nullToEmpty = new IdentityExtractionFn() {
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[]{ExtractionCacheHelper.CACHE_TYPE_ID_NULL_TO_EMPTY};
+      return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_NULL_TO_EMPTY);
     }
 
     @Override
@@ -52,9 +53,9 @@ public class IdentityExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return new byte[]{ExtractionCacheHelper.CACHE_TYPE_ID_IDENTITY};
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_IDENTITY);
   }
 
   @Override

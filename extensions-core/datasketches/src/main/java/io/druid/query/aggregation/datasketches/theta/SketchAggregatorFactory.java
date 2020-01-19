@@ -187,13 +187,11 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(cacheId)
-                     .append(fieldName)
-                     .append(size)
-                     .build();
+    return builder.append(cacheId)
+                  .append(fieldName)
+                  .append(size);
   }
 
   @Override

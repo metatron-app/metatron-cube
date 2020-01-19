@@ -251,17 +251,15 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldNames)
-                     .append(fields)
-                     .append(groupingSets)
-                     .append(predicate)
-                     .append(byRow)
-                     .append(maxNumEntries)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldNames)
+                  .append(fields)
+                  .append(groupingSets)
+                  .append(predicate)
+                  .append(byRow)
+                  .append(maxNumEntries);
   }
 
   @Override

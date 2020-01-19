@@ -517,17 +517,15 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName)
-                     .append(inputType)
-                     .appendByte(sketchOp)
-                     .append(sketchParam)
-                     .append(orderingSpecs)
-                     .append(merge)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName)
+                  .append(inputType)
+                  .append(sketchOp)
+                  .append(sketchParam)
+                  .append(orderingSpecs)
+                  .append(merge);
   }
 
   @Override

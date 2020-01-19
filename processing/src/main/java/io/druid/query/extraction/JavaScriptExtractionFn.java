@@ -25,14 +25,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.KeyBuilder;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.StringUtils;
 import io.druid.js.JavaScriptConfig;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
 import org.mozilla.javascript.ScriptableObject;
-
-import java.nio.ByteBuffer;
 
 public class JavaScriptExtractionFn implements ExtractionFn
 {
@@ -101,13 +99,10 @@ public class JavaScriptExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] bytes = StringUtils.toUtf8(function);
-    return ByteBuffer.allocate(1 + bytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_JAVASCRIPT)
-                     .put(bytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_JAVASCRIPT)
+                  .append(function);
   }
 
   @Override

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
 import io.druid.query.Query;
@@ -114,7 +115,7 @@ public interface DimFilter extends Expression, Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
       throw new UnsupportedOperationException("getCacheKey");
     }

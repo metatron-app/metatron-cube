@@ -217,15 +217,13 @@ public class LikeDimFilter extends DimFilter.NotOptimizable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.LIKE_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(pattern).sp()
-                     .append(escapeChar == null ? new byte[0] : Chars.toByteArray(escapeChar)).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.LIKE_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(pattern).sp()
+                  .append(escapeChar == null ? new byte[0] : Chars.toByteArray(escapeChar)).sp()
+                  .append(extractionFn);
   }
 
   @Override

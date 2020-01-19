@@ -88,15 +88,13 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.BLOOM_CACHE_ID)
-                     .append(fieldNames)
-                     .append(fields)
-                     .append(groupingSets)
-                     .append(hash.asBytes())
-                     .build();
+    return builder.append(DimFilterCacheHelper.BLOOM_CACHE_ID)
+                  .append(fieldNames)
+                  .append(fields)
+                  .append(groupingSets)
+                  .append(hash.asBytes());
   }
 
 

@@ -112,14 +112,12 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(delegate)
-                     .append(direction.ordinal())
-                     .append(ordering)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(delegate)
+                  .append(direction)
+                  .append(ordering);
   }
 
   @Override

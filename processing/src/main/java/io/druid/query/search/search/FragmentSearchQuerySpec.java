@@ -21,9 +21,8 @@ package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -104,32 +103,11 @@ public class FragmentSearchQuerySpec implements SearchQuerySpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    if (values == null) {
-      return ByteBuffer.allocate(2)
-                       .put(CACHE_TYPE_ID)
-                       .put(caseSensitive ? (byte) 1 : 0).array();
-    }
-
-    final byte[][] valuesBytes = new byte[values.size()][];
-    int valuesBytesSize = 0;
-    int index = 0;
-    for (String value : values) {
-      valuesBytes[index] = StringUtils.toUtf8(value);
-      valuesBytesSize += valuesBytes[index].length;
-      ++index;
-    }
-
-    final ByteBuffer queryCacheKey = ByteBuffer.allocate(2 + valuesBytesSize)
-                                               .put(CACHE_TYPE_ID)
-                                               .put(caseSensitive ? (byte) 1 : 0);
-
-    for (byte[] bytes : valuesBytes) {
-      queryCacheKey.put(bytes);
-    }
-
-    return queryCacheKey.array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(caseSensitive)
+                  .append(values);
   }
 
   @Override

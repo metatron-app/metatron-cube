@@ -26,6 +26,7 @@ import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.common.KeyBuilder;
 import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -38,8 +39,8 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -188,9 +189,9 @@ public class ExtractionDimFilterTest
   private static final ExtractionFn DIM_EXTRACTION_FN = new DimExtractionFn()
   {
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[0];
+      return builder;
     }
 
     @Override

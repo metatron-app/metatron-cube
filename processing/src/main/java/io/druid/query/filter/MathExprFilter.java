@@ -22,14 +22,13 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.filter.Filters;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,13 +53,10 @@ public class MathExprFilter implements DimFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-    return ByteBuffer.allocate(1 + expressionBytes.length)
-                     .put(DimFilterCacheHelper.MATH_EXPR_CACHE_ID)
-                     .put(expressionBytes)
-                     .array();
+    return builder.append(DimFilterCacheHelper.MATH_EXPR_CACHE_ID)
+                  .append(expression);
   }
 
   @Override

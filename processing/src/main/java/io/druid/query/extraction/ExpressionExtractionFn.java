@@ -24,13 +24,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.DSuppliers;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -104,13 +103,9 @@ public class ExpressionExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-    return ByteBuffer.allocate(2 + expressionBytes.length)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_EXPRESSION)
-                     .put((byte) 0XFF)
-                     .put(expressionBytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_EXPRESSION)
+                  .append(expression);
   }
 }

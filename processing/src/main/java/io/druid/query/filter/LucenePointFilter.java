@@ -131,16 +131,14 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.LUCENE_POINT_CACHE_ID)
-                     .append(field)
-                     .append((byte) query.ordinal())
-                     .append(longitudes)
-                     .append(latitudes)
-                     .append(radiusMeters)
-                     .build();
+    return builder.append(DimFilterCacheHelper.LUCENE_POINT_CACHE_ID)
+                  .append(field)
+                  .append(query)
+                  .append(longitudes)
+                  .append(latitudes)
+                  .append(radiusMeters);
   }
 
   @Override

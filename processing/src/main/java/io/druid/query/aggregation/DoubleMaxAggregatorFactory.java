@@ -176,12 +176,10 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, fieldExpression)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, fieldExpression);
   }
 
   @Override
@@ -201,8 +199,8 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory implements Agg
   {
     return "DoubleMaxAggregatorFactory{" +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "" : ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 

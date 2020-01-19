@@ -21,12 +21,11 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.ordering.StringComparators;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 
@@ -51,14 +50,10 @@ public class AlphaNumericTopNMetricSpec extends LexicographicTopNMetricSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] previousStopBytes = getPreviousStop() == null ? new byte[]{} : StringUtils.toUtf8(getPreviousStop());
-
-    return ByteBuffer.allocate(1 + previousStopBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(previousStopBytes)
-                     .array();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(getPreviousStop());
   }
 
   @Override

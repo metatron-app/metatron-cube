@@ -222,18 +222,13 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     try {
-      MessageDigest md = MessageDigest.getInstance("SHA-1");
-      byte[] sha1 = md.digest(StringUtils.toUtf8(fnAggregate + fnReset + fnCombine));
-
-      return KeyBuilder.get()
-                       .append(CACHE_TYPE_ID)
-                       .append(fieldNames)
-                       .append(md.digest(StringUtils.toUtf8(fnAggregate + fnReset + fnCombine)))
-                       .append(sha1)
-                       .build();
+      final MessageDigest md = MessageDigest.getInstance("SHA-1");
+      return builder.append(CACHE_TYPE_ID)
+                    .append(fieldNames)
+                    .append(md.digest(StringUtils.toUtf8(fnAggregate + fnReset + fnCombine)));
     }
     catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("Unable to get SHA1 digest instance", e);

@@ -238,17 +238,15 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(pivotColumns).sp()
-                     .append(valueColumns).sp()
-                     .append(separator).sp()
-                     .append(nullValue).sp()
-                     .append(rowExpressions).sp()
-                     .append(partitionExpressions).sp()
-                     .append(tabularFormat, appendValueColumn)
-                     .build();
+    return builder.append(pivotColumns).sp()
+                  .append(valueColumns).sp()
+                  .append(separator).sp()
+                  .append(nullValue).sp()
+                  .append(rowExpressions).sp()
+                  .append(partitionExpressions).sp()
+                  .append(tabularFormat, appendValueColumn);
   }
 
   @Override

@@ -168,12 +168,10 @@ public class StructVirtualColumn implements VirtualColumn
 
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(VC_TYPE_ID)
-                     .append(columnName, outputName)
-                     .build();
+    return builder.append(VC_TYPE_ID)
+                  .append(columnName, outputName);
   }
 
   @JsonProperty

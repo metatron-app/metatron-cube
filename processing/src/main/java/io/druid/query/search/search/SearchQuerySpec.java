@@ -22,6 +22,7 @@ package io.druid.query.search.search;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 
 /**
  */
@@ -37,7 +38,7 @@ public interface SearchQuerySpec extends Cacheable
 {
   public boolean accept(String dimVal);
 
-  public byte[] getCacheKey();
+  public KeyBuilder getCacheKey(KeyBuilder builder);
 
   class TakeAll implements SearchQuerySpec
   {
@@ -48,9 +49,9 @@ public interface SearchQuerySpec extends Cacheable
     }
 
     @Override
-    public byte[] getCacheKey()
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return new byte[]{0x7f};
+      return builder.append((byte) 0x7f);
     }
   }
 }

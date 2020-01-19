@@ -79,14 +79,12 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
-                     .append(field).sp()
-                     .append(analyzer).sp()
-                     .append(expression)
-                     .build();
+    return builder.append(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
+                  .append(field).sp()
+                  .append(analyzer).sp()
+                  .append(expression);
   }
 
   @Override

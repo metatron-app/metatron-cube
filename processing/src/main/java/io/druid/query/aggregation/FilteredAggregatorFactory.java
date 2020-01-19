@@ -128,13 +128,11 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(filter)
-                     .append(delegate)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(filter)
+                  .append(delegate);
   }
 
   @Override

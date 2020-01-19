@@ -99,14 +99,12 @@ public class InDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.IN_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(values).sp()
-                     .append(extractionFn)
-                     .build();
+    return builder.append(DimFilterCacheHelper.IN_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(values).sp()
+                  .append(extractionFn);
   }
 
   @Override
@@ -135,7 +133,8 @@ public class InDimFilter implements DimFilter.RangeFilter
     handler.add(dimension);
   }
 
-  private InDimFilter optimizeLookup() {
+  private InDimFilter optimizeLookup()
+  {
     if (extractionFn instanceof LookupExtractionFn
         && ((LookupExtractionFn) extractionFn).isOptimize()) {
       LookupExtractionFn exFn = (LookupExtractionFn) extractionFn;
@@ -151,9 +150,9 @@ public class InDimFilter implements DimFilter.RangeFilter
         if (!exFn.isRetainMissingValue() && Objects.equals(convertedValue, exFn.getReplaceMissingValueWith())) {
           return this;
         }
-        for (Object key: lookup.unapply(convertedValue)) {
+        for (Object key : lookup.unapply(convertedValue)) {
           if (key instanceof String) {
-            keys.add((String)key);
+            keys.add((String) key);
           }
         }
 

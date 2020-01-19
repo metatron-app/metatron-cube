@@ -47,13 +47,11 @@ public class SpatialDimFilter extends DimFilter.NotOptimizable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.SPATIAL_CACHE_ID)
-                     .append(dimension).sp()
-                     .append(bound.getCacheKey())
-                     .build();
+    return builder.append(DimFilterCacheHelper.SPATIAL_CACHE_ID)
+                  .append(dimension).sp()
+                  .append(bound.getCacheKey());
   }
 
   @Override

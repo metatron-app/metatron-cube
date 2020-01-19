@@ -363,13 +363,11 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldNames)
-                     .append(udafName)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldNames)
+                  .append(udafName);
   }
 
   @Override

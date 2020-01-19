@@ -19,6 +19,7 @@
 
 package io.druid.granularity;
 
+import io.druid.common.KeyBuilder;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -70,9 +71,9 @@ public class NoneGranularity extends Granularity
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return new byte[]{0x0};
+    return builder.append((byte) 0x0);
   }
 
   @Override

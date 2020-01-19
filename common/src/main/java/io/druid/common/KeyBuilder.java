@@ -22,8 +22,10 @@ package io.druid.common;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -46,12 +48,11 @@ public class KeyBuilder
   private static final byte SEPARATOR = (byte) 0xff;
 
   private final BytesOutputStream output;
-  private final int mark;
 
   private KeyBuilder(BytesOutputStream output)
   {
     this.output = output;
-    this.mark = output.size();
+    output.clear();
   }
 
   public KeyBuilder append(byte value)
@@ -125,7 +126,7 @@ public class KeyBuilder
   public KeyBuilder append(Cacheable cacheable)
   {
     if (cacheable != null) {
-      output.write(cacheable.getCacheKey());
+      return cacheable.getCacheKey(this);
     }
     return this;
   }
@@ -134,8 +135,7 @@ public class KeyBuilder
   {
     if (cacheables != null) {
       for (Cacheable cacheable : cacheables) {
-        output.write(SEPARATOR);
-        output.write(cacheable.getCacheKey());
+        cacheable.getCacheKey(sp());
       }
     }
     return this;
@@ -178,14 +178,21 @@ public class KeyBuilder
 
   public KeyBuilder append(Enum value)
   {
-    output.write(value.ordinal());
+    output.writeByte(value.ordinal());
     return this;
   }
 
-  public KeyBuilder appendByte(Enum value)
+  public KeyBuilder append(EnumSet<?> values)
   {
-    output.writeByte(value.ordinal());
+    for (Enum value : values) {
+      output.writeByte(value.ordinal());
+    }
     return this;
+  }
+
+  public KeyBuilder append(Object value)
+  {
+    return append(Objects.toString(value, null));
   }
 
   public KeyBuilder sp()
@@ -196,8 +203,6 @@ public class KeyBuilder
 
   public byte[] build()
   {
-    final byte[] key = output.toByteArray(mark);
-    output.reset(mark);
-    return key;
+    return output.toByteArray();
   }
 }

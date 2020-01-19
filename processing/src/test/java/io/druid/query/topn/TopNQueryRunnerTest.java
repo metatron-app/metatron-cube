@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
@@ -2285,9 +2286,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 new DimExtractionFn()
                 {
                   @Override
-                  public byte[] getCacheKey()
+                  public KeyBuilder getCacheKey(KeyBuilder builder)
                   {
-                    return new byte[0];
+                    return builder;
                   }
 
                   @Override
@@ -2444,9 +2445,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     final ExtractionFn nullStringDimExtraction = new DimExtractionFn()
     {
       @Override
-      public byte[] getCacheKey()
+      public KeyBuilder getCacheKey(KeyBuilder builder)
       {
-        return new byte[]{(byte) 0xFF};
+        return builder.append((byte) 0xFF);
       }
 
       @Override
@@ -2534,9 +2535,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     final ExtractionFn emptyStringDimExtraction = new DimExtractionFn()
     {
       @Override
-      public byte[] getCacheKey()
+      public KeyBuilder getCacheKey(KeyBuilder builder)
       {
-        return new byte[]{(byte) 0xFF};
+        return builder.append((byte) 0xFF);
       }
 
       @Override

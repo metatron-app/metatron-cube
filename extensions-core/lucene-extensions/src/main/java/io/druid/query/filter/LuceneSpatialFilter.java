@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
@@ -45,7 +45,6 @@ import org.locationtech.spatial4j.shape.Rectangle;
 import org.locationtech.spatial4j.shape.Shape;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.Map;
 import java.util.Objects;
@@ -140,17 +139,13 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] fieldBytes = StringUtils.toUtf8(field);
-    byte[] shapeStringBytes = StringUtils.toUtf8(shapeString);
-    return ByteBuffer.allocate(3 + fieldBytes.length + shapeStringBytes.length)
-                     .put(DimFilterCacheHelper.LUCENE_SPATIAL_CACHE_ID)
-                     .put(fieldBytes)
-                     .put((byte) operation.ordinal())
-                     .put((byte) shapeFormat.ordinal())
-                     .put(shapeStringBytes)
-                     .array();
+    return builder.append(DimFilterCacheHelper.LUCENE_SPATIAL_CACHE_ID)
+                  .append(field)
+                  .append(operation)
+                  .append(shapeFormat)
+                  .append(shapeString);
   }
 
   @Override

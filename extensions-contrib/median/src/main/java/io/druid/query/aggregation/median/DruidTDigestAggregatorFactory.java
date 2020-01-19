@@ -145,13 +145,11 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName)
-                     .append(compression)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName)
+                  .append(compression);
   }
 
   @Override

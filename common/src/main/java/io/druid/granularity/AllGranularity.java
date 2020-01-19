@@ -21,6 +21,7 @@ package io.druid.granularity;
 
 import com.google.common.collect.ImmutableList;
 import io.druid.common.DateTimes;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -74,9 +75,9 @@ public class AllGranularity extends Granularity
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return new byte[]{0x7f};
+    return builder.append((byte) 0x7f);
   }
 
   @Override

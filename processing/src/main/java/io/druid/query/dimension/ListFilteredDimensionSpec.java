@@ -80,7 +80,7 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
     int cardinality = isWhitelist ? values.size() : selectorCardinality - values.size();
 
     int count = 0;
-    final Map<Integer,Integer> forwardMapping = new HashMap<>(cardinality);
+    final Map<Integer, Integer> forwardMapping = new HashMap<>(cardinality);
     final int[] reverseMapping = new int[cardinality];
 
     if (isWhitelist) {
@@ -110,14 +110,12 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(delegate)
-                     .append(isWhitelist)
-                     .append(values)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(delegate)
+                  .append(isWhitelist)
+                  .append(values);
   }
 
   @Override

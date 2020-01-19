@@ -147,14 +147,12 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(getCacheTypeId())
-                     .append(fieldName)
-                     .append(lgK)
-                     .append(tgtHllType.ordinal())
-                     .build();
+    return builder.append(getCacheTypeId())
+                  .append(fieldName)
+                  .append(lgK)
+                  .append(tgtHllType);
   }
 
   @Override

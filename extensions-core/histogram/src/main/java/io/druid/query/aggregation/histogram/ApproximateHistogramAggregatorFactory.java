@@ -275,15 +275,13 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(compact, base64)
-                     .append(fieldName, predicate)
-                     .append(resolution, numBuckets)
-                     .append(lowerLimit, upperLimit)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(compact, base64)
+                  .append(fieldName, predicate)
+                  .append(resolution, numBuckets)
+                  .append(lowerLimit, upperLimit);
   }
 
   @Override

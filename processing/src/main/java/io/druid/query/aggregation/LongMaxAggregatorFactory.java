@@ -55,7 +55,8 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     Preconditions.checkArgument(
         fieldName == null ^ fieldExpression == null,
-        "Must have a valid, non-null fieldName or fieldExpression");
+        "Must have a valid, non-null fieldName or fieldExpression"
+    );
 
     this.name = name;
     this.fieldName = fieldName;
@@ -171,12 +172,10 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName, fieldExpression)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName, fieldExpression);
   }
 
   @Override
@@ -196,16 +195,20 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   {
     return "LongMaxAggregatorFactory{" +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "" : ", fieldExpression='" + fieldExpression + '\'') +
            '}';
   }
 
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     LongMaxAggregatorFactory that = (LongMaxAggregatorFactory) o;
 

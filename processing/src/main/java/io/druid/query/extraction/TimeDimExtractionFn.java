@@ -22,13 +22,11 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.StringUtils;
-import io.druid.query.aggregation.AggregatorUtil;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
@@ -75,36 +73,15 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] timeFormatBytes = StringUtils.toUtf8(timeFormat);
-    byte[] timeLocaleBytes = StringUtils.toUtf8WithNullToEmpty(timeLocale);
-    byte[] timeZoneBytes = StringUtils.toUtf8WithNullToEmpty(timeZone);
-    byte[] resultFormatBytes = StringUtils.toUtf8(resultFormat);
-    byte[] resultLocaleBytes = StringUtils.toUtf8WithNullToEmpty(resultLocale);
-    byte[] resultZoneBytes = StringUtils.toUtf8WithNullToEmpty(resultZone);
-    return ByteBuffer.allocate(
-        6
-        + timeFormatBytes.length
-        + timeLocaleBytes.length
-        + timeZoneBytes.length
-        + resultFormatBytes.length
-        + resultLocaleBytes.length
-        + resultZoneBytes.length
-    )
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_DIM)
-                     .put(timeFormatBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(timeLocaleBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(timeZoneBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(resultFormatBytes)
-                     .put(resultLocaleBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .put(resultZoneBytes)
-                     .put(AggregatorUtil.STRING_SEPARATOR)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_DIM)
+                  .append(timeFormat).sp()
+                  .append(timeLocale).sp()
+                  .append(timeZone).sp()
+                  .append(resultFormat).sp()
+                  .append(resultLocale).sp()
+                  .append(resultZone);
   }
 
   @Override

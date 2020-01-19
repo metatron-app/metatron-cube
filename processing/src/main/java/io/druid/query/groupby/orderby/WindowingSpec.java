@@ -277,16 +277,14 @@ public class WindowingSpec implements Cacheable
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(skipSorting).sp()
-                     .append(partitionColumns).sp()
-                     .append(sortingColumns).sp()
-                     .append(expressions).sp()
-                     .append(flattenSpec)
-                     .append(pivotSpec)
-                     .build();
+    return builder.append(skipSorting).sp()
+                  .append(partitionColumns).sp()
+                  .append(sortingColumns).sp()
+                  .append(expressions).sp()
+                  .append(flattenSpec)
+                  .append(pivotSpec);
   }
 
   @Override

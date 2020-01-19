@@ -23,7 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Bytes;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 
 import java.util.Arrays;
 
@@ -34,9 +35,9 @@ public class CascadeExtractionFn implements ExtractionFn
   private final ChainedExtractionFn DEFAULT_CHAINED_EXTRACTION_FN = new ChainedExtractionFn(
       new ExtractionFn()
       {
-        public byte[] getCacheKey()
+        public KeyBuilder getCacheKey(KeyBuilder builder)
         {
-          return new byte[0];
+          return builder;
         }
 
         public String apply(Object value)
@@ -104,11 +105,10 @@ public class CascadeExtractionFn implements ExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] cacheKey = new byte[]{ExtractionCacheHelper.CACHE_TYPE_ID_CASCADE};
-
-    return Bytes.concat(cacheKey, chainedExtractionFn.getCacheKey());
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_CASCADE)
+                  .append(chainedExtractionFn);
   }
 
   @Override
@@ -182,7 +182,7 @@ public class CascadeExtractionFn implements ExtractionFn
            "extractionFns=[" + chainedExtractionFn.toString() + "]}";
   }
 
-  private class ChainedExtractionFn
+  private class ChainedExtractionFn implements Cacheable
   {
     private final ExtractionFn fn;
     private final ChainedExtractionFn child;
@@ -193,11 +193,10 @@ public class CascadeExtractionFn implements ExtractionFn
       this.child = child;
     }
 
-    public byte[] getCacheKey()
+    @Override
+    public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      byte[] fnCacheKey = fn.getCacheKey();
-
-      return (child != null) ? Bytes.concat(fnCacheKey, child.getCacheKey()) : fnCacheKey;
+      return builder.append(fn).append(child);
     }
 
     public String apply(Object value)

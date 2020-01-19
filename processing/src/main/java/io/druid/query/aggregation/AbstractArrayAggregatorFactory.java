@@ -117,8 +117,8 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    List value = (List)object;
-    for (int i = 0; i < value.size(); i++ ) {
+    List value = (List) object;
+    for (int i = 0; i < value.size(); i++) {
       value.set(i, delegate.deserialize(value.get(i)));
     }
     return value;
@@ -153,14 +153,12 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(cacheTypeID())
-                     .append(column)
-                     .append(delegate)
-                     .append(limit)
-                     .build();
+    return builder.append(cacheTypeID())
+                  .append(column)
+                  .append(delegate)
+                  .append(limit);
   }
 
   protected abstract byte cacheTypeID();

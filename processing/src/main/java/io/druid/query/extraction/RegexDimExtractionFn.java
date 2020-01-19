@@ -23,10 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.KeyBuilder;
 
-import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -68,34 +66,13 @@ public class RegexDimExtractionFn extends DimExtractionFn
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    byte[] exprBytes = StringUtils.toUtf8(expr);
-    byte[] indexBytes = Ints.toByteArray(index);
-    byte[] replaceBytes = replaceMissingValue ? new byte[]{1} : new byte[]{0};
-    byte[] replaceStrBytes;
-    if (replaceMissingValueWith == null) {
-      replaceStrBytes = new byte[]{};
-    } else {
-      replaceStrBytes = StringUtils.toUtf8(replaceMissingValueWith);
-    }
-
-    int totalLen = 1
-                   + exprBytes.length
-                   + indexBytes.length
-                   + replaceBytes.length
-                   + replaceStrBytes.length; // fields
-    totalLen += 2; // separators
-
-    return ByteBuffer.allocate(totalLen)
-                     .put(ExtractionCacheHelper.CACHE_TYPE_ID_REGEX)
-                     .put(exprBytes)
-                     .put(ExtractionCacheHelper.CACHE_KEY_SEPARATOR)
-                     .put(indexBytes)
-                     .put(replaceStrBytes)
-                     .put(ExtractionCacheHelper.CACHE_KEY_SEPARATOR)
-                     .put(replaceBytes)
-                     .array();
+    return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_REGEX)
+                     .append(expr)
+                     .append(index)
+                     .append(replaceMissingValue)
+                     .append(replaceMissingValueWith);
   }
 
   @Override

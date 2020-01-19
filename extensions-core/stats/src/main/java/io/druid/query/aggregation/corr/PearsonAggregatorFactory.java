@@ -231,13 +231,11 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(CACHE_TYPE_ID)
-                     .append(fieldName1, fieldName2, predicate)
-                     .append(inputType)
-                     .build();
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName1, fieldName2, predicate)
+                  .append(inputType);
   }
 
   @Override

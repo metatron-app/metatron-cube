@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import io.druid.common.KeyBuilder;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
@@ -280,15 +281,12 @@ public class NamespaceLookupExtractorFactory implements LookupExtractorFactory
       return new MapLookupExtractor(map, isInjective())
       {
         @Override
-        public byte[] getCacheKey()
+        public KeyBuilder getCacheKey(KeyBuilder builder)
         {
-          return ByteBuffer
-              .allocate(CLASS_CACHE_KEY.length + id.length + 1 + v.length + 1 + 1)
-              .put(CLASS_CACHE_KEY)
-              .put(id).put((byte) 0xFF)
-              .put(v).put((byte) 0xFF)
-              .put(isOneToOne() ? (byte) 1 : (byte) 0)
-              .array();
+          return builder.append(CLASS_CACHE_KEY)
+                        .append(v).sp()
+                        .append(id).sp()
+                        .append(isOneToOne());
         }
       };
     }

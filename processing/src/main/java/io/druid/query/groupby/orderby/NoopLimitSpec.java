@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import io.druid.common.KeyBuilder;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
@@ -132,8 +133,8 @@ public class NoopLimitSpec extends LimitSpec
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return new byte[]{CACHE_KEY};
+    return builder.append(CACHE_KEY);
   }
 }

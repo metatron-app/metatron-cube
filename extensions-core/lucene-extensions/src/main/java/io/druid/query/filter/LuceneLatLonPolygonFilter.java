@@ -80,12 +80,10 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public byte[] getCacheKey()
+  public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return KeyBuilder.get()
-                     .append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
-                     .append(field, shapeString)
-                     .build();
+    return builder.append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
+                  .append(field, shapeString);
   }
 
   @Override

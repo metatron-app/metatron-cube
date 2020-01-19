@@ -25,17 +25,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.common.KeyBuilder;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.concurrent.Execs;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.server.lookup.namespace.cache.NamespaceExtractionCacheManager;
 import kafka.consumer.ConsumerConfig;
@@ -49,7 +49,6 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.Min;
 import javax.ws.rs.GET;
 import javax.ws.rs.core.Response;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -355,27 +354,16 @@ public class KafkaLookupExtractorFactory implements LookupExtractorFactory
     return new MapLookupExtractor(map, isInjective())
     {
       @Override
-      public byte[] getCacheKey()
+      public KeyBuilder getCacheKey(KeyBuilder builder)
       {
-        final byte[] idutf8 = StringUtils.toUtf8(factoryId);
         // If the number of things added has not changed during the course of this extractor's life, we can cache it
         if (startCount == doubleEventCount.get()) {
-          return ByteBuffer
-              .allocate(idutf8.length + 1 + Longs.BYTES)
-              .put(idutf8)
-              .put((byte) 0xFF)
-              .putLong(startCount)
-              .array();
+          return builder.append(factoryId).append(startCount);
         } else {
           // If the number of things added HAS changed during the coruse of this extractor's life, we CANNOT cache
           final byte[] scrambler = StringUtils.toUtf8(UUID.randomUUID().toString());
-          return ByteBuffer
-              .allocate(idutf8.length + 1 + scrambler.length + 1)
-              .put(idutf8)
-              .put((byte) 0xFF)
-              .put(scrambler)
-              .put((byte) 0xFF)
-              .array();
+          return builder.append(factoryId).sp()
+                        .append(UUID.randomUUID());
         }
       }
     };
