@@ -30,6 +30,8 @@ import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 /**
  */
 public class PeriodLoadRuleTest
@@ -44,6 +46,7 @@ public class PeriodLoadRuleTest
     DateTime now = new DateTime("2013-01-01");
     PeriodLoadRule rule = new PeriodLoadRule(
         new Period("P5000Y"),
+        null,
         ImmutableMap.<String, Integer>of("", 0)
     );
 
@@ -56,33 +59,21 @@ public class PeriodLoadRuleTest
   public void testAppliesToPeriod()
   {
     DateTime now = new DateTime("2012-12-31T01:00:00");
-    PeriodLoadRule rule = new PeriodLoadRule(
-        new Period("P1M"),
-        ImmutableMap.<String, Integer>of("", 0)
-    );
+    PeriodLoadRule rule = new PeriodLoadRule(new Period("P1M"), false, null);
 
-    Assert.assertTrue(rule.appliesTo(builder.interval(new Interval(now.minusWeeks(1), now)).build(), now));
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(new Interval(now.minusDays(1), now.plusDays(1)))
-                   .build(),
-            now
-        )
-    );
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(new Interval(now.plusDays(1), now.plusDays(2)))
-                       .build(),
-            now
-        )
-    );
+    Assert.assertTrue(rule.appliesTo(new Interval(now.minusWeeks(1), now), now));
+    Assert.assertTrue(rule.appliesTo(new Interval(now.minusDays(1), now.plusDays(1)), now));
+    Assert.assertFalse(rule.appliesTo(new Interval(now.plusDays(1), now.plusDays(2)), now));
+
+    rule = new PeriodLoadRule(new Period("P1M"), null, null);
+    Assert.assertTrue(rule.appliesTo(new Interval(now.plusDays(1), now.plusDays(2)), now));
   }
 
   @Test
   public void testSerdeNullTieredReplicants() throws Exception
   {
     PeriodLoadRule rule = new PeriodLoadRule(
-        new Period("P1D"), null
+        new Period("P1D"), null, null
     );
 
     ObjectMapper jsonMapper = new DefaultObjectMapper();
@@ -116,45 +107,30 @@ public class PeriodLoadRuleTest
   @Test
   public void testAppliesTo()
   {
+    // 2019-11-01T05:05:58 ~ 2019-11-01T07:05:58
     DateTime now = new DateTime("2019-11-01T07:05:58");
-    PeriodLoadRule rule = new PeriodLoadRule(
-        new Period("PT2H"),
-        ImmutableMap.<String, Integer>of("", 0)
-    );
 
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T04:00:00.000Z/2019-11-01T05:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T05:00:00.000Z/2019-11-01T06:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T06:00:00.000Z/2019-11-01T07:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
+    PeriodLoadRule rule = new PeriodLoadRule(new Period("PT2H"), false, null);
+    validate(now, rule, new boolean[]{false, true, true, true, false});
 
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T07:00:00.000Z/2019-11-01T08:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
+    rule = new PeriodLoadRule(new Period("PT2H"), true, null);
+    validate(now, rule, new boolean[]{false, true, true, true, true});
 
+    rule = new PeriodLoadRule(new Period("PT2H"), null, null);
+    validate(now, rule, new boolean[]{false, true, true, true, true});
+  }
+
+  private void validate(DateTime now, PeriodLoadRule rule, boolean[] results)
+  {
+    int i = 0;
+    for (String interval : Arrays.asList(
+        "2019-11-01T04/2019-11-01T05",
+        "2019-11-01T05/2019-11-01T06",
+        "2019-11-01T06/2019-11-01T07",
+        "2019-11-01T07/2019-11-01T08",
+        "2019-11-01T08/2019-11-01T09"
+    )) {
+      Assert.assertEquals(interval, results[i++], rule.appliesTo(new Interval(interval), now));
+    }
   }
 }

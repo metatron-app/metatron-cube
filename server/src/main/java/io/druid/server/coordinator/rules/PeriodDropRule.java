@@ -20,23 +20,28 @@
 package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
+
+import java.util.Objects;
 
 /**
  */
 public class PeriodDropRule extends DropRule
 {
   private final Period period;
+  private final Boolean includeFuture;
 
   @JsonCreator
   public PeriodDropRule(
-      @JsonProperty("period") Period period
+      @JsonProperty("period") Period period,
+      @JsonProperty("includeFuture") Boolean includeFuture
   )
   {
+    this.includeFuture = includeFuture;
     this.period = period;
   }
 
@@ -53,16 +58,28 @@ public class PeriodDropRule extends DropRule
     return period;
   }
 
-  @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Boolean getIncludeFuture()
   {
-    return appliesTo(segment.getInterval(), referenceTimestamp);
+    return includeFuture;
   }
 
   @Override
-  public boolean appliesTo(Interval theInterval, DateTime referenceTimestamp)
+  public boolean appliesTo(Interval interval, DateTime referenceTimestamp)
   {
-    final Interval currInterval = new Interval(period, referenceTimestamp);
-    return currInterval.contains(theInterval);
+    final Interval invalid = new Interval(period, referenceTimestamp);
+    if (includeFuture == null || includeFuture) {
+      return invalid.getStartMillis() < interval.getStartMillis();
+    }
+    return invalid.contains(interval);
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof PeriodDropRule &&
+           Objects.equals(period, ((PeriodDropRule) other).period) &&
+           Objects.equals(includeFuture, ((PeriodDropRule) other).includeFuture);
   }
 }

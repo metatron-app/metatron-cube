@@ -22,9 +22,8 @@ package io.druid.server.coordinator.rules;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.DruidServer;
-import io.druid.timeline.DataSegment;
+import io.druid.java.util.common.logger.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -74,12 +73,6 @@ public class IntervalLoadRule extends LoadRule
   public Interval getInterval()
   {
     return interval;
-  }
-
-  @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-  {
-    return appliesTo(segment.getInterval(), referenceTimestamp);
   }
 
   @Override

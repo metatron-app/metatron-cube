@@ -20,7 +20,6 @@
 package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -33,12 +32,6 @@ public class ForeverDropRule extends DropRule
   public String getType()
   {
     return "dropForever";
-  }
-
-  @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-  {
-    return true;
   }
 
   @Override

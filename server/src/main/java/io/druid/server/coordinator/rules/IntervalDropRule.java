@@ -21,7 +21,6 @@ package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -50,12 +49,6 @@ public class IntervalDropRule extends DropRule
   public Interval getInterval()
   {
     return interval;
-  }
-
-  @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-  {
-    return appliesTo(segment.getInterval(), referenceTimestamp);
   }
 
   @Override

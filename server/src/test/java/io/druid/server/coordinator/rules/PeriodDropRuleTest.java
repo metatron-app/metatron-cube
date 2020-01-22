@@ -26,6 +26,8 @@ import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 /**
  */
 public class PeriodDropRuleTest
@@ -39,7 +41,7 @@ public class PeriodDropRuleTest
   {
     DateTime now = new DateTime("2012-12-31T01:00:00");
     PeriodDropRule rule = new PeriodDropRule(
-        new Period("P5000Y")
+        new Period("P5000Y"), null
     );
 
     Assert.assertTrue(
@@ -66,81 +68,41 @@ public class PeriodDropRuleTest
   public void testAppliesToPeriod()
   {
     DateTime now = new DateTime("2012-12-31T01:00:00");
-    PeriodDropRule rule = new PeriodDropRule(
-        new Period("P1M")
-    );
+    PeriodDropRule rule = new PeriodDropRule(new Period("P1M"), false);
 
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(new Interval(now.minusWeeks(1), now.minusDays(1)))
-                       .build(),
-            now
-        )
-    );
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(new Interval(now.minusDays(1), now))
-                   .build(),
-            now
-        )
-    );
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(new Interval(now.minusYears(1), now.minusDays(1)))
-                       .build(),
-            now
-        )
-    );
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(new Interval(now.minusMonths(2), now.minusDays(1)))
-                       .build(),
-            now
-        )
-    );
+    Assert.assertTrue(rule.appliesTo(new Interval(now.minusWeeks(1), now.minusDays(1)), now));
+    Assert.assertTrue(rule.appliesTo(new Interval(now.minusDays(1), now), now));
+    Assert.assertFalse(rule.appliesTo(new Interval(now.minusYears(1), now.minusDays(1)), now));
+    Assert.assertFalse(rule.appliesTo(new Interval(now.minusMonths(2), now.minusDays(1)), now));
   }
 
   @Test
   public void testAppliesTo()
   {
+    // 2019-11-01T05:05:58 ~ 2019-11-01T07:05:58
     DateTime now = new DateTime("2019-11-01T07:05:58");
-    PeriodDropRule rule = new PeriodDropRule(
-        new Period("PT2H")
-    );
 
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T04:00:00.000Z/2019-11-01T05:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T05:00:00.000Z/2019-11-01T06:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
-    Assert.assertTrue(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T06:00:00.000Z/2019-11-01T07:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
+    Rule rule = new PeriodDropRule(new Period("PT2H"), false);
+    validate(now, rule, new boolean[]{false, false, true, false, false});
 
-    Assert.assertFalse(
-        rule.appliesTo(
-            builder.interval(
-                new Interval("2019-11-01T07:00:00.000Z/2019-11-01T08:00:00.000Z")
-            ).build(),
-            now
-        )
-    );
+    rule = new PeriodDropRule(new Period("PT2H"), true);
+    validate(now, rule, new boolean[]{false, false, true, true, true});
 
+    rule = new PeriodDropRule(new Period("PT2H"), null);
+    validate(now, rule, new boolean[]{false, false, true, true, true});
+  }
+
+  private void validate(DateTime now, Rule rule, boolean[] results)
+  {
+    int i = 0;
+    for (String interval : Arrays.asList(
+        "2019-11-01T04/2019-11-01T05",
+        "2019-11-01T05/2019-11-01T06",
+        "2019-11-01T06/2019-11-01T07",
+        "2019-11-01T07/2019-11-01T08",
+        "2019-11-01T08/2019-11-01T09"
+    )) {
+      Assert.assertEquals(interval, results[i++], rule.appliesTo(new Interval(interval), now));
+    }
   }
 }

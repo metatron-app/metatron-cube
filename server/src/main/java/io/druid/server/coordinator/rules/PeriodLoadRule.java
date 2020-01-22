@@ -20,11 +20,10 @@
 package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.DruidServer;
-import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
@@ -36,19 +35,20 @@ import java.util.Objects;
  */
 public class PeriodLoadRule extends LoadRule
 {
-  private static final Logger log = new Logger(PeriodLoadRule.class);
-
   private final Period period;
+  private final Boolean includeFuture;
   private final Map<String, Integer> tieredReplicants;
 
   @JsonCreator
   public PeriodLoadRule(
       @JsonProperty("period") Period period,
+      @JsonProperty("includeFuture") Boolean includeFuture,
       @JsonProperty("tieredReplicants") Map<String, Integer> tieredReplicants
   )
   {
     this.tieredReplicants = tieredReplicants == null ? ImmutableMap.of(DruidServer.DEFAULT_TIER, DruidServer.DEFAULT_NUM_REPLICANTS) : tieredReplicants;
     validateTieredReplicants(this.tieredReplicants);
+    this.includeFuture = includeFuture;
     this.period = period;
   }
 
@@ -63,6 +63,13 @@ public class PeriodLoadRule extends LoadRule
   public Period getPeriod()
   {
     return period;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Boolean getIncludeFuture()
+  {
+    return includeFuture;
   }
 
   @Override
@@ -80,16 +87,13 @@ public class PeriodLoadRule extends LoadRule
   }
 
   @Override
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-  {
-    return appliesTo(segment.getInterval(), referenceTimestamp);
-  }
-
-  @Override
   public boolean appliesTo(Interval interval, DateTime referenceTimestamp)
   {
-    final Interval currInterval = new Interval(period, referenceTimestamp);
-    return currInterval.overlaps(interval) && interval.getStartMillis() >= currInterval.getStartMillis();
+    final Interval valid = new Interval(period, referenceTimestamp);
+    if (includeFuture == null || includeFuture) {
+      return valid.getStartMillis() < interval.getEndMillis();
+    }
+    return valid.overlaps(interval);
   }
 
   @Override
@@ -97,6 +101,7 @@ public class PeriodLoadRule extends LoadRule
   {
     return other instanceof PeriodLoadRule &&
            Objects.equals(period, ((PeriodLoadRule) other).period) &&
+           Objects.equals(includeFuture, ((PeriodLoadRule) other).includeFuture) &&
            Objects.equals(tieredReplicants, ((PeriodLoadRule) other).tieredReplicants);
   }
 }

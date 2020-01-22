@@ -22,11 +22,11 @@ package io.druid.server.coordinator.rules;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
+import io.druid.common.DateTimes;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.common.DateTimes;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
@@ -255,12 +255,6 @@ public abstract class LoadRule implements Rule
 
   protected abstract static class Always extends LoadRule
   {
-    @Override
-    public final boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-    {
-      return true;
-    }
-
     @Override
     public final boolean appliesTo(Interval interval, DateTime referenceTimestamp)
     {

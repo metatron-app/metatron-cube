@@ -28,12 +28,12 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.client.DruidServer;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.core.LoggingEmitter;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.client.DruidServer;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.CostBalancerStrategyFactory;
@@ -150,12 +150,6 @@ public class LoadRuleTest
       }
 
       @Override
-      public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-      {
-        return true;
-      }
-
-      @Override
       public boolean appliesTo(Interval interval, DateTime referenceTimestamp)
       {
         return true;
@@ -256,12 +250,6 @@ public class LoadRuleTest
       public String getType()
       {
         return "test";
-      }
-
-      @Override
-      public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-      {
-        return true;
       }
 
       @Override
@@ -373,12 +361,6 @@ public class LoadRuleTest
       }
 
       @Override
-      public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-      {
-        return true;
-      }
-
-      @Override
       public boolean appliesTo(Interval interval, DateTime referenceTimestamp)
       {
         return true;
@@ -462,12 +444,6 @@ public class LoadRuleTest
       public String getType()
       {
         return "test";
-      }
-
-      @Override
-      public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
-      {
-        return true;
       }
 
       @Override

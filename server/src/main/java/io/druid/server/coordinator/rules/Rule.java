@@ -21,7 +21,6 @@ package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
@@ -42,11 +41,14 @@ import org.joda.time.Interval;
 
 public interface Rule
 {
-  public String getType();
+  String getType();
 
-  public boolean appliesTo(DataSegment segment, DateTime referenceTimestamp);
+  default boolean appliesTo(DataSegment segment, DateTime referenceTimestamp)
+  {
+    return appliesTo(segment.getInterval(), referenceTimestamp);
+  }
 
-  public boolean appliesTo(Interval interval, DateTime referenceTimestamp);
+  boolean appliesTo(Interval interval, DateTime referenceTimestamp);
 
-  public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment);
+  boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment);
 }
