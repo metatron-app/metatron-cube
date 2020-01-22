@@ -18,12 +18,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.collect.Utils;
-import io.druid.java.util.common.logger.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -122,7 +120,7 @@ public class DelimitedParser implements Parser<String, Object>
       setFieldNames(splitter.split(header));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap header [%s]", header);
+      throw new ParseException(e, "Unable to parse header [%s]", header);
     }
   }
 
@@ -139,7 +137,7 @@ public class DelimitedParser implements Parser<String, Object>
       return Utils.zipMapPartial(fieldNames, Iterables.transform(values, valueFunction));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
+      throw new ParseException(e, "Unable to parse row [%s]", input);
     }
   }
 }

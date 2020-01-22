@@ -78,7 +78,7 @@ import static java.lang.Thread.sleep;
  * Notes on JSON parsing: as of twitter4j 2.2.x, the json parser has some bugs (ex: Status.toString()
  * can have number format exceptions), so it might be necessary to extract raw json and process it
  * separately.  If so, set twitter4.jsonStoreEnabled=true and look at DataObjectFactory#getRawJSON();
- * com.fasterxml.jackson.databind.ObjectMapper should be used to parseToMap.
+ * com.fasterxml.jackson.databind.ObjectMapper should be used to parse.
  *
  * @author pbaclace
  */

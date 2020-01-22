@@ -62,7 +62,7 @@ public final class DateTimes
 
   /**
    * Creates a {@link UtcFormatter} that wraps around a {@link DateTimeFormatter}.
-   * @param formatter inner {@link DateTimeFormatter} used to parseToMap {@link String}
+   * @param formatter inner {@link DateTimeFormatter} used to parse {@link String}
    */
   public static UtcFormatter wrapFormatter(final DateTimeFormatter formatter)
   {

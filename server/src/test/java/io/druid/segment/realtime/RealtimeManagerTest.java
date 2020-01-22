@@ -127,7 +127,7 @@ public class RealtimeManagerTest
   {
     final List<TestInputRowHolder> rows = Arrays.asList(
         makeRow(new DateTime("9000-01-01").getMillis()),
-        makeRow(new ParseException("parseToMap error")),
+        makeRow(new ParseException("parse error")),
         null,
         makeRow(new DateTime().getMillis())
     );

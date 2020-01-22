@@ -134,7 +134,7 @@ public class ModuleBuiltinFunctions implements Function.Library
         );
       }
       catch (Exception e) {
-        throw new IAE(e, "failed to parseToMap json mapping");
+        throw new IAE(e, "failed to parse json mapping");
       }
 
       return parameter;

@@ -133,7 +133,7 @@ public class OverlordResourceTestClient
           {
           }
       );
-      //TODO: figure out a better way to parseToMap the response...
+      //TODO: figure out a better way to parse the response...
       String status = (String) ((Map) responseData.get("status")).get("status");
       return TaskState.valueOf(status);
     }

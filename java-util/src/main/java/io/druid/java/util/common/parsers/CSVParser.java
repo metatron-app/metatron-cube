@@ -20,7 +20,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.collect.Utils;
-import io.druid.java.util.common.logger.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -99,7 +98,7 @@ public class CSVParser implements Parser<String, Object>
       setFieldNames(Arrays.asList(parser.parseLine(header)));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap header [%s]", header);
+      throw new ParseException(e, "Unable to parse header [%s]", header);
     }
   }
 
@@ -116,7 +115,7 @@ public class CSVParser implements Parser<String, Object>
       return Utils.zipMapPartial(fieldNames, Iterables.transform(Lists.newArrayList(values), valueFunction));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
+      throw new ParseException(e, "Unable to parse row [%s]", input);
     }
   }
 }

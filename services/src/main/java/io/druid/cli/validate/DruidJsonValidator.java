@@ -155,13 +155,13 @@ public class DruidJsonValidator extends GuiceRunnable
         jsonMapper.readValue(file, HadoopDruidIndexerConfig.class);
       } else if (type.equalsIgnoreCase("task")) {
         jsonMapper.readValue(file, Task.class);
-      } else if (type.equalsIgnoreCase("parseToMap")) {
+      } else if (type.equalsIgnoreCase("parse")) {
         final StringInputRowParser parser;
         if (file.isFile()) {
-          logWriter.write("loading parseToMap spec from file '" + file + "'");
+          logWriter.write("loading parse spec from file '" + file + "'");
           parser = jsonMapper.readValue(file, StringInputRowParser.class);
         } else if (loader.getResource(jsonFile) != null) {
-          logWriter.write("loading parseToMap spec from resource '" + jsonFile + "'");
+          logWriter.write("loading parse spec from resource '" + jsonFile + "'");
           parser = jsonMapper.readValue(loader.getResource(jsonFile), StringInputRowParser.class);
         } else {
           logWriter.write("cannot find proper spec from 'file'.. regarding it as a json spec");

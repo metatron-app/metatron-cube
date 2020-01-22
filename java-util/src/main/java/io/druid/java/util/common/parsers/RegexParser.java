@@ -105,7 +105,7 @@ public class RegexParser implements Parser<String, Object>
       return Utils.zipMapPartial(fieldNames, Iterables.transform(values, valueFunction));
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
+      throw new ParseException(e, "Unable to parse row [%s]", input);
     }
   }
 

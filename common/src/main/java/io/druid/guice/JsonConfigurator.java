@@ -122,7 +122,7 @@ public class JsonConfigurator
           value = jsonMapper.readValue(modifiedPropValue, Object.class);
         }
         catch (IOException e) {
-          log.info(e, "Unable to parseToMap [%s]=[%s] as a json object, using as is.", prop, propValue);
+          log.info(e, "Unable to parse [%s]=[%s] as a json object, using as is.", prop, propValue);
           value = propValue;
         }
 

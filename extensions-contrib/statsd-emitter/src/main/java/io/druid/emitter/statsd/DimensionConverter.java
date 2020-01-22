@@ -85,7 +85,7 @@ public class DimensionConverter
       }).readValue(is);
     }
     catch (IOException e) {
-      throw new ISE(e, "Failed to parseToMap metric dimensions and types");
+      throw new ISE(e, "Failed to parse metric dimensions and types");
     }
   }
 }

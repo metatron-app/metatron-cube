@@ -142,7 +142,7 @@ public class JSONParser implements Parser<String, Object>
       return map;
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
+      throw new ParseException(e, "Unable to parse row [%s]", input);
     }
   }
 }

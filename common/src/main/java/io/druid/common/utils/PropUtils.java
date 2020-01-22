@@ -124,7 +124,7 @@ public class PropUtils
     } else if (val instanceof Boolean) {
       return (boolean) val;
     } else {
-      throw new ISE("Unknown type [%s]. Cannot parseToMap!", val.getClass());
+      throw new ISE("Unknown type [%s]. Cannot parse!", val.getClass());
     }
   }
 }

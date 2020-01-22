@@ -111,7 +111,7 @@ public class URIExtractionNamespace implements ExtractionNamespace
         Pattern.compile(this.fileRegex);
       }
       catch (PatternSyntaxException ex) {
-        throw new IAE(ex, "Could not parseToMap `fileRegex` [%s]", this.fileRegex);
+        throw new IAE(ex, "Could not parse `fileRegex` [%s]", this.fileRegex);
       }
     }
   }

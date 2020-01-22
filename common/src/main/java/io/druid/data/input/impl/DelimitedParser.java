@@ -131,7 +131,7 @@ public class DelimitedParser implements Parser<String, Object>
       return row;
     }
     catch (Exception e) {
-      throw new ParseException(e, "Unable to parseToMap row [%s]", input);
+      throw new ParseException(e, "Unable to parse row [%s]", input);
     }
   }
 

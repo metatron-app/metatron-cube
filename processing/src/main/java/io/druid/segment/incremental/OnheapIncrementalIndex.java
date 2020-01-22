@@ -166,9 +166,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex
       catch (ParseException e) {
         // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
         if (reportParseExceptions) {
-          throw new ParseException(e, "Encountered parseToMap error for aggregator[%s]", aggregators[i]);
+          throw new ParseException(e, "Encountered parse error for aggregator[%s]", aggregators[i]);
         }
-        LOG.debug(e, "Encountered parseToMap error, skipping aggregator[%s].", aggregators[i]);
+        LOG.debug(e, "Encountered parse error, skipping aggregator[%s].", aggregators[i]);
       }
     }
   }

@@ -99,7 +99,7 @@ public class DruidJsonValidatorTest
     parseCommand(
         "validator",
         "-f", "simple_test_data_record_parser_invalid.json",
-        "-t", "parseToMap"
+        "-t", "parse"
     ).run();
   }
 
@@ -110,7 +110,7 @@ public class DruidJsonValidatorTest
         "validator",
         "-f", "simple_test_data_record_parser.json",
         "-r", "simple_test_data.tsv",
-        "-t", "parseToMap"
+        "-t", "parse"
     );
     command.run();
 
@@ -126,7 +126,7 @@ public class DruidJsonValidatorTest
     druidJsonValidator.setLogWriter(writer);
     druidJsonValidator.run();
 
-    String expected = "loading parseToMap spec from resource 'simple_test_data_record_parser.json'\n" +
+    String expected = "loading parse spec from resource 'simple_test_data_record_parser.json'\n" +
                       "loading data from resource 'simple_test_data.tsv'\n" +
                       "2014-10-20T00:00:00.000Z\tproduct_1\n";
 

@@ -608,7 +608,7 @@ public class RealtimeIndexTaskTest
     expectedException.expectCause(CoreMatchers.<Throwable>instanceOf(ParseException.class));
     expectedException.expectCause(
         ThrowableMessageMatcher.hasMessage(
-            CoreMatchers.containsString("Encountered parseToMap error for aggregator")
+            CoreMatchers.containsString("Encountered parse error for aggregator")
         )
     );
     expectedException.expect(
@@ -617,7 +617,7 @@ public class RealtimeIndexTaskTest
                 CoreMatchers.allOf(
                     CoreMatchers.<Throwable>instanceOf(ParseException.class),
                     ThrowableMessageMatcher.hasMessage(
-                        CoreMatchers.containsString("Unable to parseToMap long from value[foo]")
+                        CoreMatchers.containsString("Unable to parse long from value[foo]")
                     )
                 )
             )
