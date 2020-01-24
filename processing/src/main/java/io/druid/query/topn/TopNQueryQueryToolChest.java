@@ -130,25 +130,25 @@ public class TopNQueryQueryToolChest
       {
         TopNQuery topN = (TopNQuery) query;
         if (topN.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          Sequence<Result<TopNResultValue>> sequence = runner.run(topN.toLocalQuery(), responseContext);
-          if (BaseQuery.isBySegment(topN)) {
-            Function function = BySegmentResultValueClass.applyAll(toPostAggregator(topN));
-            return Sequences.map(sequence, function);
-          }
-          TopNBinaryFn topNBinaryFn = new TopNBinaryFn(
-              TopNResultMerger.identity,
-              topN.getGranularity(),
-              topN.getDimensionSpec(),
-              topN.getTopNMetricSpec(),
-              topN.getThreshold(),
-              topN.getAggregatorSpecs(),
-              topN.getPostAggregatorSpecs()
-          );
-          sequence = CombiningSequence.create(sequence, ResultGranularTimestampComparator.create(topN), topNBinaryFn);
-          sequence = Sequences.map(sequence, toPostAggregator(topN));
-          return sequence;
+          topN = topN.toLocalQuery();
         }
-        return runner.run(topN, responseContext);
+        Sequence<Result<TopNResultValue>> sequence = runner.run(topN, responseContext);
+        if (BaseQuery.isBySegment(topN)) {
+          Function function = BySegmentResultValueClass.applyAll(toPostAggregator(topN));
+          return Sequences.map(sequence, function);
+        }
+        TopNBinaryFn topNBinaryFn = new TopNBinaryFn(
+            TopNResultMerger.identity,
+            topN.getGranularity(),
+            topN.getDimensionSpec(),
+            topN.getTopNMetricSpec(),
+            topN.getThreshold(),
+            topN.getAggregatorSpecs(),
+            topN.getPostAggregatorSpecs()
+        );
+        sequence = CombiningSequence.create(sequence, ResultGranularTimestampComparator.create(topN), topNBinaryFn);
+        sequence = Sequences.map(sequence, toPostAggregator(topN));
+        return sequence;
       }
     };
   }

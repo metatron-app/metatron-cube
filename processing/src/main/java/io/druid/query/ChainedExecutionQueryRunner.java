@@ -173,9 +173,14 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
     );
   }
 
-  protected Iterable<T> mergeResults(Query<T> query, List<Iterable<T>> results)
+  private Iterable<T> mergeResults(Query<T> query, List<Iterable<T>> results)
   {
-    final Ordering<T> ordering = query.getMergeOrdering();
+    final Ordering<T> ordering = getMergeOrdering(query);
     return ordering == null ? Iterables.concat(results) : new MergeIterable<>(ordering.nullsFirst(), results);
+  }
+
+  protected Ordering<T> getMergeOrdering(Query<T> query)
+  {
+    return query.getMergeOrdering();
   }
 }
