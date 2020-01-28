@@ -114,7 +114,7 @@ public class InformationSchema extends AbstractSchema
   public static final String COLLATION_NAME = "COLLATION_NAME";
   public static final String JDBC_TYPE = "JDBC_TYPE";
 
-  public static final String EMPTY_CATALOG = "";
+  public static final String DRUID_CATALOG = "druid";    // empty string is not recognized by tableau
   public static final String SCHEMATA_TABLE = "SCHEMATA";
   public static final String TABLES_TABLE = "TABLES";
   public static final String COLUMNS_TABLE = "COLUMNS";
@@ -242,7 +242,7 @@ public class InformationSchema extends AbstractSchema
                 {
                   final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
                   return new Object[]{
-                      EMPTY_CATALOG, // CATALOG_NAME
+                      DRUID_CATALOG, // CATALOG_NAME
                       subSchema.getName(), // SCHEMA_NAME
                       null, // SCHEMA_OWNER
                       null, // DEFAULT_CHARACTER_SET_CATALOG
@@ -299,7 +299,7 @@ public class InformationSchema extends AbstractSchema
                                 public Object[] apply(final String tableName)
                                 {
                                   return new Object[]{
-                                      EMPTY_CATALOG, // TABLE_CATALOG
+                                      DRUID_CATALOG, // TABLE_CATALOG
                                       schemaName, // TABLE_SCHEMA
                                       tableName, // TABLE_NAME
                                       subSchema.getTable(tableName).getJdbcTableType().toString() // TABLE_TYPE
@@ -315,7 +315,7 @@ public class InformationSchema extends AbstractSchema
                                 {
                                   if (getView(subSchema, functionName) != null) {
                                     return new Object[]{
-                                        EMPTY_CATALOG, // TABLE_CATALOG
+                                        DRUID_CATALOG, // TABLE_CATALOG
                                         schemaName, // TABLE_SCHEMA
                                         functionName, // TABLE_NAME
                                         "VIEW" // TABLE_TYPE
@@ -463,7 +463,7 @@ public class InformationSchema extends AbstractSchema
                   boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(type.getSqlTypeName());
                   boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(type.getSqlTypeName());
                   return new Object[]{
-                      EMPTY_CATALOG, // TABLE_CATALOG
+                      DRUID_CATALOG, // TABLE_CATALOG
                       schemaName, // TABLE_SCHEMA
                       tableName, // TABLE_NAME
                       field.getName(), // COLUMN_NAME
