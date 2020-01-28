@@ -179,6 +179,11 @@ public interface QueryMetrics<QueryType extends Query<?>>
   void queryId(QueryType query);
 
   /**
+   * Sets {@link Query#getSqlQueryId()} of the given query as dimension
+   */
+  void sqlQueryId(QueryType query);
+
+  /**
    * Sets {@link Query#getContext()} of the given query as dimension.
    */
   void context(QueryType query);

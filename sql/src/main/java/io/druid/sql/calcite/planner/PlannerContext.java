@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseAggregationQuery;
@@ -32,7 +33,10 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Like {@link PlannerConfig}, but that has static configuration and this class contains dynamic, per-query
@@ -41,6 +45,7 @@ import java.util.Map;
 public class PlannerContext
 {
   // query context keys
+  public static final String CTX_SQL_QUERY_ID = "sqlQueryId";
   public static final String CTX_SQL_CURRENT_TIMESTAMP = "sqlCurrentTimestamp";
   public static final String CTX_SQL_TIME_ZONE = "sqlTimeZone";
 
@@ -50,6 +55,8 @@ public class PlannerContext
   private final DateTime localNow;
   private final long queryStartTimeMillis;
   private final Map<String, Object> queryContext;
+  private final String sqlQueryId;
+  private final List<String> nativeQueryIds = new CopyOnWriteArrayList<>();
 
   private PlannerContext(
       final QueryManager queryManager,
@@ -66,6 +73,13 @@ public class PlannerContext
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
     this.queryStartTimeMillis = System.currentTimeMillis();
     this.queryContext.put(BaseAggregationQuery.SORT_ON_TIME, false);
+
+    String sqlQueryId = (String) this.queryContext.get(CTX_SQL_QUERY_ID);
+    // special handling for DruidViewMacro, normal client will allocate sqlid in SqlLifecyle
+    if (Strings.isNullOrEmpty(sqlQueryId)) {
+      sqlQueryId = UUID.randomUUID().toString();
+    }
+    this.sqlQueryId = sqlQueryId;
   }
 
   public static PlannerContext create(
@@ -135,6 +149,21 @@ public class PlannerContext
   public Map<String, Object> getQueryContext()
   {
     return queryContext;
+  }
+
+  public String getSqlQueryId()
+  {
+    return sqlQueryId;
+  }
+
+  public List<String> getNativeQueryIds()
+  {
+    return nativeQueryIds;
+  }
+
+  public void addNativeQueryId(String queryId)
+  {
+    this.nativeQueryIds.add(queryId);
   }
 
   public long getQueryStartTimeMillis()

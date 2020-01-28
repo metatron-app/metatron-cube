@@ -171,7 +171,12 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
-    return queryLifecycleFactory.factorize().runSimple(query, null, null);
+    final String queryId = UUID.randomUUID().toString();
+    plannerContext.addNativeQueryId(queryId);
+    Query queryWithId = query.withId(queryId)
+                 .withSqlQueryId(plannerContext.getSqlQueryId());
+
+    return queryLifecycleFactory.factorize().runSimple(queryWithId, null, null);
   }
 
   private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)

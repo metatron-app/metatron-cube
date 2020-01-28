@@ -166,6 +166,12 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   }
 
   @Override
+  public List<String> getDataSourceNames()
+  {
+    return ((DruidRel) sourceRel).getDataSourceNames();
+  }
+
+  @Override
   public List<RelNode> getInputs()
   {
     return ImmutableList.of(sourceRel);

@@ -174,6 +174,15 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
   }
 
   @Override
+  public List<String> getDataSourceNames()
+  {
+    return rels.stream()
+               .flatMap(rel -> ((DruidRel<?>) rel).getDataSourceNames().stream())
+               .distinct()
+               .collect(Collectors.toList());
+  }
+
+  @Override
   public List<RelNode> getInputs()
   {
     return rels;

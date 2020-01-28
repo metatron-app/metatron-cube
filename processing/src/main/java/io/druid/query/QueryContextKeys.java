@@ -25,6 +25,7 @@ import java.util.List;
 public interface QueryContextKeys
 {
   public static final String QUERYID = "queryId";
+  public static final String SQL_QUERY_ID = "sqlQueryId";
 
   // internal markers
   public static final String PRIORITY = "priority";

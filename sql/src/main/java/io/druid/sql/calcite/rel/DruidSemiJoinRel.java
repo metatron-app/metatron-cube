@@ -48,6 +48,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -182,6 +183,16 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
         maxSemiJoinRowsInMemory,
         getQueryMaker()
     );
+  }
+
+  @Override
+  public List<String> getDataSourceNames()
+  {
+    final DruidRel<?> druidRight = (DruidRel) this.right;
+    Set<String> datasourceNames = new LinkedHashSet<>();
+    datasourceNames.addAll(left.getDataSourceNames());
+    datasourceNames.addAll(druidRight.getDataSourceNames());
+    return new ArrayList<>(datasourceNames);
   }
 
   @Override

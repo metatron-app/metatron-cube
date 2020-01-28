@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -78,6 +79,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class DruidPlanner implements Closeable, ForwardConstants
 {
@@ -151,6 +153,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
         root.rel
     );
 
+    final Set<String> datasourceNames = ImmutableSet.copyOf(druidRel.getDataSourceNames());
+
     if (source.getKind() == SqlKind.EXPLAIN) {
       return handleExplain(druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
@@ -193,7 +197,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         return Sequences.withBaggage(sequence, future);
       }
     };
-    return new PlannerResult(resultsSupplier, root.validatedRowType);
+    return new PlannerResult(resultsSupplier, root.validatedRowType, datasourceNames);
   }
 
   private PlannerResult planWithBindableConvention(final SqlNode source, final RelRoot root)

@@ -338,7 +338,7 @@ public class QueryResource
     }
     catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
-      lifecycle.emitLogsAndMetrics(toLoggingQuery(query), e, remote, 0, 0);
+      lifecycle.emitLogsAndMetrics(toLoggingQuery(query), e, remote, -1, -1);
       currThread.setName(currThreadName);
       return context.gotError(e);
     }

@@ -28,22 +28,20 @@ import com.google.inject.Inject;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.client.BrokerServerView;
 import io.druid.common.Yielders;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
-import io.druid.server.QueryStats;
-import io.druid.server.RequestLogLine;
-import io.druid.server.log.RequestLogger;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.ForbiddenException;
+import io.druid.sql.SqlLifecycle;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.DruidPlanner;
-import io.druid.sql.calcite.planner.PlannerFactory;
-import io.druid.sql.calcite.planner.PlannerResult;
+import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
 
@@ -70,22 +68,16 @@ public class SqlResource
   private static final Logger log = new Logger(SqlResource.class);
 
   private final ObjectMapper jsonMapper;
-  private final PlannerFactory plannerFactory;
-  private final BrokerServerView brokerServerView;
-  private final RequestLogger requestLogger;
+  private final SqlLifecycleFactory sqlLifecycleFactory;
 
   @Inject
   public SqlResource(
       @Json ObjectMapper jsonMapper,
-      PlannerFactory plannerFactory,
-      BrokerServerView brokerServerView,
-      RequestLogger requestLogger
+      SqlLifecycleFactory sqlLifecycleFactory
   )
   {
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
-    this.plannerFactory = Preconditions.checkNotNull(plannerFactory, "connection");
-    this.brokerServerView = brokerServerView;
-    this.requestLogger = requestLogger;
+    this.sqlLifecycleFactory = Preconditions.checkNotNull(sqlLifecycleFactory, "sqlLifecycleFactory");
   }
 
   @POST
@@ -116,18 +108,26 @@ public class SqlResource
       final HttpServletRequest req
   ) throws SQLException, IOException
   {
-    final PlannerResult plannerResult;
     final DateTimeZone timeZone;
 
+    final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
+    final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
+    final String remoteAddr = req.getRemoteAddr();
+
+    final Thread currThread = Thread.currentThread();
+    final String currThreadName = resetThreadName(currThread);
+
     final String query = sqlQuery.getQuery();
-    final long start = System.currentTimeMillis();
-    try (final DruidPlanner planner = plannerFactory.createPlanner(context)) {
-      plannerResult = planner.plan(query, brokerServerView);
-      timeZone = planner.getPlannerContext().getTimeZone();
+    try {
+      currThread.setName(String.format("%s[sql_%s]", currThreadName, sqlQueryId));
+
+      final PlannerContext plannerContext =
+          lifecycle.planAndAuthorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
+      timeZone = plannerContext.getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.
       // Also store list of all column names, for X-Druid-Sql-Columns header.
-      final List<RelDataTypeField> fieldList = plannerResult.rowType().getFieldList();
+      final List<RelDataTypeField> fieldList = lifecycle.rowType().getFieldList();
       final boolean[] timeColumns = new boolean[fieldList.size()];
       final boolean[] dateColumns = new boolean[fieldList.size()];
       final String[] columnNames = new String[fieldList.size()];
@@ -139,7 +139,7 @@ public class SqlResource
         columnNames[i] = fieldList.get(i).getName();
       }
 
-      final Yielder<Object[]> yielder0 = Yielders.each(plannerResult.run());
+      final Yielder<Object[]> yielder0 = Yielders.each(lifecycle.execute());
 
       try {
         return Response.ok(
@@ -148,6 +148,7 @@ public class SqlResource
               @Override
               public void write(final OutputStream outputStream) throws IOException, WebApplicationException
               {
+                Exception e = null;
                 Yielder<Object[]> yielder = yielder0;
 
                 final MutableInt counter = new MutableInt();
@@ -187,25 +188,16 @@ public class SqlResource
 
                   writer.writeResponseEnd();
                 }
+                catch (Exception ex) {
+                  e = ex;
+                  log.error(ex, "Unable to send sql response [%s]", sqlQueryId);
+                  throw Throwables.propagate(ex);
+                }
                 finally {
                   yielder.close();
                 }
-                final long queryTime = System.currentTimeMillis() - start;
-                requestLogger.log(
-                    new RequestLogLine(
-                        new DateTime(start),
-                        req.getRemoteAddr(),
-                        query,
-                        new QueryStats(
-                            ImmutableMap.<String, Object>of(
-                                "query/time", queryTime,
-                                "query/bytes", os.getCount(),
-                                "query/rows", counter.intValue(),
-                                "success", true
-                            )
-                        )
-                    )
-                );
+                lifecycle.emitLogsAndMetrics(query, e, remoteAddr, os.getCount(), counter.intValue());
+                currThread.setName(currThreadName);
               }
             }
         ).build();
@@ -216,9 +208,13 @@ public class SqlResource
         throw Throwables.propagate(e);
       }
     }
+    catch (ForbiddenException e) {
+      throw e; // let ForbiddenExceptionMapper handle this
+    }
     catch (Exception e) {
       log.warn(e, "Failed to handle query: %s %s", query, context);
-
+      lifecycle.emitLogsAndMetrics(query, e, remoteAddr, -1, -1);
+      currThread.setName(currThreadName);
       final Exception exceptionToReport;
 
       if (e instanceof RelOptPlanner.CannotPlanException) {
@@ -227,26 +223,21 @@ public class SqlResource
         exceptionToReport = e;
       }
 
-      final long queryTime = System.currentTimeMillis() - start;
-      requestLogger.log(
-          new RequestLogLine(
-              new DateTime(start),
-              req.getRemoteAddr(),
-              query,
-              new QueryStats(
-                  ImmutableMap.<String, Object>of(
-                      "query/time", queryTime,
-                      "success", false,
-                      "interrupted", true,
-                      "reason", e.toString()
-                  )
-              )
-          )
-      );
       return Response.serverError()
                      .type(MediaType.APPLICATION_JSON_TYPE)
                      .entity(jsonMapper.writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(exceptionToReport)))
                      .build();
     }
+  }
+
+  // clear previous query name if exists (should not)
+  private String resetThreadName(Thread thread)
+  {
+    String currThreadName = thread.getName();
+    int index = currThreadName.indexOf('[');
+    if (index > 0 && currThreadName.endsWith("]")) {
+      thread.setName(currThreadName = currThreadName.substring(0, index));
+    }
+    return currThreadName;
   }
 }

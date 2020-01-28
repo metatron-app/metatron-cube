@@ -26,12 +26,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.java.util.common.Pair;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
+import io.druid.server.metrics.NoopServiceEmitter;
+import io.druid.server.security.Access;
+import io.druid.server.security.Action;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.Resource;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -71,6 +79,7 @@ public class SqlResourceTest extends CalciteTestBase
   }
 
   private static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
+  private static final String DUMMY_SQL_QUERY_ID = "dummy";
 
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -96,23 +105,41 @@ public class SqlResourceTest extends CalciteTestBase
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     req = EasyMock.createStrictMock(HttpServletRequest.class);
     EasyMock.expect(req.getRemoteAddr()).andReturn("localhost").anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
+        new AuthorizationInfo()
+        {
+          @Override
+          public Access isAuthorized(
+              Resource resource, Action action
+          )
+          {
+            return new Access(true);
+          }
+        }
+    ).anyTimes();
     EasyMock.replay(req);
+
+    final PlannerFactory plannerFactory = new PlannerFactory(
+        druidSchema,
+        systemSchema,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
+        walker,
+        new QueryManager(),
+        operatorTable,
+        plannerConfig,
+        queryConfig,
+        CalciteTests.getJsonMapper()
+    );
 
     resource = new SqlResource(
         JSON_MAPPER,
-        new PlannerFactory(
-            druidSchema,
-            systemSchema,
-            CalciteTests.createMockQueryLifecycleFactory(walker),
-            walker,
-            new QueryManager(),
-            operatorTable,
-            plannerConfig,
-            queryConfig,
-            CalciteTests.getJsonMapper()
-        ),
-        null,
-        new NoopRequestLogger()
+        new SqlLifecycleFactory(
+            plannerFactory,
+            new NoopServiceEmitter(),
+            new NoopRequestLogger(),
+            new AuthConfig(),
+            null
+        )
     );
   }
 
@@ -278,15 +305,19 @@ public class SqlResourceTest extends CalciteTestBase
   @Test
   public void testExplainCountStar() throws Exception
   {
+    Map<String, Object> queryContext = ImmutableMap.of(PlannerContext.CTX_SQL_QUERY_ID, DUMMY_SQL_QUERY_ID);
     final List<Map<String, Object>> rows = doPost(
-        new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT, false, null)
+        new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT, false, queryContext)
     ).rhs;
 
     Assert.assertEquals(
         ImmutableList.of(
             ImmutableMap.<String, Object>of(
                 "PLAN",
-                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false}}], signature=[{a0:long}])\n"
+                StringUtils.format(
+                    "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlQueryId\":\"%s\"}}], signature=[{a0:long}])\n",
+                    DUMMY_SQL_QUERY_ID
+                )
             )
         ),
         rows

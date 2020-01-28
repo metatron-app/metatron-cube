@@ -34,8 +34,8 @@ import io.druid.common.DateTimes;
 import io.druid.java.util.common.ISE;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.calcite.avatica.MetaImpl;
 import org.apache.calcite.avatica.MissingResultsException;
 import org.apache.calcite.avatica.NoSuchConnectionException;
@@ -59,7 +59,7 @@ public class DruidMeta extends MetaImpl
 {
   private static final Logger log = new Logger(DruidMeta.class);
 
-  private final PlannerFactory plannerFactory;
+  private final SqlLifecycleFactory sqlLifecycleFactory;
   private final ScheduledExecutorService exec;
   private final AvaticaServerConfig config;
 
@@ -72,13 +72,13 @@ public class DruidMeta extends MetaImpl
 
   @Inject
   public DruidMeta(
-      final PlannerFactory plannerFactory,
+      final SqlLifecycleFactory sqlLifecycleFactory,
       final AvaticaServerConfig config,
       final Injector injector
   )
   {
     super(null);
-    this.plannerFactory = Preconditions.checkNotNull(plannerFactory, "plannerFactory");
+    this.sqlLifecycleFactory = Preconditions.checkNotNull(sqlLifecycleFactory, "sqlLifecycleFactory");
     this.config = config;
     this.exec = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder()
@@ -120,7 +120,7 @@ public class DruidMeta extends MetaImpl
   @Override
   public StatementHandle createStatement(final ConnectionHandle ch)
   {
-    final DruidStatement druidStatement = getDruidConnection(ch.id).createStatement();
+    final DruidStatement druidStatement = getDruidConnection(ch.id).createStatement(sqlLifecycleFactory);
     return new StatementHandle(ch.id, druidStatement.getStatementId(), null);
   }
 
@@ -133,7 +133,7 @@ public class DruidMeta extends MetaImpl
   {
     final StatementHandle statement = createStatement(ch);
     final DruidStatement druidStatement = getDruidStatement(statement);
-    statement.signature = druidStatement.prepare(plannerFactory, sql, maxRowCount).getSignature();
+    statement.signature = druidStatement.prepare(sql, maxRowCount).getSignature();
     return statement;
   }
 
@@ -161,7 +161,7 @@ public class DruidMeta extends MetaImpl
   {
     // Ignore "callback", this class is designed for use with LocalService which doesn't use it.
     final DruidStatement druidStatement = getDruidStatement(statement);
-    final Signature signature = druidStatement.prepare(plannerFactory, sql, maxRowCount).getSignature();
+    final Signature signature = druidStatement.prepare(sql, maxRowCount).getSignature();
     final Frame firstFrame = druidStatement.execute()
                                            .nextFrame(
                                                DruidStatement.START_OFFSET,

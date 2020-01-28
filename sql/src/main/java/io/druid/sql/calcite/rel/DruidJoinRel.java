@@ -49,7 +49,10 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.commons.lang.StringUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.LeafRel
 {
@@ -204,6 +207,17 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         rightExpressions,
         getQueryMaker()
     );
+  }
+
+  @Override
+  public List<String> getDataSourceNames()
+  {
+    final DruidRel<?> druidRight = (DruidRel) this.right;
+    final DruidRel<?> druidLeft = (DruidRel) this.left;
+    Set<String> datasourceNames = new LinkedHashSet<>();
+    datasourceNames.addAll(druidLeft.getDataSourceNames());
+    datasourceNames.addAll(druidRight.getDataSourceNames());
+    return new ArrayList<>(datasourceNames);
   }
 
   @Override

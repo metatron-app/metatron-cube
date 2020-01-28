@@ -26,6 +26,7 @@ import com.google.common.base.Joiner;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 public class RequestLogLine
 {
@@ -49,7 +50,7 @@ public class RequestLogLine
     return JOINER.join(
         Arrays.asList(
             timestamp,
-            remoteAddr,
+            Optional.ofNullable(remoteAddr).orElse(""),
             objectMapper.writeValueAsString(query),
             objectMapper.writeValueAsString(queryStats)
         )

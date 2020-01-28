@@ -69,9 +69,11 @@ import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.security.AuthConfig;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
+import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
@@ -231,6 +233,16 @@ public class CalciteTests
     );
   }
 
+  public static SqlLifecycleFactory createSqlLifecycleFactory(final PlannerFactory plannerFactory)
+  {
+    return new SqlLifecycleFactory(
+        plannerFactory,
+        new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
+        new NoopRequestLogger(),
+        new AuthConfig(),
+        null
+    );
+  }
 
   public static TestQuerySegmentWalker newSegmentWalker()
   {

@@ -52,6 +52,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -521,6 +522,19 @@ public abstract class BaseQuery<T> implements Query<T>
   {
     Preconditions.checkNotNull(id, "'id' should not be null");
     return withOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id));
+  }
+
+  @Nullable
+  @Override
+  public String getSqlQueryId()
+  {
+    return (String) getContextValue(SQL_QUERY_ID);
+  }
+
+  @Override
+  public Query<T> withSqlQueryId(String sqlQueryId)
+  {
+    return withOverriddenContext(ImmutableMap.of(SQL_QUERY_ID, sqlQueryId));
   }
 
   @Override

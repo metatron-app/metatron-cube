@@ -22,8 +22,10 @@ package io.druid.sql.avatica;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryConfig;
 import io.druid.server.QueryManager;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
@@ -38,14 +40,23 @@ import org.apache.calcite.avatica.Meta;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.List;
+import java.util.Properties;
 
 public class DruidStatementTest extends CalciteTestBase
 {
+  private final Logger LOG = new Logger(DruidStatementTest.class);
+
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -53,7 +64,7 @@ public class DruidStatementTest extends CalciteTestBase
   public QueryLogHook queryLogHook = QueryLogHook.create();
 
   private TestQuerySegmentWalker walker;
-  private PlannerFactory plannerFactory;
+  private SqlLifecycleFactory sqlLifecycleFactory;
 
   @Before
   public void setUp() throws Exception
@@ -67,7 +78,7 @@ public class DruidStatementTest extends CalciteTestBase
     );
     final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
-    plannerFactory = new PlannerFactory(
+    final PlannerFactory plannerFactory = new PlannerFactory(
         druidSchema,
         systemSchema,
         CalciteTests.createMockQueryLifecycleFactory(walker),
@@ -78,6 +89,7 @@ public class DruidStatementTest extends CalciteTestBase
         queryConfig,
         CalciteTests.getJsonMapper()
     );
+    this.sqlLifecycleFactory = CalciteTests.createSqlLifecycleFactory(plannerFactory);
   }
 
   @After
@@ -90,8 +102,9 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSignature() throws Exception
   {
     final String sql = "SELECT * FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, () -> {
-    }).prepare(plannerFactory, sql, -1);
+    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
+    }).prepare(sql, -1);
+
 
     // Check signature.
     final Meta.Signature signature = statement.getSignature();
@@ -130,8 +143,8 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSelectAllInFirstFrame() throws Exception
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, () -> {
-    }).prepare(plannerFactory, sql, -1);
+    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
+    }).prepare(sql, -1);
 
     // First frame, ask for all rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 6);
@@ -157,8 +170,8 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSelectSplitOverTwoFrames() throws Exception
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, () -> {
-    }).prepare(plannerFactory, sql, -1);
+    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
+    }).prepare(sql, -1);
     
     // First frame, ask for 2 rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 2);
@@ -191,5 +204,58 @@ public class DruidStatementTest extends CalciteTestBase
         frame
     );
     Assert.assertTrue(statement.isDone());
+  }
+
+  @Ignore
+  @Test
+  public void testJDBC()
+  {
+    // Connect to /druid/v2/sql/avatica/ on your Broker.
+    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
+
+    Properties connectionProperties = new Properties();
+
+    //String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = 'druid-mt-metric'";
+    String query = "SELECT  *\n"
+                   + "FROM \"druid-metric\"\n"
+                   + "WHERE \n"
+                   + "\"__time\" BETWEEN TIMESTAMP '2020-01-06 01:00:00' AND TIMESTAMP '2020-01-24 01:00:00' \n"
+                   + "ORDER BY \"__time\" DESC\n"
+                   + "LIMIT 100\n";
+    try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
+      try (
+          final Statement statement = connection.createStatement();
+          final ResultSet resultSet = statement.executeQuery(query)
+      ) {
+        ResultSetMetaData metaData = resultSet.getMetaData();
+
+        int count = metaData.getColumnCount();
+        StringBuilder columns = new StringBuilder();
+        for (int i = 1; i <= count; i++) {
+          columns.append(metaData.getColumnName(i));
+          if (i > 1) {
+            columns.append(",");
+          }
+        }
+        System.out.println(columns.toString());
+
+        StringBuilder b = new StringBuilder();
+        int x = 0;
+        while (resultSet.next() && x++ < 100) {
+          b.setLength(0);
+          for (int i = 1; i <= count; i++) {
+            if (i > 1) {
+              b.append(',');
+            }
+            b.append(resultSet.getObject(i));
+          }
+
+          System.out.println(b.toString());
+        }
+        resultSet.close();
+      }
+    } catch (Exception e) {
+      LOG.error("SQL failed.", e);
+    }
   }
 }

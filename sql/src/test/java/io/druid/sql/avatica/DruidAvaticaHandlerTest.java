@@ -42,6 +42,10 @@ import io.druid.initialization.Initialization;
 import io.druid.query.QueryConfig;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
+import io.druid.server.log.NoopRequestLogger;
+import io.druid.server.metrics.NoopServiceEmitter;
+import io.druid.server.security.AuthConfig;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -148,17 +152,25 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
             }
         )
     );
+    final PlannerFactory plannerFactory = new PlannerFactory(
+        druidSchema,
+        systemSchema,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
+        walker,
+        new QueryManager(),
+        operatorTable,
+        plannerConfig,
+        queryConfig,
+        CalciteTests.getJsonMapper()
+    );
+
     druidMeta = new DruidMeta(
-        new PlannerFactory(
-            druidSchema,
-            systemSchema,
-            CalciteTests.createMockQueryLifecycleFactory(walker),
-            walker,
-            new QueryManager(),
-            operatorTable,
-            plannerConfig,
-            queryConfig,
-            CalciteTests.getJsonMapper()
+        new SqlLifecycleFactory(
+            plannerFactory,
+            new NoopServiceEmitter(),
+            new NoopRequestLogger(),
+            new AuthConfig(),
+            null
         ),
         AVATICA_CONFIG,
         injector
@@ -717,16 +729,18 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final List<Meta.Frame> frames = new ArrayList<>();
     DruidMeta smallFrameDruidMeta = new DruidMeta(
-        new PlannerFactory(
-            druidSchema,
-            systemSchema,
-            CalciteTests.createMockQueryLifecycleFactory(walker),
-            walker,
-            new QueryManager(),
-            operatorTable,
-            plannerConfig,
-            queryConfig,
-            CalciteTests.getJsonMapper()
+        CalciteTests.createSqlLifecycleFactory(
+            new PlannerFactory(
+                druidSchema,
+                systemSchema,
+                CalciteTests.createMockQueryLifecycleFactory(walker),
+                walker,
+                new QueryManager(),
+                operatorTable,
+                plannerConfig,
+                queryConfig,
+                CalciteTests.getJsonMapper()
+            )
         ),
         smallFrameConfig,
         injector

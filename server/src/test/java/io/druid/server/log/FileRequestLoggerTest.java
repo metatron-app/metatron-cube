@@ -48,7 +48,8 @@ public class FileRequestLoggerTest
     ObjectMapper objectMapper = new ObjectMapper();
     DateTime dateTime = new DateTime();
     File logDir = temporaryFolder.newFolder();
-    String actualLogString = new String(dateTime.toString()+"\t"+HOST);
+    String actualLogString = dateTime + "\t" + HOST + "\t" + "native";
+    String sqlQueryLogString = dateTime + "\t" + HOST + "\t" + "sql";
 
     FileRequestLogger fileRequestLogger = new FileRequestLogger(objectMapper, scheduler, logDir);
     fileRequestLogger.start();
@@ -57,9 +58,14 @@ public class FileRequestLoggerTest
         andReturn(actualLogString).anyTimes();
     EasyMock.replay(requestLogLine);
     fileRequestLogger.log(requestLogLine);
+    RequestLogLine sqlRequestLogLine = EasyMock.createMock(RequestLogLine.class);
+    EasyMock.expect(sqlRequestLogLine.getLine((ObjectMapper) EasyMock.anyObject())).
+        andReturn(sqlQueryLogString).anyTimes();
+    EasyMock.replay(sqlRequestLogLine);
+    fileRequestLogger.log(sqlRequestLogLine);
     File logFile = new File(logDir, dateTime.toString("yyyy-MM-dd'.log'"));
     String logString = CharStreams.toString(new FileReader(logFile));
-    Assert.assertTrue(logString.contains(actualLogString));
+    Assert.assertTrue(logString.contains(actualLogString + "\n" + sqlQueryLogString + "\n"));
     fileRequestLogger.stop();
   }
 }

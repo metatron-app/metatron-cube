@@ -38,6 +38,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {
@@ -154,6 +155,11 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   }
 
   public abstract T asDruidConvention();
+
+  /**
+   * Get a list of names of datasources read by this DruidRel
+   */
+  public abstract List<String> getDataSourceNames();
 
   @Override
   public Class<Object[]> getElementType()

@@ -35,6 +35,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import javax.annotation.Nonnull;
+import java.util.List;
 
 /**
  * DruidRel that uses a "table" dataSource.
@@ -123,6 +124,12 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
         getQueryMaker(),
         partialQuery
     );
+  }
+
+  @Override
+  public List<String> getDataSourceNames()
+  {
+    return druidTable.getDataSource().getNames();
   }
 
   @Override
