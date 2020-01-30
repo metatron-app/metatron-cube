@@ -26,6 +26,7 @@ import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.query.QueryInterruptedException;
@@ -50,6 +51,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -315,6 +317,17 @@ public class SqlLifecycle
                 new QueryStats(statsMap)
             )
         );
+        if ("druid/broker".equals(emitter.getService())) {
+          emitter.emit(
+              new QueryEvent(
+                  DateTimes.utc(startMs),
+                  Optional.ofNullable(metricBuilder.getDimension("id")).map(Object::toString).orElse(null),
+                  Optional.ofNullable(metricBuilder.getDimension("sqlQueryId")).map(Object::toString).orElse(""),
+                  Optional.ofNullable(metricBuilder.getDimension("remoteAddress")).map(Object::toString).orElse(""),
+                  forLog,
+                  String.valueOf(success)
+              ));
+        }
       }
       catch (Exception ex) {
         log.error(ex, "Unable to log sql [%s]!", sql);

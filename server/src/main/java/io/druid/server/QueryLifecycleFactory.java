@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.druid.guice.LazySingleton;
 import io.druid.java.util.emitter.service.ServiceEmitter;
@@ -37,6 +38,7 @@ public class QueryLifecycleFactory
   private final GenericQueryMetricsFactory queryMetricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
+  private final ObjectMapper jsonMapper;
   private final AuthConfig authConfig;
 
   @Inject
@@ -47,6 +49,7 @@ public class QueryLifecycleFactory
       final GenericQueryMetricsFactory queryMetricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
+      final ObjectMapper jsonMapper,
       final AuthConfig authConfig
   )
   {
@@ -56,6 +59,7 @@ public class QueryLifecycleFactory
     this.queryMetricsFactory = queryMetricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
+    this.jsonMapper = jsonMapper;
     this.authConfig = authConfig;
   }
 
@@ -68,6 +72,7 @@ public class QueryLifecycleFactory
         queryMetricsFactory,
         emitter,
         requestLogger,
+        jsonMapper,
         authConfig,
         System.currentTimeMillis(),
         System.nanoTime()

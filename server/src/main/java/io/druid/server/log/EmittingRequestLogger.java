@@ -115,11 +115,6 @@ public class EmittingRequestLogger implements RequestLogger
       return request.getQueryStats();
     }
 
-    @Override
-    public boolean isSafeToBuffer()
-    {
-      return true;
-    }
   }
 
   private static class RequestLogEventBuilder extends ServiceEventBuilder<Event>

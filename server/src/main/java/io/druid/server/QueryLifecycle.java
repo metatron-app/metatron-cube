@@ -19,11 +19,14 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
 import io.druid.query.GenericQueryMetricsFactory;
@@ -45,6 +48,7 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -80,6 +84,7 @@ public class QueryLifecycle
   private final GenericQueryMetricsFactory queryMetricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
+  private final ObjectMapper jsonMapper;
   private final AuthConfig authConfig;
   private final long startMs;
   private final long startNs;
@@ -95,6 +100,7 @@ public class QueryLifecycle
       final GenericQueryMetricsFactory queryMetricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
+      final ObjectMapper jsonMapper,
       final AuthConfig authConfig,
       final long startMs,
       final long startNs
@@ -106,6 +112,7 @@ public class QueryLifecycle
     this.queryMetricsFactory = queryMetricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
+    this.jsonMapper = jsonMapper;
     this.authConfig = authConfig;
     this.startMs = startMs;
     this.startNs = startNs;
@@ -283,6 +290,18 @@ public class QueryLifecycle
               new QueryStats(statsMap)
           )
       );
+      String queryStr = jsonMapper.writeValueAsString(forLog);
+      if ("druid/broker".equals(emitter.getService())) {
+        emitter.emit(
+            new QueryEvent(
+                DateTimes.utc(startMs),
+                forLog.getId(),
+                forLog.getSqlQueryId(),
+                Strings.nullToEmpty(remoteAddress),
+                queryStr,
+                String.valueOf(success)
+            ));
+      }
     }
     catch (Exception ex) {
       log.error(ex, "Unable to log query [%s]!", forLog);

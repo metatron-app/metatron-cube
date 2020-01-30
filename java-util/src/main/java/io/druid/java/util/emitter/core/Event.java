@@ -25,5 +25,4 @@ public interface Event
   public Map<String, Object> toMap();
   public String getFeed();
   public DateTime getCreatedTime();
-  public boolean isSafeToBuffer();
 }

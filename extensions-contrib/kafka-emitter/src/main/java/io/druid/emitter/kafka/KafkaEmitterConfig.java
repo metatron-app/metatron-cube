@@ -37,6 +37,8 @@ public class KafkaEmitterConfig
   private final String metricTopic;
   @JsonProperty("alert.topic")
   private final String alertTopic;
+  @JsonProperty("query.topic")
+  private final String queryTopic;
   @JsonProperty
   private final String clusterName;
   @JsonProperty("producer.config")
@@ -47,6 +49,7 @@ public class KafkaEmitterConfig
       @JsonProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) String bootstrapServers,
       @JsonProperty("metric.topic") String metricTopic,
       @JsonProperty("alert.topic") String alertTopic,
+      @JsonProperty("query.topic") String queryTopic,
       @JsonProperty("clusterName") String clusterName,
       @JsonProperty("producer.config") @Nullable Map<String, String> kafkaProducerConfig
   )
@@ -54,6 +57,7 @@ public class KafkaEmitterConfig
     this.bootstrapServers = Preconditions.checkNotNull(bootstrapServers, "bootstrap.servers can not be null");
     this.metricTopic = Preconditions.checkNotNull(metricTopic, "metric.topic can not be null");
     this.alertTopic = Preconditions.checkNotNull(alertTopic, "alert.topic can not be null");
+    this.queryTopic = Preconditions.checkNotNull(queryTopic, "query.topic can not be null");
     this.clusterName = clusterName;
     this.kafkaProducerConfig = kafkaProducerConfig == null ? ImmutableMap.<String, String>of() : kafkaProducerConfig;
   }
@@ -74,6 +78,12 @@ public class KafkaEmitterConfig
   public String getAlertTopic()
   {
     return alertTopic;
+  }
+
+  @JsonProperty
+  public String getQueryTopic()
+  {
+    return queryTopic;
   }
 
   @JsonProperty

@@ -31,6 +31,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.emitter.core.NoopEmitter;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.HttpClient;
@@ -107,6 +108,8 @@ public class CalciteTests
   private static final String TIMESTAMP_COLUMN = "t";
 
   public static final String SUPER_USER_AUTH_RESULT = "SUPER_USER_AUTH_RESULT";
+
+  private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
 
   public static final Injector INJECTOR = Guice.createInjector(
       new Module()
@@ -229,6 +232,7 @@ public class CalciteTests
         new DefaultGenericQueryMetricsFactory(INJECTOR.getInstance(Key.get(ObjectMapper.class, Json.class))),
         new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
         new NoopRequestLogger(),
+        jsonMapper,
         new AuthConfig()
     );
   }

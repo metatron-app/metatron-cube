@@ -125,11 +125,6 @@ public class AlertEvent implements ServiceEvent
     return Collections.unmodifiableMap(dataMap);
   }
 
-  public boolean isSafeToBuffer()
-  {
-    return false;
-  }
-
   @Override
   @JsonValue
   public Map<String, Object> toMap()

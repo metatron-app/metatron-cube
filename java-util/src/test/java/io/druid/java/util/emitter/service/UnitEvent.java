@@ -76,9 +76,4 @@ public class UnitEvent implements Event
     return feed;
   }
 
-  @Override
-  public boolean isSafeToBuffer()
-  {
-    return true;
-  }
 }

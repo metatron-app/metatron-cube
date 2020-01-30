@@ -49,9 +49,4 @@ class IntEvent implements Event
     return null;
   }
 
-  @Override
-  public boolean isSafeToBuffer()
-  {
-    return false;
-  }
 }

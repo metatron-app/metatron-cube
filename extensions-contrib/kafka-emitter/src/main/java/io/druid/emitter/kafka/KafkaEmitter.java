@@ -28,6 +28,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.core.Emitter;
 import io.druid.java.util.emitter.core.Event;
 import io.druid.java.util.emitter.service.AlertEvent;
+import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.StringUtils;
 import io.druid.emitter.kafka.MemoryBoundLinkedBlockingQueue.ObjectContainer;
@@ -55,6 +56,7 @@ public class KafkaEmitter implements Emitter
   private static final int DEFAULT_RETRIES = 3;
   private final AtomicLong metricLost;
   private final AtomicLong alertLost;
+  private final AtomicLong queryLost;
   private final AtomicLong invalidLost;
 
   private final KafkaEmitterConfig config;
@@ -63,6 +65,7 @@ public class KafkaEmitter implements Emitter
   private final ObjectMapper jsonMapper;
   private final MemoryBoundLinkedBlockingQueue<String> metricQueue;
   private final MemoryBoundLinkedBlockingQueue<String> alertQueue;
+  private final MemoryBoundLinkedBlockingQueue<String> queryQueue;
   private final ScheduledExecutorService scheduler;
 
   public KafkaEmitter(KafkaEmitterConfig config, ObjectMapper jsonMapper)
@@ -76,9 +79,11 @@ public class KafkaEmitter implements Emitter
                                                       .getOrDefault(ProducerConfig.BUFFER_MEMORY_CONFIG, "33554432"));
     this.metricQueue = new MemoryBoundLinkedBlockingQueue<>(queueMemoryBound);
     this.alertQueue = new MemoryBoundLinkedBlockingQueue<>(queueMemoryBound);
+    this.queryQueue = new MemoryBoundLinkedBlockingQueue<>(queueMemoryBound);
     this.scheduler = Executors.newScheduledThreadPool(3);
     this.metricLost = new AtomicLong(0L);
     this.alertLost = new AtomicLong(0L);
+    this.queryLost = new AtomicLong(0L);
     this.invalidLost = new AtomicLong(0L);
   }
 
@@ -151,6 +156,15 @@ public class KafkaEmitter implements Emitter
           @Override
           public void run()
           {
+            KafkaEmitter.this.sendQueryToKafka();
+          }
+        }, 10, 10, TimeUnit.SECONDS);
+    scheduler.scheduleWithFixedDelay(
+        new Runnable()
+        {
+          @Override
+          public void run()
+          {
             log.info(
                 "Message lost counter: metricLost=[%d], alertLost=[%d], invalidLost=[%d]",
                 metricLost.get(), alertLost.get(), invalidLost.get()
@@ -168,6 +182,11 @@ public class KafkaEmitter implements Emitter
   private void sendAlertToKafka()
   {
     sendToKafka(config.getAlertTopic(), alertQueue);
+  }
+
+  private void sendQueryToKafka()
+  {
+    sendToKafka(config.getQueryTopic(), queryQueue);
   }
 
   private void sendToKafka(final String topic, MemoryBoundLinkedBlockingQueue<String> recordQueue)
@@ -223,6 +242,10 @@ public class KafkaEmitter implements Emitter
         } else if (event instanceof AlertEvent) {
           if (!alertQueue.offer(objectContainer)) {
             alertLost.incrementAndGet();
+          }
+        } else if (event instanceof QueryEvent) {
+          if (!queryQueue.offer(objectContainer)) {
+            queryLost.incrementAndGet();
           }
         } else {
           invalidLost.incrementAndGet();

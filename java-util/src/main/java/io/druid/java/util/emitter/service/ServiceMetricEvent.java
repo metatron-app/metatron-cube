@@ -92,11 +92,6 @@ public class ServiceMetricEvent implements ServiceEvent
     return value;
   }
 
-  public boolean isSafeToBuffer()
-  {
-    return true;
-  }
-
   @Override
   @JsonValue
   public Map<String, Object> toMap()

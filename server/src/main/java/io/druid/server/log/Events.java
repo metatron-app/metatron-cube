@@ -62,10 +62,5 @@ public @interface Events
       return new DateTime(event.get("createdTime"));
     }
 
-    @Override
-    public boolean isSafeToBuffer()
-    {
-      return true;
-    }
   }
 }
