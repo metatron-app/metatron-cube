@@ -249,6 +249,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     }
   }
 
+  private static final int LOG_INTERVAL = 100;
   private static final long CHECK_INTERVAL = 1000;
 
   public boolean decommission(long timeout)
@@ -287,7 +288,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     long total = 0;
     final List<DataSegment> cachedSegments = Lists.newArrayList();
     final File[] segmentsToLoad = baseDir.listFiles();
-    final int logInterval = (int) Math.pow(10, (int) Math.log10(segmentsToLoad.length / 100) + 1);
+    final int numSegments = segmentsToLoad.length;
+    final int logInterval = numSegments < LOG_INTERVAL
+                            ? 1 : (int) Math.pow(10, (int) Math.log10(numSegments / LOG_INTERVAL) + 1);
     for (int i = 0; i < segmentsToLoad.length; i++) {
       final int id = i + 1;
       final File file = segmentsToLoad[i];
@@ -458,7 +461,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       loadingExecutor = Execs.multiThreaded(config.getNumBootstrapThreads(), "ZkCoordinator-loading-%s");
 
       final int numSegments = segments.size();
-      final int logInterval = (int) Math.pow(10, (int) Math.log10(numSegments / 100) + 1);
+      final int logInterval = numSegments < LOG_INTERVAL ?
+                              1 : (int) Math.pow(10, (int) Math.log10(numSegments / LOG_INTERVAL) + 1);
       final CountDownLatch latch = new CountDownLatch(numSegments);
       final AtomicInteger counter = new AtomicInteger(0);
       final CopyOnWriteArrayList<DataSegment> failedSegments = new CopyOnWriteArrayList<>();
