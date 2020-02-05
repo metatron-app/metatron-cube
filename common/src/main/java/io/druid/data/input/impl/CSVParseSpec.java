@@ -20,12 +20,13 @@
 package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.data.input.TimestampSpec;
 import io.druid.java.util.common.parsers.Parser;
 import io.druid.java.util.common.parsers.ParserUtils;
 import io.druid.java.util.common.parsers.Parsers;
-import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class CSVParseSpec extends AbstractParseSpec
 {
   private final String listDelimiter;
   private final List<String> columns;
+  private final String nullString;
   private final boolean trim;
 
   @JsonCreator
@@ -43,6 +45,7 @@ public class CSVParseSpec extends AbstractParseSpec
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("listDelimiter") String listDelimiter,
       @JsonProperty("columns") List<String> columns,
+      @JsonProperty("nullString") String nullString,
       @JsonProperty("trim") boolean trim
   )
   {
@@ -55,29 +58,39 @@ public class CSVParseSpec extends AbstractParseSpec
     }
     ParserUtils.validateFields(columns);
     this.columns = columns;
+    this.nullString = nullString;
     this.trim = trim;
   }
 
   public CSVParseSpec(
-      DefaultTimestampSpec timestampSpec,
+      TimestampSpec timestampSpec,
       DimensionsSpec dimensionsSpec,
       String listDelimiter,
       List<String> columns
   )
   {
-    this(timestampSpec, dimensionsSpec, listDelimiter, columns, false);
+    this(timestampSpec, dimensionsSpec, listDelimiter, columns, null, false);
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getListDelimiter()
   {
     return listDelimiter;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getColumns()
   {
     return columns;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getNullString()
+  {
+    return nullString;
   }
 
   @JsonProperty
@@ -89,23 +102,24 @@ public class CSVParseSpec extends AbstractParseSpec
   @Override
   public Parser<String, Object> makeParser()
   {
-    return new CSVParser(listDelimiter == null ? Parsers.DEFAULT_LIST_DELIMITER : listDelimiter, columns, trim);
+    final String delimiter = listDelimiter == null ? Parsers.DEFAULT_LIST_DELIMITER : listDelimiter;
+    return new CSVParser(delimiter, columns, nullString, trim);
   }
 
   @Override
   public ParseSpec withTimestampSpec(TimestampSpec spec)
   {
-    return new CSVParseSpec(spec, getDimensionsSpec(), listDelimiter, columns, trim);
+    return new CSVParseSpec(spec, getDimensionsSpec(), listDelimiter, columns, nullString, trim);
   }
 
   @Override
   public ParseSpec withDimensionsSpec(DimensionsSpec spec)
   {
-    return new CSVParseSpec(getTimestampSpec(), spec, listDelimiter, columns, trim);
+    return new CSVParseSpec(getTimestampSpec(), spec, listDelimiter, columns, nullString, trim);
   }
 
   public ParseSpec withColumns(List<String> cols)
   {
-    return new CSVParseSpec(getTimestampSpec(), getDimensionsSpec(), listDelimiter, cols, trim);
+    return new CSVParseSpec(getTimestampSpec(), getDimensionsSpec(), listDelimiter, cols, nullString, trim);
   }
 }

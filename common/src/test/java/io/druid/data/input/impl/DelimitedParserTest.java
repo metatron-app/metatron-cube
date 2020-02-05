@@ -84,6 +84,7 @@ public class DelimitedParserTest
         null,
         Arrays.asList("x", "y", "z"),
         null,
+        null,
         true,
         false
     );
@@ -103,6 +104,7 @@ public class DelimitedParserTest
         "\t",
         null,
         Arrays.asList("x", "y", "z"),
+        null,
         null,
         false,
         true
@@ -141,6 +143,7 @@ public class DelimitedParserTest
         ":",
         Arrays.asList("x", "y"),
         Arrays.asList("y"),
+        null,
         false,
         false
     );

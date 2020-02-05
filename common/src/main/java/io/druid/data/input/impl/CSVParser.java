@@ -24,6 +24,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.collect.Utils;
 import io.druid.java.util.common.parsers.ParseException;
 import io.druid.java.util.common.parsers.Parser;
@@ -45,9 +46,20 @@ public class CSVParser implements Parser<String, Object>
     }
   };
 
-  public static Function<String, String> getStringHandler(boolean trim)
+  public static Function<String, String> getStringHandler(final boolean trim, final String nullString)
   {
-    return trim ? Functions.compose(EMPTY_TO_NULL, TRIM) : EMPTY_TO_NULL;
+    final Function<String, String> function = trim ? Functions.compose(EMPTY_TO_NULL, TRIM) : EMPTY_TO_NULL;
+    if (StringUtils.isNullOrEmpty(nullString)) {
+      return function;
+    }
+    return Functions.compose(new Function<String, String>()
+    {
+      @Override
+      public String apply(String input)
+      {
+        return nullString.equals(input) ? null : input;
+      }
+    }, function);
   }
 
   private final Splitter listSplitter;
@@ -57,12 +69,16 @@ public class CSVParser implements Parser<String, Object>
 
   private final List<String> fieldNames;
 
-  public CSVParser(final String listDelimiter, final List<String> fieldNames, final boolean trim)
+  public CSVParser(
+      final String listDelimiter,
+      final List<String> fieldNames,
+      final String nullString,
+      final boolean trim
+  )
   {
     this.fieldNames = fieldNames;
     this.listSplitter = listDelimiter == null ? null : Splitter.on(listDelimiter);
-
-    final Function<String, String> function = getStringHandler(trim);
+    final Function<String, String> function = getStringHandler(trim, nullString);
     this.valueFunction = new Function<String, Object>()
     {
       @Override

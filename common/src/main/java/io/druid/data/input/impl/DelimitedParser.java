@@ -53,6 +53,7 @@ public class DelimitedParser implements Parser<String, Object>
       String listDelimiter,
       List<String> columnNames,
       List<String> listColumnNames,
+      String nullString,
       boolean dequote,
       boolean trim
   )
@@ -70,7 +71,7 @@ public class DelimitedParser implements Parser<String, Object>
 
     this.columns = columnNames;
     this.listColumns = listColumnNames == null ? null : Sets.newHashSet(listColumnNames);
-    this.handler = CSVParser.getStringHandler(trim);
+    this.handler = CSVParser.getStringHandler(trim, nullString);
     this.dequote = dequote;
   }
 
@@ -80,7 +81,7 @@ public class DelimitedParser implements Parser<String, Object>
       List<String> columnNames
   )
   {
-    this(delimiter, listDelimiter, columnNames, null, false, false);
+    this(delimiter, listDelimiter, columnNames, null, null, false, false);
   }
 
   public String getDelimiter()

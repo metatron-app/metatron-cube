@@ -20,11 +20,14 @@
 package io.druid.data.input.impl;
 
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.parsers.ParseException;
+import com.google.common.collect.Maps;
+import io.druid.data.input.ExpressionTimestampSpec;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Map;
 
 public class CSVParseSpecTest
 {
@@ -65,5 +68,22 @@ public class CSVParseSpecTest
         ",",
         Arrays.asList("a")
     );
+  }
+
+  @Test
+  public void testNullString() throws Exception
+  {
+    final ParseSpec spec = new CSVParseSpec(
+        new ExpressionTimestampSpec("datetime('2020-01-08')"),
+        DimensionsSpec.ofStringDimensions(Arrays.asList("a")),
+        ",",
+        Arrays.asList("a", "b"),
+        "N/A",
+        true
+    );
+    Map<String, Object> expected = Maps.newHashMap();
+    expected.put("a", "value");
+    expected.put("b", null);
+    Assert.assertEquals(expected, spec.makeParser().parseToMap("value , N/A"));
   }
 }

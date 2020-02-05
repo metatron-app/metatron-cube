@@ -20,11 +20,11 @@
 package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.parsers.Parser;
 import io.druid.data.input.TimestampSpec;
+import io.druid.java.util.common.parsers.Parser;
 
 import java.util.List;
 
@@ -36,6 +36,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
   private final String listDelimiter;
   private final List<String> columns;
   private final List<String> listColumns;
+  private final String nullString;
   private final boolean trim;
   private final boolean dequote;
 
@@ -47,6 +48,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
       @JsonProperty("listDelimiter") String listDelimiter,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("listColumns") List<String> listColumns,
+      @JsonProperty("nullString") String nullString,
       @JsonProperty("dequote") boolean dequote,
       @JsonProperty("trim") boolean trim
   )
@@ -61,6 +63,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
     for (String column : this.columns) {
       Preconditions.checkArgument(!column.contains(","), "Column[%s] has a comma, it cannot", column);
     }
+    this.nullString = nullString;
     this.trim = trim;
     this.dequote = dequote;
   }
@@ -73,31 +76,42 @@ public class DelimitedParseSpec extends AbstractParseSpec
       List<String> columns
   )
   {
-    this(timestampSpec, dimensionsSpec, delimiter, listDelimiter, columns, null, false, false);
+    this(timestampSpec, dimensionsSpec, delimiter, listDelimiter, columns, null, null, false, false);
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getDelimiter()
   {
     return delimiter;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getListDelimiter()
   {
     return listDelimiter;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getColumns()
   {
     return columns;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getListColumns()
   {
     return listColumns;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getNullString()
+  {
+    return nullString;
   }
 
   @JsonProperty
@@ -120,6 +134,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         listDelimiter,
         columns,
         listColumns,
+        nullString,
         dequote,
         trim
     );
@@ -135,6 +150,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         listDelimiter,
         columns,
         listColumns,
+        nullString,
         dequote,
         trim
     );
@@ -150,6 +166,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         listDelimiter,
         columns,
         listColumns,
+        nullString,
         dequote,
         trim
     );
@@ -164,6 +181,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         listDelimiter,
         columns,
         listColumns,
+        nullString,
         dequote,
         trim
     );
@@ -178,6 +196,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         delim,
         columns,
         listColumns,
+        nullString,
         dequote,
         trim
     );
@@ -192,6 +211,7 @@ public class DelimitedParseSpec extends AbstractParseSpec
         listDelimiter,
         cols,
         listColumns,
+        nullString,
         dequote,
         trim
     );

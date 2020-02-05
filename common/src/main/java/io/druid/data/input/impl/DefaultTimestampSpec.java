@@ -26,9 +26,9 @@ import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
+import io.druid.data.input.TimestampSpec;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.TimestampParser;
-import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -122,6 +122,34 @@ public class DefaultTimestampSpec implements TimestampSpec
   public DefaultTimestampSpec(String timestampColumn, String format, DateTime missingValue)
   {
     this(timestampColumn, format, missingValue, null, false, false, null, null);
+  }
+
+  public DefaultTimestampSpec withTimeZone(String timeZone)
+  {
+    return new DefaultTimestampSpec(
+        timestampColumn,
+        timestampFormat,
+        missingValue,
+        invalidValue,
+        replaceWrongColumn,
+        removeTimestampColumn,
+        timeZone,
+        locale
+    );
+  }
+
+  public DefaultTimestampSpec withLocale(String locale)
+  {
+    return new DefaultTimestampSpec(
+        timestampColumn,
+        timestampFormat,
+        missingValue,
+        invalidValue,
+        replaceWrongColumn,
+        removeTimestampColumn,
+        timeZone == null ? null : timeZone.getID(),
+        locale
+    );
   }
 
   private <T> Function<T, DateTime> wrapInvalidHandling(final Function<T, DateTime> converter)

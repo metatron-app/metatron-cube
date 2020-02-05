@@ -27,14 +27,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -296,7 +296,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getColumns()
   {
     return columns;

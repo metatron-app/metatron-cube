@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -52,6 +53,13 @@ public class TimestampSpecTest
         new DateTime("2002-01-01T03:44:14.50"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "2002/01/01 03:44:14,50"))
     );
+    spec = new DefaultTimestampSpec("ts", "yy-MM-dd a hh:mm", null).withTimeZone("Asia/Seoul")
+                                                                   .withLocale(Locale.KOREA.getLanguage());
+    Assert.assertEquals(
+        new DateTime("2019-12-03T06:33:00.000", DateTimeZone.forID("Asia/Seoul")),
+        spec.extractTimestamp(ImmutableMap.<String, Object>of("ts", "19-12-3 오전 6:33"))
+    );
+
     DateTimeFormatter formatter = DateTimeFormat.forPattern("MM/dd/yyyy hh:mm:ss.SSSSSS a");
     formatter = formatter.withLocale(new Locale("en"));
     Assert.assertEquals("01/01/2002 11:44:14.500000 PM", formatter.print(new DateTime("2002-01-01T23:44:14.50")));
