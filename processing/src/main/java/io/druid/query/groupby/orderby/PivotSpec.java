@@ -387,6 +387,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @SuppressWarnings("unchecked")
       public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
       {
+        if (partition.isEmpty()) {
+          return Arrays.asList();
+        }
         final Map<StringArray, ExprEval> mapping = Maps.newHashMap();
         final DateTime dateTime = partition.get(0).getTimestamp();
 
