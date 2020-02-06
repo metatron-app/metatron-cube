@@ -20,15 +20,13 @@
 package io.druid.segment.realtime.firehose;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.common.Progressing;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Firehose;
@@ -38,6 +36,10 @@ import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.InputRowParser.Streaming;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.utils.Runnables;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
@@ -77,7 +79,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
       @JsonProperty("parser") InputRowParser parser
   )
   {
-    this.baseDir = baseDir;
+    this.baseDir = Preconditions.checkNotNull(baseDir, "'baseDir' should not be null");
     this.filter = filter;
     this.encoding = encoding;
     this.extractPartition = extractPartition;
@@ -96,12 +98,27 @@ public class LocalFirehoseFactory implements FirehoseFactory
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFilter()
   {
     return filter;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getEncoding()
+  {
+    return encoding;
+  }
+
+  @JsonProperty
+  public boolean isExtractPartition()
+  {
+    return extractPartition;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public InputRowParser getParser()
   {
     return parser;
@@ -148,7 +165,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
             try {
               final FileInputStream stream = new FileInputStream(input.lhs);
               final Reader reader = new InputStreamReader(stream, Charsets.toCharset(encoding));
-              Iterator<InputRow> iterator;
+              final Iterator<InputRow> iterator;
               if (parser instanceof Streaming && ((Streaming) parser).accept(reader)) {
                 iterator = ((Streaming) parser).parseStream(reader);
               } else {
