@@ -277,9 +277,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 
         while (!cursor.isDone()) {
           for (int i = 0; i < dimSelectors.size(); i++) {
-            final TypedSketch sketch = sketches.get(i);
             final DimensionSelector selector = dimSelectors.get(i);
             if (selector != null) {
+              final TypedSketch sketch = sketches.get(i);
               final IndexedInts vals = selector.getRow();
               for (int j = 0; j < vals.size(); ++j) {
                 handler.updateWithValue(sketch, selector.lookupName(vals.get(j)));
@@ -290,7 +290,10 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
             final ObjectColumnSelector selector = metricSelectors.get(i);
             if (selector != null) {
               final TypedSketch sketch = sketches.get(dimSelectors.size() + i);
-              handler.updateWithValue(sketch, selector.get());
+              final Object val = selector.get();
+              if (val != null) {
+                handler.updateWithValue(sketch, val);
+              }
             }
           }
           cursor.advance();
