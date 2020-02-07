@@ -22,7 +22,6 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -125,7 +124,8 @@ public class IndexMergerV9 extends IndexMerger
       final List<String> mergedMetrics,
       final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
       final int[][] rowNumConversions,
-      final IndexSpec indexSpec
+      final IndexSpec indexSpec,
+      final boolean rollup
   ) throws IOException
   {
     progress.start();
@@ -292,26 +292,49 @@ public class IndexMergerV9 extends IndexMerger
               ioPeon, cubeDims, null, dimCardinalities, indexer
           );
 
-          for (Map.Entry<String, Set<String>> metrics : cuboidSpec.getMetrics().entrySet()) {
-            String cubeMet = metrics.getKey();
-            if (!mergedMetrics.contains(cubeMet)) {
-              continue;
-            }
-            ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
-            Set<String> aggregators = metrics.getValue();
-            if (aggregators.isEmpty()) {
-              aggregators = Cuboids.BASIC_AGGREGATORS;
-            }
-            for (String aggregator : aggregators) {
-              String name = Cuboids.metric(cubeId, cubeMet, aggregator);
-              AggregatorFactory factory = Cuboids.convert(aggregator, name, cubeMet, cubeMetType);
+          if (rollup) {
+            Map<String, Set<String>> metrics = cuboidSpec.getMetrics();
+            for (AggregatorFactory factory : segmentMetadata.getAggregators()) {
+              String cubeMet = factory.getName();
+              if (!metrics.isEmpty() && !metrics.containsKey(cubeMet)) {
+                continue;
+              }
+              String aggregator = Cuboids.name(factory);
+              if (aggregator == null) {
+                continue;
+              }
+              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
+              String name = Cuboids.metric(cubeId, factory.getName(), aggregator);
+              factory = Cuboids.convert(aggregator, name, cubeMet, cubeMetType);
               if (factory != null) {
                 builder.addAggregators(factory);
+              }
+            }
+          } else {
+            for (Map.Entry<String, Set<String>> metrics : cuboidSpec.getMetrics().entrySet()) {
+              String cubeMet = metrics.getKey();
+              if (!mergedMetrics.contains(cubeMet)) {
+                continue;
+              }
+              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
+              Set<String> aggregators = metrics.getValue();
+              if (aggregators.isEmpty()) {
+                aggregators = Cuboids.BASIC_AGGREGATORS;
+              }
+              for (String aggregator : aggregators) {
+                String name = Cuboids.metric(cubeId, cubeMet, aggregator);
+                AggregatorFactory factory = Cuboids.convert(aggregator, name, cubeMet, cubeMetType);
+                if (factory != null) {
+                  builder.addAggregators(factory);
+                }
               }
             }
           }
 
           GroupByQuery query = builder.build();
+          if (query.getAggregatorSpecs().isEmpty()) {
+            continue;
+          }
           Iterator<Rowboat> cubeRows = Sequences.toIterator(engine.processRowboat(query, segment));
 
           ArrayList<String> cubeMetrics = Lists.newArrayList();

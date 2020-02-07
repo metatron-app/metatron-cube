@@ -56,7 +56,6 @@ import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
@@ -343,7 +342,7 @@ public class IndexMerger
     return ImmutableList.copyOf(orderingCandidate);
   }
 
-  public static List<String> getMergedDimensions(List<IndexableAdapter> indexes)
+  private static List<String> getMergedDimensions(List<IndexableAdapter> indexes)
   {
     if (indexes.size() == 0) {
       return ImmutableList.of();
@@ -357,13 +356,25 @@ public class IndexMerger
     }
   }
 
+  private static List<String> getMergedMetrics(List<IndexableAdapter> indexes)
+  {
+    if (indexes.size() == 0) {
+      return ImmutableList.of();
+    }
+    Set<String> retVal = Sets.newTreeSet();
+    for (IndexableAdapter adapter : indexes) {
+      Iterables.addAll(retVal, adapter.getMetricNames());
+    }
+    return Lists.newArrayList(retVal);
+  }
+
   private File merge(
-      List<IndexableAdapter> indexes,
+      final List<IndexableAdapter> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec,
-      ProgressIndicator progress
+      final File outDir,
+      final IndexSpec indexSpec,
+      final ProgressIndicator progress
   ) throws IOException
   {
     FileUtils.deleteDirectory(outDir);
@@ -372,33 +383,7 @@ public class IndexMerger
     }
 
     final List<String> mergedDimensions = getMergedDimensions(indexes);
-
-    final List<String> mergedMetrics = Lists.transform(
-        mergeIndexed(
-            Lists.newArrayList(
-                FunctionalIterable
-                    .create(indexes)
-                    .transform(
-                        new Function<IndexableAdapter, Iterable<String>>()
-                        {
-                          @Override
-                          public Iterable<String> apply(IndexableAdapter input)
-                          {
-                            return input.getMetricNames();
-                          }
-                        }
-                    )
-            )
-        ),
-        new Function<String, String>()
-        {
-          @Override
-          public String apply(@Nullable String input)
-          {
-            return input;
-          }
-        }
-    );
+    final List<String> mergedMetrics = getMergedMetrics(indexes);
 
     final AggregatorFactory[] sortedMetricAggs = new AggregatorFactory[mergedMetrics.size()];
     for (int i = 0; i < metricAggs.length; i++) {
@@ -478,7 +463,8 @@ public class IndexMerger
         mergedMetrics,
         rowMergerFn,
         rowNumConversions,
-        indexSpec
+        indexSpec,
+        rollup
     );
   }
 
@@ -509,7 +495,8 @@ public class IndexMerger
             }
           },
           null,
-          indexSpec
+          indexSpec,
+          false
       );
     }
   }
@@ -518,47 +505,13 @@ public class IndexMerger
   public File append(List<IndexableAdapter> indexes, AggregatorFactory[] aggregators, File outDir, IndexSpec indexSpec)
       throws IOException
   {
-    return append(indexes, aggregators, outDir, indexSpec, new BaseProgressIndicator());
-  }
-
-  public File append(
-      List<IndexableAdapter> indexes,
-      AggregatorFactory[] aggregators,
-      File outDir,
-      IndexSpec indexSpec,
-      ProgressIndicator progress
-  ) throws IOException
-  {
     FileUtils.deleteDirectory(outDir);
     if (!outDir.mkdirs()) {
       throw new ISE("Couldn't make outdir[%s].", outDir);
     }
 
     final List<String> mergedDimensions = getMergedDimensions(indexes);
-
-    final List<String> mergedMetrics = mergeIndexed(
-        Lists.transform(
-            indexes,
-            new Function<IndexableAdapter, Iterable<String>>()
-            {
-              @Override
-              public Iterable<String> apply(IndexableAdapter input)
-              {
-                return Iterables.transform(
-                    input.getMetricNames(),
-                    new Function<String, String>()
-                    {
-                      @Override
-                      public String apply(String input)
-                      {
-                        return input;
-                      }
-                    }
-                );
-              }
-            }
-        )
-    );
+    final List<String> mergedMetrics = getMergedMetrics(indexes);
 
     final int[][] rowNumConversions = new int[indexes.size()][];
     for (int i = 0; i < rowNumConversions.length; i++) {
@@ -580,12 +533,13 @@ public class IndexMerger
         indexes,
         aggregators,
         outDir,
-        progress,
+        new BaseProgressIndicator(),
         mergedDimensions,
         mergedMetrics,
         rowMergerFn,
         rowNumConversions,
-        indexSpec
+        indexSpec,
+        false
     );
   }
 
@@ -598,7 +552,8 @@ public class IndexMerger
       final List<String> mergedMetrics,
       final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
       final int[][] rowNumConversions,
-      final IndexSpec indexSpec
+      final IndexSpec indexSpec,
+      final boolean rollup
   ) throws IOException
   {
     List<Metadata> metadataList = Lists.transform(

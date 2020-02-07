@@ -140,6 +140,21 @@ public class Cuboids
     return null;
   }
 
+  static String name(AggregatorFactory aggregator)
+  {
+    if (!(aggregator instanceof CubeSupport)) {
+      return null;
+    }
+    final CubeSupport cubeSupport = (CubeSupport) aggregator;
+    if (cubeSupport.getPredicate() != null) {
+      return null;   // cannot
+    }
+    return aggregator instanceof CountAggregatorFactory ? "count" :
+           aggregator instanceof GenericMinAggregatorFactory ? "min" :
+           aggregator instanceof GenericMaxAggregatorFactory ? "max" :
+           aggregator instanceof GenericSumAggregatorFactory ? "sum" : null;
+  }
+
   public static boolean supports(Map<String, Set<String>> metrics, List<AggregatorFactory> aggregators)
   {
     for (AggregatorFactory aggregator : aggregators) {
