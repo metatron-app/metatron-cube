@@ -161,14 +161,18 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
     StringWriter writer = new StringWriter();
     IOUtils.copy(projectFile.getFileSystem(configuration).open(projectFile), writer, charset);
 
-    DbaseFileHeader header = attrReader.getHeader();
-    final String[] fields = new String[header.getNumFields()];
-    for (int i = 0; i < fields.length; i++) {
-      fields[i] = header.getFieldName(i);
+    final DbaseFileHeader header = attrReader.getHeader();
+    final String[] fieldNames = new String[header.getNumFields()];
+    final String[] fieldTypes = new String[header.getNumRecords()];
+    for (int i = 0; i < fieldNames.length; i++) {
+      fieldNames[i] = header.getFieldName(i);
+      fieldTypes[i] = header.getFieldClass(i).getSimpleName();
     }
     final int numRecords = header.getNumRecords();
     final MathTransform transform = makeTransformer(writer.toString());
-    LOG.info("Fields %s, numRecords %d", Arrays.toString(fields), numRecords);
+    LOG.info("Field Names %s", Arrays.toString(fieldNames));
+    LOG.info("Field Types %s", Arrays.toString(fieldTypes));
+    LOG.info("Num Records %,d", numRecords);
 
     return new RecordReader<Void, Map<String, Object>>()
     {
@@ -197,7 +201,7 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
         Map<String, Object> row = Maps.newLinkedHashMap();
         Object[] values = attrReader.readEntry();
         for (int i = 0; i < values.length; i++) {
-          row.put(fields[i], values[i]);
+          row.put(fieldNames[i], values[i]);
         }
         Geometry shape = (Geometry) shapeReader.nextRecord().shape();
         if (transform != null) {

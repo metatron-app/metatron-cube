@@ -43,6 +43,9 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.joda.time.DateTime;
 
 import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -103,30 +106,36 @@ public class Parser
       if (Function.Provider.class.isAssignableFrom(parent)) {
         return ((Function.Provider) parent.newInstance()).getFunctions();
       }
+      final List<Function.Factory> functions = Lists.newArrayList();
+      for (Class clazz : parent.getClasses()) {
+        if (Modifier.isAbstract(clazz.getModifiers())) {
+          continue;
+        }
+        try {
+          if (Function.Factory.class.isAssignableFrom(clazz)) {
+            functions.add((Function.Factory) clazz.newInstance());
+          }
+        }
+        catch (Throwable t) {
+          if (BuiltinFunctions.AbstractRFunc.class.isAssignableFrom(clazz) ||
+              BuiltinFunctions.AbstractPythonFunc.class.isAssignableFrom(clazz)) {
+            continue;   // skip warning
+          }
+          log.warn(t, "failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
+        }
+      }
+      return functions;
     }
     catch (Throwable t) {
+      if (t instanceof NoClassDefFoundError) {
+        ClassLoader current = parent.getClassLoader();
+        for (;current instanceof URLClassLoader; current = current.getParent()) {
+          log.info("--- " + Arrays.<URL>asList(((URLClassLoader) current).getURLs()));
+        }
+      }
       log.warn(t, "failed to load functions from %s by %s .. ignoring", parent.getName(), t);
       return ImmutableList.of();
     }
-    final List<Function.Factory> functions = Lists.newArrayList();
-    for (Class clazz : parent.getClasses()) {
-      if (Modifier.isAbstract(clazz.getModifiers())) {
-        continue;
-      }
-      try {
-        if (Function.Factory.class.isAssignableFrom(clazz)) {
-          functions.add((Function.Factory) clazz.newInstance());
-        }
-      }
-      catch (Throwable t) {
-        if (BuiltinFunctions.AbstractRFunc.class.isAssignableFrom(clazz) ||
-            BuiltinFunctions.AbstractPythonFunc.class.isAssignableFrom(clazz)) {
-          continue;   // skip warning
-        }
-        log.warn(t, "failed to instantiate %s by %s .. ignoring", clazz.getName(), t);
-      }
-    }
-    return functions;
   }
 
   public static List<Function.Factory> getAllFunctions()

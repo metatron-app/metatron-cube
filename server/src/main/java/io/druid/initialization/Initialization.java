@@ -33,8 +33,6 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.curator.CuratorModule;
 import io.druid.curator.discovery.DiscoveryModule;
@@ -66,6 +64,8 @@ import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.HttpClientModule;
 import io.druid.guice.security.DruidAuthModule;
 import io.druid.jackson.FunctionInitializer;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.storage.derby.DerbyMetadataStorageDruidModule;
 import io.druid.query.ordering.StringComparators;
 import io.druid.server.initialization.EmitterModule;
@@ -168,6 +168,9 @@ public class Initialization
       try {
         final URLClassLoader loader = getClassLoaderForExtension(config, extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
+          if (module.getClass().getClassLoader() != loader) {
+            continue;
+          }
           if (module instanceof DruidModule.WithServices) {
             for (Class service : ((DruidModule.WithServices) module).getServices()) {
               log.info(".. Loading aux service [%s] for extension [%s]", service.getName(), module.getClass());
@@ -264,7 +267,8 @@ public class Initialization
       "druid-hadoop-firehose",
       "druid-hive-udf-extensions",
       "druid-orc-extensions",
-      "druid-parquet-extensions"
+      "druid-parquet-extensions",
+      "druid-lucene-extensions"   // for shape formatter
   );
 
   private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
