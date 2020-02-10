@@ -65,6 +65,10 @@
                 </exclusion>
                 <exclusion>
                     <groupId>org.codehaus.jackson</groupId>
+                    <artifactId>jackson-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.codehaus.jackson</groupId>
                     <artifactId>jackson-core-asl</artifactId>
                 </exclusion>
                 <exclusion>

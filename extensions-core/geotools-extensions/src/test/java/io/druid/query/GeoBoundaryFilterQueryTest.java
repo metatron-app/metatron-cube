@@ -107,6 +107,8 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
     Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(11)));
     Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(12)));
     Assert.assertEquals("[37.4970603, 127.0236759, 서초동 1315 진흥]", Arrays.toString(roadSideEstates.get(13)));
+
+    System.out.println(segmentWalker.getObjectMapper().writeValueAsString(filtered));
   }
 
   @Test

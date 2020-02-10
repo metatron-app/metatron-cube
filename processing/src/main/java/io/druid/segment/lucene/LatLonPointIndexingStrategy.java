@@ -20,6 +20,7 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -52,7 +53,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
       @JsonProperty("crs") String crs
   )
   {
-    this.fieldName = Preconditions.checkNotNull(fieldName);
+    this.fieldName = fieldName;
     this.latitude = Preconditions.checkNotNull(latitude);
     this.longitude = Preconditions.checkNotNull(longitude);
     this.crs = crs;
@@ -60,6 +61,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -90,23 +92,28 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
+  public LatLonPointIndexingStrategy withFieldName(String fieldName)
+  {
+    return new LatLonPointIndexingStrategy(fieldName, latitude, longitude, crs);
+  }
+
+  @Override
   public Function<Object, Field[]> createIndexableField(ValueDesc type)
   {
-    Preconditions.checkArgument(type.isStruct(), "only struct type can be used");
+    Preconditions.checkArgument(type.isStruct(), "only struct type can be used but %s", type);
     StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
 
     final int indexLat = serde.indexOf(latitude);
-    Preconditions.checkArgument(indexLat >= 0, "invalid field name " + latitude);
+    Preconditions.checkArgument(indexLat >= 0, "invalid field name %s", latitude);
     Preconditions.checkArgument(
         serde.type(indexLat).isNumeric(),
         "invalid field type " + serde.type(indexLat) + " for " + latitude
     );
 
     final int indexLon = serde.indexOf(longitude);
-    Preconditions.checkArgument(indexLon >= 0, "invalid field name " + longitude);
+    Preconditions.checkArgument(indexLon >= 0, "invalid field name %s", longitude);
     Preconditions.checkArgument(
-        serde.type(indexLon).isNumeric(),
-        "invalid field type " + serde.type(indexLon) + " for " + longitude
+        serde.type(indexLon).isNumeric(), "invalid field type %s for %s", serde.type(indexLon), longitude
     );
     if (crs == null) {
       return new Function<Object, Field[]>()
@@ -164,7 +171,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
 
     LatLonPointIndexingStrategy that = (LatLonPointIndexingStrategy) o;
 
-    if (!fieldName.equals(that.fieldName)) {
+    if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
     if (!latitude.equals(that.latitude)) {
@@ -183,10 +190,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public int hashCode()
   {
-    int result = fieldName.hashCode();
-    result = 31 * result + latitude.hashCode();
-    result = 31 * result + longitude.hashCode();
-    return result;
+    return Objects.hash(fieldName, latitude, longitude);
   }
 
   @Override

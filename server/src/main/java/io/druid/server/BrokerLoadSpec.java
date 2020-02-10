@@ -253,7 +253,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     forwardContext.put(REGISTER_TABLE, true);
     forwardContext.put(TEMPORARY, isTemporary());
 
-    final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
+    final DummyQuery<Row> query = DummyQuery.instance().withOverriddenContext(
         ImmutableMap.<String, Object>of(
             BaseQuery.QUERYID, UUID.randomUUID().toString(),
             Query.FORWARD_URL, ForwardConstants.LOCAL_TEMP_URL,

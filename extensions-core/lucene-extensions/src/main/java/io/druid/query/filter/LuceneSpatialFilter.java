@@ -53,7 +53,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("lucene.spatial")
-public class LuceneSpatialFilter extends DimFilter.LuceneFilter
+public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
   public static LuceneSpatialFilter convert(LucenePointFilter filter, String field)
   {
@@ -99,7 +99,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
   )
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
-    this.operation = Preconditions.checkNotNull(operation, "operation can not be null");
+    this.operation = operation == null ? SpatialOperations.COVERS : operation;
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
   }
@@ -276,6 +276,12 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter
       default:
         throw new UnsupportedOperationException("cannot find compatible expression for " + operation);
     }
+  }
+
+  @Override
+  public DimFilter forLog()
+  {
+    return new LuceneSpatialFilter(field, operation, shapeFormat, "<shape>");
   }
 
   @Override

@@ -47,6 +47,7 @@ import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 /**
  */
@@ -134,7 +135,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       @JsonProperty("maxLevels") int maxLevels
   )
   {
-    this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName cannot be null");
+    this.fieldName = fieldName;
     this.shapeFormat = Preconditions.checkNotNull(shapeFormat, "shapeFormat cannot be null");
     this.shapeType = shapeType;
     this.maxLevels = maxLevels <= 0 ? DEFAULT_PRECISION : maxLevels;
@@ -145,6 +146,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -173,6 +175,12 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   public String getFieldDescriptor()
   {
     return "shape(format=" + shapeFormat + ")";
+  }
+
+  @Override
+  public LuceneIndexingStrategy withFieldName(String fieldName)
+  {
+    return new ShapeIndexingStrategy(fieldName, shapeFormat, shapeType, maxLevels);
   }
 
   @Override
@@ -230,7 +238,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
 
     ShapeIndexingStrategy that = (ShapeIndexingStrategy) o;
 
-    if (!fieldName.equals(that.fieldName)) {
+    if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
     if (shapeFormat != that.shapeFormat) {
@@ -246,10 +254,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public int hashCode()
   {
-    int result = fieldName.hashCode();
-    result = 31 * result + shapeFormat.hashCode();
-    result = 31 * result + maxLevels;
-    return result;
+    return Objects.hash(fieldName, shapeFormat, maxLevels);
   }
 
   @Override

@@ -224,6 +224,26 @@ public class QueryUtils
     );
   }
 
+  public static Query forLog(final Query query)
+  {
+    return Queries.iterate(
+        query, new IdentityFunction<Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input instanceof Query.LogProvider) {
+              input = ((Query.LogProvider) input).forLog();
+            }
+            if (input instanceof Query.FilterSupport) {
+              input = DimFilters.rewrite(input, DimFilters.LOG_PROVIDER);
+            }
+            return input;
+          }
+        }
+    );
+  }
+
   public static Query rewriteRecursively(
       final Query query,
       final QuerySegmentWalker segmentWalker,

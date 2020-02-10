@@ -20,6 +20,7 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
@@ -50,12 +51,13 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat
   )
   {
-    this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName cannot be null");
+    this.fieldName = fieldName;
     this.shapeFormat = Preconditions.checkNotNull(shapeFormat, "shapeFormat cannot be null");
   }
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -71,6 +73,12 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
   public String getFieldDescriptor()
   {
     return "point(format=" + shapeFormat + ")";
+  }
+
+  @Override
+  public LuceneIndexingStrategy withFieldName(String fieldName)
+  {
+    return new LatLonShapeIndexingStrategy(fieldName, shapeFormat);
   }
 
   @Override
@@ -94,7 +102,7 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
         catch (Throwable t) {
           throw ParsingFail.propagate(value, t);
         }
-        Preconditions.checkArgument(shape instanceof Point, input + " is not point");
+        Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.limit(value, 16));
         Point point = (Point) shape;
         return new Field[]{
             new LatLonPoint(fieldName, point.getY(), point.getX())
@@ -115,7 +123,7 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
 
     LatLonShapeIndexingStrategy that = (LatLonShapeIndexingStrategy) o;
 
-    if (!fieldName.equals(that.fieldName)) {
+    if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
     if (!shapeFormat.equals(that.shapeFormat)) {
@@ -128,9 +136,7 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public int hashCode()
   {
-    int result = fieldName.hashCode();
-    result = 31 * result + shapeFormat.hashCode();
-    return result;
+    return Objects.hash(fieldName, shapeFormat);
   }
 
   @Override

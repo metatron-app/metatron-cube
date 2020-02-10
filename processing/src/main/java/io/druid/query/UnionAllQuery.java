@@ -394,7 +394,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                           // removed eager loading.. especially bad for join query
                           Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker, queryConfig)
                                                            .run(segmentWalker, responseContext);
-                          return Sequences.withBaggage(sequence, semaphore);
+                          sequence = Sequences.withBaggage(sequence, semaphore);
+                          return Sequences.simple(Sequences.toList(sequence));    // eagely
                         }
 
                         @Override

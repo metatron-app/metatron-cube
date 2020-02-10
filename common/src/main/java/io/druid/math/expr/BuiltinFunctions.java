@@ -29,13 +29,14 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
@@ -207,6 +208,30 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
+      if (args.size() == 1 && args.get(0).returns().isArray()) {
+        return new Child()
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return ValueDesc.LONG_ARRAY;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            List<String> strings = Lists.newArrayList();
+            ExprEval eval = Evals.eval(args.get(0), bindings);
+            if (eval.isNull()) {
+              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+            }
+            for (Object value : (List) eval.value()) {
+              strings.add(Objects.toString(value, null));
+            }
+            return ExprEval.of(strings, ValueDesc.DOUBLE_ARRAY);
+          }
+        };
+      }
       return new Function()
       {
         @Override
@@ -240,6 +265,30 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
+      if (args.size() == 1 && args.get(0).returns().isArray()) {
+        return new Child()
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return ValueDesc.LONG_ARRAY;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            List<Long> longs = Lists.newArrayList();
+            ExprEval eval = Evals.eval(args.get(0), bindings);
+            if (eval.isNull()) {
+              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+            }
+            for (Object value : (List) eval.value()) {
+              longs.add(Rows.parseLong(value, null));
+            }
+            return ExprEval.of(longs, ValueDesc.DOUBLE_ARRAY);
+          }
+        };
+      }
       return new Function()
       {
         @Override
@@ -251,36 +300,42 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          List<Long> doubles = Lists.newArrayList();
+          List<Long> longs = Lists.newArrayList();
           for (Expr arg : args) {
-            doubles.add(Evals.evalLong(arg, bindings));
+            longs.add(Evals.evalLong(arg, bindings));
           }
-          return ExprEval.of(doubles, ValueDesc.LONG_ARRAY);
+          return ExprEval.of(longs, ValueDesc.LONG_ARRAY);
         }
       };
     }
   }
 
   @Function.Named("array.double")
-  class DoubleArray extends NamedFactory implements Function.FixedTyped
+  class DoubleArray extends NamedFactory.DoubleArrayType
   {
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.DOUBLE_ARRAY;
-    }
-
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return new Function()
-      {
-        @Override
-        public ValueDesc returns()
+      if (args.size() == 1 && args.get(0).returns().isArray()) {
+        return new DoubleArrayChild()
         {
-          return ValueDesc.DOUBLE_ARRAY;
-        }
-
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            List<Double> doubles = Lists.newArrayList();
+            ExprEval eval = Evals.eval(args.get(0), bindings);
+            if (eval.isNull()) {
+              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+            }
+            for (Object value : (List)eval.value()) {
+              doubles.add(Rows.parseDouble(value, null));
+            }
+            return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
+          }
+        };
+      }
+      return new DoubleArrayChild()
+      {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
@@ -2052,20 +2107,41 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("split")
-  final class Split extends NamedFactory.StringType
+  final class Split extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("function 'split' needs 3 arguments");
+      if (args.size() != 2 && args.size() != 3) {
+        throw new IAE("function 'split' needs 2 or 3 arguments");
       }
       final Splitter splitter;
-      String separator = Evals.getConstantString(args.get(1));
+      final String separator = Evals.getConstantString(args.get(1));
       if (separator.length() == 1) {
         splitter = Splitter.on(separator.charAt(0));
       } else {
         splitter = Splitter.on(separator);
+      }
+      if (args.size() == 2) {
+        return new Child()
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return ValueDesc.STRING_ARRAY;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            final ExprEval inputEval = args.get(0).eval(bindings);
+            if (inputEval.isNull()) {
+              return ExprEval.of(null, ValueDesc.STRING_ARRAY);
+            }
+            final String input = inputEval.asString();
+            return ExprEval.of(Lists.newArrayList(splitter.split(input)), ValueDesc.STRING_ARRAY);
+          }
+        };
       }
       return new StringChild()
       {
@@ -2515,7 +2591,7 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          Object[] array = new Object[args.size()];
+          final Object[] array = new Object[args.size()];
           for (int i = 0; i < array.length; i++) {
             array[i] = args.get(i).eval(bindings).value();
           }
@@ -2532,26 +2608,54 @@ public interface BuiltinFunctions extends Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() < 2) {
-        throw new IAE("function 'struct_desc' at least 2 arguments");
+        throw new IAE("function 'struct_desc' needs at least 2 arguments");
       }
-      final ValueType[] fieldTypes = new ValueType[args.size() - 1];
-      final String desc = Evals.getConstantString(args.get(0));
-      String[] split = desc.split(",");
-      Preconditions.checkArgument(split.length == fieldTypes.length);
-
+      final String desc = Evals.getConstantString(GuavaUtils.lastOf(args));
+      final String[] split = desc.split(",");
+      final String[] fieldNames = new String[split.length];
+      final ValueDesc[] fieldTypes = new ValueDesc[split.length];
       int i = 0;
       for (String field : split) {
         int index = field.indexOf(':');
-        fieldTypes[i++] = ValueType.ofPrimitive(index < 0 ? field : field.substring(index + 1));
+        fieldNames[i] = field.substring(0, index);
+        fieldTypes[i] = ValueDesc.of(field.substring(index + 1));
+        i++;
       }
-      final ValueDesc type = ValueDesc.of(ValueDesc.STRUCT_TYPE + "(" + desc + ")");
+      final ValueDesc struct = ValueDesc.ofStruct(fieldNames, fieldTypes);
+      if (args.size() == 2 && args.get(0).returns().isArray()) {
+        // todo it's kind of type cast.. later
+        return new Function()
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return struct;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            final ExprEval eval = Evals.eval(args.get(0), bindings);
+            if (eval.isNull()) {
+              return new ExprEval(null, struct);
+            }
+            final List value = (List) eval.value();
+            final Object[] array = new Object[fieldTypes.length];
+            final int max = Math.max(array.length, value.size());
+            for (int i = 0; i < max; i++) {
+              array[i] = fieldTypes[i].cast(value.get(i));
+            }
+            return ExprEval.of(array, struct);
+          }
+        };
+      }
 
       return new Function()
       {
         @Override
         public ValueDesc returns()
         {
-          return type;
+          return struct;
         }
 
         @Override
@@ -2559,9 +2663,9 @@ public interface BuiltinFunctions extends Function.Library
         {
           final Object[] array = new Object[fieldTypes.length];
           for (int i = 0; i < fieldTypes.length; i++) {
-            array[i] = fieldTypes[i].cast(args.get(i + 1).eval(bindings).value());
+            array[i] = fieldTypes[i].cast(args.get(i).eval(bindings).value());
           }
-          return ExprEval.of(array, type);
+          return ExprEval.of(array, struct);
         }
       };
     }

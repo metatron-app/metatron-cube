@@ -87,6 +87,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
     return counter.get() < maxRowCount;
   }
 
+  @VisibleForTesting
   public OnheapIncrementalIndex(
       long minTimestamp,
       Granularity gran,

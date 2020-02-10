@@ -21,8 +21,11 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.SecondaryIndexingSpec;
 
@@ -69,16 +72,28 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
     return strategies;
   }
 
-  public List<LuceneIndexingStrategy> getStrategies(String fieldName, ValueDesc valueDesc)
+  public List<LuceneIndexingStrategy> getStrategies(final String fieldName, final ValueDesc valueDesc)
   {
     if (strategies.isEmpty() && valueDesc.isString()) {
       return Arrays.<LuceneIndexingStrategy>asList(new TextIndexingStrategy(fieldName));
     }
-    return strategies;
+    return ImmutableList.copyOf(Iterables.transform(
+        strategies, new Function<LuceneIndexingStrategy, LuceneIndexingStrategy>()
+        {
+          @Override
+          public LuceneIndexingStrategy apply(LuceneIndexingStrategy input)
+          {
+            return input.getFieldName() == null ? input.withFieldName(fieldName) : input;
+          }
+        })
+    );
   }
 
-  public Map<String, String> getFieldDescriptors()
+  public static Map<String, String> getFieldDescriptors(List<LuceneIndexingStrategy> strategies)
   {
+    if (GuavaUtils.isNullOrEmpty(strategies)) {
+      return null;
+    }
     Map<String, String> descriptors = Maps.newLinkedHashMap();
     for (LuceneIndexingStrategy strategy : strategies) {
       String desc = strategy.getFieldDescriptor();

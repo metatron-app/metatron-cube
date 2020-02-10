@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
@@ -111,6 +112,15 @@ public class Evaluation
         resolver.putIfAbsent(outputName, eval.type());    // for next evaluation
         updatable.set(outputName, eval.value());
         return (InputRow) updatable;
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        for (Expr expression : parsedExpressions) {
+          resolver.putIfAbsent("_", expression.returns());
+        }
+        return resolver.remove("_");
       }
     };
   }

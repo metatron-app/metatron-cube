@@ -20,6 +20,7 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -28,6 +29,8 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
+
+import java.util.Objects;
 
 /**
  */
@@ -38,11 +41,12 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   @JsonCreator
   public TextIndexingStrategy(@JsonProperty("fieldName") String fieldName)
   {
-    this.fieldName = Preconditions.checkNotNull(fieldName);
+    this.fieldName = fieldName;
   }
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -52,6 +56,12 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   public String getFieldDescriptor()
   {
     return TEXT_DESC;
+  }
+
+  @Override
+  public LuceneIndexingStrategy withFieldName(String fieldName)
+  {
+    return new TextIndexingStrategy(fieldName);
   }
 
   @Override
@@ -91,7 +101,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
 
     TextIndexingStrategy that = (TextIndexingStrategy) o;
 
-    if (!fieldName.equals(that.fieldName)) {
+    if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
 
@@ -101,7 +111,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public int hashCode()
   {
-    return fieldName.hashCode();
+    return Objects.hash(fieldName);
   }
 
   @Override

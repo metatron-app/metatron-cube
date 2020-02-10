@@ -38,10 +38,11 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedComplexColumnSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.lucene.LuceneIndexingSpec;
+import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -64,7 +65,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       ComplexMetricSerde serde,
       LuceneIndexingSpec indexingSpec,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressionStrategy compression
   )
   {
     return new ComplexColumnSerializer(ioPeon, filenameBase, serde, indexingSpec, compression);
@@ -73,14 +74,14 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   private final IOPeon ioPeon;
   private final String columnName;
   private final ComplexMetricSerde serde;
-  private final LuceneIndexingSpec indexingSpec;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
   private String minValue;
   private String maxValue;
   private int numNulls;
 
   private final List<Function<Object, Field[]>> fieldGenerators;
+  private final Map<String, String> descriptors;
   private final IndexWriter luceneIndexer;
 
   private ColumnPartWriter writer;
@@ -89,26 +90,25 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String columnName,
       ComplexMetricSerde serde,
-      LuceneIndexingSpec indexingSpec,
-      CompressedObjectStrategy.CompressionStrategy compression
+      LuceneIndexingSpec luceneSpec,
+      CompressionStrategy compression
   )
   {
     this.ioPeon = ioPeon;
     this.columnName = columnName;
     this.serde = serde;
-    this.indexingSpec = indexingSpec;
     this.compression = compression;
 
     ValueDesc type = ValueDesc.of(serde.getTypeName());
-    if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies(columnName, type))) {
-      fieldGenerators = Lists.newArrayList(
-          Lists.transform(indexingSpec.getStrategies(columnName, type), Lucenes.makeGenerator(type))
-      );
-      luceneIndexer = Lucenes.buildRamWriter(indexingSpec.getTextAnalyzer());
+    List<LuceneIndexingStrategy> strategies = luceneSpec == null ? null : luceneSpec.getStrategies(columnName, type);
+    if (!GuavaUtils.isNullOrEmpty(strategies)) {
+      fieldGenerators = Lists.newArrayList(Lists.transform(strategies, Lucenes.makeGenerator(type)));
+      luceneIndexer = Lucenes.buildRamWriter(luceneSpec.getTextAnalyzer());
     } else {
       fieldGenerators = null;
       luceneIndexer = null;
     }
+    descriptors = LuceneIndexingSpec.getFieldDescriptors(strategies);
   }
 
   @SuppressWarnings(value = "unchecked")
@@ -116,7 +116,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   public void open() throws IOException
   {
     final String filenameBase = String.format("%s.complex_column", columnName);
-    if (compression == null || compression == CompressedObjectStrategy.CompressionStrategy.UNCOMPRESSED) {
+    if (compression == null || compression == CompressionStrategy.UNCOMPRESSED) {
       writer = new GenericIndexedWriter(ioPeon, filenameBase, serde.getObjectStrategy());
     } else {
       writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde.getObjectStrategy());
@@ -162,7 +162,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     }
     if (luceneIndexer != null && luceneIndexer.getDocStats().numDocs > 0) {
       builder.addSerde(new LuceneIndexPartSerDe(luceneIndexer));
-      builder.addDescriptor(indexingSpec.getFieldDescriptors());
+      builder.addDescriptor(descriptors);
     }
     return builder;
   }

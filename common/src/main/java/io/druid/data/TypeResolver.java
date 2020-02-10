@@ -111,6 +111,11 @@ public interface TypeResolver
     {
       mapping.putIfAbsent(column, type);
     }
+
+    public ValueDesc remove(String column)
+    {
+      return mapping.remove(column);
+    }
   }
 
   TypeResolver UNKNOWN = new Abstract()

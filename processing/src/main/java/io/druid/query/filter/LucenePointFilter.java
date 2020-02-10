@@ -171,18 +171,17 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
+        // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;
         String fieldName = field;
-        int index = field.indexOf('.');
-        if (index > 0) {
-          // column-name.field-name
+        LuceneIndex lucene = selector.getLuceneIndex(columnName);
+        for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
           fieldName = field.substring(index + 1);
+          lucene = selector.getLuceneIndex(columnName);
         }
-        LuceneIndex lucene = Preconditions.checkNotNull(
-            selector.getLuceneIndex(columnName),
-            "no lucene index for " + columnName
-        );
+        Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
+
         Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
         return lucene.filterFor(query, baseBitmap);
       }

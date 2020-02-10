@@ -38,7 +38,7 @@ import java.util.Set;
 
 /**
  */
-public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
+public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
   private final String field;
   private final String geoJson;
@@ -51,7 +51,6 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
     this.geoJson = Preconditions.checkNotNull(geoJson, "geoJson can not be null");
-    Preconditions.checkArgument(field.contains("."), "should reference lat-lon point in struct field");
   }
 
   @JsonProperty
@@ -103,14 +102,17 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
-        // column-name.field-name
-        int index = field.indexOf(".");
-        String columnName = field.substring(0, index);
-        String fieldName = field.substring(index + 1);
-        LuceneIndex lucene = Preconditions.checkNotNull(
-            selector.getLuceneIndex(columnName),
-            "no lucene index for " + columnName
-        );
+        // column-name.field-name or field-name (regarded same with column-name)
+        String columnName = field;
+        String fieldName = field;
+        LuceneIndex lucene = selector.getLuceneIndex(columnName);
+        for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
+          columnName = field.substring(0, index);
+          fieldName = field.substring(index + 1);
+          lucene = selector.getLuceneIndex(columnName);
+        }
+        Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
+
         try {
           Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
           return lucene.filterFor(query, baseBitmap);
@@ -142,6 +144,12 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter
     return new MathExprFilter(
         "shape_contains(shape_fromGeoJson('" + geoJson + "'), shape_fromLatLon(\"" + columnName + "\"))"
     );
+  }
+
+  @Override
+  public DimFilter forLog()
+  {
+    return new LuceneGeoJsonPolygonFilter(field, "<shape>");
   }
 
   @Override

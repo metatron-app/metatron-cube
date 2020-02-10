@@ -27,6 +27,7 @@ import com.google.common.base.Supplier;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;

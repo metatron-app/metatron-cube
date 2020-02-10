@@ -21,7 +21,11 @@ package io.druid.segment.incremental;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.impl.DimensionSchema;
@@ -237,6 +241,7 @@ public class IncrementalIndexSchema
     private boolean dimensionFixed;
     private boolean rollup;
     private boolean noQuery;
+    private Map<String, ValueDesc> knownTypes;
 
     public Builder()
     {
@@ -271,9 +276,15 @@ public class IncrementalIndexSchema
       return this;
     }
 
-    public Builder withDimensionsSpec(InputRowParser parser)
+    public Builder withDimensionsSpec(InputRowParser<?> parser)
     {
-      this.dimensionsSpec = parser == null ? new DimensionsSpec(null, null, null) : parser.getDimensionsSpec();
+      if (parser == null) {
+        this.dimensionsSpec = DimensionsSpec.empty();
+        this.knownTypes = null;
+      } else {
+        this.dimensionsSpec = parser.getDimensionsSpec();
+        this.knownTypes = parser.knownTypes();
+      }
       return this;
     }
 
@@ -306,14 +317,23 @@ public class IncrementalIndexSchema
 
     public Builder withMetrics(List<AggregatorFactory> metrics)
     {
-      this.metrics = metrics.toArray(new AggregatorFactory[0]);
+      if (!GuavaUtils.isNullOrEmpty(metrics) && !GuavaUtils.isNullOrEmpty(knownTypes)) {
+        // hack
+        final Supplier<TypeResolver> resolver = Suppliers.ofInstance(new TypeResolver.WithMap(knownTypes));
+        final List<AggregatorFactory> resolved = Lists.newArrayList();
+        for (AggregatorFactory metric : metrics) {
+          resolved.add(metric.resolveIfNeeded(resolver));
+        }
+        this.metrics = resolved.toArray(new AggregatorFactory[0]);
+      } else {
+        this.metrics = metrics.toArray(new AggregatorFactory[0]);
+      }
       return this;
     }
 
     public Builder withMetrics(AggregatorFactory... metrics)
     {
-      this.metrics = metrics;
-      return this;
+      return withMetrics(Arrays.asList(metrics));
     }
 
     public Builder withRollup(boolean rollup)

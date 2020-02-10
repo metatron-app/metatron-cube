@@ -19,9 +19,13 @@
 
 package io.druid.data.input;
 
+import io.druid.data.ValueDesc;
+
 /**
  */
 public interface RowEvaluator<T>
 {
   T evaluate(InputRow inputRow);
+
+  ValueDesc type();
 }

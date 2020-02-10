@@ -211,4 +211,16 @@ public class ColumnDescriptor
       return new ColumnDescriptor(valueType, hasMultipleValues != null && hasMultipleValues, parts, descs, stats);
     }
   }
+
+  @Override
+  public String toString()
+  {
+    return "ColumnDescriptor{" +
+           "valueType=" + valueType +
+           ", hasMultipleValues=" + hasMultipleValues +
+           ", parts=" + parts +
+           ", descs=" + descs +
+           ", stats=" + stats +
+           '}';
+  }
 }

@@ -304,7 +304,7 @@ public class QueryResource
           }
           catch (Throwable t) {
             // it's not propagated to handlings below. so do it here
-            lifecycle.emitLogsAndMetrics(toLoggingQuery(prepared), t, remote, os.getCount(), counter.intValue());
+            lifecycle.emitLogsAndMetrics(toLoggingQuery(query), t, remote, os.getCount(), counter.intValue());
             currThread.setName(currThreadName);
             if (t instanceof IOException) {
               throw (IOException) t;
@@ -318,7 +318,7 @@ public class QueryResource
             writer.set(null);
           }
 
-          lifecycle.emitLogsAndMetrics(toLoggingQuery(prepared), null, remote, os.getCount(), counter.intValue());
+          lifecycle.emitLogsAndMetrics(toLoggingQuery(query), null, remote, os.getCount(), counter.intValue());
           currThread.setName(currThreadName);
         }
       };
@@ -375,13 +375,7 @@ public class QueryResource
     query = query.withQuerySegmentSpec(
         MultipleIntervalSegmentSpec.of(JodaUtils.umbrellaInterval(query.getIntervals()))
     );
-    if (query instanceof Query.LogProvider) {
-      query = ((Query.LogProvider) query).forLog();
-    }
-    if (query instanceof Query.FilterSupport) {
-      query = DimFilters.rewrite(query, DimFilters.LOG_PROVIDER);
-    }
-    return query;
+    return QueryUtils.forLog(query);
   }
 
   protected Access authorize(Query query, HttpServletRequest req)

@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.logger.Logger;
+import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
@@ -32,6 +32,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.io.IOException;
@@ -77,6 +78,12 @@ public class InputRowParsers
               final Row.Updatable updatable = Rows.toUpdatable(inputRow);
               updatable.set(column, type.cast(updatable.getRaw(column)));
               return (InputRow) updatable;
+            }
+
+            @Override
+            public ValueDesc type()
+            {
+              return type;
             }
           });
         }
@@ -145,6 +152,19 @@ public class InputRowParsers
           }
           return null;
         }
+      }
+
+      @Override
+      public Map<String, ValueDesc> knownTypes()
+      {
+        final Map<String, ValueDesc> knownTypes = Maps.newHashMap();
+        for (int i = 0; i < evaluations.size(); i++) {
+          ValueDesc type = evaluators.get(i).type();
+          if (type != null && !type.isUnknown()) {
+            knownTypes.put(evaluations.get(i).getOutputName(), type);
+          }
+        }
+        return knownTypes;
       }
 
       private InputRow convert(InputRow inputRow)

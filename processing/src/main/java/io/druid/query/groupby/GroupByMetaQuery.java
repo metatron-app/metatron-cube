@@ -102,7 +102,7 @@ public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQ
       return rewritten;
     }
     catch (Exception e) {
-      return new DummyQuery<Row>(
+      return DummyQuery.of(
           Sequences.<Row>of(
               new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", -1, "error", e.toString()))
           )

@@ -150,16 +150,16 @@ public class ValueDesc implements Serializable, Cacheable
     return of(STRUCT_TYPE + "(" + elements + ")");
   }
 
-  public static ValueDesc ofStruct(String[] values, ValueDesc[] valueTypes)
+  public static ValueDesc ofStruct(String[] names, ValueDesc[] types)
   {
-    Preconditions.checkArgument(values.length == valueTypes.length);
+    Preconditions.checkArgument(names.length == types.length);
     StringBuilder builder = new StringBuilder();
     builder.append(STRUCT_TYPE).append('(');
-    for (int i = 0; i < values.length; i++) {
+    for (int i = 0; i < names.length; i++) {
       if (i > 0) {
         builder.append(',');
       }
-      builder.append(values[i]).append(':').append(valueTypes[i] == null ? UNKNOWN_TYPE : valueTypes[i]);
+      builder.append(names[i]).append(':').append(types[i] == null ? UNKNOWN_TYPE : types[i]);
     }
     builder.append(')');
     return of(builder.toString());

@@ -50,6 +50,9 @@ public class RowBinding implements Expr.NumericBinding
   @Override
   public Object get(String name)
   {
+    if (row == null) {
+      return null;
+    }
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
     }

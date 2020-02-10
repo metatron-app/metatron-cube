@@ -27,6 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
@@ -86,6 +87,12 @@ public class Validation
           }
         }
         return true;
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.BOOLEAN;
       }
     };
   }

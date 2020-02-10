@@ -41,5 +41,7 @@ public interface LuceneIndexingStrategy
 
   String getFieldDescriptor();
 
+  LuceneIndexingStrategy withFieldName(String fieldName);
+
   Function<Object, Field[]> createIndexableField(ValueDesc type);
 }

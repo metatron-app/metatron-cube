@@ -163,7 +163,7 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
 
     final DbaseFileHeader header = attrReader.getHeader();
     final String[] fieldNames = new String[header.getNumFields()];
-    final String[] fieldTypes = new String[header.getNumRecords()];
+    final String[] fieldTypes = new String[header.getNumFields()];
     for (int i = 0; i < fieldNames.length; i++) {
       fieldNames[i] = header.getFieldName(i);
       fieldTypes[i] = header.getFieldClass(i).getSimpleName();

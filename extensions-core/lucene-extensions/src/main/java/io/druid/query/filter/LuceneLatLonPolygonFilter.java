@@ -42,7 +42,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("lucene.latlon.polygon")
-public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
+public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
   private final String field;
   private final ShapeFormat shapeFormat;
@@ -58,7 +58,6 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
     this.field = Preconditions.checkNotNull(field, "field can not be null");
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
-    Preconditions.checkArgument(field.contains("."), "should reference lat-lon point in struct field");
   }
 
   @JsonProperty
@@ -103,7 +102,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public Filter toFilter(TypeResolver resolver)
+  public Filter toFilter(final TypeResolver resolver)
   {
     final Polygon[] polygons;
     try {
@@ -123,14 +122,17 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {
-        // column-name.field-name
-        int index = field.indexOf(".");
-        String columnName = field.substring(0, index);
-        String fieldName = field.substring(index + 1);
-        LuceneIndex lucene = Preconditions.checkNotNull(
-            selector.getLuceneIndex(columnName),
-            "no lucene index for " + columnName
-        );
+        // column-name.field-name or field-name (regarded same with column-name)
+        String columnName = field;
+        String fieldName = field;
+        LuceneIndex lucene = selector.getLuceneIndex(columnName);
+        for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
+          columnName = field.substring(0, index);
+          fieldName = field.substring(index + 1);
+          lucene = selector.getLuceneIndex(columnName);
+        }
+        Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
+
         Query query = LatLonPoint.newPolygonQuery(fieldName, polygons);
         return lucene.filterFor(query, baseBitmap);
       }
@@ -165,6 +167,12 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter
     return new MathExprFilter(
         "shape_contains(" + shapeReader + ", shape_fromLatLon(\"" + columnName + "\"))"
     );
+  }
+
+  @Override
+  public DimFilter forLog()
+  {
+    return new LuceneLatLonPolygonFilter(field, shapeFormat, "<shape>");
   }
 
   @Override

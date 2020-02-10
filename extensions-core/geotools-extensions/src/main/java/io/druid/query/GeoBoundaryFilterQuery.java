@@ -227,10 +227,9 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final int geomIndex = columns.indexOf(boundaryColumn);
 
     final Map<String, Integer> joinMapping = Maps.newLinkedHashMap();
-    String geometryColumn = null;
     if (!GuavaUtils.isNullOrEmpty(boundaryJoin)) {
       for (Map.Entry<String, String> join : boundaryJoin.entrySet()) {
-        String column = join.getValue();
+        String column = join.getValue() == null ? join.getKey() : join.getValue();
         if (boundaryColumn.equals(column)) {
           joinMapping.put(join.getKey(), -1);
           continue;
@@ -245,7 +244,8 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final List<Geometry> geometries = Lists.newArrayList();
     final ShapeReader reader = ShapeUtils.newWKTReader();
     final Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
-    final Sequence<Object[]> array = boundary.array(boundary.run(segmentWalker, context));
+    final Query.ArrayOutputSupport runner = (ArrayOutputSupport) boundary.withOverriddenContext(context);
+    final Sequence<Object[]> array = runner.array(QueryRunners.run(runner, segmentWalker));
     for (Object[] row : Sequences.toList(array)) {
       String boundary = Objects.toString(row[geomIndex], null);
       if (!StringUtils.isNullOrEmpty(boundary)) {
@@ -259,7 +259,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       }
     }
     if (geometries.isEmpty()) {
-      return new DummyQuery();
+      return DummyQuery.instance();
     }
     if (boundaryUnion) {
       // use first row as joinRow.. apply aggregator?
@@ -280,15 +280,15 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
               throw new IllegalStateException("cannot find geometry in " + geometry.toText());
             }
           }
-          queries.add(makeQuery(mapper, geometry, joinMapping, joinRow));
+          queries.add(makeQuery(mapper, geometry, joinMapping, joinRow, context));
         }
         return UnionAllQuery.union(queries, -1, executor);
       }
-      return makeQuery(mapper, union, joinMapping, rows.get(0));
+      return makeQuery(mapper, union, joinMapping, rows.get(0), context);
     }
     List<Query> queries = Lists.newArrayList();
     for (int i = 0; i < geometries.size(); i++) {
-      queries.add(makeQuery(mapper, geometries.get(i), joinMapping, rows.get(i)));
+      queries.add(makeQuery(mapper, geometries.get(i), joinMapping, rows.get(i), context));
     }
     return UnionAllQuery.union(queries, -1, executor);
   }
@@ -297,13 +297,15 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       ObjectMapper mapper,
       Geometry geometry,
       Map<String, Integer> joinMapping,
-      Object[] joinRow
+      Object[] joinRow,
+      Map<String, Object> context
   )
   {
     String geometryWKT = geometry.toText();
     DimFilter filter = Preconditions.checkNotNull(mapper.convertValue(makeFilter(geometryWKT), DimFilter.class));
     FilterSupport filterSupport = (FilterSupport) query;
-    Query filtered = filterSupport.withFilter(DimFilters.and(filterSupport.getFilter(), filter));
+    Query filtered = filterSupport.withFilter(DimFilters.and(filterSupport.getFilter(), filter))
+                                  .withOverriddenContext(context);
     return filtered.withOverriddenContext(
         Query.POST_PROCESSING, new SequenceMapProcessor(proc(query, geometryWKT, joinMapping, joinRow))
     );
@@ -353,9 +355,9 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
 
   private Map<String, Object> makeFilter(String geometryWKT)
   {
-    Map<String, Object> filterMap;
     if (pointColumn != null) {
-      filterMap = ImmutableMap.<String, Object>of(
+      // only supports 'covers'
+      return ImmutableMap.<String, Object>of(
           "type", "lucene.latlon.polygon",
           "field", pointColumn,
           "shapeFormat", "WKT",
@@ -363,7 +365,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       );
     } else {
       SpatialOperations op = operation == null ? SpatialOperations.COVERS : operation;
-      filterMap = ImmutableMap.<String, Object>of(
+      return ImmutableMap.<String, Object>of(
           "type", "lucene.spatial",
           "operation", op.getName(),
           "field", shapeColumn,
@@ -371,7 +373,6 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           "shapeString", geometryWKT
       );
     }
-    return filterMap;
   }
 
   @Override

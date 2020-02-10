@@ -22,6 +22,7 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
 import io.druid.java.util.common.collect.Utils;
@@ -30,6 +31,7 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = StringInputRowParser.class)
@@ -60,6 +62,12 @@ public interface InputRowParser<T>
   @Deprecated
   @Nullable
   default InputRow parse(T input)
+  {
+    return null;
+  }
+
+  // returns known types before parsing, if possible
+  default Map<String, ValueDesc> knownTypes()
   {
     return null;
   }
