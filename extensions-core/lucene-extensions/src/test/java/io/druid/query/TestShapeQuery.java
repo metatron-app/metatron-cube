@@ -24,9 +24,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
+import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
+import io.druid.query.filter.LuceneWithinFilter;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestIndex;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.ShapeIndexingStrategy;
@@ -77,13 +80,13 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   }
 
   @Test
-  public void testSpatialFilter()
+  public void testSpatialFilter() throws Exception
   {
-    testSpatialFilter("seoul_roads");
-    testSpatialFilter("seoul_roads_incremental");
+    testSpatialFilter("seoul_roads", true);
+    testSpatialFilter("seoul_roads_incremental", false);
   }
 
-  private void testSpatialFilter(String dataSource)
+  private void testSpatialFilter(String dataSource, boolean testWithinFilter) throws Exception
   {
     String[] columns = new String[]{"name", "geom"};
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
@@ -135,6 +138,23 @@ public class TestShapeQuery extends QueryRunnerTestHelper
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
+        SpatialOperations.COVEREDBY,
+        ShapeFormat.WKT,
+        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
+    ));
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    if (testWithinFilter) {
+      builder.filters(new LuceneWithinFilter(
+          "geom",
+          ShapeFormat.WKT,
+          "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
+      ));
+      Assert.assertEquals(expected, runQuery(builder.streaming()));
+    }
+
+    builder.filters(new LuceneSpatialFilter(
+        "geom",
         SpatialOperations.BBOX_INTERSECTS,
         ShapeFormat.WKT,
         "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497838))"
@@ -145,6 +165,48 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
+  }
+
+  @Test
+  public void testLatLonPloygonFilter()
+  {
+    testLatLonPloygonFilter("estate", true);
+    testLatLonPloygonFilter("estate_incremental", false);
+  }
+
+  private void testLatLonPloygonFilter(String dataSource, boolean testWithinFilter)
+  {
+    Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
+        .dataSource(dataSource)
+        .columns("point", "gis.addr")
+        .virtualColumns(new ExprVirtualColumn("shape_toWKT(shape_fromLatLon(gis.lat, gis.lon))", "point"))
+        .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
+
+    List<Map<String, Object>> expected = createExpectedMaps(
+        new String[] {"gis.addr", "point"},
+        new Object[]{"서초동 1686-9 서초교대e편한세상", "POINT (127.0175405 37.4967613)"},
+        new Object[]{"서초동 1310-4 서초두산위브트레지움", "POINT (127.0231722 37.5005055)"},
+        new Object[]{"서초동 1687 유원서초", "POINT (127.0185813 37.4961359)"},
+        new Object[]{"서초동 1687 유원서초", "POINT (127.0185813 37.4961359)"},
+        new Object[]{"서초동 1315 진흥", "POINT (127.0236759 37.4970603)"},
+        new Object[]{"서초동 1315 진흥", "POINT (127.0236759 37.4970603)"},
+        new Object[]{"서초동 1315 진흥", "POINT (127.0236759 37.4970603)"}
+    );
+    builder.filters(new LuceneLatLonPolygonFilter(
+        "gis.coord",
+        ShapeFormat.WKT,
+        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+    ));
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    if (testWithinFilter) {
+      builder.filters(new LuceneWithinFilter(
+          "gis.coord",
+          ShapeFormat.WKT,
+          "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+      ));
+      Assert.assertEquals(expected, runQuery(builder.streaming()));
+    }
   }
 
   @Test

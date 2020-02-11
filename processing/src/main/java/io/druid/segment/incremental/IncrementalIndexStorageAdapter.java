@@ -151,20 +151,6 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   }
 
   @Override
-  public Comparable getMinValue(String column)
-  {
-    IncrementalIndex.DimDim dimDim = index.getDimensionValues(column);
-    return dimDim == null ? null : dimDim.getMinValue();
-  }
-
-  @Override
-  public Comparable getMaxValue(String column)
-  {
-    IncrementalIndex.DimDim dimDim = index.getDimensionValues(column);
-    return dimDim == null ? null : dimDim.getMaxValue();
-  }
-
-  @Override
   public Capabilities getCapabilities()
   {
     return Capabilities.builder().dimensionValuesSorted(false).build();
@@ -174,25 +160,6 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   public ColumnCapabilities getColumnCapabilities(String column)
   {
     return index.getCapabilities(column);
-  }
-
-  @Override
-  public ValueDesc getColumnType(String column)
-  {
-    // check first for compatibility
-    ValueDesc metricType = index.getMetricType(column);
-    if (metricType != null) {
-      return metricType;
-    }
-    IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
-    if (dimensionDesc != null) {
-      return ValueDesc.ofDimension(dimensionDesc.getCapabilities().getType());
-    }
-    ColumnCapabilities capabilities = index.getCapabilities(column);
-    if (capabilities != null) {
-      return ValueDesc.of(capabilities.getType());
-    }
-    return null;
   }
 
   @Override

@@ -24,11 +24,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -61,7 +61,7 @@ public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<St
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {
@@ -69,7 +69,7 @@ public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<St
       public Sequence<Map<String, Object>> run(Query<Map<String, Object>> query, Map<String, Object> responseContext)
       {
         String hostAndPort = node.getHostAndPort();
-        ConfigQuery configQuery = (ConfigQuery)query;
+        ConfigQuery configQuery = (ConfigQuery) query;
         if (GuavaUtils.isNullOrEmpty(configQuery.getConfig())) {
           Map<String, Object> row = ImmutableMap.<String, Object>of(hostAndPort, JsonConfigProvider.getKeys());
           return Sequences.simple(Arrays.asList(row));

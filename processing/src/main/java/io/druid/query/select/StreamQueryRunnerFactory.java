@@ -213,7 +213,7 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Object[]> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<Object[]>()
     {

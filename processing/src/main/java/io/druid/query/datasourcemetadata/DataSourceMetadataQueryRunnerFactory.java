@@ -50,7 +50,7 @@ public class DataSourceMetadataQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<DataSourceMetadataResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new DataSourceMetadataQueryRunner(segment);
   }

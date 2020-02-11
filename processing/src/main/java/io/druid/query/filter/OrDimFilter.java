@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.OrExpression;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
 
@@ -66,7 +67,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
     return DimFilters.or(DimFilters.optimize(fields));
   }

@@ -321,7 +321,7 @@ public class QueryUtils
     }
 
     Supplier<RowResolver> schema = QueryUtils.resolverSupplier(query, segmentWalker);
-    query = query.resolveQuery(schema, segmentWalker.getObjectMapper());
+    query = query.resolveQuery(schema);
 
     if (query instanceof Query.ColumnsSupport) {
       Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport) query;

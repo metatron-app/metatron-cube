@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.query.ShapeUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
@@ -38,7 +39,6 @@ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
-import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.shape.Rectangle;
@@ -99,7 +99,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   )
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
-    this.operation = operation == null ? SpatialOperations.COVERS : operation;
+    this.operation = operation == null ? SpatialOperations.COVEREDBY : operation;
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
   }
@@ -126,16 +126,6 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   public String getShapeString()
   {
     return shapeString;
-  }
-
-  public LuceneSpatialFilter withShapeString(String shapeString)
-  {
-    return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
-  }
-
-  public Shape create(SpatialContext context) throws IOException, ParseException
-  {
-    return shapeFormat.newReader(context).read(shapeString);
   }
 
   @Override
@@ -214,26 +204,6 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
     };
   }
 
-  @Override
-  public DimFilter toExpressionFilter()
-  {
-    int index = field.indexOf(".");
-    String columnName = index < 0 ? field : field.substring(0, index);
-
-    String shapeReader = shapeFormat == ShapeFormat.WKT ?
-                         "shape_fromWKT('" + shapeString + "')" :
-                         "shape_fromGeoJson('" + shapeString + "')";
-    if (operation == SpatialOperations.BBOX_WITHIN || operation == SpatialOperations.BBOX_INTERSECTS) {
-      shapeReader = "shape_envelop(" + shapeReader + ")";
-    }
-    // todo check columns descriptor
-    String columnReader = shapeFormat == ShapeFormat.WKT ?
-                          "shape_fromWKT(\"" + columnName + "\")" :
-                          "shape_fromGeoJson(\"" + columnName + "\")";
-
-    return new MathExprFilter(toShapeOp(operation) + "(" + shapeReader + ", " + columnReader + ")");
-  }
-
   private SpatialArgs makeSpatialArgs(JtsSpatialContext ctx) throws IOException, ParseException
   {
     final Shape shape = shapeFormat.newReader(ctx).read(shapeString);
@@ -256,6 +226,19 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
     throw new UnsupportedOperationException(operation + " is not supported yet");
   }
 
+  @Override
+  public DimFilter toExprFilter(String columnName)
+  {
+    String columnReader = ShapeUtils.fromColumn(shapeFormat, columnName);
+    String shapeReader = ShapeUtils.fromString(shapeFormat, shapeString);
+    if (operation == SpatialOperations.BBOX_WITHIN || operation == SpatialOperations.BBOX_INTERSECTS) {
+      shapeReader = String.format("shape_bbox(%s)", shapeReader);
+    }
+    return new MathExprFilter(
+        String.format("%s(%s, %s)", toShapeOp(operation), columnReader, shapeReader)
+    );
+  }
+
   // I'm not sure of this
   private static String toShapeOp(SpatialOperations operation)
   {
@@ -264,7 +247,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
       case BBOX_INTERSECTS:
         return "shape_intersects";
       case BBOX_WITHIN:
-        return "shape_contains";
+        return "shape_within";
       case COVERS:
         return "shape_covers";
       case COVEREDBY:

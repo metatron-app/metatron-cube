@@ -205,7 +205,7 @@ public class SegmentMetadataQueryQueryToolChest
   public static SegmentAnalysis mergeAnalyses(
       final SegmentAnalysis arg1,
       final SegmentAnalysis arg2,
-      boolean lenientAggregatorMerge
+      final boolean lenientAggregatorMerge
   )
   {
     if (arg1 == null) {

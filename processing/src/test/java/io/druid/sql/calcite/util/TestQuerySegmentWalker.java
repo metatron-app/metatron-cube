@@ -61,7 +61,6 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.query.StorageHandler;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.MetricManipulatorFns;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -433,7 +432,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                                      .build();
     }
     if (factory == null) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
+      return PostProcessingOperators.wrap(NoopQueryRunner.instance(), objectMapper);
     }
 
     // things done in CCC
@@ -499,7 +498,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return PostProcessingOperators.wrap(QueryRunners.<T>empty(), objectMapper);
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
+    final Query<T> resolved = query.resolveQuery(resolver);
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
@@ -512,21 +511,11 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
           @Override
           public QueryRunner<T> apply(final Segment segment)
           {
-            final QueryRunner<T> runner = new QueryRunner<T>()
-            {
-              private final QueryRunner<T> runner = factory.createRunner(segment, optimizer);
-
-              @Override
-              public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-              {
-                return runner.run(segment.isIndexed() ? query : DimFilters.rewrite(query, DimFilters.LUCENE), responseContext);
-              }
-            };
             return new SpecificSegmentQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
                     segment.getIdentifier(),
                     segment.getDataInterval().getStart(),
-                    runner
+                    factory.createRunner(segment, optimizer)
                 ),
                 new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor())
             );

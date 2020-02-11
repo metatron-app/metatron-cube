@@ -75,7 +75,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
   }
 
   @Override
-  public QueryRunner<SegmentAnalysis> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<SegmentAnalysis> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new QueryRunner<SegmentAnalysis>()
     {

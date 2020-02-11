@@ -93,7 +93,7 @@ public class QueryRunners
 
   public static <T> QueryRunner<T> empty()
   {
-    return new NoopQueryRunner<>();
+    return NoopQueryRunner.instance();
   }
 
   public static <T> QueryRunner<T> withResource(final QueryRunner<T> runner, final Closeable closeable)

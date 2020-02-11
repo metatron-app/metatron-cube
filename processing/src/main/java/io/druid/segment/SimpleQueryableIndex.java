@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
@@ -141,24 +140,6 @@ public class SimpleQueryableIndex implements QueryableIndex
   }
 
   @Override
-  public ValueDesc getColumnType(String columnName)
-  {
-    Column column = columns.get(columnName);
-    if (column == null) {
-      return null;
-    }
-    ColumnCapabilities capabilities = column.getCapabilities();
-    ValueType valueType = capabilities.getType();
-    if (capabilities.isDictionaryEncoded()) {
-      return ValueDesc.ofDimension(valueType);
-    } else if (!valueType.isPrimitive()) {
-      return column.getComplexColumn().getType();
-    }
-    return ValueDesc.of(valueType);
-
-  }
-
-  @Override
   public void close() throws IOException
   {
     fileMapper.close();
@@ -219,8 +200,8 @@ public class SimpleQueryableIndex implements QueryableIndex
     Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
     Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
     for (String columnName : Iterables.concat(dimensionNames, metricNames)) {
-      Column column = getColumn(columnName);
-      columnTypes.add(getColumnType(columnName));
+      Column column = Preconditions.checkNotNull(getColumn(columnName));
+      columnTypes.add(column.getType());
       columnCapabilities.put(columnName, column.getCapabilities());
       Map<String, String> descs = column.getColumnDescs();
       if (!GuavaUtils.isNullOrEmpty(descs)) {

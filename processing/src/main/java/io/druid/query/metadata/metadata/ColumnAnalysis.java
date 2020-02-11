@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.ValueType;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -36,10 +37,11 @@ public class ColumnAnalysis
 
   public static ColumnAnalysis error(String reason)
   {
-    return new ColumnAnalysis("STRING", false, -1, -1, -1, null, null, ERROR_PREFIX + reason);
+    return new ColumnAnalysis("STRING", null, false, -1, -1, -1, null, null, ERROR_PREFIX + reason);
   }
 
   private final String type;
+  private final Map<String, String> descriptor;
   private final boolean hasMultipleValues;
   private final long serializedSize;
   private final int cardinality;
@@ -53,6 +55,7 @@ public class ColumnAnalysis
   @JsonCreator
   public ColumnAnalysis(
       @JsonProperty("type") String type,
+      @JsonProperty("descriptor") Map<String, String> descriptor,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("cardinality") int cardinality,
@@ -63,6 +66,7 @@ public class ColumnAnalysis
   )
   {
     this.type = type;
+    this.descriptor = descriptor;
     this.hasMultipleValues = hasMultipleValues;
     this.serializedSize = serializedSize;
     this.cardinality = cardinality;
@@ -83,13 +87,20 @@ public class ColumnAnalysis
       String errorMessage
   )
   {
-    this(type, hasMultipleValues, serializedSize, cardinality, -1, minValue, maxValue, errorMessage);
+    this(type, null, hasMultipleValues, serializedSize, cardinality, -1, minValue, maxValue, errorMessage);
   }
 
   @JsonProperty
   public String getType()
   {
     return type;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> getDescriptor()
+  {
+    return descriptor;
   }
 
   @JsonProperty
@@ -178,27 +189,27 @@ public class ColumnAnalysis
       return rhs;
     }
 
-    if (!type.equals(rhs.getType())) {
+    if (!Objects.equals(type, rhs.getType())) {
       return ColumnAnalysis.error("cannot_merge_diff_types");
     }
-
-    final boolean multipleValues = hasMultipleValues || rhs.isHasMultipleValues();
-
-    Comparable newMin = choose(minValue, rhs.minValue, false);
-    Comparable newMax = choose(maxValue, rhs.maxValue, true);
+    if (!Objects.equals(descriptor, rhs.descriptor)) {
+      return ColumnAnalysis.error("cannot_merge_diff_descs");
+    }
 
     return new ColumnAnalysis(
         type,
-        multipleValues,
+        descriptor,
+        hasMultipleValues || rhs.isHasMultipleValues(),
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
         cardinality < 0 || rhs.cardinality < 0 ? -1 : Math.max(cardinality, rhs.cardinality),
         nullCount < 0 || rhs.nullCount < 0 ? -1 : nullCount +  rhs.nullCount,
-        newMin,
-        newMax,
+        choose(minValue, rhs.minValue, false),
+        choose(maxValue, rhs.maxValue, true),
         null
     );
   }
 
+  @SuppressWarnings("unchecked")
   private <T extends Comparable> T choose(T obj1, T obj2, boolean max)
   {
     if (numeric && (obj1 == null || obj2 == null)) {
@@ -220,6 +231,7 @@ public class ColumnAnalysis
   {
     return "ColumnAnalysis{" +
            "type='" + type + '\'' +
+           (descriptor == null ? "" : ", descriptor=" + descriptor) +
            ", hasMultipleValues=" + hasMultipleValues +
            ", serializedSize=" + serializedSize +
            ", cardinality=" + cardinality +
@@ -243,6 +255,7 @@ public class ColumnAnalysis
     return hasMultipleValues == that.hasMultipleValues &&
            serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
+           Objects.equals(descriptor, that.descriptor) &&
            Objects.equals(cardinality, that.cardinality) &&
            Objects.equals(nullCount, that.nullCount) &&
            Objects.equals(minValue, that.minValue) &&
@@ -255,6 +268,7 @@ public class ColumnAnalysis
   {
     return Objects.hash(
         type,
+        descriptor,
         hasMultipleValues,
         serializedSize,
         cardinality,

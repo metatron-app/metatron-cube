@@ -23,9 +23,11 @@ import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.segment.Segment;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -54,7 +56,20 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * @param optimizer optimization object
    * @return A QueryRunner that, when asked, will generate a Sequence of results based on the given segment
    */
-  public QueryRunner<T> createRunner(Segment segment, Future<Object> optimizer);
+  public QueryRunner<T> _createRunner(Segment segment, Future<Object> optimizer);
+
+  public default QueryRunner<T> createRunner(final Segment segment, final Future<Object> optimizer)
+  {
+    return new QueryRunner<T>()
+    {
+      final QueryRunner<T> baseRunner = _createRunner(segment, optimizer);
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return baseRunner.run(BaseQuery.optimize(query, segment), responseContext);
+      }
+    };
+  }
 
   /**
    * Runners generated with createRunner() and combined into an Iterable in (time,shardId) order are passed

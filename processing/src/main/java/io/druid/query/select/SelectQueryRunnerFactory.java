@@ -107,13 +107,13 @@ public class SelectQueryRunnerFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<Result<SelectResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<SelectResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     if (optimizer == null ||
         ((Set<String>) Futures.getUnchecked(optimizer)).contains(segment.getIdentifier())) {
       return new SelectQueryRunner(engine, config, segment, cache);
     }
-    return new NoopQueryRunner<Result<SelectResultValue>>();
+    return NoopQueryRunner.instance();
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>

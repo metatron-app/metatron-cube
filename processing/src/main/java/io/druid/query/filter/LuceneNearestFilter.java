@@ -65,6 +65,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
     Preconditions.checkArgument(count > 0, "count should be > 0");
   }
 
+  @Override
   @JsonProperty
   public String getField()
   {

@@ -23,12 +23,17 @@ import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.segment.lucene.ShapeFormat;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
+import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.WKTReader;
+import org.locationtech.spatial4j.shape.Rectangle;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
 import org.locationtech.spatial4j.shape.jts.JtsGeometry;
@@ -42,6 +47,9 @@ public class ShapeUtils
 {
   public static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE", Shape.class);
   public static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
+
+  // srid 0
+  public static final GeometryFactory GEOM_FACTORY = new GeometryFactory();
 
   public static ExprEval asShapeEval(Geometry geometry)
   {
@@ -100,12 +108,22 @@ public class ShapeUtils
     };
   }
 
-  public static Geometry toGeometry(ExprEval eval)
+  public static ShapeReader newGeoJsonReader()
+  {
+    return new GeoJSONReader(JtsSpatialContext.GEO, null);
+  }
+
+  public static Shape toShape(ExprEval eval)
   {
     if (ValueDesc.SHAPE.equals(eval.type())) {
-      return ShapeUtils.toGeometry((Shape) eval.value());
+      return (Shape) eval.value();
     }
     return null;
+  }
+
+  public static Geometry toGeometry(ExprEval eval)
+  {
+    return ShapeUtils.toGeometry(toShape(eval));
   }
 
   public static Geometry toGeometry(Shape shape)
@@ -114,6 +132,15 @@ public class ShapeUtils
       return ((JtsGeometry) shape).getGeom();
     } else if (shape instanceof JtsPoint) {
       return ((JtsPoint) shape).getGeom();
+    } else if (shape instanceof Rectangle) {
+      Rectangle rect = (Rectangle) shape;
+      Coordinate[] coordinates = new Coordinate[5];
+      coordinates[0] = new Coordinate(rect.getMinX(), rect.getMinY());
+      coordinates[1] = new Coordinate(rect.getMaxX(), rect.getMinY());
+      coordinates[2] = new Coordinate(rect.getMaxX(), rect.getMaxY());
+      coordinates[3] = new Coordinate(rect.getMinX(), rect.getMaxY());
+      coordinates[4] = new Coordinate(rect.getMinX(), rect.getMinY());
+      return GEOM_FACTORY.createPolygon(coordinates);
     }
     return null;
   }
@@ -145,7 +172,9 @@ public class ShapeUtils
 
   public static Shape toShape(Geometry geometry)
   {
-    if (geometry.getEnvelopeInternal().getWidth() == 360) {
+    if (geometry == null) {
+      return null;
+    } else if (geometry.getEnvelopeInternal().getWidth() == 360) {
       // kind of select all.. just disable dateline180Check
       return SHAPE_FACTORY.makeShape(geometry, false, SHAPE_FACTORY.isAllowMultiOverlap());
     }
@@ -155,5 +184,19 @@ public class ShapeUtils
   public static Object toShape(Envelope envelope)
   {
     return toShape(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
+  }
+
+  public static String fromString(ShapeFormat shapeFormat, String shapeString)
+  {
+    return shapeFormat == ShapeFormat.WKT ?
+           String.format("shape_fromWKT('%s')", shapeString) :
+           String.format("shape_fromGeoJson('%s')", shapeString);
+  }
+
+  public static String fromColumn(ShapeFormat shapeFormat, String shapeColumn)
+  {
+    return shapeFormat == ShapeFormat.WKT ?
+           String.format("shape_fromWKT(\"%s\")", shapeColumn) :
+           String.format("shape_fromGeoJson(\"%s\")", shapeColumn);
   }
 }

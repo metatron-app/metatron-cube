@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.java.util.common.Pair;
 import io.druid.query.Query;
+import io.druid.segment.column.Column;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -32,17 +33,21 @@ import java.util.Map;
 
 /**
  */
-public interface QueryableIndex extends SchemaProvider, ColumnSelector, Closeable
+public interface QueryableIndex extends SchemaProvider, Closeable
 {
   Interval getDataInterval();
-  int getNumRows();
+  Indexed<String> getColumnNames();
   Indexed<String> getAvailableDimensions();
-  BitmapFactory getBitmapFactoryForDimensions();
   Iterable<String> getAvailableMetrics();
-  Metadata getMetadata();
 
   Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> getQuboids();
   QueryableIndex cuboidFor(Query<?> query);
+
+  Column getColumn(String columnName);
+
+  int getNumRows();
+  Metadata getMetadata();
+  BitmapFactory getBitmapFactoryForDimensions();
 
   /**
    * The close method shouldn't actually be here as this is nasty. We will adjust it in the future.

@@ -48,7 +48,7 @@ public class TimeBoundaryQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<TimeBoundaryResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new TimeBoundaryQueryRunner(segment);
   }

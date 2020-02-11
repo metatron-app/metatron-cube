@@ -28,17 +28,17 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
-import org.locationtech.jts.operation.union.CascadedPolygonUnion;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.lucene.SpatialOperations;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.operation.union.CascadedPolygonUnion;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.shape.Shape;
 
@@ -96,9 +96,9 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     } else {
       Preconditions.checkArgument(boundaryColumns.contains(boundaryColumn), "invalid 'boundaryColumn'");
     }
-    if (pointColumn != null) {
+    if (pointColumn != null && operation != null) {
       Preconditions.checkArgument(
-          operation == null || operation == SpatialOperations.COVERS, "cannot apply %s on point colunm", operation
+          operation == SpatialOperations.COVEREDBY, "cannot apply %s on point colunm", operation
       );
     }
     this.operation = operation;
@@ -364,7 +364,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           "shapeString", geometryWKT
       );
     } else {
-      SpatialOperations op = operation == null ? SpatialOperations.COVERS : operation;
+      SpatialOperations op = operation == null ? SpatialOperations.COVEREDBY : operation;
       return ImmutableMap.<String, Object>of(
           "type", "lucene.spatial",
           "operation", op.getName(),
@@ -426,7 +426,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
            (boundaryColumn == null ? "" : ", boundaryColumn=" + boundaryColumn) +
            ", boundaryUnion='" + boundaryUnion + '\'' +
            ", boundaryJoin=" + boundaryJoin +
-           ", operation=" + (operation == null ? SpatialOperations.COVERS : operation) +
+           ", operation=" + (operation == null ? SpatialOperations.COVEREDBY : operation) +
            (parallelism == null ? "" : ", parallelism=" + parallelism) +
            '}';
   }

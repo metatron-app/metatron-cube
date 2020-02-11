@@ -53,7 +53,7 @@ public class TestEstateQuery extends QueryRunnerTestHelper
   @Test
   public void testSchema()
   {
-    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate")));
+    Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate")));
     Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
     Assert.assertEquals(Arrays.asList("gis", "price", "amt", "py", "hasPrice"), schema.getMetricNames());
     Assert.assertEquals(
@@ -101,7 +101,7 @@ public class TestEstateQuery extends QueryRunnerTestHelper
                                       .analysisTypes(AnalysisType.NULL_COUNT)
                                       .build();
 
-    SegmentAnalysis segment = (SegmentAnalysis) Iterables.getOnlyElement(runQuery(meta));
+    SegmentAnalysis segment = Iterables.getOnlyElement(runQuery(meta));
     Assert.assertEquals(5862, segment.getNumRows());
 
     ColumnAnalysis price = segment.getColumns().get("price");

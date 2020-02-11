@@ -47,7 +47,6 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.select.Schema;
-import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
@@ -179,36 +178,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   }
 
   @Override
-  public Comparable getMinValue(String dimension)
-  {
-    Column column = index.getColumn(dimension);
-    Map<String, Object> columnStats = column.getColumnStats();
-    if (columnStats != null && columnStats.get("min") instanceof Comparable) {
-      return (Comparable) columnStats.get("min");
-    }
-    if (column != null && column.getCapabilities().hasBitmapIndexes()) {
-      BitmapIndex bitmap = column.getBitmapIndex();
-      return bitmap.getCardinality() > 0 ? bitmap.getValue(0) : null;
-    }
-    return null;
-  }
-
-  @Override
-  public Comparable getMaxValue(String dimension)
-  {
-    Column column = index.getColumn(dimension);
-    Map<String, Object> columnStats = column.getColumnStats();
-    if (columnStats != null && columnStats.get("max") instanceof Comparable) {
-      return (Comparable) columnStats.get("max");
-    }
-    if (column != null && column.getCapabilities().hasBitmapIndexes()) {
-      BitmapIndex bitmap = column.getBitmapIndex();
-      return bitmap.getCardinality() > 0 ? bitmap.getValue(bitmap.getCardinality() - 1) : null;
-    }
-    return null;
-  }
-
-  @Override
   public Capabilities getCapabilities()
   {
     return Capabilities.builder().dimensionValuesSorted(true).build();
@@ -218,17 +187,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   public ColumnCapabilities getColumnCapabilities(String column)
   {
     return index.getColumn(column).getCapabilities();
-  }
-
-  public Column getColumn(String column)
-  {
-    return index.getColumn(column);
-  }
-
-  @Override
-  public ValueDesc getColumnType(String columnName)
-  {
-    return index.getColumnType(columnName);
   }
 
   @Override

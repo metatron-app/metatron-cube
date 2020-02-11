@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
 import io.druid.granularity.Granularity;
@@ -107,7 +106,7 @@ public interface Query<T> extends QueryContextKeys
 
   String getType();
 
-  Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper);
+  Query<T> resolveQuery(Supplier<RowResolver> resolver);
 
   Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
 

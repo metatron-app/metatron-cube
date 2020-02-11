@@ -24,13 +24,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.cache.Cache;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
@@ -60,7 +60,6 @@ import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -172,7 +171,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
       log.makeAlert("Received query for unknown dataSource")
          .addData("dataSource", query.getDataSource())
          .emit();
-      return new NoopQueryRunner<>();
+      return NoopQueryRunner.instance();
     }
 
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
@@ -231,7 +230,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                                                     final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
 
                                                     if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
-                                                      return new NoopQueryRunner<>();
+                                                      return NoopQueryRunner.instance();
                                                     }
 
                                                     // Prevent the underlying segment from swapping when its being iterated

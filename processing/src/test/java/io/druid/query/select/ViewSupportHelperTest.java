@@ -134,18 +134,6 @@ public class ViewSupportHelperTest
     }
 
     @Override
-    public Comparable getMinValue(String column)
-    {
-      return null;
-    }
-
-    @Override
-    public Comparable getMaxValue(String column)
-    {
-      return null;
-    }
-
-    @Override
     public Capabilities getCapabilities()
     {
       return null;
@@ -158,12 +146,6 @@ public class ViewSupportHelperTest
       return desc == null ? null :
              ValueDesc.isDimension(desc) ? ColumnCapabilities.of(ValueDesc.typeOfDimension(desc)) :
              ColumnCapabilities.of(desc.type());
-    }
-
-    @Override
-    public ValueDesc getColumnType(String column)
-    {
-      return typesMap.get(column);
     }
 
     @Override

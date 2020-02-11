@@ -126,7 +126,7 @@ public class DimFilters
               @Override
               public DimFilter apply(DimFilter input)
               {
-                return input.optimize();
+                return input.optimize(null);
               }
             }
         )
@@ -196,35 +196,23 @@ public class DimFilters
     } else if (equalValues.size() == 1) {
       dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
     }
-    DimFilter filter = DimFilters.or(dimFilters).optimize();
+    DimFilter filter = DimFilters.or(dimFilters).optimize(null);
     LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
     return filter;
   }
 
   // called for non-historical nodes (see QueryResource.prepareQuery)
-  public static Query rewrite(Query query, Expressions.Rewriter<DimFilter> visitor)
+  public static <T> Query<T> rewrite(Query<T> query, Expressions.Rewriter<DimFilter> visitor)
   {
     final DimFilter filter = BaseQuery.getDimFilter(query);
     if (filter != null) {
       DimFilter rewritten = Expressions.rewrite(filter, FACTORY, visitor);
       if (filter != rewritten) {
-        query = ((Query.FilterSupport) query).withFilter(rewritten);
+        query = ((Query.FilterSupport<T>) query).withFilter(rewritten);
       }
     }
     return query;
   }
-
-  public static final Expressions.Rewriter<DimFilter> LUCENE = new Expressions.Rewriter<DimFilter>()
-  {
-    @Override
-    public DimFilter visit(DimFilter expression)
-    {
-      if (expression instanceof DimFilter.LuceneFilter) {
-        expression = ((DimFilter.LuceneFilter) expression).toExpressionFilter();
-      }
-      return expression;
-    }
-  };
 
   public static final Expressions.Rewriter<DimFilter> LOG_PROVIDER = new Expressions.Rewriter<DimFilter>()
   {

@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.NotExpression;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.NotFilter;
 
 import java.util.Arrays;
@@ -60,9 +61,9 @@ public class NotDimFilter implements DimFilter, NotExpression
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
-    return DimFilters.not(field.optimize());
+    return DimFilters.not(field.optimize(null));
   }
 
   @Override

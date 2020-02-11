@@ -30,12 +30,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.TaskThreadPriority;
 import io.druid.guice.annotations.Self;
@@ -46,6 +40,12 @@ import io.druid.indexing.common.TaskToolboxFactory;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.autoscaling.ScalingStats;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -392,7 +392,7 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
       }
     }
 
-    return queryRunner == null ? new NoopQueryRunner<T>() : queryRunner;
+    return queryRunner == null ? NoopQueryRunner.instance() : queryRunner;
   }
 
   public static class ThreadPoolTaskRunnerWorkItem extends TaskRunnerWorkItem

@@ -42,7 +42,7 @@ public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   }
 
   @Override
-  public QueryRunner<Result<Object[]>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<Object[]>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SketchQueryRunner(segment, cache);
   }

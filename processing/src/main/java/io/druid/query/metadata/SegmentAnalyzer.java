@@ -196,6 +196,7 @@ public class SegmentAnalyzer
 
     return new ColumnAnalysis(
         valueDesc.typeName(),
+        storageAdapter.getColumnDescriptor(columnName),
         false,
         serializedSize,
         -1,
@@ -316,6 +317,7 @@ public class SegmentAnalyzer
 
     return new ColumnAnalysis(
         valueDesc.typeName(),
+        storageAdapter.getColumnDescriptor(columnName),
         storageAdapter.getColumnCapabilities(columnName).hasMultipleValues(),
         serializedSize,
         cardinality,

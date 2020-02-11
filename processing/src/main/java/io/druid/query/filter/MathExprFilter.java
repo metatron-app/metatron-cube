@@ -27,6 +27,7 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.Filters;
 
 import java.util.Map;
@@ -60,7 +61,7 @@ public class MathExprFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
     final Expr expr = Parser.parse(expression);
     if (Evals.isConstant(expr)) {

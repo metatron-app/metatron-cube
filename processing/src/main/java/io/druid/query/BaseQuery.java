@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
@@ -47,6 +46,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -260,7 +260,7 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  public Query<T> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  public Query<T> resolveQuery(Supplier<RowResolver> resolver)
   {
     Query<T> query = ViewSupportHelper.rewrite(this, resolver);
     if (query instanceof AggregationsSupport) {
@@ -278,15 +278,33 @@ public abstract class BaseQuery<T> implements Query<T>
         query = aggregationsSupport.withAggregatorSpecs(resolved);
       }
     }
-    DimFilter filter = BaseQuery.getDimFilter(query);
-    if (filter != null) {
-      DimFilter optimized = DimFilters.convertToCNF(filter).optimize();
-      Map<String, String> aliasMapping = QueryUtils.aliasMapping(this);
-      if (!aliasMapping.isEmpty()) {
-        optimized = optimized.withRedirection(aliasMapping);
+    if (query instanceof Query.FilterSupport) {
+      Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
+      DimFilter filter = filterSupport.getFilter();
+      if (filter != null) {
+        DimFilter optimized = DimFilters.convertToCNF(filter).optimize(null);
+        Map<String, String> aliasMapping = QueryUtils.aliasMapping(this);
+        if (!aliasMapping.isEmpty()) {
+          optimized = optimized.withRedirection(aliasMapping);
+        }
+        if (filter != optimized) {
+          query = filterSupport.withFilter(optimized);
+        }
       }
-      if (filter != optimized) {
-        query = ((FilterSupport<T>) query).withFilter(optimized);
+    }
+    return query;
+  }
+
+  public static <T> Query<T> optimize(Query<T> query, Segment segment)
+  {
+    if (query instanceof Query.FilterSupport) {
+      Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
+      DimFilter filter = filterSupport.getFilter();
+      if (filter != null) {
+        DimFilter optimized = filter.optimize(segment);
+        if (filter != optimized) {
+          query = filterSupport.withFilter(optimized);
+        }
       }
     }
     return query;

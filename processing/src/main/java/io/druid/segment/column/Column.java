@@ -19,6 +19,8 @@
 
 package io.druid.segment.column;
 
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
@@ -65,4 +67,16 @@ public interface Column
 
   Map<String, Object> getColumnStats();
   Map<String, String> getColumnDescs();
+
+  default ValueDesc getType()
+  {
+    ColumnCapabilities capabilities = getCapabilities();
+    ValueType valueType = capabilities.getType();
+    if (capabilities.isDictionaryEncoded()) {
+      return ValueDesc.ofDimension(valueType);
+    } else if (!valueType.isPrimitive()) {
+      return getComplexColumn().getType();
+    }
+    return ValueDesc.of(valueType);
+  }
 }

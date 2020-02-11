@@ -50,7 +50,7 @@ public class SelectMetaQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<SelectMetaResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<SelectMetaResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new QueryRunner<Result<SelectMetaResultValue>>()
     {

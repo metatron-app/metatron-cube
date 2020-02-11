@@ -338,7 +338,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Row> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Row> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new GroupByQueryRunner(segment, engine, config, cache);
   }

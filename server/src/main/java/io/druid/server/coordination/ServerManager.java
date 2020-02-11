@@ -335,7 +335,7 @@ public class ServerManager implements ForwardingSegmentWalker
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
 
     if (timeline == null) {
-      return new NoopQueryRunner<T>();
+      return NoopQueryRunner.instance();
     }
 
     FunctionalIterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = FunctionalIterable
@@ -403,7 +403,7 @@ public class ServerManager implements ForwardingSegmentWalker
 
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
-      return new NoopQueryRunner<T>();
+      return NoopQueryRunner.instance();
     }
 
     List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
@@ -450,7 +450,7 @@ public class ServerManager implements ForwardingSegmentWalker
       log.makeAlert("Unknown resolved type, [%s]", query.getClass())
          .addData("dataSource", query.getDataSource())
          .emit();
-      return new NoopQueryRunner<T>();
+      return NoopQueryRunner.instance();
     }
     QueryRunnerFactory.Splitable<T, Query<T>> splitable = null;
     if (factory instanceof QueryRunnerFactory.Splitable) {
@@ -472,7 +472,7 @@ public class ServerManager implements ForwardingSegmentWalker
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
+    final Query<T> resolved = query.resolveQuery(resolver);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 

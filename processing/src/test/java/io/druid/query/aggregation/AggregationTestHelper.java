@@ -447,7 +447,7 @@ public class AggregationTestHelper
         )
     );
 
-    Query<Row> resolved = query.resolveQuery(resolver, mapper);
+    Query<Row> resolved = query.resolveQuery(resolver);
     return toolChest.finalQueryDecoration(baseRunner).run(resolved, Maps.newHashMap());
   }
 

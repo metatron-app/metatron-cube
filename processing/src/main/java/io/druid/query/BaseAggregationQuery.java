@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -289,9 +288,9 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
-  public Query<Row> resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  public Query<Row> resolveQuery(Supplier<RowResolver> resolver)
   {
-    return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver, mapper));
+    return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver));
   }
 
   @Override

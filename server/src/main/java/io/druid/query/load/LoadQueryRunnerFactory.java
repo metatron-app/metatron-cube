@@ -55,7 +55,7 @@ public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Stri
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {

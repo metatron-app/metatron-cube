@@ -43,4 +43,5 @@ public class DimFilterCacheHelper
   static final byte LUCENE_SPATIAL_CACHE_ID = 0x10;
   static final byte LIKE_CACHE_ID = 0x11;
   static final byte BLOOM_CACHE_ID = 0x12;
+  static final byte LUCENE_WITHIN_CACHE_ID = 0x13;
 }

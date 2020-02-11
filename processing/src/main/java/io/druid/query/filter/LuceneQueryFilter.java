@@ -60,6 +60,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
   }
 
+  @Override
   @JsonProperty
   public String getField()
   {

@@ -35,11 +35,11 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
-import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.ShapeWriter;
 import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
 import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
+import org.locationtech.spatial4j.shape.Rectangle;
 import org.locationtech.spatial4j.shape.Shape;
 
 import java.io.IOException;
@@ -148,7 +148,7 @@ public class ShapeFunctions implements Function.Library
     @Override
     protected ShapeReader newReader()
     {
-      return new GeoJSONReader(JtsSpatialContext.GEO, null);
+      return ShapeUtils.newGeoJsonReader();
     }
   }
 
@@ -206,7 +206,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public abstract static class SingleShapeFunc extends ShapeUtils.ShapeFuncFactory
+  public abstract static class FromGeom extends ShapeUtils.ShapeFuncFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -226,6 +226,28 @@ public class ShapeFunctions implements Function.Library
     }
 
     protected abstract Shape op(Geometry geometry);
+  }
+
+  public abstract static class FromShape extends ShapeUtils.ShapeFuncFactory
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new ShapeChild()
+      {
+        @Override
+        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Shape shape = ShapeUtils.toShape(Evals.eval(args.get(0), bindings));
+          return shape == null ? null : op(shape);
+        }
+      };
+    }
+
+    protected abstract Shape op(Shape shape);
   }
 
   public abstract static class BinaryShapeFunc extends ShapeUtils.ShapeFuncFactory
@@ -251,8 +273,23 @@ public class ShapeFunctions implements Function.Library
     protected abstract Shape op(Geometry geom1, Geometry geom2);
   }
 
+  @Function.Named("shape_bbox")
+  public static class BoundingBox extends FromShape
+  {
+    @Override
+    protected Shape op(Shape shape)
+    {
+      Rectangle boundingBox = shape.getBoundingBox();
+      if (boundingBox.getMinX() > boundingBox.getMaxX()) {
+        // strange result for (180.0 -90.0), (-180.0 90.0)
+        boundingBox.reset(boundingBox.getMaxX(), boundingBox.getMinX(), boundingBox.getMinY(), boundingBox.getMaxY());
+      }
+      return boundingBox;
+    }
+  }
+
   @Function.Named("shape_boundary")
-  public static class Boundary extends SingleShapeFunc
+  public static class Boundary extends FromGeom
   {
     @Override
     protected Shape op(Geometry geometry)
@@ -262,7 +299,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_convexHull")
-  public static class ConvexHull extends SingleShapeFunc
+  public static class ConvexHull extends FromGeom
   {
     @Override
     protected Shape op(Geometry geometry)
@@ -272,7 +309,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_envelop")
-  public static class Envelop extends SingleShapeFunc
+  public static class Envelop extends FromGeom
   {
     @Override
     protected Shape op(Geometry geometry)
@@ -282,7 +319,7 @@ public class ShapeFunctions implements Function.Library
   }
 
   @Function.Named("shape_reverse")
-  public static class Reverse extends SingleShapeFunc
+  public static class Reverse extends FromGeom
   {
     @Override
     protected Shape op(Geometry geometry)
@@ -452,9 +489,6 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  // srid 0
-  private static final GeometryFactory GEOM_FACTORY = new GeometryFactory();
-
   @Function.Named("shape_union")
   public static class ShapeUnion extends ShapeUtils.ShapeFuncFactory
   {
@@ -482,7 +516,7 @@ public class ShapeFunctions implements Function.Library
             return ShapeUtils.toShape(Iterables.getOnlyElement(geometries));
           } else {
             GeometryCollection collection = new GeometryCollection(
-                geometries.toArray(new Geometry[0]), GEOM_FACTORY
+                geometries.toArray(new Geometry[0]), ShapeUtils.GEOM_FACTORY
             );
             return ShapeUtils.toShape(collection.union());
           }

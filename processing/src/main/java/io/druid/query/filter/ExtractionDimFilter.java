@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.segment.Segment;
 
 import java.util.Map;
 import java.util.Set;
@@ -87,9 +88,9 @@ public class ExtractionDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
-    return new SelectorDimFilter(dimension, value, extractionFn).optimize();
+    return new SelectorDimFilter(dimension, value, extractionFn).optimize(null);
   }
 
   @Override

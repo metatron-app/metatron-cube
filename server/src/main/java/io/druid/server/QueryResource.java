@@ -408,10 +408,6 @@ public class QueryResource
       // test queries don't have ids
       query = QueryUtils.setQueryId(query, queryId);
     }
-    if (ServiceTypes.PEON.equals(node.getType()) ||
-        ServiceTypes.REALTIME.equals(node.getType())) {
-      query = DimFilters.rewrite(query, DimFilters.LUCENE);
-    }
     return query;
   }
 

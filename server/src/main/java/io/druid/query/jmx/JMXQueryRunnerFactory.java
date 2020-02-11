@@ -66,7 +66,7 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {

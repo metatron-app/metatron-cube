@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.query.ShapeUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.ShapeFormat;
@@ -60,6 +61,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
   }
 
+  @Override
   @JsonProperty
   public String getField()
   {
@@ -157,15 +159,11 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   }
 
   @Override
-  public DimFilter toExpressionFilter()
+  public DimFilter toExprFilter(String columnName)
   {
-    final int index = field.indexOf(".");
-    final String columnName = field.substring(0, index);
-    final String shapeReader = shapeFormat == ShapeFormat.WKT ?
-                               "shape_fromWKT('" + shapeString + "')" :
-                               "shape_fromGeoJson('" + shapeString + "')";
+    final String expression = ShapeUtils.fromString(shapeFormat, shapeString);
     return new MathExprFilter(
-        "shape_contains(" + shapeReader + ", shape_fromLatLon(\"" + columnName + "\"))"
+        String.format("shape_contains(%s, shape_fromLatLon(\"%s\"))", expression, columnName)
     );
   }
 

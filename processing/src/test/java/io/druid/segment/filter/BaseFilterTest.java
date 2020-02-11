@@ -269,7 +269,7 @@ public abstract class BaseFilterTest
     if (dimFilter == null) {
       return null;
     }
-    return optimize ? dimFilter.optimize() : dimFilter;
+    return optimize ? dimFilter.optimize(null) : dimFilter;
   }
 
   protected Sequence<Cursor> makeCursorSequence(final DimFilter filter)

@@ -29,6 +29,7 @@ import io.druid.query.H3Functions;
 import io.druid.query.ShapeFunctions;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
+import io.druid.query.filter.LuceneWithinFilter;
 import org.geohex.geohex4j.GeoHexFunctions;
 
 import java.util.List;
@@ -45,6 +46,7 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(LatLonShapeIndexingStrategy.class)
             .registerSubtypes(LuceneSpatialFilter.class)
             .registerSubtypes(LuceneLatLonPolygonFilter.class)
+            .registerSubtypes(LuceneWithinFilter.class)
             .registerSubtypes(GeoHashFunctions.class)
             .registerSubtypes(H3Functions.class)
             .registerSubtypes(GeoHexFunctions.class)

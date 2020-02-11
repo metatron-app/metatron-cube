@@ -194,7 +194,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     final Map<Integer, FireChief> partitionChiefs = chiefs.get(Iterables.getOnlyElement(query.getDataSource()
                                                                                              .getNames()));
 
-    return partitionChiefs == null ? new NoopQueryRunner<T>() : factory.getToolchest().mergeResults(
+    return partitionChiefs == null ? NoopQueryRunner.instance() : factory.getToolchest().mergeResults(
         factory.mergeRunners(
             MoreExecutors.sameThreadExecutor(),
             // Chaining query runners which wait on submitted chain query runners can make executor pools deadlock
@@ -228,7 +228,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     );
 
     return partitionChiefs == null
-           ? new NoopQueryRunner<T>()
+           ? NoopQueryRunner.instance()
            : factory.getToolchest().mergeResults(
                factory.mergeRunners(
                    MoreExecutors.sameThreadExecutor(),
@@ -241,7 +241,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
                          {
                            final FireChief retVal = partitionChiefs.get(spec.getPartitionNumber());
                            return retVal == null
-                                  ? new NoopQueryRunner<T>()
+                                  ? NoopQueryRunner.instance()
                                   : retVal.getQueryRunner(query.withQuerySegmentSpec(new SpecificSegmentSpec(spec)));
                          }
                        }

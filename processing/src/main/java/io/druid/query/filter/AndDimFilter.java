@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.AndExpression;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 
@@ -66,7 +67,7 @@ public class AndDimFilter implements DimFilter, AndExpression
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
     return DimFilters.and(DimFilters.optimize(fields));
   }

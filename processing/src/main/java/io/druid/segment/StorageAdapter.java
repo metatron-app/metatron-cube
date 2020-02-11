@@ -19,7 +19,6 @@
 
 package io.druid.segment;
 
-import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.DateTime;
@@ -36,6 +35,14 @@ public interface StorageAdapter extends CursorFactory
   Indexed<String> getAvailableDimensions();
   Iterable<String> getAvailableMetrics();
 
+  DateTime getMinTime();
+  DateTime getMaxTime();
+
+  int getNumRows();
+  Metadata getMetadata();
+  Capabilities getCapabilities();
+  DateTime getMaxIngestedEventTime();
+
   /**
    * Returns the number of distinct values for the given dimension column
    * For dimensions of unknown cardinality, e.g. __time this currently returns
@@ -45,23 +52,8 @@ public interface StorageAdapter extends CursorFactory
    * @return
    */
   int getDimensionCardinality(String column);
-  DateTime getMinTime();
-  DateTime getMaxTime();
-  Comparable getMinValue(String column);
-  Comparable getMaxValue(String column);
-  Capabilities getCapabilities();
   ColumnCapabilities getColumnCapabilities(String column);
-
-  /**
-   * Like {@link ColumnCapabilities#getType()}, but may return a more descriptive string for complex columns.
-   * @param column column name
-   * @return type name
-   */
-  ValueDesc getColumnType(String column);
   Map<String, String> getColumnDescriptor(String column);
   long getSerializedSize(String column);
   float getAverageSize(String column);
-  int getNumRows();
-  DateTime getMaxIngestedEventTime();
-  Metadata getMetadata();
 }

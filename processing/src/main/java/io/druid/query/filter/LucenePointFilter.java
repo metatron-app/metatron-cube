@@ -100,6 +100,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
     this.radiusMeters = this.query == PointQueryType.DISTANCE ? radiusMeters : 0;
   }
 
+  @Override
   @JsonProperty
   public String getField()
   {
@@ -201,11 +202,8 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter toExpressionFilter()
+  public DimFilter toExprFilter(String columnName)
   {
-    int index = field.indexOf(".");
-    String columnName = index < 0 ? field : field.substring(0, index);
-
     switch (query) {
       case DISTANCE:
         return new MathExprFilter(
@@ -229,7 +227,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
             )
         );
       default:
-        return super.toExpressionFilter();
+        return super.toExprFilter(columnName);
     }
   }
 

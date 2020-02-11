@@ -19,8 +19,8 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Map;
 
@@ -28,6 +28,16 @@ import java.util.Map;
 */
 public class NoopQueryRunner<T> implements QueryRunner<T>
 {
+  private static QueryRunner INSTANCE = new NoopQueryRunner<>();
+
+  @SuppressWarnings("unchecked")
+  public static <T> QueryRunner<T> instance()
+  {
+    return INSTANCE;
+  }
+
+  private NoopQueryRunner() {}
+
   @Override
   public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {

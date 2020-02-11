@@ -37,6 +37,7 @@ import io.druid.common.utils.Ranges;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
@@ -97,9 +98,9 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
-    return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize();
+    return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize(null);
   }
 
   @Override

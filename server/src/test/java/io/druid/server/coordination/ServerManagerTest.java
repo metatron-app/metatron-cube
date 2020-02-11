@@ -28,6 +28,8 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.LocalCacheProvider;
+import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.Pair;
@@ -36,8 +38,6 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
-import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.ConcatQueryRunner;
 import io.druid.query.DefaultQueryMetrics;
@@ -524,7 +524,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Future<Object> optimizer)
+    public QueryRunner<Result<SearchResultValue>> _createRunner(Segment adapter, Future<Object> optimizer)
     {
       final ReferenceCountingSegment segment = (ReferenceCountingSegment) adapter;
 
@@ -532,7 +532,7 @@ public class ServerManagerTest
       segmentReferences.add(segment);
       adapters.add((SegmentForTesting) segment.getBaseSegment());
       return new BlockingQueryRunner<Result<SearchResultValue>>(
-          new NoopQueryRunner<Result<SearchResultValue>>(), waitLatch, waitYieldLatch, notifyLatch
+          NoopQueryRunner.instance(), waitLatch, waitYieldLatch, notifyLatch
       );
     }
 

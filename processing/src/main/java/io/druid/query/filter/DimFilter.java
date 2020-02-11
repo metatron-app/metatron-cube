@@ -29,7 +29,12 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
+import io.druid.segment.column.ColumnCapabilities;
 
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,8 +70,9 @@ public interface DimFilter extends Expression, Cacheable
   /**
    * @return Returns an optimized filter.
    * returning the same filter can be a straightforward default implementation.
+   * @param segment
    */
-  public DimFilter optimize();
+  public DimFilter optimize(@Nullable Segment segment);
 
   /**
    * replaces referencing column names for optimized filtering
@@ -88,10 +94,10 @@ public interface DimFilter extends Expression, Cacheable
    */
   public Filter toFilter(TypeResolver resolver);
 
-  abstract class Abstract implements DimFilter {
-
+  abstract class Abstract implements DimFilter
+  {
     @Override
-    public DimFilter optimize()
+    public DimFilter optimize(Segment segment)
     {
       return this;
     }
@@ -124,7 +130,7 @@ public interface DimFilter extends Expression, Cacheable
   abstract class NotOptimizable implements DimFilter
   {
     @Override
-    public final DimFilter optimize()
+    public final DimFilter optimize(Segment segment)
     {
       return this;
     }
@@ -152,13 +158,48 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  abstract class LuceneFilter extends NotOptimizable
+  abstract class LuceneFilter implements DimFilter
   {
+    public abstract String getField();
+
+    @Override
+    public DimFilter optimize(Segment segment)
+    {
+      if (segment == null) {
+        return this;
+      }
+      String field = getField();
+      StorageAdapter adapter = segment.asStorageAdapter(false);
+      String columnName = field;
+      String fieldName = field;
+      Map<String, String> descriptor = adapter.getColumnDescriptor(columnName);
+      for (int index = field.indexOf('.'); descriptor == null && index > 0; index = field.indexOf('.', index + 1)) {
+        columnName = field.substring(0, index);
+        fieldName = field.substring(index + 1);
+        descriptor = adapter.getColumnDescriptor(columnName);
+      }
+      if (descriptor != null && fieldName != null) {
+        return toOptimizedFilter(descriptor, fieldName);
+      }
+      columnName = field;
+      ColumnCapabilities capabilities = adapter.getColumnCapabilities(columnName);
+      for (int index = field.indexOf('.'); capabilities == null && index > 0; index = field.indexOf('.', index + 1)) {
+        columnName = field.substring(0, index);
+        capabilities = adapter.getColumnCapabilities(columnName);
+      }
+      return columnName == null ? DimFilters.NONE : toExprFilter(columnName);
+    }
+
     // just best-effort conversion.. instead of 'no lucene index' exception
-    public DimFilter toExpressionFilter()
+    protected DimFilter toExprFilter(@NotNull String columnName)
     {
       // return MathExprFilter with shape or esri expressions
-      throw new UnsupportedOperationException("not supports rewritting " + this);
+      throw new UnsupportedOperationException(String.format("not supports rewritting %s", this));
+    }
+
+    protected DimFilter toOptimizedFilter(@NotNull Map<String, String> descriptor, @NotNull String fieldName)
+    {
+      return this;
     }
   }
 

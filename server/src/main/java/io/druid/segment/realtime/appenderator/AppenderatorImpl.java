@@ -416,7 +416,7 @@ public class AppenderatorImpl implements Appenderator
       log.makeAlert("Received query for unknown dataSource")
          .addData("dataSource", query.getDataSource())
          .emit();
-      return new NoopQueryRunner<>();
+      return NoopQueryRunner.instance();
     }
 
     return toQuery(query, specs);
@@ -480,7 +480,7 @@ public class AppenderatorImpl implements Appenderator
       Collections.reverse(segments);
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
-    final Query<T> resolved = query.resolveQuery(resolver, objectMapper);
+    final Query<T> resolved = query.resolveQuery(resolver);
     final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
 
     final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
@@ -534,7 +534,7 @@ public class AppenderatorImpl implements Appenderator
                                                     final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
 
                                                     if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
-                                                      return new NoopQueryRunner<>();
+                                                      return NoopQueryRunner.instance();
                                                     }
 
                                                     // Prevent the underlying segment from swapping when its being iterated

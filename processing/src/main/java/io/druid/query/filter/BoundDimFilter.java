@@ -36,6 +36,7 @@ import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.BoundFilter;
 
 import java.util.Arrays;
@@ -285,7 +286,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public DimFilter optimize()
+  public DimFilter optimize(Segment segment)
   {
     return this;
   }

@@ -71,7 +71,7 @@ public class FindNearestQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<CentroidDesc> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<CentroidDesc> _createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<CentroidDesc>()
     {

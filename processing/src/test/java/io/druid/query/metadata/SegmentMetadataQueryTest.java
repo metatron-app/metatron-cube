@@ -280,7 +280,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), false, mmap1 ? 2812 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2812 : 0, 2, 1023, "", "value", null
             )
         ),
         mmap1 ? 74304 : 0,
@@ -314,9 +314,9 @@ public class SegmentMetadataQueryTest
         ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
         ImmutableMap.of(
             "numeric-expr",
-            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, false, 0, -1, -1, 60.02102279663086D, 1871.06103515625D, null),
+            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, false, 0, -1, -1, 60.02102279663086D, 1871.06103515625D, null),
             "string-expr",
-            new ColumnAnalysis(ValueDesc.STRING_TYPE, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
+            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
         ),
         mmap1 ? 74304 : 0,
         1209,

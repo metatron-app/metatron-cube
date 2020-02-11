@@ -42,7 +42,7 @@ public class SchemaQueryRunnerFactory extends QueryRunnerFactory.Abstract<Schema
   }
 
   @Override
-  public QueryRunner<Schema> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Schema> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new QueryRunner<Schema>()
     {

@@ -174,7 +174,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return "shape(format=" + shapeFormat + ")";
+    return String.format("%s(format=%s)", SHAPE_DESC, shapeFormat);
   }
 
   @Override

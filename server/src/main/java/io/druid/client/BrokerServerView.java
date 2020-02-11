@@ -26,7 +26,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -566,7 +565,7 @@ public class BrokerServerView implements TimelineServerView
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.warn("Unknown query type, [%s]", query.getClass());
-      return new NoopQueryRunner<T>();
+      return NoopQueryRunner.instance();
     }
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
@@ -575,7 +574,7 @@ public class BrokerServerView implements TimelineServerView
 
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = indexMap.get(dataSourceName);
     if (timeline == null) {
-      return new NoopQueryRunner<T>();
+      return NoopQueryRunner.instance();
     }
 
     final List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
@@ -613,7 +612,7 @@ public class BrokerServerView implements TimelineServerView
     final ExecutorService exec = Execs.singleThreaded("BrokerLocalProcessor-%s");
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver, jsonMapper);
+    final Query<T> resolved = query.resolveQuery(resolver);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);

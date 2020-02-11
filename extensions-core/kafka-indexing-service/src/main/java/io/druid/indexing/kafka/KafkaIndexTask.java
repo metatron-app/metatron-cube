@@ -1355,7 +1355,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   {
     if (appenderator == null) {
       // Not yet initialized, no data yet, just return a noop runner.
-      return new NoopQueryRunner<>();
+      return NoopQueryRunner.instance();
     }
 
     return new QueryRunner<T>()

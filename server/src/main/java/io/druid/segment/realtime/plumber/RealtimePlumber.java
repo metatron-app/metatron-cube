@@ -33,13 +33,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.concurrent.ScheduledExecutors;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -51,6 +44,13 @@ import io.druid.concurrent.TaskThreadPriority;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.concurrent.ScheduledExecutors;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -373,7 +373,7 @@ public class RealtimePlumber implements Plumber
                                             final boolean hydrantDefinitelySwapped = input.hasSwapped();
 
                                             if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
-                                              return new NoopQueryRunner<T>();
+                                              return NoopQueryRunner.instance();
                                             }
 
                                             // Prevent the underlying segment from swapping when its being iterated

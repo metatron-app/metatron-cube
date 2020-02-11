@@ -53,6 +53,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
     this.geoJson = Preconditions.checkNotNull(geoJson, "geoJson can not be null");
   }
 
+  @Override
   @JsonProperty
   public String getField()
   {
@@ -137,12 +138,10 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   }
 
   @Override
-  public DimFilter toExpressionFilter()
+  public DimFilter toExprFilter(String columnName)
   {
-    final int index = field.indexOf(".");
-    final String columnName = field.substring(0, index);
     return new MathExprFilter(
-        "shape_contains(shape_fromGeoJson('" + geoJson + "'), shape_fromLatLon(\"" + columnName + "\"))"
+        String.format("shape_contains(shape_fromGeoJson('%s'), shape_fromLatLon(\"%s\"))", geoJson, columnName)
     );
   }
 

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -243,9 +242,9 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public StreamQuery resolveQuery(Supplier<RowResolver> resolver, ObjectMapper mapper)
+  public StreamQuery resolveQuery(Supplier<RowResolver> resolver)
   {
-    StreamQuery resolved = (StreamQuery) super.resolveQuery(resolver, mapper);
+    StreamQuery resolved = (StreamQuery) super.resolveQuery(resolver);
     if (!GuavaUtils.isNullOrEmpty(resolved.getLimitSpec().getWindowingSpecs())) {
       resolved = resolved.withLimitSpec(limitSpec.withResolver(resolver));
     }

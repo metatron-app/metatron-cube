@@ -791,7 +791,7 @@ public class QueryRunnerTestHelper
           {
             // this should be done at the most outer side (see server manager).. but who cares?
             final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
-            final QueryType resolved = (QueryType) query.resolveQuery(resolver, TestHelper.JSON_MAPPER);
+            final QueryType resolved = (QueryType) query.resolveQuery(resolver);
             final Future<Object> optimizer = factory.preFactoring(
                 resolved,
                 Arrays.asList(segment),
@@ -1044,7 +1044,7 @@ public class QueryRunnerTestHelper
     }
 
     @Override
-    public QueryRunner createRunner(Segment segment, Future optimizer)
+    public QueryRunner _createRunner(Segment segment, Future optimizer)
     {
       return null;
     }

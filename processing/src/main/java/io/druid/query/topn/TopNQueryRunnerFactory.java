@@ -72,7 +72,7 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<TopNResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     final TopNQueryEngine queryEngine = new TopNQueryEngine(computationBufferPool);
     return new QueryRunner<Result<TopNResultValue>>()

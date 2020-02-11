@@ -36,6 +36,7 @@ public interface LuceneIndexingStrategy
 {
   String TEXT_DESC = "text";
   String LATLON_POINT_DESC = "point";
+  String SHAPE_DESC = "shape";
 
   String getFieldName();
 

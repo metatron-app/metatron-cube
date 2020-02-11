@@ -54,7 +54,7 @@ public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   }
 
   @Override
-  public QueryRunner<Result<SearchResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<SearchResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SearchQueryRunner(segment, cache);
   }
