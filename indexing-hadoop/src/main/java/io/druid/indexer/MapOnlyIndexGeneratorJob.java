@@ -55,6 +55,7 @@ import org.joda.time.Interval;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -130,6 +131,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
   public static class MapOnlyIndexGeneratorMapper extends HadoopDruidIndexerMapper<BytesWritable, Text>
   {
     private HadoopTuningConfig tuningConfig;
+    private Map<String, Map<String, String>> columnDescs;
 
     private IndexMerger merger;
     private List<String> metricNames = Lists.newArrayList();
@@ -176,6 +178,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
     {
       super.setup(context);
       tuningConfig = config.getSchema().getTuningConfig();
+      columnDescs = tuningConfig.getIndexSpec().getColumnDescriptors();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
       for (AggregatorFactory aggregator : aggregators) {
@@ -420,6 +423,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
+          .withColumnDescs(columnDescs)
           .withRollup(granularitySpec.isRollup())
           .withNoQuery(true)
           .build();

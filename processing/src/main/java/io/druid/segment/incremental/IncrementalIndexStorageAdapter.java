@@ -165,7 +165,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   @Override
   public Map<String, String> getColumnDescriptor(String column)
   {
-    return null;
+    return index.getColumnDescriptor(column);
   }
 
   @Override

@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.ValueDesc;
 import io.druid.segment.SecondaryIndexingSpec;
 
 import java.util.Arrays;
@@ -72,11 +71,8 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
     return strategies;
   }
 
-  public List<LuceneIndexingStrategy> getStrategies(final String fieldName, final ValueDesc valueDesc)
+  public List<LuceneIndexingStrategy> getStrategies(final String fieldName)
   {
-    if (strategies.isEmpty() && valueDesc.isString()) {
-      return Arrays.<LuceneIndexingStrategy>asList(new TextIndexingStrategy(fieldName));
-    }
     return ImmutableList.copyOf(Iterables.transform(
         strategies, new Function<LuceneIndexingStrategy, LuceneIndexingStrategy>()
         {

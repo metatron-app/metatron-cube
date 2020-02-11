@@ -253,6 +253,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
         .withMetrics(aggs)
+        .withColumnDescs(tuningConfig.getIndexSpec().getColumnDescriptors())
         .withRollup(granularitySpec.isRollup())
         .withNoQuery(true)
         .build();

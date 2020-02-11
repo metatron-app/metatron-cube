@@ -100,7 +100,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     this.compression = compression;
 
     ValueDesc type = ValueDesc.of(serde.getTypeName());
-    List<LuceneIndexingStrategy> strategies = luceneSpec == null ? null : luceneSpec.getStrategies(columnName, type);
+    List<LuceneIndexingStrategy> strategies = luceneSpec == null ? null : luceneSpec.getStrategies(columnName);
     if (!GuavaUtils.isNullOrEmpty(strategies)) {
       fieldGenerators = Lists.newArrayList(Lists.transform(strategies, Lucenes.makeGenerator(type)));
       luceneIndexer = Lucenes.buildRamWriter(luceneSpec.getTextAnalyzer());

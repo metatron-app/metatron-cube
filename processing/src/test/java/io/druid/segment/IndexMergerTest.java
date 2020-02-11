@@ -2098,7 +2098,8 @@ public class IndexMergerTest
         new AggregatorFactory[]{new CountAggregatorFactory("count")},
         true,
         false,
-        false
+        false,
+        null
     );
 
     return new OnheapIncrementalIndex(schema, true, 1000);

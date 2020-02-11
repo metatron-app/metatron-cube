@@ -26,8 +26,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
 import io.druid.data.input.InputRow;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -66,6 +67,8 @@ public class Sink implements Iterable<FireHydrant>
   private final CopyOnWriteArrayList<FireHydrant> hydrants = new CopyOnWriteArrayList<FireHydrant>();
   private final LinkedHashSet<String> dimOrder = Sets.newLinkedHashSet();
   private final AtomicInteger numRowsExcludingCurrIndex = new AtomicInteger();
+
+  private final Map<String, Map<String, String>> columnDescs;
 
   @GuardedBy("hydrantLock")
   private boolean writable = true;
@@ -102,6 +105,7 @@ public class Sink implements Iterable<FireHydrant>
     this.maxRowsInMemory = tuningConfig.getMaxRowsInMemory();
     this.ignoreInvalidRows = tuningConfig.isIgnoreInvalidRows();
     this.reportParseExceptions = tuningConfig.isReportParseExceptions();
+    this.columnDescs = tuningConfig.getIndexSpec().getColumnDescriptors();
 
     int maxCount = -1;
     for (int i = 0; i < hydrants.size(); ++i) {
@@ -114,7 +118,7 @@ public class Sink implements Iterable<FireHydrant>
     }
     this.hydrants.addAll(hydrants);
 
-    makeNewCurrIndex(interval.getStartMillis(), schema);
+    makeNewCurrIndex(interval.getStartMillis());
   }
 
   public String getVersion()
@@ -198,7 +202,7 @@ public class Sink implements Iterable<FireHydrant>
    */
   public FireHydrant swap()
   {
-    return makeNewCurrIndex(interval.getStartMillis(), schema);
+    return makeNewCurrIndex(interval.getStartMillis());
   }
 
   public boolean swappable()
@@ -251,7 +255,7 @@ public class Sink implements Iterable<FireHydrant>
     }
   }
 
-  private FireHydrant makeNewCurrIndex(long minTimestamp, DataSchema schema)
+  private FireHydrant makeNewCurrIndex(long minTimestamp)
   {
     final GranularitySpec granularitySpec = schema.getGranularitySpec();
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
@@ -262,6 +266,7 @@ public class Sink implements Iterable<FireHydrant>
         .withDimensionFixed(schema.isDimensionFixed())
         .withMetrics(schema.getAggregators())
         .withRollup(granularitySpec.isRollup())
+        .withColumnDescs(columnDescs)
         .build();
 
     final FireHydrant old;

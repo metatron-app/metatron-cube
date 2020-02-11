@@ -20,6 +20,7 @@
 package io.druid.segment.incremental;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -53,6 +54,7 @@ public class IncrementalIndexSchema
   private final boolean rollup;
   private final boolean dimensionFixed;
   private final boolean noQuery;
+  private final Map<String, Map<String, String>> columnDescriptors;
 
   @JsonCreator
   public IncrementalIndexSchema(
@@ -63,7 +65,8 @@ public class IncrementalIndexSchema
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
       @JsonProperty("dimensionFixed") boolean dimensionFixed,
-      @JsonProperty("noQuery") boolean noQuery
+      @JsonProperty("noQuery") boolean noQuery,
+      @JsonProperty("columnDescriptors") Map<String, Map<String, String>> columnDescriptors
   )
   {
     this.minTimestamp = minTimestamp;
@@ -74,6 +77,7 @@ public class IncrementalIndexSchema
     this.rollup = rollup;
     this.dimensionFixed = dimensionFixed;
     this.noQuery = noQuery;
+    this.columnDescriptors = columnDescriptors;
   }
 
   @JsonProperty
@@ -124,6 +128,13 @@ public class IncrementalIndexSchema
     return noQuery;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, Map<String, String>> getColumnDescriptors()
+  {
+    return columnDescriptors;
+  }
+
   public List<String> getDimensionNames()
   {
     return dimensionsSpec.getDimensionNames();
@@ -171,7 +182,8 @@ public class IncrementalIndexSchema
         metrics,
         rollup,
         dimensionFixed,
-        noQuery
+        noQuery,
+        columnDescriptors
     );
   }
 
@@ -185,7 +197,8 @@ public class IncrementalIndexSchema
         metrics,
         rollup,
         dimensionFixed,
-        noQuery
+        noQuery,
+        columnDescriptors
     );
   }
 
@@ -199,7 +212,8 @@ public class IncrementalIndexSchema
         metrics,
         rollup,
         dimensionFixed,
-        noQuery
+        noQuery,
+        columnDescriptors
     );
   }
 
@@ -213,7 +227,8 @@ public class IncrementalIndexSchema
         metrics,
         rollup,
         dimensionFixed,
-        noQuery
+        noQuery,
+        columnDescriptors
     );
   }
 
@@ -242,6 +257,7 @@ public class IncrementalIndexSchema
     private boolean rollup;
     private boolean noQuery;
     private Map<String, ValueDesc> knownTypes;
+    private Map<String, Map<String, String>> columnDescs;
 
     public Builder()
     {
@@ -336,6 +352,12 @@ public class IncrementalIndexSchema
       return withMetrics(Arrays.asList(metrics));
     }
 
+    public Builder withColumnDescs(Map<String, Map<String, String>> columnDescs)
+    {
+      this.columnDescs = columnDescs;
+      return this;
+    }
+
     public Builder withRollup(boolean rollup)
     {
       this.rollup = rollup;
@@ -364,7 +386,8 @@ public class IncrementalIndexSchema
           metrics,
           rollup,
           dimensionFixed,
-          noQuery
+          noQuery,
+          columnDescs
       );
     }
   }

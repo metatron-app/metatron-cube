@@ -65,6 +65,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -148,6 +149,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   public static class ReducerMergingMapper extends HadoopDruidIndexerMapper<Text, Text>
   {
     private HadoopTuningConfig tuningConfig;
+    private Map<String, Map<String, String>> columnDescs;
 
     private IndexMerger merger;
 
@@ -200,6 +202,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       HadoopIngestionSpec schema = config.getSchema();
       DataSchema dataSchema = schema.getDataSchema();
       tuningConfig = schema.getTuningConfig();
+      columnDescs = tuningConfig.getIndexSpec().getColumnDescriptors();
 
       aggregators = dataSchema.getAggregators();
 
@@ -311,6 +314,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())
           .withMetrics(aggregators)
+          .withColumnDescs(columnDescs)
           .withRollup(granularitySpec.isRollup())
           .withNoQuery(true)
           .build();

@@ -25,7 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
@@ -226,6 +228,25 @@ public class IndexSpec
   private static CompressionStrategy dimensionCompressionStrategyForName(String compression)
   {
     return compression.equals(UNCOMPRESSED) ? null : CompressionStrategy.valueOf(compression.toUpperCase());
+  }
+
+  public Map<String, Map<String, String>> getColumnDescriptors()
+  {
+    if (GuavaUtils.isNullOrEmpty(secondaryIndexing)) {
+      return null;
+    }
+    Map<String, Map<String, String>> columnDescs = Maps.newHashMap();
+    for (Map.Entry<String, SecondaryIndexingSpec> entry : secondaryIndexing.entrySet()) {
+      if (entry.getValue() instanceof LuceneIndexingSpec) {
+        String columnName = entry.getKey();
+        LuceneIndexingSpec luceneSpec = (LuceneIndexingSpec) entry.getValue();
+        Map<String, String> columnDesc = LuceneIndexingSpec.getFieldDescriptors(luceneSpec.getStrategies(columnName));
+        if (!GuavaUtils.isNullOrEmpty(columnDesc)) {
+          columnDescs.put(columnName, columnDesc);
+        }
+      }
+    }
+    return columnDescs;
   }
 
   public IndexSpec asIntermediarySpec()

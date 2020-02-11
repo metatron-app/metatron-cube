@@ -196,6 +196,8 @@ public abstract class IncrementalIndex implements Closeable
   private final Map<String, ColumnCapabilities> columnCapabilities;
   private final List<DimDim> dimValues;
 
+  private final Map<String, Map<String, String>> columnDescriptors;
+
   // This is modified on add() in a critical section.
   private final ThreadLocal<Row> in = new ThreadLocal<>();
 
@@ -282,6 +284,7 @@ public abstract class IncrementalIndex implements Closeable
       }
       columnCapabilities.put(dimSchema.getName(), capabilities);
     }
+    columnDescriptors = indexSchema.getColumnDescriptors();
 
     // This should really be more generic
     List<SpatialDimensionSchema> spatialDimensions = dimensionsSpec.getSpatialDimensions();
@@ -733,6 +736,11 @@ public abstract class IncrementalIndex implements Closeable
   public ColumnCapabilities getCapabilities(String column)
   {
     return columnCapabilities.get(column);
+  }
+
+  public Map<String, String> getColumnDescriptor(String column)
+  {
+    return columnDescriptors == null ? null : columnDescriptors.get(column);
   }
 
   public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll()

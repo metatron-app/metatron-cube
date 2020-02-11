@@ -92,7 +92,8 @@ public class IncrementalIndexTest
         metrics,
         true,
         false,
-        false
+        false,
+        null
     );
 
     final List<Object[]> constructors = Lists.newArrayList();

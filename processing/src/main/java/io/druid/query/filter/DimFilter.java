@@ -179,7 +179,11 @@ public interface DimFilter extends Expression, Cacheable
         descriptor = adapter.getColumnDescriptor(columnName);
       }
       if (descriptor != null && fieldName != null) {
-        return toOptimizedFilter(descriptor, fieldName);
+        DimFilter optimized = toOptimizedFilter(descriptor, fieldName);
+        if (!segment.isIndexed() && optimized instanceof LuceneFilter) {
+          optimized = ((LuceneFilter) optimized).toExprFilter(columnName);
+        }
+        return optimized;
       }
       columnName = field;
       ColumnCapabilities capabilities = adapter.getColumnCapabilities(columnName);

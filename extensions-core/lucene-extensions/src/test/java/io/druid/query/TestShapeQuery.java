@@ -82,11 +82,11 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   @Test
   public void testSpatialFilter() throws Exception
   {
-    testSpatialFilter("seoul_roads", true);
-    testSpatialFilter("seoul_roads_incremental", false);
+    testSpatialFilter("seoul_roads");
+    testSpatialFilter("seoul_roads_incremental");
   }
 
-  private void testSpatialFilter(String dataSource, boolean testWithinFilter) throws Exception
+  private void testSpatialFilter(String dataSource) throws Exception
   {
     String[] columns = new String[]{"name", "geom"};
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
@@ -144,14 +144,12 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
-    if (testWithinFilter) {
-      builder.filters(new LuceneWithinFilter(
-          "geom",
-          ShapeFormat.WKT,
-          "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
-      ));
-      Assert.assertEquals(expected, runQuery(builder.streaming()));
-    }
+    builder.filters(new LuceneWithinFilter(
+        "geom",
+        ShapeFormat.WKT,
+        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
+    ));
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
@@ -170,11 +168,11 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   @Test
   public void testLatLonPloygonFilter()
   {
-    testLatLonPloygonFilter("estate", true);
-    testLatLonPloygonFilter("estate_incremental", false);
+    testLatLonPloygonFilter("estate");
+    testLatLonPloygonFilter("estate_incremental");
   }
 
-  private void testLatLonPloygonFilter(String dataSource, boolean testWithinFilter)
+  private void testLatLonPloygonFilter(String dataSource)
   {
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
@@ -199,14 +197,12 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
-    if (testWithinFilter) {
-      builder.filters(new LuceneWithinFilter(
-          "gis.coord",
-          ShapeFormat.WKT,
-          "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
-      ));
-      Assert.assertEquals(expected, runQuery(builder.streaming()));
-    }
+    builder.filters(new LuceneWithinFilter(
+        "gis.coord",
+        ShapeFormat.WKT,
+        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+    ));
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
   }
 
   @Test
