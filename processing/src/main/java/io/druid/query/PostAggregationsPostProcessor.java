@@ -110,31 +110,25 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;
     }
-    List<String> dimensionNames = Lists.newArrayList(schema.getDimensionNames());
-    List<String> metricNames = Lists.newArrayList(schema.getMetricNames());
-    List<ValueDesc> types = Lists.newArrayList(schema.getColumnTypes());
+    List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
+    List<ValueDesc> columnTypes = Lists.newArrayList(schema.getColumnTypes());
     for (PostAggregator postAggregator : postAggregations) {
       String outputName = postAggregator.getName();
       ValueDesc valueDesc = postAggregator.resolve(schema);
-      int index = dimensionNames.indexOf(outputName);
+      int index = columnNames.indexOf(outputName);
       if (index >= 0) {
-        types.set(index, valueDesc);
-        continue;
+        columnTypes.set(index, valueDesc);
+      } else {
+        columnNames.add(outputName);
+        columnTypes.add(valueDesc);
       }
-      index = metricNames.indexOf(outputName);
-      if (index >= 0) {
-        types.set(dimensionNames.size() + index, valueDesc);
-        continue;
-      }
-      metricNames.add(outputName);
-      types.add(valueDesc);
     }
-    return new Schema(dimensionNames, metricNames, types);
+    return new RowSignature.Simple(columnNames, columnTypes);
   }
 
   @Override

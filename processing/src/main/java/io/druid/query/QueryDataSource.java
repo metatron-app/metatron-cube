@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.query.select.Schema;
 
 import java.util.List;
 
@@ -34,7 +33,7 @@ public class QueryDataSource implements DataSource
     return new QueryDataSource(query);
   }
 
-  public static QueryDataSource of(Query query, Schema schema)
+  public static QueryDataSource of(Query query, RowSignature schema)
   {
     QueryDataSource dataSource = of(query);
     dataSource.setSchema(schema);
@@ -43,7 +42,7 @@ public class QueryDataSource implements DataSource
 
   @JsonProperty
   private final Query query;
-  private transient Schema schema;  //  result schema of the query
+  private transient RowSignature schema;  //  result schema of the query
 
   @JsonCreator
   public QueryDataSource(@JsonProperty("query") Query query)
@@ -63,12 +62,12 @@ public class QueryDataSource implements DataSource
     return query;
   }
 
-  public void setSchema(Schema schema)
+  public void setSchema(RowSignature schema)
   {
     this.schema = schema;
   }
 
-  public Schema getSchema()
+  public RowSignature getSchema()
   {
     return schema;
   }

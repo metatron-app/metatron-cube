@@ -26,23 +26,23 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.select.Schema;
 import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,7 +80,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return of(segment.asSchema(true), virtualColumns);
   }
 
-  public static RowResolver of(Schema schema, List<VirtualColumn> virtualColumns)
+  public static RowResolver of(RowSignature schema, List<VirtualColumn> virtualColumns)
   {
     return new RowResolver(schema, virtualColumns);
   }
@@ -150,7 +150,7 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     } else if (List.class.isAssignableFrom(clazz)) {
       return ValueDesc.STRUCT;
     } else if (IndexedID.class.isAssignableFrom(clazz)) {
-      IndexedID lookup = (IndexedID)object;
+      IndexedID lookup = (IndexedID) object;
       return lookup == null ? ValueDesc.INDEXED_ID : ValueDesc.ofIndexedId(lookup.elementType());
     } else if (clazz.isArray()) {
       return ValueDesc.ofArray(toValueType(clazz.getComponentType(), ValueDesc.UNKNOWN));
@@ -164,12 +164,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return ValueDesc.UNKNOWN;
   }
 
-  private final Schema schema;
+  private final RowSignature schema;
   private final VirtualColumns virtualColumns;
 
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
-  private RowResolver(Schema schema, List<VirtualColumn> virtualColumns)
+  private RowResolver(RowSignature schema, List<VirtualColumn> virtualColumns)
   {
     this.schema = schema;
     this.virtualColumns = VirtualColumns.valueOf(virtualColumns, schema);
@@ -197,19 +197,9 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return dimensions;
   }
 
-  public List<ValueDesc> getDimensionTypes()
-  {
-    return schema.getDimensionTypes();
-  }
-
   public List<String> getMetricNames()
   {
     return schema.getMetricNames();
-  }
-
-  public List<ValueDesc> getMetricTypes()
-  {
-    return schema.getMetricTypes();
   }
 
   public List<String> getColumnNames()
@@ -229,22 +219,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   public Map<String, AggregatorFactory> getAggregators()
   {
-    return schema.getAggregators();
+    return schema instanceof Schema ? ((Schema) schema).getAggregators() : Collections.emptyMap();
   }
 
   public VirtualColumns getVirtualColumns()
   {
     return virtualColumns;
-  }
-
-  public ColumnCapabilities getColumnCapabilities(String column)
-  {
-    return schema.getColumnCapability(column);
-  }
-
-  public Map<String, String> getDescriptor(String column)
-  {
-    return schema.getColumnDescriptor(column);
   }
 
   public VirtualColumn getVirtualColumn(String columnName)

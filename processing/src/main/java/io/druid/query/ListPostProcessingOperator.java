@@ -108,7 +108,7 @@ public class ListPostProcessingOperator<T> extends UnionSupport<T>
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     for (PostProcessingOperator child : processors) {
       if (child instanceof Schema.SchemaResolving) {

@@ -1109,7 +1109,7 @@ public class Filters
 
   public static TypeResolver asTypeResolver(final BitmapIndexSelector selector)
   {
-    return new TypeResolver.Abstract()
+    return new TypeResolver()
     {
       @Override
       public ValueDesc resolve(String column)

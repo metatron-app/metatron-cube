@@ -146,7 +146,7 @@ public class Parser
   // this can be used whenever return type is not important
   public static Expr parse(String in)
   {
-    return parse(in, functions, null, TypeResolver.UNKNOWN, true);
+    return parse(in, functions, null, io.druid.data.TypeResolver.UNKNOWN, true);
   }
 
   public static Expr parse(String in, TypeResolver resolver)
@@ -161,7 +161,7 @@ public class Parser
 
   public static Expr parse(String in, boolean flatten)
   {
-    return parse(in, functions, null, TypeResolver.UNKNOWN, flatten);
+    return parse(in, functions, null, io.druid.data.TypeResolver.UNKNOWN, flatten);
   }
 
   private static Expr parse(
@@ -509,7 +509,7 @@ public class Parser
 
   public static TypeResolver withTypeMap(final Map<String, ValueDesc> bindings)
   {
-    return new TypeResolver.Abstract()
+    return new TypeResolver()
     {
       @Override
       public ValueDesc resolve(String name)
@@ -522,7 +522,7 @@ public class Parser
 
   public static TypeResolver withTypes(final TypeResolver bindings)
   {
-    return new TypeResolver.Abstract()
+    return new TypeResolver()
     {
       @Override
       public ValueDesc resolve(String name)

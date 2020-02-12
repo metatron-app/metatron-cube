@@ -40,7 +40,6 @@ import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.kmeans.KMeansTaggingQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
@@ -264,6 +263,6 @@ public interface Query<T> extends QueryContextKeys
   // schema for sub-query handling
   interface SchemaProvider
   {
-    Schema schema(QuerySegmentWalker segmentWalker);
+    RowSignature schema(QuerySegmentWalker segmentWalker);
   }
 }

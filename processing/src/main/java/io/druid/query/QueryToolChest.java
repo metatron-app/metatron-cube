@@ -22,21 +22,21 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.groupby.GroupByQueryHelper;
-import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.Cursor;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.LogicalSegment;
@@ -361,13 +361,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       Query subQuery = dataSource.getQuery();
       Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
 
-      Schema schema = dataSource.getSchema();
+      RowSignature schema = dataSource.getSchema();
       LOG.info(
           "Accumulating into intermediate index with dimensions [%s] and metrics [%s]",
-          schema.dimensionAndTypesString(), schema.metricAndTypesString()
+          schema.dimensionAndTypes(), schema.metricAndTypes()
       );
       int maxResult = config.getMaxResults(query);
-      IncrementalIndex index = new OnheapIncrementalIndex(schema.asRelaySchema(), false, true, false, maxResult);
+      IncrementalIndex index = new OnheapIncrementalIndex(IncrementalIndexSchema.from(schema), false, true, false, maxResult);
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
           "Accumulated sub-query into index in %,d msec.. total %,d rows",

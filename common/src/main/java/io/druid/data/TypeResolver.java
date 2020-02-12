@@ -29,23 +29,17 @@ public interface TypeResolver
 {
   ValueDesc resolve(String column);
 
-  ValueDesc resolve(String column, ValueDesc defaultType);
+  default ValueDesc resolve(String column, ValueDesc defaultType)
+  {
+    return Optional.fromNullable(resolve(column)).or(defaultType);
+  }
 
   interface Resolvable
   {
     ValueDesc resolve(TypeResolver bindings);
   }
 
-  abstract class Abstract implements TypeResolver
-  {
-    @Override
-    public final ValueDesc resolve(String column, ValueDesc defaultType)
-    {
-      return Optional.fromNullable(resolve(column)).or(defaultType);
-    }
-  }
-
-  class WithMap extends Abstract
+  class WithMap implements TypeResolver
   {
     final Map<String, ValueDesc> mapping;
 
@@ -118,7 +112,7 @@ public interface TypeResolver
     }
   }
 
-  TypeResolver UNKNOWN = new Abstract()
+  TypeResolver UNKNOWN = new TypeResolver()
   {
     @Override
     public ValueDesc resolve(String column)
@@ -127,7 +121,7 @@ public interface TypeResolver
     }
   };
 
-  TypeResolver STRING = new Abstract()
+  TypeResolver STRING = new TypeResolver()
   {
     @Override
     public ValueDesc resolve(String column)

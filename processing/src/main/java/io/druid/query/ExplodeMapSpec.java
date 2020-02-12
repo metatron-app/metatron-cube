@@ -29,7 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.select.Schema;
 
 import java.util.List;
 import java.util.Map;
@@ -146,18 +145,22 @@ public class ExplodeMapSpec implements LateralViewSpec
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     ValueDesc merged = null;
     for (String column : columns) {
       merged = ValueDesc.toCommonType(merged, schema.resolve(column));
     }
+    List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
+    List<ValueDesc> columnTypes = Lists.newArrayList(schema.getColumnTypes());
     if (keyAlias != null) {
-      schema = schema.appendMetrics(keyAlias, ValueDesc.STRING);
+      columnNames.add(keyAlias);
+      columnTypes.add(ValueDesc.STRING);
     }
     if (valueAlias != null) {
-      schema = schema.appendMetrics(valueAlias, merged);
+      columnNames.add(valueAlias);
+      columnTypes.add(merged);
     }
-    return schema;
+    return new RowSignature.Simple(columnNames, columnTypes);
   }
 }

@@ -22,6 +22,7 @@ package io.druid.common.guava;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -161,6 +162,11 @@ public class GuavaUtils
       result.add(Pair.of(as.get(i), bs.get(i)));
     }
     return result;
+  }
+
+  public static <A, B> Pair<List<A>, List<B>> unzip(Map<A, B> map)
+  {
+    return Pair.of(ImmutableList.copyOf(map.keySet()), ImmutableList.copyOf(map.values()));
   }
 
   public static <T> List<Pair<T, Integer>> zipWithIndex(Iterable<T> as)

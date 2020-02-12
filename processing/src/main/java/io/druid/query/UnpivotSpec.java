@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
-import io.druid.query.select.Schema;
 import io.druid.segment.StringArray;
 import org.apache.commons.lang.StringUtils;
 
@@ -229,7 +228,7 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     throw new UnsupportedOperationException("todo");
   }

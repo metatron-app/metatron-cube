@@ -397,15 +397,15 @@ public class QueryUtils
 
   public static RowResolver toResolver(Query query, QuerySegmentWalker segmentWalker)
   {
-    final Schema schema = retrieveSchema(query, segmentWalker);
+    final RowSignature schema = retrieveSchema(query, segmentWalker);
     return RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
   }
 
-  public static Schema retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  public static RowSignature retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof QueryDataSource) {
-      Schema schema = ((QueryDataSource) dataSource).getSchema();
+      RowSignature schema = ((QueryDataSource) dataSource).getSchema();
       return Preconditions.checkNotNull(
           schema, "schema of subquery %s is null", ((QueryDataSource) dataSource).getQuery()
       );
@@ -413,13 +413,10 @@ public class QueryUtils
     if (dataSource instanceof ViewDataSource) {
       dataSource = TableDataSource.of(((ViewDataSource) dataSource).getName());
     }
-    SchemaQuery schemaQuery = SchemaQuery.of(
-        Iterables.getOnlyElement(dataSource.getNames()), query
-    );
-    return Sequences.only(
-        QueryRunners.run(schemaQuery.withOverriddenContext(BaseQuery.copyContextForMeta(query)), segmentWalker),
-        Schema.EMPTY
-    );
+    SchemaQuery schemaQuery = SchemaQuery.of(Iterables.getOnlyElement(dataSource.getNames()), query)
+                                         .withOverriddenContext(BaseQuery.copyContextForMeta(query));
+
+    return Sequences.only(QueryRunners.run(schemaQuery, segmentWalker), Schema.EMPTY);
   }
 
   // nasty..

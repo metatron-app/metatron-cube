@@ -47,7 +47,6 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.AggregationQueryBinaryFn;
-import io.druid.query.select.Schema;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
 
@@ -215,7 +214,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      Schema schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
+      RowSignature schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
       sequence = new BulkRowSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()));
     }
     return super.serializeSequence(query, sequence, segmentWalker);

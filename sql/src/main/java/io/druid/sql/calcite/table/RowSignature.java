@@ -33,7 +33,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.math.expr.ExprType;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
-import io.druid.query.select.Schema;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
@@ -255,26 +254,22 @@ public class RowSignature implements TypeResolver
     return columnNames != null ? columnNames.equals(that.columnNames) : that.columnNames == null;
   }
 
-  public Schema asSchema()
+  public io.druid.query.RowSignature asSchema()
   {
-    List<String> dimensions = Lists.newArrayList();
-    List<String> metrics = Lists.newArrayList();
-    List<ValueDesc> dimensionTypes = Lists.newArrayList();
-    List<ValueDesc> metricTypes = Lists.newArrayList();
+    List<String> newColumnNames = Lists.newArrayList();
+    List<ValueDesc> newColumnTypes = Lists.newArrayList();
     for (String columnName : columnNames) {
       if (columnName.equals(Row.TIME_COLUMN_NAME)) {
         continue;
       }
       ValueDesc columnType = columnTypes.get(columnName);
-      if (columnType.isStringOrDimension()) {
-        dimensions.add(columnName);
-        dimensionTypes.add(columnType.isDimension() ? columnType.subElement() : columnType);
-      } else {
-        metrics.add(columnName);
-        metricTypes.add(columnType);
+      if (columnType.isDimension()) {
+        columnType = columnType.subElement();
       }
+      newColumnNames.add(columnName);
+      newColumnTypes.add(columnType);
     }
-    return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes));
+    return new io.druid.query.RowSignature.Simple(newColumnNames, newColumnTypes);
   }
 
   public String asTypeString()

@@ -24,11 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.select.Schema;
 
 import java.util.List;
@@ -94,26 +94,20 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return schema;
     }
-    List<String> dimensionNames = Lists.newArrayList(schema.getDimensionNames());
-    List<String> metricNames = Lists.newArrayList(schema.getMetricNames());
+    List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
     for (Map.Entry<String, String> entry : mapping.entrySet()) {
       final String from = entry.getValue();
       final String to = entry.getKey();
-      int findex = dimensionNames.indexOf(from);
+      int findex = columnNames.indexOf(from);
       if (findex >= 0) {
-        dimensionNames.set(findex, to);
-        continue;
-      }
-      findex = metricNames.indexOf(from);
-      if (findex >= 0) {
-        metricNames.set(findex, to);
+        columnNames.set(findex, to);
       }
     }
-    return new Schema(dimensionNames, metricNames, schema.getColumnTypes());
+    return new RowSignature.Simple(columnNames, schema.getColumnTypes());
   }
 }

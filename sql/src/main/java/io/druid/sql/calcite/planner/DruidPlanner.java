@@ -321,7 +321,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     if (!Iterables.elementsEqual(rowSignature.getRowOrder(), mappedColumns)) {
       mapping = GuavaUtils.zipAsMap(rowSignature.getRowOrder(), mappedColumns);
     }
-    IncrementalIndexSchema schema = rowSignature.asSchema().asRelaySchema(mapping);
+    IncrementalIndexSchema schema = IncrementalIndexSchema.from(rowSignature.asSchema(), mapping);
 
     Map<String, Object> context = Maps.newHashMap();
     context.put(Query.FORWARD_URL, LOCAL_TEMP_URL);

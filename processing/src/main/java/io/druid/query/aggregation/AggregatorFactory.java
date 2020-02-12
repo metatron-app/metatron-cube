@@ -366,21 +366,11 @@ public abstract class AggregatorFactory implements Cacheable
     return toCombiner(aggregators).toArray(new Combiner[0]);
   }
 
-  public static List<AggregatorFactory> toRelay(Iterable<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory> toRelay(Iterable<Pair<String, ValueDesc>> metricAndTypes)
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
-    for (AggregatorFactory aggregator : aggregators) {
-      AggregatorFactory combiner = aggregator.getCombiningFactory();
-      relay.add(new RelayAggregatorFactory(combiner.getName(), combiner.getOutputType()));
-    }
-    return relay;
-  }
-
-  public static List<AggregatorFactory> toRelay(List<String> names, List<ValueDesc> types)
-  {
-    List<AggregatorFactory> relay = Lists.newArrayList();
-    for (int i = 0; i < names.size(); i++) {
-      relay.add(new RelayAggregatorFactory(names.get(i), types.get(i)));
+    for (Pair<String, ValueDesc> pair : metricAndTypes) {
+      relay.add(new RelayAggregatorFactory(pair.lhs, pair.rhs));
     }
     return relay;
   }

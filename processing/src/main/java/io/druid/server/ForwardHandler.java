@@ -108,7 +108,7 @@ public class ForwardHandler implements ForwardConstants
     if (Formatters.isIndexFormat(forwardContext)) {
       Object indexSchema = forwardContext.get(SCHEMA);
       if (indexSchema == null) {
-        IncrementalIndexSchema schema = Queries.relaySchema(query, segmentWalker).asRelaySchema();
+        IncrementalIndexSchema schema = IncrementalIndexSchema.from(Queries.relaySchema(query, segmentWalker));
         LOG.info(
             "Resolved index schema.. dimensions: %s, metrics: %s",
             schema.getDimensionsSpec().getDimensionNames(),

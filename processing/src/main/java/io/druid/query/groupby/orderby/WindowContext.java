@@ -27,12 +27,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.IAE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -48,7 +48,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class WindowContext extends TypeResolver.Abstract implements Expr.WindowContext, Function<String, ValueDesc>
+public class WindowContext implements TypeResolver, Expr.WindowContext, Function<String, ValueDesc>
 {
   public static final WindowContext UNKNOWN = new WindowContext(
       Arrays.<String>asList(),

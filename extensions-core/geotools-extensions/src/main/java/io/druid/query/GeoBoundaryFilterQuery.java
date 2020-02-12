@@ -40,7 +40,6 @@ import io.druid.query.Query.RewritingQuery;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.select.Schema;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.lucene.SpatialOperations;
@@ -274,6 +273,25 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @Override
+  public GeoBoundaryFilterQuery withId(String id)
+  {
+    Preconditions.checkNotNull(id, "'id' should not be null");
+    return new GeoBoundaryFilterQuery(
+        (ArrayOutputSupport<?>) query.withId(id),
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        (ArrayOutputSupport<?>) boundary.withId(id),
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        computeOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id))
+    );
+  }
+
+  @Override
   public GeoBoundaryFilterQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     throw new UnsupportedOperationException("withQuerySegmentSpec");
@@ -286,12 +304,12 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Schema schema(QuerySegmentWalker segmentWalker)
+  public RowSignature schema(QuerySegmentWalker segmentWalker)
   {
     final List<String> names = Lists.newArrayList();
     final List<ValueDesc> types = Lists.newArrayList();
 
-    final Schema querySchema = Queries.relaySchema(query, segmentWalker);
+    final RowSignature querySchema = Queries.relaySchema(query, segmentWalker);
     final List<String> queryColumns = querySchema.getColumnNames();
     final List<ValueDesc> queryTypes = querySchema.getColumnTypes();
     for (String column : query.estimatedOutputColumns()) {
@@ -302,7 +320,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       }
     }
     if (!boundaryJoin.isEmpty()) {
-      final Schema boundarySchema = Queries.relaySchema(boundary, segmentWalker);
+      final RowSignature boundarySchema = Queries.relaySchema(boundary, segmentWalker);
       final List<String> boundayColumns = boundarySchema.getColumnNames();
       final List<ValueDesc> boundayTypes = boundarySchema.getColumnTypes();
       for (String column : boundaryJoin) {
@@ -313,7 +331,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         }
       }
     }
-    return Schema.of(GuavaUtils.zipAsMap(names, types));
+    return new RowSignature.Simple(names, types);
   }
 
   @Override

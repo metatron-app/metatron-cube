@@ -151,10 +151,10 @@ public class Queries
     return convert(object, jsonMapper, Query.class);
   }
 
-  public static Schema relaySchema(Query query, QuerySegmentWalker segmentWalker)
+  public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
     ObjectMapper mapper = segmentWalker.getObjectMapper();
-    Schema schema = _relaySchema(query, segmentWalker);
+    RowSignature schema = _relaySchema(query, segmentWalker);
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
       if (lateralView != null) {
@@ -168,9 +168,9 @@ public class Queries
     return Preconditions.checkNotNull(schema);
   }
 
-  private static Schema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  private static RowSignature _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
-    Schema schema = null;
+    RowSignature schema = null;
     if (subQuery.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
       schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
@@ -191,12 +191,10 @@ public class Queries
       );
       return schema;
     }
-    List<String> dimensionNames = Lists.newArrayList();
-    List<String> metricNames = Lists.newArrayList();
-    List<ValueDesc> dimensionTypes = Lists.newArrayList();
-    List<ValueDesc> metricTypes = Lists.newArrayList();
+    List<String> columnNames = Lists.newArrayList();
+    List<ValueDesc> columnTypes = Lists.newArrayList();
 
-    Schema resolver = Schema.EMPTY.resolve(subQuery, false);
+    RowSignature resolver = Schema.EMPTY.resolve(subQuery, false);
     if (subQuery instanceof Query.DimensionSupport) {
       List<String> dimensions = DimensionSpecs.toOutputNames(((Query.DimensionSupport<?>) subQuery).getDimensions());
       List<ValueDesc> types = resolver.tryColumnTypes(dimensions);
@@ -204,8 +202,8 @@ public class Queries
         resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
         types = resolver.tryColumnTypes(dimensions);
       }
-      dimensionNames.addAll(dimensions);
-      dimensionTypes.addAll(types);
+      columnNames.addAll(dimensions);
+      columnTypes.addAll(types);
     }
     if (subQuery instanceof Query.MetricSupport) {
       List<String> metrics = ((Query.MetricSupport<?>) subQuery).getMetrics();
@@ -214,8 +212,8 @@ public class Queries
         resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
         types = resolver.tryColumnTypes(metrics);
       }
-      metricNames.addAll(metrics);
-      metricTypes.addAll(Preconditions.checkNotNull(types));
+      columnNames.addAll(metrics);
+      columnTypes.addAll(Preconditions.checkNotNull(types));
     } else if (subQuery instanceof Query.AggregationsSupport) {
       // todo: cannot handle lateral view, windowing, post-processing, etc. should throw exception ?
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
@@ -227,23 +225,19 @@ public class Queries
         resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
         types = resolver.tryColumnTypes(metrics);
       }
-      metricNames.addAll(metrics);
-      metricTypes.addAll(Preconditions.checkNotNull(types));
+      columnNames.addAll(metrics);
+      columnTypes.addAll(Preconditions.checkNotNull(types));
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List queries = joinQuery.getQueries();
       List<String> aliases = joinQuery.getPrefixAliases();
       Set<String> uniqueNames = Sets.newHashSet();
       for (int i = 0; i < queries.size(); i++) {
-        final Schema element = relaySchema((Query) queries.get(i), segmentWalker);
+        final RowSignature element = relaySchema((Query) queries.get(i), segmentWalker);
         final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-        for (Pair<String, ValueDesc> pair : element.dimensionAndTypes()) {
-          dimensionNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
-          dimensionTypes.add(pair.rhs);
-        }
-        for (Pair<String, ValueDesc> pair : element.metricAndTypes()) {
-          metricNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
-          metricTypes.add(pair.rhs);
+        for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
+          columnNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
+          columnTypes.add(pair.rhs);
         }
       }
     } else {
@@ -252,11 +246,8 @@ public class Queries
           String.format("Cannot extract schema from query type [%s]", subQuery.getType())
       );
     }
-    LOG.debug(
-        "%s resolved schema : %s%s + %s%s",
-        subQuery.getDataSource().getNames(), dimensionNames, dimensionTypes, metricNames, metricTypes
-    );
-    return new Schema(dimensionNames, metricNames, GuavaUtils.concat(dimensionTypes, metricTypes));
+    LOG.debug("%s resolved schema : %s%s", subQuery.getDataSource().getNames(), columnNames, columnTypes);
+    return new RowSignature.Simple(columnNames, columnTypes);
   }
 
   // keep the same convention with calcite (see SqlValidatorUtil.addFields)

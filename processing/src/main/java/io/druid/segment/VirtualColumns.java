@@ -25,17 +25,17 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.select.Schema;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -91,7 +91,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return map;
   }
 
-  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns, Schema schema)
+  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns, RowSignature schema)
   {
     Map<String, VirtualColumn> mapping = Maps.newLinkedHashMap();
     for (VirtualColumn vc : virtualColumns) {

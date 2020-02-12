@@ -42,7 +42,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator.UnionSupport;
-import io.druid.query.select.Schema;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
@@ -81,10 +80,10 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       QuerySegmentWalker segmentWalker
   )
   {
-    return union(queries).withSchema(Suppliers.memoize(new Supplier<Schema>()
+    return union(queries).withSchema(Suppliers.memoize(new Supplier<RowSignature>()
     {
       @Override
-      public Schema get()
+      public RowSignature get()
       {
         return provider.schema(segmentWalker);
       }
@@ -126,7 +125,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   private final int limit;
   private final int parallelism;
 
-  private transient Supplier<Schema> schema;  //  optional schema provider
+  private transient Supplier<RowSignature> schema;  //  optional schema provider
 
   @JsonCreator
   public UnionAllQuery(
@@ -146,7 +145,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     this.parallelism = parallelism;
   }
 
-  public Schema getSchema()
+  public RowSignature getSchema()
   {
     return schema == null ? null : schema.get();
   }
@@ -262,7 +261,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     return newInstance(query, queries, parallelism, getContext());
   }
 
-  public UnionAllQuery withSchema(Supplier<Schema> schema)
+  public UnionAllQuery withSchema(Supplier<RowSignature> schema)
   {
     this.schema = schema;
     return this;
@@ -271,7 +270,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   @SuppressWarnings("unchecked")
   public Sequence<Row> asRow(Sequence sequence)
   {
-    Schema schema = getSchema();
+    RowSignature schema = getSchema();
     if (schema == null) {
       return Sequences.map(sequence, GuavaUtils.<Object, Row>caster());
     }

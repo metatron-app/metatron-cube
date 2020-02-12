@@ -27,8 +27,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
-import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -46,7 +46,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private final List<WindowingSpec> windowingSpecs;
   private final WindowContext context;
 
-  public WindowingProcessor(OrderingProcessor processor, Schema schema, List<WindowingSpec> windowingSpecs)
+  public WindowingProcessor(OrderingProcessor processor, RowSignature schema, List<WindowingSpec> windowingSpecs)
   {
     this.processor = processor;
     this.windowingSpecs = windowingSpecs;

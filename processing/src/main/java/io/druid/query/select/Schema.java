@@ -34,11 +34,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.granularity.Granularities;
 import io.druid.java.util.common.Pair;
-import io.druid.math.expr.ExprType;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -47,12 +43,10 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -68,7 +62,7 @@ public class Schema implements TypeResolver, RowSignature
   {
     List<String> resolve(List<String> schema);
 
-    Schema resolve(Query query, Schema schema, ObjectMapper mapper);
+    RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper);
   }
 
   public static final Schema EMPTY = new Schema(
@@ -139,11 +133,13 @@ public class Schema implements TypeResolver, RowSignature
   }
 
   @JsonProperty
+  @Override
   public List<String> getDimensionNames()
   {
     return dimensionNames;
   }
 
+  @Override
   public List<ValueDesc> getDimensionTypes()
   {
     return columnTypes.subList(0, dimensionNames.size());
@@ -155,6 +151,7 @@ public class Schema implements TypeResolver, RowSignature
     return metricNames;
   }
 
+  @Override
   public List<ValueDesc> getMetricTypes()
   {
     return columnTypes.subList(dimensionNames.size(), columnTypes.size());
@@ -199,16 +196,13 @@ public class Schema implements TypeResolver, RowSignature
     return columnTypes.size();
   }
 
-  public Iterable<Pair<String, ValueDesc>> columnAndTypes()
-  {
-    return GuavaUtils.zip(getColumnNames(), columnTypes);
-  }
-
+  @Override
   public Iterable<Pair<String, ValueDesc>> dimensionAndTypes()
   {
     return GuavaUtils.zip(dimensionNames, columnTypes.subList(0, dimensionNames.size()));
   }
 
+  @Override
   public Iterable<Pair<String, ValueDesc>> metricAndTypes()
   {
     return GuavaUtils.zip(metricNames, columnTypes.subList(dimensionNames.size(), columnTypes.size()));
@@ -227,18 +221,6 @@ public class Schema implements TypeResolver, RowSignature
   public String columnAndTypesString()
   {
     return toString(columnAndTypes());
-  }
-
-  public String asTypeString()
-  {
-    final StringBuilder s = new StringBuilder();
-    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
-      if (s.length() > 0) {
-        s.append(',');
-      }
-      s.append(pair.lhs).append(':').append(ExprType.toTypeString(pair.rhs));
-    }
-    return s.toString();
   }
 
   private String toString(Iterable<Pair<String, ValueDesc>> nameAndTypes)
@@ -271,52 +253,6 @@ public class Schema implements TypeResolver, RowSignature
   {
     final ValueDesc resolved = resolve(column);
     return resolved == null ? defaultType : resolved;
-  }
-
-  public ColumnCapabilities getColumnCapability(String column)
-  {
-    return capabilities.get(column);
-  }
-
-  public Map<String, String> getColumnDescriptor(String column)
-  {
-    return descriptors.get(column);
-  }
-
-  public Schema withDimensions(List<String> dimensionNames, List<ValueDesc> dimensionTypes)
-  {
-    return new Schema(
-        dimensionNames,
-        metricNames,
-        GuavaUtils.<ValueDesc>concat(dimensionTypes, getMetricTypes())
-    );
-  }
-
-  public Schema withMetrics(List<String> metricNames, List<ValueDesc> metricTypes)
-  {
-    return new Schema(
-        dimensionNames,
-        metricNames,
-        GuavaUtils.concat(getDimensionTypes(), metricTypes)
-    );
-  }
-
-  public Schema appendMetrics(String metricName, ValueDesc metricType)
-  {
-    return new Schema(
-        dimensionNames,
-        GuavaUtils.concat(getMetricNames(), metricName),
-        GuavaUtils.concat(getColumnTypes(), metricType)
-    );
-  }
-
-  public Schema appendMetrics(List<String> metricNames, List<ValueDesc> metricTypes)
-  {
-    return new Schema(
-        dimensionNames,
-        GuavaUtils.concat(getMetricNames(), metricNames),
-        GuavaUtils.concat(getColumnTypes(), metricTypes)
-    );
   }
 
   public Schema merge(Schema other)
@@ -520,44 +456,5 @@ public class Schema implements TypeResolver, RowSignature
            ", descriptors=" + descriptors +
            ", capabilities=" + capabilities +
            '}';
-  }
-
-  public IncrementalIndexSchema asRelaySchema()
-  {
-    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
-    return new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(Granularities.ALL)
-        .withDimensions(getDimensionNames(), getDimensionTypes())
-        .withMetrics(AggregatorFactory.toRelay(getMetricNames(), getMetricTypes()))
-        .withDimensionFixed(true)
-        .withRollup(false)
-        .build();
-  }
-
-  // input to output mapping
-  public IncrementalIndexSchema asRelaySchema(Map<String, String> mapping)
-  {
-    if (GuavaUtils.isNullOrEmpty(mapping)) {
-      return asRelaySchema();
-    }
-    List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
-    for (Pair<String, ValueDesc> pair : dimensionAndTypes()) {
-      ValueType type = pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type();
-      dimensionSchemas.add(DimensionSchema.of(mapping.get(pair.lhs), pair.lhs, type));
-    }
-    List<AggregatorFactory> merics = Lists.newArrayList();
-    for (Pair<String, ValueDesc> pair : metricAndTypes()) {
-      merics.add(new RelayAggregatorFactory(mapping.get(pair.lhs), pair.lhs, pair.rhs.typeName()));
-    }
-    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
-    return new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(Granularities.ALL)
-        .withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
-        .withMetrics(merics)
-        .withDimensionFixed(true)
-        .withRollup(false)
-        .build();
   }
 }

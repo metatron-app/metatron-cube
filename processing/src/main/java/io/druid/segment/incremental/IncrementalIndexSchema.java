@@ -35,7 +35,10 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.Pair;
+import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.select.Schema;
 
 import java.util.Arrays;
@@ -46,6 +49,40 @@ import java.util.Map;
  */
 public class IncrementalIndexSchema
 {
+  public static IncrementalIndexSchema from(RowSignature signature)
+  {
+    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
+    return new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(Granularities.ALL)
+        .withDimensionAndTypes(signature.dimensionAndTypes())
+        .withMetricAndTypes(signature.metricAndTypes())
+        .withDimensionFixed(true)
+        .withRollup(false)
+        .build();
+  }
+
+  public static IncrementalIndexSchema from(RowSignature signature, Map<String, String> mapping)
+  {
+    List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
+    for (Pair<String, ValueDesc> pair : signature.dimensionAndTypes()) {
+      ValueType type = pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type();
+      dimensionSchemas.add(DimensionSchema.of(mapping.get(pair.lhs), pair.lhs, type));
+    }
+    List<AggregatorFactory> merics = Lists.newArrayList();
+    for (Pair<String, ValueDesc> pair : signature.columnAndTypes()) {
+      merics.add(new RelayAggregatorFactory(mapping.get(pair.lhs), pair.lhs, pair.rhs.typeName()));
+    }
+    return new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(Granularities.ALL)
+        .withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
+        .withMetrics(merics)
+        .withDimensionFixed(true)
+        .withRollup(false)
+        .build();
+  }
+
   private final long minTimestamp;
   private final Granularity gran;
   private final Granularity segmentGran;
@@ -310,25 +347,21 @@ public class IncrementalIndexSchema
       return this;
     }
 
-    public Builder withDimensions(List<String> dimensions, List<ValueDesc> dimensionTypes)
+    public Builder withDimensionAndTypes(Iterable<Pair<String, ValueDesc>> dimensionAndTypes)
     {
       List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
-      for (int i = 0; i < dimensions.size(); i++) {
-        ValueDesc valueDesc = dimensionTypes.get(i);
+      for (Pair<String, ValueDesc> pair : dimensionAndTypes) {
         dimensionSchemas.add(
-            DimensionSchema.of(
-                dimensions.get(i),
-                valueDesc.isStringOrDimension() ? ValueType.STRING : valueDesc.type()
-            )
+            DimensionSchema.of(pair.lhs, pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type())
         );
       }
       this.dimensionsSpec = new DimensionsSpec(dimensionSchemas, null, null);
       return this;
     }
 
-    public Builder withMetrics(List<String> columns, List<ValueDesc> type)
+    public Builder withMetricAndTypes(Iterable<Pair<String, ValueDesc>> metricAndTypes)
     {
-      return withMetrics(AggregatorFactory.toRelay(columns, type));
+      return withMetrics(AggregatorFactory.toRelay(metricAndTypes));
     }
 
     public Builder withMetrics(List<AggregatorFactory> metrics)

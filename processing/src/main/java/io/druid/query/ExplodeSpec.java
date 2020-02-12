@@ -31,7 +31,6 @@ import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
-import io.druid.query.select.Schema;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -171,7 +170,7 @@ public class ExplodeSpec implements LateralViewSpec
   }
 
   @Override
-  public Schema resolve(Query query, Schema schema, ObjectMapper mapper)
+  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     List<String> dimensionNames = schema.getDimensionNames();
     int index = dimensionNames.indexOf(column);
